@@ -43,4 +43,10 @@ pub enum DkgError {
 
     #[error("Provided epoch is malformed")]
     MalformedEpoch,
+
+    #[error("Provided node is not a valid parent")]
+    NotAValidParent,
+
+    #[error("Provided decryption key is outdated")]
+    OutdatedKey,
 }

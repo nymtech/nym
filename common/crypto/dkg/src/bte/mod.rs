@@ -41,7 +41,7 @@ lazy_static! {
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 // None empty bitvec implies this is a root node
 pub struct Tau(BitVec<u32, Msb0>);
 
@@ -66,6 +66,14 @@ impl Tau {
         self.len() == params.tree_height
     }
 
+    fn try_get_parent_at_height(&self, height: usize) -> Result<Self, DkgError> {
+        if height > self.0.len() {
+            return Err(DkgError::NotAValidParent);
+        }
+
+        Ok(Tau(self.0[..height].to_bitvec()))
+    }
+
     // essentially is this those prefixing the other
     fn is_parent_of(&self, other: &Tau) -> bool {
         if self.0.len() > other.0.len() {
@@ -86,6 +94,10 @@ impl Tau {
         self.0.len()
     }
 
+    fn height(&self) -> usize {
+        self.len()
+    }
+
     fn extend(&self, oracle_output: &[u8]) -> Self {
         let mut extended_tau = self.clone();
         for byte in oracle_output {
@@ -98,9 +110,6 @@ impl Tau {
     }
 
     fn evaluate_f(&self, params: &Params) -> G2Projective {
-        // temp assertion
-        assert_eq!(self.0.len(), params.fs.len());
-
         // right now completely ignore existence of f_h
         self.0
             .iter()
@@ -230,6 +239,25 @@ impl DecryptionKey {
         self.current().map(|node| &node.tau)
     }
 
+    /*
+        fn find_prefix<'a>(dks: &'a SecretKey, tau: &[Bit]) -> Option<&'a BTENode> {
+        for node in dks.bte_nodes.iter() {
+            if is_prefix(&node.tau, tau) {
+                return Some(node);
+            }
+        }
+        None
+    }
+         */
+
+    fn try_get_compatible_node(&self, epoch: &Tau) -> Result<&Node, DkgError> {
+        self.nodes
+            .iter()
+            .rev()
+            .find(|node| node.tau.is_parent_of(epoch))
+            .ok_or(DkgError::OutdatedKey)
+    }
+
     /// Attempts to update `self` to the provided `epoch`. If the update is not possible,
     /// because the target was in the past or the key is malformed, an error is returned.
     ///
@@ -251,9 +279,16 @@ impl DecryptionKey {
             return Err(DkgError::MalformedEpoch);
         }
 
-        // TODO: here be some check between self.nodes.last().epoch and target_epoch
-        // if current_epoch == target_epoch, we're done
-        // if current_epoch > target_epoch, return an error
+        let current_epoch = self.current_epoch()?;
+        if current_epoch == target_epoch {
+            // our key is already updated to the target
+            return Ok(());
+        }
+
+        if current_epoch > target_epoch {
+            // we cannot derive keys for past epochs
+            return Err(DkgError::TargetEpochUpdateInThePast);
+        }
 
         // drop the nodes that are no longer required and get the most direct parent for the target epoch available
         let parent = loop {
@@ -268,43 +303,123 @@ impl DecryptionKey {
             }
         };
 
-        // temporarily ignore node internals, just make sure to derive nodes with correct tau
-        // and in correct order
+        // accumulators, note that the previous elements have already been included by the parent
+        // new_b_accumulator = b * d1^{tau_1} * d2^{tau_2} * ... * dn^{tau_n}
+        // new_f_accumulator = f0 * f1^{tau_1} * f2^{tau_2} * ... * fn^{tau_n}
+        let mut new_b_accumulator = parent.b;
+        let mut new_f_accumulator = parent.tau.evaluate_f(params);
 
-        // let height = parent.tau.as_ref().map(|t| t.len()).unwrap_or_default();
+        let mut ds = parent.ds.clone();
 
-        let mut tau = parent.tau.clone();
+        // let mut tau = parent.tau.clone();
         // path to the child from the parent
-        for (i, bit) in target_epoch.0.iter().by_vals().enumerate().skip(tau.len()) {
+        for (i, bit) in target_epoch
+            .0
+            .iter()
+            .by_vals()
+            .enumerate()
+            .skip(parent.tau.len())
+        {
             // if the bit is NOT set..., push the right '1' subtree (for future keys)
             if !bit {
-                let mut right_branch = tau.clone();
+                let mut right_branch = target_epoch.try_get_parent_at_height(i)?;
                 right_branch.push_right();
-                let right = Node::temp_with_tau(right_branch);
 
-                self.nodes.push(right);
+                // TODO: put this in node.derive_child_with_partials() because it's definitely possible
+                // but first do it all in loop since its "easier". then write tests.
+                let delta = Scalar::random(&mut rng);
+                let a = parent.a + G1Projective::generator() * delta;
+
+                let d0 = ds.pop_front().unwrap();
+                let n = right_branch.height();
+                let b = new_b_accumulator + d0 + (new_f_accumulator + params.fs[n - 1]) * delta;
+
+                assert_eq!(d0, parent.ds[i - parent.tau.len()]);
+
+                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+                // let b = new_b_accumulator
+                //     + parent.ds[n - i - 1]
+                //     + (new_f_accumulator + params.fs[n - 1]) * delta;
+                let e = parent.e + params.h * delta;
+
+                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+                let ds = ds
+                    .iter()
+                    .zip(params.fs.iter().skip(right_branch.height()))
+                    .map(|(d_i, f_i)| d_i + f_i * delta)
+                    .collect();
+
+                let ds2 = parent
+                    .ds
+                    .iter()
+                    .skip(i - parent.tau.len() + 1)
+                    .zip(params.fs.iter().skip(right_branch.height()))
+                    .map(|(d_i, f_i)| d_i + f_i * delta)
+                    .collect::<Vec<_>>();
+
+                assert_eq!(ds, ds2);
+
+                self.nodes.push(Node {
+                    tau: right_branch,
+                    a,
+                    b,
+                    ds,
+                    e,
+                });
             } else {
-                // in the internal-less world, going left does "nothing" as unless this is a leaf node,
-                // we don't need to keep it
+                // only update the accumulators when the bit is set, as d^0 == identity, so there's
+                // no point in doing anything else;
+                // note that we don't have to generate any new nodes when going into the right branch
+                // of the tree as everything on the left would have been in the past, so we don't care about them
+
+                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+                let d0 = ds.pop_front().unwrap();
+                assert_eq!(d0, parent.ds[i - parent.tau.len()]);
+
+                // new_b_accumulator += parent.ds[target_epoch.height() - i - 1];
+                new_b_accumulator += d0;
+                new_f_accumulator += params.fs[i]
             }
 
             // continue going to the child
-            tau.0.push(bit);
+            // tau.0.push(bit);
         }
 
-        debug_assert_eq!(tau.0, target_epoch.0);
-
         // finally derive the actual target node
+        let delta = Scalar::random(&mut rng);
+        let a = parent.a + G1Projective::generator() * delta;
 
-        self.nodes.push(Node::temp_with_tau(tau));
+        let n = target_epoch.height();
+        // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+        let b = new_b_accumulator + new_f_accumulator * delta;
+        let e = parent.e + params.h * delta;
+
+        // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
+        let ds = parent
+            .ds
+            .iter()
+            .skip(n)
+            .zip(params.fs.iter().skip(n))
+            .map(|(d_i, f_i)| d_i + f_i * delta)
+            .collect();
+
+        self.nodes.push(Node {
+            tau: target_epoch.clone(),
+            a,
+            b,
+            ds,
+            e,
+        });
 
         Ok(())
     }
 }
 
-#[derive(Zeroize, Debug)]
+#[derive(Debug)]
 #[cfg_attr(test, derive(Clone, PartialEq))]
-#[zeroize(drop)]
 pub(crate) struct Node {
     tau: Tau,
 
@@ -315,24 +430,43 @@ pub(crate) struct Node {
     b: G2Projective,
 
     // f_i^rho
-    ds: Vec<G2Projective>,
+    // during the key update we need to be able to pop from the front of the collection,
+    // so normal Vec<T> wouldn't have done the trick
+    ds: VecDeque<G2Projective>,
 
     // h^rho
     e: G2Projective,
 }
 
-impl Node {
-    fn temp_with_tau(tau: Tau) -> Self {
-        Node {
-            tau: tau,
-            a: Default::default(),
-            b: Default::default(),
-            ds: vec![],
-            e: Default::default(),
-        }
-    }
+// TODO: this might go away in favour of derive if `ds` is represented with Vec as opposed to VecDeque
+impl Zeroize for Node {
+    fn zeroize(&mut self) {
+        self.tau.zeroize();
+        self.a.zeroize();
+        self.b.zeroize();
+        self.e.zeroize();
 
-    fn new_root(a: G1Projective, b: G2Projective, ds: Vec<G2Projective>, e: G2Projective) -> Self {
+        for d in self.ds.iter_mut() {
+            d.zeroize();
+        }
+
+        self.ds.clear();
+    }
+}
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
+impl Node {
+    fn new_root(
+        a: G1Projective,
+        b: G2Projective,
+        ds: VecDeque<G2Projective>,
+        e: G2Projective,
+    ) -> Self {
         Node {
             tau: Tau::new_root(),
             a,
@@ -344,6 +478,19 @@ impl Node {
 
     fn is_root(&self) -> bool {
         self.tau.0.is_empty()
+    }
+
+    fn derive_child_with_partials(
+        &self,
+        params: &Params,
+        partial_b: &G2Projective,
+        partial_f: &G2Projective,
+        mut rng: impl RngCore,
+    ) -> Self {
+        let delta = Scalar::random(&mut rng);
+        let a = self.a + G1Projective::generator() * delta;
+
+        todo!()
     }
 
     // tau_l == 0
@@ -540,29 +687,26 @@ fn decrypt_chunk(
     epoch: &Tau,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Chunk, DkgError> {
-    // TODO: if we go with forward secrecy then we presumably need to evolve dk
+    // TODO: verify the pairing from description 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
 
-    // TODO2: verify the pairing from description 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
+    let epoch_node = dk.try_get_compatible_node(epoch)?;
+    let b_neg1 = epoch
+        .0
+        .iter()
+        .by_vals()
+        .zip(epoch_node.ds.iter())
+        .filter(|(i, _)| *i)
+        .map(|(_, d_i)| d_i)
+        .fold(epoch_node.b, |acc, d_i| acc + d_i)
+        .neg()
+        .to_affine();
 
-    /*
-    let mut bneg = dk.b.clone();
-    let mut l = dk.tau.len();
-    for tmp in dk.d_t.iter() {
-        if extended_tau[l] == Bit::One {
-            bneg.add(tmp);
-        }
-        l += 1
-    }
-    for k in 0..LAMBDA_H {
-        if extended_tau[LAMBDA_T + k] == Bit::One {
-            bneg.add(&dk.d_h[k]);
-        }
-    }
-    bneg.neg();
-     */
+    let b_neg = epoch_node.b.neg().to_affine();
 
-    let b_neg = dk.nodes[0].b.neg().to_affine();
-    let e_neg = dk.nodes[0].e.neg().to_affine();
+    println!("{:?}", epoch);
+    assert_eq!(b_neg1, b_neg);
+
+    let e_neg = epoch_node.e.neg().to_affine();
     let z_affine = z.to_affine();
 
     // M = e(C, g2) • e(R, b)^-1 • e(a, Z) • e(S, e)^-1
@@ -570,7 +714,7 @@ fn decrypt_chunk(
     let miller = bls12_381::multi_miller_loop(&[
         (&c.to_affine(), &G2_GENERATOR_PREPARED),
         (&r.to_affine(), &G2Prepared::from(b_neg)),
-        (&dk.nodes[0].a.to_affine(), &G2Prepared::from(z_affine)),
+        (&epoch_node.a.to_affine(), &G2Prepared::from(z_affine)),
         (&s.to_affine(), &G2Prepared::from(e_neg)),
     ]);
     let m = miller.final_exponentiation();
@@ -798,6 +942,45 @@ mod tests {
     }
 
     #[test]
+    fn share_encryption_under_nonzero_epoch() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let (mut decryption_key1, public_key1) = keygen(&params, &mut rng);
+        let (mut decryption_key2, public_key2) = keygen(&params, &mut rng);
+        let epoch = Tau::new(12345);
+        decryption_key1
+            .try_update_to(&epoch, &params, &mut rng)
+            .unwrap();
+        decryption_key2
+            .try_update_to(&epoch, &params, &mut rng)
+            .unwrap();
+
+        let lookup_table = &DEFAULT_BSGS_TABLE;
+
+        for _ in 0..10 {
+            let m1 = Share::random(&mut rng);
+            let m2 = Share::random(&mut rng);
+            let shares = &[
+                (m1.clone(), &public_key1.key),
+                (m2.clone(), &public_key2.key),
+            ];
+
+            let ciphertext = encrypt_shares(shares, &epoch, &params, &mut rng);
+
+            let recovered1 =
+                decrypt_share(&decryption_key1, 0, &ciphertext, &epoch, Some(lookup_table))
+                    .unwrap();
+            let recovered2 =
+                decrypt_share(&decryption_key2, 1, &ciphertext, &epoch, Some(lookup_table))
+                    .unwrap();
+            assert_eq!(m1, recovered1);
+            assert_eq!(m2, recovered2);
+        }
+    }
+
+    #[test]
     fn creating_tau_from_epoch() {
         assert!(Tau::new_root().0.is_empty());
 
@@ -834,6 +1017,21 @@ mod tests {
             0, 1, 1
         ];
         assert_eq!(expected, big_val.0)
+    }
+
+    #[test]
+    fn getting_parent_at_height() {
+        let tau = Tau(bitvec![u32, Msb0; 1,0,1,1,0,0,1]);
+
+        let expected_0 = Tau(BitVec::new());
+        let expected_1 = Tau(bitvec![u32, Msb0; 1]);
+        let expected_5 = Tau(bitvec![u32, Msb0; 1,0,1,1,0]);
+
+        assert_eq!(expected_0, tau.try_get_parent_at_height(0).unwrap());
+        assert_eq!(expected_1, tau.try_get_parent_at_height(1).unwrap());
+        assert_eq!(expected_5, tau.try_get_parent_at_height(5).unwrap());
+        assert_eq!(tau, tau.try_get_parent_at_height(7).unwrap());
+        assert!(tau.try_get_parent_at_height(8).is_err())
     }
 
     #[test]
@@ -880,7 +1078,16 @@ mod tests {
         dk.try_update_to(&Tau::new(1), &params, &mut rng).unwrap();
         assert_eq!(dk.nodes.len(), 32);
         epoch_zero_nodes.pop().unwrap();
-        assert_eq!(epoch_zero_nodes, dk.nodes);
+        assert_eq!(
+            epoch_zero_nodes
+                .iter()
+                .map(|node| node.tau.clone())
+                .collect::<Vec<_>>(),
+            dk.nodes
+                .iter()
+                .map(|node| node.tau.clone())
+                .collect::<Vec<_>>()
+        );
 
         dk.try_update_to(&Tau::new(2), &params, &mut rng).unwrap();
         dk.try_update_to(&Tau::new(3), &params, &mut rng).unwrap();
@@ -908,7 +1115,17 @@ mod tests {
         new_root
             .try_update_to(&Tau::new(4), &params, &mut rng)
             .unwrap();
-        assert_eq!(dk.nodes, new_root.nodes);
+        assert_eq!(
+            dk.nodes
+                .iter()
+                .map(|node| node.tau.clone())
+                .collect::<Vec<_>>(),
+            new_root
+                .nodes
+                .iter()
+                .map(|node| node.tau.clone())
+                .collect::<Vec<_>>()
+        );
 
         // getting expected nodes for those epochs is non-trivial for test purposes, but the last node
         // should ALWAYS be equal to the target epoch

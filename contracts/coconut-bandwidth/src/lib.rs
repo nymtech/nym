@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod error;
-// mod queries;
-// mod storage;
 mod support;
 mod transactions;
 

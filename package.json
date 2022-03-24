@@ -15,7 +15,8 @@
     "build:ci": "yarn build && run-p build:react-example build:playground && yarn build:ci:collect-artifacts",
     "build:ci:collect-artifacts": "mkdir -p ts-packages/dist && mv ts-packages/react-components/storybook-static ts-packages/dist/storybook && mv ts-packages/react-webpack-with-theme-example/dist ts-packages/dist/example",
     "lint": "lerna run lint --stream",
-    "lint:fix": "lerna run lint:fix --stream"
+    "lint:fix": "lerna run lint:fix --stream",
+    "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run"
   },
   "devDependencies": {
     "lerna": "^4.0.0",

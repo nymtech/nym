@@ -106,7 +106,7 @@ async fn obtain_partial_credential(
         &encrypted_signature,
     );
 
-    let blinded_signature = BlindedSignature::from_bytes(&blinded_signature_bytes).unwrap();
+    let blinded_signature = BlindedSignature::from_bytes(&blinded_signature_bytes)?;
 
     let unblinded_signature = blinded_signature.unblind(
         params,

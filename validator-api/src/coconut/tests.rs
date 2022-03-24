@@ -3,7 +3,7 @@
 
 use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
-use coconut_bandwidth_contract::events::{
+use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
     DEPOSIT_VERIFICATION_KEY,
 };

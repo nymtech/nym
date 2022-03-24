@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
-coconut-bandwidth-contract = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../../common/config"}
 
 cosmwasm-std = "1.0.0-beta3"

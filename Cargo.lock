@@ -582,7 +582,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "coconut-bandwidth-contract"
+name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "schemars",
@@ -836,7 +836,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "clap 3.1.6",
- "coconut-bandwidth-contract",
+ "coconut-bandwidth-contract-common",
  "coconut-interface",
  "credentials",
  "crypto",
@@ -3122,7 +3122,7 @@ dependencies = [
  "attohttpc",
  "cfg-if",
  "clap 2.34.0",
- "coconut-bandwidth-contract",
+ "coconut-bandwidth-contract-common",
  "coconut-interface",
  "config",
  "console-subscriber",

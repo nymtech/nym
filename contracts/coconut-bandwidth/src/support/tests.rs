@@ -4,7 +4,7 @@
 #[cfg(test)]
 pub mod helpers {
     use crate::instantiate;
-    use coconut_bandwidth_contract::msg::InstantiateMsg;
+    use coconut_bandwidth_contract_common::msg::InstantiateMsg;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{Empty, MemoryStorage, OwnedDeps};
 

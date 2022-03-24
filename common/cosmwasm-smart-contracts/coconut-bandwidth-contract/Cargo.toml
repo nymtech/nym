@@ -1,5 +1,5 @@
 [package]
-name = "coconut-bandwidth-contract"
+name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 edition = "2021"
 

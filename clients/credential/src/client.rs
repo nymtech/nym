@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bip39::Mnemonic;
-use coconut_bandwidth_contract::deposit::DepositData;
+use coconut_bandwidth_contract_common::deposit::DepositData;
 use std::str::FromStr;
 use url::Url;
 
 use crate::error::Result;
 use crate::{CONTRACT_ADDRESS, MNEMONIC, NYMD_URL};
 
-use coconut_bandwidth_contract::msg::ExecuteMsg;
+use coconut_bandwidth_contract_common::msg::ExecuteMsg;
 use network_defaults::DEFAULT_NETWORK;
 use validator_client::nymd::{
     AccountId, CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient,

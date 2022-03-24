@@ -196,7 +196,7 @@ name = "coconut-bandwidth"
 version = "0.1.0"
 dependencies = [
  "bandwidth-claim-contract",
- "coconut-bandwidth-contract",
+ "coconut-bandwidth-contract-common",
  "config",
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -206,7 +206,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "coconut-bandwidth-contract"
+name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "schemars",

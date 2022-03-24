@@ -10,7 +10,7 @@ mod transactions;
 use cosmwasm_std::{entry_point, DepsMut, Env, MessageInfo, Response};
 
 use crate::error::ContractError;
-use coconut_bandwidth_contract::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
+use coconut_bandwidth_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
 
 /// Instantiate the contract.
 ///

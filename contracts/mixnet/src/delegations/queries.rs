@@ -233,8 +233,10 @@ pub(crate) mod tests {
         fn pagination_works() {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
+            let node_identity2: IdentityKey = "bar".into();
 
             test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "100");
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity2, "100");
 
             let per_page = 2;
             let page1 = query_mixnode_delegations_paged(
@@ -271,7 +273,7 @@ pub(crate) mod tests {
                 Option::from(per_page),
             )
             .unwrap();
-            // println!("{:?}", page1);
+            println!("{:?}", page1);
             let start_after = page1.start_next_after.unwrap();
             assert_eq!(2, page1.delegations.len());
             assert_eq!(("200".to_string(), 12345), start_after);
@@ -285,8 +287,9 @@ pub(crate) mod tests {
                 Option::from(per_page),
             )
             .unwrap();
-            // println!("{:?}", page2);
+            println!("{:?}", page2);
             assert_eq!(1, page2.delegations.len());
+            assert_eq!(page2.delegations.last().unwrap().owner(), "300");
 
             // save another one
             test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "400");
@@ -302,6 +305,7 @@ pub(crate) mod tests {
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.delegations.len());
+            assert_eq!(page2.delegations.last().unwrap().owner(), "400");
         }
     }
 

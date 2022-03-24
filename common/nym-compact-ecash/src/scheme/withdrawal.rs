@@ -3,7 +3,7 @@ use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
-use crate::scheme::{BlindedSignature, Signature, Wallet};
+use crate::scheme::{BlindedSignature, PartialWallet, Signature};
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::keygen::ttp_keygen;
 use crate::scheme::setup::Parameters;
@@ -140,7 +140,7 @@ pub fn issue_verify(
     sk_user: &SecretKeyUser,
     blind_signature: &BlindedSignature,
     req_info: &RequestInfo,
-) -> Result<Wallet> {
+) -> Result<PartialWallet> {
     // Parse the blinded signature
     let h = blind_signature.0;
     let c = blind_signature.1;
@@ -182,7 +182,7 @@ pub fn issue_verify(
         ));
     }
 
-    Ok(Wallet {
+    Ok(PartialWallet {
         sig: Signature(h, unblinded_c),
         v: req_info.v,
         idx: None,

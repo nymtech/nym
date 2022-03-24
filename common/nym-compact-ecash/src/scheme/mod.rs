@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
@@ -118,18 +119,32 @@ impl SignatureShare {
     // }
 }
 
-pub struct Wallet {
+pub struct PartialWallet {
     sig: Signature,
     v: Scalar,
     idx: Option<SignerIndex>,
 }
 
-impl Wallet {
+impl PartialWallet {
     pub fn signature(&self) -> &Signature { &self.sig }
-    pub fn v(&self) -> Scalar {
-        self.v
-    }
+    pub fn v(&self) -> Scalar { self.v }
     pub fn index(&self) -> Option<SignerIndex> {
         self.idx
+    }
+}
+
+pub struct Wallet {
+    sig: Signature,
+    v: Scalar,
+    t: Scalar,
+    l: Cell<u64>,
+}
+
+impl Wallet {
+    pub fn signature(&self) -> &Signature { &self.sig }
+    pub fn v(&self) -> Scalar { self.v }
+    pub fn t(&self) -> Scalar { self.t }
+    fn up(&self) {
+        self.l.set(self.l.get() + 1);
     }
 }

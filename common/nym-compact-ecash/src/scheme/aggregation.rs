@@ -1,5 +1,6 @@
 use core::iter::Sum;
 use core::ops::Mul;
+use std::cell::Cell;
 
 use bls12_381::{G2Prepared, G2Projective, Scalar};
 use group::Curve;
@@ -7,9 +8,10 @@ use itertools::Itertools;
 
 use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
-use crate::scheme::{PartialSignature, Signature, SignatureShare, SignerIndex};
-use crate::scheme::keygen::VerificationKeyAuth;
+use crate::scheme::{PartialSignature, PartialWallet, Signature, SignatureShare, SignerIndex, Wallet};
+use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
+use crate::scheme::withdrawal::RequestInfo;
 use crate::utils::{check_bilinear_pairing, perform_lagrangian_interpolation_at_origin};
 
 pub(crate) trait Aggregatable: Sized {
@@ -131,4 +133,25 @@ pub fn aggregate_signatures(
         ));
     }
     Ok(signature)
+}
+
+pub fn aggregate_wallets(params: &Parameters, verification_key: &VerificationKeyAuth, skUser: &SecretKeyUser, wallets: &[PartialWallet], reqInfo: &RequestInfo) -> Result<Wallet> {
+
+    // Aggregate partial wallets
+    let signature_shares: Vec<SignatureShare> = wallets
+        .iter()
+        .enumerate()
+        .map(|(idx, wallet)| SignatureShare::new(*wallet.signature(), (idx + 1) as u64))
+        .collect();
+
+    let attributes = vec![skUser.sk, reqInfo.get_v(), reqInfo.get_t()];
+    let aggregated_signature =
+        aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
+
+    Ok(Wallet {
+        sig: aggregated_signature,
+        v: reqInfo.get_v(),
+        t: reqInfo.get_t(),
+        l: Cell::new(0),
+    })
 }

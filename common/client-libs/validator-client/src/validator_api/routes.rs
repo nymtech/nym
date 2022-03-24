@@ -11,7 +11,7 @@ pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
-pub const COCONUT_SIGNATURE: &str = "signature";
+pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-credential";
 pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
 
 pub const STATUS_ROUTES: &str = "status";

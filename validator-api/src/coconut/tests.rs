@@ -18,7 +18,7 @@ use nymcoconut::{
 };
 use validator_client::nymd::{tx::Hash, DeliverTx, Event, Tag, TxResponse};
 use validator_client::validator_api::routes::{
-    API_VERSION, COCONUT_BLIND_SIGN, COCONUT_SIGNATURE, COCONUT_VERIFICATION_KEY,
+    API_VERSION, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL, COCONUT_VERIFICATION_KEY,
 };
 
 use crate::coconut::State;
@@ -419,7 +419,10 @@ fn signature_test() {
     let client = Client::tracked(rocket).expect("valid rocket instance");
 
     let response = client
-        .post(format!("/{}/{}", API_VERSION, COCONUT_SIGNATURE))
+        .post(format!(
+            "/{}/{}",
+            API_VERSION, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
+        ))
         .json(&tx_hash)
         .dispatch();
     assert_eq!(response.status(), Status::BadRequest);
@@ -434,7 +437,10 @@ fn signature_test() {
     db.insert(tx_hash.as_bytes(), expected_response.to_bytes())
         .unwrap();
     let response = client
-        .post(format!("/{}/{}", API_VERSION, COCONUT_SIGNATURE))
+        .post(format!(
+            "/{}/{}",
+            API_VERSION, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
+        ))
         .json(&tx_hash)
         .dispatch();
     assert_eq!(response.status(), Status::Ok);

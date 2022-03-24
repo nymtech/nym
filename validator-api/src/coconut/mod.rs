@@ -129,7 +129,11 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
-                routes![post_blind_sign, get_verification_key, post_signature],
+                routes![
+                    post_blind_sign,
+                    get_verification_key,
+                    post_partial_bandwidth_credential
+                ],
             )
         })
     }
@@ -181,8 +185,8 @@ pub async fn post_blind_sign(
     Ok(Json(response))
 }
 
-#[post("/signature", data = "<tx_hash>")]
-pub async fn post_signature(
+#[post("/partial-bandwidth-credential", data = "<tx_hash>")]
+pub async fn post_partial_bandwidth_credential(
     tx_hash: Json<String>,
     state: &RocketState<State>,
 ) -> Result<Json<BlindedSignatureResponse>> {

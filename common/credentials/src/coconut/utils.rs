@@ -86,7 +86,9 @@ async fn obtain_partial_credential(
         );
         client.blind_sign(&blind_sign_request_body).await?
     } else {
-        client.signature(&attributes.tx_hash().to_string()).await?
+        client
+            .partial_bandwidth_credential(&attributes.tx_hash().to_string())
+            .await?
     };
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;

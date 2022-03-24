@@ -261,12 +261,15 @@ impl Client {
         .await
     }
 
-    pub async fn signature(
+    pub async fn partial_bandwidth_credential(
         &self,
         request_body: &str,
     ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
         self.post_validator_api(
-            &[routes::API_VERSION, routes::COCONUT_SIGNATURE],
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
+            ],
             NO_PARAMS,
             request_body,
         )

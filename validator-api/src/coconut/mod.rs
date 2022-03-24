@@ -28,6 +28,7 @@ use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
+use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 pub struct State {
     client: Arc<RwLock<dyn LocalClient + Send + Sync>>,
@@ -128,7 +129,10 @@ impl InternalSignRequest {
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
-                format!("/{}", VALIDATOR_API_VERSION),
+                format!(
+                    "/{}/{}/{}",
+                    VALIDATOR_API_VERSION, COCONUT_ROUTES, BANDWIDTH
+                ),
                 routes![
                     post_blind_sign,
                     get_verification_key,

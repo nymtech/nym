@@ -18,7 +18,8 @@ use nymcoconut::{
 };
 use validator_client::nymd::{tx::Hash, DeliverTx, Event, Tag, TxResponse};
 use validator_client::validator_api::routes::{
-    API_VERSION, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL, COCONUT_VERIFICATION_KEY,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
+    COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
 };
 
 use crate::coconut::State;
@@ -88,7 +89,10 @@ fn check_signer_verif_key(key_pair: KeyPair) {
     let client = Client::tracked(rocket).expect("valid rocket instance");
 
     let response = client
-        .get(format!("/{}/{}", API_VERSION, COCONUT_VERIFICATION_KEY))
+        .get(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFICATION_KEY
+        ))
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
 
@@ -172,7 +176,10 @@ fn signed_before() {
         .unwrap();
 
     let response = client
-        .post(format!("/{}/{}", API_VERSION, COCONUT_BLIND_SIGN))
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
+        ))
         .json(&request_body)
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
@@ -392,7 +399,10 @@ fn blind_sign_correct() {
     );
 
     let response = client
-        .post(format!("/{}/{}", API_VERSION, COCONUT_BLIND_SIGN))
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
+        ))
         .json(&request_body)
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
@@ -420,8 +430,8 @@ fn signature_test() {
 
     let response = client
         .post(format!(
-            "/{}/{}",
-            API_VERSION, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
         ))
         .json(&tx_hash)
         .dispatch();
@@ -438,8 +448,8 @@ fn signature_test() {
         .unwrap();
     let response = client
         .post(format!(
-            "/{}/{}",
-            API_VERSION, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
         ))
         .json(&tx_hash)
         .dispatch();

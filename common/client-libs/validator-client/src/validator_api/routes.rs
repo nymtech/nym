@@ -10,6 +10,9 @@ pub const GATEWAYS: &str = "gateways";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 
+pub const COCONUT_ROUTES: &str = "coconut";
+pub const BANDWIDTH: &str = "bandwidth";
+
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-credential";
 pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";

@@ -254,7 +254,12 @@ impl Client {
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
         self.post_validator_api(
-            &[routes::API_VERSION, routes::COCONUT_BLIND_SIGN],
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_BLIND_SIGN,
+            ],
             NO_PARAMS,
             request_body,
         )
@@ -268,6 +273,8 @@ impl Client {
         self.post_validator_api(
             &[
                 routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
                 routes::COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
             ],
             NO_PARAMS,
@@ -280,7 +287,12 @@ impl Client {
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorAPIError> {
         self.query_validator_api(
-            &[routes::API_VERSION, routes::COCONUT_VERIFICATION_KEY],
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_VERIFICATION_KEY,
+            ],
             NO_PARAMS,
         )
         .await

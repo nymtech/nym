@@ -47,8 +47,8 @@ pub struct BandwidthVoucher {
 
 impl BandwidthVoucher {
     pub fn new_with_blind_sign_req(
-        private_attributes: [PrivateAttribute; 2],
-        public_attributes_plain: [&str; 2],
+        private_attributes: [PrivateAttribute; PRIVATE_ATTRIBUTES as usize],
+        public_attributes_plain: [&str; PUBLIC_ATTRIBUTES as usize],
         tx_hash: Hash,
         signing_key: identity::PrivateKey,
         encryption_key: encryption::PrivateKey,

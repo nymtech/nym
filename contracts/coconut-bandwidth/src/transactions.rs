@@ -6,8 +6,8 @@ use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
 use crate::error::ContractError;
 use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
-    DEPOSIT_VERIFICATION_KEY,
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
+    DEPOSIT_VALUE,
 };
 use config::defaults::DENOM;
 
@@ -31,7 +31,7 @@ pub(crate) fn deposit_funds(
     let event = Event::new(DEPOSITED_FUNDS_EVENT_TYPE)
         .add_attribute(DEPOSIT_VALUE, voucher_value.amount)
         .add_attribute(DEPOSIT_INFO, data.deposit_info())
-        .add_attribute(DEPOSIT_VERIFICATION_KEY, data.verification_key())
+        .add_attribute(DEPOSIT_IDENTITY_KEY, data.identity_key())
         .add_attribute(DEPOSIT_ENCRYPTION_KEY, data.encryption_key());
 
     Ok(Response::new().add_event(event))
@@ -122,7 +122,7 @@ mod tests {
         let verification_key_attr = event
             .attributes
             .iter()
-            .find(|attr| attr.key == DEPOSIT_VERIFICATION_KEY)
+            .find(|attr| attr.key == DEPOSIT_IDENTITY_KEY)
             .unwrap();
         assert_eq!(verification_key_attr.value, verification_key);
 

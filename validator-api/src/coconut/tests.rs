@@ -4,8 +4,8 @@
 use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
 use coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
-    DEPOSIT_VERIFICATION_KEY,
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
+    DEPOSIT_VALUE,
 };
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
@@ -338,7 +338,7 @@ fn blind_sign_correct() {
             value: VOUCHER_INFO.parse().unwrap(),
         },
         Tag {
-            key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+            key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
             value: "64auwDkWan7R8yH1Mwe9dS4qXgrDBCUNDg3Q4KFnd2P5"
                 .parse()
                 .unwrap(),

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
-    DEPOSIT_VERIFICATION_KEY,
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
+    DEPOSIT_VALUE,
 };
 use coconut_interface::BlindSignRequestBody;
 use credentials::coconut::bandwidth::BandwidthVoucher;
@@ -71,7 +71,7 @@ pub async fn extract_encryption_key(
     let verification_key = identity::PublicKey::from_base58_string(
         attributes
             .iter()
-            .find(|tag| tag.key.as_ref() == DEPOSIT_VERIFICATION_KEY)
+            .find(|tag| tag.key.as_ref() == DEPOSIT_IDENTITY_KEY)
             .ok_or(CoconutError::DepositVerifKeyNotFound)?
             .value
             .as_ref(),
@@ -269,7 +269,7 @@ mod test {
                 value: VOUCHER_INFO.parse().unwrap(),
             },
             Tag {
-                key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+                key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "verification key".parse().unwrap(),
             },
         ];
@@ -298,7 +298,7 @@ mod test {
                 value: VOUCHER_INFO.parse().unwrap(),
             },
             Tag {
-                key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+                key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "2eSxwquNJb2nZTEW5p4rbqjHfBaz9UaNhjHHiexPN4He"
                     .parse()
                     .unwrap(),
@@ -322,7 +322,7 @@ mod test {
                 value: VOUCHER_INFO.parse().unwrap(),
             },
             Tag {
-                key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+                key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
                     .parse()
                     .unwrap(),
@@ -356,7 +356,7 @@ mod test {
                 value: VOUCHER_INFO.parse().unwrap(),
             },
             Tag {
-                key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+                key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
                     .parse()
                     .unwrap(),
@@ -421,7 +421,7 @@ mod test {
                 value: VOUCHER_INFO.parse().unwrap(),
             },
             Tag {
-                key: DEPOSIT_VERIFICATION_KEY.parse().unwrap(),
+                key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "64auwDkWan7R8yH1Mwe9dS4qXgrDBCUNDg3Q4KFnd2P5"
                     .parse()
                     .unwrap(),

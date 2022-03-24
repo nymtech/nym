@@ -16,10 +16,12 @@ use coconut_interface::{
     KeyPair, Parameters, VerificationKeyResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
+use credentials::coconut::params::{
+    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
-use crypto::{aes::Aes128, blake3, ctr};
 
 use getset::{CopyGetters, Getters};
 use rand_07::rngs::OsRng;
@@ -71,16 +73,21 @@ impl State {
     ) -> Result<BlindedSignatureResponse> {
         let (keypair, shared_key) = {
             let mut rng = *self.rng.lock().await;
-            new_ephemeral_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher, _>(
-                &mut rng, remote_key,
-            )
+            new_ephemeral_shared_key::<
+                ValidatorApiCredentialEncryptionAlgorithm,
+                ValidatorApiCredentialHkdfAlgorithm,
+                _,
+            >(&mut rng, remote_key)
         };
 
         let chunk_data = signature.to_bytes();
 
-        let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
-        let encrypted_data =
-            stream_cipher::encrypt::<ctr::Ctr64LE<Aes128>>(&shared_key, &zero_iv, &chunk_data);
+        let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
+        let encrypted_data = stream_cipher::encrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+            &shared_key,
+            &zero_iv,
+            &chunk_data,
+        );
 
         let response =
             BlindedSignatureResponse::new(encrypted_data, keypair.public_key().to_bytes());

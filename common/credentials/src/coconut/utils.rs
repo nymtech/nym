@@ -9,10 +9,12 @@ use coconut_interface::{
 use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use crypto::{aes::Aes128, blake3, ctr};
 use url::Url;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES};
+use crate::coconut::params::{
+    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+};
 use crate::error::Error;
 
 /// Contacts all provided validators and then aggregate their verification keys.
@@ -93,12 +95,12 @@ async fn obtain_partial_credential(
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
-    let encryption_key = recompute_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher>(
-        &remote_key,
-        attributes.encryption_key(),
-    );
-    let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ctr::Ctr64LE<Aes128>>(
+    let encryption_key = recompute_shared_key::<
+        ValidatorApiCredentialEncryptionAlgorithm,
+        ValidatorApiCredentialHkdfAlgorithm,
+    >(&remote_key, attributes.encryption_key());
+    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &encrypted_signature,

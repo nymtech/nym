@@ -10,9 +10,11 @@ use coconut_bandwidth_contract_common::events::{
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
+use credentials::coconut::params::{
+    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+};
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use crypto::{aes::Aes128, blake3, ctr};
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
@@ -254,12 +256,12 @@ async fn state_functions() {
     let remote_key =
         crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
 
-    let encryption_key = recompute_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher>(
-        &remote_key,
-        encryption_keypair.private_key(),
-    );
-    let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ctr::Ctr64LE<Aes128>>(
+    let encryption_key = recompute_shared_key::<
+        ValidatorApiCredentialEncryptionAlgorithm,
+        ValidatorApiCredentialHkdfAlgorithm,
+    >(&remote_key, encryption_keypair.private_key());
+    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &response.encrypted_signature,

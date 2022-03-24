@@ -6,7 +6,7 @@ use coconut_interface::{
     BlindSignRequestBody, BlindedSignature, Credential, Parameters, Signature, SignatureShare,
     VerificationKey,
 };
-use crypto::asymmetric::encryption::{PrivateKey, PublicKey};
+use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use crypto::{aes::Aes128, blake3, ctr};
@@ -79,21 +79,22 @@ async fn obtain_partial_credential(
         let blind_sign_request_body = BlindSignRequestBody::new(
             blind_sign_request,
             attributes.tx_hash().to_string(),
-            attributes.sign(blind_sign_request),
+            attributes.sign(blind_sign_request).to_base58_string(),
             &public_attributes,
             public_attributes_plain,
             (public_attributes.len() + private_attributes.len()) as u32,
         );
         client.blind_sign(&blind_sign_request_body).await?
     } else {
-        client.signature(attributes.tx_hash()).await?
+        client.signature(&attributes.tx_hash().to_string()).await?
     };
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
-    let local_key = PrivateKey::from_base58_string(attributes.encryption_key())?;
 
-    let encryption_key =
-        recompute_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher>(&remote_key, &local_key);
+    let encryption_key = recompute_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher>(
+        &remote_key,
+        &attributes.encryption_key(),
+    );
     let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
     let blinded_signature_bytes = stream_cipher::decrypt::<ctr::Ctr64LE<Aes128>>(
         &encryption_key,

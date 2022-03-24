@@ -4,6 +4,8 @@
 use thiserror::Error;
 
 use credentials::error::Error as CredentialError;
+use crypto::asymmetric::encryption::KeyRecoveryError;
+use crypto::asymmetric::identity::Ed25519RecoveryError;
 use validator_client::nymd::error::NymdError;
 
 pub type Result<T> = std::result::Result<T, CredentialClientError>;
@@ -27,4 +29,13 @@ pub enum CredentialClientError {
 
     #[error("The local blind sign request data is corrupted")]
     CorruptedBlindSignRequest,
+
+    #[error("The tx hash provided is not valid")]
+    InvalidTxHash,
+
+    #[error("Could not parse Ed25519 data")]
+    Ed25519ParseError(#[from] Ed25519RecoveryError),
+
+    #[error("Could not parse X25519 data")]
+    X25519ParseError(#[from] KeyRecoveryError),
 }

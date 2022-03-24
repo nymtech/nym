@@ -10,8 +10,9 @@ use coconut_interface::{
     hash_to_scalar, prepare_blind_sign, Attribute, BlindSignRequest, Credential, Parameters,
     PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
-use crypto::asymmetric::identity::PrivateKey;
+use crypto::asymmetric::{encryption, identity};
 use network_defaults::BANDWIDTH_VALUE;
+use validator_client::nymd::tx::Hash;
 
 use super::utils::prepare_credential_for_spending;
 use crate::error::Error;
@@ -34,11 +35,11 @@ pub struct BandwidthVoucher {
     // the plain text information
     voucher_info_plain: String,
     // the hash of the deposit transaction
-    tx_hash: String,
+    tx_hash: Hash,
     // base58 encoded private key ensuring the depositer requested these attributes
-    signing_key: String,
+    signing_key: identity::PrivateKey,
     // base58 encoded private key ensuring only this client receives the signature share
-    encryption_key: String,
+    encryption_key: encryption::PrivateKey,
     pedersen_commitments_openings: Vec<Attribute>,
     blind_sign_request: BlindSignRequest,
     use_request: bool,
@@ -48,9 +49,9 @@ impl BandwidthVoucher {
     pub fn new_with_blind_sign_req(
         private_attributes: [PrivateAttribute; 2],
         public_attributes_plain: [&str; 2],
-        tx_hash: String,
-        signing_key: String,
-        encryption_key: String,
+        tx_hash: Hash,
+        signing_key: identity::PrivateKey,
+        encryption_key: encryption::PrivateKey,
         pedersen_commitments_openings: Vec<Attribute>,
         blind_sign_request: BlindSignRequest,
     ) -> Self {
@@ -78,16 +79,16 @@ impl BandwidthVoucher {
     }
     pub fn new(
         params: &Parameters,
-        voucher_value: &str,
-        voucher_info: &str,
-        tx_hash: String,
-        signing_key: String,
-        encryption_key: String,
+        voucher_value: String,
+        voucher_info: String,
+        tx_hash: Hash,
+        signing_key: identity::PrivateKey,
+        encryption_key: encryption::PrivateKey,
     ) -> Self {
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
-        let voucher_value_plain = voucher_value.to_string();
-        let voucher_info_plain = voucher_info.to_string();
+        let voucher_value_plain = voucher_value.clone();
+        let voucher_info_plain = voucher_info.clone();
         let voucher_value = hash_to_scalar(voucher_value.as_bytes());
         let voucher_info = hash_to_scalar(voucher_info.as_bytes());
         let (pedersen_commitments_openings, blind_sign_request) = prepare_blind_sign(
@@ -120,7 +121,7 @@ impl BandwidthVoucher {
             && values[1] == hash_to_scalar(&plain_values[1])
     }
 
-    pub fn tx_hash(&self) -> &str {
+    pub fn tx_hash(&self) -> &Hash {
         &self.tx_hash
     }
 
@@ -128,8 +129,8 @@ impl BandwidthVoucher {
         vec![self.voucher_value, self.voucher_info]
     }
 
-    pub fn encryption_key(&self) -> String {
-        self.encryption_key.clone()
+    pub fn encryption_key(&self) -> &encryption::PrivateKey {
+        &self.encryption_key
     }
 
     pub fn pedersen_commitments_openings(&self) -> &Vec<Attribute> {
@@ -155,11 +156,10 @@ impl BandwidthVoucher {
         vec![self.serial_number, self.binding_number]
     }
 
-    pub fn sign(&self, request: &BlindSignRequest) -> String {
-        let private_key = PrivateKey::from_base58_string(&self.signing_key).unwrap();
+    pub fn sign(&self, request: &BlindSignRequest) -> identity::Signature {
         let mut message = request.to_bytes();
         message.extend_from_slice(self.tx_hash.as_bytes());
-        private_key.sign(&message).to_base58_string()
+        self.signing_key.sign(&message)
     }
 }
 
@@ -189,17 +189,24 @@ pub fn prepare_for_spending(
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand::rngs::OsRng;
 
     #[test]
     fn voucher_consistency() {
         let params = Parameters::new(4).unwrap();
+        let mut rng = OsRng;
         let voucher = BandwidthVoucher::new(
             &params,
-            "1234",
-            "voucher info",
-            String::from("tx hash"),
-            String::from("signing key"),
-            String::from("encryption key"),
+            "1234".to_string(),
+            "voucher info".to_string(),
+            Hash::new([0; 32]),
+            identity::PrivateKey::from_base58_string(
+                identity::KeyPair::new(&mut rng)
+                    .private_key()
+                    .to_base58_string(),
+            )
+            .unwrap(),
+            encryption::KeyPair::new(&mut rng).private_key().clone(),
         );
         assert!(!BandwidthVoucher::verify_against_plain(
             &[],

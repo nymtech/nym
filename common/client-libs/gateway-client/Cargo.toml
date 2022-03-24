@@ -26,6 +26,7 @@ nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
 coconut-interface = { path = "../../coconut-interface", optional = true }
 network-defaults = { path = "../../network-defaults" }
+validator-client = { path = "../validator-client", optional = true }
 
 [dependencies.tungstenite]
 version = "0.13"
@@ -67,6 +68,6 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface"]
+coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client"]
 wasm = ["web3/wasm", "web3/http", "web3/signing"]
 default = ["web3/default"]

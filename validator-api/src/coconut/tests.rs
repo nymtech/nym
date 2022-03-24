@@ -23,6 +23,7 @@ use validator_client::validator_api::routes::{
 
 use crate::coconut::State;
 use async_trait::async_trait;
+use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
 use rocket::local::blocking::Client;
@@ -108,22 +109,27 @@ fn multiple_verification_key() {
 
 #[test]
 fn signed_before() {
-    let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
-    let tx_entry = tx_entry_fixture(&tx_hash);
+    let tx_hash =
+        Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E").unwrap();
+    let tx_entry = tx_entry_fixture(&tx_hash.to_string());
     let signature = String::from(
         "2DHbEZ6pzToGpsAXJrqJi7Wj1pAXeT18283q2YEEyNH5gTymwRozWBdja6SMAVt1dyYmUnM4ZNhsJ4wxZyGh4Z6J",
     );
-    let signing_key = String::from("Signing key");
-    let encryption_key = String::from("Encryption key");
 
     let params = Parameters::new(4).unwrap();
+    let mut rng = OsRng;
     let voucher = BandwidthVoucher::new(
         &params,
-        "1234",
-        VOUCHER_INFO,
+        "1234".to_string(),
+        VOUCHER_INFO.to_string(),
         tx_hash.clone(),
-        signing_key,
-        encryption_key,
+        identity::PrivateKey::from_base58_string(
+            identity::KeyPair::new(&mut rng)
+                .private_key()
+                .to_base58_string(),
+        )
+        .unwrap(),
+        encryption::KeyPair::new(&mut rng).private_key().clone(),
     );
     let (_, blind_sign_req) = prepare_blind_sign(
         &params,
@@ -140,7 +146,7 @@ fn signed_before() {
     nymd_db
         .write()
         .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
+        .insert(tx_hash.to_string(), tx_entry.clone());
     let nymd_client = DummyClient::new(&nymd_db);
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
@@ -152,7 +158,7 @@ fn signed_before() {
 
     let request_body = BlindSignRequestBody::new(
         &blind_sign_req,
-        tx_hash.clone(),
+        tx_hash.to_string(),
         signature.clone(),
         &voucher.get_public_attributes(),
         voucher.get_public_attributes_plain(),
@@ -162,7 +168,7 @@ fn signed_before() {
     let encrypted_signature = vec![1, 2, 3, 4];
     let remote_key = [42; 32];
     let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
-    db.insert(tx_hash.as_bytes(), expected_response.to_bytes())
+    db.insert(tx_hash.to_string().as_bytes(), expected_response.to_bytes())
         .unwrap();
 
     let response = client
@@ -285,18 +291,23 @@ async fn state_functions() {
 
 #[test]
 fn blind_sign_correct() {
-    let tx_hash = String::from("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B");
-    let signing_key = String::from("Signing key");
-    let encryption_key = String::from("Encryption key");
+    let tx_hash =
+        Hash::from_str("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B").unwrap();
 
     let params = Parameters::new(4).unwrap();
+    let mut rng = OsRng;
     let voucher = BandwidthVoucher::new(
         &params,
-        "1234",
-        VOUCHER_INFO,
+        "1234".to_string(),
+        VOUCHER_INFO.to_string(),
         tx_hash.clone(),
-        signing_key,
-        encryption_key,
+        identity::PrivateKey::from_base58_string(
+            identity::KeyPair::new(&mut rng)
+                .private_key()
+                .to_base58_string(),
+        )
+        .unwrap(),
+        encryption::KeyPair::new(&mut rng).private_key().clone(),
     );
 
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
@@ -305,7 +316,7 @@ fn blind_sign_correct() {
     let db = sled::open(db_dir).unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
 
-    let mut tx_entry = tx_entry_fixture(&tx_hash);
+    let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
     tx_entry.tx_result.events.push(Event {
         type_str: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
         attributes: vec![],
@@ -335,7 +346,7 @@ fn blind_sign_correct() {
     nymd_db
         .write()
         .unwrap()
-        .insert(tx_hash.clone(), tx_entry.clone());
+        .insert(tx_hash.to_string(), tx_entry.clone());
     let nymd_client = DummyClient::new(&nymd_db);
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
@@ -372,7 +383,7 @@ fn blind_sign_correct() {
     .unwrap();
     let request_body = BlindSignRequestBody::new(
         &blind_sign_req,
-        tx_hash,
+        tx_hash.to_string(),
         "gSFgpma5GAVMcsmZwKieqGNHNd3dPzcfa8eT2Qn2LoBccSeyiJdphREbNrkuh5XWxMe2hUsranaYzLro48L9Qhd"
             .to_string(),
         &voucher.get_public_attributes(),

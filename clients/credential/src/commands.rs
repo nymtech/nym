@@ -13,6 +13,7 @@ use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
 use network_defaults::VOUCHER_INFO;
+use validator_client::nymd::tx::Hash;
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
@@ -128,9 +129,12 @@ impl Execute for GetCredential {
                 BandwidthVoucher::new_with_blind_sign_req(
                     [serial_number, binding_number],
                     [&state.amount.to_string(), VOUCHER_INFO],
-                    self.tx_hash.clone(),
-                    state.signing_keypair.private_key.clone(),
-                    state.encryption_keypair.private_key.clone(),
+                    Hash::from_str(&self.tx_hash)
+                        .map_err(|_| CredentialClientError::InvalidTxHash)?,
+                    identity::PrivateKey::from_base58_string(&state.signing_keypair.private_key)?,
+                    encryption::PrivateKey::from_base58_string(
+                        &state.encryption_keypair.private_key,
+                    )?,
                     pedersen_commitments_openings,
                     blind_sign_request,
                 )
@@ -140,11 +144,11 @@ impl Execute for GetCredential {
         } else {
             BandwidthVoucher::new(
                 &params,
-                &state.amount.to_string(),
-                VOUCHER_INFO,
-                self.tx_hash.clone(),
-                state.signing_keypair.private_key.clone(),
-                state.encryption_keypair.private_key.clone(),
+                state.amount.to_string(),
+                VOUCHER_INFO.to_string(),
+                Hash::from_str(&self.tx_hash).map_err(|_| CredentialClientError::InvalidTxHash)?,
+                identity::PrivateKey::from_base58_string(&state.signing_keypair.private_key)?,
+                encryption::PrivateKey::from_base58_string(&state.encryption_keypair.private_key)?,
             )
         };
 

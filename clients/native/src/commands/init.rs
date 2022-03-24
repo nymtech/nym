@@ -29,6 +29,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+#[cfg(feature = "coconut")]
+use validator_client::nymd::tx::Hash;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
@@ -108,13 +110,21 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
         .expect("could not obtain aggregate verification key of validators");
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
+    let mut rng = OsRng;
     let bandwidth_credential_attributes = BandwidthVoucher::new(
         &params,
-        &BANDWIDTH_VALUE.to_string(),
-        VOUCHER_INFO,
-        String::new(),
-        String::new(),
-        String::new(),
+        BANDWIDTH_VALUE.to_string(),
+        VOUCHER_INFO.to_string(),
+        Hash::new([0; 32]),
+        // workaround for putting a valid value here, without deriving clone for the private
+        // key, until we have actual useful values
+        identity::PrivateKey::from_base58_string(
+            identity::KeyPair::new(&mut rng)
+                .private_key()
+                .to_base58_string(),
+        )
+        .unwrap(),
+        encryption::KeyPair::new(&mut rng).private_key().clone(),
     );
 
     let bandwidth_credential =

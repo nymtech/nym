@@ -97,21 +97,31 @@ mod test {
     use crate::coconut::tests::tx_entry_fixture;
     use config::defaults::VOUCHER_INFO;
     use nymcoconut::{prepare_blind_sign, BlindSignRequest, Parameters};
+    use rand_07::rngs::OsRng;
+    use std::str::FromStr;
+    use validator_client::nymd::tx::Hash;
     use validator_client::nymd::{Event, Tag};
 
     #[tokio::test]
     async fn extract_encryption_key_test() {
         let tx_hash =
-            "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E".to_string();
-        let mut tx_entry = tx_entry_fixture(&tx_hash);
+            Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E")
+                .unwrap();
+        let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
         let params = Parameters::new(4).unwrap();
+        let mut rng = OsRng;
         let voucher = BandwidthVoucher::new(
             &params,
-            "1234",
-            VOUCHER_INFO,
+            "1234".to_string(),
+            VOUCHER_INFO.to_string(),
             tx_hash.clone(),
-            "Signing key".to_string(),
-            "Encryption key".to_string(),
+            identity::PrivateKey::from_base58_string(
+                identity::KeyPair::new(&mut rng)
+                    .private_key()
+                    .to_base58_string(),
+            )
+            .unwrap(),
+            encryption::KeyPair::new(&mut rng).private_key().clone(),
         );
         let (_, blind_sign_req) = prepare_blind_sign(
             &params,
@@ -123,7 +133,7 @@ mod test {
 
         let req = BlindSignRequestBody::new(
             &blind_sign_req,
-            tx_hash.clone(),
+            tx_hash.to_string(),
             signature.clone(),
             &voucher.get_public_attributes(),
             vec![
@@ -142,7 +152,7 @@ mod test {
 
         let req = BlindSignRequestBody::new(
             &blind_sign_req,
-            tx_hash.clone(),
+            tx_hash.to_string(),
             String::from("Invalid signature"),
             &voucher.get_public_attributes(),
             voucher.get_public_attributes_plain(),
@@ -165,7 +175,7 @@ mod test {
 
         let correct_request = BlindSignRequestBody::new(
             &blind_sign_req,
-            tx_hash.clone(),
+            tx_hash.to_string(),
             signature.clone(),
             &voucher.get_public_attributes(),
             voucher.get_public_attributes_plain(),
@@ -193,7 +203,8 @@ mod test {
             .unwrap_err();
         assert_eq!(
             err.to_string(),
-            CoconutError::DifferentPublicAttributes(10.to_string(), 1234.to_string()).to_string(),
+            CoconutError::DifferentPublicAttributes("10".to_string(), "1234".to_string())
+                .to_string(),
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![Tag {

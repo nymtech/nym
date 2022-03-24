@@ -419,9 +419,9 @@ fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    // TODO: Uncomment for sandbox and mainnet
-    migrate_delegations(deps)?;
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // TODO: Uncomment mainnet
+    // migrate_delegations(deps)?;
 
     Ok(Default::default())
 }

@@ -212,7 +212,7 @@ impl BandwidthController {
     #[cfg(not(feature = "coconut"))]
     pub async fn prepare_token_credential(
         &self,
-        gateway_identity: PublicKey,
+        gateway_identity: identity::PublicKey,
         gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
         let kp = match self.restore_keypair() {
@@ -251,7 +251,7 @@ impl BandwidthController {
     #[cfg(not(feature = "coconut"))]
     pub async fn buy_token_credential(
         &self,
-        verification_key: PublicKey,
+        verification_key: identity::PublicKey,
         signed_verification_key: identity::Signature,
         gateway_owner: String,
     ) -> Result<(), GatewayClientError> {

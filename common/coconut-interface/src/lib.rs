@@ -1,8 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod error;
+
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
+
+use error::CoconutInterfaceError;
 
 pub use nymcoconut::*;
 
@@ -144,14 +148,17 @@ impl BlindedSignatureResponse {
         bytes
     }
 
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutInterfaceError> {
+        if bytes.len() < 32 {
+            return Err(CoconutInterfaceError::InvalidByteLength(bytes.len(), 32));
+        }
         let mut remote_key = [0u8; 32];
         remote_key.copy_from_slice(&bytes[..32]);
         let encrypted_signature = bytes[32..].to_vec();
-        BlindedSignatureResponse {
+        Ok(BlindedSignatureResponse {
             remote_key,
             encrypted_signature,
-        }
+        })
     }
 }
 

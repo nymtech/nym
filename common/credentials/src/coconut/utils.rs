@@ -95,7 +95,7 @@ async fn obtain_partial_credential(
 
     let encryption_key = recompute_shared_key::<ctr::Ctr64LE<Aes128>, blake3::Hasher>(
         &remote_key,
-        &attributes.encryption_key(),
+        attributes.encryption_key(),
     );
     let zero_iv = stream_cipher::zero_iv::<ctr::Ctr64LE<Aes128>>();
     let blinded_signature_bytes = stream_cipher::decrypt::<ctr::Ctr64LE<Aes128>>(

@@ -60,6 +60,9 @@ pub enum CoconutError {
 
     #[error("No signature found")]
     NoSignature,
+
+    #[error("Error in coconut interface - {0}")]
+    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

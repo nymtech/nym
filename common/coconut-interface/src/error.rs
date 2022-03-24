@@ -5,21 +5,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CoconutInterfaceError {
-    #[error("could not parse validator URL: {source}")]
-    UrlParsingError {
-        #[from]
-        source: url::ParseError,
-    },
-
-    #[error("could not aggregate verification key: {0}")]
-    AggregateVerificationKeyError(coconut_rs::CoconutError),
-
-    #[error("could not prove credential: {0}")]
-    ProveCredentialError(coconut_rs::CoconutError),
-
-    #[error("got invalid signature index: {0}")]
-    InvalidSignatureIdx(usize),
-
-    #[error("got too many total attributes(public + private): {0} received, {1} is the maximum")]
-    TooManyTotalAttributes(usize, u32),
+    #[error("not enough bytes: {0} received, minimum {1} required")]
+    InvalidByteLength(usize, usize),
 }

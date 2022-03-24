@@ -53,10 +53,14 @@ impl State {
     }
 
     pub fn signed_before(&self, tx_hash: &[u8]) -> Result<Option<BlindedSignatureResponse>> {
-        Ok(self
-            .signed_deposits
-            .get(tx_hash)?
-            .map(|b| BlindedSignatureResponse::from_bytes(b.to_vec())))
+        let ret = self.signed_deposits.get(tx_hash)?;
+        if let Some(blinded_signature_reponse) = ret {
+            Ok(Some(BlindedSignatureResponse::from_bytes(
+                &blinded_signature_reponse.to_vec(),
+            )?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn encrypt_and_store(

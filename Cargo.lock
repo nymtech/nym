@@ -596,6 +596,7 @@ dependencies = [
  "getset",
  "nymcoconut",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

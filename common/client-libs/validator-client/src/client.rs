@@ -3,9 +3,7 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use mixnet_contract_common::mixnode::DelegationEvent;
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixNodeBond};
-use network_defaults::DEFAULT_NETWORK;
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -13,16 +11,18 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
+use network_defaults::DEFAULT_NETWORK;
+
+#[cfg(feature = "nymd-client")]
 use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
-#[cfg(feature = "nymd-client")]
-use mixnet_contract_common::ContractStateParams;
 
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
-    Delegation, IdentityKey, MixnetContractVersion, MixnodeRewardingStatusResponse,
-    RewardedSetNodeStatus, RewardedSetUpdateDetails,
+    mixnode::DelegationEvent, ContractStateParams, Delegation, IdentityKey, Interval,
+    MixnetContractVersion, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
 };
 #[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};

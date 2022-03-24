@@ -25,7 +25,7 @@ async function main() {
     set_panic_hook();
 
     // validator server we will use to get topology from
-    const validator = "http://testnet-validator1.nymtech.net:8081"; //"http://localhost:8081";
+    const validator = "https://sandbox-validator.nymtech.net/api"; //"http://localhost:8081";
 
     client = new NymClient(validator);
 

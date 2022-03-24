@@ -72,7 +72,7 @@ impl NymClient {
 
             on_message: None,
             on_gateway_connect: None,
-            testnet_mode: false,
+            testnet_mode: true,
         }
     }
 

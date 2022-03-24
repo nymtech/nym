@@ -6,10 +6,8 @@ use crate::error::DkgError;
 use crate::utils::hash_g2;
 use crate::{Chunk, ChunkedShare, Share, CHUNK_SIZE, NUM_CHUNKS};
 use bitvec::order::Msb0;
-use bitvec::prelude::Lsb0;
 use bitvec::vec::BitVec;
 use bitvec::view::BitView;
-use bitvec::{bits, bitvec};
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
 use group::Curve;
@@ -98,16 +96,16 @@ impl Tau {
         self.len()
     }
 
-    fn extend(&self, oracle_output: &[u8]) -> Self {
-        let mut extended_tau = self.clone();
-        for byte in oracle_output {
-            extended_tau
-                .0
-                .extend_from_bitslice(byte.view_bits::<Lsb0>())
-        }
-
-        extended_tau
-    }
+    // fn extend(&self, oracle_output: &[u8]) -> Self {
+    //     let mut extended_tau = self.clone();
+    //     for byte in oracle_output {
+    //         extended_tau
+    //             .0
+    //             .extend_from_bitslice(byte.view_bits::<Lsb0>())
+    //     }
+    //
+    //     extended_tau
+    // }
 
     fn evaluate_f(&self, params: &Params) -> G2Projective {
         // right now completely ignore existence of f_h
@@ -194,8 +192,6 @@ impl PublicKeyWithProof {
 }
 
 pub struct DecryptionKey {
-    // TODO: wait, what was wrong with normal Vec again?
-    // nodes: VecDeque<Node>,
     // note that the nodes are ordered from "right" to "left"
     nodes: Vec<Node>,
 }
@@ -217,13 +213,9 @@ impl Drop for DecryptionKey {
 
 impl DecryptionKey {
     fn new_root(root_node: Node) -> Self {
-        // let mut nodes = VecDeque::new();
-        // nodes.push_front(root_node);
-
-        let mut nodes = Vec::new();
-        nodes.push(root_node);
-
-        DecryptionKey { nodes }
+        DecryptionKey {
+            nodes: vec![root_node],
+        }
     }
 
     fn update(&mut self) {
@@ -239,23 +231,12 @@ impl DecryptionKey {
         self.current().map(|node| &node.tau)
     }
 
-    /*
-        fn find_prefix<'a>(dks: &'a SecretKey, tau: &[Bit]) -> Option<&'a BTENode> {
-        for node in dks.bte_nodes.iter() {
-            if is_prefix(&node.tau, tau) {
-                return Some(node);
-            }
-        }
-        None
-    }
-         */
-
     fn try_get_compatible_node(&self, epoch: &Tau) -> Result<&Node, DkgError> {
         self.nodes
             .iter()
             .rev()
             .find(|node| node.tau.is_parent_of(epoch))
-            .ok_or(DkgError::OutdatedKey)
+            .ok_or(DkgError::ExpiredKey)
     }
 
     /// Attempts to update `self` to the provided `epoch`. If the update is not possible,
@@ -269,7 +250,6 @@ impl DecryptionKey {
         params: &Params,
         mut rng: impl RngCore,
     ) -> Result<(), DkgError> {
-        println!("updating to {}", target_epoch.0);
         if self.nodes.is_empty() {
             // somehow we have an empty decryption key
             return Err(DkgError::MalformedDecryptionKey);
@@ -309,116 +289,55 @@ impl DecryptionKey {
         let mut new_b_accumulator = parent.b;
         let mut new_f_accumulator = parent.tau.evaluate_f(params);
 
-        let mut ds = parent.ds.clone();
+        let parent_height = parent.tau.height();
 
-        // let mut tau = parent.tau.clone();
         // path to the child from the parent
-        for (i, bit) in target_epoch
+        for (n, bit) in target_epoch
             .0
             .iter()
             .by_vals()
-            .enumerate()
             .skip(parent.tau.len())
+            .enumerate()
         {
+            // ith bit of the epoch
+            let i = n + parent_height;
+
             // if the bit is NOT set..., push the right '1' subtree (for future keys)
             if !bit {
                 let mut right_branch = target_epoch.try_get_parent_at_height(i)?;
                 right_branch.push_right();
 
-                // TODO: put this in node.derive_child_with_partials() because it's definitely possible
-                // but first do it all in loop since its "easier". then write tests.
-                let delta = Scalar::random(&mut rng);
-                let a = parent.a + G1Projective::generator() * delta;
-
-                let d0 = ds.pop_front().unwrap();
-                let n = right_branch.height();
-                let b = new_b_accumulator + d0 + (new_f_accumulator + params.fs[n - 1]) * delta;
-
-                assert_eq!(d0, parent.ds[i - parent.tau.len()]);
-
-                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-                // let b = new_b_accumulator
-                //     + parent.ds[n - i - 1]
-                //     + (new_f_accumulator + params.fs[n - 1]) * delta;
-                let e = parent.e + params.h * delta;
-
-                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-                let ds = ds
-                    .iter()
-                    .zip(params.fs.iter().skip(right_branch.height()))
-                    .map(|(d_i, f_i)| d_i + f_i * delta)
-                    .collect();
-
-                let ds2 = parent
-                    .ds
-                    .iter()
-                    .skip(i - parent.tau.len() + 1)
-                    .zip(params.fs.iter().skip(right_branch.height()))
-                    .map(|(d_i, f_i)| d_i + f_i * delta)
-                    .collect::<Vec<_>>();
-
-                assert_eq!(ds, ds2);
-
-                self.nodes.push(Node {
-                    tau: right_branch,
-                    a,
-                    b,
-                    ds,
-                    e,
-                });
+                self.nodes.push(parent.derive_child_with_partials(
+                    params,
+                    right_branch,
+                    &new_b_accumulator,
+                    &new_f_accumulator,
+                    &mut rng,
+                ));
             } else {
                 // only update the accumulators when the bit is set, as d^0 == identity, so there's
                 // no point in doing anything else;
                 // note that we don't have to generate any new nodes when going into the right branch
                 // of the tree as everything on the left would have been in the past, so we don't care about them
-
-                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-                // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-                let d0 = ds.pop_front().unwrap();
-                assert_eq!(d0, parent.ds[i - parent.tau.len()]);
-
-                // new_b_accumulator += parent.ds[target_epoch.height() - i - 1];
-                new_b_accumulator += d0;
+                new_b_accumulator += parent.ds[n]; // add d0
                 new_f_accumulator += params.fs[i]
             }
-
-            // continue going to the child
-            // tau.0.push(bit);
         }
 
-        // finally derive the actual target node
-        let delta = Scalar::random(&mut rng);
-        let a = parent.a + G1Projective::generator() * delta;
-
-        let n = target_epoch.height();
-        // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-        let b = new_b_accumulator + new_f_accumulator * delta;
-        let e = parent.e + params.h * delta;
-
-        // TODO: CHECK FOR OFF BY ONE ERRORS HERE!!!
-        let ds = parent
-            .ds
-            .iter()
-            .skip(n)
-            .zip(params.fs.iter().skip(n))
-            .map(|(d_i, f_i)| d_i + f_i * delta)
-            .collect();
-
-        self.nodes.push(Node {
-            tau: target_epoch.clone(),
-            a,
-            b,
-            ds,
-            e,
-        });
+        self.nodes.push(parent.derive_child_with_partials(
+            params,
+            target_epoch.clone(),
+            &new_b_accumulator,
+            &new_f_accumulator,
+            &mut rng,
+        ));
 
         Ok(())
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Zeroize)]
+#[zeroize(drop)]
 #[cfg_attr(test, derive(Clone, PartialEq))]
 pub(crate) struct Node {
     tau: Tau,
@@ -430,43 +349,14 @@ pub(crate) struct Node {
     b: G2Projective,
 
     // f_i^rho
-    // during the key update we need to be able to pop from the front of the collection,
-    // so normal Vec<T> wouldn't have done the trick
-    ds: VecDeque<G2Projective>,
+    ds: Vec<G2Projective>,
 
     // h^rho
     e: G2Projective,
 }
 
-// TODO: this might go away in favour of derive if `ds` is represented with Vec as opposed to VecDeque
-impl Zeroize for Node {
-    fn zeroize(&mut self) {
-        self.tau.zeroize();
-        self.a.zeroize();
-        self.b.zeroize();
-        self.e.zeroize();
-
-        for d in self.ds.iter_mut() {
-            d.zeroize();
-        }
-
-        self.ds.clear();
-    }
-}
-
-impl Drop for Node {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
-}
-
 impl Node {
-    fn new_root(
-        a: G1Projective,
-        b: G2Projective,
-        ds: VecDeque<G2Projective>,
-        e: G2Projective,
-    ) -> Self {
+    fn new_root(a: G1Projective, b: G2Projective, ds: Vec<G2Projective>, e: G2Projective) -> Self {
         Node {
             tau: Tau::new_root(),
             a,
@@ -480,17 +370,65 @@ impl Node {
         self.tau.0.is_empty()
     }
 
+    // note: it's unsafe to use this method outside `try_update_to` as
+    // we have guaranteed there that `self` is parent of the target
     fn derive_child_with_partials(
         &self,
         params: &Params,
+        target_tau: Tau,
         partial_b: &G2Projective,
         partial_f: &G2Projective,
         mut rng: impl RngCore,
     ) -> Self {
+        debug_assert!(self.tau.is_parent_of(&target_tau));
+
         let delta = Scalar::random(&mut rng);
         let a = self.a + G1Projective::generator() * delta;
 
-        todo!()
+        let e = self.e + params.h * delta;
+
+        let n = target_tau.height() - self.tau.height();
+        let i = target_tau.height() - 1;
+
+        // TODO: is this the right condition for that?
+        // the actual target node and the last one in chain
+        if self.ds.len() == n {
+            let b = partial_b + partial_f * delta;
+            let ds = self
+                .ds
+                .iter()
+                .zip(params.fs.iter())
+                .skip(target_tau.height())
+                .map(|(d_i, f_i)| d_i + f_i * delta)
+                .collect();
+
+            Node {
+                tau: target_tau,
+                a,
+                b,
+                ds,
+                e,
+            }
+        } else {
+            let d0 = self.ds[n - 1];
+            let b = partial_b + d0 + (partial_f + params.fs[i]) * delta;
+
+            let ds = self
+                .ds
+                .iter()
+                .skip(n)
+                .zip(params.fs.iter().skip(target_tau.height()))
+                .map(|(d_i, f_i)| d_i + f_i * delta)
+                .collect();
+
+            Node {
+                tau: target_tau,
+                a,
+                b,
+                ds,
+                e,
+            }
+        }
     }
 
     // tau_l == 0
@@ -690,21 +628,16 @@ fn decrypt_chunk(
     // TODO: verify the pairing from description 1.1.5, i.e. e(g1, Z_j) = e(R_j, f0*PROD(fi^ti) * e(Oj, h)
 
     let epoch_node = dk.try_get_compatible_node(epoch)?;
-    let b_neg1 = epoch
-        .0
+
+    let b_neg = epoch_node
+        .ds
         .iter()
-        .by_vals()
-        .zip(epoch_node.ds.iter())
-        .filter(|(i, _)| *i)
-        .map(|(_, d_i)| d_i)
+        .zip(epoch.0.iter().by_vals())
+        .filter(|(_, i)| *i)
+        .map(|(d_i, _)| d_i)
         .fold(epoch_node.b, |acc, d_i| acc + d_i)
         .neg()
         .to_affine();
-
-    let b_neg = epoch_node.b.neg().to_affine();
-
-    println!("{:?}", epoch);
-    assert_eq!(b_neg1, b_neg);
 
     let e_neg = epoch_node.e.neg().to_affine();
     let z_affine = z.to_affine();
@@ -841,6 +774,7 @@ pub fn baby_step_giant_step(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bitvec::bitvec;
     use bitvec::order::Msb0;
     use group::Group;
     use rand_core::SeedableRng;
@@ -981,6 +915,48 @@ mod tests {
     }
 
     #[test]
+    fn decryption_with_root_key() {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let (root_key, public_key) = keygen(&params, &mut rng);
+
+        let share = Share::random(&mut rng);
+
+        let epoch0 = Tau::new(0);
+        let epoch42 = Tau::new(42);
+        let epoch_big = Tau::new(3292547435);
+
+        let ciphertext1 = encrypt_shares(
+            &[(share.clone(), &public_key.key)],
+            &epoch0,
+            &params,
+            &mut rng,
+        );
+        let ciphertext2 = encrypt_shares(
+            &[(share.clone(), &public_key.key)],
+            &epoch42,
+            &params,
+            &mut rng,
+        );
+        let ciphertext3 = encrypt_shares(
+            &[(share.clone(), &public_key.key)],
+            &epoch_big,
+            &params,
+            &mut rng,
+        );
+
+        let recovered1 = decrypt_share(&root_key, 0, &ciphertext1, &epoch0, None).unwrap();
+        let recovered2 = decrypt_share(&root_key, 0, &ciphertext2, &epoch42, None).unwrap();
+        let recovered3 = decrypt_share(&root_key, 0, &ciphertext3, &epoch_big, None).unwrap();
+
+        assert_eq!(share, recovered1);
+        assert_eq!(share, recovered2);
+        assert_eq!(share, recovered3);
+    }
+
+    #[test]
     fn creating_tau_from_epoch() {
         assert!(Tau::new_root().0.is_empty());
 
@@ -1012,7 +988,7 @@ mod tests {
         // value that requires an actual u32 (i.e. takes 4 bytes to represent)
         // 11000100_01000000_01001001_01101011 in binary
         let big_val = Tau::new(3292547435);
-        let expected = bitvec![
+        let expected = bitvec![u32, Msb0;
             1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
             0, 1, 1
         ];
@@ -1142,7 +1118,5 @@ mod tests {
         assert!(dk.try_update_to(&Tau::new(531), &params, &mut rng).is_err())
     }
 }
-
-// TODO: write a sanity-check test to see if root node allows you to decrypt everything
 
 // TODO: benchmark whether for key updates it's quicker to do a^delta as opposed to a + g1^delta (same for b, d, e, etc.)

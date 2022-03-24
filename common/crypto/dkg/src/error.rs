@@ -47,6 +47,6 @@ pub enum DkgError {
     #[error("Provided node is not a valid parent")]
     NotAValidParent,
 
-    #[error("Provided decryption key is outdated")]
-    OutdatedKey,
+    #[error("Provided decryption key has expired")]
+    ExpiredKey,
 }

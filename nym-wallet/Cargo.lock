@@ -2851,6 +2851,7 @@ dependencies = [
  "dirs",
  "eyre",
  "futures",
+ "itertools",
  "log",
  "mixnet-contract-common",
  "pretty_env_logger",

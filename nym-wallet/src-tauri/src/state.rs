@@ -28,8 +28,8 @@ impl State {
       .ok_or(BackendError::ClientNotInitialized)
   }
 
-  pub fn config(&self) -> Config {
-    self.config.clone()
+  pub fn config(&self) -> &Config {
+    &self.config
   }
 
   pub fn add_client(&mut self, network: Network, client: Client<SigningNymdClient>) {

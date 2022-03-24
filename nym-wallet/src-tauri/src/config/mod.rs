@@ -4,6 +4,7 @@
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use config::NymConfig;
+use itertools::Itertools;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -115,8 +116,10 @@ impl Config {
       .chain(self.network.validators(network))
       .cloned()
       .chain(base_validators)
+      .unique()
   }
 
+  #[allow(unused)]
   pub fn get_validators_with_api_endpoint(
     &self,
     network: WalletNetwork,
@@ -164,6 +167,10 @@ impl Config {
     let client = reqwest::Client::builder()
       .timeout(Duration::from_secs(3))
       .build()?;
+    log::debug!(
+      "Fetching validator urls from: {}",
+      REMOTE_SOURCE_OF_VALIDATOR_URLS
+    );
     let response = client
       .get(REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
       .send()
@@ -183,6 +190,7 @@ impl Config {
     let validator_urls = validators_to_query().map(|v| {
       let mut health_url = v.nymd_url.clone();
       health_url.set_path("health");
+      log::debug!("Checking health of: {health_url}");
       (v, health_url)
     });
 
@@ -193,13 +201,18 @@ impl Config {
     let requests = validator_urls.map(|(_, url)| client.get(url).send());
     let responses = futures::future::join_all(requests).await;
 
-    let validators_responding_success =
-      zip(validators_to_query(), responses).filter_map(|(v, r)| match r {
+    let validators_responding_success = zip(validators_to_query(), responses)
+      .filter_map(|(v, r)| match r {
         Ok(r) if r.status().is_success() => Some((v, r.status())),
         _ => None,
-      });
+      })
+      .collect::<Vec<_>>();
 
-    Ok(validators_responding_success.collect::<Vec<_>>())
+    for validator in &validators_responding_success {
+      log::debug!("Returned success: {}", validator.0.nymd_url);
+    }
+
+    Ok(validators_responding_success)
   }
 
   #[allow(unused)]
@@ -223,7 +236,7 @@ impl Config {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ValidatorUrl {
   pub nymd_url: Url,
   pub api_url: Option<Url>,

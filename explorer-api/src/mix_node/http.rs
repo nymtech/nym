@@ -12,7 +12,7 @@ use rocket_okapi::settings::OpenApiSettings;
 use mixnet_contract_common::Delegation;
 
 use crate::mix_node::models::{NodeDescription, NodeStats, PrettyDetailedMixNodeBond};
-use crate::mix_nodes::delegations::{get_single_mixnode_delegations};
+use crate::mix_nodes::delegations::get_single_mixnode_delegations;
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {

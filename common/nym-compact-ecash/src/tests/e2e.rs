@@ -1,8 +1,8 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
-use crate::scheme::{SignatureShare, Wallet};
-use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_verification_keys};
+use crate::scheme::{PartialWallet, SignatureShare};
+use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets};
 use crate::scheme::keygen::{
     generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
@@ -35,7 +35,7 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.push(blind_signature.unwrap());
     }
 
-    let unblinded_wallet_shares: Vec<Wallet> = izip!(
+    let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
@@ -43,15 +43,7 @@ fn main() -> Result<(), CompactEcashError> {
         .collect();
 
     // Aggregate partial wallets
-    let signature_shares: Vec<SignatureShare> = unblinded_wallet_shares
-        .iter()
-        .enumerate()
-        .map(|(idx, wallet)| SignatureShare::new(*wallet.signature(), (idx + 1) as u64))
-        .collect();
-
-    let attributes = vec![user_keypair.secret_key().sk, req_info.get_v(), req_info.get_t()];
-    let aggregated_signature =
-        aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
+    let aggr_wallet = aggregate_wallets(&params, &verification_key, &user_keypair.secret_key(), &unblinded_wallet_shares, &req_info);
 
     Ok(())
 }

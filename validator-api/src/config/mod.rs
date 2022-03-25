@@ -34,6 +34,7 @@ const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
 const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(30);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
+const DEFAULT_MIN_RELIABILITY: u8 = 50;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct Config {
@@ -107,6 +108,9 @@ impl Default for Base {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct NetworkMonitor {
+    //  Mixnodes and gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
+    min_reliability: u8,
+
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
 
@@ -188,6 +192,7 @@ impl NetworkMonitor {
 impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
+            min_reliability: DEFAULT_MIN_RELIABILITY,
             enabled: false,
             testnet_mode: false,
             all_validator_apis: default_api_endpoints(),
@@ -416,6 +421,10 @@ impl Config {
 
     pub fn get_minimum_test_routes(&self) -> usize {
         self.network_monitor.minimum_test_routes
+    }
+
+    pub fn get_min_reliability(&self) -> u8 {
+        self.network_monitor.min_reliability
     }
 
     pub fn get_route_test_packets(&self) -> usize {

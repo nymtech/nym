@@ -204,7 +204,7 @@ impl RewardedSetUpdater {
         let epoch = self.epoch().await?;
         log::info!("Starting rewarded set update");
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
-        let all_nodes = self.validator_cache.mixnodes().await.into_inner();
+        let all_nodes = self.validator_cache.mixnodes().await;
         let epoch_reward_params = self
             .validator_cache
             .epoch_reward_params()

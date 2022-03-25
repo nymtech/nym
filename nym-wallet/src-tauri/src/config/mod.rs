@@ -117,14 +117,15 @@ impl Config {
       .chain(base_validators)
   }
 
-  pub fn get_validators_with_api_endpoint(
-    &self,
-    network: WalletNetwork,
-  ) -> impl Iterator<Item = ValidatorUrlWithApiEndpoint> + '_ {
+  pub fn get_nymd_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
+    self.get_validators(network).into_iter().map(|v| v.nymd_url)
+  }
+
+  pub fn get_api_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
     self
       .get_validators(network)
       .into_iter()
-      .filter_map(|validator| ValidatorUrlWithApiEndpoint::try_from(validator).ok())
+      .filter_map(|v| v.api_url)
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {

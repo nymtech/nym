@@ -295,6 +295,9 @@ impl PacketPreparer {
         let rand_l3 = l3.choose_multiple(&mut rng, n).collect::<Vec<_>>();
         let rand_gateways = gateways.choose_multiple(&mut rng, n).collect::<Vec<_>>();
 
+        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "109.74.196.254".to_string()).collect::<Vec<_>>();
+        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "185.3.94.33".to_string()).collect::<Vec<_>>();
+
         // the unwrap on `min()` is fine as we know the iterator is not empty
         let most_available = *[
             rand_l1.len(),

@@ -65,6 +65,18 @@ pub fn try_write_rewarded_set(
     )))
 }
 
+pub fn try_init_epoch(
+    info: MessageInfo,
+    storage: &mut dyn Storage,
+    env: Env,
+) -> Result<Response, ContractError> {
+    is_authorized(info.sender.as_str().to_string(), storage)?;
+
+    init_epoch(storage, env)?;
+
+    Ok(Response::default())
+}
+
 pub fn init_epoch(storage: &mut dyn Storage, env: Env) -> Result<Interval, ContractError> {
     let epoch = Interval::init_epoch(env);
     storage::save_epoch(storage, &epoch)?;

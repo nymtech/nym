@@ -5,7 +5,7 @@ use crypto::aes::Aes128;
 use crypto::blake3;
 use crypto::ctr;
 
-type Aes128Ctr = ctr::Ctr64LE<Aes128>;
+type Aes128Ctr = ctr::Ctr64BE<Aes128>;
 
 // Re-export for ease of use
 pub use packet_modes::PacketMode;

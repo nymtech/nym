@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
-use crate::delegations::queries::query_all_network_delegations_paged;
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::{
@@ -16,7 +15,7 @@ use crate::interval::queries::{
     query_current_rewarded_set_height, query_rewarded_set,
     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
-use crate::interval::transactions::init_epoch;
+use crate::interval::transactions::{init_epoch, try_init_epoch};
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -97,6 +96,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,
@@ -299,9 +299,6 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             start_after,
             limit,
         )?),
-        QueryMsg::GetAllNetworkDelegations { start_after, limit } => to_binary(
-            &query_all_network_delegations_paged(deps, start_after, limit)?,
-        ),
         QueryMsg::GetDelegatorDelegations {
             delegator: delegation_owner,
             start_after,
@@ -423,7 +420,7 @@ fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    // TODO: Uncomment for sandbox and mainnet
+    // TODO: Uncomment mainnet
     // migrate_delegations(deps)?;
 
     Ok(Default::default())

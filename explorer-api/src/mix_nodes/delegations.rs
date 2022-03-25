@@ -17,15 +17,3 @@ pub(crate) async fn get_single_mixnode_delegations(pubkey: &str) -> Vec<Delegati
     };
     delegates
 }
-
-pub(crate) async fn get_mixnode_delegations() -> Vec<Delegation> {
-    let client = crate::client::new_nymd_client();
-    let delegates = match client.get_all_network_delegations().await {
-        Ok(result) => result,
-        Err(e) => {
-            error!("Could not get all mix delegations: {:?}", e);
-            vec![]
-        }
-    };
-    delegates
-}

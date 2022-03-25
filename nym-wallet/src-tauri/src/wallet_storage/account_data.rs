@@ -55,7 +55,7 @@ impl StoredWallet {
     &mut self,
     new_account: EncryptedAccount,
   ) -> Result<(), BackendError> {
-    if let Ok(_) = self.encrypted_account(&new_account.id) {
+    if self.encrypted_account(&new_account.id).is_ok() {
       return Err(BackendError::IdAlreadyExistsInWallet);
     }
     self.accounts.push(new_account);

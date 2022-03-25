@@ -4,7 +4,6 @@
 pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
 
 use crate::error::BackendError;
-use crate::operations::mixnet::account::create_new_account;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};

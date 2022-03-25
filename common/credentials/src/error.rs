@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "coconut")]
 use coconut_interface::CoconutError;
 use crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
@@ -15,6 +16,7 @@ pub enum Error {
     #[error("Could not contact any validator")]
     NoValidatorsAvailable,
 
+    #[cfg(feature = "coconut")]
     #[error("Run into a coconut error - {0}")]
     CoconutError(#[from] CoconutError),
 

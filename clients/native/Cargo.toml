@@ -47,7 +47,7 @@ version-checker = { path = "../../common/version-checker" }
 network-defaults = { path = "../../common/network-defaults" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut"]
+coconut = ["coconut-interface", "credentials", "credentials/coconut", "gateway-requests/coconut", "gateway-client/coconut"]
 eth = []
 
 [dev-dependencies]

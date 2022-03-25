@@ -8,6 +8,96 @@ use std::fmt::Formatter;
 use zeroize::Zeroize;
 use zeroize::Zeroizing;
 
+use crate::error::BackendError;
+
+use super::encryption::EncryptedData;
+use super::password::WalletAccountId;
+use super::UserPassword;
+
+const CURRENT_WALLET_FILE_VERSION: u32 = 1;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct StoredWallet {
+  version: u32,
+  accounts: Vec<EncryptedAccount>,
+}
+
+impl StoredWallet {
+  pub fn version(&self) -> u32 {
+    self.version
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.accounts.is_empty()
+  }
+
+  pub fn len(&self) -> usize {
+    self.accounts.len()
+  }
+
+  pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
+    self.accounts.get(index)
+  }
+
+  fn encrypted_account(
+    &self,
+    id: &WalletAccountId,
+  ) -> Result<&EncryptedData<StoredAccount>, BackendError> {
+    self
+      .accounts
+      .iter()
+      .find(|account| &account.id == id)
+      .map(|account| &account.account)
+      .ok_or(BackendError::NoSuchIdInWallet)
+  }
+
+  pub fn add_encrypted_account(
+    &mut self,
+    new_account: EncryptedAccount,
+  ) -> Result<(), BackendError> {
+    if let Ok(_) = self.encrypted_account(&new_account.id) {
+      return Err(BackendError::IdAlreadyExistsInWallet);
+    }
+    self.accounts.push(new_account);
+    Ok(())
+  }
+
+  pub fn decrypt_account(
+    &self,
+    id: &WalletAccountId,
+    password: &UserPassword,
+  ) -> Result<StoredAccount, BackendError> {
+    self.encrypted_account(id)?.decrypt_struct(password)
+  }
+
+  pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredAccount>, BackendError> {
+    self
+      .accounts
+      .iter()
+      .map(|account| account.account.decrypt_struct(password))
+      .collect::<Result<Vec<_>, _>>()
+  }
+
+  pub fn password_can_decrypt_all(&self, password: &UserPassword) -> bool {
+    self.decrypt_all(password).is_ok()
+  }
+}
+
+impl Default for StoredWallet {
+  fn default() -> Self {
+    StoredWallet {
+      version: CURRENT_WALLET_FILE_VERSION,
+      accounts: Vec::new(),
+    }
+  }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct EncryptedAccount {
+  pub id: WalletAccountId,
+  pub account: EncryptedData<StoredAccount>,
+}
+
 // future-proofing
 #[derive(Serialize, Deserialize, Debug, Zeroize)]
 #[serde(untagged)]
@@ -24,6 +114,14 @@ impl StoredAccount {
   ) -> StoredAccount {
     StoredAccount::Mnemonic(MnemonicAccount { mnemonic, hd_path })
   }
+
+  // If we add accounts backed by something that is not a mnemonic, this should probably be changed
+  // to return `Option<..>`.
+  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+    match self {
+      StoredAccount::Mnemonic(account) => account.mnemonic(),
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,8 +131,6 @@ pub(crate) struct MnemonicAccount {
   hd_path: DerivationPath,
 }
 
-// we only ever want to expose those getters in the test code
-#[cfg(test)]
 impl MnemonicAccount {
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     &self.mnemonic

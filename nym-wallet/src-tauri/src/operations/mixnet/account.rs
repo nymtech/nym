@@ -4,8 +4,11 @@ use crate::error::BackendError;
 use crate::network::Network;
 use crate::nymd_client;
 use crate::state::State;
+use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
+use config::defaults::COSMOS_DERIVATION_PATH;
+use cosmrs::bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -227,9 +230,10 @@ async fn choose_validators(
         .next()
         // We always have at least one hardcoded default validator
         .unwrap();
-      println!(
+      log::info!(
         "Using default for {network}: {}, {}",
-        default_validator.nymd_url, default_validator.api_url,
+        default_validator.nymd_url,
+        default_validator.api_url,
       );
       default_validator
     });
@@ -305,9 +309,10 @@ async fn try_connect_to_validator(
   )?;
 
   if is_validator_connection_ok(&client).await {
-    println!(
+    log::info!(
       "Connection ok for {network}: {}, {}",
-      validator.nymd_url, validator.api_url
+      validator.nymd_url,
+      validator.api_url
     );
     Ok(Some((network, validator.clone())))
   } else {
@@ -321,4 +326,46 @@ async fn is_validator_connection_ok(client: &Client<SigningNymdClient>) -> bool 
     Err(NymdError::TendermintError(_)) => false,
     Err(_) | Ok(_) => true,
   }
+}
+
+#[tauri::command]
+pub fn does_password_file_exist() -> Result<bool, BackendError> {
+  log::info!("Checking wallet file");
+  let file = wallet_storage::wallet_login_filepath()?;
+  if file.exists() {
+    log::info!("Exists: {}", file.to_string_lossy());
+    Ok(true)
+  } else {
+    log::info!("Does not exist: {}", file.to_string_lossy());
+    Ok(false)
+  }
+}
+
+#[tauri::command]
+pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
+  if does_password_file_exist()? {
+    return Err(BackendError::WalletFileAlreadyExists);
+  }
+  log::info!("Creating password");
+
+  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let password = wallet_storage::UserPassword::new(password);
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
+}
+
+#[tauri::command]
+pub async fn sign_in_with_password(
+  password: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  log::info!("Signing in with password");
+
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let password = wallet_storage::UserPassword::new(password);
+  let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
 }

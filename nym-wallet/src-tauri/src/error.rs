@@ -77,10 +77,18 @@ pub enum BackendError {
   NetworkNotSupported(config::defaults::all::Network),
   #[error("Could not access the local data storage directory")]
   UnknownStorageDirectory,
-  #[error("No nymd validator configured")]
-  NoNymdValidatorConfigured,
   #[error("No validator API URL configured")]
   NoValidatorApiUrlConfigured,
+  #[error("The wallet file already exists")]
+  WalletFileAlreadyExists,
+  #[error("The wallet file is not found")]
+  WalletFileNotFound,
+  #[error("Account ID not found in wallet")]
+  NoSuchIdInWallet,
+  #[error("Account ID already found in wallet")]
+  IdAlreadyExistsInWallet,
+  #[error("Adding a different password to the wallet not currently supported")]
+  WalletDifferentPasswordDetected,
 }
 
 impl Serialize for BackendError {

@@ -212,7 +212,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<ValidatorCache>,
     identity: String,
 ) -> Json<Option<InclusionProbabilityResponse>> {
-    let mixnodes = cache.mixnodes().await.into_inner();
+    let mixnodes = cache.mixnodes().await;
 
     if let Some(target_mixnode) = mixnodes.iter().find(|x| x.identity() == &identity) {
         let total_bonded_tokens = mixnodes

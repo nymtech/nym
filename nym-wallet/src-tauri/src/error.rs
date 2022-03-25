@@ -85,6 +85,8 @@ pub enum BackendError {
   WalletFileNotFound,
   #[error("Account ID not found in wallet")]
   NoSuchIdInWallet,
+  #[error("Account ID already found in wallet")]
+  IdAlreadyExistsInWallet,
   #[error("Adding a different password to the wallet not currently supported")]
   WalletDifferentPasswordDetected,
 }

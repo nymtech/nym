@@ -13,7 +13,7 @@ use ff::Field;
 use group::Curve;
 use lazy_static::lazy_static;
 use rand_core::RngCore;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::ops::Neg;
 use zeroize::Zeroize;
 
@@ -38,6 +38,7 @@ lazy_static! {
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
+const MAX_EPOCHS_EXP: usize = 32;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 // None empty bitvec implies this is a root node
@@ -52,12 +53,16 @@ impl Tau {
         Tau(epoch.view_bits().to_bitvec())
     }
 
-    fn push_left(&mut self) {
-        self.0.push(false)
+    fn left_child(&self) -> Self {
+        let mut child = self.0.clone();
+        child.push(false);
+        Tau(child)
     }
 
-    fn push_right(&mut self) {
-        self.0.push(true)
+    fn right_child(&self) -> Self {
+        let mut child = self.0.clone();
+        child.push(true);
+        Tau(child)
     }
 
     fn is_leaf(&self, params: &Params) -> bool {
@@ -85,6 +90,22 @@ impl Tau {
         }
 
         true
+    }
+
+    fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Self, DkgError> {
+        if self.0.len() > params.tree_height {
+            // this node is already BELOW a valid leaf-epoch node. it can only happen
+            // if either some invariant was broken or additional data was pushed to `tau`
+            // in order compute some intermediate results, but in that case this method should have
+            // never been called anyway. tl;dr: if this is called, the underlying key is malformed
+            return Err(DkgError::NotAValidParent);
+        }
+        let mut child = self.0.clone();
+        for _ in 0..(params.tree_height - self.0.len()) {
+            child.push(false)
+        }
+
+        Ok(Tau(child))
     }
 
     // essentially height of the tree this tau represents
@@ -126,8 +147,6 @@ impl Zeroize for Tau {
         }
     }
 }
-
-const MAX_EPOCHS_EXP: usize = 32;
 
 pub struct Params {
     /// In paper $\lambda$
@@ -191,24 +210,11 @@ impl PublicKeyWithProof {
     }
 }
 
+#[derive(Zeroize)]
+#[zeroize(drop)]
 pub struct DecryptionKey {
     // note that the nodes are ordered from "right" to "left"
     nodes: Vec<Node>,
-}
-
-impl Zeroize for DecryptionKey {
-    fn zeroize(&mut self) {
-        for node in self.nodes.iter_mut() {
-            node.zeroize()
-        }
-        self.nodes.clear();
-    }
-}
-
-impl Drop for DecryptionKey {
-    fn drop(&mut self) {
-        self.zeroize();
-    }
 }
 
 impl DecryptionKey {
@@ -239,11 +245,40 @@ impl DecryptionKey {
             .ok_or(DkgError::ExpiredKey)
     }
 
+    pub fn try_update_to_next_epoch(
+        &mut self,
+        params: &Params,
+        mut rng: impl RngCore,
+    ) -> Result<(), DkgError> {
+        if self.nodes.is_empty() {
+            return Err(DkgError::MalformedDecryptionKey);
+        }
+
+        let mut target_epoch = Tau::new(0);
+        if self.nodes.len() == 1 && self.nodes[0].is_root() {
+            return self.try_update_to(&target_epoch, params, &mut rng);
+        }
+
+        // unwrap is fine as we have asserted self.nodes is not empty
+        self.nodes.pop().unwrap();
+
+        if let Some(tail) = self.nodes.last() {
+            target_epoch = tail.tau.lowest_valid_epoch_child(params)?;
+        } else {
+            // essentially our key consisted of only a single node and it wasn't a root,
+            // so either it was malformed or we somehow reached the final epoch and wanted to update
+            // beyond that. Either way, update to l + 1 is impossible
+            return Err(DkgError::MalformedDecryptionKey);
+        }
+
+        self.try_update_to(&target_epoch, params, &mut rng)
+    }
+
     /// Attempts to update `self` to the provided `epoch`. If the update is not possible,
     /// because the target was in the past or the key is malformed, an error is returned.
     ///
     /// Note that this method mutates the key in place and if the original key was malformed,
-    /// there are no guarantees about its internal state post-call.    
+    /// there are no guarantees about its internal state post-call.
     pub fn try_update_to(
         &mut self,
         target_epoch: &Tau,
@@ -271,19 +306,26 @@ impl DecryptionKey {
         }
 
         // drop the nodes that are no longer required and get the most direct parent for the target epoch available
-        let parent = loop {
-            if let Some(tail) = self.nodes.pop() {
-                if tail.tau.is_parent_of(target_epoch) {
-                    break tail;
-                }
-            } else {
-                // the key is malformed since we checked that the target_epoch > current_epoch,
-                // hence the update should have been possible
-                return Err(DkgError::MalformedDecryptionKey);
+        let mut parent = loop {
+            // if pop() fails the key is malformed since we checked that the target_epoch > current_epoch,
+            // hence the update should have been possible
+            let tail = self.nodes.pop().ok_or(DkgError::MalformedDecryptionKey)?;
+            if tail.tau.is_parent_of(target_epoch) {
+                break tail;
             }
         };
 
-        // accumulators, note that the previous elements have already been included by the parent
+        // essentially the case of updating epoch n to n + 1, where n is even;
+        // in that case the last two nodes are [..., epoch_{n+1}, epoch_n]
+        // so we just have to reblind the n+1 node and we're done
+        if &parent.tau == target_epoch {
+            parent.reblind(params, &mut rng);
+            self.nodes.push(parent);
+            return Ok(());
+        }
+
+        // accumulators, note that the previous elements have already been included by the parent,
+        // i.e. for example for parent at height l <= n, b = g2^x * f0^rho * d1^{tau_1} * ... * dl^{tau_l}
         // new_b_accumulator = b * d1^{tau_1} * d2^{tau_2} * ... * dn^{tau_n}
         // new_f_accumulator = f0 * f1^{tau_1} * f2^{tau_2} * ... * fn^{tau_n}
         let mut new_b_accumulator = parent.b;
@@ -291,7 +333,7 @@ impl DecryptionKey {
 
         let parent_height = parent.tau.height();
 
-        // path to the child from the parent
+        // path from the parent to the child
         for (n, bit) in target_epoch
             .0
             .iter()
@@ -299,32 +341,40 @@ impl DecryptionKey {
             .skip(parent.tau.len())
             .enumerate()
         {
-            // ith bit of the epoch
+            // ith bit of the [child] epoch
+            // note that n represents height difference between parent and the current bit
             let i = n + parent_height;
 
-            // if the bit is NOT set..., push the right '1' subtree (for future keys)
+            // if the bit is NOT set, push the right '1' subtree (for future keys)
+            // so for example if given parent with some `PREFIX` tau and target_epoch being `PREFIX || 010`,
+            // in the first loop iteration we're going to look at bit `0` and
+            // derive child node `PREFIX || 1` so that in the future we could derive keys for all other epochs starting with `PREFIX || 1`
+            // in the next loop iteration we're going to look at bit `1` and simply update the accumulators,
+            // as we don't need to generate any "left" nodes as all of them would have constructed epochs that are already in the past
+            // finally, in the last iteration, we look at the bit `0` and derive node `PREFIX || 011`,
+            // i.e. the one that FOLLOWS the target node.
             if !bit {
-                let mut right_branch = target_epoch.try_get_parent_at_height(i)?;
-                right_branch.push_right();
+                let right_branch = target_epoch.try_get_parent_at_height(i)?.right_child();
 
-                self.nodes.push(parent.derive_child_with_partials(
-                    params,
-                    right_branch,
-                    &new_b_accumulator,
-                    &new_f_accumulator,
-                    &mut rng,
-                ));
+                self.nodes
+                    .push(parent.derive_right_nonfinal_child_of_with_partials(
+                        params,
+                        right_branch,
+                        &new_b_accumulator,
+                        &new_f_accumulator,
+                        &mut rng,
+                    ));
             } else {
                 // only update the accumulators when the bit is set, as d^0 == identity, so there's
                 // no point in doing anything else;
                 // note that we don't have to generate any new nodes when going into the right branch
                 // of the tree as everything on the left would have been in the past, so we don't care about them
                 new_b_accumulator += parent.ds[n]; // add d0
-                new_f_accumulator += params.fs[i]
+                new_f_accumulator += params.fs[i]; // f_i
             }
         }
 
-        self.nodes.push(parent.derive_child_with_partials(
+        self.nodes.push(parent.derive_target_child_with_partials(
             params,
             target_epoch.clone(),
             &new_b_accumulator,
@@ -370,9 +420,56 @@ impl Node {
         self.tau.0.is_empty()
     }
 
+    fn reblind(&mut self, params: &Params, mut rng: impl RngCore) {
+        let delta = Scalar::random(&mut rng);
+        self.a += G1Projective::generator() * delta;
+        self.b += self.tau.evaluate_f(params) * delta;
+        self.ds
+            .iter_mut()
+            .zip(params.fs.iter().skip(self.tau.height()))
+            .for_each(|(d_i, f_i)| *d_i += f_i * delta);
+        self.e += params.h * delta;
+    }
+
     // note: it's unsafe to use this method outside `try_update_to` as
     // we have guaranteed there that `self` is parent of the target
-    fn derive_child_with_partials(
+    // and that `self.tau != target_tau`
+    fn derive_target_child_with_partials(
+        &self,
+        params: &Params,
+        target_tau: Tau,
+        partial_b: &G2Projective,
+        partial_f: &G2Projective,
+        mut rng: impl RngCore,
+    ) -> Self {
+        assert!(self.tau.is_parent_of(&target_tau));
+        assert_ne!(self.tau, target_tau);
+
+        let delta = Scalar::random(&mut rng);
+        let a = self.a + G1Projective::generator() * delta;
+        let b = partial_b + partial_f * delta;
+        let ds = self
+            .ds
+            .iter()
+            .zip(params.fs.iter())
+            .skip(target_tau.height())
+            .map(|(d_i, f_i)| d_i + f_i * delta)
+            .collect();
+        let e = self.e + params.h * delta;
+
+        Node {
+            tau: target_tau,
+            a,
+            b,
+            ds,
+            e,
+        }
+    }
+
+    // note: it's unsafe to use this method outside `try_update_to` as
+    // we have guaranteed there that `self` is parent of the target
+    // and that `self.tau != target_tau`
+    fn derive_right_nonfinal_child_of_with_partials(
         &self,
         params: &Params,
         target_tau: Tau,
@@ -381,76 +478,33 @@ impl Node {
         mut rng: impl RngCore,
     ) -> Self {
         debug_assert!(self.tau.is_parent_of(&target_tau));
+        debug_assert_ne!(self.tau, target_tau);
+
+        // n is height difference between self and the child
+        let n = target_tau.height() - self.tau.height();
+
+        // i is the index of the last bit we just added
+        let i = target_tau.height() - 1;
 
         let delta = Scalar::random(&mut rng);
         let a = self.a + G1Projective::generator() * delta;
-
+        let d0 = self.ds[n - 1];
+        let b = partial_b + d0 + (partial_f + params.fs[i]) * delta;
+        let ds = self
+            .ds
+            .iter()
+            .skip(n)
+            .zip(params.fs.iter().skip(target_tau.height()))
+            .map(|(d_i, f_i)| d_i + f_i * delta)
+            .collect();
         let e = self.e + params.h * delta;
 
-        let n = target_tau.height() - self.tau.height();
-        let i = target_tau.height() - 1;
-
-        // TODO: is this the right condition for that?
-        // the actual target node and the last one in chain
-        if self.ds.len() == n {
-            let b = partial_b + partial_f * delta;
-            let ds = self
-                .ds
-                .iter()
-                .zip(params.fs.iter())
-                .skip(target_tau.height())
-                .map(|(d_i, f_i)| d_i + f_i * delta)
-                .collect();
-
-            Node {
-                tau: target_tau,
-                a,
-                b,
-                ds,
-                e,
-            }
-        } else {
-            let d0 = self.ds[n - 1];
-            let b = partial_b + d0 + (partial_f + params.fs[i]) * delta;
-
-            let ds = self
-                .ds
-                .iter()
-                .skip(n)
-                .zip(params.fs.iter().skip(target_tau.height()))
-                .map(|(d_i, f_i)| d_i + f_i * delta)
-                .collect();
-
-            Node {
-                tau: target_tau,
-                a,
-                b,
-                ds,
-                e,
-            }
-        }
-    }
-
-    // tau_l == 0
-    fn derive_left_child(&self) -> Self {
-        todo!()
-    }
-
-    // tau_l == 1
-    fn derive_right_child(&self) -> Self {
-        // this is probably missing A LOT OF arguments, but lets leave it like this temporarily
-
-        let mut new_tau = self.tau.clone();
-        new_tau.0.push(true);
-
         Node {
-            tau: new_tau,
-
-            // THOSE ARE WRONG BTW
-            a: self.a,
-            b: self.b,
-            ds: self.ds.clone(),
-            e: self.e,
+            tau: target_tau,
+            a,
+            b,
+            ds,
+            e,
         }
     }
 }
@@ -511,13 +565,6 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWi
 
 fn verify_key(pk: &PublicKey, proof: &ProofOfDiscreteLog) -> bool {
     proof.verify(&pk.0)
-}
-
-// evolve?
-// update?
-// epoch is epoch_bit I think
-fn derive_key(dk: DecryptionKey, epoch: Tau) -> DecryptionKey {
-    todo!()
 }
 
 #[inline]
@@ -957,6 +1004,29 @@ mod tests {
     }
 
     #[test]
+    fn update_and_decrypt_10() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let (mut decryption_key, public_key) = keygen(&params, &mut rng);
+
+        for epoch in 0..10 {
+            let tau = Tau::new(epoch);
+            let share = Share::random(&mut rng);
+            decryption_key
+                .try_update_to(&tau, &params, &mut rng)
+                .unwrap();
+
+            let ciphertext =
+                encrypt_shares(&[(share.clone(), &public_key.key)], &tau, &params, &mut rng);
+
+            let recovered = decrypt_share(&decryption_key, 0, &ciphertext, &tau, None).unwrap();
+            assert_eq!(share, recovered);
+        }
+    }
+
+    #[test]
     fn creating_tau_from_epoch() {
         assert!(Tau::new_root().0.is_empty());
 
@@ -993,6 +1063,48 @@ mod tests {
             0, 1, 1
         ];
         assert_eq!(expected, big_val.0)
+    }
+
+    #[test]
+    fn reblinding_node_doesnt_affect_decryption() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let (mut decryption_key, public_key) = keygen(&params, &mut rng);
+
+        let tau = Tau::new(12345);
+        decryption_key
+            .try_update_to(&tau, &params, &mut rng)
+            .unwrap();
+        for node in decryption_key.nodes.iter_mut() {
+            node.reblind(&params, &mut rng);
+        }
+        let share = Share::random(&mut rng);
+
+        let ciphertext =
+            encrypt_shares(&[(share.clone(), &public_key.key)], &tau, &params, &mut rng);
+        let recovered = decrypt_share(&decryption_key, 0, &ciphertext, &tau, None).unwrap();
+        assert_eq!(share, recovered);
+
+        // attempt to update the key again so we have to derive fresh nodes using previous reblinded results
+        let tau2 = Tau::new(67890);
+        decryption_key
+            .try_update_to(&tau2, &params, &mut rng)
+            .unwrap();
+        for node in decryption_key.nodes.iter_mut() {
+            node.reblind(&params, &mut rng);
+        }
+        let share2 = Share::random(&mut rng);
+
+        let ciphertext = encrypt_shares(
+            &[(share2.clone(), &public_key.key)],
+            &tau2,
+            &params,
+            &mut rng,
+        );
+        let recovered = decrypt_share(&decryption_key, 0, &ciphertext, &tau2, None).unwrap();
+        assert_eq!(share2, recovered);
     }
 
     #[test]
@@ -1117,6 +1229,39 @@ mod tests {
         // trying to go to past epochs fails
         assert!(dk.try_update_to(&Tau::new(531), &params, &mut rng).is_err())
     }
-}
 
-// TODO: benchmark whether for key updates it's quicker to do a^delta as opposed to a + g1^delta (same for b, d, e, etc.)
+    #[test]
+    fn updating_to_next_epoch() {
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (mut dk, _) = keygen(&params, &mut rng);
+
+        // for root node it should result in epoch 0
+        dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
+        assert_eq!(&Tau::new(0), dk.current_epoch().unwrap());
+
+        dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
+        assert_eq!(&Tau::new(1), dk.current_epoch().unwrap());
+
+        dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
+        assert_eq!(&Tau::new(2), dk.current_epoch().unwrap());
+
+        // if we start from some non-root epoch, it should result in l + 1
+        dk.try_update_to(&Tau::new(42), &params, &mut rng).unwrap();
+        dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
+        assert_eq!(&Tau::new(43), dk.current_epoch().unwrap());
+
+        dk.try_update_to(&Tau::new(12345), &params, &mut rng)
+            .unwrap();
+        dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
+        assert_eq!(&Tau::new(12346), dk.current_epoch().unwrap());
+
+        dk.try_update_to(&Tau::new(3292547435), &params, &mut rng)
+            .unwrap();
+        dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
+        assert_eq!(&Tau::new(3292547436), dk.current_epoch().unwrap());
+    }
+}

@@ -268,7 +268,7 @@ pub(crate) mod tests {
 
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
-                node_identity,
+                node_identity.clone(),
                 Option::from(start_after),
                 Option::from(per_page),
             )
@@ -278,6 +278,18 @@ pub(crate) mod tests {
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.delegations.len());
             assert_eq!(page2.delegations.last().unwrap().owner(), "400");
+
+            // Should be empty
+            let page3 = query_mixnode_delegations_paged(
+                deps.as_ref(),
+                node_identity,
+                page2.start_next_after,
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            assert!(page3.delegations.is_empty());
+            assert!(page3.start_next_after.is_none());
         }
     }
 

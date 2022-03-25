@@ -2,7 +2,7 @@ use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
+use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
 use crate::scheme::{BlindedSignature, PartialWallet, Signature};
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::keygen::ttp_keygen;

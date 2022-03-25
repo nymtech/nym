@@ -144,6 +144,7 @@ impl Wallet {
     pub fn signature(&self) -> &Signature { &self.sig }
     pub fn v(&self) -> Scalar { self.v }
     pub fn t(&self) -> Scalar { self.t }
+    pub fn l(&self) -> u64 { self.l.get() }
     fn up(&self) {
         self.l.set(self.l.get() + 1);
     }

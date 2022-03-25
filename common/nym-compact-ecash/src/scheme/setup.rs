@@ -7,7 +7,7 @@ use crate::error::Result;
 use crate::utils::hash_g1;
 
 const ATTRIBUTES_LEN: usize = 3;
-const MAX_COIN_VALUE: usize = 32;
+const MAX_COIN_VALUE: u64 = 32;
 
 pub struct Parameters {
     /// Generator of the G1 group
@@ -15,9 +15,9 @@ pub struct Parameters {
     /// Generator of the G2 group
     g2: G2Affine,
     /// Additional generators of the G1 group
-    gammas: Vec<G1Affine>,
+    gammas: Vec<G1Projective>,
     /// Value of wallet
-    L: usize,
+    L: u64,
     /// Precomputed G2 generator used for the miller loop
     _g2_prepared_miller: G2Prepared,
 }
@@ -25,7 +25,7 @@ pub struct Parameters {
 impl Parameters {
     pub fn new() -> Result<Parameters> {
         let gammas = (1..=ATTRIBUTES_LEN)
-            .map(|i| hash_g1(format!("gamma{}", i)).to_affine())
+            .map(|i| hash_g1(format!("gamma{}", i)))
             .collect();
         Ok(Parameters {
             g1: G1Affine::generator(),
@@ -44,9 +44,17 @@ impl Parameters {
         &self.g2
     }
 
-    pub(crate) fn gammas(&self) -> &Vec<G1Affine> {
+    pub(crate) fn gammas(&self) -> &Vec<G1Projective> {
         &self.gammas
     }
+
+    pub(crate) fn gamma1(&self) -> Option<&G1Projective> { self.gammas.get(1) }
+
+    pub(crate) fn gamma2(&self) -> Option<&G1Projective> { self.gammas.get(2) }
+
+    pub(crate) fn gamma3(&self) -> Option<&G1Projective> { self.gammas.get(3) }
+
+    pub(crate) fn L(&self) -> u64 { self.L }
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system

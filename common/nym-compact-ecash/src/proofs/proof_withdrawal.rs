@@ -34,7 +34,7 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
                 modulus_target: bytes.len() - 8,
                 target: 48 * 4 + 8,
                 modulus: 48,
-                object: "secret key".to_string(),
+                object: "withdrawal request zkp instance".to_string(),
             });
         }
         let com_bytes: [u8; 48] = bytes[..48].try_into().unwrap();

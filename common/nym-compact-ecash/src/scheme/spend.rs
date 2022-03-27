@@ -11,7 +11,7 @@ use crate::scheme::Wallet;
 use crate::utils::hash_to_scalar;
 
 pub struct PayInfo {
-    info: [u8; 32],
+    pub(crate) info: [u8; 32],
 }
 
 pub fn pseudorandom_fgv(params: &Parameters, v: Scalar, l: u64) -> G1Projective {
@@ -87,7 +87,7 @@ pub fn spend(params: &Parameters, wallet: &Wallet, verification_key: &Verificati
     let spendWitness = SpendWitness {
         attributes,
         r: sign_blinding_factor,
-        l: wallet.l(),
+        l: Scalar::from(wallet.l()),
         o_a,
         o_c,
         o_d,
@@ -96,7 +96,7 @@ pub fn spend(params: &Parameters, wallet: &Wallet, verification_key: &Verificati
         o_mu,
         o_lambda,
     };
-    let zkp = SpendProof::construct(&params, &spendInstance, &spendWitness);
+    let zkp = SpendProof::construct(&params, &spendInstance, &spendWitness, &verification_key, R);
 
     // output pay and updated wallet
 

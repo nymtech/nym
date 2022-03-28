@@ -12,6 +12,7 @@ use tokio::time::timeout;
 use url::Url;
 
 const MAX_URLS_TESTED: usize = 200;
+const CONNECTION_TEST_TIMEOUT_SEC: u64 = 2;
 
 // Run connection tests for all specified nymd and api urls. These are all run concurrently.
 pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
@@ -26,7 +27,7 @@ pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
     let connection_test_clients =
         setup_connection_tests(nymd_urls, api_urls, mixnet_contract_address);
 
-    // Run all tests async
+    // Run all tests concurrently
     let connection_results = futures::future::join_all(
         connection_test_clients
             .into_iter()
@@ -78,41 +79,45 @@ fn extract_and_collect_results_into_map(
         .into_group_map()
 }
 
-enum ClientForConnectionTest {
-    Nymd(Network, Url, Box<NymdClient<QueryNymdClient>>),
-    Api(Network, Url, ApiClient),
-}
-
 async fn test_nymd_connection(
     network: Network,
     url: &Url,
     client: &NymdClient<QueryNymdClient>,
 ) -> ConnectionResult {
     log::info!("{network}: {url}: checking nymd connection");
-    let result = match client.get_mixnet_contract_version().await {
-        Err(NymdError::TendermintError(e)) => {
+    let result = match timeout(
+        Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
+        client.get_mixnet_contract_version(),
+    )
+    .await
+    {
+        Ok(Err(NymdError::TendermintError(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
             log::debug!("{network}: {url}: nymd connection test failed: {}", e);
             false
         }
-        Err(NymdError::AbciError(code, log)) => {
+        Ok(Err(NymdError::AbciError(code, log))) => {
             // We accept the mixnet contract not found as ok from a connection standpoint. This happens
             // for example on a pre-launch network.
             log::debug!("{network}: {url}: nymd abci error: {code}: {log}");
             code == 18
         }
-        Err(error @ NymdError::NoContractAddressAvailable) => {
+        Ok(Err(error @ NymdError::NoContractAddressAvailable)) => {
             log::debug!("{network}: {url}: nymd connection test failed: {error}");
             false
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             // For any other error, we're optimistic and just try anyway.
             log::debug!("{network}: {url}: nymd connection test response ok, but with error: {e}");
             true
         }
-        Ok(_) => {
-            log::debug!("{network}: {url}: nymd connection successful");
+        Ok(Ok(_)) => {
+            log::debug!("{network}: {url}: nymd connection test successful");
             true
+        }
+        Err(e) => {
+            log::debug!("{network}: {url}: nymd connection test failed: {e}");
+            false
         }
     };
     ConnectionResult::Nymd(network, url.clone(), result)
@@ -120,21 +125,31 @@ async fn test_nymd_connection(
 
 async fn test_api_connection(network: Network, url: &Url, client: &ApiClient) -> ConnectionResult {
     log::info!("{network}: {url}: checking api connection");
-    let result = match timeout(Duration::from_secs(2), client.get_cached_mixnodes()).await {
+    let result = match timeout(
+        Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
+        client.get_cached_mixnodes(),
+    )
+    .await
+    {
         Ok(Ok(_)) => {
-            log::debug!("{network}: {url}: api connection successful");
+            log::debug!("{network}: {url}: api connection test successful");
             true
         }
         Ok(Err(e)) => {
-            log::debug!("{network}: {url}: api connection failed: {e}");
+            log::debug!("{network}: {url}: api connection test failed: {e}");
             false
         }
         Err(e) => {
-            log::debug!("{network}: {url}: api connection failed: {e}");
+            log::debug!("{network}: {url}: api connection test failed: {e}");
             false
         }
     };
     ConnectionResult::Api(network, url.clone(), result)
+}
+
+enum ClientForConnectionTest {
+    Nymd(Network, Url, Box<NymdClient<QueryNymdClient>>),
+    Api(Network, Url, ApiClient),
 }
 
 impl ClientForConnectionTest {

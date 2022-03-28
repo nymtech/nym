@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::CHUNK_SIZE;
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::G1Projective;
 use bls12_381::{G2Projective, Scalar};
@@ -62,4 +63,25 @@ pub(crate) fn hash_to_scalars<M: AsRef<[u8]>>(msg: M, domain: &[u8], n: usize) -
 
 pub(crate) fn hash_g2<M: AsRef<[u8]>>(msg: M, domain: &[u8]) -> G2Projective {
     <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
+}
+
+pub(crate) fn combine_scalar_chunks(chunks: &[Scalar]) -> Scalar {
+    let chunk_size_scalar = Scalar::from(CHUNK_SIZE as u64);
+    chunks.iter().rev().fold(Scalar::zero(), |mut acc, chunk| {
+        acc *= chunk_size_scalar;
+        acc += chunk;
+        acc
+    })
+}
+
+pub(crate) fn combine_g1_chunks(chunks: &[G1Projective]) -> G1Projective {
+    let chunk_size_scalar = Scalar::from(CHUNK_SIZE as u64);
+    chunks
+        .iter()
+        .rev()
+        .fold(G1Projective::identity(), |mut acc, chunk| {
+            acc *= chunk_size_scalar;
+            acc += chunk;
+            acc
+        })
 }

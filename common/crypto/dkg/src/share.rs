@@ -37,15 +37,14 @@ impl Share {
         for (chunk, chunk_bytes) in chunks.iter_mut().zip(bytes[..].chunks_exact(CHUNK_BYTES)) {
             let mut tmp = [0u8; CHUNK_BYTES];
             tmp.copy_from_slice(chunk_bytes);
-            *chunk = Chunk::from_be_bytes(tmp)
+            *chunk = Chunk::from_le_bytes(tmp)
         }
 
         bytes.zeroize();
         ChunkedShare { chunks }
     }
 
-    // I really don't like this method but we need it (for time being) for the integration test
-    pub fn inner(&self) -> &Scalar {
+    pub(crate) fn inner(&self) -> &Scalar {
         &self.0
     }
 }
@@ -79,7 +78,7 @@ impl TryFrom<ChunkedShare> for Share {
             .iter()
             .zip(bytes[..].chunks_exact_mut(CHUNK_BYTES))
         {
-            let tmp = chunk.to_be_bytes();
+            let tmp = chunk.to_le_bytes();
             chunk_bytes.copy_from_slice(&tmp[..]);
         }
 
@@ -89,5 +88,32 @@ impl TryFrom<ChunkedShare> for Share {
 
         bytes.zeroize();
         Ok(recovered)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::combine_scalar_chunks;
+    use rand_core::SeedableRng;
+
+    #[test]
+    fn chunking_share() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let share = Share::random(&mut rng);
+        let chunks: ChunkedShare = share.clone().into();
+
+        let scalar_chunks = chunks
+            .chunks
+            .iter()
+            .map(|c| Scalar::from(*c as u64))
+            .collect::<Vec<_>>();
+        let expected = combine_scalar_chunks(&scalar_chunks);
+        assert_eq!(expected, share.0);
+
+        let recombined: Share = chunks.try_into().unwrap();
+        assert_eq!(expected, recombined.0);
     }
 }

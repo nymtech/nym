@@ -3,7 +3,7 @@
 
 use crate::bte::proof_discrete_log::ProofOfDiscreteLog;
 use crate::error::DkgError;
-use crate::utils::hash_g2;
+use crate::utils::{combine_g1_chunks, combine_scalar_chunks, hash_g2};
 use crate::{Chunk, ChunkedShare, Share, CHUNK_SIZE, NUM_CHUNKS};
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
@@ -14,7 +14,7 @@ use group::{Curve, Group};
 use lazy_static::lazy_static;
 use rand_core::RngCore;
 use std::collections::HashMap;
-use std::ops::{Deref, Neg};
+use std::ops::Neg;
 use zeroize::Zeroize;
 
 pub mod proof_chunking;
@@ -209,21 +209,15 @@ impl Ciphertext {
         true
     }
 
+    pub fn combine_rs(&self) -> G1Projective {
+        combine_g1_chunks(&self.r)
+    }
+
     // required for the purposes of the proof of secret sharing
     pub fn combine_ciphertexts(&self) -> Vec<G1Projective> {
         self.ciphertext_chunks
             .iter()
-            .map(|share_ciphertext| {
-                share_ciphertext.iter().fold(
-                    G1Projective::identity(),
-                    |mut acc, chunk_ciphertext| {
-                        // simulate reverse chunking of the share in the exponent
-                        acc *= Scalar::from(CHUNK_SIZE as u64);
-                        acc += chunk_ciphertext;
-                        acc
-                    },
-                )
-            })
+            .map(|share_ciphertext| combine_g1_chunks(share_ciphertext))
             .collect()
     }
 }
@@ -246,6 +240,10 @@ impl HazmatRandomness {
     pub fn s(&self) -> &[Scalar; NUM_CHUNKS] {
         &self.s
     }
+
+    pub fn combine_rs(&self) -> Scalar {
+        combine_scalar_chunks(&self.r)
+    }
 }
 
 struct SingleChunkCiphertext {
@@ -259,7 +257,7 @@ struct SingleChunkCiphertext {
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
-    pub fn inner(&self) -> &G1Projective {
+    pub(crate) fn inner(&self) -> &G1Projective {
         &self.0
     }
 
@@ -881,6 +879,7 @@ pub fn baby_step_giant_step(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::combine_scalar_chunks;
     use bitvec::bitvec;
     use bitvec::order::Msb0;
     use group::Group;
@@ -1372,7 +1371,7 @@ mod tests {
 
         let mut shares = Vec::new();
         let mut public_keys = Vec::new();
-        for i in 0..nodes {
+        for _ in 0..nodes {
             shares.push(Share::random(&mut rng));
             let (_, pk) = keygen(&params, &mut rng);
             public_keys.push(pk.public_key().clone());
@@ -1381,8 +1380,8 @@ mod tests {
         let refs = shares.iter().zip(public_keys.iter()).collect::<Vec<_>>();
         let (ciphertext, hazmat) = encrypt_shares(&refs, &Tau::new(42), &params, &mut rng);
 
-        let combined_r = hazmat.r().iter().sum::<Scalar>();
-        let combined_rr = ciphertext.r.iter().sum::<G1Projective>();
+        let combined_r = combine_scalar_chunks(hazmat.r());
+        let combined_rr = ciphertext.combine_rs();
         let combined_ciphertexts = ciphertext.combine_ciphertexts();
 
         let g1 = G1Projective::generator();

@@ -15,6 +15,7 @@ pub mod keygen;
 pub mod setup;
 pub mod spend;
 pub mod withdrawal;
+pub mod identify;
 
 pub type SignerIndex = u64;
 

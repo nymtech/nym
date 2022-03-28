@@ -17,15 +17,15 @@ pub struct PayInfo {
 }
 
 pub struct Payment {
-    kappa: G2Projective,
-    sig: Signature,
-    S: G1Projective,
-    T: G1Projective,
-    A: G1Projective,
-    C: G1Projective,
-    D: G1Projective,
-    R: Scalar,
-    zk_proof: SpendProof,
+    pub kappa: G2Projective,
+    pub sig: Signature,
+    pub S: G1Projective,
+    pub T: G1Projective,
+    pub A: G1Projective,
+    pub C: G1Projective,
+    pub D: G1Projective,
+    pub R: Scalar,
+    pub zk_proof: SpendProof,
 }
 
 pub fn pseudorandom_fgv(params: &Parameters, v: Scalar, l: u64) -> G1Projective {
@@ -134,7 +134,7 @@ pub fn spend(params: &Parameters, wallet: &Wallet, verification_key: &Verificati
     Ok((pay, wallet_upd))
 }
 
-pub fn spend_verify(params: &Parameters, verification_key: VerificationKeyAuth, pay: Payment, payinfo: PayInfo) -> Result<bool> {
+pub fn spend_verify(params: &Parameters, verification_key: &VerificationKeyAuth, pay: &Payment, payinfo: &PayInfo) -> Result<bool> {
     if bool::from(pay.sig.0.is_identity()) {
         return Err(CompactEcashError::Spend(
             "The element h of the signature equals the identity".to_string(),

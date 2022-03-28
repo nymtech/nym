@@ -7,9 +7,9 @@ use crate::state::State;
 use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
+use config::defaults::all::Network;
 use config::defaults::COSMOS_DERIVATION_PATH;
 use cosmrs::bip32::DerivationPath;
-use config::defaults::all::Network;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

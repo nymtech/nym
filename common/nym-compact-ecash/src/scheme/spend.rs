@@ -1,17 +1,31 @@
+use std::cell::Cell;
 use std::convert::TryInto;
 
-use bls12_381::{G1Projective, G2Projective, Scalar};
+use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
+use group::Curve;
 
 use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
+use crate::scheme::{Signature, Wallet};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
-use crate::scheme::Wallet;
-use crate::utils::hash_to_scalar;
+use crate::utils::{check_bilinear_pairing, hash_to_scalar};
 
 pub struct PayInfo {
     pub(crate) info: [u8; 32],
+}
+
+pub struct Payment {
+    kappa: G2Projective,
+    sig: Signature,
+    S: G1Projective,
+    T: G1Projective,
+    A: G1Projective,
+    C: G1Projective,
+    D: G1Projective,
+    R: Scalar,
+    zk_proof: SpendProof,
 }
 
 pub fn pseudorandom_fgv(params: &Parameters, v: Scalar, l: u64) -> G1Projective {
@@ -39,7 +53,7 @@ pub fn compute_kappa(
         .sum::<G2Projective>()
 }
 
-pub fn spend(params: &Parameters, wallet: &Wallet, verification_key: &VerificationKeyAuth, skUser: &SecretKeyUser, payInfo: &PayInfo) -> Result<()> {
+pub fn spend(params: &Parameters, wallet: &Wallet, verification_key: &VerificationKeyAuth, skUser: &SecretKeyUser, payInfo: &PayInfo) -> Result<(Payment, Wallet)> {
     if wallet.l() > params.L() {
         return Err(CompactEcashError::Spend(
             "The counter l is higher than max L".to_string(),
@@ -96,11 +110,72 @@ pub fn spend(params: &Parameters, wallet: &Wallet, verification_key: &Verificati
         o_mu,
         o_lambda,
     };
-    let zkp = SpendProof::construct(&params, &spendInstance, &spendWitness, &verification_key, R);
+    let zk_proof = SpendProof::construct(&params, &spendInstance, &spendWitness, &verification_key, R);
 
     // output pay and updated wallet
+    let pay = Payment {
+        kappa,
+        sig: signature_prime,
+        S,
+        T,
+        A,
+        C,
+        D,
+        R,
+        zk_proof,
+    };
+    let wallet_upd = Wallet {
+        sig: wallet.sig,
+        v: wallet.v,
+        t: wallet.t,
+        l: Cell::new(wallet.l.get() + 1),
+    };
 
-    Ok(())
+    Ok((pay, wallet_upd))
 }
 
-pub fn spend_verify() {}
+pub fn spend_verify(params: &Parameters, verification_key: VerificationKeyAuth, pay: Payment, payinfo: PayInfo) -> Result<bool> {
+    if bool::from(pay.sig.0.is_identity()) {
+        return Err(CompactEcashError::Spend(
+            "The element h of the signature equals the identity".to_string(),
+        ));
+    }
+
+    if !check_bilinear_pairing(
+        &pay.sig.0.to_affine(),
+        &G2Prepared::from(pay.kappa.to_affine()),
+        &pay.sig.1.to_affine(),
+        params.prepared_miller_g2(),
+    ) {
+        return Err(CompactEcashError::Spend(
+            "The bilinear check for kappa failed".to_string(),
+        ));
+    }
+
+    // verify integrity of R
+    if !(pay.R == hash_to_scalar(payinfo.info)) {
+        return Err(CompactEcashError::Spend(
+            "Integrity of R does not hold".to_string(),
+        ));
+    }
+
+    //TODO: verify whether payinfo contains merchent's identifier 
+
+    // verify the zk proof
+    let instance = SpendInstance {
+        kappa: pay.kappa,
+        A: pay.A,
+        C: pay.C,
+        D: pay.D,
+        S: pay.S,
+        T: pay.T,
+    };
+
+    if !pay.zk_proof.verify(&params, &instance, &verification_key, pay.R) {
+        return Err(CompactEcashError::Spend(
+            "ZkProof verification failed".to_string(),
+        ));
+    }
+
+    Ok(true)
+}

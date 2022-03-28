@@ -10,7 +10,7 @@ use bitvec::vec::BitVec;
 use bitvec::view::BitView;
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
-use group::Curve;
+use group::{Curve, Group};
 use lazy_static::lazy_static;
 use rand_core::RngCore;
 use std::collections::HashMap;
@@ -49,7 +49,7 @@ impl Tau {
         Tau(BitVec::new())
     }
 
-    fn new(epoch: u32) -> Self {
+    pub fn new(epoch: u32) -> Self {
         Tau(epoch.view_bits().to_bitvec())
     }
 
@@ -156,6 +156,9 @@ pub struct Params {
     f0: G2Projective,
     fs: Vec<G2Projective>, // f_1, f_2, .... f_i in the paper
     h: G2Projective,
+
+    /// Precomputed `h` used for the miller loop
+    _h_prepared: G2Prepared,
     // pub lambda_t: usize,
     // pub lambda_h: usize,
     // pub f0: G2Projective,       // f_0 in the paper.
@@ -164,6 +167,7 @@ pub struct Params {
     // pub h: G2Projective,
 }
 
+#[cfg_attr(test, derive(Clone))]
 pub struct Ciphertext {
     pub r: [G1Projective; NUM_CHUNKS],
     pub s: [G1Projective; NUM_CHUNKS],
@@ -172,7 +176,36 @@ pub struct Ciphertext {
 }
 
 impl Ciphertext {
-    pub fn verify_integrity(&self) -> bool {
+    pub fn verify_integrity(&self, params: &Params, tau: &Tau) -> bool {
+        // if this checks fails it means the ciphertext is undefined as values
+        // in `r`, `s` and `z` are meaningless since technically this ciphertext
+        // has been created for 0 parties
+        if self.ciphertext_chunks.is_empty() {
+            return false;
+        }
+
+        let g1_neg = G1Affine::generator().neg();
+        let f = tau.evaluate_f(params);
+
+        // we have to use `f` in up to `NUM_CHUNKS` pairings (if everything is valid),
+        // so perform some precomputation on it
+        let f_prepared = G2Prepared::from(f.to_affine());
+
+        // for each triple (R_i, S_i, Z_i) check whether e(g1, Z_i) == e(R_j, f) • e(S_i, h),
+        // which is equivalent to checking whether e(R_j, f) • e(S_i, h) • e(g1, Z_i)^-1 == id
+        // and due to bilinear property whether e(R_j, f) • e(S_i, h) • e(g1^-1, Z_i) == id
+        for i in 0..self.r.len() {
+            let miller = bls12_381::multi_miller_loop(&[
+                (&self.r[i].to_affine(), &f_prepared),
+                (&self.s[i].to_affine(), &params._h_prepared),
+                (&g1_neg, &G2Prepared::from(self.z[i].to_affine())),
+            ]);
+            let res = miller.final_exponentiation();
+            if !bool::from(res.is_identity()) {
+                return false;
+            }
+        }
+
         true
     }
 }
@@ -354,12 +387,12 @@ impl DecryptionKey {
             // finally, in the last iteration, we look at the bit `0` and derive node `PREFIX || 011`,
             // i.e. the one that FOLLOWS the target node.
             if !bit {
-                let right_branch = target_epoch.try_get_parent_at_height(i)?.right_child();
+                let direct_parent = target_epoch.try_get_parent_at_height(i)?;
 
                 self.nodes
                     .push(parent.derive_right_nonfinal_child_of_with_partials(
                         params,
-                        right_branch,
+                        direct_parent,
                         &new_b_accumulator,
                         &new_f_accumulator,
                         &mut rng,
@@ -434,6 +467,9 @@ impl Node {
     // note: it's unsafe to use this method outside `try_update_to` as
     // we have guaranteed there that `self` is parent of the target
     // and that `self.tau != target_tau`
+    /// Given `self` with `Tau1` and `target_tau` with `Tau2`, such that `Tau1` prefixes `Tau2`,
+    /// i.e. `Tau2 == Tau1 || SUFFIX`, and `Tau2` is a leaf node, derive all required crypto material
+    /// for its construction.
     fn derive_target_child_with_partials(
         &self,
         params: &Params,
@@ -442,8 +478,8 @@ impl Node {
         partial_f: &G2Projective,
         mut rng: impl RngCore,
     ) -> Self {
-        assert!(self.tau.is_parent_of(&target_tau));
-        assert_ne!(self.tau, target_tau);
+        debug_assert!(self.tau.is_parent_of(&target_tau));
+        debug_assert_ne!(self.tau, target_tau);
 
         let delta = Scalar::random(&mut rng);
         let a = self.a + G1Projective::generator() * delta;
@@ -469,22 +505,27 @@ impl Node {
     // note: it's unsafe to use this method outside `try_update_to` as
     // we have guaranteed there that `self` is parent of the target
     // and that `self.tau != target_tau`
+    /// Given `self` with `Tau1` and `most_direct_parent` with `Tau2`, such that `Tau1` prefixes `Tau2`,
+    /// i.e. `Tau2 == Tau1 || SUFFIX`, derive node with `Tau3 = Tau2 || 1`
     fn derive_right_nonfinal_child_of_with_partials(
         &self,
         params: &Params,
-        target_tau: Tau,
+        most_direct_parent: Tau,
         partial_b: &G2Projective,
         partial_f: &G2Projective,
         mut rng: impl RngCore,
     ) -> Self {
-        debug_assert!(self.tau.is_parent_of(&target_tau));
-        debug_assert_ne!(self.tau, target_tau);
+        let right_branch = most_direct_parent.right_child();
+
+        debug_assert!(self.tau.is_parent_of(&most_direct_parent));
+        debug_assert!(self.tau.is_parent_of(&right_branch));
+        debug_assert_ne!(self.tau, right_branch);
 
         // n is height difference between self and the child
-        let n = target_tau.height() - self.tau.height();
+        let n = right_branch.height() - self.tau.height();
 
         // i is the index of the last bit we just added
-        let i = target_tau.height() - 1;
+        let i = right_branch.height() - 1;
 
         let delta = Scalar::random(&mut rng);
         let a = self.a + G1Projective::generator() * delta;
@@ -494,13 +535,13 @@ impl Node {
             .ds
             .iter()
             .skip(n)
-            .zip(params.fs.iter().skip(target_tau.height()))
+            .zip(params.fs.iter().skip(right_branch.height()))
             .map(|(d_i, f_i)| d_i + f_i * delta)
             .collect();
         let e = self.e + params.h * delta;
 
         Node {
-            tau: target_tau,
+            tau: right_branch,
             a,
             b,
             ds,
@@ -511,7 +552,7 @@ impl Node {
 
 // params include message space M and height \lambda for a binary tree
 // message space is within [-R, S]
-fn setup() -> Params {
+pub fn setup() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
 
     // is there a point in generating ALL of them at start?
@@ -527,12 +568,13 @@ fn setup() -> Params {
         tree_height: MAX_EPOCHS_EXP,
         f0,
         fs,
+        _h_prepared: G2Prepared::from(h.to_affine()),
         h,
     }
 }
 
 // produces public key and a decryption key for the root of the tree
-fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWithProof) {
+pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWithProof) {
     let g1 = G1Projective::generator();
     let g2 = G2Projective::generator();
 
@@ -563,7 +605,7 @@ fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWi
     (dk, key_with_proof)
 }
 
-fn verify_key(pk: &PublicKey, proof: &ProofOfDiscreteLog) -> bool {
+pub fn verify_key(pk: &PublicKey, proof: &ProofOfDiscreteLog) -> bool {
     proof.verify(&pk.0)
 }
 
@@ -598,7 +640,7 @@ fn encrypt_chunk(
     SingleChunkCiphertext { r, s, z, c }
 }
 
-fn encrypt_shares(
+pub fn encrypt_shares(
     shares: &[(Share, &PublicKey)],
     epoch: &Tau,
     params: &Params,
@@ -702,7 +744,7 @@ fn decrypt_chunk(
     baby_step_giant_step(&m, &PAIRING_BASE, lookup_table)
 }
 
-fn decrypt_share(
+pub fn decrypt_share(
     dk: &DecryptionKey,
     // in the case of multiple receivers, specifies which index of ciphertext chunks should be used
     i: usize,
@@ -1263,5 +1305,66 @@ mod tests {
             .unwrap();
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
         assert_eq!(&Tau::new(3292547436), dk.current_epoch().unwrap());
+    }
+
+    #[test]
+    fn ciphertext_integrity_check_passes_for_valid_data() {
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (mut dk, public_key) = keygen(&params, &mut rng);
+        let epoch = Tau::new(1);
+
+        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        let share = Share::random(&mut rng);
+        let ciphertext = encrypt_shares(&[(share, &public_key.key)], &epoch, &params, &mut rng);
+        assert!(ciphertext.verify_integrity(&params, &epoch))
+    }
+
+    #[test]
+    fn ciphertext_integrity_check_passes_fails_for_malformed_data() {
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (mut dk, public_key) = keygen(&params, &mut rng);
+        let epoch = Tau::new(1);
+
+        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        let share = Share::random(&mut rng);
+        let ciphertext = encrypt_shares(&[(share, &public_key.key)], &epoch, &params, &mut rng);
+
+        let mut bad_cipher1 = ciphertext.clone();
+        bad_cipher1.r[4] = G1Projective::generator();
+        assert!(!bad_cipher1.verify_integrity(&params, &epoch));
+
+        let mut bad_cipher2 = ciphertext.clone();
+        bad_cipher2.s[4] = G1Projective::generator();
+        assert!(!bad_cipher2.verify_integrity(&params, &epoch));
+
+        let mut bad_cipher3 = ciphertext.clone();
+        bad_cipher3.z[4] = G2Projective::generator();
+        assert!(!bad_cipher3.verify_integrity(&params, &epoch));
+    }
+
+    #[test]
+    fn ciphertext_integrity_check_passes_fails_for_wrong_epoch() {
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (mut dk, public_key) = keygen(&params, &mut rng);
+        let epoch = Tau::new(1);
+
+        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        let share = Share::random(&mut rng);
+        let ciphertext = encrypt_shares(&[(share, &public_key.key)], &epoch, &params, &mut rng);
+
+        let another_epoch = Tau::new(2);
+        assert!(!ciphertext.verify_integrity(&params, &another_epoch))
     }
 }

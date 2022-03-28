@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // forward-secure public key encryption scheme
-pub(crate) mod bte;
+pub mod bte;
 pub mod error;
 mod event;
 mod interpolation;

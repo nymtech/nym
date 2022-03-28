@@ -89,9 +89,6 @@ pub struct Base {
     // Avoid breaking derives for now
     #[cfg(feature = "coconut")]
     keypair_bs58: String,
-
-    #[cfg(feature = "coconut")]
-    signed_deposits: String,
 }
 
 impl Default for Base {
@@ -103,8 +100,6 @@ impl Default for Base {
             mixnet_contract_address: DEFAULT_NETWORK.mixnet_contract_address().to_string(),
             #[cfg(feature = "coconut")]
             keypair_bs58: String::default(),
-            #[cfg(feature = "coconut")]
-            signed_deposits: String::default(),
         }
     }
 }
@@ -288,11 +283,6 @@ impl Config {
         KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
     }
 
-    #[cfg(feature = "coconut")]
-    pub fn signed_deposits(&self) -> sled::Db {
-        sled::open(self.base.signed_deposits.clone()).unwrap()
-    }
-
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
@@ -326,12 +316,6 @@ impl Config {
     #[cfg(feature = "coconut")]
     pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
         self.base.keypair_bs58 = keypair_bs58.into();
-        self
-    }
-
-    #[cfg(feature = "coconut")]
-    pub fn with_signed_deposits<S: Into<String>>(mut self, signed_deposits: S) -> Self {
-        self.base.signed_deposits = signed_deposits.into();
         self
     }
 

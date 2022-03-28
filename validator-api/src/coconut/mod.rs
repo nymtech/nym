@@ -10,6 +10,7 @@ mod tests;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
+use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
@@ -35,12 +36,12 @@ use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 pub struct State {
     client: Arc<RwLock<dyn LocalClient + Send + Sync>>,
     key_pair: KeyPair,
-    signed_deposits: sled::Db,
+    storage: ValidatorApiStorage,
     rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
-    pub fn new<C>(client: C, key_pair: KeyPair, signed_deposits: sled::Db) -> Self
+    pub(crate) fn new<C>(client: C, key_pair: KeyPair, storage: ValidatorApiStorage) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
     {
@@ -49,16 +50,16 @@ impl State {
         Self {
             client,
             key_pair,
-            signed_deposits,
+            storage,
             rng,
         }
     }
 
-    pub fn signed_before(&self, tx_hash: &[u8]) -> Result<Option<BlindedSignatureResponse>> {
-        let ret = self.signed_deposits.get(tx_hash)?;
+    pub async fn signed_before(&self, tx_hash: &str) -> Result<Option<BlindedSignatureResponse>> {
+        let ret = self.storage.get_blinded_signature_response(tx_hash).await?;
         if let Some(blinded_signature_reponse) = ret {
-            Ok(Some(BlindedSignatureResponse::from_bytes(
-                &blinded_signature_reponse.to_vec(),
+            Ok(Some(BlindedSignatureResponse::from_base58_string(
+                &blinded_signature_reponse,
             )?))
         } else {
             Ok(None)
@@ -67,7 +68,7 @@ impl State {
 
     pub async fn encrypt_and_store(
         &self,
-        tx_hash: &[u8],
+        tx_hash: &str,
         remote_key: &encryption::PublicKey,
         signature: &BlindedSignature,
     ) -> Result<BlindedSignatureResponse> {
@@ -95,12 +96,14 @@ impl State {
         // Atomically insert data, only if there is no signature stored in the meantime
         // This prevents race conditions on storing two signatures for the same deposit transaction
         if self
-            .signed_deposits
-            .compare_and_swap(tx_hash, None as Option<&[u8]>, Some(response.to_bytes()))?
+            .storage
+            .insert_blinded_signature_response(tx_hash, &response.to_base58_string())
+            .await
             .is_err()
         {
             Ok(self
-                .signed_before(tx_hash)?
+                .signed_before(tx_hash)
+                .await?
                 .expect("The signature was expected to be there"))
         } else {
             Ok(response)
@@ -132,11 +135,11 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage<C>(client: C, key_pair: KeyPair, signed_deposits: sled::Db) -> AdHoc
+    pub fn stage<C>(client: C, key_pair: KeyPair, storage: ValidatorApiStorage) -> AdHoc
     where
         C: LocalClient + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, signed_deposits);
+        let state = State::new(client, key_pair, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -172,7 +175,10 @@ pub async fn post_blind_sign(
     state: &RocketState<State>,
 ) -> Result<Json<BlindedSignatureResponse>> {
     debug!("{:?}", blind_sign_request_body);
-    if let Some(response) = state.signed_before(blind_sign_request_body.tx_hash().as_bytes())? {
+    if let Some(response) = state
+        .signed_before(blind_sign_request_body.tx_hash())
+        .await?
+    {
         return Ok(Json(response));
     }
     let tx = state
@@ -191,7 +197,7 @@ pub async fn post_blind_sign(
 
     let response = state
         .encrypt_and_store(
-            blind_sign_request_body.tx_hash().as_bytes(),
+            blind_sign_request_body.tx_hash(),
             &encryption_key,
             &blinded_signature,
         )
@@ -206,7 +212,8 @@ pub async fn post_partial_bandwidth_credential(
     state: &RocketState<State>,
 ) -> Result<Json<BlindedSignatureResponse>> {
     let v = state
-        .signed_before(tx_hash.as_bytes())?
+        .signed_before(&tx_hash)
+        .await?
         .ok_or(CoconutError::NoSignature)?;
     Ok(Json(v))
 }

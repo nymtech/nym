@@ -7,4 +7,7 @@ use thiserror::Error;
 pub enum CoconutInterfaceError {
     #[error("not enough bytes: {0} received, minimum {1} required")]
     InvalidByteLength(usize, usize),
+
+    #[error("Could not decode base 58 string - {0}")]
+    MalformedString(#[from] bs58::decode::Error),
 }

@@ -13,6 +13,8 @@ use crypto::asymmetric::{
 };
 use validator_client::nymd::error::NymdError;
 
+use crate::node_status_api::models::ValidatorApiStorageError;
+
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
 #[derive(Debug, Error)]
@@ -63,6 +65,9 @@ pub enum CoconutError {
 
     #[error("Error in coconut interface - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+
+    #[error("Storage error - {0}")]
+    StorageError(#[from] ValidatorApiStorageError),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

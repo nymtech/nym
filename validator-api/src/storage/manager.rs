@@ -769,4 +769,45 @@ impl StorageManager {
 
         Ok(active_day_statuses)
     }
+
+    /// Creates new encrypted blinded signature response entry for a given deposit tx hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash`: hash of the deposit transaction.
+    /// * `blinded_signature_response`: the encrypted blinded signature response.
+    pub(super) async fn insert_blinded_signature_response(
+        &self,
+        tx_hash: &str,
+        blinded_signature_response: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO signed_deposit(tx_hash, blinded_signature_response) VALUES (?, ?)",
+            tx_hash,
+            blinded_signature_response
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Tries to obtain encrypted blinded signature response for a given transaction hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash`: transaction hash of the deposit.
+    pub(super) async fn get_blinded_signature_response(
+        &self,
+        tx_hash: &str,
+    ) -> Result<Option<String>, sqlx::Error> {
+        let blinded_signature_response = sqlx::query!(
+            "SELECT blinded_signature_response FROM signed_deposit WHERE tx_hash = ?",
+            tx_hash
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|row| row.blinded_signature_response);
+
+        Ok(blinded_signature_response)
+    }
 }

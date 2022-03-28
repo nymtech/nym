@@ -293,11 +293,6 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
         config = config.with_keypair(keypair_bs58)
     }
 
-    #[cfg(feature = "coconut")]
-    if let Some(signed_deposits_path) = matches.value_of(SIGNED_DEPOSITS_ARG) {
-        config = config.with_signed_deposits(signed_deposits_path)
-    }
-
     #[cfg(not(feature = "coconut"))]
     if let Some(eth_private_key) = matches.value_of("eth_private_key") {
         config = config.with_eth_private_key(String::from(eth_private_key));
@@ -386,19 +381,25 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage());
 
+    // This is not a very nice approach. A lazy value would be more suitable, but that's still
+    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
+    let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
+        Some(ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?)
+    } else {
+        None
+    };
+
     #[cfg(feature = "coconut")]
     let rocket = rocket.attach(InternalSignRequest::stage(
         QueryClient::new()?,
         config.keypair(),
-        config.signed_deposits(),
+        storage.clone().unwrap(),
     ));
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
         Ok(rocket
-            .attach(storage::ValidatorApiStorage::stage(
-                config.get_node_status_api_database_path(),
-            ))
+            .attach(storage::ValidatorApiStorage::stage(storage.unwrap()))
             .attach(node_status_api::stage_full())
             .ignite()
             .await?)
@@ -443,7 +444,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             .attach(InternalSignRequest::stage(
                 QueryClient::new()?,
                 config.keypair(),
-                config.signed_deposits(),
+                ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?,
             ))
             .launch()
             .await

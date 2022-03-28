@@ -17,7 +17,7 @@ cfg_if::cfg_if! {
 
         pub const MNEMONIC: &str = "sun surge soon stomach flavor country gorilla dress oblige stamp attract hip soldier agree steel prize nuclear know enjoy arm bargain always theme matter";
         pub const NYMD_URL: &str = "http://127.0.0.1:26657";
-        pub const CONTRACT_ADDRESS: &str = "nymt1w27ekqvvtzfanfxnkw4jx2f8gdfeqwd3qxku6y";
+        pub const CONTRACT_ADDRESS: &str = "nymt1vhjnzk9ly03dugffvzfcwgry4dgc8x0sscmfl2";
         pub const SIGNER_AUTHORITIES: [&str; 3] = [
             "http://127.0.0.1:8080",
             "http://127.0.0.1:8081",

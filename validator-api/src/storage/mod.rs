@@ -10,8 +10,7 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, RewardingReport, TestingRoute};
-use rocket::fairing::{self, AdHoc};
-use rocket::{Build, Rocket};
+use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
 use time::OffsetDateTime;
@@ -26,7 +25,7 @@ pub(crate) struct ValidatorApiStorage {
 }
 
 impl ValidatorApiStorage {
-    async fn init(rocket: Rocket<Build>, database_path: PathBuf) -> fairing::Result {
+    pub async fn init(database_path: PathBuf) -> Result<Self, ValidatorApiStorageError> {
         // TODO: we can inject here more stuff based on our validator-api global config
         // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
@@ -41,13 +40,17 @@ impl ValidatorApiStorage {
             Ok(db) => db,
             Err(e) => {
                 error!("Failed to connect to SQLx database: {}", e);
-                return Err(rocket);
+                return Err(ValidatorApiStorageError::InternalDatabaseError(
+                    e.to_string(),
+                ));
             }
         };
 
         if let Err(e) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             error!("Failed to initialize SQLx database: {}", e);
-            return Err(rocket);
+            return Err(ValidatorApiStorageError::InternalDatabaseError(
+                e.to_string(),
+            ));
         }
 
         info!("Database migration finished!");
@@ -56,12 +59,12 @@ impl ValidatorApiStorage {
             manager: StorageManager { connection_pool },
         };
 
-        Ok(rocket.manage(storage))
+        Ok(storage)
     }
 
-    pub(crate) fn stage(database_path: PathBuf) -> AdHoc {
-        AdHoc::try_on_ignite("SQLx Database", |rocket| {
-            ValidatorApiStorage::init(rocket, database_path)
+    pub(crate) fn stage(storage: ValidatorApiStorage) -> AdHoc {
+        AdHoc::try_on_ignite("SQLx Database", |rocket| async {
+            Ok(rocket.manage(storage))
         })
     }
 
@@ -682,6 +685,27 @@ impl ValidatorApiStorage {
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
             .insert_rewarding_report(report)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+    }
+
+    pub(crate) async fn get_blinded_signature_response(
+        &self,
+        tx_hash: &str,
+    ) -> Result<Option<String>, ValidatorApiStorageError> {
+        self.manager
+            .get_blinded_signature_response(tx_hash)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+    }
+
+    pub(crate) async fn insert_blinded_signature_response(
+        &self,
+        tx_hash: &str,
+        blinded_signature_response: &str,
+    ) -> Result<(), ValidatorApiStorageError> {
+        self.manager
+            .insert_blinded_signature_response(tx_hash, blinded_signature_response)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }

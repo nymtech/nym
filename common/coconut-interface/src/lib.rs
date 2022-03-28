@@ -142,6 +142,15 @@ impl BlindedSignatureResponse {
         }
     }
 
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutInterfaceError> {
+        let bytes = bs58::decode(val).into_vec()?;
+        Self::from_bytes(&bytes)
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = self.remote_key.to_vec();
         bytes.extend_from_slice(&self.encrypted_signature);

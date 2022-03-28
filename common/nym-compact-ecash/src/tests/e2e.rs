@@ -6,8 +6,8 @@ use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_verificat
 use crate::scheme::keygen::{
     generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
+use crate::scheme::PayInfo;
 use crate::scheme::setup::Parameters;
-use crate::scheme::spend::{PayInfo, spend, spend_verify};
 use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 
 #[test]
@@ -51,9 +51,9 @@ fn main() -> Result<(), CompactEcashError> {
         info: [6u8; 32],
     };
 
-    let (payment, upd_wallet) = spend(&params, &aggr_wallet, &verification_key, &user_keypair.secret_key(), &payInfo)?;
+    let (payment, upd_wallet) = aggr_wallet.spend(&params, &verification_key, &user_keypair.secret_key(), &payInfo)?;
 
-    assert!(spend_verify(&params, &verification_key, &payment, &payInfo).unwrap());
+    assert!(payment.spend_verify(&params, &verification_key, &payInfo).unwrap());
 
     Ok(())
 }

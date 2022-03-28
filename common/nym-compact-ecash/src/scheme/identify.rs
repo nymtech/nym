@@ -1,9 +1,9 @@
 use std::convert::TryFrom;
 
 use crate::error::Result;
+use crate::scheme::{PayInfo, Payment};
 use crate::scheme::keygen::PublicKeyUser;
 use crate::scheme::setup::Parameters;
-use crate::scheme::spend::{PayInfo, Payment};
 
 pub fn identify(params: &Parameters, pay1: Payment, pay2: Payment, payInfo1: PayInfo, payInfo2: PayInfo) -> Result<PublicKeyUser> {
     // TODO: We had to include checks for S1, S2 and payinfo1 and payinfo2

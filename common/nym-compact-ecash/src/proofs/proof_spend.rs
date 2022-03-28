@@ -271,10 +271,11 @@ mod tests {
     use rand::thread_rng;
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
+    use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
     use crate::scheme::aggregation::aggregate_verification_keys;
     use crate::scheme::keygen::{PublicKeyUser, ttp_keygen, VerificationKeyAuth};
+    use crate::scheme::PayInfo;
     use crate::scheme::setup::Parameters;
-    use crate::scheme::spend::{PayInfo, pseudorandom_fgt, pseudorandom_fgv};
     use crate::utils::hash_to_scalar;
 
     #[test]

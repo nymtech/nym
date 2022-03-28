@@ -8,11 +8,11 @@ use itertools::Itertools;
 
 use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
-use crate::scheme::{PartialSignature, PartialWallet, Signature, SignatureShare, SignerIndex, Wallet};
+use crate::scheme::{PartialWallet, Wallet};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
 use crate::scheme::withdrawal::RequestInfo;
-use crate::utils::{check_bilinear_pairing, perform_lagrangian_interpolation_at_origin};
+use crate::utils::{check_bilinear_pairing, PartialSignature, perform_lagrangian_interpolation_at_origin, Signature, SignatureShare, SignerIndex};
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;

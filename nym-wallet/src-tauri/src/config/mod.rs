@@ -4,6 +4,7 @@
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use config::NymConfig;
+use itertools::Itertools;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -115,6 +116,7 @@ impl Config {
       .chain(self.network.validators(network))
       .cloned()
       .chain(base_validators)
+      .unique()
   }
 
   pub fn get_nymd_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
@@ -165,6 +167,10 @@ impl Config {
     let client = reqwest::Client::builder()
       .timeout(Duration::from_secs(3))
       .build()?;
+    log::debug!(
+      "Fetching validator urls from: {}",
+      REMOTE_SOURCE_OF_VALIDATOR_URLS
+    );
     let response = client
       .get(REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
       .send()
@@ -224,7 +230,7 @@ impl Config {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ValidatorUrl {
   pub nymd_url: Url,
   pub api_url: Option<Url>,

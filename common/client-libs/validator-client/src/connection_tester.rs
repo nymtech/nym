@@ -43,6 +43,7 @@ pub async fn run_validator_connection_test<H: BuildHasher>(
     let connection_results = futures::future::join_all(
         connection_test_clients
             .into_iter()
+            .take(200)
             .map(ClientForConnectionTest::run_connection_check),
     )
     .await;

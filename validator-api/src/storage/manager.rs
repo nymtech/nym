@@ -776,6 +776,7 @@ impl StorageManager {
     ///
     /// * `tx_hash`: hash of the deposit transaction.
     /// * `blinded_signature_response`: the encrypted blinded signature response.
+    #[cfg(feature = "coconut")]
     pub(super) async fn insert_blinded_signature_response(
         &self,
         tx_hash: &str,
@@ -796,6 +797,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `tx_hash`: transaction hash of the deposit.
+    #[cfg(feature = "coconut")]
     pub(super) async fn get_blinded_signature_response(
         &self,
         tx_hash: &str,

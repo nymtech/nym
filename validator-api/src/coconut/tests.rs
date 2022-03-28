@@ -25,11 +25,12 @@ use validator_client::validator_api::routes::{
 };
 
 use crate::coconut::State;
+use crate::ValidatorApiStorage;
 use async_trait::async_trait;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
-use rocket::local::blocking::Client;
+use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
@@ -77,44 +78,54 @@ pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
     }
 }
 
-fn check_signer_verif_key(key_pair: KeyPair) {
+async fn check_signer_verif_key(key_pair: KeyPair) {
     let verification_key = key_pair.verification_key();
 
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&verification_key.to_bs58()[..8]);
-    let db = sled::open(db_dir).unwrap();
+    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(&nymd_db);
 
-    let rocket = rocket::build().attach(InternalSignRequest::stage(nymd_client, key_pair, db));
+    let rocket = rocket::build().attach(InternalSignRequest::stage(nymd_client, key_pair, storage));
 
-    let client = Client::tracked(rocket).expect("valid rocket instance");
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
 
     let response = client
         .get(format!(
             "/{}/{}/{}/{}",
             API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFICATION_KEY
         ))
-        .dispatch();
+        .dispatch()
+        .await;
     assert_eq!(response.status(), Status::Ok);
 
-    let verification_key_response = response.into_json::<VerificationKeyResponse>().unwrap();
+    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
+    // assert!(response
+    //     .into_json::<BlindedSignatureResponse>()
+    //     .await
+    //     .is_some());
+    let verification_key_response =
+        serde_json::from_str::<VerificationKeyResponse>(&response.into_string().await.unwrap())
+            .unwrap();
     assert_eq!(verification_key_response.key, verification_key);
 }
 
-#[test]
-fn multiple_verification_key() {
+#[tokio::test]
+async fn multiple_verification_key() {
     let params = Parameters::new(4).unwrap();
     let num_authorities = 4;
 
     let key_pairs = ttp_keygen(&params, num_authorities, num_authorities).unwrap();
     for key_pair in key_pairs.into_iter() {
-        check_signer_verif_key(key_pair);
+        check_signer_verif_key(key_pair).await;
     }
 }
 
-#[test]
-fn signed_before() {
+#[tokio::test]
+async fn signed_before() {
     let tx_hash =
         Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E").unwrap();
     let tx_entry = tx_entry_fixture(&tx_hash.to_string());
@@ -147,7 +158,7 @@ fn signed_before() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let db = sled::open(db_dir).unwrap();
+    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     nymd_db
         .write()
@@ -158,9 +169,11 @@ fn signed_before() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        db.clone(),
+        storage.clone(),
     ));
-    let client = Client::tracked(rocket).expect("valid rocket instance");
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
 
     let request_body = BlindSignRequestBody::new(
         &blind_sign_req,
@@ -174,7 +187,12 @@ fn signed_before() {
     let encrypted_signature = vec![1, 2, 3, 4];
     let remote_key = [42; 32];
     let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
-    db.insert(tx_hash.to_string().as_bytes(), expected_response.to_bytes())
+    storage
+        .insert_blinded_signature_response(
+            &tx_hash.to_string(),
+            &expected_response.to_base58_string(),
+        )
+        .await
         .unwrap();
 
     let response = client
@@ -183,9 +201,18 @@ fn signed_before() {
             API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
         ))
         .json(&request_body)
-        .dispatch();
+        .dispatch()
+        .await;
     assert_eq!(response.status(), Status::Ok);
-    let blinded_signature_response = response.into_json::<BlindedSignatureResponse>().unwrap();
+
+    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
+    // let blinded_signature_response = response
+    //     .into_json::<BlindedSignatureResponse>()
+    //     .await
+    //     .unwrap();
+    let blinded_signature_response =
+        serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap())
+            .unwrap();
     assert_eq!(
         blinded_signature_response.to_bytes(),
         expected_response.to_bytes()
@@ -200,20 +227,23 @@ async fn state_functions() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let db = sled::open(db_dir).unwrap();
-    let state = State::new(nymd_client, key_pair, db.clone());
+    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let state = State::new(nymd_client, key_pair, storage.clone());
 
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
-    assert!(state.signed_before(tx_hash.as_bytes()).unwrap().is_none());
+    assert!(state.signed_before(&tx_hash).await.unwrap().is_none());
 
     let encrypted_signature = vec![1, 2, 3, 4];
     let remote_key = [42; 32];
     let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
-    db.insert(tx_hash.as_bytes(), expected_response.to_bytes())
+    storage
+        .insert_blinded_signature_response(&tx_hash, &expected_response.to_base58_string())
+        .await
         .unwrap();
     assert_eq!(
         state
-            .signed_before(tx_hash.as_bytes())
+            .signed_before(&tx_hash)
+            .await
             .unwrap()
             .unwrap()
             .to_bytes(),
@@ -233,7 +263,7 @@ async fn state_functions() {
     assert_eq!(
         state
             .encrypt_and_store(
-                tx_hash.as_bytes(),
+                &tx_hash,
                 encryption_keypair.public_key(),
                 &blinded_signature,
             )
@@ -247,7 +277,7 @@ async fn state_functions() {
     let tx_hash = String::from("97D64C38D6601B1F0FD3A82E20D252685CB7A210AFB0261018590659AB82B0BF");
     let response = state
         .encrypt_and_store(
-            tx_hash.as_bytes(),
+            &tx_hash,
             encryption_keypair.public_key(),
             &blinded_signature,
         )
@@ -286,11 +316,7 @@ async fn state_functions() {
     .unwrap();
     assert_eq!(
         state
-            .encrypt_and_store(
-                tx_hash.as_bytes(),
-                encryption_keypair.public_key(),
-                &other_signature,
-            )
+            .encrypt_and_store(&tx_hash, encryption_keypair.public_key(), &other_signature,)
             .await
             .unwrap()
             .to_bytes(),
@@ -298,8 +324,8 @@ async fn state_functions() {
     );
 }
 
-#[test]
-fn blind_sign_correct() {
+#[tokio::test]
+async fn blind_sign_correct() {
     let tx_hash =
         Hash::from_str("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B").unwrap();
 
@@ -322,7 +348,7 @@ fn blind_sign_correct() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let db = sled::open(db_dir).unwrap();
+    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
 
     let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
@@ -361,9 +387,11 @@ fn blind_sign_correct() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        db.clone(),
+        storage.clone(),
     ));
-    let client = Client::tracked(rocket).expect("valid rocket instance");
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
 
     // hard-coded values, that generate a correct signature
     let blind_sign_req = BlindSignRequest::from_bytes(&[
@@ -406,29 +434,36 @@ fn blind_sign_correct() {
             API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
         ))
         .json(&request_body)
-        .dispatch();
+        .dispatch()
+        .await;
     assert_eq!(response.status(), Status::Ok);
-    assert!(response.into_json::<BlindedSignatureResponse>().is_some());
+    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
+    // assert!(response.into_json::<BlindedSignatureResponse>().is_some());
+    let blinded_signature_response =
+        serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap());
+    assert!(blinded_signature_response.is_ok());
 }
 
-#[test]
-fn signature_test() {
+#[tokio::test]
+async fn signature_test() {
     let tx_hash = String::from("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B");
     let params = Parameters::new(4).unwrap();
 
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let db = sled::open(db_dir).unwrap();
+    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(&nymd_db);
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        db.clone(),
+        storage.clone(),
     ));
-    let client = Client::tracked(rocket).expect("valid rocket instance");
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
 
     let response = client
         .post(format!(
@@ -436,17 +471,20 @@ fn signature_test() {
             API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
         ))
         .json(&tx_hash)
-        .dispatch();
+        .dispatch()
+        .await;
     assert_eq!(response.status(), Status::BadRequest);
     assert_eq!(
-        response.into_string().unwrap(),
+        response.into_string().await.unwrap(),
         CoconutError::NoSignature.to_string()
     );
 
     let encrypted_signature = vec![1, 2, 3, 4];
     let remote_key = [42; 32];
     let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
-    db.insert(tx_hash.as_bytes(), expected_response.to_bytes())
+    storage
+        .insert_blinded_signature_response(&tx_hash, &expected_response.to_base58_string())
+        .await
         .unwrap();
     let response = client
         .post(format!(
@@ -454,9 +492,17 @@ fn signature_test() {
             API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
         ))
         .json(&tx_hash)
-        .dispatch();
+        .dispatch()
+        .await;
     assert_eq!(response.status(), Status::Ok);
-    let blinded_signature_response = response.into_json::<BlindedSignatureResponse>().unwrap();
+    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
+    // let blinded_signature_response = response
+    //     .into_json::<BlindedSignatureResponse>()
+    //     .await
+    //     .unwrap();
+    let blinded_signature_response =
+        serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap())
+            .unwrap();
     assert_eq!(
         blinded_signature_response.to_bytes(),
         expected_response.to_bytes()

@@ -689,6 +689,7 @@ impl ValidatorApiStorage {
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }
 
+    #[cfg(feature = "coconut")]
     pub(crate) async fn get_blinded_signature_response(
         &self,
         tx_hash: &str,
@@ -699,6 +700,7 @@ impl ValidatorApiStorage {
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }
 
+    #[cfg(feature = "coconut")]
     pub(crate) async fn insert_blinded_signature_response(
         &self,
         tx_hash: &str,

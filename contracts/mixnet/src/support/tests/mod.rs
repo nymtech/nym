@@ -131,13 +131,16 @@ pub mod test_helpers {
     pub(crate) fn update_env_and_progress_interval(env: &mut Env, storage: &mut dyn Storage) {
         // make sure current block time is within the expected next interval
         env.block.time = Timestamp::from_seconds(
-            (interval_storage::current_interval(storage)
+            (interval_storage::current_epoch(storage)
                 .unwrap()
                 .next()
                 .start_unix_timestamp()
                 + 123) as u64,
         );
 
-        interval::transactions::try_advance_interval(env.clone(), storage).unwrap();
+        let sender =
+            crate::mixnet_contract_settings::storage::rewarding_validator_address(storage).unwrap();
+
+        interval::transactions::try_advance_epoch(env.clone(), storage, sender).unwrap();
     }
 }

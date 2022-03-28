@@ -32,7 +32,7 @@ Shared Typescript config is in [tsconfig.json](./tsconfig.json), with specific p
 
 Inherit config for Webpack 5 with additional tweaks including:
 
-- favicon generation from [SVG favicon asset files](../../assets/favicon/favicon.svg)
+- favicon generation from [favicon asset files](../../assets/favicon/favicon.png)
 - asset handling (svg, png, fonts, css, etc)
 - minification
 

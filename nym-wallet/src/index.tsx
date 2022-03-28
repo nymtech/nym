@@ -1,4 +1,4 @@
-import React, { useContext, useLayoutEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter as Router } from 'react-router-dom';
@@ -15,7 +15,7 @@ import { SignInProvider } from './pages/welcome/context';
 const App = () => {
   const { clientDetails } = useContext(ClientContext);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     maximizeWindow();
   }, []);
 

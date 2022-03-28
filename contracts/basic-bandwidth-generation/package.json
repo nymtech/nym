@@ -1,20 +1,20 @@
 {
   "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.0.4",
-    "@nomiclabs/hardhat-etherscan": "^2.1.6",
-    "@nomiclabs/hardhat-waffle": "^2.0.1",
-    "chai": "^4.3.4",
-    "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.5.3",
-    "hardhat": "^2.6.4",
-    "solidity-coverage": "^0.7.17"
+    "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomiclabs/hardhat-etherscan": "^3.0.3",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "chai": "^4.3.6",
+    "ethereum-waffle": "^3.4.4",
+    "ethers": "^5.6.1",
+    "hardhat": "^2.9.2",
+    "solidity-coverage": "^0.7.20"
   },
   "dependencies": {
-    "@nomiclabs/hardhat-truffle5": "^2.0.2",
+    "@nomiclabs/hardhat-truffle5": "^2.0.5",
     "@nomiclabs/hardhat-web3": "^2.0.0",
-    "@openzeppelin/contracts": "4.4.2",
+    "@openzeppelin/contracts": "4.5.0",
     "@openzeppelin/test-helpers": "^0.5.15",
-    "dotenv": "^10.0.0",
+    "dotenv": "^16.0.0",
     "file-system": "^2.2.2",
     "find-config": "^1.0.0"
   }

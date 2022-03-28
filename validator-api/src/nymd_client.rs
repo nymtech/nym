@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarded_set_updater::{error::RewardingError, MixnodeToReward};
+use crate::rewarded_set_updater::error::RewardingError;
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
-    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
     RewardedSetUpdateDetails,
 };
 use serde::Serialize;
@@ -113,13 +114,6 @@ impl<C> Client<C> {
         Ok(time)
     }
 
-    pub(crate) async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_current_interval().await
-    }
-
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -144,6 +138,40 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_contract_settings().await
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn get_operator_rewards(
+        &self,
+        address: String,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_operator_rewards(address).await
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0
+            .read()
+            .await
+            .get_delegator_rewards(address, mix_identity)
+            .await
+    }
+
+    pub(crate) async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_current_epoch().await
     }
 
     pub(crate) async fn get_current_epoch_reward_params(
@@ -251,14 +279,6 @@ impl<C> Client<C> {
     }
 
     #[allow(dead_code)]
-    pub(crate) async fn advance_current_interval(&self) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0.write().await.nymd.advance_current_interval().await?;
-        Ok(())
-    }
-
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -267,6 +287,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -275,6 +296,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn reconcile_delegations(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -283,6 +305,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn write_rewarded_set(
         &self,
         rewarded_set: Vec<IdentityKey>,
@@ -300,24 +323,37 @@ impl<C> Client<C> {
         Ok(())
     }
 
-    pub(crate) async fn reward_mixnodes(
+    pub(crate) async fn epoch_operations(
         &self,
-        nodes: &[MixnodeToReward],
-        interval_id: u32,
+        rewarded_set: Vec<IdentityKey>,
+        expected_active_set_size: u32,
+        reward_msgs: Vec<(ExecuteMsg, Vec<CosmosCoin>)>,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let msgs: Vec<(ExecuteMsg, _)> = nodes
-            .iter()
-            .map(|node| node.to_reward_execute_msg(interval_id))
-            .zip(std::iter::repeat(Vec::new()))
-            .collect();
+        let mut msgs = reward_msgs;
 
-        let memo = format!("rewarding {} mixnodes", msgs.len());
+        let epoch_msgs = vec![
+            (ExecuteMsg::ReconcileDelegations {}, vec![]),
+            (ExecuteMsg::CheckpointMixnodes {}, vec![]),
+            (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
+            (
+                ExecuteMsg::WriteRewardedSet {
+                    rewarded_set,
+                    expected_active_set_size,
+                },
+                vec![],
+            ),
+        ];
+
+        msgs.extend_from_slice(&epoch_msgs);
+
+        let memo = "Performing epoch operations".to_string();
 
         self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await
+            .await?;
+        Ok(())
     }
 
     async fn execute_multiple_with_retry<M>(

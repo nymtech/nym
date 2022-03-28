@@ -7,36 +7,21 @@ use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
+use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    Delegation, IdentityKey, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedMixDelegationsResponse,
+    Delegation, IdentityKey, PagedDelegatorDelegationsResponse, PagedMixDelegationsResponse,
 };
 
-pub(crate) fn query_all_network_delegations_paged(
-    deps: Deps<'_>,
-    start_after: Option<(IdentityKey, Vec<u8>, u64)>,
-    limit: Option<u32>,
-) -> StdResult<PagedAllDelegationsResponse> {
-    let limit = limit
-        .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
-        .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-
-    let start = start_after.map(Bound::exclusive);
-
-    let delegations = storage::delegations()
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|record| record.map(|r| r.1))
-        .collect::<StdResult<Vec<_>>>()?;
-
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.storage_key());
-
-    Ok(PagedAllDelegationsResponse::new(
-        delegations,
-        start_next_after,
-    ))
+pub(crate) fn query_pending_delegation_events(
+    storage: &dyn Storage,
+    owner_address: String,
+) -> Result<Vec<DelegationEvent>, ContractError> {
+    Ok(storage::PENDING_DELEGATION_EVENTS
+        .sub_prefix(owner_address.as_bytes().to_vec())
+        .range(storage, None, None, Order::Ascending)
+        .filter_map(|r| r.ok())
+        .map(|(_key, delegation_event)| delegation_event)
+        .collect::<Vec<DelegationEvent>>())
 }
 
 pub(crate) fn query_delegator_delegations_paged(
@@ -220,8 +205,10 @@ pub(crate) mod tests {
         fn pagination_works() {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
+            let node_identity2: IdentityKey = "bar".into();
 
             test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "100");
+            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity2, "100");
 
             let per_page = 2;
             let page1 = query_mixnode_delegations_paged(
@@ -258,7 +245,7 @@ pub(crate) mod tests {
                 Option::from(per_page),
             )
             .unwrap();
-            // println!("{:?}", page1);
+            println!("{:?}", page1);
             let start_after = page1.start_next_after.unwrap();
             assert_eq!(2, page1.delegations.len());
             assert_eq!(("200".to_string(), 12345), start_after);
@@ -272,15 +259,16 @@ pub(crate) mod tests {
                 Option::from(per_page),
             )
             .unwrap();
-            // println!("{:?}", page2);
+            println!("{:?}", page2);
             assert_eq!(1, page2.delegations.len());
+            assert_eq!(page2.delegations.last().unwrap().owner(), "300");
 
             // save another one
             test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "400");
 
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
-                node_identity,
+                node_identity.clone(),
                 Option::from(start_after),
                 Option::from(per_page),
             )
@@ -289,122 +277,19 @@ pub(crate) mod tests {
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.delegations.len());
-        }
-    }
+            assert_eq!(page2.delegations.last().unwrap().owner(), "400");
 
-    #[cfg(test)]
-    mod querying_for_all_mixnode_delegations_paged {
-        use super::*;
-        use crate::support::tests::test_helpers;
-        use mixnet_contract_common::IdentityKey;
-
-        #[test]
-        fn retrieval_obeys_limits() {
-            let mut deps = test_helpers::init_contract();
-            let limit = 2;
-            let node_identity: IdentityKey = "foo".into();
-            store_n_mix_delegations(100, &mut deps.storage, &node_identity);
-
-            let page1 =
-                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(limit))
-                    .unwrap();
-            assert_eq!(limit, page1.delegations.len() as u32);
-        }
-
-        #[test]
-        fn retrieval_has_default_limit() {
-            let mut deps = test_helpers::init_contract();
-            let node_identity: IdentityKey = "foo".into();
-            store_n_mix_delegations(
-                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-                &mut deps.storage,
-                &node_identity,
-            );
-
-            // query without explicitly setting a limit
-            let page1 = query_all_network_delegations_paged(deps.as_ref(), None, None).unwrap();
-            assert_eq!(
-                storage::DELEGATION_PAGE_DEFAULT_LIMIT,
-                page1.delegations.len() as u32
-            );
-        }
-
-        #[test]
-        fn retrieval_has_max_limit() {
-            let mut deps = test_helpers::init_contract();
-            let node_identity: IdentityKey = "foo".into();
-            store_n_mix_delegations(
-                storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-                &mut deps.storage,
-                &node_identity,
-            );
-
-            // query with a crazily high limit in an attempt to use too many resources
-            let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
-            let page1 =
-                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(crazy_limit))
-                    .unwrap();
-
-            // we default to a decent sized upper bound instead
-            let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
-            assert_eq!(expected_limit, page1.delegations.len() as u32);
-        }
-
-        #[test]
-        fn pagination_works() {
-            let mut deps = test_helpers::init_contract();
-            let node_identity: IdentityKey = "foo".into();
-
-            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "100");
-
-            let per_page = 2;
-            let page1 =
-                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(per_page))
-                    .unwrap();
-
-            // page should have 1 result on it
-            assert_eq!(1, page1.delegations.len());
-
-            // save another
-            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "200");
-
-            // page1 should have 2 results on it
-            let page1 =
-                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(per_page))
-                    .unwrap();
-            assert_eq!(2, page1.delegations.len());
-
-            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "300");
-
-            // page1 still has 2 results
-            let page1 =
-                query_all_network_delegations_paged(deps.as_ref(), None, Option::from(per_page))
-                    .unwrap();
-            assert_eq!(2, page1.delegations.len());
-
-            // retrieving the next page should start after the last key on this page
-            let start_after = page1.start_next_after.unwrap();
-            let page2 = query_all_network_delegations_paged(
+            // Should be empty
+            let page3 = query_mixnode_delegations_paged(
                 deps.as_ref(),
-                Option::from(start_after.clone()),
+                node_identity,
+                page2.start_next_after,
                 Option::from(per_page),
             )
             .unwrap();
 
-            assert_eq!(1, page2.delegations.len());
-
-            // save another one
-            test_helpers::save_dummy_delegation(&mut deps.storage, &node_identity, "400");
-
-            let page2 = query_all_network_delegations_paged(
-                deps.as_ref(),
-                Option::from(start_after),
-                Option::from(per_page),
-            )
-            .unwrap();
-
-            // now we have 2 pages, with 2 results on the second page
-            assert_eq!(2, page2.delegations.len());
+            assert!(page3.delegations.is_empty());
+            assert!(page3.start_next_after.is_none());
         }
     }
 

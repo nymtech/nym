@@ -544,7 +544,7 @@ impl GatewayClient {
         if self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
-        if self.bandwidth_controller.is_none() {
+        if self.bandwidth_controller.is_none() && !self.testnet_mode {
             return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 

@@ -4,6 +4,7 @@
 pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
 
 use crate::error::BackendError;
+use crate::operations::mixnet::account::create_new_account;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
@@ -100,7 +101,7 @@ fn store_wallet_login_information_at_file(
     account: encrypt_struct(&new_account, password)?,
   };
 
-  stored_wallet.accounts.push(new_encrypted_account);
+  stored_wallet.add_encrypted_account(new_encrypted_account)?;
 
   let file = OpenOptions::new()
     .create(true)
@@ -164,10 +165,10 @@ mod tests {
     let stored_wallet = load_existing_wallet_at_file(wallet_file.clone()).unwrap();
     assert_eq!(stored_wallet.len(), 1);
     assert_eq!(
-      stored_wallet.accounts[0].id,
+      stored_wallet.encrypted_account_by_index(0).unwrap().id,
       WalletAccountId::new("first".to_string())
     );
-    let encrypted_blob = &stored_wallet.accounts[0].account;
+    let encrypted_blob = &stored_wallet.encrypted_account_by_index(0).unwrap().account;
 
     // some actual ciphertext was saved
     assert!(!encrypted_blob.ciphertext().is_empty());
@@ -185,6 +186,18 @@ mod tests {
     assert!(matches!(
       load_existing_wallet_login_information_at_file(wallet_file.clone(), &id2, &password),
       Err(BackendError::NoSuchIdInWallet),
+    ));
+
+    // and storing the same id again fails
+    assert!(matches!(
+      store_wallet_login_information_at_file(
+        wallet_file.clone(),
+        dummy_account1.clone(),
+        cosmos_hd_path.clone(),
+        id1.clone(),
+        &password,
+      ),
+      Err(BackendError::IdAlreadyExistsInWallet),
     ));
 
     let loaded_account =
@@ -218,13 +231,14 @@ mod tests {
 
     let loaded_accounts = load_existing_wallet_at_file(wallet_file.clone()).unwrap();
     assert_eq!(2, loaded_accounts.len());
-    let encrypted_blob = &loaded_accounts.accounts[1].account;
+    let encrypted_blob = &loaded_accounts
+      .encrypted_account_by_index(1)
+      .unwrap()
+      .account;
 
     // fresh IV and salt are used
     assert_ne!(original_iv, encrypted_blob.iv());
     assert_ne!(original_salt, encrypted_blob.salt());
-
-    // WIP(JON): test that a re-saved account has new IV and salt
 
     // first account should be unchanged
     let loaded_account =

@@ -1,23 +1,21 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{
-    ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, REWARDING_INTERVAL_LENGTH,
-    SYBIL_RESISTANCE_PERCENT,
-};
-use crate::delegations::queries::query_all_network_delegations_paged;
+use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
 use crate::delegations::queries::query_delegator_delegations_paged;
 use crate::delegations::queries::query_mixnode_delegation;
-use crate::delegations::queries::query_mixnode_delegations_paged;
+use crate::delegations::queries::{
+    query_mixnode_delegations_paged, query_pending_delegation_events,
+};
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::interval::queries::query_current_epoch;
 use crate::interval::queries::{
-    query_current_interval, query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_heights_for_interval, query_rewarded_set_refresh_minimum_blocks,
-    query_rewarded_set_update_details,
+    query_current_rewarded_set_height, query_rewarded_set,
+    query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
 };
-use crate::interval::storage as interval_storage;
+use crate::interval::transactions::{init_epoch, try_init_epoch};
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version,
@@ -34,7 +32,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -80,14 +78,11 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let state = default_initial_state(info.sender, rewarding_validator_address);
-    let rewarding_interval =
-        Interval::new(0, DEFAULT_FIRST_INTERVAL_START, REWARDING_INTERVAL_LENGTH);
+    init_epoch(deps.storage, env)?;
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
     rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    interval_storage::save_interval(deps.storage, &rewarding_interval)?;
-    interval_storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &env.block.height)?;
 
     Ok(Response::default())
 }
@@ -101,6 +96,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,
@@ -150,18 +146,9 @@ pub fn execute(
                 deps, info, params,
             )
         }
-        ExecuteMsg::RewardMixnode {
-            identity,
-            params,
-            interval_id,
-        } => crate::rewards::transactions::try_reward_mixnode(
-            deps,
-            env,
-            info,
-            identity,
-            params,
-            interval_id,
-        ),
+        ExecuteMsg::RewardMixnode { identity, params } => {
+            crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params)
+        }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
@@ -242,12 +229,11 @@ pub fn execute(
             rewarded_set,
             expected_active_set_size,
         ),
-        ExecuteMsg::AdvanceCurrentInterval {} => {
-            crate::interval::transactions::try_advance_interval(env, deps.storage)
-        }
-        ExecuteMsg::AdvanceCurrentEpoch {} => {
-            crate::interval::transactions::try_advance_epoch(env, deps.storage)
-        }
+        ExecuteMsg::AdvanceCurrentEpoch {} => crate::interval::transactions::try_advance_epoch(
+            env,
+            deps.storage,
+            info.sender.to_string(),
+        ),
         ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
             crate::rewards::transactions::try_compound_delegator_reward(
                 deps,
@@ -313,9 +299,6 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             start_after,
             limit,
         )?),
-        QueryMsg::GetAllNetworkDelegations { start_after, limit } => to_binary(
-            &query_all_network_delegations_paged(deps, start_after, limit)?,
-        ),
         QueryMsg::GetDelegatorDelegations {
             delegator: delegation_owner,
             start_after,
@@ -354,27 +337,92 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             start_after,
             limit,
         )?),
-        QueryMsg::GetRewardedSetHeightsForInterval { interval_id } => to_binary(
-            &query_rewarded_set_heights_for_interval(deps.storage, interval_id)?,
-        ),
         QueryMsg::GetRewardedSetUpdateDetails {} => {
             to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
         }
         QueryMsg::GetCurrentRewardedSetHeight {} => {
             to_binary(&query_current_rewarded_set_height(deps.storage)?)
         }
-        QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
+        // QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
         }
         QueryMsg::GetEpochsInInterval {} => to_binary(&crate::constants::EPOCHS_IN_INTERVAL),
+        QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
+        QueryMsg::QueryOperatorReward { address } => to_binary(
+            &crate::rewards::queries::query_operator_reward(deps, address)?,
+        ),
+        QueryMsg::QueryDelegatorReward {
+            address,
+            mix_identity,
+        } => to_binary(&crate::rewards::queries::query_delegator_reward(
+            deps,
+            address,
+            mix_identity,
+        )?),
+        QueryMsg::GetPendingDelegationEvents { owner_address } => to_binary(
+            &query_pending_delegation_events(deps.storage, owner_address)?,
+        ),
     };
 
     Ok(query_res?)
 }
 
+// MIGRATE OLD DELEGATION STORAGE
+// applied on QAnet
+#[allow(dead_code)]
+fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
+    use crate::delegations::storage::{
+        DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
+        DELEGATION_PK_NAMESPACE,
+    };
+    use cosmwasm_std::Order;
+    use cw_storage_plus::{IndexedMap, MultiIndex};
+
+    type PrimaryKey = Vec<u8>;
+
+    fn old_delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
+        let indexes = DelegationIndex {
+            owner: MultiIndex::new(
+                |d| d.owner.clone(),
+                DELEGATION_PK_NAMESPACE,
+                DELEGATION_OWNER_IDX_NAMESPACE,
+            ),
+            mixnode: MultiIndex::new(
+                |d| d.node_identity.clone(),
+                DELEGATION_PK_NAMESPACE,
+                DELEGATION_MIXNODE_IDX_NAMESPACE,
+            ),
+        };
+
+        IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
+    }
+
+    let old_delegations = old_delegations()
+        .range(deps.storage, None, None, Order::Ascending)
+        .filter_map(|r| r.ok())
+        .map(|(_key, delegation)| delegation)
+        .collect::<Vec<Delegation>>();
+
+    for delegation in old_delegations {
+        crate::delegations::storage::delegations().save(
+            deps.storage,
+            (
+                delegation.node_identity(),
+                delegation.owner().as_bytes().to_vec(),
+                delegation.block_height(),
+            ),
+            &delegation,
+        )?;
+    }
+    Ok(())
+}
+
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // TODO: Uncomment mainnet
+    // migrate_delegations(deps)?;
+
     Ok(Default::default())
 }
 

@@ -1,11 +1,21 @@
-import React, { useContext, useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Autocomplete, Box, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
+import React from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import {
+  ListItem,
+  ListItemText,
+  Box,
+  Autocomplete,
+  Button,
+  CircularProgress,
+  FormControl,
+  Grid,
+  TextField,
+} from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { format } from 'date-fns';
 import { validationSchema } from './validationSchema';
-import { EnumNodeType, TDelegation, TFee } from '../../types';
-import { ClientContext } from '../../context/main';
-import { undelegate } from '../../requests';
+import { EnumNodeType, PendingUndelegate, TDelegation } from '../../types';
+import { undelegate, vestingUnelegateFromMixnode } from '../../requests';
 import { Fee } from '../../components';
 
 type TFormData = {
@@ -20,11 +30,14 @@ const defaultValues = {
 
 export const UndelegateForm = ({
   delegations,
+  pendingUndelegations,
+  currentEndEpoch,
   onError,
   onSuccess,
 }: {
-  fees: TFee;
   delegations?: TDelegation[];
+  pendingUndelegations?: PendingUndelegate[];
+  currentEndEpoch?: BigInt;
   onError: (message?: string) => void;
   onSuccess: (message?: string) => void;
 }) => {
@@ -32,30 +45,33 @@ export const UndelegateForm = ({
     control,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<TFormData>({
     defaultValues,
     resolver: yupResolver(validationSchema),
   });
-  const watchNodeType = watch('nodeType');
-
-  useEffect(() => {
-    setValue('identity', '');
-  }, [watchNodeType]);
-
-  const { userBalance } = useContext(ClientContext);
 
   const onSubmit = async (data: TFormData) => {
-    await undelegate({
-      type: data.nodeType,
-      identity: data.identity,
-    })
-      .then(async (res) => {
-        onSuccess(`Successfully undelegated from ${res.target_address}`);
-        userBalance.fetchBalance();
-      })
-      .catch((e) => onError(e));
+    let res;
+    try {
+      res = await undelegate({
+        type: data.nodeType,
+        identity: data.identity,
+      });
+
+      if (!res) {
+        res = await vestingUnelegateFromMixnode(data.identity);
+      }
+
+      if (!res) {
+        onError('An error occurred when undelegating');
+        return;
+      }
+
+      onSuccess(`Successfully requested undelegation from ${res.target_address}`);
+    } catch (e) {
+      onError(e as string);
+    }
   };
 
   return (
@@ -69,8 +85,30 @@ export const UndelegateForm = ({
               render={() => (
                 <Autocomplete
                   disabled={isSubmitting}
-                  onChange={(_, value) => setValue('identity', value || '')}
+                  getOptionDisabled={(opt) => pendingUndelegations?.some((item) => item.mix_identity === opt) || false}
                   options={delegations?.map((d) => d.node_identity) || []}
+                  renderOption={(props, opt) => (
+                    <ListItem
+                      {...props}
+                      onClick={(e: React.MouseEvent<HTMLLIElement>) => {
+                        setValue('identity', opt);
+                        props.onClick!(e);
+                      }}
+                      disablePadding
+                      disableGutters
+                    >
+                      <ListItemText
+                        primary={opt}
+                        secondary={
+                          pendingUndelegations?.some((item) => item.mix_identity === opt)
+                            ? `Pending - Expected time of completion: ${
+                                currentEndEpoch ? format(new Date(Number(currentEndEpoch) * 1000), 'HH:mm') : 'N/A'
+                              }`
+                            : undefined
+                        }
+                      />
+                    </ListItem>
+                  )}
                   renderInput={(params) => (
                     <TextField
                       {...params}

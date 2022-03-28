@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "nym-wallet",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "build": {
     "distDir": "../dist",
@@ -25,7 +25,7 @@
       "externalBin": [],
       "copyright": "Copyright © 2021-2022 Nym Technologies SA",
       "category": "Business",
-      "shortDescription": "Nym desktop wallet allows you to manage your Nym tokens",
+      "shortDescription": "Nym desktop wallet allows you to manage your NYM tokens",
       "longDescription": "",
       "deb": {
         "depends": [],
@@ -40,9 +40,9 @@
         "entitlements": null
       },
       "windows": {
-        "certificateThumbprint": null,
+        "certificateThumbprint": "6DB77B1F529A0804FE0E6843A3EB8A8CECFFD408",
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "http://timestamp.comodoca.com"
       }
     },
     "updater": {

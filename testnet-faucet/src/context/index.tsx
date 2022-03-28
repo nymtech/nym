@@ -5,8 +5,7 @@ import ClientValidator, {
 import { handleError } from '../utils'
 import { useCookie } from '..//hooks/useCookie'
 
-const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } =
-  process.env
+const { VALIDATOR_ADDRESS, MNEMONIC, TESTNET_URL_1, ACCOUNT_ADDRESS } = process.env;
 
 export const urls = {
   blockExplorer: 'https://sandbox-blocks.nymtech.net',

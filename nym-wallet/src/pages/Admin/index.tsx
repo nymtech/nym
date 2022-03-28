@@ -19,7 +19,6 @@ const AdminForm: React.FC<{
 
   const onSubmit = async (data: TauriContractStateParams) => {
     await setContractParams(data);
-    console.log(data);
     onCancel();
   };
 

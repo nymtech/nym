@@ -1,4 +1,4 @@
-import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { CosmWasmClient, JsonObject } from '@cosmjs/cosmwasm-stargate';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import {
   Account,
@@ -10,7 +10,6 @@ import {
   SearchTxQuery,
   SequenceResponse,
 } from '@cosmjs/stargate';
-import { JsonObject } from '@cosmjs/cosmwasm-stargate/build/queries';
 import { Code, CodeDetails, Contract, ContractCodeHistoryEntry } from '@cosmjs/cosmwasm-stargate/build/cosmwasmclient';
 // eslint-disable-next-line import/no-cycle
 import NymdQuerier from './nymd-querier';

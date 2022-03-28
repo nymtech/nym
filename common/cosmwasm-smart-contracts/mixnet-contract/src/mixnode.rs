@@ -296,7 +296,7 @@ pub struct MixNodeBond {
     pub block_height: u64,
     pub mix_node: MixNode,
     pub proxy: Option<Addr>,
-    pub accumulated_rewards: Uint128,
+    pub accumulated_rewards: Option<Uint128>,
 }
 
 impl MixNodeBond {
@@ -316,8 +316,12 @@ impl MixNodeBond {
             block_height,
             mix_node,
             proxy,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: None,
         }
+    }
+
+    pub fn accumulated_rewards(&self) -> Uint128 {
+        self.accumulated_rewards.unwrap_or_else(Uint128::zero)
     }
 
     pub fn profit_margin(&self) -> U128 {
@@ -348,7 +352,7 @@ impl MixNodeBond {
             Some(
                 self.pledge_amount.amount.u128()
                     + self.total_delegation.amount.u128()
-                    + self.accumulated_rewards.u128(),
+                    + self.accumulated_rewards().u128(),
             )
         }
     }
@@ -614,7 +618,7 @@ mod tests {
             block_height: 100,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix2 = MixNodeBond {
@@ -625,7 +629,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix3 = MixNodeBond {
@@ -636,7 +640,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix4 = MixNodeBond {
@@ -647,7 +651,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         let mix5 = MixNodeBond {
@@ -658,7 +662,7 @@ mod tests {
             block_height: 120,
             mix_node: mixnode_fixture(),
             proxy: None,
-            accumulated_rewards: Uint128::zero(),
+            accumulated_rewards: Some(Uint128::zero()),
         };
 
         // summary:

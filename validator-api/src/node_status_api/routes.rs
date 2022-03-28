@@ -16,6 +16,8 @@ use validator_api_requests::models::{
     RewardEstimationResponse, StakeSaturationResponse,
 };
 
+use super::models::Uptime;
+
 #[get("/mixnode/<identity>/report")]
 pub(crate) async fn mixnode_report(
     storage: &State<ValidatorApiStorage>,
@@ -120,17 +122,33 @@ pub(crate) async fn get_mixnode_reward_estimation(
         let as_at = interval_reward_params.timestamp();
         let interval_reward_params = interval_reward_params.into_inner();
 
-        let current_interval = cache.current_interval().await.into_inner();
-        let uptime = storage
-            .get_average_mixnode_uptime_in_interval(
-                &identity,
-                current_interval.start_unix_timestamp(),
-                current_interval.end_unix_timestamp(),
-            )
-            .await
-            .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
+        let current_epoch = cache.current_epoch().await.into_inner();
+        let uptime = if let Some(epoch) = current_epoch {
+            storage
+                .get_average_mixnode_uptime_in_interval(
+                    &identity,
+                    epoch.start_unix_timestamp(),
+                    epoch.end_unix_timestamp(),
+                )
+                .await
+                .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?
+        } else {
+            Uptime::default()
+        };
+
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
         let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
+        let epoch_start = if let Some(epoch) = current_epoch {
+            epoch.start_unix_timestamp()
+        } else {
+            0
+        };
+
+        let epoch_end = if let Some(epoch) = current_epoch {
+            epoch.end_unix_timestamp()
+        } else {
+            0
+        };
         match bond.estimate_reward(&reward_params) {
             Ok((
                 estimated_total_node_reward,
@@ -141,8 +159,8 @@ pub(crate) async fn get_mixnode_reward_estimation(
                     estimated_total_node_reward,
                     estimated_operator_reward,
                     estimated_delegators_reward,
-                    current_interval_start: current_interval.start_unix_timestamp(),
-                    current_interval_end: current_interval.end_unix_timestamp(),
+                    current_interval_start: epoch_start,
+                    current_interval_end: epoch_end,
                     current_interval_uptime: uptime.u8(),
                     as_at,
                 };
@@ -194,7 +212,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<ValidatorCache>,
     identity: String,
 ) -> Json<Option<InclusionProbabilityResponse>> {
-    let mixnodes = cache.mixnodes().await.into_inner();
+    let mixnodes = cache.mixnodes().await;
 
     if let Some(target_mixnode) = mixnodes.iter().find(|x| x.identity() == &identity) {
         let total_bonded_tokens = mixnodes

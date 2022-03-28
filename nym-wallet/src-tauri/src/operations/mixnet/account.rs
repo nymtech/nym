@@ -24,7 +24,6 @@ use validator_client::Client;
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
 #[derive(Serialize, Deserialize)]
-
 pub struct Account {
   contract_address: String,
   client_address: String,
@@ -43,9 +42,15 @@ impl Account {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
+#[derive(Serialize, Deserialize)]
+pub struct CreatedAccount {
+  account: Account,
+  mnemonic: String,
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/balance.ts"))]
 #[derive(Serialize, Deserialize)]
-
 pub struct Balance {
   coin: Coin,
   printable_balance: String,
@@ -87,7 +92,19 @@ pub async fn get_balance(
 }
 
 #[tauri::command]
-pub async fn create_mnemonic() -> Result<String, BackendError> {
+pub async fn create_new_account(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<CreatedAccount, BackendError> {
+  let rand_mnemonic = random_mnemonic();
+  let account = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
+  Ok(CreatedAccount {
+    account,
+    mnemonic: rand_mnemonic.to_string(),
+  })
+}
+
+#[tauri::command]
+pub async fn create_new_mnemonic() -> Result<String, BackendError> {
   let rand_mnemonic = random_mnemonic();
   Ok(rand_mnemonic.to_string())
 }

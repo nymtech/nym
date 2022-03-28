@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { Check, ContentCopy } from '@mui/icons-material';
 import { clipboard } from '@tauri-apps/api';
+import { Console } from '../utils/console';
 
 export const CopyToClipboard = ({
   text = '',
@@ -19,7 +20,7 @@ export const CopyToClipboard = ({
       await clipboard.writeText(_text);
       setCopied(true);
     } catch (e) {
-      console.log(`failed to copy: ${e}`);
+      Console.error(`failed to copy: ${e}`);
     }
   };
 

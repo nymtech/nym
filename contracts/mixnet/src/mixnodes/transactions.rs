@@ -135,7 +135,7 @@ fn _try_add_mixnode(
         env.block.height,
         mix_node,
         proxy.clone(),
-        Uint128::zero(),
+        None,
         None,
     );
 

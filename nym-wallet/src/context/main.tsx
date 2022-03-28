@@ -1,10 +1,12 @@
-import React, { createContext, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
 import { currencyMap } from '../utils';
+import { Console } from '../utils/console';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
@@ -56,13 +58,15 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const userBalance = useGetBalance(clientDetails?.client_address);
   const history = useHistory();
+  const { enqueueSnackbar } = useSnackbar();
 
   const loadAccount = async (n: Network) => {
     try {
       const client = await selectNetwork(n);
       setClientDetails(client);
     } catch (e) {
-      console.error(e);
+      enqueueSnackbar('Error loading account', { variant: 'error' });
+      Console.error(e as string);
     } finally {
       setCurrency(currencyMap(n));
     }
@@ -74,7 +78,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const mixnode = await getMixnodeBondDetails();
       setMixnodeDetails(mixnode);
     } catch (e) {
-      console.log(e);
+      Console.error(e as string);
     }
   };
 
@@ -83,7 +87,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       if (network) {
         await loadAccount(network);
         await getBondDetails();
-        userBalance.fetchBalance();
+        await userBalance.fetchBalance();
       }
     };
     refreshAccount();
@@ -98,21 +102,23 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
         await signInWithPassword(value);
       }
       setNetwork('MAINNET');
-      history.push('/balance');
     } catch (e) {
       setError(e as string);
     } finally {
       setIsLoading(false);
+      history.push('/balance');
     }
   };
 
   const logOut = async () => {
+    userBalance.clearAll();
     setClientDetails(undefined);
     setNetwork(undefined);
     setError(undefined);
     setIsLoading(false);
-    userBalance.clearAll();
+    setMixnodeDetails(undefined);
     await signOut();
+    enqueueSnackbar('Successfully logged out', { variant: 'success' });
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);

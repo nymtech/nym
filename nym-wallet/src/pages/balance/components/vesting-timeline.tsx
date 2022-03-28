@@ -45,7 +45,7 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
           tooltipText="End of vesting schedule"
         />
       </svg>
-      {nextPeriod && (
+      {!!nextPeriod && (
         <Typography variant="caption" sx={{ color: 'grey.500', position: 'absolute', top: 15, left: 0 }}>
           Next vesting period: {format(new Date(nextPeriod * 1000), 'HH:mm do MMM yyyy')}
         </Typography>

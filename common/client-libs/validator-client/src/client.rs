@@ -4,7 +4,6 @@
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
-use network_defaults::DEFAULT_NETWORK;
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -12,16 +11,18 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
+use network_defaults::DEFAULT_NETWORK;
+
+#[cfg(feature = "nymd-client")]
 use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
-#[cfg(feature = "nymd-client")]
-use mixnet_contract_common::ContractStateParams;
 
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
-    Delegation, IdentityKey, Interval, MixnetContractVersion, MixnodeRewardingStatusResponse,
-    RewardedSetNodeStatus, RewardedSetUpdateDetails,
+    mixnode::DelegationEvent, ContractStateParams, Delegation, IdentityKey, Interval,
+    MixnetContractVersion, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    RewardedSetUpdateDetails,
 };
 #[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
@@ -248,6 +249,48 @@ impl<C> Client<C> {
         Ok(self.nymd.get_contract_settings().await?)
     }
 
+    pub async fn get_operator_rewards(&self, address: String) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_operator_rewards(address).await?.u128())
+    }
+
+    pub async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<u128, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .get_delegator_rewards(address, mix_identity)
+            .await?
+            .u128())
+    }
+
+    pub async fn get_pending_delegation_events(
+        &self,
+        owner_address: String,
+    ) -> Result<Vec<DelegationEvent>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self
+            .nymd
+            .get_pending_delegation_events(owner_address)
+            .await?)
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_epoch().await?)
+    }
+
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -276,20 +319,6 @@ impl<C> Client<C> {
         Ok(self.nymd.get_reward_pool().await?.u128())
     }
 
-    pub async fn get_current_interval(&self) -> Result<Interval, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_current_interval().await?)
-    }
-
-    pub async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_epochs_in_interval().await?)
-    }
-
     pub async fn get_circulating_supply(&self) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -309,6 +338,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_active_set_work_factor().await?)
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_epochs_in_interval().await?)
     }
 
     pub async fn get_interval_reward_percent(&self) -> Result<u8, ValidatorClientError>
@@ -494,32 +530,6 @@ impl<C> Client<C> {
                 .nymd
                 .get_mix_delegations_paged(
                     identity.clone(),
-                    start_after.take(),
-                    self.mixnode_delegations_page_limit,
-                )
-                .await?;
-            delegations.append(&mut paged_response.delegations);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
-    }
-
-    pub async fn get_all_network_delegations(&self) -> Result<Vec<Delegation>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nymd
-                .get_all_network_delegations_paged(
                     start_after.take(),
                     self.mixnode_delegations_page_limit,
                 )

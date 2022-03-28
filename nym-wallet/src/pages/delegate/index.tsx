@@ -53,14 +53,15 @@ export const Delegate = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
-                  borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-                  bgcolor: 'grey.100',
                   p: 3,
                   pt: 0,
                 }}
               >
                 <Button
                   data-testid="finish-button"
+                  size="large"
+                  disableElevation
+                  variant="contained"
                   onClick={() => {
                     setStatus(EnumRequestStatus.initial);
                   }}

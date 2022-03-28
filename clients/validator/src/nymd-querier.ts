@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { JsonObject } from '@cosmjs/cosmwasm-stargate/build/queries';
+import { JsonObject } from '@cosmjs/cosmwasm-stargate';
 // eslint-disable-next-line import/no-cycle
 import { INymdQuery } from './query-client';
 import {

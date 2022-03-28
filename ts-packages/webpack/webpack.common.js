@@ -5,6 +5,7 @@ const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const WebpackFavicons = require('webpack-favicons');
 const Dotenv = require('dotenv-webpack');
 const path = require('path');
+const os = require('os');
 
 /**
  * Creates the default Webpack config
@@ -15,7 +16,13 @@ module.exports = (baseDir, htmlPath) => ({
     rules: [
       {
         test: /\.tsx?$/,
-        use: [{ loader: 'ts-loader', options: { transpileOnly: true } }],
+        use: [
+          {
+            loader: 'thread-loader',
+            options: { workers: Math.max(2, os.cpus().length - 1) },
+          },
+          { loader: 'ts-loader', options: { happyPackMode: true } },
+        ],
         exclude: /node_modules/,
       },
       {
@@ -70,7 +77,7 @@ module.exports = (baseDir, htmlPath) => ({
     }),
 
     new WebpackFavicons({
-      src: path.resolve(__dirname, '../../assets/favicon/favicon.svg'), // the asset directory is relative to THIS file
+      src: path.resolve(__dirname, '../../assets/favicon/favicon.png'), // the asset directory is relative to THIS file
     }),
 
     new Dotenv(),

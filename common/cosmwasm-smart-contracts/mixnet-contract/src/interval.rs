@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_std::Env;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
@@ -55,7 +56,6 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-/// Representation of rewarding interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,
@@ -65,9 +65,24 @@ pub struct Interval {
 }
 
 impl Interval {
-    /// Creates new interval instance.
-    pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
-        Interval { id, start, length }
+    /// Initialize epoch in the contract with default values.
+    pub fn init_epoch(env: Env) -> Self {
+        Interval {
+            id: 0,
+            // I really don't see a way for this to fail, unless the blockchain is lying to us
+            start: OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64)
+                .expect("Invalid timestamp from env.block.time"),
+            length: Duration::from_secs(3600),
+        }
+    }
+
+    pub fn is_over(&self, env: Env) -> bool {
+        self.end_unix_timestamp() <= env.block.time.seconds() as i64
+    }
+
+    pub fn in_progress(&self, env: Env) -> bool {
+        let block_time = env.block.time.seconds() as i64;
+        self.start_unix_timestamp() <= block_time && block_time < self.end_unix_timestamp()
     }
 
     /// Returns the next interval.
@@ -76,6 +91,17 @@ impl Interval {
         Interval {
             id: self.id + 1,
             start: self.end(),
+            length: self.length,
+        }
+    }
+
+    pub fn next_on_chain(&self, env: Env) -> Self {
+        let start = self
+            .end()
+            .max(OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap());
+        Interval {
+            id: self.id + 1,
+            start,
             length: self.length,
         }
     }

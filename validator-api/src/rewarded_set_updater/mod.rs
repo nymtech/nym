@@ -14,9 +14,7 @@
 
 use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
-use crate::storage::models::{
-    FailedMixnodeRewardChunk, PossiblyUnrewardedMixnode, RewardingReport,
-};
+use crate::storage::models::RewardingReport;
 use crate::storage::ValidatorApiStorage;
 use mixnet_contract_common::reward_params::NodeRewardParams;
 use mixnet_contract_common::ExecuteMsg;
@@ -26,10 +24,8 @@ use rand::rngs::OsRng;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::sync::Notify;
-use tokio::time::sleep;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nymd::{CosmosCoin, SigningNymdClient};
 
 pub(crate) mod error;
 
@@ -47,22 +43,18 @@ pub(crate) struct MixnodeToReward {
 }
 
 impl MixnodeToReward {
+    #[allow(dead_code)]
     fn params(&self) -> NodeRewardParams {
         self.params
     }
 
-    pub(crate) fn to_reward_execute_msg(&self, interval_id: u32) -> ExecuteMsg {
+    #[allow(dead_code)]
+    pub(crate) fn to_reward_execute_msg(&self) -> ExecuteMsg {
         ExecuteMsg::RewardMixnode {
             identity: self.identity.clone(),
             params: self.params(),
-            interval_id,
         }
     }
-}
-
-pub(crate) struct FailedMixnodeRewardChunkDetails {
-    possibly_unrewarded: Vec<MixnodeToReward>,
-    error_message: String,
 }
 
 // Epoch has all the same semantics as interval, but has a lower set duration
@@ -73,24 +65,25 @@ pub struct RewardedSetUpdater {
     update_rewarded_set_notify: Arc<Notify>,
     validator_cache: ValidatorCache,
     storage: ValidatorApiStorage,
-    epoch: Epoch,
 }
 
 impl RewardedSetUpdater {
-    pub(crate) fn new(
+    pub(crate) async fn epoch(&self) -> Result<Epoch, RewardingError> {
+        Ok(self.nymd_client.get_current_epoch().await?)
+    }
+
+    pub(crate) async fn new(
         nymd_client: Client<SigningNymdClient>,
         update_rewarded_set_notify: Arc<Notify>,
         validator_cache: ValidatorCache,
         storage: ValidatorApiStorage,
-    ) -> Self {
-        let epoch = Epoch::new(0, OffsetDateTime::now_utc(), Duration::from_secs(3600));
-        RewardedSetUpdater {
+    ) -> Result<Self, RewardingError> {
+        Ok(RewardedSetUpdater {
             nymd_client,
             update_rewarded_set_notify,
             validator_cache,
             storage,
-            epoch,
-        }
+        })
     }
 
     fn determine_rewarded_set(
@@ -128,151 +121,47 @@ impl RewardedSetUpdater {
             .collect()
     }
 
-    async fn rewarding_happened_at_epoch(&self) -> Result<bool, RewardingError> {
-        if let Some(entry) = self
-            .storage
-            .get_interval_rewarding_entry(self.epoch.start_unix_timestamp())
-            .await?
-        {
-            // log error if the attempt wasn't finished. This error implies the process has crashed
-            // during the rewards distribution
-            if !entry.finished {
-                error!(
-                    "It seems that we haven't successfully finished distributing rewards at {}",
-                    self.epoch
-                )
-            }
-
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    async fn reward_current_rewarded_set(&self) -> Result<(), RewardingError> {
+    async fn reward_current_rewarded_set(
+        &self,
+    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
         let to_reward = self.nodes_to_reward().await?;
+        let epoch = self.epoch().await?;
 
-        self.storage
-            .insert_started_epoch_rewarding(self.epoch)
-            .await?;
+        // self.storage.insert_started_epoch_rewarding(epoch).await?;
 
-        let failure_data = self.distribute_rewards(&to_reward, false).await;
-
-        let mut rewarding_report = RewardingReport {
-            interval_rewarding_id: self.epoch.id() as i64,
+        let rewarding_report = RewardingReport {
+            interval_rewarding_id: epoch.id() as i64,
             eligible_mixnodes: to_reward.len() as i64,
             possibly_unrewarded_mixnodes: 0,
         };
 
-        if let Some(failure_data) = failure_data {
-            rewarding_report.possibly_unrewarded_mixnodes =
-                failure_data.possibly_unrewarded.len() as i64;
-            if let Err(err) = self
-                .save_failure_information(failure_data, self.epoch.id() as i64)
-                .await
-            {
-                error!("failed to save information about rewarding failures!");
-                // TODO: should we just terminate the process here?
-                return Err(err);
-            }
-        }
-
         self.storage
-            .finish_rewarding_interval_and_insert_report(rewarding_report)
-            .await?;
-        Ok(())
-    }
-
-    async fn save_failure_information(
-        &self,
-        failed_chunk: FailedMixnodeRewardChunkDetails,
-        interval_rewarding_id: i64,
-    ) -> Result<(), RewardingError> {
-        // save the chunk
-        let chunk_id = self
-            .storage
-            .insert_failed_mixnode_reward_chunk(FailedMixnodeRewardChunk {
-                interval_rewarding_id,
-                error_message: failed_chunk.error_message,
-            })
+            .insert_rewarding_report(rewarding_report)
             .await?;
 
-        // and then all associated nodes
-        for node in failed_chunk.possibly_unrewarded.into_iter() {
-            self.storage
-                .insert_possibly_unrewarded_mixnode(PossiblyUnrewardedMixnode {
-                    chunk_id,
-                    identity: node.identity,
-                    uptime: node.params.uptime() as u8,
-                })
-                .await?;
-        }
-
-        Ok(())
+        Ok(self.generate_reward_messages(&to_reward).await?)
     }
 
-    async fn distribute_rewards(
+    #[allow(unused_variables)]
+    async fn generate_reward_messages(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
-        retry: bool,
-    ) -> Option<FailedMixnodeRewardChunkDetails> {
-        if retry {
-            info!(
-                "Attempting to retry rewarding {} mixnodes...",
-                eligible_mixnodes.len()
-            )
-        } else {
-            info!(
-                "Attempting to reward {} mixnodes...",
-                eligible_mixnodes.len()
-            )
-        }
-
-        let mut failed_chunks = None;
-
-        let num_retries = 5;
-        let mut retry = 0;
-        let mut success = false;
-
-        loop {
-            match self
-                .nymd_client
-                .reward_mixnodes(eligible_mixnodes, self.epoch.id())
-                .await
-            {
-                Ok(_) => {
-                    let total_rewarded = eligible_mixnodes.len();
-                    info!("Rewarded {} mixnodes", total_rewarded);
-                    success = false;
-                    break;
-                }
-                Err(err) => {
-                    if num_retries <= retry {
-                        break;
-                    }
-                    retry += 1;
-                    // this is a super weird edge case that we didn't catch change to sequence and
-                    // resent rewards unnecessarily, but the mempool saved us from executing it again
-                    // however, still we want to wait until we're sure we're into the next block
-                    if !err.is_tendermint_duplicate() {
-                        error!("failed to reward mixnodes... - {}", err);
-                        failed_chunks = Some(FailedMixnodeRewardChunkDetails {
-                            possibly_unrewarded: eligible_mixnodes.to_vec(),
-                            error_message: err.to_string(),
-                        });
-                    }
-                    sleep(Duration::from_secs(11)).await;
-                }
+    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "no-reward")] {
+                Ok(vec![])
+            } else {
+                Ok(eligible_mixnodes
+                    .iter()
+                    .map(|node| node.to_reward_execute_msg())
+                    .zip(std::iter::repeat(Vec::new()))
+                    .collect())
             }
         }
-        // Its all or nothing since we do not chunk
-        if success {
-            failed_chunks = None
-        }
-        failed_chunks
     }
 
     async fn nodes_to_reward(&self) -> Result<Vec<MixnodeToReward>, RewardingError> {
+        let epoch = self.epoch().await?;
         let active_set = self
             .validator_cache
             .active_set()
@@ -290,8 +179,8 @@ impl RewardedSetUpdater {
                 .storage
                 .get_average_mixnode_uptime_in_interval(
                     rewarded_node.identity(),
-                    self.epoch.start_unix_timestamp(),
-                    self.epoch.end_unix_timestamp(),
+                    epoch.start_unix_timestamp(),
+                    epoch.end_unix_timestamp(),
                 )
                 .await?;
 
@@ -312,8 +201,10 @@ impl RewardedSetUpdater {
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
     async fn update_rewarded_set(&self) -> Result<(), RewardingError> {
+        let epoch = self.epoch().await?;
+        log::info!("Starting rewarded set update");
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
-        let all_nodes = self.validator_cache.mixnodes().await.into_inner();
+        let all_nodes = self.validator_cache.mixnodes().await;
         let epoch_reward_params = self
             .validator_cache
             .epoch_reward_params()
@@ -321,41 +212,31 @@ impl RewardedSetUpdater {
             .into_inner();
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
-        if !self.rewarding_happened_at_epoch().await? {
-            self.reward_current_rewarded_set().await?;
-        }
+        // if let Err(err) = self.reward_current_rewarded_set().await {
+        //     log::error!("FAILED to reward rewarded set - {}", err);
+        // } else {
+        //     log::info!("Rewarded current rewarded set... SUCCESS");
+        // }
 
-        // Reconcile delegations from the previous epoch
-        if let Err(err) = self.nymd_client.reconcile_delegations().await {
-            log::error!("failed to reconcile delegations - {}", err);
-        }
-
-        // Snapshot mixnodes for the next epoch
-        if let Err(err) = self.nymd_client.checkpoint_mixnodes().await {
-            log::error!("failed to checkpoint mixnodes - {}", err);
-        }
-
-        // Snapshot mixnodes for the next epoch
-        if let Err(err) = self.nymd_client.advance_current_epoch().await {
-            log::error!("failed to advance_epoch - {}", err);
-        }
+        let reward_msgs = self.reward_current_rewarded_set().await?;
 
         let rewarded_set_size = epoch_reward_params.rewarded_set_size() as u32;
         let active_set_size = epoch_reward_params.active_set_size() as u32;
 
         // note that top k nodes are in the active set
         let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);
+
         if let Err(err) = self
             .nymd_client
-            .write_rewarded_set(new_rewarded_set, active_set_size)
+            .epoch_operations(new_rewarded_set, active_set_size, reward_msgs)
             .await
         {
-            log::error!("failed to update the rewarded set - {}", err);
-            // note that if the transaction failed to get executed because, I don't know, there was a networking hiccup
-            // the cache will notify the updater on its next round
+            log::error!("FAILED epoch operations - {}", err);
+        } else {
+            log::info!("Epoch operations... SUCCESS");
         }
 
-        let cutoff = (self.epoch.end() - Duration::from_secs(86400)).unix_timestamp();
+        let cutoff = (epoch.end() - Duration::from_secs(86400)).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
@@ -367,7 +248,6 @@ impl RewardedSetUpdater {
         loop {
             // wait until the cache refresher determined its time to update the rewarded/active sets
             self.update_rewarded_set_notify.notified().await;
-            self.epoch = self.epoch.next();
             self.update_rewarded_set().await?;
         }
         #[allow(unreachable_code)]

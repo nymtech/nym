@@ -7,9 +7,6 @@ use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-type BlockHeight = u64;
-type DelegateAddress = Vec<u8>;
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
@@ -18,6 +15,7 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    InitEpoch {},
     ReconcileDelegations {},
     CheckpointMixnodes {},
     CompoundOperatorRewardOnBehalf {
@@ -62,9 +60,6 @@ pub enum ExecuteMsg {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,
-
-        // id of the current rewarding interval
-        interval_id: u32,
     },
     // RewardNextMixDelegators {
     //     mix_identity: IdentityKey,
@@ -99,7 +94,7 @@ pub enum ExecuteMsg {
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
     },
-    AdvanceCurrentInterval {},
+    // AdvanceCurrentInterval {},
     AdvanceCurrentEpoch {},
 }
 
@@ -122,12 +117,6 @@ pub enum QueryMsg {
         address: String,
     },
     StateParams {},
-    // gets all [paged] delegations in the entire network
-    // TODO: do we even want that?
-    GetAllNetworkDelegations {
-        start_after: Option<(IdentityKey, DelegateAddress, BlockHeight)>,
-        limit: Option<u32>,
-    },
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {
         mix_identity: IdentityKey,
@@ -164,14 +153,21 @@ pub enum QueryMsg {
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    GetRewardedSetHeightsForInterval {
-        interval_id: u32,
-    },
     GetRewardedSetUpdateDetails {},
     GetCurrentRewardedSetHeight {},
-    GetCurrentInterval {},
     GetRewardedSetRefreshBlocks {},
+    GetCurrentEpoch {},
     GetEpochsInInterval {},
+    QueryOperatorReward {
+        address: String,
+    },
+    QueryDelegatorReward {
+        address: String,
+        mix_identity: IdentityKey,
+    },
+    GetPendingDelegationEvents {
+        owner_address: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

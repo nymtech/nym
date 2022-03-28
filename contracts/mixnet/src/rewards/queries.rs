@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::error::ContractError;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{IdentityKey, MixnodeRewardingStatusResponse};
@@ -24,6 +25,36 @@ pub(crate) fn query_rewarding_status(
     Ok(MixnodeRewardingStatusResponse { status })
 }
 
+pub fn query_operator_reward(deps: Deps, owner: String) -> Result<Uint128, ContractError> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    let bond = match crate::mixnodes::storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, owner_address.clone())?
+    {
+        Some(record) => record.1,
+        None => {
+            // Return if bond does not exist
+            return Ok(Uint128::zero());
+        }
+    };
+
+    super::transactions::calculate_operator_reward(deps.storage, &owner_address, &bond)
+}
+
+pub fn query_delegator_reward(
+    deps: Deps,
+    owner: String,
+    mix_identity: IdentityKey,
+) -> Result<Uint128, ContractError> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    super::transactions::calculate_delegator_reward(
+        deps.storage,
+        owner_address.as_str(),
+        &mix_identity,
+    )
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -35,14 +66,14 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod querying_for_rewarding_status {
         use super::*;
+        use crate::constants;
         use crate::delegations::transactions::try_delegate_to_mixnode;
         use crate::interval::storage::{save_epoch, save_epoch_reward_params};
         use crate::rewards::transactions::try_reward_mixnode;
-        use crate::{constants, support::tests::fixtures::epoch_fixture};
         use config::defaults::DENOM;
         use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{
-            RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+            Interval, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
         };
 
         #[test]
@@ -72,10 +103,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -107,17 +137,16 @@ pub(crate) mod tests {
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
 
-            let epoch = epoch_fixture();
+            let epoch = Interval::init_epoch(env.clone());
             save_epoch(&mut deps.storage, &epoch).unwrap();
             save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
 
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                info,
+                info.clone(),
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                0,
             )
             .unwrap();
 
@@ -157,10 +186,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info.clone(),
+                info,
                 node_identity.clone(),
                 tests::fixtures::node_reward_params_fixture(100),
-                1,
             )
             .unwrap();
 

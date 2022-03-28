@@ -1,0 +1,71 @@
+name: Publish Nym Wallet (Windows 10)
+on:
+  release:
+    types: [created]
+
+defaults:
+  run:
+    working-directory: nym-wallet
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows10]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Clean up first
+        continue-on-error: true
+        working-directory: .
+        run: |
+          cd ..
+          del /s /q /A:H nym
+          rmdir /s /q nym
+
+      - uses: actions/checkout@v3
+
+      - name: Check the release tag starts with `nym-wallet-`
+        if: startsWith(github.ref, 'refs/tags/nym-wallet-') == false
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Release tag did not start with nym-wallet-...')
+
+      - name: Import signing certificate
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          New-Item -ItemType directory -Path certificate
+          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
+          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
+          Remove-Item -path certificate -include tempCert.txt
+          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+
+      - name: Node v16
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install app dependencies
+        run: yarn
+
+      - name: Build and sign it
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: yarn build
+
+      - name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nym-wallet/target/release/bundle/msi/*.msi

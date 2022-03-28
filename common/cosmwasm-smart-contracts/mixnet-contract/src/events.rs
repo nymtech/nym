@@ -1,6 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::mixnode::NodeRewardResult;
 use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
@@ -10,6 +9,7 @@ pub use contracts_common::events::*;
 // event types
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
 pub const PENDING_DELEGATION_EVENT_TYPE: &str = "pending_delegation";
+pub const RECONCILE_DELEGATION_EVENT_TYPE: &str = "reconcile_delegation";
 pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
 pub const PENDING_UNDELEGATION_EVENT_TYPE: &str = "pending_undelegation";
 pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
@@ -79,10 +79,15 @@ pub const NEW_CURRENT_INTERVAL_KEY: &str = "new_current_interval";
 pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 pub const BLOCK_HEIGHT_KEY: &str = "block_height";
 pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
+pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
 
 pub fn new_checkpoint_mixnodes_event(block_height: u64) -> Event {
     Event::new(CHECKPOINT_MIXNODES_EVENT)
         .add_attribute(BLOCK_HEIGHT_KEY, format!("{}", block_height))
+}
+
+pub fn new_error_event(err: String) -> Event {
+    Event::new(RECONCILIATION_ERROR_EVENT).add_attribute("error", err)
 }
 
 pub fn new_delegation_event(
@@ -111,6 +116,25 @@ pub fn new_pending_delegation_event(
 ) -> Event {
     let mut event =
         Event::new(PENDING_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_reconcile_delegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(RECONCILE_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
 
     if let Some(proxy) = proxy {
         event = event.add_attribute(PROXY_KEY, proxy)
@@ -388,13 +412,11 @@ pub fn new_change_rewarded_set_event(
     active_set_size: u32,
     rewarded_set_size: u32,
     nodes_in_rewarded_set: u32,
-    current_interval_id: u32,
 ) -> Event {
     Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
-        .add_attribute(CURRENT_INTERVAL_ID_KEY, current_interval_id.to_string())
 }
 
 pub fn new_advance_interval_event(interval: Interval) -> Event {

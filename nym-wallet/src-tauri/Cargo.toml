@@ -1,8 +1,8 @@
 [package]
 name = "nym_wallet"
-version = "1.0.0"
+version = "1.0.1"
 description = "Nym Native Wallet"
-authors = ["you"]
+authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
 default-run = "nym_wallet"

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::ContractError;
 use crate::mixnet_contract_settings::models::ContractState;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
@@ -9,6 +10,12 @@ use mixnet_contract_common::{Layer, LayerDistribution};
 
 pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new("config");
 pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
+
+pub fn rewarding_validator_address(storage: &dyn Storage) -> Result<String, ContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.rewarding_validator_address.to_string())?)
+}
 
 pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
     LAYERS

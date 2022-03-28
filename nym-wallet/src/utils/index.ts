@@ -2,8 +2,9 @@ import { invoke } from '@tauri-apps/api';
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { minor, valid } from 'semver';
-import { majorToMinor, userBalance } from '../requests';
+import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins } from '../requests';
 import { Coin, Network, TCurrency } from '../types';
+import { Console } from './console';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -12,7 +13,7 @@ export const validateKey = (key: string, bytesLength: number): boolean => {
     // of length 32
     return bytes.length === bytesLength;
   } catch (e) {
-    console.error(e);
+    Console.error(e as string);
     return false;
   }
 };
@@ -53,7 +54,7 @@ export const validateAmount = async (amount: string, minimum: string): Promise<b
 
     return minorValue >= parseInt(minimum, Number(10));
   } catch (e) {
-    console.error(e);
+    Console.error(e as string);
     return false;
   }
 
@@ -93,9 +94,21 @@ export const checkHasEnoughFunds = async (allocationValue: string): Promise<bool
     const walletValue = await userBalance();
     const minorValue = await majorToMinor(allocationValue);
     const remainingBalance = +walletValue.coin.amount - +minorValue.amount;
-    return isGreaterThan(remainingBalance, 0);
+    return remainingBalance >= 0;
   } catch (e) {
-    console.error(e);
+    Console.log(e as string);
+  }
+  return false;
+};
+
+export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
+  try {
+    const lockedTokens = await getLockedCoins();
+    const spendableTokens = await getSpendableCoins();
+    const remainingBalance = +lockedTokens.amount + +spendableTokens.amount - +allocationValue;
+    return remainingBalance >= 0;
+  } catch (e) {
+    Console.error(e as string);
   }
   return false;
 };
@@ -133,3 +146,7 @@ export const splice = (start: number, deleteCount: number, address?: string): st
 export const maximizeWindow = async () => {
   await appWindow.maximize();
 };
+
+export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {
+  return arr.filter((v, i, a) => a.findIndex((v2) => v2[id] === v[id]) === i);
+}

@@ -18,17 +18,25 @@ const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct StoredWallet {
-  pub version: u32,
-  pub accounts: Vec<EncryptedAccount>,
+  version: u32,
+  accounts: Vec<EncryptedAccount>,
 }
 
 impl StoredWallet {
+  pub fn version(&self) -> u32 {
+    self.version
+  }
+
   pub fn is_empty(&self) -> bool {
     self.accounts.is_empty()
   }
 
   pub fn len(&self) -> usize {
     self.accounts.len()
+  }
+
+  pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
+    self.accounts.get(index)
   }
 
   fn encrypted_account(
@@ -41,6 +49,17 @@ impl StoredWallet {
       .find(|account| &account.id == id)
       .map(|account| &account.account)
       .ok_or(BackendError::NoSuchIdInWallet)
+  }
+
+  pub fn add_encrypted_account(
+    &mut self,
+    new_account: EncryptedAccount,
+  ) -> Result<(), BackendError> {
+    if self.encrypted_account(&new_account.id).is_ok() {
+      return Err(BackendError::IdAlreadyExistsInWallet);
+    }
+    self.accounts.push(new_account);
+    Ok(())
   }
 
   pub fn decrypt_account(

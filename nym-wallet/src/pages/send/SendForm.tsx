@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { Grid, InputAdornment, TextField } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
 import { ClientContext } from '../../context/main';
-import { Fee, ClientAddress } from '../../components';
+import { Fee } from '../../components';
 
 export const SendForm = () => {
   const {
@@ -13,10 +13,6 @@ export const SendForm = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <ClientAddress withCopy />
-      </Grid>
-
       <Grid item xs={12}>
         <TextField
           {...register('to')}

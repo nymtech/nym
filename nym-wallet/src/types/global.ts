@@ -1,4 +1,4 @@
-import { Coin, Denom, MixNode } from './rust';
+import { Coin, Denom, Gateway, MixNode, PledgeData } from './rust';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -8,6 +8,7 @@ export enum EnumNodeType {
 export type TNodeOwnership = {
   hasOwnership: boolean;
   nodeType?: EnumNodeType;
+  vestingPledge?: PledgeData;
 };
 
 export type TClientDetails = {
@@ -52,6 +53,19 @@ export type TMixnodeBondDetails = {
   block_height: number;
   mix_node: MixNode;
   proxy: any;
+};
+
+export type TBondArgs = {
+  type: EnumNodeType;
+  data: MixNode | Gateway;
+  pledge: Coin;
+  ownerSignature: string;
+};
+
+export type TDelegateArgs = {
+  type: EnumNodeType;
+  identity: string;
+  amount: Coin;
 };
 
 export type TCurrency = {

@@ -150,6 +150,10 @@ impl PacketPreparer {
         }
     }
 
+    pub fn validator_cache(&mut self) -> &mut ValidatorCache {
+        &mut self.validator_cache
+    }
+
     async fn wrap_test_packet(
         &mut self,
         packet: &TestPacket,
@@ -187,7 +191,7 @@ impl PacketPreparer {
             let gateways = self.validator_cache.gateways().await;
             let mixnodes = self.validator_cache.rewarded_set().await;
 
-            if gateways.into_inner().len() < minimum_full_routes {
+            if gateways.len() < minimum_full_routes {
                 info!(
                     "Minimal topology is still not online. Going to check again in {:?}",
                     initialisation_backoff
@@ -224,11 +228,11 @@ impl PacketPreparer {
         }
     }
 
-    async fn get_rewarded_nodes(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
+    async fn all_mixnodes_and_gateways(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
-        let mixnodes = self.validator_cache.rewarded_set().await.into_inner();
-        let gateways = self.validator_cache.gateways().await.into_inner();
+        let mixnodes = self.validator_cache.mixnodes_all().await;
+        let gateways = self.validator_cache.gateways_all().await;
 
         (mixnodes, gateways)
     }
@@ -262,19 +266,17 @@ impl PacketPreparer {
         n: usize,
         blacklist: &mut HashSet<String>,
     ) -> Option<Vec<TestRoute>> {
-        let rewarded_set = self.validator_cache.rewarded_set().await.into_inner();
-        let gateways = self.validator_cache.gateways().await.into_inner();
-
+        let (mixnodes, gateways) = self.all_mixnodes_and_gateways().await;
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
-        for rewarded_mix in rewarded_set {
+        for mix in mixnodes {
             // filter out mixes on the blacklist
-            if blacklist.contains(&rewarded_mix.mix_node.identity_key) {
+            if blacklist.contains(&mix.mix_node.identity_key) {
                 continue;
             }
-            let layer = rewarded_mix.layer;
+            let layer = mix.layer;
             let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
-            mixes.push(rewarded_mix)
+            mixes.push(mix)
         }
         // filter out gateways on the blacklist
         let gateways = gateways
@@ -294,6 +296,9 @@ impl PacketPreparer {
         let rand_l2 = l2.choose_multiple(&mut rng, n).collect::<Vec<_>>();
         let rand_l3 = l3.choose_multiple(&mut rng, n).collect::<Vec<_>>();
         let rand_gateways = gateways.choose_multiple(&mut rng, n).collect::<Vec<_>>();
+
+        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "109.74.196.254".to_string()).collect::<Vec<_>>();
+        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "185.3.94.33".to_string()).collect::<Vec<_>>();
 
         // the unwrap on `min()` is fine as we know the iterator is not empty
         let most_available = *[
@@ -455,7 +460,7 @@ impl PacketPreparer {
         // (remember that "idle" nodes are still part of that set)
         // we don't care about other nodes, i.e. nodes that are bonded but will not get
         // any reward during the current rewarding interval
-        let (rewarded_set, all_gateways) = self.get_rewarded_nodes().await;
+        let (rewarded_set, all_gateways) = self.all_mixnodes_and_gateways().await;
 
         let (mixes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(rewarded_set);
         let (gateways, invalid_gateways) =

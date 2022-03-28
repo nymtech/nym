@@ -64,6 +64,9 @@ const ETH_PRIVATE_KEY: &str = "eth_private_key";
 
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
+const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
+const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
+
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
         .map(|raw_validator| {
@@ -274,6 +277,24 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
             "Provided monitor threshold is greater than 100!"
         );
         config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
+    }
+
+    if let Some(reliability) = matches
+        .value_of(MIN_MIXNODE_RELIABILITY_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        config = config.with_min_mixnode_reliability(
+            reliability.expect("Provided reliability is not a u8 number!"),
+        )
+    }
+
+    if let Some(reliability) = matches
+        .value_of(MIN_GATEWAY_RELIABILITY_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        config = config.with_min_gateway_reliability(
+            reliability.expect("Provided reliability is not a u8 number!"),
+        )
     }
 
     #[cfg(feature = "coconut")]

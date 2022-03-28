@@ -42,7 +42,8 @@ pub(super) struct Monitor {
     /// The minimum number of test routes that need to be constructed (and working) in order for
     /// a monitor test run to be valid.
     minimum_test_routes: usize,
-    min_reliability: u8,
+    min_mixnode_reliability: u8,
+    min_gateway_reliability: u8,
 }
 
 impl Monitor {
@@ -67,7 +68,8 @@ impl Monitor {
             route_test_packets: config.get_route_test_packets(),
             test_routes: config.get_test_routes(),
             minimum_test_routes: config.get_minimum_test_routes(),
-            min_reliability: config.get_min_reliability(),
+            min_mixnode_reliability: config.get_min_mixnode_reliability(),
+            min_gateway_reliability: config.get_min_gateway_reliability(),
         }
     }
 
@@ -78,7 +80,7 @@ impl Monitor {
         // uptime calculations
 
         for result in test_summary.mixnode_results.iter() {
-            if result.reliability < self.min_reliability {
+            if result.reliability < self.min_mixnode_reliability {
                 self.packet_preparer
                     .validator_cache()
                     .insert_mixnodes_blacklist(result.identity.clone())
@@ -92,7 +94,7 @@ impl Monitor {
         }
 
         for result in test_summary.gateway_results.iter() {
-            if result.reliability < self.min_reliability {
+            if result.reliability < self.min_gateway_reliability {
                 self.packet_preparer
                     .validator_cache()
                     .insert_gateways_blacklist(result.identity.clone())

@@ -83,57 +83,68 @@ enum ClientForConnectionTest {
     Api(Network, Url, ApiClient),
 }
 
+async fn test_nymd_connection(
+    network: Network,
+    url: &Url,
+    client: &NymdClient<QueryNymdClient>,
+) -> ConnectionResult {
+    log::info!("{network}: {url}: checking nymd connection");
+    let result = match client.get_mixnet_contract_version().await {
+        Err(NymdError::TendermintError(e)) => {
+            // If we get a tendermint-rpc error, we classify the node as not contactable
+            log::debug!("{network}: {url}: nymd connection test failed: {}", e);
+            false
+        }
+        Err(NymdError::AbciError(code, log)) => {
+            // We accept the mixnet contract not found as ok from a connection standpoint. This happens
+            // for example on a pre-launch network.
+            log::debug!("{network}: {url}: nymd abci error: {code}: {log}");
+            code == 18
+        }
+        Err(error @ NymdError::NoContractAddressAvailable) => {
+            log::debug!("{network}: {url}: nymd connection test failed: {error}");
+            false
+        }
+        Err(e) => {
+            // For any other error, we're optimistic and just try anyway.
+            log::debug!("{network}: {url}: nymd connection test response ok, but with error: {e}");
+            true
+        }
+        Ok(_) => {
+            log::debug!("{network}: {url}: nymd connection successful");
+            true
+        }
+    };
+    ConnectionResult::Nymd(network, url.clone(), result)
+}
+
+async fn test_api_connection(network: Network, url: &Url, client: &ApiClient) -> ConnectionResult {
+    log::info!("{network}: {url}: checking api connection");
+    let result = match timeout(Duration::from_secs(2), client.get_cached_mixnodes()).await {
+        Ok(Ok(_)) => {
+            log::debug!("{network}: {url}: api connection successful");
+            true
+        }
+        Ok(Err(e)) => {
+            log::debug!("{network}: {url}: api connection failed: {e}");
+            false
+        }
+        Err(e) => {
+            log::debug!("{network}: {url}: api connection failed: {e}");
+            false
+        }
+    };
+    ConnectionResult::Api(network, url.clone(), result)
+}
+
 impl ClientForConnectionTest {
     async fn run_connection_check(self) -> ConnectionResult {
         match self {
             ClientForConnectionTest::Nymd(network, ref url, ref client) => {
-                log::info!("{network}: {url}: checking nymd connection");
-                let result = match client.get_mixnet_contract_version().await {
-                    Err(NymdError::TendermintError(e)) => {
-                        // If we get a tendermint-rpc error, we classify the node as not contactable
-                        log::debug!("{network}: {url}: nymd connection test failed: {}", e);
-                        false
-                    }
-                    Err(NymdError::AbciError(code, log)) => {
-                        // We accept the mixnet contract not found as ok from a connection standpoint. This happens
-                        // for example on a pre-launch network.
-                        log::debug!("{network}: {url}: nymd abci error: {code}: {log}");
-                        code == 18
-                    }
-                    Err(error @ NymdError::NoContractAddressAvailable) => {
-                        log::debug!("{network}: {url}: nymd connection test failed: {error}");
-                        false
-                    }
-                    Err(e) => {
-                        // For any other error, we're optimistic and just try anyway.
-                        log::debug!("{network}: {url}: nymd connection test response ok, but with error: {e}");
-                        true
-                    }
-                    Ok(_) => {
-                        log::debug!("{network}: {url}: nymd connection successful");
-                        true
-                    }
-                };
-                ConnectionResult::Nymd(network, url.clone(), result)
+                test_nymd_connection(network, url, client).await
             }
             ClientForConnectionTest::Api(network, ref url, ref client) => {
-                log::info!("{network}: {url}: checking api connection");
-                let result =
-                    match timeout(Duration::from_secs(2), client.get_cached_mixnodes()).await {
-                        Ok(Ok(_)) => {
-                            log::debug!("{network}: {url}: api connection successful");
-                            true
-                        }
-                        Ok(Err(e)) => {
-                            log::debug!("{network}: {url}: api connection failed: {e}");
-                            false
-                        }
-                        Err(e) => {
-                            log::debug!("{network}: {url}: api connection failed: {e}");
-                            false
-                        }
-                    };
-                ConnectionResult::Api(network, url.clone(), result)
+                test_api_connection(network, url, client).await
             }
         }
     }

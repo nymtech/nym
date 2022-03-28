@@ -129,12 +129,12 @@ impl Wallet {
 }
 
 pub fn pseudorandom_fgv(params: &Parameters, v: Scalar, l: u64) -> G1Projective {
-    let pow = (v + Scalar::from(l) + Scalar::from(1)).neg();
+    let pow = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
     params.gen1() * pow
 }
 
 pub fn pseudorandom_fgt(params: &Parameters, t: Scalar, l: u64) -> G1Projective {
-    let pow = (t + Scalar::from(l) + Scalar::from(1)).neg();
+    let pow = (t + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
     params.gen1() * pow
 }
 

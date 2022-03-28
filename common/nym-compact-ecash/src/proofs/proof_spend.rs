@@ -127,13 +127,17 @@ impl SpendProof {
                      R: Scalar, ) -> Self {
         // generate random values to replace each witness
         let r_attributes = params.n_random_scalars(witness.attributes.len());
+        let r_sk = r_attributes[0];
+        let r_v = r_attributes[1];
+        let r_t = r_attributes[2];
         let r_r = params.random_scalar();
         let r_l = params.random_scalar();
         let r_o_a = params.random_scalar();
         let r_o_c = params.random_scalar();
         let r_o_d = params.random_scalar();
-        let r_mu = (r_attributes[1] + r_l + Scalar::from(1)).invert().unwrap();
-        let r_lambda = params.random_scalar();
+        let r_mu = (r_v + r_l + Scalar::from(1)).invert().unwrap();
+        let r_lambda = (r_t + r_l + Scalar::from(1)).invert().unwrap();
+
         let r_o_mu = ((r_o_a + r_o_c) * r_mu).neg();
         let r_o_lambda = params.random_scalar();
 
@@ -155,11 +159,11 @@ impl SpendProof {
             .sum::<G2Projective>();
 
         let zkcm_A = g1 * r_o_a + gamma1 * r_l;
-        let zkcm_C = g1 * r_o_c + gamma1 * r_attributes[1];
-        let zkcm_D = g1 * r_o_d + gamma1 * r_attributes[2];
+        let zkcm_C = g1 * r_o_c + gamma1 * r_v;
+        let zkcm_D = g1 * r_o_d + gamma1 * r_t;
         let zkcm_S = g1 * r_mu;
-        let zkcm_gamma11 = (g1 * r_o_a + gamma1 * r_l + g1 * r_o_c + gamma1 * r_attributes[1] + gamma1) * r_mu + g1 * r_o_mu;
-        let zkcm_T = g1 * r_attributes[0] + (g1 * R) * r_lambda;
+        let zkcm_gamma11 = (g1 * r_o_a + gamma1 * r_l + g1 * r_o_c + gamma1 * r_v + gamma1) * r_mu + g1 * r_o_mu;
+        let zkcm_T = g1 * r_sk + (g1 * R) * r_lambda;
         let zkcm_gamma12 = (instance.A + instance.D + gamma1) * r_lambda + g1 * r_o_lambda;
 
         // TODO: Add also proof for l in [0, L-1]
@@ -175,9 +179,9 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_A.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_gamma11.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
+                // .chain(std::iter::once(zkcm_gamma11.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
             // .chain(std::iter::once(zkcm_gamma12.to_bytes().as_ref()))
         );
 
@@ -193,7 +197,7 @@ impl SpendProof {
         let response_o_c = produce_response(&r_o_c, &challenge, &witness.o_c);
         let response_o_d = produce_response(&r_o_d, &challenge, &witness.o_d);
         // let response_mu = produce_response(&r_mu, &challenge, &witness.mu);
-        let response_mu = (response_attributes[1] + response_l + Scalar::from(1)).invert().unwrap();
+        let response_mu = produce_response(&r_mu, &challenge, &witness.mu);
         let response_lambda = produce_response(&r_lambda, &challenge, &witness.lambda);
         // let response_o_mu = produce_response(&r_o_mu, &challenge, &witness.o_mu);
         let response_o_mu = ((response_o_a + response_o_c) * response_mu).neg();
@@ -255,9 +259,9 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_A.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_gamma11.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
+                // .chain(std::iter::once(zkcm_gamma11.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
             // .chain(std::iter::once(zkcm_gamma12.to_bytes().as_ref()))
         );
 

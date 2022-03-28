@@ -4,6 +4,7 @@
 use crate::bte::PublicKey;
 use crate::error::DkgError;
 use crate::utils::hash_to_scalar;
+use crate::Share;
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
@@ -19,7 +20,7 @@ const CHALLENGE_DOMAIN: &[u8] =
 
 // TODO: perhaps break it down into separate arguments after all
 #[cfg_attr(test, derive(Clone))]
-pub(crate) struct Instance<'a> {
+pub struct Instance<'a> {
     public_keys: &'a [PublicKey],
     public_coefficients: &'a [G2Projective],
     combined_randomizer: &'a G1Projective,
@@ -27,6 +28,20 @@ pub(crate) struct Instance<'a> {
 }
 
 impl<'a> Instance<'a> {
+    pub fn new(
+        public_keys: &'a [PublicKey],
+        public_coefficients: &'a [G2Projective],
+        combined_randomizer: &'a G1Projective,
+        combined_ciphertexts: &'a [G1Projective],
+    ) -> Instance<'a> {
+        Instance {
+            public_keys,
+            public_coefficients,
+            combined_randomizer,
+            combined_ciphertexts,
+        }
+    }
+
     fn hash_to_scalar(&self) -> Scalar {
         let g1s = self.public_keys.len() + 1 + self.combined_ciphertexts.len();
         let g2s = self.public_coefficients.len();
@@ -71,12 +86,11 @@ pub struct ProofOfSecretSharing {
 }
 
 impl ProofOfSecretSharing {
-    pub(crate) fn construct(
+    pub fn construct(
         mut rng: impl RngCore,
         instance: Instance,
         witness_r: &Scalar,
-        // TODO: are those just shares?
-        witnesses_s: &[Scalar],
+        witnesses_s: &[Share],
     ) -> Result<Self, DkgError> {
         if !instance.validate() {
             return Err(DkgError::MalformedProofOfSharingInstance);
@@ -121,7 +135,7 @@ impl ProofOfSecretSharing {
             .iter()
             .rev()
             .fold(Scalar::zero(), |mut acc, witness| {
-                acc += witness;
+                acc += witness.inner();
                 acc *= x;
                 acc
             });
@@ -136,7 +150,7 @@ impl ProofOfSecretSharing {
         })
     }
 
-    pub(crate) fn verify(&self, instance: Instance) -> bool {
+    pub fn verify(&self, instance: Instance) -> bool {
         if !instance.validate() {
             return false;
         }
@@ -245,7 +259,7 @@ mod tests {
         G1Projective,
         Vec<G1Projective>,
         Scalar,
-        Vec<Scalar>,
+        Vec<Share>,
     ) {
         let g1 = G1Projective::generator();
         let g2 = G2Projective::generator();
@@ -261,16 +275,16 @@ mod tests {
         let r = Scalar::random(&mut rng);
         let rr = g1 * r;
 
-        let mut shares = Vec::new();
+        let mut shares: Vec<Share> = Vec::new();
         for node_id in 1..NODES + 1 {
             let share = polynomial.evaluate(&Scalar::from(node_id));
-            shares.push(share);
+            shares.push(share.into());
         }
 
         let ciphertexts = pks
             .iter()
             .zip(&shares)
-            .map(|(pk, share)| pk.0 * r + g1 * share)
+            .map(|(pk, share)| pk.0 * r + g1 * share.inner())
             .collect();
         (pks, public_coefficients, rr, ciphertexts, r, shares)
     }

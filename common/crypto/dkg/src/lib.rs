@@ -5,7 +5,7 @@
 pub mod bte;
 pub mod error;
 mod event;
-mod interpolation;
+pub mod interpolation;
 
 // this entire module is a big placeholder for whatever scheme we decide to use for the
 // secure channel encryption scheme, but I would assume that the top-level API would

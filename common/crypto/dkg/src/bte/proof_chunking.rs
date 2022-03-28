@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::{Chunk, Ciphertext, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
-use crate::error::DkgError;
 use crate::ensure_len;
+use crate::error::DkgError;
 use crate::utils::hash_to_scalar;
 use crate::utils::RandomOracleBuilder;
 use bls12_381::{G1Projective, Scalar};
@@ -34,7 +34,7 @@ type FirstChallenge = Vec<Vec<Vec<u64>>>;
 
 // TODO: perhaps break it down into separate arguments after all
 #[cfg_attr(test, derive(Clone))]
-pub(crate) struct Instance<'a> {
+pub struct Instance<'a> {
     /// y_1, ..., y_n
     public_keys: &'a [PublicKey],
 
@@ -46,7 +46,7 @@ pub(crate) struct Instance<'a> {
 }
 
 impl<'a> Instance<'a> {
-    pub(crate) fn new(public_keys: &'a [PublicKey], ciphertext: &'a Ciphertext) -> Instance<'a> {
+    pub fn new(public_keys: &'a [PublicKey], ciphertext: &'a Ciphertext) -> Instance<'a> {
         Instance {
             public_keys,
             randomizers_r: &ciphertext.r,
@@ -118,7 +118,7 @@ impl ProofOfChunking {
     // should have been smaller. However, internally everything is represented mod field order and thus
     // Scalar(-1) would in reality be Scalar(q - 1), which is greater than Scalar(1) and opposite to
     // what we wanted.
-    pub(crate) fn construct(
+    pub fn construct(
         mut rng: impl RngCore,
         instance: Instance,
         witness_r: &[Scalar; NUM_CHUNKS],
@@ -284,7 +284,7 @@ impl ProofOfChunking {
         })
     }
 
-    pub(crate) fn verify(&self, instance: Instance) -> bool {
+    pub fn verify(&self, instance: Instance) -> bool {
         if !instance.validate() {
             return false;
         }

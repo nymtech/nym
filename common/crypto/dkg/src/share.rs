@@ -5,6 +5,7 @@ use crate::error::DkgError;
 use bls12_381::Scalar;
 use ff::Field;
 use rand_core::RngCore;
+use std::ops::Deref;
 use zeroize::Zeroize;
 
 // if this type is changed, one must ensure all values can fit in it
@@ -41,6 +42,17 @@ impl Share {
 
         bytes.zeroize();
         ChunkedShare { chunks }
+    }
+
+    // I really don't like this method but we need it (for time being) for the integration test
+    pub fn inner(&self) -> &Scalar {
+        &self.0
+    }
+}
+
+impl From<Scalar> for Share {
+    fn from(s: Scalar) -> Self {
+        Share(s)
     }
 }
 

@@ -1,0 +1,43 @@
+name: Publish Nym binaries
+on:
+  release:
+    types: [created]
+
+jobs:
+  publish-nym:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check the release tag starts with `nym-binaries-`
+        if: startsWith(github.ref, 'refs/tags/nym-binaries-') == false
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Release tag did not start with nym-binaries-...')
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build all binaries
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --release
+
+      - name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/release/nym-client
+            target/release/nym-gateway
+            target/release/nym-mixnode
+            target/release/nym-socks5-client
+            target/release/nym-validator-api

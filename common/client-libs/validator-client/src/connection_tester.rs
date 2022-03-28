@@ -51,28 +51,24 @@ pub async fn run_validator_connection_test<H: BuildHasher>(
     .await;
 
     // Seperate and collect results into HashMaps
-    let (nymd_urls, api_urls) = {
-        (
-            connection_results
-                .iter()
-                .filter(|c| c.url_type() == UrlType::Nymd)
-                .map(|c| {
-                    let (network, url, result) = c.result();
-                    (*network, (url.clone(), *result))
-                })
-                .into_group_map(),
-            connection_results
-                .iter()
-                .filter(|c| c.url_type() == UrlType::Api)
-                .map(|c| {
-                    let (network, url, result) = c.result();
-                    (*network, (url.clone(), *result))
-                })
-                .into_group_map(),
-        )
-    };
+    (
+        extract_and_collect_results_into_map(&connection_results, &UrlType::Nymd),
+        extract_and_collect_results_into_map(&connection_results, &UrlType::Api),
+    )
+}
 
-    (nymd_urls, api_urls)
+fn extract_and_collect_results_into_map(
+    connection_results: &[ConnectionResult],
+    url_type: &UrlType,
+) -> HashMap<Network, Vec<(Url, bool)>> {
+    connection_results
+        .iter()
+        .filter(|c| &c.url_type() == url_type)
+        .map(|c| {
+            let (network, url, result) = c.result();
+            (*network, (url.clone(), *result))
+        })
+        .into_group_map()
 }
 
 enum ClientForConnectionTest {

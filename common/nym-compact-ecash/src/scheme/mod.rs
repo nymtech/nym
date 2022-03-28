@@ -15,7 +15,6 @@ use crate::utils::{check_bilinear_pairing, hash_to_scalar, Signature, SignerInde
 pub mod aggregation;
 pub mod keygen;
 pub mod setup;
-pub mod spend;
 pub mod withdrawal;
 pub mod identify;
 

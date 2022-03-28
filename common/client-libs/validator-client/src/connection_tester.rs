@@ -11,6 +11,8 @@ use std::time::Duration;
 use tokio::time::timeout;
 use url::Url;
 
+const MAX_URLS_TESTED: usize = 200;
+
 // Run connection tests for all specified nymd and api urls. These are all run concurrently.
 pub async fn run_validator_connection_test<H: BuildHasher>(
     nymd_urls: impl Iterator<Item = (Network, Url)>,
@@ -43,7 +45,7 @@ pub async fn run_validator_connection_test<H: BuildHasher>(
     let connection_results = futures::future::join_all(
         connection_test_clients
             .into_iter()
-            .take(200)
+            .take(MAX_URLS_TESTED)
             .map(ClientForConnectionTest::run_connection_check),
     )
     .await;

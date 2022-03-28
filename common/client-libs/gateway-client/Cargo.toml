@@ -19,6 +19,7 @@ secp256k1 = "0.20.3"
 web3 = { version = "0.17.0", default-features = false }
 
 # internal
+cosmrs = { version = "0.4.1", optional = true }
 credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
@@ -68,6 +69,6 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
+coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut", "cosmrs"]
 wasm = ["web3/wasm", "web3/http", "web3/signing"]
 default = ["web3/default"]

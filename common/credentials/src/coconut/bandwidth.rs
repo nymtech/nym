@@ -12,7 +12,8 @@ use coconut_interface::{
 };
 use crypto::asymmetric::{encryption, identity};
 use network_defaults::BANDWIDTH_VALUE;
-use validator_client::nymd::tx::Hash;
+
+use cosmrs::tx::Hash;
 
 use super::utils::prepare_credential_for_spending;
 use crate::error::Error;

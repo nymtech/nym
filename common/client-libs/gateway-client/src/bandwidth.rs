@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
+use cosmrs::tx::Hash;
+#[cfg(feature = "coconut")]
 use credentials::coconut::{
     bandwidth::{prepare_for_spending, BandwidthVoucher, TOTAL_ATTRIBUTES},
     utils::{obtain_aggregate_signature, obtain_aggregate_verification_key},
@@ -27,8 +29,6 @@ use secp256k1::SecretKey;
 use std::io::{Read, Write};
 #[cfg(not(feature = "coconut"))]
 use std::str::FromStr;
-#[cfg(feature = "coconut")]
-use validator_client::nymd::tx::Hash;
 #[cfg(not(feature = "coconut"))]
 use web3::{
     contract::{Contract, Options},

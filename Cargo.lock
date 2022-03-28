@@ -865,6 +865,7 @@ version = "0.1.0"
 dependencies = [
  "bls12_381",
  "coconut-interface",
+ "cosmrs",
  "crypto",
  "network-defaults",
  "rand 0.7.3",
@@ -1854,6 +1855,7 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
+ "cosmrs",
  "credentials",
  "crypto",
  "fluvio-wasm-timer",

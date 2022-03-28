@@ -1,14 +1,15 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
-use crate::scheme::{PartialWallet, SignatureShare};
 use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets};
 use crate::scheme::keygen::{
     generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
+use crate::scheme::PartialWallet;
 use crate::scheme::PayInfo;
 use crate::scheme::setup::Parameters;
 use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
+use crate::utils::SignatureShare;
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {

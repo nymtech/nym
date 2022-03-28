@@ -3,10 +3,11 @@ use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
-use crate::scheme::{BlindedSignature, PartialWallet, Signature};
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::keygen::ttp_keygen;
+use crate::scheme::PartialWallet;
 use crate::scheme::setup::Parameters;
+use crate::utils::{BlindedSignature, Signature};
 use crate::utils::{check_bilinear_pairing, hash_g1};
 
 pub struct WithdrawalRequest {

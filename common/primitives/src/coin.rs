@@ -85,4 +85,7 @@ mod tests {
         let cosmos_coin: cosmrs::Coin = coin.clone().try_into().unwrap();
         assert_eq!(coin, Coin::try_from(cosmos_coin).unwrap());
     }
+
+    // WIP(JON): more tests
+    // Especially converting from cosmrs::Coin
 }

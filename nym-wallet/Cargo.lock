@@ -552,6 +552,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "colored"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3616f750b84d8f0de8a58bda93e08e2a81ad3f523089b05f1dffecab48c6cbd"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi",
+]
+
+[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [
@@ -1111,6 +1122,12 @@ name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
+
+[[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "dtoa"
@@ -2749,12 +2766,15 @@ dependencies = [
  "bip39",
  "cfg-if",
  "coconut-interface",
+ "colored",
  "config",
  "cosmrs",
  "cosmwasm-std",
  "dirs",
+ "dotenv",
  "eyre",
  "futures",
+ "itertools",
  "log",
  "mixnet-contract-common",
  "pretty_env_logger",
@@ -5106,10 +5126,12 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-interface",
+ "colored",
  "config",
  "cosmrs",
  "cosmwasm-std",
  "flate2",
+ "futures",
  "itertools",
  "log",
  "mixnet-contract-common",
@@ -5120,6 +5142,7 @@ dependencies = [
  "serde_json",
  "sha2 0.9.9",
  "thiserror",
+ "tokio",
  "url",
  "validator-api-requests",
  "vesting-contract",

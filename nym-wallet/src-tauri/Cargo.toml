@@ -53,7 +53,6 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
-credentials = { path = "../../common/credentials" }
 # Used for Type conversion, can be extracted but its a lot of work
 vesting-contract = { path = "../../contracts/vesting" }
 

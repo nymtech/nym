@@ -34,3 +34,8 @@ version = "0.11"
 default-features = false
 
 [dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmarks"
+harness = false

@@ -606,7 +606,7 @@ impl<C> NymdClient<C> {
     pub async fn send(
         &self,
         recipient: &AccountId,
-        amount: Vec<CosmosCoin>,
+        amount: Vec<primitives::Coin>,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, NymdError>
     where

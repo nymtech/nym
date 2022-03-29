@@ -108,6 +108,9 @@ pub enum NymdError {
 
     #[error("Abci query failed with code {0} - {1}")]
     AbciError(u32, abci::Log),
+
+    #[error("Failed to handle primitives")]
+    PrimitivesError(#[from] primitives::PrimitivesError)
 }
 
 impl NymdError {

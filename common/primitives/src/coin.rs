@@ -50,6 +50,15 @@ impl TryFrom<Coin> for cosmrs::Coin {
     }
 }
 
+
+pub fn try_into(coins: Vec<Coin>) -> Result<Vec<cosmrs::Coin>, PrimitivesError> {
+    coins.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()
+}
+
+pub fn into(coins: Vec<Coin>) -> Vec<cosmwasm_std::Coin> {
+    coins.into_iter().map(Into::into).collect()
+}
+
 impl From<cosmwasm_std::Coin> for Coin {
     fn from(cosmwasm_coin: cosmwasm_std::Coin) -> Self {
         Self {

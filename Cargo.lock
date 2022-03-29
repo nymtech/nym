@@ -3040,15 +3040,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-primitives"
-version = "0.1.0"
-dependencies = [
- "cosmrs",
- "cosmwasm-std",
- "thiserror",
-]
-
-[[package]]
 name = "nym-socks5-client"
 version = "0.12.1"
 dependencies = [
@@ -3690,6 +3681,15 @@ dependencies = [
  "impl-rlp",
  "impl-serde",
  "uint",
+]
+
+[[package]]
+name = "primitives"
+version = "0.1.0"
+dependencies = [
+ "cosmrs",
+ "cosmwasm-std",
+ "thiserror",
 ]
 
 [[package]]
@@ -6008,6 +6008,7 @@ dependencies = [
  "log",
  "mixnet-contract-common",
  "network-defaults",
+ "primitives",
  "prost",
  "reqwest",
  "serde",

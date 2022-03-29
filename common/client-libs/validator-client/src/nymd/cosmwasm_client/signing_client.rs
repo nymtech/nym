@@ -369,14 +369,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         &self,
         sender_address: &AccountId,
         recipient_address: &AccountId,
-        amount: Vec<Coin>,
+        amount: Vec<primitives::Coin>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, NymdError> {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
             to_address: recipient_address.clone(),
-            amount,
+            amount: primitives::coin::try_into(amount)?,
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;

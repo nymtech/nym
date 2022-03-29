@@ -21,6 +21,7 @@ url = { version = "2.2", features = ["serde"] }
 
 coconut-interface = { path = "../../coconut-interface" }
 network-defaults = { path = "../../network-defaults" }
+primitives = { path = "../../primitives" }
 validator-api-requests = { path = "../../../validator-api/validator-api-requests" }
 
 # required for nymd-client

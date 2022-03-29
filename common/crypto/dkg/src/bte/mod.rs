@@ -45,7 +45,7 @@ const MAX_EPOCHS_EXP: usize = 32;
 pub struct Tau(BitVec<u32, Msb0>);
 
 impl Tau {
-    fn new_root() -> Self {
+    pub fn new_root() -> Self {
         Tau(BitVec::new())
     }
 
@@ -57,23 +57,23 @@ impl Tau {
         self.is_leaf(params)
     }
 
-    fn left_child(&self) -> Self {
+    pub fn left_child(&self) -> Self {
         let mut child = self.0.clone();
         child.push(false);
         Tau(child)
     }
 
-    fn right_child(&self) -> Self {
+    pub fn right_child(&self) -> Self {
         let mut child = self.0.clone();
         child.push(true);
         Tau(child)
     }
 
-    fn is_leaf(&self, params: &Params) -> bool {
+    pub fn is_leaf(&self, params: &Params) -> bool {
         self.len() == params.tree_height
     }
 
-    fn try_get_parent_at_height(&self, height: usize) -> Result<Self, DkgError> {
+    pub fn try_get_parent_at_height(&self, height: usize) -> Result<Self, DkgError> {
         if height > self.0.len() {
             return Err(DkgError::NotAValidParent);
         }
@@ -82,7 +82,7 @@ impl Tau {
     }
 
     // essentially is this those prefixing the other
-    fn is_parent_of(&self, other: &Tau) -> bool {
+    pub fn is_parent_of(&self, other: &Tau) -> bool {
         if self.0.len() > other.0.len() {
             return false;
         }
@@ -96,7 +96,7 @@ impl Tau {
         true
     }
 
-    fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Self, DkgError> {
+    pub fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Self, DkgError> {
         if self.0.len() > params.tree_height {
             // this node is already BELOW a valid leaf-epoch node. it can only happen
             // if either some invariant was broken or additional data was pushed to `tau`
@@ -113,11 +113,11 @@ impl Tau {
     }
 
     // essentially height of the tree this tau represents
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    fn height(&self) -> usize {
+    pub fn height(&self) -> usize {
         self.len()
     }
 
@@ -250,21 +250,10 @@ impl HazmatRandomness {
     }
 }
 
-struct SingleChunkCiphertext {
-    r: G1Projective,
-    s: G1Projective,
-    z: G2Projective,
-    c: G1Projective,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
-    pub(crate) fn inner(&self) -> &G1Projective {
-        &self.0
-    }
-
     pub fn verify(&self, proof: &ProofOfDiscreteLog) -> bool {
         proof.verify(&self.0)
     }
@@ -299,10 +288,6 @@ impl DecryptionKey {
         DecryptionKey {
             nodes: vec![root_node],
         }
-    }
-
-    fn update(&mut self) {
-        //
     }
 
     fn current(&self) -> Result<&Node, DkgError> {

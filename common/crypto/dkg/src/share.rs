@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::DkgError;
+use crate::interpolation::perform_lagrangian_interpolation_at_origin;
+use crate::NodeIndex;
 use bls12_381::Scalar;
-use ff::Field;
-use rand_core::RngCore;
-use std::ops::Deref;
 use zeroize::Zeroize;
 
 // if this type is changed, one must ensure all values can fit in it
@@ -24,9 +23,20 @@ pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 #[zeroize(drop)]
 pub struct Share(pub(crate) Scalar);
 
+pub fn combine_shares(shares: Vec<Share>, indices: &[NodeIndex]) -> Result<Scalar, DkgError> {
+    let samples = indices
+        .iter()
+        .zip(shares.into_iter())
+        .map(|(index, share)| (Scalar::from(*index), share.0))
+        .collect::<Vec<_>>();
+    perform_lagrangian_interpolation_at_origin(&samples)
+}
+
 impl Share {
     // not really used outside tests
-    pub(crate) fn random(mut rng: impl RngCore) -> Self {
+    #[cfg(test)]
+    pub(crate) fn random(mut rng: impl rand_core::RngCore) -> Self {
+        use ff::Field;
         Share(Scalar::random(&mut rng))
     }
 

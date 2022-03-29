@@ -263,7 +263,6 @@ mod tests {
         Vec<Share>,
     ) {
         let g1 = G1Projective::generator();
-        let g2 = G2Projective::generator();
 
         let mut pks = Vec::new();
         let polynomial = Polynomial::new_random(&mut rng, THRESHOLD - 1);
@@ -296,7 +295,6 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let g1 = G1Projective::generator();
-        let g2 = G2Projective::generator();
 
         let mut pks = Vec::new();
         let polynomial = Polynomial::new_random(&mut rng, THRESHOLD - 1);

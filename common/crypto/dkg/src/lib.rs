@@ -24,7 +24,6 @@ pub type NodeIndex = u64;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::interpolation::perform_lagrangian_interpolation_at_origin;
     use crate::interpolation::polynomial::Polynomial;
     use bls12_381::Scalar;

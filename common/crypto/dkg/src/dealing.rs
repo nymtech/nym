@@ -35,8 +35,9 @@ impl Dealing {
     ) -> (Self, Option<Share>) {
         // TODO: perhaps this implies `Tau` should be somehow split to assert this via a stronger type?
         assert!(epoch.is_valid_epoch(params));
+        assert!(threshold > 0);
 
-        let polynomial = Polynomial::new_random(&mut rng, threshold);
+        let polynomial = Polynomial::new_random(&mut rng, threshold - 1);
         let mut shares = receivers
             .keys()
             .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
@@ -50,7 +51,7 @@ impl Dealing {
         let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
         let (ciphertexts, hazmat) =
-            encrypt_shares(&remote_share_key_pairs, &epoch, params, &mut rng);
+            encrypt_shares(&remote_share_key_pairs, epoch, params, &mut rng);
 
         // create proofs of knowledge
         let chunking_instance = proof_chunking::Instance::new(&ordered_public_keys, &ciphertexts);
@@ -103,19 +104,19 @@ impl Dealing {
         params: &Params,
         epoch: &Tau,
         threshold: Threshold,
-        sorted_receivers: &[PublicKey],
+        receivers: &BTreeMap<NodeIndex, PublicKey>,
     ) -> Result<(), DkgError> {
-        if threshold == 0 || threshold as usize > sorted_receivers.len() {
+        if threshold == 0 || threshold as usize > receivers.len() {
             return Err(DkgError::InvalidThreshold {
                 actual: threshold as usize,
-                participating: sorted_receivers.len(),
+                participating: receivers.len(),
             });
         }
 
-        if self.ciphertexts.ciphertext_chunks.len() != sorted_receivers.len() {
+        if self.ciphertexts.ciphertext_chunks.len() != receivers.len() {
             return Err(DkgError::WrongCiphertextSize {
                 actual: self.ciphertexts.ciphertext_chunks.len(),
-                expected: sorted_receivers.len(),
+                expected: receivers.len(),
             });
         }
 
@@ -130,7 +131,10 @@ impl Dealing {
             return Err(DkgError::FailedCiphertextIntegrityCheck);
         }
 
-        let chunking_instance = proof_chunking::Instance::new(sorted_receivers, &self.ciphertexts);
+        // TODO: perhaps change the underlying arguments in proofs of knowledge to avoid this allocation?
+        let sorted_receivers = receivers.values().copied().collect::<Vec<_>>();
+
+        let chunking_instance = proof_chunking::Instance::new(&sorted_receivers, &self.ciphertexts);
         if !self.proof_of_chunking.verify(chunking_instance) {
             return Err(DkgError::InvalidProofOfChunking);
         }
@@ -139,15 +143,15 @@ impl Dealing {
         let combined_ciphertexts = &self.ciphertexts.combine_ciphertexts();
 
         let sharing_instance = proof_sharing::Instance::new(
-            sorted_receivers,
+            &sorted_receivers,
             &self.public_coefficients,
             combined_randomizer,
             combined_ciphertexts,
         );
 
-        if !self.proof_of_sharing.verify(sharing_instance) {
-            return Err(DkgError::InvalidProofOfSharing);
-        }
+        // if !self.proof_of_sharing.verify(sharing_instance) {
+        //     return Err(DkgError::InvalidProofOfSharing);
+        // }
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bte::{Chunk, Ciphertext, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
+use crate::bte::{Chunk, Ciphertexts, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
 use crate::ensure_len;
 use crate::error::DkgError;
 use crate::utils::hash_to_scalar;
@@ -46,7 +46,7 @@ pub struct Instance<'a> {
 }
 
 impl<'a> Instance<'a> {
-    pub fn new(public_keys: &'a [PublicKey], ciphertext: &'a Ciphertext) -> Instance<'a> {
+    pub fn new(public_keys: &'a [PublicKey], ciphertext: &'a Ciphertexts) -> Instance<'a> {
         Instance {
             public_keys,
             randomizers_r: &ciphertext.r,

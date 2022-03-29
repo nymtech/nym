@@ -49,4 +49,26 @@ pub enum DkgError {
 
     #[error("Provided decryption key has expired")]
     ExpiredKey,
+
+    #[error("Provided threshold value ({actual}) is either 0 or larger than the total number of the participating parties ({participating})")]
+    InvalidThreshold { actual: usize, participating: usize },
+
+    #[error(
+    "Provided ciphertext has been generated for a different number of participating parties (expected: {expected}, actual: {actual})"
+    )]
+    WrongCiphertextSize { actual: usize, expected: usize },
+
+    #[error(
+    "Provided public coefficients have been generated for a different number of participating parties (expected: {expected}, actual: {actual})"
+    )]
+    WrongPublicCoefficientsSize { actual: usize, expected: usize },
+
+    #[error("The provided ciphertexts failed integrity check")]
+    FailedCiphertextIntegrityCheck,
+
+    #[error("The provided proof of secret sharing was invalid")]
+    InvalidProofOfSharing,
+
+    #[error("The provided proof of chunking was invalid")]
+    InvalidProofOfChunking,
 }

@@ -3,6 +3,7 @@
 
 use crate::bte::PublicKey;
 use crate::error::DkgError;
+use crate::interpolation::polynomial::PublicCoefficients;
 use crate::utils::hash_to_scalar;
 use crate::Share;
 use bls12_381::{G1Projective, G2Projective, Scalar};
@@ -22,7 +23,7 @@ const CHALLENGE_DOMAIN: &[u8] =
 #[cfg_attr(test, derive(Clone))]
 pub struct Instance<'a> {
     public_keys: &'a [PublicKey],
-    public_coefficients: &'a [G2Projective],
+    public_coefficients: &'a PublicCoefficients,
     combined_randomizer: &'a G1Projective,
     combined_ciphertexts: &'a [G1Projective],
 }
@@ -30,7 +31,7 @@ pub struct Instance<'a> {
 impl<'a> Instance<'a> {
     pub fn new(
         public_keys: &'a [PublicKey],
-        public_coefficients: &'a [G2Projective],
+        public_coefficients: &'a PublicCoefficients,
         combined_randomizer: &'a G1Projective,
         combined_ciphertexts: &'a [G1Projective],
     ) -> Instance<'a> {
@@ -44,13 +45,13 @@ impl<'a> Instance<'a> {
 
     fn hash_to_scalar(&self) -> Scalar {
         let g1s = self.public_keys.len() + 1 + self.combined_ciphertexts.len();
-        let g2s = self.public_coefficients.len();
+        let g2s = self.public_coefficients.size();
         let mut bytes = Vec::with_capacity(g1s * 48 + g2s * 96);
 
         for pk in self.public_keys {
             bytes.extend_from_slice(pk.0.to_bytes().as_ref())
         }
-        for coeff in self.public_coefficients {
+        for coeff in &self.public_coefficients.0 {
             bytes.extend_from_slice(coeff.to_bytes().as_ref())
         }
         bytes.extend_from_slice(self.combined_randomizer.to_bytes().as_ref());
@@ -172,7 +173,7 @@ impl ProofOfSecretSharing {
         // g2^response_alpha
         let n = instance.public_keys.len();
 
-        let product = instance.public_coefficients.iter().enumerate().fold(
+        let product = instance.public_coefficients.0.iter().enumerate().fold(
             G2Projective::identity(),
             |mut acc, (k, coeff)| {
                 // intermediate (1^k • x^1 + ... + n^k • x^n) sum
@@ -255,7 +256,7 @@ mod tests {
         mut rng: impl RngCore,
     ) -> (
         Vec<PublicKey>,
-        Vec<G2Projective>,
+        PublicCoefficients,
         G1Projective,
         Vec<G1Projective>,
         Scalar,
@@ -332,7 +333,7 @@ mod tests {
         // no public coefficients
         let bad_instance2 = Instance {
             public_keys: &pks,
-            public_coefficients: &[],
+            public_coefficients: &PublicCoefficients(Vec::new()),
             combined_randomizer: &rr,
             combined_ciphertexts: &ciphertexts,
         };
@@ -416,7 +417,7 @@ mod tests {
         // no public coefficients
         let bad_instance2 = Instance {
             public_keys: &public_keys,
-            public_coefficients: &[],
+            public_coefficients: &PublicCoefficients(Vec::new()),
             combined_randomizer: &rr,
             combined_ciphertexts: &ciphertexts,
         };

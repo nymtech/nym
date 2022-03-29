@@ -7,6 +7,20 @@ use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};
 use zeroize::Zeroize;
 
+// it only exists for the ease of serialization
+#[derive(Clone, Debug)]
+pub struct PublicCoefficients(pub(crate) Vec<G2Projective>);
+
+impl PublicCoefficients {
+    pub(crate) fn size(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Zeroize)]
 #[zeroize(drop)]
 pub struct Polynomial {
@@ -36,9 +50,9 @@ impl Polynomial {
     }
 
     /// Returns public coefficients associated with this polynomial.
-    pub fn public_coefficients(&self) -> Vec<G2Projective> {
+    pub fn public_coefficients(&self) -> PublicCoefficients {
         let g2 = G2Projective::generator();
-        self.coefficients.iter().map(|a_i| g2 * a_i).collect()
+        PublicCoefficients(self.coefficients.iter().map(|a_i| g2 * a_i).collect())
     }
 
     /// Evaluates the polynomial at point x.

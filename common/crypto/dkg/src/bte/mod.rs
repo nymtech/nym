@@ -53,6 +53,10 @@ impl Tau {
         Tau(epoch.view_bits().to_bitvec())
     }
 
+    pub fn is_valid_epoch(&self, params: &Params) -> bool {
+        self.is_leaf(params)
+    }
+
     fn left_child(&self) -> Self {
         let mut child = self.0.clone();
         child.push(false);
@@ -168,14 +172,14 @@ pub struct Params {
 }
 
 #[cfg_attr(test, derive(Clone))]
-pub struct Ciphertext {
+pub struct Ciphertexts {
     pub r: [G1Projective; NUM_CHUNKS],
     pub s: [G1Projective; NUM_CHUNKS],
     pub z: [G2Projective; NUM_CHUNKS],
     pub ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
 }
 
-impl Ciphertext {
+impl Ciphertexts {
     pub fn verify_integrity(&self, params: &Params, tau: &Tau) -> bool {
         // if this checks fails it means the ciphertext is undefined as values
         // in `r`, `s` and `z` are meaningless since technically this ciphertext
@@ -253,7 +257,7 @@ struct SingleChunkCiphertext {
     c: G1Projective,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
@@ -654,7 +658,7 @@ pub fn encrypt_shares(
     epoch: &Tau,
     params: &Params,
     mut rng: impl RngCore,
-) -> (Ciphertext, HazmatRandomness) {
+) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
 
     // those will be relevant later for proofs of knowledge
@@ -707,7 +711,7 @@ pub fn encrypt_shares(
 
     // the conversions here must also succeed since the other vecs also have `NUM_CHUNKS` elements
     (
-        Ciphertext {
+        Ciphertexts {
             r: rs.try_into().unwrap(),
             s: ss.try_into().unwrap(),
             z: zs.try_into().unwrap(),
@@ -764,7 +768,7 @@ pub fn decrypt_share(
     dk: &DecryptionKey,
     // in the case of multiple receivers, specifies which index of ciphertext chunks should be used
     i: usize,
-    ciphertext: &Ciphertext,
+    ciphertext: &Ciphertexts,
     epoch: &Tau,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
@@ -885,7 +889,7 @@ mod tests {
     use group::Group;
     use rand_core::SeedableRng;
 
-    fn verify_hazmat_rand(ciphertext: &Ciphertext, randomness: &HazmatRandomness) {
+    fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {
         let g1 = G1Projective::generator();
 
         for i in 0..ciphertext.r.len() {

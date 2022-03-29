@@ -10,11 +10,17 @@ pub mod interpolation;
 // this entire module is a big placeholder for whatever scheme we decide to use for the
 // secure channel encryption scheme, but I would assume that the top-level API would
 // remain more or less the same
+pub mod dealing;
 pub mod secure_channel;
 pub(crate) mod share;
 pub(crate) mod utils;
 
+pub use dealing::*;
 pub use share::*;
+
+// TODO: presumably this should live in a different, common, crate?
+pub type Threshold = u64;
+pub type NodeIndex = u64;
 
 #[cfg(test)]
 mod tests {

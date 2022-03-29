@@ -58,10 +58,10 @@ pub(crate) fn query_delegator_delegations_paged(
     ))
 }
 
-pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
+pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<(usize, String)>, ContractError> {
     Ok(storage::delegations()
         .keys_raw(storage, None, None, Order::Ascending)
-        .map(hex::encode)
+        .map(|k| (k.len(), hex::encode(k)))
         .collect())
 }
 

@@ -9,6 +9,7 @@ use cosmwasm_std::{Coin, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::hash::{Hasher, Hash};
 
 type OwnerAddressBytes = Vec<u8>;
 type BlockHeight = u64;
@@ -20,6 +21,17 @@ pub struct Delegation {
     pub amount: Coin,
     pub block_height: u64,
     pub proxy: Option<Addr>, // proxy address used to delegate the funds on behalf of anouther address
+}
+
+impl Eq for Delegation {}
+
+impl Hash for Delegation {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.owner.hash(state);
+        self.node_identity.hash(state);
+        self.block_height.hash(state);
+        self.proxy.hash(state);
+    }
 }
 
 impl Delegation {

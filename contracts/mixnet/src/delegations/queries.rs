@@ -61,8 +61,49 @@ pub(crate) fn query_delegator_delegations_paged(
 pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
     Ok(storage::delegations()
         .keys_raw(storage, None, None, Order::Ascending)
-        .map(|k| hex::encode(k))
+        .map(hex::encode)
         .collect())
+}
+
+use std::collections::HashSet;
+
+pub fn query_all_delegation_values(
+    storage: &dyn Storage,
+) -> Result<HashSet<Delegation>, ContractError> {
+    use crate::delegations::storage::{
+        DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
+        DELEGATION_PK_NAMESPACE,
+    };
+
+    use cw_storage_plus::{IndexedMap, MultiIndex};
+
+    type PrimaryKey = Vec<u8>;
+
+    fn all_delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
+        let indexes = DelegationIndex {
+            owner: MultiIndex::new(
+                |d| d.owner.clone(),
+                DELEGATION_PK_NAMESPACE,
+                DELEGATION_OWNER_IDX_NAMESPACE,
+            ),
+            mixnode: MultiIndex::new(
+                |d| d.node_identity.clone(),
+                DELEGATION_PK_NAMESPACE,
+                DELEGATION_MIXNODE_IDX_NAMESPACE,
+            ),
+        };
+
+        IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
+    }
+
+    let all_delegations = all_delegations()
+        .range(storage, None, None, Order::Ascending)
+        .filter_map(|r| r.ok())
+        .map(|(_key, delegation)| delegation)
+        .collect::<HashSet<Delegation>>();
+
+
+    Ok(all_delegations)
 }
 
 // queries for delegation value of given address for particular node

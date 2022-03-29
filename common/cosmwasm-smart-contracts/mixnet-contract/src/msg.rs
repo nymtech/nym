@@ -102,6 +102,7 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetAllDelegations {},
+    GetAllDelegationValues {},
     GetContractVersion {},
     GetMixNodes {
         limit: Option<u32>,

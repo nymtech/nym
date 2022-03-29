@@ -365,6 +365,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         ),
         QueryMsg::GetAllDelegations {} => to_binary(
             &crate::delegations::queries::query_all_delegations(deps.storage)?,
+        ),
+        QueryMsg::GetAllDelegationValues {} => to_binary(
+            &crate::delegations::queries::query_all_delegation_values(deps.storage)?,
         )
     };
 

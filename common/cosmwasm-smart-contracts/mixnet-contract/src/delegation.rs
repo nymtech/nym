@@ -10,6 +10,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
+type OwnerAddressBytes = Vec<u8>;
+type BlockHeight = u64;
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct Delegation {
     pub owner: Addr,
@@ -24,7 +27,7 @@ impl Delegation {
         owner: Addr,
         node_identity: IdentityKey,
         amount: Coin,
-        block_height: u64,
+        block_height: BlockHeight,
         proxy: Option<Addr>,
     ) -> Self {
         Delegation {
@@ -36,13 +39,33 @@ impl Delegation {
         }
     }
 
-    // TODO: change that to use .joined_key() and return Vec<u8>
-    pub fn storage_key(&self) -> (IdentityKey, Vec<u8>, u64) {
+    pub fn storage_key(&self) -> (IdentityKey, OwnerAddressBytes, BlockHeight) {
         (
             self.node_identity(),
-            self.owner().as_bytes().to_vec(),
+            self.proxy_storage_key(),
             self.block_height(),
         )
+    }
+
+    pub fn event_storage_key(&self) -> (OwnerAddressBytes, BlockHeight, IdentityKey) {
+        (
+            self.proxy_storage_key(),
+            self.block_height(),
+            self.node_identity(),
+        )
+    }
+
+    pub fn proxy_storage_key(&self) -> OwnerAddressBytes {
+        if let Some(proxy) = &self.proxy {
+            self.owner()
+                .as_bytes()
+                .iter()
+                .zip(proxy.as_bytes())
+                .map(|(x, y)| x ^ y)
+                .collect()
+        } else {
+            self.owner().as_bytes().to_vec()
+        }
     }
 
     pub fn increment_amount(&mut self, amount: Uint128, at_height: Option<u64>) {
@@ -86,10 +109,10 @@ pub struct PagedMixDelegationsResponse {
 }
 
 impl PagedMixDelegationsResponse {
-    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(Addr, u64)>) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(String, u64)>) -> Self {
         PagedMixDelegationsResponse {
             delegations,
-            start_next_after: start_next_after.map(|(s, h)| (s.to_string(), h)),
+            start_next_after,
         }
     }
 }

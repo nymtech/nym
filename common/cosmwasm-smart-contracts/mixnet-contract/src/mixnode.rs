@@ -78,6 +78,35 @@ impl PendingUndelegate {
     pub fn block_height(&self) -> u64 {
         self.block_height
     }
+
+    pub fn proxy_storage_key(&self) -> Vec<u8> {
+        if let Some(proxy) = &self.proxy {
+            self.delegate()
+                .as_bytes()
+                .iter()
+                .zip(proxy.as_bytes())
+                .map(|(x, y)| x ^ y)
+                .collect()
+        } else {
+            self.delegate().as_bytes().to_vec()
+        }
+    }
+
+    pub fn storage_key(&self) -> (IdentityKey, Vec<u8>) {
+        (self.mix_identity(), self.proxy_storage_key())
+    }
+
+    pub fn delegation_key(&self, block_height: u64) -> (IdentityKey, Vec<u8>, u64) {
+        (self.mix_identity(), self.proxy_storage_key(), block_height)
+    }
+
+    pub fn event_storage_key(&self) -> (Vec<u8>, u64, IdentityKey) {
+        (
+            self.proxy_storage_key(),
+            self.block_height(),
+            self.mix_identity(),
+        )
+    }
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]

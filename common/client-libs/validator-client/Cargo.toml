@@ -38,7 +38,7 @@ prost = { version = "0.9", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }
-cosmwasm-std = { version = "1.0.0-beta3", optional = true }
+cosmwasm-std = { version = "1.0.0-beta7", optional = true }
 
 [dev-dependencies]
 ts-rs = "6.1.2"

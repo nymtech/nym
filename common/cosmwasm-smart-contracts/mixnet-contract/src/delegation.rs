@@ -86,10 +86,10 @@ pub struct PagedMixDelegationsResponse {
 }
 
 impl PagedMixDelegationsResponse {
-    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(Addr, u64)>) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(String, u64)>) -> Self {
         PagedMixDelegationsResponse {
             delegations,
-            start_next_after: start_next_after.map(|(s, h)| (s.to_string(), h)),
+            start_next_after,
         }
     }
 }

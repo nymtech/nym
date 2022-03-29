@@ -94,6 +94,8 @@ pub(crate) fn query_mixnode_delegations_paged(
     start_after: Option<(String, u64)>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
+    let arg_start_after = start_after.clone();
+
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
@@ -108,9 +110,13 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|record| record.map(|r| r.1))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = delegations
+    let mut start_next_after = delegations
         .last()
-        .map(|delegation| (delegation.owner(), delegation.block_height()));
+        .map(|delegation| (delegation.owner().to_string(), delegation.block_height()));
+
+    if arg_start_after == start_next_after {
+        start_next_after = None;
+    }
 
     Ok(PagedMixDelegationsResponse::new(
         delegations,
@@ -124,6 +130,7 @@ pub(crate) mod tests {
     use crate::support::tests::test_helpers;
     use config::defaults::DENOM;
     use cosmwasm_std::{coin, Addr, Storage};
+    use rand::Rng;
 
     pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
         for i in 0..n {
@@ -134,8 +141,11 @@ pub(crate) mod tests {
 
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
+        use std::collections::HashSet;
+
         use super::*;
         use mixnet_contract_common::IdentityKey;
+        use rand::{distributions::Alphanumeric, SeedableRng};
 
         #[test]
         fn retrieval_obeys_limits() {
@@ -200,19 +210,34 @@ pub(crate) mod tests {
 
         #[test]
         fn pagination_works() {
+            let dummy_seed = [42u8; 32];
+            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
 
+            let mut delegation_test_data = vec![];
+            let mut returned_delegation_data = HashSet::new();
+
             // Crete a bunch of randomly ordered (in storage) delegations
-            for j in 0..20 {
-                for i in 0..10 {
-                    test_helpers::save_dummy_delegation(
-                        &mut deps.storage,
-                        &node_identity,
-                        format!("{}-{}", j, i),
-                        i,
-                    );
-                }
+            for _ in 0..200 {
+                delegation_test_data.push((
+                    rng.clone()
+                        .sample_iter(&Alphanumeric)
+                        .take(30)
+                        .map(char::from)
+                        .collect::<String>(),
+                    rng.gen::<u32>() as u64,
+                ))
+            }
+
+            for (address, block_height) in delegation_test_data.iter() {
+                test_helpers::save_dummy_delegation(
+                    &mut deps.storage,
+                    &node_identity,
+                    address,
+                    *block_height,
+                );
             }
 
             let per_page = 100;
@@ -228,7 +253,14 @@ pub(crate) mod tests {
 
             let start_after = page1.start_next_after.unwrap();
             assert_eq!(100, page1.delegations.len());
-            assert_eq!(("9-9".to_string(), 9), start_after);
+            assert_eq!(
+                (("XtsZrLRXvyegwyZDjuJtlYiG5B1eiJ".to_string(), 1594717548)),
+                start_after
+            );
+
+            for delegation in page1.delegations {
+                returned_delegation_data.insert(delegation.owner().to_string());
+            }
 
             // retrieving the next page should start after the last key on this page
 
@@ -241,7 +273,14 @@ pub(crate) mod tests {
             .unwrap();
 
             let start_after = page2.start_next_after.unwrap();
-            assert_eq!(("19-9".to_string(), 9), start_after);
+            assert_eq!(
+                ("zkHTlcgOWAyH8NoIJ2lkZcvvhYsFik".to_string(), 3448133410),
+                start_after
+            );
+
+            for delegation in page2.delegations {
+                returned_delegation_data.insert(delegation.owner().to_string());
+            }
 
             let page3 = query_mixnode_delegations_paged(
                 deps.as_ref(),
@@ -252,6 +291,10 @@ pub(crate) mod tests {
             .unwrap();
 
             assert!(page3.start_next_after.is_none());
+
+            for delegation in delegation_test_data {
+                assert!(returned_delegation_data.contains(&*delegation.0));
+            }
         }
     }
 

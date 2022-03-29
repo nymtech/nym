@@ -363,6 +363,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetPendingDelegationEvents { owner_address } => to_binary(
             &query_pending_delegation_events(deps.storage, owner_address)?,
         ),
+        QueryMsg::GetAllDelegations {} => to_binary(
+            &crate::delegations::queries::query_all_delegations(deps.storage)?,
+        )
     };
 
     Ok(query_res?)
@@ -420,8 +423,7 @@ fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    // TODO: Uncomment mainnet
-    // migrate_delegations(deps)?;
+
 
     Ok(Default::default())
 }

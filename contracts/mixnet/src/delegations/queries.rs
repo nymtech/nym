@@ -101,11 +101,11 @@ pub(crate) fn query_mixnode_delegations_paged(
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
     let start = start_after
-        .map(|(addr, height)| Bound::ExclusiveRaw((addr.as_bytes(), height).joined_key()));
+        .map(|(addr, height)| Bound::exclusive((addr.as_bytes().to_vec(), height)));
 
     let delegations = storage::delegations()
         .sub_prefix(mix_identity)
-        .range_raw(deps.storage, start, None, Order::Ascending)
+        .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|record| record.map(|r| r.1))
         .collect::<StdResult<Vec<_>>>()?;

@@ -3,6 +3,7 @@ use crate::nymd::{NymdClient, QueryNymdClient};
 use crate::ApiClient;
 use network_defaults::all::Network;
 
+use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -84,7 +85,6 @@ async fn test_nymd_connection(
     url: &Url,
     client: &NymdClient<QueryNymdClient>,
 ) -> ConnectionResult {
-    log::info!("{network}: {url}: checking nymd connection");
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
         client.get_mixnet_contract_version(),
@@ -93,30 +93,39 @@ async fn test_nymd_connection(
     {
         Ok(Err(NymdError::TendermintError(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
-            log::debug!("{network}: {url}: nymd connection test failed: {}", e);
+            log::debug!("Checking: nymd_url: {network}: {url}: failed: {}", e);
             false
         }
         Ok(Err(NymdError::AbciError(code, log))) => {
             // We accept the mixnet contract not found as ok from a connection standpoint. This happens
             // for example on a pre-launch network.
-            log::debug!("{network}: {url}: nymd abci error: {code}: {log}");
+            log::debug!(
+                "Checking: nymd_url: {network}: {url}: {}, but with abci error: {code}: {log}",
+                "success".green()
+            );
             code == 18
         }
         Ok(Err(error @ NymdError::NoContractAddressAvailable)) => {
-            log::debug!("{network}: {url}: nymd connection test failed: {error}");
+            log::debug!(
+                "Checking: nymd_url: {network}: {url}: {}: {error}",
+                "failed".red()
+            );
             false
         }
         Ok(Err(e)) => {
             // For any other error, we're optimistic and just try anyway.
-            log::debug!("{network}: {url}: nymd connection test response ok, but with error: {e}");
+            log::debug!(
+                "Checking: nymd_url: {network}: {url}: {}, but with error: {e}",
+                "success".green()
+            );
             true
         }
         Ok(Ok(_)) => {
-            log::debug!("{network}: {url}: nymd connection test successful");
+            log::debug!("Checking: nymd_url: {network}: {url}: {}", "success".green());
             true
         }
         Err(e) => {
-            log::debug!("{network}: {url}: nymd connection test failed: {e}");
+            log::debug!("Checking: nymd_url: {network}: {url}: {}: {e}", "failed".red());
             false
         }
     };
@@ -124,7 +133,6 @@ async fn test_nymd_connection(
 }
 
 async fn test_api_connection(network: Network, url: &Url, client: &ApiClient) -> ConnectionResult {
-    log::info!("{network}: {url}: checking api connection");
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
         client.get_cached_mixnodes(),
@@ -132,15 +140,21 @@ async fn test_api_connection(network: Network, url: &Url, client: &ApiClient) ->
     .await
     {
         Ok(Ok(_)) => {
-            log::debug!("{network}: {url}: api connection test successful");
+            log::debug!("Checking: api_url: {network}: {url}: {}", "success".green());
             true
         }
         Ok(Err(e)) => {
-            log::debug!("{network}: {url}: api connection test failed: {e}");
+            log::debug!(
+                "Checking: api_url: {network}: {url}: {}: {e}",
+                "failed".red()
+            );
             false
         }
         Err(e) => {
-            log::debug!("{network}: {url}: api connection test failed: {e}");
+            log::debug!(
+                "Checking: api_url: {network}: {url}: {}: {e}",
+                "failed".red()
+            );
             false
         }
     };

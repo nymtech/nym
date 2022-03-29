@@ -21,6 +21,7 @@ tauri-macros = "=1.0.0-rc.1"
 [dependencies]
 bip39 = "1.0"
 cfg-if = "1.0.0"
+colored = "2.0"
 dirs = "4.0"
 dotenv = "0.15.0"
 eyre = "0.6.5"

@@ -6068,6 +6068,7 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-interface",
+ "colored",
  "config",
  "cosmrs",
  "cosmwasm-std",

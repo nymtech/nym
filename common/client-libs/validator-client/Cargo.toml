@@ -9,6 +9,7 @@ rust-version = "1.56"
 
 [dependencies]
 base64 = "0.13"
+colored = "2.0"
 mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
 vesting-contract = { path = "../../../contracts/vesting" }

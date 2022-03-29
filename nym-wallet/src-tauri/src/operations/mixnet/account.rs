@@ -10,6 +10,7 @@ use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
 use config::defaults::COSMOS_DERIVATION_PATH;
 use cosmrs::bip32::DerivationPath;
+use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -163,6 +164,13 @@ async fn _connect_with_mnemonic(
   update_validator_urls(state.clone()).await?;
   let config = state.read().await.config();
 
+  for network in WalletNetwork::iter() {
+    log::debug!(
+      "List of validators for {network}: [\n{}\n]",
+      config.get_validators(network).format(",\n")
+    );
+  }
+
   // Run connection tests on all nymd and validator-api endpoints
   let (nymd_urls, api_urls) = {
     let mixnet_contract_address = WalletNetwork::iter()
@@ -226,7 +234,7 @@ fn select_random_responding_nymd_url(
       nymd_urls.choose(&mut rand::thread_rng()).cloned()
     })
     .unwrap_or_else(|| {
-      log::debug!("{network}: nymd_url: using default");
+      log::debug!("No passing nymd_urls for {network}: using default");
       config
         .get_nymd_urls(network)
         .next()
@@ -249,7 +257,7 @@ fn select_first_responding_api_url(
         .find_map(|(url, result)| if *result { Some(url.clone()) } else { None })
     })
     .unwrap_or_else(|| {
-      log::debug!("{network}: api_url: using default");
+      log::debug!("No passing api_urls for {network}: using default");
       config
         .get_api_urls(network)
         .next()
@@ -268,8 +276,8 @@ fn create_clients(
     let nymd_url = select_random_responding_nymd_url(nymd_urls, network, config);
     let api_url = select_first_responding_api_url(api_urls, network, config);
 
-    log::info!("{network}: nymd_url: using: {nymd_url}");
-    log::info!("{network}: api_url: using: {api_url}");
+    log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
+    log::info!("Connecting to: api_url: {api_url} for {network}");
 
     let client = validator_client::Client::new_signing(
       validator_client::Config::new(

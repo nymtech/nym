@@ -4,6 +4,7 @@
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use config::NymConfig;
+use core::fmt;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -173,6 +174,7 @@ impl Config {
       .send()
       .await?;
     self.base.fetched_validators = serde_json::from_str(&response.text().await?)?;
+    log::debug!("Received validator urls: \n{}", self.base.fetched_validators);
     Ok(())
   }
 }
@@ -197,6 +199,14 @@ impl TryFrom<ValidatorDetails> for ValidatorUrl {
   }
 }
 
+impl fmt::Display for ValidatorUrl {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let s1 = format!("nymd_url: {}", self.nymd_url);
+    let s2 = self.api_url.as_ref().map(|url| format!(", api_url: {}", url));
+    write!(f, "    {}{},", s1, s2.unwrap_or_default())
+  }
+}
+
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct OptionalValidators {
@@ -216,6 +226,27 @@ impl OptionalValidators {
     }
     .into_iter()
     .flatten()
+  }
+}
+
+impl fmt::Display for OptionalValidators {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let s1 = self
+      .mainnet
+      .as_ref()
+      .map(|validators| format!("mainnet: [\n{}\n]", validators.iter().format("\n")))
+      .unwrap_or_default();
+    let s2 = self
+      .sandbox
+      .as_ref()
+      .map(|validators| format!(",\nsandbox: [\n{}\n]", validators.iter().format("\n")))
+      .unwrap_or_default();
+    let s3 = self
+      .qa
+      .as_ref()
+      .map(|validators| format!(",\nqa: [\n{}\n]", validators.iter().format("\n")))
+      .unwrap_or_default();
+    write!(f, "{}{}{}", s1, s2, s3)
   }
 }
 

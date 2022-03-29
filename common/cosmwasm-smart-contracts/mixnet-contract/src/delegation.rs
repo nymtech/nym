@@ -25,6 +25,7 @@ pub struct Delegation {
 
 impl Eq for Delegation {}
 
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Delegation {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.owner.hash(state);

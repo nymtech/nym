@@ -174,7 +174,10 @@ impl Config {
       .send()
       .await?;
     self.base.fetched_validators = serde_json::from_str(&response.text().await?)?;
-    log::debug!("Received validator urls: \n{}", self.base.fetched_validators);
+    log::debug!(
+      "Received validator urls: \n{}",
+      self.base.fetched_validators
+    );
     Ok(())
   }
 }
@@ -202,7 +205,10 @@ impl TryFrom<ValidatorDetails> for ValidatorUrl {
 impl fmt::Display for ValidatorUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let s1 = format!("nymd_url: {}", self.nymd_url);
-    let s2 = self.api_url.as_ref().map(|url| format!(", api_url: {}", url));
+    let s2 = self
+      .api_url
+      .as_ref()
+      .map(|url| format!(", api_url: {}", url));
     write!(f, "    {}{},", s1, s2.unwrap_or_default())
   }
 }

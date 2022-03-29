@@ -121,11 +121,17 @@ async fn test_nymd_connection(
             true
         }
         Ok(Ok(_)) => {
-            log::debug!("Checking: nymd_url: {network}: {url}: {}", "success".green());
+            log::debug!(
+                "Checking: nymd_url: {network}: {url}: {}",
+                "success".green()
+            );
             true
         }
         Err(e) => {
-            log::debug!("Checking: nymd_url: {network}: {url}: {}: {e}", "failed".red());
+            log::debug!(
+                "Checking: nymd_url: {network}: {url}: {}: {e}",
+                "failed".red()
+            );
             false
         }
     };

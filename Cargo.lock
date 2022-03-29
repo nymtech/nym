@@ -3158,7 +3158,6 @@ dependencies = [
  "rocket_sync_db_pools",
  "serde",
  "serde_json",
- "sled",
  "sqlx",
  "thiserror",
  "time 0.3.7",

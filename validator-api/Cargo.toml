@@ -30,7 +30,6 @@ reqwest = { version = "0.11", features = ["json"] }
 rocket = { version = "0.5.0-rc.1", features = ["json"] }
 serde = "1.0"
 serde_json = "1.0"
-sled = "0.34"
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros", "signal", "time"] }
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 url = "2.2"

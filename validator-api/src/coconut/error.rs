@@ -57,9 +57,6 @@ pub enum CoconutError {
     )]
     DifferentPublicAttributes(String, String),
 
-    #[error("Sled error - {0}")]
-    SledError(#[from] sled::Error),
-
     #[error("No signature found")]
     NoSignature,
 

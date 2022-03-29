@@ -58,12 +58,11 @@ pub(crate) fn query_delegator_delegations_paged(
     ))
 }
 
-pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<Delegation>, ContractError> {
+pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
     Ok(storage::delegations()
-        .range(storage, None, None, Order::Ascending)
-        .filter_map(|r| r.ok())
-        .map(|(_key, delegation)| delegation)
-        .collect::<Vec<Delegation>>())
+        .keys_raw(storage, None, None, Order::Ascending)
+        .map(|k| hex::encode(k))
+        .collect())
 }
 
 // queries for delegation value of given address for particular node
@@ -108,8 +107,8 @@ pub(crate) fn query_mixnode_delegations_paged(
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after
-        .map(|(addr, height)| Bound::exclusive((addr.as_bytes().to_vec(), height)));
+    let start =
+        start_after.map(|(addr, height)| Bound::exclusive((addr.as_bytes().to_vec(), height)));
 
     let delegations = storage::delegations()
         .sub_prefix(mix_identity)

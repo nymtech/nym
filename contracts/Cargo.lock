@@ -41,7 +41,7 @@ checksum = "f771a5d1f5503f7f4279a30f3643d3421ba149848b89ecaaec0ea2acf04a5ac4"
 
 [[package]]
 name = "bandwidth-claim"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "bandwidth-claim-contract",
  "config",
@@ -820,7 +820,7 @@ checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
 
 [[package]]
 name = "mixnet-contract"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "az",
  "bs58",
@@ -1527,7 +1527,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "0.1.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "config",
  "cosmwasm-std",

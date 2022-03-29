@@ -134,11 +134,9 @@ export const currencyMap = (network?: Network): TCurrency => {
   }
 };
 
-export const splice = (start: number, deleteCount: number, address?: string): string => {
+export const splice = (size: number, address?: string): string => {
   if (address) {
-    const array = address.split('');
-    array.splice(start, deleteCount, '...');
-    return array.join('');
+    return `${address.slice(0, size)}...${address.slice(-size)}`;
   }
   return '';
 };

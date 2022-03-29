@@ -29,7 +29,7 @@ use url::Url;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::InternalSignRequest;
+use coconut::{client::QueryClient, InternalSignRequest};
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -53,6 +53,9 @@ const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 
 #[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
+
+#[cfg(feature = "coconut")]
+const SIGNED_DEPOSITS_ARG: &str = "signed-deposits";
 
 #[cfg(feature = "coconut")]
 const COCONUT_ONLY_FLAG: &str = "coconut-only";
@@ -178,6 +181,11 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .help("Path to the secret key file")
             .takes_value(true)
             .long(KEYPAIR_ARG),
+    ).arg(
+        Arg::with_name(SIGNED_DEPOSITS_ARG)
+            .help("Path to the directory used to store the already signed deposit transactions. This prevents the validator for double signing for the same deposit")
+            .takes_value(true)
+            .long(SIGNED_DEPOSITS_ARG),
     ).arg(
         Arg::with_name(COCONUT_ONLY_FLAG)
             .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
@@ -373,15 +381,25 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage());
 
+    // This is not a very nice approach. A lazy value would be more suitable, but that's still
+    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
+    let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
+        Some(ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?)
+    } else {
+        None
+    };
+
     #[cfg(feature = "coconut")]
-    let rocket = rocket.attach(InternalSignRequest::stage(config.keypair()));
+    let rocket = rocket.attach(InternalSignRequest::stage(
+        QueryClient::new()?,
+        config.keypair(),
+        storage.clone().unwrap(),
+    ));
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
         Ok(rocket
-            .attach(storage::ValidatorApiStorage::stage(
-                config.get_node_status_api_database_path(),
-            ))
+            .attach(storage::ValidatorApiStorage::stage(storage.unwrap()))
             .attach(node_status_api::stage_full())
             .ignite()
             .await?)
@@ -423,7 +441,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // this simplifies everything - we just want to run coconut things
         return rocket::build()
             .attach(setup_cors()?)
-            .attach(InternalSignRequest::stage(config.keypair()))
+            .attach(InternalSignRequest::stage(
+                QueryClient::new()?,
+                config.keypair(),
+                ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?,
+            ))
             .launch()
             .await
             .map_err(|err| err.into());

@@ -1,9 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "coconut")]
 use coconut_interface::CoconutError;
-use thiserror::Error;
+use crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
+
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -13,6 +16,7 @@ pub enum Error {
     #[error("Could not contact any validator")]
     NoValidatorsAvailable,
 
+    #[cfg(feature = "coconut")]
     #[error("Run into a coconut error - {0}")]
     CoconutError(#[from] CoconutError),
 
@@ -30,4 +34,7 @@ pub enum Error {
 
     #[error("There is not associated bandwidth for the given client")]
     MissingBandwidth,
+
+    #[error("Could not parse the key - {0}")]
+    ParsePublicKey(#[from] KeyRecoveryError),
 }

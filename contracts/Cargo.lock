@@ -192,6 +192,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-bandwidth"
+version = "0.1.0"
+dependencies = [
+ "bandwidth-claim-contract",
+ "coconut-bandwidth-contract-common",
+ "config",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [

@@ -14,7 +14,7 @@ use validator_api_requests::models::{
 };
 
 pub mod error;
-pub(crate) mod routes;
+pub mod routes;
 
 type PathSegments<'a> = &'a [&'a str];
 type Params<'a, K, V> = &'a [(K, V)];
@@ -66,14 +66,14 @@ impl Client {
         V: AsRef<str>,
     {
         let url = create_api_url(&self.url, path, params);
-        Ok(self
-            .reqwest_client
-            .post(url)
-            .json(json_body)
-            .send()
-            .await?
-            .json()
-            .await?)
+        let response = self.reqwest_client.post(url).json(json_body).send().await?;
+        if response.status().is_success() {
+            Ok(response.json().await?)
+        } else {
+            Err(ValidatorAPIError::GenericRequestFailure(
+                response.text().await?,
+            ))
+        }
     }
 
     pub async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
@@ -254,7 +254,29 @@ impl Client {
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
         self.post_validator_api(
-            &[routes::API_VERSION, routes::COCONUT_BLIND_SIGN],
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_BLIND_SIGN,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    pub async fn partial_bandwidth_credential(
+        &self,
+        request_body: &str,
+    ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
+            ],
             NO_PARAMS,
             request_body,
         )
@@ -265,7 +287,12 @@ impl Client {
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorAPIError> {
         self.query_validator_api(
-            &[routes::API_VERSION, routes::COCONUT_VERIFICATION_KEY],
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_VERIFICATION_KEY,
+            ],
             NO_PARAMS,
         )
         .await

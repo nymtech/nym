@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dkg::bte::BabyStepGiantStepLookup;
+use dkg::bte::encryption::BabyStepGiantStepLookup;
 
 pub fn precompute_default_bsgs_table(c: &mut Criterion) {
     c.bench_function("bsgs default table", |b| {

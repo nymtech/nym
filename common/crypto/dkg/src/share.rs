@@ -1,22 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::bte::{CHUNK_BYTES, NUM_CHUNKS, SCALAR_SIZE};
 use crate::error::DkgError;
-use crate::interpolation::perform_lagrangian_interpolation_at_origin;
-use crate::NodeIndex;
 use bls12_381::Scalar;
 use zeroize::Zeroize;
 
 // if this type is changed, one must ensure all values can fit in it
 pub type Chunk = u16;
-
-// note: CHUNK_BYTES * NUM_CHUNKS must equal to SCALAR_SIZE
-pub const CHUNK_BYTES: usize = 2;
-pub const NUM_CHUNKS: usize = 16;
-pub const SCALAR_SIZE: usize = 32;
-
-/// In paper B; number of distinct chunks
-pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 
 #[derive(PartialEq, Eq, Debug, Zeroize)]
 #[cfg_attr(test, derive(Clone))]

@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::CHUNK_SIZE;
+use crate::bte::CHUNK_SIZE;
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::G1Projective;
 use bls12_381::{G2Projective, Scalar};
@@ -46,12 +46,9 @@ impl RandomOracleBuilder {
 }
 
 // those will most likely need to somehow get re-combined with coconut (or maybe extracted to a completely different module)
-
 pub(crate) fn hash_to_scalar<M: AsRef<[u8]>>(msg: M, domain: &[u8]) -> Scalar {
-    let mut output = vec![Scalar::zero()];
-
-    Scalar::hash_to_field::<ExpandMsgXmd<Sha256>>(msg.as_ref(), domain, &mut output);
-    output[0]
+    // the unwrap here is fine as the result vector will have 1 element (as specified) and will not be empty
+    hash_to_scalars(msg, domain, 1).pop().unwrap()
 }
 
 pub(crate) fn hash_to_scalars<M: AsRef<[u8]>>(msg: M, domain: &[u8], n: usize) -> Vec<Scalar> {

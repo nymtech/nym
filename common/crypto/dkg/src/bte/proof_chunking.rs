@@ -1,7 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bte::{Chunk, Ciphertexts, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
+use crate::bte::encryption::Ciphertexts;
+use crate::bte::{Chunk, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
 use crate::ensure_len;
 use crate::error::DkgError;
 use crate::utils::hash_to_scalar;
@@ -52,29 +53,6 @@ impl<'a> Instance<'a> {
             randomizers_r: &ciphertext.r,
             ciphertext_chunks: &ciphertext.ciphertext_chunks,
         }
-    }
-
-    // TODO: possibly no longer needed after all
-    fn to_bytes(&self) -> Vec<u8> {
-        let elements =
-            self.public_keys.len() + NUM_CHUNKS + NUM_CHUNKS * self.ciphertext_chunks.len();
-
-        let mut bytes = Vec::with_capacity(48 * elements);
-
-        for pk in self.public_keys {
-            bytes.extend_from_slice(pk.0.to_bytes().as_ref())
-        }
-        for rr in self.randomizers_r {
-            bytes.extend_from_slice(rr.to_bytes().as_ref())
-        }
-
-        for ciphertext_chunks in self.ciphertext_chunks {
-            for chunk in ciphertext_chunks {
-                bytes.extend_from_slice(chunk.to_bytes().as_ref())
-            }
-        }
-
-        bytes
     }
 
     fn validate(&self) -> bool {
@@ -175,6 +153,8 @@ impl ProofOfChunking {
             let mut shifted_blinding_factors = Vec::with_capacity(PARALLEL_RUNS);
             let mut cs = Vec::with_capacity(PARALLEL_RUNS);
 
+            // I think this part is more readable with a range loop
+            #[allow(clippy::needless_range_loop)]
             for i in 0..PARALLEL_RUNS {
                 // scalar in range of [0, Z - 1 + S]
                 let shifted = rng.gen_range(0..=combined_upper_range);
@@ -199,6 +179,8 @@ impl ProofOfChunking {
             // such that 0 <= z_{s,l} < Z
             let mut responses_chunks = Vec::with_capacity(PARALLEL_RUNS);
 
+            // I think this part is more readable with a range loop
+            #[allow(clippy::needless_range_loop)]
             for l in 0..PARALLEL_RUNS {
                 let mut sum = 0;
 
@@ -305,22 +287,10 @@ impl ProofOfChunking {
         let ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1)) as u64;
         let zz = 2 * (PARALLEL_RUNS as u64) * ss;
 
-        // let mut zz_be_bytes = Scalar::from(zz).to_bytes();
-        // zz_be_bytes.reverse();
-
         for response_chunk in &self.responses_chunks {
             if response_chunk >= &zz {
                 return false;
             }
-
-            // // technically it doesn't really make much sense as there's no such thing as ordering in finite fields,
-            // // but that's the best we can do to follow the requirements
-            // let mut z_sk_be_bytes = response_chunk.to_bytes();
-            // z_sk_be_bytes.reverse();
-            //
-            // if z_sk_be_bytes >= zz_be_bytes {
-            //     return false;
-            // }
         }
 
         let first_challenge =
@@ -382,6 +352,8 @@ impl ProofOfChunking {
         let mut lhs = self.yy;
 
         // compute product (C_{1,1} ^ e_{1,1,1} • ... • C_{n,m} ^ e_{n,m,1}) ^ chlg^1 • ... (C_{1,1} ^ e_{1,1,l} • ... • C_{n,m} ^ e_{n,m,l}) ^ chlg^l
+        // I think this part is more readable with a range loop
+        #[allow(clippy::needless_range_loop)]
         for k in 0..PARALLEL_RUNS {
             let mut inner_acc = G1Projective::identity();
             for (i, c_i) in instance.ciphertext_chunks.iter().enumerate() {
@@ -420,38 +392,6 @@ impl ProofOfChunking {
         true
     }
 
-    // note for future self: this doesn't work as challenge items need to be in the [0, E - 1] range...
-    // pub(crate) fn compute_first_challenge_old(
-    //     instance: Instance,
-    //     y0: &G1Projective,
-    //     bb: &[G1Projective],
-    //     cc: &[G1Projective],
-    //     n: usize,
-    //     m: usize,
-    // ) -> Vec<Vec<Vec<Scalar>>> {
-    //     let mut bytes = instance.to_bytes();
-    //     bytes.extend_from_slice(y0.to_bytes().as_ref());
-    //     for b in bb {
-    //         bytes.extend_from_slice(b.to_bytes().as_ref())
-    //     }
-    //
-    //     for c in cc {
-    //         bytes.extend_from_slice(c.to_bytes().as_ref())
-    //     }
-    //
-    //     let lambda_e = n * m * PARALLEL_RUNS * NUM_CHALLENGE_BITS;
-    //     bytes.extend_from_slice(lambda_e.to_be_bytes().as_ref());
-    //
-    //     let output_size = n * m * PARALLEL_RUNS;
-    //     let mut out = hash_to_scalars(&bytes, FIRST_CHALLENGE_DOMAIN, output_size);
-    //
-    //     // TODO: possibly might have to swap m and n around. not sure yet.
-    //     (0..m)
-    //         .map(|_| (0..n).map(|_| out.split_off(PARALLEL_RUNS)).collect())
-    //         .collect()
-    // }
-
-    // TODO: possibly return Vec<Vec<Vec<u64>>> after all
     fn compute_first_challenge(
         instance: &Instance,
         y0: &G1Projective,
@@ -530,7 +470,8 @@ impl ProofOfChunking {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bte::{ChunkedShare, Share};
+    use crate::bte::Share;
+    use crate::ChunkedShare;
 
     // limit number of nodes to some reasonable-ish value, as it significantly affects
     // time it takes to compute and verify the proof

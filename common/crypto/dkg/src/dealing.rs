@@ -155,16 +155,3 @@ impl Dealing {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn creating_dealing() {}
-
-    #[test]
-    fn verifying_dealing() {
-        //
-    }
-}

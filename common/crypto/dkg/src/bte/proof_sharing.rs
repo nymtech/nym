@@ -49,7 +49,7 @@ impl<'a> Instance<'a> {
         let g2s = self.public_coefficients.size();
         let mut bytes = Vec::with_capacity(g1s * 48 + g2s * 96);
 
-        for (_, pk) in self.public_keys {
+        for pk in self.public_keys.values() {
             bytes.extend_from_slice(pk.0.to_bytes().as_ref())
         }
         for coeff in &self.public_coefficients.0 {
@@ -271,8 +271,10 @@ mod tests {
         let public_coefficients = polynomial.public_coefficients();
 
         let mut shares: Vec<Share> = Vec::new();
-        for _ in 0..NODES {
-            let node_index = rng.next_u64();
+        let mut node_indices = (0..NODES).map(|_| rng.next_u64()).collect::<Vec<_>>();
+        node_indices.sort_unstable();
+
+        for node_index in node_indices {
             let share = polynomial.evaluate(&Scalar::from(node_index));
             shares.push(share.into());
             pks.insert(node_index, PublicKey(g1 * Scalar::random(&mut rng)));

@@ -1,11 +1,11 @@
-//TODO once merge branch feature/wallet-expose-validator-urls
+import { invoke } from '@tauri-apps/api';
+import { Network } from '../types';
 
-// import {
-//     ValidatorUrls
-// } from '../types';
+import {
+    ValidatorUrls
+} from '../types';
 
-// export const getValidators = async (): Promise<ValidatorUrls> => {
-//     const ValidatorUrls: ValidatorUrls = await invoke('locked_coins');
-//     const major = await minorToMajor(coin.amount);
-//     return major;
-//   };
+export const getValidatorUrls = async (network: Network): Promise<ValidatorUrls> => {
+    const res: ValidatorUrls = await invoke('get_validator_nymd_urls', { network });
+    return res;
+};

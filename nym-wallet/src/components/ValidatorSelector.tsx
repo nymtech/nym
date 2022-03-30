@@ -1,47 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
-// import { getValidators } from '../requests';
+import React, { useContext, useEffect, useState } from 'react';
+import { ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
+import { ClientContext } from '../context/main';
+import { validatorUrls } from '../utils';
 
-interface ValidatorDropdownProps {
-    onChangeValidatorSelection: (validator: TValidatorOption) => void;
-}
+type TValidatorUrl = string;
 
-type TValidatorOption = string;
-
-export const ValidatorSelector: React.FC<ValidatorDropdownProps> = ({
+export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validator: TValidatorUrl) => void }> = ({
     onChangeValidatorSelection,
   }) => {
-    const [validators, setValidators] = useState<TValidatorOption[] | null>(null);
-    const [selectedValidator, setSelectedValidator] = useState<TValidatorOption>('');
-  
+    const [validators, setValidators] = useState<string[] | null>();
+    const [selectedValidator, setSelectedValidator] = useState<TValidatorUrl>('');
+
+    const {
+        network
+    } = useContext(ClientContext);
+
     useEffect(() => {
-    //   (async () => {
-    //     await getValidators();
-    //   })();
-    setValidators(['aaa', 'bbb', 'ccc']);
+        (async () => {
+            if(network) {
+            const validator = await validatorUrls(network);
+            setValidators(validator?.urls);
+            }
+        })();
     }, []);
   
     useEffect(() => {
         onChangeValidatorSelection(selectedValidator);
     }, [selectedValidator]);
 
-    return validators &&
+    return (
                 <Select
                 labelId="validatorSelect_label"
                 id="validatorSelect"
                 value={selectedValidator}
                 onChange={(e: SelectChangeEvent) => {
-                    setSelectedValidator(e.target.value as TValidatorOption);
+                    setSelectedValidator(e.target.value as TValidatorUrl);
                 }}
                 renderValue={(value) => <Typography sx={{ textTransform: 'capitalize' }}>{value}</Typography>}
                 >
                     {
-                        validators.map((validator) => (
+                        validators && validators.map((validator) => (
                             <MenuItem value={validator} key={validator}>
                                 <ListItemText>{validator}</ListItemText>
                             </MenuItem>
                         ))
                     }
                 </Select>
-  };
+    )};
   

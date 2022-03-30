@@ -23,3 +23,4 @@ export * from './vestingperiod';
 export * from './pendingundelegate';
 export * from './delegationevent';
 export * from './epoch';
+export * from './validatorurls';

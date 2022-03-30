@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api';
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { minor, valid } from 'semver';
-import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins } from '../requests';
+import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins, getValidatorUrls } from '../requests';
 import { Coin, Network, TCurrency } from '../types';
 import { Console } from './console';
 
@@ -150,3 +150,13 @@ export const maximizeWindow = async () => {
 export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {
   return arr.filter((v, i, a) => a.findIndex((v2) => v2[id] === v[id]) === i);
 }
+
+export const validatorUrls = async (network: Network) => {
+  try {
+    const urls = await getValidatorUrls(network);
+    return urls;
+  } catch (e) {
+    Console.error(e as string);
+  }
+  return null;
+};

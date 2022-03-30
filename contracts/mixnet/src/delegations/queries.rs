@@ -58,10 +58,10 @@ pub(crate) fn query_delegator_delegations_paged(
     ))
 }
 
-pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<(usize, String)>, ContractError> {
+pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
     Ok(storage::delegations()
         .keys_raw(storage, None, None, Order::Ascending)
-        .map(|k| (k.len(), hex::encode(k)))
+        .map(hex::encode)
         .collect())
 }
 
@@ -143,8 +143,6 @@ pub(crate) fn query_mixnode_delegations_paged(
     start_after: Option<(String, u64)>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
-    let arg_start_after = start_after.clone();
-
     let limit = limit
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
@@ -160,13 +158,9 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|record| record.1)
         .collect::<Vec<Delegation>>();
 
-    let mut start_next_after = delegations
+    let start_next_after = delegations
         .last()
         .map(|delegation| (delegation.owner().to_string(), delegation.block_height()));
-
-    if arg_start_after == start_next_after {
-        start_next_after = None;
-    }
 
     Ok(PagedMixDelegationsResponse::new(
         delegations,

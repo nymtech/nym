@@ -377,8 +377,8 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 
 // CLEAN UP DELEGATION STORAGE
 
-// MIGRATE OLD DELEGATION STORAGE
 // applied on QAnet
+#[allow(dead_code)]
 pub fn clean_up_duplicate_delegations(storage: &mut dyn Storage) -> Result<(), ContractError> {
     use crate::delegations::storage::{
         DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
@@ -431,8 +431,7 @@ pub fn clean_up_duplicate_delegations(storage: &mut dyn Storage) -> Result<(), C
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    clean_up_duplicate_delegations(deps.storage)?;
-
+    // clean_up_duplicate_delegations(deps.storage)?;
     Ok(Default::default())
 }
 

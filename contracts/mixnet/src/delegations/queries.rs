@@ -69,7 +69,7 @@ use std::collections::HashSet;
 
 pub fn query_all_delegation_values(
     storage: &dyn Storage,
-) -> Result<Vec<(String, Delegation)>, ContractError> {
+) -> Result<HashSet<Delegation>, ContractError> {
     use crate::delegations::storage::{
         DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
         DELEGATION_PK_NAMESPACE,
@@ -99,9 +99,10 @@ pub fn query_all_delegation_values(
     let all_delegations = all_delegations()
         .range(storage, None, None, Order::Ascending)
         .filter_map(|r| r.ok())
-        .map(|(key, delegation)| (hex::encode(key), delegation))
-        .collect::<Vec<(String, Delegation)>>();
+        .map(|(_key, delegation)| delegation)
+        .collect::<HashSet<Delegation>>();
 
+    // TODO: General plan - build HashSet of delegations, remove all keys from current delegation thing, reinsert delegations
 
     Ok(all_delegations)
 }

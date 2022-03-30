@@ -69,9 +69,9 @@ impl Wallet {
         let o_d = params.random_scalar();
 
         // compute commitments A, C, D
-        let A = params.gen1() * o_a + params.gamma1().unwrap() * Scalar::from(self.l());
-        let C = params.gen1() * o_c + params.gamma1().unwrap() * self.v();
-        let D = params.gen1() * o_d + params.gamma1().unwrap() * self.t();
+        let A = params.gen1() * o_a + params.gamma1() * Scalar::from(self.l());
+        let C = params.gen1() * o_c + params.gamma1() * self.v();
+        let D = params.gen1() * o_d + params.gamma1() * self.t();
 
         // compute hash of the payment info
         let R = hash_to_scalar(payInfo.info);

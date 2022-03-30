@@ -135,14 +135,14 @@ impl SpendProof {
         let r_o_a = params.random_scalar();
         let r_o_c = params.random_scalar();
         let r_o_d = params.random_scalar();
-        let r_mu = (r_v + r_l + Scalar::from(1)).invert().unwrap();
-        let r_lambda = (r_t + r_l + Scalar::from(1)).invert().unwrap();
+        let r_mu = params.random_scalar();
+        let r_lambda = params.random_scalar();
 
-        let r_o_mu = ((r_o_a + r_o_c) * r_mu).neg();
+        let r_o_mu = params.random_scalar();
         let r_o_lambda = params.random_scalar();
 
         let g1 = params.gen1();
-        let gamma1 = params.gamma1().unwrap();
+        let gamma1 = params.gamma1();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -162,7 +162,8 @@ impl SpendProof {
         let zkcm_C = g1 * r_o_c + gamma1 * r_v;
         let zkcm_D = g1 * r_o_d + gamma1 * r_t;
         let zkcm_S = g1 * r_mu;
-        let zkcm_gamma11 = (g1 * r_o_a + gamma1 * r_l + g1 * r_o_c + gamma1 * r_v + gamma1) * r_mu + g1 * r_o_mu;
+        let zkcm_gamma11 = (instance.A + instance.C + gamma1) * r_mu + g1 * r_o_mu;
+        // println!("Cst: {:?}", zkcm_gamma11);
         let zkcm_T = g1 * r_sk + (g1 * R) * r_lambda;
         let zkcm_gamma12 = (instance.A + instance.D + gamma1) * r_lambda + g1 * r_o_lambda;
 
@@ -223,7 +224,7 @@ impl SpendProof {
                   verification_key: &VerificationKeyAuth,
                   R: Scalar) -> bool {
         let g1 = params.gen1();
-        let gamma1 = params.gamma1().unwrap();
+        let gamma1 = params.gamma1();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -244,7 +245,8 @@ impl SpendProof {
         let zkcm_C = g1 * self.response_o_c + gamma1 * self.response_attributes[1] + instance.C * self.challenge;
         let zkcm_D = g1 * self.response_o_d + gamma1 * self.response_attributes[2] + instance.D * self.challenge;
         let zkcm_S = g1 * self.response_mu + instance.S * self.challenge;
-        let zkcm_gamma11 = (g1 * self.response_o_a + gamma1 * self.response_l + g1 * self.response_o_c + gamma1 * self.response_attributes[1] + gamma1) * self.response_mu + g1 * self.response_o_mu + gamma1 * self.challenge;
+        let zkcm_gamma11 = (instance.A + instance.C + gamma1) * self.response_mu + g1 * self.response_o_mu + gamma1 * self.challenge;
+        // println!("Vfy: {:?}", zkcm_gamma11);
         let zkcm_T = g1 * self.response_attributes[0] + (g1 * R) * self.response_lambda + instance.T * self.challenge;
         let zkcm_gamma12 = (instance.A + instance.D + gamma1) * self.response_lambda + g1 * self.response_o_lambda + gamma1 * self.challenge;
 
@@ -271,7 +273,7 @@ impl SpendProof {
 
 #[cfg(test)]
 mod tests {
-    use bls12_381::{G2Projective, Scalar};
+    use bls12_381::{G1Projective, G2Projective, Scalar};
     use rand::thread_rng;
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
@@ -302,7 +304,7 @@ mod tests {
         let t = params.random_scalar();
         let attributes = vec![sk, v, t];
         let l = 5;
-        let gamma1 = params.gamma1().unwrap();
+        let gamma1 = params.gamma1();
         let g1 = params.gen1();
 
         let r = params.random_scalar();
@@ -336,6 +338,26 @@ mod tests {
         let o_mu = ((o_a + o_c) * mu).neg();
         let lambda = (t + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
         let o_lambda = ((o_a + o_d) * lambda).neg();
+
+        let testVal = (A + C + gamma1) * mu + g1 * o_mu;//(A + C + gamma1) * mu + g1 * o_mu;
+        let x = params.random_scalar();
+        let y = x.neg();
+        let z = x + y;
+        // println!("z {:?}", z);
+        // println!("g*Z {:?}", g1 * z);
+        // println!("g*Scalar::Zero {:?}", g1 * Scalar::zero());
+        // println!("inf {:?}", G1Projective::identity());
+        println!("Expected gamma1: {:?}", gamma1);
+        println!("Obtained gamma1: {:?}", testVal);
+        // assert_eq!(A, g1 * o_a + gamma1 * Scalar::from(l));
+        // assert_eq!(C, g1 * o_c + gamma1 * v);
+        // assert_eq!(g1 * o_mu, g1 * ((o_a + o_c) * mu).neg());
+        let xx = (o_a + o_c) * mu;
+        let yy = xx.neg();
+        let zz = xx + yy;
+        println!("zz {:?}", zz);
+        assert_eq!((A + C + gamma1) * mu + g1 * o_mu, (g1 * o_a + gamma1 * Scalar::from(l) + g1 * o_c + gamma1 * v + gamma1) * mu + g1 * o_mu);
+        println!("{:?}", Scalar::from(5));
 
         let instance = SpendInstance {
             kappa,

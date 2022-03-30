@@ -41,6 +41,8 @@ fn main() {
       mixnet::account::create_password,
       mixnet::account::does_password_file_exist,
       mixnet::account::get_balance,
+      mixnet::account::get_validator_nymd_urls,
+      mixnet::account::get_validator_api_urls,
       mixnet::account::logout,
       mixnet::account::remove_password,
       mixnet::account::sign_in_with_password,

@@ -4,7 +4,7 @@
 use crate::bte::proof_chunking::ProofOfChunking;
 use crate::bte::proof_sharing::ProofOfSecretSharing;
 use crate::bte::{
-    encrypt_shares, proof_chunking, proof_sharing, Ciphertexts, Params, PublicKey, Tau,
+    encrypt_shares, proof_chunking, proof_sharing, Ciphertexts, Epoch, Params, PublicKey,
 };
 use crate::error::DkgError;
 use crate::interpolation::polynomial::{Polynomial, PublicCoefficients};
@@ -29,12 +29,10 @@ impl Dealing {
         params: &Params,
         dealer_index: NodeIndex,
         threshold: Threshold,
-        epoch: &Tau,
+        epoch: Epoch,
         // BTreeMap ensures the keys are sorted by their indices
         receivers: &BTreeMap<NodeIndex, PublicKey>,
     ) -> (Self, Option<Share>) {
-        // TODO: perhaps this implies `Tau` should be somehow split to assert this via a stronger type?
-        assert!(epoch.is_valid_epoch(params));
         assert!(threshold > 0);
 
         let polynomial = Polynomial::new_random(&mut rng, threshold - 1);
@@ -102,7 +100,7 @@ impl Dealing {
     pub fn verify(
         &self,
         params: &Params,
-        epoch: &Tau,
+        epoch: Epoch,
         threshold: Threshold,
         receivers: &BTreeMap<NodeIndex, PublicKey>,
     ) -> Result<(), DkgError> {

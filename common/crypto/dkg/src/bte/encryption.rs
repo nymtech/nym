@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::keys::{DecryptionKey, PublicKey};
-use crate::bte::{Params, Tau, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUNKS, PAIRING_BASE};
+use crate::bte::{Epoch, Params, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUNKS, PAIRING_BASE};
 use crate::error::DkgError;
 use crate::utils::{combine_g1_chunks, combine_scalar_chunks};
 use crate::{Chunk, ChunkedShare, Share};
@@ -23,7 +23,7 @@ pub struct Ciphertexts {
 }
 
 impl Ciphertexts {
-    pub fn verify_integrity(&self, params: &Params, tau: &Tau) -> bool {
+    pub fn verify_integrity(&self, params: &Params, epoch: Epoch) -> bool {
         // if this checks fails it means the ciphertext is undefined as values
         // in `r`, `s` and `z` are meaningless since technically this ciphertext
         // has been created for 0 parties
@@ -32,7 +32,7 @@ impl Ciphertexts {
         }
 
         let g1_neg = G1Affine::generator().neg();
-        let f = tau.evaluate_f(params);
+        let f = epoch.as_tau().evaluate_f(params);
 
         // we have to use `f` in up to `NUM_CHUNKS` pairings (if everything is valid),
         // so perform some precomputation on it
@@ -95,7 +95,7 @@ impl HazmatRandomness {
 
 pub fn encrypt_shares(
     shares: &[(&Share, &PublicKey)],
-    epoch: &Tau,
+    epoch: Epoch,
     params: &Params,
     mut rng: impl RngCore,
 ) -> (Ciphertexts, HazmatRandomness) {
@@ -109,7 +109,7 @@ pub fn encrypt_shares(
     let mut ss = Vec::with_capacity(NUM_CHUNKS);
     let mut zs = Vec::with_capacity(NUM_CHUNKS);
 
-    let f = epoch.evaluate_f(params);
+    let f = epoch.as_tau().evaluate_f(params);
 
     // generate relevant re-usable pseudorandom data
     for _ in 0..NUM_CHUNKS {
@@ -171,15 +171,17 @@ fn decrypt_chunk(
     s: &G1Projective,
     z: &G2Projective,
     c: &G1Projective,
-    epoch: &Tau,
+    epoch: Epoch,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Chunk, DkgError> {
     let epoch_node = dk.try_get_compatible_node(epoch)?;
 
+    let tau = epoch.as_tau();
+
     let b_neg = epoch_node
         .ds
         .iter()
-        .zip(epoch.0.iter().by_vals())
+        .zip(tau.0.iter().by_vals())
         .filter(|(_, i)| *i)
         .map(|(d_i, _)| d_i)
         .fold(epoch_node.b, |acc, d_i| acc + d_i)
@@ -207,7 +209,7 @@ pub fn decrypt_share(
     // in the case of multiple receivers, specifies which index of ciphertext chunks should be used
     i: usize,
     ciphertext: &Ciphertexts,
-    epoch: &Tau,
+    epoch: Epoch,
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
     let mut plaintext = ChunkedShare::default();
@@ -377,7 +379,7 @@ mod tests {
 
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (decryption_key2, public_key2) = keygen(&params, &mut rng);
-        let epoch = Tau::new(0);
+        let epoch = Epoch::new(0);
 
         let lookup_table = &DEFAULT_BSGS_TABLE;
 
@@ -386,15 +388,13 @@ mod tests {
             let m2 = Share::random(&mut rng);
             let shares = &[(&m1, &public_key1.key), (&m2, &public_key2.key)];
 
-            let (ciphertext, hazmat) = encrypt_shares(shares, &epoch, &params, &mut rng);
+            let (ciphertext, hazmat) = encrypt_shares(shares, epoch, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
             let recovered1 =
-                decrypt_share(&decryption_key1, 0, &ciphertext, &epoch, Some(lookup_table))
-                    .unwrap();
+                decrypt_share(&decryption_key1, 0, &ciphertext, epoch, Some(lookup_table)).unwrap();
             let recovered2 =
-                decrypt_share(&decryption_key2, 1, &ciphertext, &epoch, Some(lookup_table))
-                    .unwrap();
+                decrypt_share(&decryption_key2, 1, &ciphertext, epoch, Some(lookup_table)).unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }
@@ -408,12 +408,12 @@ mod tests {
 
         let (mut decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (mut decryption_key2, public_key2) = keygen(&params, &mut rng);
-        let epoch = Tau::new(12345);
+        let epoch = Epoch::new(12345);
         decryption_key1
-            .try_update_to(&epoch, &params, &mut rng)
+            .try_update_to(epoch, &params, &mut rng)
             .unwrap();
         decryption_key2
-            .try_update_to(&epoch, &params, &mut rng)
+            .try_update_to(epoch, &params, &mut rng)
             .unwrap();
 
         let lookup_table = &DEFAULT_BSGS_TABLE;
@@ -423,15 +423,13 @@ mod tests {
             let m2 = Share::random(&mut rng);
             let shares = &[(&m1, &public_key1.key), (&m2, &public_key2.key)];
 
-            let (ciphertext, hazmat) = encrypt_shares(shares, &epoch, &params, &mut rng);
+            let (ciphertext, hazmat) = encrypt_shares(shares, epoch, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
             let recovered1 =
-                decrypt_share(&decryption_key1, 0, &ciphertext, &epoch, Some(lookup_table))
-                    .unwrap();
+                decrypt_share(&decryption_key1, 0, &ciphertext, epoch, Some(lookup_table)).unwrap();
             let recovered2 =
-                decrypt_share(&decryption_key2, 1, &ciphertext, &epoch, Some(lookup_table))
-                    .unwrap();
+                decrypt_share(&decryption_key2, 1, &ciphertext, epoch, Some(lookup_table)).unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }
@@ -447,25 +445,25 @@ mod tests {
 
         let share = Share::random(&mut rng);
 
-        let epoch0 = Tau::new(0);
-        let epoch42 = Tau::new(42);
-        let epoch_big = Tau::new(3292547435);
+        let epoch0 = Epoch::new(0);
+        let epoch42 = Epoch::new(42);
+        let epoch_big = Epoch::new(3292547435);
 
         let (ciphertext1, hazmat1) =
-            encrypt_shares(&[(&share, &public_key.key)], &epoch0, &params, &mut rng);
+            encrypt_shares(&[(&share, &public_key.key)], epoch0, &params, &mut rng);
         verify_hazmat_rand(&ciphertext1, &hazmat1);
 
         let (ciphertext2, hazmat2) =
-            encrypt_shares(&[(&share, &public_key.key)], &epoch42, &params, &mut rng);
+            encrypt_shares(&[(&share, &public_key.key)], epoch42, &params, &mut rng);
         verify_hazmat_rand(&ciphertext2, &hazmat2);
 
         let (ciphertext3, hazmat3) =
-            encrypt_shares(&[(&share, &public_key.key)], &epoch_big, &params, &mut rng);
+            encrypt_shares(&[(&share, &public_key.key)], epoch_big, &params, &mut rng);
         verify_hazmat_rand(&ciphertext3, &hazmat3);
 
-        let recovered1 = decrypt_share(&root_key, 0, &ciphertext1, &epoch0, None).unwrap();
-        let recovered2 = decrypt_share(&root_key, 0, &ciphertext2, &epoch42, None).unwrap();
-        let recovered3 = decrypt_share(&root_key, 0, &ciphertext3, &epoch_big, None).unwrap();
+        let recovered1 = decrypt_share(&root_key, 0, &ciphertext1, epoch0, None).unwrap();
+        let recovered2 = decrypt_share(&root_key, 0, &ciphertext2, epoch42, None).unwrap();
+        let recovered3 = decrypt_share(&root_key, 0, &ciphertext3, epoch_big, None).unwrap();
 
         assert_eq!(share, recovered1);
         assert_eq!(share, recovered2);
@@ -480,18 +478,18 @@ mod tests {
 
         let (mut decryption_key, public_key) = keygen(&params, &mut rng);
 
-        for epoch in 0..10 {
-            let tau = Tau::new(epoch);
+        for epoch_value in 0..10 {
+            let epoch = Epoch::new(epoch_value);
             let share = Share::random(&mut rng);
             decryption_key
-                .try_update_to(&tau, &params, &mut rng)
+                .try_update_to(epoch, &params, &mut rng)
                 .unwrap();
 
             let (ciphertext, hazmat) =
-                encrypt_shares(&[(&share, &public_key.key)], &tau, &params, &mut rng);
+                encrypt_shares(&[(&share, &public_key.key)], epoch, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered = decrypt_share(&decryption_key, 0, &ciphertext, &tau, None).unwrap();
+            let recovered = decrypt_share(&decryption_key, 0, &ciphertext, epoch, None).unwrap();
             assert_eq!(share, recovered);
         }
     }
@@ -504,9 +502,9 @@ mod tests {
 
         let (mut decryption_key, public_key) = keygen(&params, &mut rng);
 
-        let tau = Tau::new(12345);
+        let epoch = Epoch::new(12345);
         decryption_key
-            .try_update_to(&tau, &params, &mut rng)
+            .try_update_to(epoch, &params, &mut rng)
             .unwrap();
         for node in decryption_key.nodes.iter_mut() {
             node.reblind(&params, &mut rng);
@@ -514,16 +512,16 @@ mod tests {
         let share = Share::random(&mut rng);
 
         let (ciphertext, hazmat) =
-            encrypt_shares(&[(&share, &public_key.key)], &tau, &params, &mut rng);
+            encrypt_shares(&[(&share, &public_key.key)], epoch, &params, &mut rng);
         verify_hazmat_rand(&ciphertext, &hazmat);
 
-        let recovered = decrypt_share(&decryption_key, 0, &ciphertext, &tau, None).unwrap();
+        let recovered = decrypt_share(&decryption_key, 0, &ciphertext, epoch, None).unwrap();
         assert_eq!(share, recovered);
 
         // attempt to update the key again so we have to derive fresh nodes using previous reblinded results
-        let tau2 = Tau::new(67890);
+        let epoch2 = Epoch::new(67890);
         decryption_key
-            .try_update_to(&tau2, &params, &mut rng)
+            .try_update_to(epoch2, &params, &mut rng)
             .unwrap();
         for node in decryption_key.nodes.iter_mut() {
             node.reblind(&params, &mut rng);
@@ -531,10 +529,10 @@ mod tests {
         let share2 = Share::random(&mut rng);
 
         let (ciphertext, hazmat) =
-            encrypt_shares(&[(&share2, &public_key.key)], &tau2, &params, &mut rng);
+            encrypt_shares(&[(&share2, &public_key.key)], epoch2, &params, &mut rng);
         verify_hazmat_rand(&ciphertext, &hazmat);
 
-        let recovered = decrypt_share(&decryption_key, 0, &ciphertext, &tau2, None).unwrap();
+        let recovered = decrypt_share(&decryption_key, 0, &ciphertext, epoch2, None).unwrap();
         assert_eq!(share2, recovered);
     }
 
@@ -546,13 +544,13 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let (mut dk, public_key) = keygen(&params, &mut rng);
-        let epoch = Tau::new(1);
+        let epoch = Epoch::new(1);
 
-        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        dk.try_update_to(epoch, &params, &mut rng).unwrap();
         let share = Share::random(&mut rng);
         let (ciphertext, _) =
-            encrypt_shares(&[(&share, &public_key.key)], &epoch, &params, &mut rng);
-        assert!(ciphertext.verify_integrity(&params, &epoch))
+            encrypt_shares(&[(&share, &public_key.key)], epoch, &params, &mut rng);
+        assert!(ciphertext.verify_integrity(&params, epoch))
     }
 
     #[test]
@@ -563,24 +561,24 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let (mut dk, public_key) = keygen(&params, &mut rng);
-        let epoch = Tau::new(1);
+        let epoch = Epoch::new(1);
 
-        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        dk.try_update_to(epoch, &params, &mut rng).unwrap();
         let share = Share::random(&mut rng);
         let (ciphertext, _) =
-            encrypt_shares(&[(&share, &public_key.key)], &epoch, &params, &mut rng);
+            encrypt_shares(&[(&share, &public_key.key)], epoch, &params, &mut rng);
 
         let mut bad_cipher1 = ciphertext.clone();
         bad_cipher1.r[4] = G1Projective::generator();
-        assert!(!bad_cipher1.verify_integrity(&params, &epoch));
+        assert!(!bad_cipher1.verify_integrity(&params, epoch));
 
         let mut bad_cipher2 = ciphertext.clone();
         bad_cipher2.s[4] = G1Projective::generator();
-        assert!(!bad_cipher2.verify_integrity(&params, &epoch));
+        assert!(!bad_cipher2.verify_integrity(&params, epoch));
 
         let mut bad_cipher3 = ciphertext;
         bad_cipher3.z[4] = G2Projective::generator();
-        assert!(!bad_cipher3.verify_integrity(&params, &epoch));
+        assert!(!bad_cipher3.verify_integrity(&params, epoch));
     }
 
     #[test]
@@ -591,15 +589,15 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let (mut dk, public_key) = keygen(&params, &mut rng);
-        let epoch = Tau::new(1);
+        let epoch = Epoch::new(1);
 
-        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        dk.try_update_to(epoch, &params, &mut rng).unwrap();
         let share = Share::random(&mut rng);
         let (ciphertext, _) =
-            encrypt_shares(&[(&share, &public_key.key)], &epoch, &params, &mut rng);
+            encrypt_shares(&[(&share, &public_key.key)], epoch, &params, &mut rng);
 
-        let another_epoch = Tau::new(2);
-        assert!(!ciphertext.verify_integrity(&params, &another_epoch))
+        let another_epoch = Epoch::new(2);
+        assert!(!ciphertext.verify_integrity(&params, another_epoch))
     }
 
     #[test]
@@ -620,7 +618,7 @@ mod tests {
         }
 
         let refs = shares.iter().zip(public_keys.iter()).collect::<Vec<_>>();
-        let (ciphertext, hazmat) = encrypt_shares(&refs, &Tau::new(42), &params, &mut rng);
+        let (ciphertext, hazmat) = encrypt_shares(&refs, Epoch::new(42), &params, &mut rng);
 
         let combined_r = combine_scalar_chunks(hazmat.r());
         let combined_rr = ciphertext.combine_rs();

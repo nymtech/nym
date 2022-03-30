@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::proof_discrete_log::ProofOfDiscreteLog;
-use crate::bte::{Params, Tau};
+use crate::bte::{Epoch, Params, Tau};
 use crate::error::DkgError;
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
@@ -215,15 +215,21 @@ impl DecryptionKey {
         self.nodes.last().ok_or(DkgError::MalformedDecryptionKey)
     }
 
-    fn current_epoch(&self) -> Result<&Tau, DkgError> {
-        self.current().map(|node| &node.tau)
+    pub fn current_epoch(&self, params: &Params) -> Result<Option<Epoch>, DkgError> {
+        let current_node = self.current()?;
+        if current_node.is_root() {
+            Ok(None)
+        } else {
+            Epoch::try_from_tau(&current_node.tau, params).map(Option::Some)
+        }
     }
 
-    pub(crate) fn try_get_compatible_node(&self, epoch: &Tau) -> Result<&Node, DkgError> {
+    pub(crate) fn try_get_compatible_node(&self, epoch: Epoch) -> Result<&Node, DkgError> {
+        let tau = epoch.as_tau();
         self.nodes
             .iter()
             .rev()
-            .find(|node| node.tau.is_parent_of(epoch))
+            .find(|node| node.tau.is_parent_of(&tau))
             .ok_or(DkgError::ExpiredKey)
     }
 
@@ -236,9 +242,9 @@ impl DecryptionKey {
             return Err(DkgError::MalformedDecryptionKey);
         }
 
-        let mut target_epoch = Tau::new(0);
+        let mut target_epoch = Epoch::new(0);
         if self.nodes.len() == 1 && self.nodes[0].is_root() {
-            return self.try_update_to(&target_epoch, params, &mut rng);
+            return self.try_update_to(target_epoch, params, &mut rng);
         }
 
         // unwrap is fine as we have asserted self.nodes is not empty
@@ -253,7 +259,7 @@ impl DecryptionKey {
             return Err(DkgError::MalformedDecryptionKey);
         }
 
-        self.try_update_to(&target_epoch, params, &mut rng)
+        self.try_update_to(target_epoch, params, &mut rng)
     }
 
     /// Attempts to update `self` to the provided `epoch`. If the update is not possible,
@@ -263,7 +269,7 @@ impl DecryptionKey {
     /// there are no guarantees about its internal state post-call.
     pub fn try_update_to(
         &mut self,
-        target_epoch: &Tau,
+        target_epoch: Epoch,
         params: &Params,
         mut rng: impl RngCore,
     ) -> Result<(), DkgError> {
@@ -272,17 +278,16 @@ impl DecryptionKey {
             return Err(DkgError::MalformedDecryptionKey);
         }
 
-        if !target_epoch.is_leaf(params) {
-            return Err(DkgError::MalformedEpoch);
-        }
+        // makes it easier to work with since we will be generating non-leaf nodes
+        let target_tau = target_epoch.as_tau();
+        let current_tau = &self.current()?.tau;
 
-        let current_epoch = self.current_epoch()?;
-        if current_epoch == target_epoch {
+        if current_tau == &target_tau {
             // our key is already updated to the target
             return Ok(());
         }
 
-        if current_epoch > target_epoch {
+        if current_tau > &target_tau {
             // we cannot derive keys for past epochs
             return Err(DkgError::TargetEpochUpdateInThePast);
         }
@@ -292,7 +297,7 @@ impl DecryptionKey {
             // if pop() fails the key is malformed since we checked that the target_epoch > current_epoch,
             // hence the update should have been possible
             let tail = self.nodes.pop().ok_or(DkgError::MalformedDecryptionKey)?;
-            if tail.tau.is_parent_of(target_epoch) {
+            if tail.tau.is_parent_of(&target_tau) {
                 break tail;
             }
         };
@@ -300,7 +305,7 @@ impl DecryptionKey {
         // essentially the case of updating epoch n to n + 1, where n is even;
         // in that case the last two nodes are [..., epoch_{n+1}, epoch_n]
         // so we just have to reblind the n+1 node and we're done
-        if &parent.tau == target_epoch {
+        if parent.tau == target_tau {
             parent.reblind(params, &mut rng);
             self.nodes.push(parent);
             return Ok(());
@@ -316,7 +321,7 @@ impl DecryptionKey {
         let parent_height = parent.tau.height();
 
         // path from the parent to the child
-        for (n, bit) in target_epoch
+        for (n, bit) in target_tau
             .0
             .iter()
             .by_vals()
@@ -336,7 +341,7 @@ impl DecryptionKey {
             // finally, in the last iteration, we look at the bit `0` and derive node `PREFIX || 011`,
             // i.e. the one that FOLLOWS the target node.
             if !bit {
-                let direct_parent = target_epoch.try_get_parent_at_height(i)?;
+                let direct_parent = target_tau.try_get_parent_at_height(i)?;
 
                 self.nodes
                     .push(parent.derive_right_nonfinal_child_of_with_partials(
@@ -358,7 +363,7 @@ impl DecryptionKey {
 
         self.nodes.push(parent.derive_target_child_with_partials(
             params,
-            target_epoch.clone(),
+            target_epoch.as_tau(),
             &new_b_accumulator,
             &new_f_accumulator,
             &mut rng,
@@ -397,7 +402,7 @@ mod tests {
 
         // we have to have a node for right branch on each height (1, 01, 001, ... etc)
         // plus an additional one for the two left-most leaves (epochs "0" and "1")
-        dk.try_update_to(&Tau::new(0), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(0), &params, &mut rng).unwrap();
         assert_eq!(dk.nodes.len(), 33);
 
         let expected_last = Tau::new(0);
@@ -417,7 +422,7 @@ mod tests {
         let mut epoch_zero_nodes = dk.nodes.clone();
 
         // nodes for epoch1 should be identical for those for epoch0 minus the 00..00 leaf
-        dk.try_update_to(&Tau::new(1), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(1), &params, &mut rng).unwrap();
         assert_eq!(dk.nodes.len(), 32);
         epoch_zero_nodes.pop().unwrap();
         assert_eq!(
@@ -431,9 +436,9 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        dk.try_update_to(&Tau::new(2), &params, &mut rng).unwrap();
-        dk.try_update_to(&Tau::new(3), &params, &mut rng).unwrap();
-        dk.try_update_to(&Tau::new(4), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(2), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(3), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(4), &params, &mut rng).unwrap();
 
         let expected_last = Tau::new(4);
         let expected_penultimate = Tau::new(5);
@@ -455,7 +460,7 @@ mod tests {
             nodes: root_node_copy,
         };
         new_root
-            .try_update_to(&Tau::new(4), &params, &mut rng)
+            .try_update_to(Epoch::new(4), &params, &mut rng)
             .unwrap();
         assert_eq!(
             dk.nodes
@@ -471,17 +476,19 @@ mod tests {
 
         // getting expected nodes for those epochs is non-trivial for test purposes, but the last node
         // should ALWAYS be equal to the target epoch
-        dk.try_update_to(&Tau::new(42), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(42), &params, &mut rng).unwrap();
         assert_eq!(dk.nodes.last().unwrap().tau, Tau::new(42));
-        dk.try_update_to(&Tau::new(123456), &params, &mut rng)
+        dk.try_update_to(Epoch::new(123456), &params, &mut rng)
             .unwrap();
         assert_eq!(dk.nodes.last().unwrap().tau, Tau::new(123456));
-        dk.try_update_to(&Tau::new(3292547435), &params, &mut rng)
+        dk.try_update_to(Epoch::new(3292547435), &params, &mut rng)
             .unwrap();
         assert_eq!(dk.nodes.last().unwrap().tau, Tau::new(3292547435));
 
         // trying to go to past epochs fails
-        assert!(dk.try_update_to(&Tau::new(531), &params, &mut rng).is_err())
+        assert!(dk
+            .try_update_to(Epoch::new(531), &params, &mut rng)
+            .is_err())
     }
 
     #[test]
@@ -493,29 +500,35 @@ mod tests {
 
         let (mut dk, _) = keygen(&params, &mut rng);
 
+        // for root node current epoch is `None`
+        assert_eq!(None, dk.current_epoch(&params).unwrap());
+
         // for root node it should result in epoch 0
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
-        assert_eq!(&Tau::new(0), dk.current_epoch().unwrap());
+        assert_eq!(Some(Epoch::new(0)), dk.current_epoch(&params).unwrap());
 
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
-        assert_eq!(&Tau::new(1), dk.current_epoch().unwrap());
+        assert_eq!(Some(Epoch::new(1)), dk.current_epoch(&params).unwrap());
 
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
-        assert_eq!(&Tau::new(2), dk.current_epoch().unwrap());
+        assert_eq!(Some(Epoch::new(2)), dk.current_epoch(&params).unwrap());
 
         // if we start from some non-root epoch, it should result in l + 1
-        dk.try_update_to(&Tau::new(42), &params, &mut rng).unwrap();
+        dk.try_update_to(Epoch::new(42), &params, &mut rng).unwrap();
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
-        assert_eq!(&Tau::new(43), dk.current_epoch().unwrap());
+        assert_eq!(Some(Epoch::new(43)), dk.current_epoch(&params).unwrap());
 
-        dk.try_update_to(&Tau::new(12345), &params, &mut rng)
+        dk.try_update_to(Epoch::new(12345), &params, &mut rng)
             .unwrap();
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
-        assert_eq!(&Tau::new(12346), dk.current_epoch().unwrap());
+        assert_eq!(Some(Epoch::new(12346)), dk.current_epoch(&params).unwrap());
 
-        dk.try_update_to(&Tau::new(3292547435), &params, &mut rng)
+        dk.try_update_to(Epoch::new(3292547435), &params, &mut rng)
             .unwrap();
         dk.try_update_to_next_epoch(&params, &mut rng).unwrap();
-        assert_eq!(&Tau::new(3292547436), dk.current_epoch().unwrap());
+        assert_eq!(
+            Some(Epoch::new(3292547436)),
+            dk.current_epoch(&params).unwrap()
+        );
     }
 }

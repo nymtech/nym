@@ -4,6 +4,7 @@
 use crate::error::DkgError;
 use crate::utils::hash_g2;
 use crate::{Chunk, Share};
+use bitvec::field::BitField;
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
 use bitvec::view::BitView;
@@ -45,21 +46,20 @@ pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 // None empty bitvec implies this is a root node
-pub struct Tau(BitVec<u32, Msb0>);
+pub(crate) struct Tau(BitVec<u32, Msb0>);
 
 impl Tau {
     pub fn new_root() -> Self {
         Tau(BitVec::new())
     }
 
-    pub fn new(epoch: u32) -> Self {
+    // TODO: perhaps this should be explicitly moved to some test module
+    #[cfg(test)]
+    pub(crate) fn new(epoch: u32) -> Self {
         Tau(epoch.view_bits().to_bitvec())
     }
 
-    pub fn is_valid_epoch(&self, params: &Params) -> bool {
-        self.is_leaf(params)
-    }
-
+    #[allow(unused)]
     pub fn left_child(&self) -> Self {
         let mut child = self.0.clone();
         child.push(false);
@@ -99,7 +99,7 @@ impl Tau {
         true
     }
 
-    pub fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Self, DkgError> {
+    pub fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Epoch, DkgError> {
         if self.0.len() > params.tree_height {
             // this node is already BELOW a valid leaf-epoch node. it can only happen
             // if either some invariant was broken or additional data was pushed to `tau`
@@ -112,7 +112,10 @@ impl Tau {
             child.push(false)
         }
 
-        Ok(Tau(child))
+        // the unwrap here is fine as we ensure we have exactly `params.tree_height` bits here
+        // (we could just propagate the error instead of unwraping and putting it behind an `Ok` anyway
+        // but I'd prefer to just blow up since this would be a serious error
+        Ok(Epoch::try_from_tau(&Tau(child), params).unwrap())
     }
 
     pub fn height(&self) -> usize {
@@ -136,6 +139,39 @@ impl Zeroize for Tau {
         for v in self.0.as_raw_mut_slice() {
             v.zeroize()
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct Epoch(u32);
+
+impl Epoch {
+    pub fn new(value: u32) -> Self {
+        Epoch(value)
+    }
+
+    pub(crate) fn as_tau(&self) -> Tau {
+        (*self).into()
+    }
+
+    pub(crate) fn try_from_tau(tau: &Tau, params: &Params) -> Result<Self, DkgError> {
+        if !tau.is_leaf(params) {
+            Err(DkgError::MalformedEpoch)
+        } else {
+            Ok(Epoch(tau.0.load_be()))
+        }
+    }
+}
+
+impl From<Epoch> for Tau {
+    fn from(epoch: Epoch) -> Self {
+        Tau(epoch.0.view_bits().to_bitvec())
+    }
+}
+
+impl From<u32> for Epoch {
+    fn from(epoch: u32) -> Self {
+        Epoch(epoch)
     }
 }
 
@@ -229,5 +265,40 @@ mod tests {
         assert_eq!(expected_5, tau.try_get_parent_at_height(5).unwrap());
         assert_eq!(tau, tau.try_get_parent_at_height(7).unwrap());
         assert!(tau.try_get_parent_at_height(8).is_err())
+    }
+
+    #[test]
+    fn converting_tau_to_epoch() {
+        let params = setup();
+
+        let tau0: Tau = Epoch::new(0).into();
+        let tau1: Tau = Epoch::new(1).into();
+        let tau42: Tau = Epoch::new(42).into();
+        let tau_big: Tau = Epoch::new(3292547435).into();
+
+        assert_eq!(Epoch::new(0), Epoch::try_from_tau(&tau0, &params).unwrap());
+        assert_eq!(Epoch::new(1), Epoch::try_from_tau(&tau1, &params).unwrap());
+        assert_eq!(
+            Epoch::new(42),
+            Epoch::try_from_tau(&tau42, &params).unwrap()
+        );
+        assert_eq!(
+            Epoch::new(3292547435),
+            Epoch::try_from_tau(&tau_big, &params).unwrap()
+        );
+
+        assert!(Epoch::try_from_tau(&Tau(BitVec::new()), &params).is_err());
+        assert!(Epoch::try_from_tau(&Tau(bitvec![u32, Msb0; 1,0,1,1,0]), &params).is_err());
+        let _31bit_tau = Tau(bitvec![u32, Msb0;
+            1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
+            0, 1
+        ]);
+        assert!(Epoch::try_from_tau(&_31bit_tau, &params).is_err());
+
+        let _33bit_tau = Tau(bitvec![u32, Msb0;
+            1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
+            0, 1, 1, 0
+        ]);
+        assert!(Epoch::try_from_tau(&_33bit_tau, &params).is_err());
     }
 }

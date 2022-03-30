@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bls12_381::Scalar;
-use dkg::bte::{decrypt_share, keygen, setup, Tau};
+use dkg::bte::{decrypt_share, keygen, setup, Epoch};
 use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use dkg::{combine_shares, Dealing};
 use rand_core::SeedableRng;
@@ -32,7 +32,7 @@ fn single_sender() {
     }
 
     // start off in a defined epoch (i.e. not root);
-    let epoch = Tau::new(2);
+    let epoch = Epoch::new(2);
 
     // TODO: HERE BE SERIALIZATION / DESERIALIZATION THAT'S NOT IMPLEMENTED YET
     // verify remote proofs of key possession
@@ -45,22 +45,22 @@ fn single_sender() {
         &params,
         node_indices[0],
         threshold,
-        &epoch,
+        epoch,
         &receivers,
     );
     dealing
-        .verify(&params, &epoch, threshold, &receivers)
+        .verify(&params, epoch, threshold, &receivers)
         .unwrap();
 
     // make sure each share is actually decryptable (even though proofs say they must be, perform this sanity check)
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
-        let _recovered = decrypt_share(dk, i, &dealing.ciphertexts, &epoch, None).unwrap();
+        dk.try_update_to(epoch, &params, &mut rng).unwrap();
+        let _recovered = decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap();
     }
 
     // and for good measure, check that the dealer's share matches decryption result
     let recovered_dealer =
-        decrypt_share(&full_keys[0].0, 0, &dealing.ciphertexts, &epoch, None).unwrap();
+        decrypt_share(&full_keys[0].0, 0, &dealing.ciphertexts, epoch, None).unwrap();
     assert_eq!(recovered_dealer, dealer_share.unwrap())
 }
 
@@ -85,7 +85,7 @@ fn full_threshold_secret_sharing() {
     }
 
     // start off in a defined epoch (i.e. not root);
-    let epoch = Tau::new(2);
+    let epoch = Epoch::new(2);
 
     // TODO: HERE BE SERIALIZATION / DESERIALIZATION THAT'S NOT IMPLEMENTED YET
     // verify remote proofs of key possession
@@ -98,11 +98,11 @@ fn full_threshold_secret_sharing() {
         &params,
         node_indices[0],
         threshold,
-        &epoch,
+        epoch,
         &receivers,
     );
     dealing1
-        .verify(&params, &epoch, threshold, &receivers)
+        .verify(&params, epoch, threshold, &receivers)
         .unwrap();
 
     let (dealing2, _dealer_share2) = Dealing::create(
@@ -110,11 +110,11 @@ fn full_threshold_secret_sharing() {
         &params,
         node_indices[1],
         threshold,
-        &epoch,
+        epoch,
         &receivers,
     );
     dealing2
-        .verify(&params, &epoch, threshold, &receivers)
+        .verify(&params, epoch, threshold, &receivers)
         .unwrap();
 
     let (dealing3, _dealer_share3) = Dealing::create(
@@ -122,21 +122,21 @@ fn full_threshold_secret_sharing() {
         &params,
         node_indices[2],
         threshold,
-        &epoch,
+        epoch,
         &receivers,
     );
     dealing3
-        .verify(&params, &epoch, threshold, &receivers)
+        .verify(&params, epoch, threshold, &receivers)
         .unwrap();
 
     let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-        dk.try_update_to(&epoch, &params, &mut rng).unwrap();
+        dk.try_update_to(epoch, &params, &mut rng).unwrap();
 
         // threshold was 2
-        let share1 = decrypt_share(dk, i, &dealing1.ciphertexts, &epoch, None).unwrap();
-        let share2 = decrypt_share(dk, i, &dealing2.ciphertexts, &epoch, None).unwrap();
-        let share3 = decrypt_share(dk, i, &dealing3.ciphertexts, &epoch, None).unwrap();
+        let share1 = decrypt_share(dk, i, &dealing1.ciphertexts, epoch, None).unwrap();
+        let share2 = decrypt_share(dk, i, &dealing2.ciphertexts, epoch, None).unwrap();
+        let share3 = decrypt_share(dk, i, &dealing3.ciphertexts, epoch, None).unwrap();
 
         // we know dealer_share matches, but it would be inconvenient to try to put them in here,
         // so for ease of use (IN A TEST SETTING), just decrypt one's own share

@@ -131,9 +131,13 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_gateways(),
         )?;
 
-        let rewarded_set_identities = self.nymd_client.get_rewarded_set_identities().await?;
-        let (rewarded_set, active_set) =
-            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
+        let (rewarded_set, active_set) = if let Ok(rewarded_set_identities) =
+            self.nymd_client.get_rewarded_set_identities().await
+        {
+            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities)
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
 
@@ -154,15 +158,19 @@ impl<C> ValidatorCacheRefresher<C> {
             .await;
 
         if let Some(notify) = &self.update_rewarded_set_notify {
-            let update_details = self
+            if let Ok(update_details) = self
                 .nymd_client
                 .get_current_rewarded_set_update_details()
-                .await?;
-
-            if update_details.last_refreshed_block + (update_details.refresh_rate_blocks as u64)
-                < update_details.current_height
+                .await
             {
-                // there's only ever a single waiter -> the set updater
+                if update_details.last_refreshed_block + (update_details.refresh_rate_blocks as u64)
+                    < update_details.current_height
+                {
+                    // there's only ever a single waiter -> the set updater
+                    notify.notify_one()
+                }
+            } else {
+                // This has the potential to be spammy, we'll find out
                 notify.notify_one()
             }
         }

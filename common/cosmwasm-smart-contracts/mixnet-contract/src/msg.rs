@@ -139,6 +139,7 @@ pub enum QueryMsg {
     GetDelegationDetails {
         mix_identity: IdentityKey,
         delegator: String,
+        proxy: Option<String>,
     },
     LayerDistribution {},
     GetRewardPool {},

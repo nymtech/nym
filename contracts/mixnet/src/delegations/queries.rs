@@ -113,11 +113,16 @@ pub(crate) fn query_mixnode_delegation(
     api: &dyn Api,
     mix_identity: IdentityKey,
     delegator: String,
+    proxy: Option<String>,
 ) -> Result<Vec<Delegation>, ContractError> {
     let validated_delegator = api.addr_validate(&delegator)?;
+    let proxy = proxy.map(|p| api.addr_validate(&p).expect("Invalid proxy address"));
     let storage_key = (
         mix_identity.clone(),
-        validated_delegator.as_bytes().to_vec(),
+        mixnet_contract_common::delegation::generate_storage_key(
+            &validated_delegator,
+            proxy.as_ref(),
+        ),
     );
 
     let delegations = storage::delegations()
@@ -147,8 +152,12 @@ pub(crate) fn query_mixnode_delegations_paged(
         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
 
-    let start =
-        start_after.map(|(addr, height)| Bound::exclusive((addr.as_bytes().to_vec(), height)));
+    let start = start_after.map(|(addr, height)| {
+        Bound::exclusive((
+            hex::decode(addr).expect("Could not hex decode proxy_storage_key"),
+            height,
+        ))
+    });
 
     let delegations = storage::delegations()
         .sub_prefix(mix_identity)
@@ -158,9 +167,12 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|record| record.1)
         .collect::<Vec<Delegation>>();
 
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| (delegation.owner().to_string(), delegation.block_height()));
+    let start_next_after = delegations.last().map(|delegation| {
+        (
+            hex::encode(delegation.proxy_storage_key()),
+            delegation.block_height(),
+        )
+    });
 
     Ok(PagedMixDelegationsResponse::new(
         delegations,
@@ -298,7 +310,10 @@ pub(crate) mod tests {
             let start_after = page1.start_next_after.unwrap();
             assert_eq!(100, page1.delegations.len());
             assert_eq!(
-                (("XtsZrLRXvyegwyZDjuJtlYiG5B1eiJ".to_string(), 1594717548)),
+                ((
+                    "5874735a724c52587679656777795a446a754a746c59694735423165694a".to_string(),
+                    1594717548
+                )),
                 start_after
             );
 
@@ -318,7 +333,10 @@ pub(crate) mod tests {
 
             let start_after = page2.start_next_after.unwrap();
             assert_eq!(
-                ("zkHTlcgOWAyH8NoIJ2lkZcvvhYsFik".to_string(), 3448133410),
+                (
+                    "7a6b48546c63674f57417948384e6f494a326c6b5a63767668597346696b".to_string(),
+                    3448133410
+                ),
                 start_after
             );
 
@@ -366,7 +384,8 @@ pub(crate) mod tests {
                 &deps.storage,
                 &deps.api,
                 node_identity,
-                delegation_owner.to_string()
+                delegation_owner.to_string(),
+                None
             )
         )
     }
@@ -389,7 +408,8 @@ pub(crate) mod tests {
                 &deps.storage,
                 &deps.api,
                 node_identity1.clone(),
-                delegation_owner1.to_string()
+                delegation_owner1.to_string(),
+                None
             )
         );
 
@@ -415,7 +435,8 @@ pub(crate) mod tests {
                 &deps.storage,
                 &deps.api,
                 node_identity1.clone(),
-                delegation_owner1.to_string()
+                delegation_owner1.to_string(),
+                None
             )
         );
 
@@ -441,7 +462,8 @@ pub(crate) mod tests {
                 &deps.storage,
                 &deps.api,
                 node_identity1,
-                delegation_owner1.to_string()
+                delegation_owner1.to_string(),
+                None
             )
         )
     }

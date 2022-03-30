@@ -589,6 +589,7 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: IdentityKey,
         delegator: &AccountId,
+        proxy: Option<String>,
     ) -> Result<Delegation, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -596,6 +597,7 @@ impl<C> NymdClient<C> {
         let request = QueryMsg::GetDelegationDetails {
             mix_identity,
             delegator: delegator.to_string(),
+            proxy,
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)

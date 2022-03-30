@@ -9,10 +9,23 @@ use cosmwasm_std::{Coin, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::hash::{Hasher, Hash};
+use std::hash::{Hash, Hasher};
 
 type OwnerAddressBytes = Vec<u8>;
 type BlockHeight = u64;
+
+pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
+    if let Some(proxy) = &proxy {
+        address
+            .as_bytes()
+            .iter()
+            .zip(proxy.as_bytes())
+            .map(|(x, y)| x ^ y)
+            .collect()
+    } else {
+        address.as_bytes().to_vec()
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct Delegation {
@@ -69,16 +82,11 @@ impl Delegation {
     }
 
     pub fn proxy_storage_key(&self) -> OwnerAddressBytes {
-        if let Some(proxy) = &self.proxy {
-            self.owner()
-                .as_bytes()
-                .iter()
-                .zip(proxy.as_bytes())
-                .map(|(x, y)| x ^ y)
-                .collect()
-        } else {
-            self.owner().as_bytes().to_vec()
-        }
+        generate_storage_key(&self.owner, self.proxy.as_ref())
+    }
+
+    pub fn proxy(&self) -> Option<&Addr> {
+        self.proxy.as_ref()
     }
 
     pub fn increment_amount(&mut self, amount: Uint128, at_height: Option<u64>) {

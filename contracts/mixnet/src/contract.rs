@@ -313,11 +313,13 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetDelegationDetails {
             mix_identity,
             delegator,
+            proxy,
         } => to_binary(&query_mixnode_delegation(
             deps.storage,
             deps.api,
             mix_identity,
             delegator,
+            proxy,
         )?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
@@ -423,14 +425,18 @@ pub fn clean_up_duplicate_delegations(storage: &mut dyn Storage) -> Result<(), C
     }
 
     for delegation in unique_delegations {
-        crate::delegations::storage::delegations().save(storage, delegation.storage_key(), &delegation)?;
+        crate::delegations::storage::delegations().save(
+            storage,
+            delegation.storage_key(),
+            &delegation,
+        )?;
     }
 
     Ok(())
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // clean_up_duplicate_delegations(deps.storage)?;
     Ok(Default::default())
 }

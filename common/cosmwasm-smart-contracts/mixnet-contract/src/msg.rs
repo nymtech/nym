@@ -101,6 +101,8 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetAllDelegationKeys {},
+    DebugGetAllDelegationValues {},
     GetContractVersion {},
     GetMixNodes {
         limit: Option<u32>,
@@ -137,6 +139,7 @@ pub enum QueryMsg {
     GetDelegationDetails {
         mix_identity: IdentityKey,
         delegator: String,
+        proxy: Option<String>,
     },
     LayerDistribution {},
     GetRewardPool {},

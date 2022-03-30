@@ -821,6 +821,7 @@ dependencies = [
  "crypto",
  "cw-storage-plus",
  "fixed",
+ "hex",
  "mixnet-contract-common",
  "rand",
  "rand_chacha",

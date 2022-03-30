@@ -727,6 +727,7 @@ mod tests {
                 &deps.api,
                 identity,
                 delegation_owner.to_string(),
+                None,
             )
             .unwrap();
 
@@ -1063,6 +1064,7 @@ mod tests {
                 &deps.api,
                 identity.clone(),
                 delegation_owner.clone().into_string(),
+                None,
             )
             .unwrap();
 
@@ -1132,6 +1134,7 @@ mod tests {
                 &deps.api,
                 identity.clone(),
                 delegation_owner.clone().into_string(),
+                None,
             )
             .unwrap();
 

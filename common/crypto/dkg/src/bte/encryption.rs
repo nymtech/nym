@@ -32,7 +32,9 @@ impl Ciphertexts {
         }
 
         let g1_neg = G1Affine::generator().neg();
-        let f = epoch.as_tau().evaluate_f(params);
+        let f = epoch
+            .as_extended_tau(&self.r, &self.s, &self.ciphertext_chunks)
+            .evaluate_f(params);
 
         // we have to use `f` in up to `NUM_CHUNKS` pairings (if everything is valid),
         // so perform some precomputation on it
@@ -101,15 +103,10 @@ pub fn encrypt_shares(
 ) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
 
-    // those will be relevant later for proofs of knowledge
     let mut rand_rs = Vec::with_capacity(NUM_CHUNKS);
     let mut rand_ss = Vec::with_capacity(NUM_CHUNKS);
-
     let mut rs = Vec::with_capacity(NUM_CHUNKS);
     let mut ss = Vec::with_capacity(NUM_CHUNKS);
-    let mut zs = Vec::with_capacity(NUM_CHUNKS);
-
-    let f = epoch.as_tau().evaluate_f(params);
 
     // generate relevant re-usable pseudorandom data
     for _ in 0..NUM_CHUNKS {
@@ -121,14 +118,11 @@ pub fn encrypt_shares(
         // g1^s
         let s = g1 * rand_s;
 
-        let z = f * rand_r + params.h * rand_s;
-
         rand_rs.push(rand_r);
         rand_ss.push(rand_s);
 
         rs.push(r);
         ss.push(s);
-        zs.push(z);
     }
 
     // produce per-chunk ciphertexts
@@ -149,11 +143,21 @@ pub fn encrypt_shares(
         cc.push(ci.try_into().unwrap())
     }
 
+    let r = rs.try_into().unwrap();
+    let s = ss.try_into().unwrap();
+
+    let f = epoch.as_extended_tau(&r, &s, &cc).evaluate_f(params);
+
+    let mut zs = Vec::with_capacity(NUM_CHUNKS);
+    for i in 0..NUM_CHUNKS {
+        zs.push(f * rand_rs[i] + params.h * rand_ss[i]);
+    }
+
     // the conversions here must also succeed since the other vecs also have `NUM_CHUNKS` elements
     (
         Ciphertexts {
-            r: rs.try_into().unwrap(),
-            s: ss.try_into().unwrap(),
+            r,
+            s,
             z: zs.try_into().unwrap(),
             ciphertext_chunks: cc,
         },
@@ -162,46 +166,6 @@ pub fn encrypt_shares(
             s: rand_ss.try_into().unwrap(),
         },
     )
-}
-
-#[inline]
-fn decrypt_chunk(
-    dk: &DecryptionKey,
-    r: &G1Projective,
-    s: &G1Projective,
-    z: &G2Projective,
-    c: &G1Projective,
-    epoch: Epoch,
-    lookup_table: Option<&BabyStepGiantStepLookup>,
-) -> Result<Chunk, DkgError> {
-    let epoch_node = dk.try_get_compatible_node(epoch)?;
-
-    let tau = epoch.as_tau();
-
-    let b_neg = epoch_node
-        .ds
-        .iter()
-        .zip(tau.0.iter().by_vals())
-        .filter(|(_, i)| *i)
-        .map(|(d_i, _)| d_i)
-        .fold(epoch_node.b, |acc, d_i| acc + d_i)
-        .neg()
-        .to_affine();
-
-    let e_neg = epoch_node.e.neg().to_affine();
-    let z_affine = z.to_affine();
-
-    // M = e(C, g2) • e(R, b)^-1 • e(a, Z) • e(S, e)^-1
-    // compute the miller loop separately to only perform a single final exponentiation
-    let miller = bls12_381::multi_miller_loop(&[
-        (&c.to_affine(), &G2_GENERATOR_PREPARED),
-        (&r.to_affine(), &G2Prepared::from(b_neg)),
-        (&epoch_node.a.to_affine(), &G2Prepared::from(z_affine)),
-        (&s.to_affine(), &G2Prepared::from(e_neg)),
-    ]);
-    let m = miller.final_exponentiation();
-
-    baby_step_giant_step(&m, &PAIRING_BASE, lookup_table)
 }
 
 pub fn decrypt_share(
@@ -214,20 +178,43 @@ pub fn decrypt_share(
 ) -> Result<Share, DkgError> {
     let mut plaintext = ChunkedShare::default();
 
+    let decryption_node = dk.try_get_compatible_node(epoch)?;
+    let extended_tau =
+        epoch.as_extended_tau(&ciphertext.r, &ciphertext.s, &ciphertext.ciphertext_chunks);
+
     if i >= ciphertext.ciphertext_chunks.len() {
         return Err(DkgError::UnavailableCiphertext(i));
     }
 
+    let height = decryption_node.tau.height();
+    let b_neg = decryption_node
+        .ds
+        .iter()
+        .chain(decryption_node.dh.iter())
+        .zip(extended_tau.0.iter().by_vals().skip(height))
+        .filter(|(_, i)| *i)
+        .map(|(d_i, _)| d_i)
+        .fold(decryption_node.b, |acc, d_i| acc + d_i)
+        .neg()
+        .to_affine();
+
+    let e_neg = decryption_node.e.neg().to_affine();
+
     for j in 0..NUM_CHUNKS {
-        plaintext.chunks[j] = decrypt_chunk(
-            dk,
-            &ciphertext.r[j],
-            &ciphertext.s[j],
-            &ciphertext.z[j],
-            &ciphertext.ciphertext_chunks[i][j],
-            epoch,
-            lookup_table,
-        )?;
+        let r = &ciphertext.r[j];
+        let s = &ciphertext.s[j];
+        let z = ciphertext.z[j].to_affine();
+        let c = &ciphertext.ciphertext_chunks[i][j];
+
+        let miller = bls12_381::multi_miller_loop(&[
+            (&c.to_affine(), &G2_GENERATOR_PREPARED),
+            (&r.to_affine(), &G2Prepared::from(b_neg)),
+            (&decryption_node.a.to_affine(), &G2Prepared::from(z)),
+            (&s.to_affine(), &G2Prepared::from(e_neg)),
+        ]);
+        let m = miller.final_exponentiation();
+
+        plaintext.chunks[j] = baby_step_giant_step(&m, &PAIRING_BASE, lookup_table)?;
     }
 
     plaintext.try_into()

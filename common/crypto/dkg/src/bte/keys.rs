@@ -21,20 +21,30 @@ pub(crate) struct Node {
     // g2^x
     pub(crate) b: G2Projective,
 
-    // f_i^rho
+    // f_i^rho, up to lambda_t elements
     pub(crate) ds: Vec<G2Projective>,
+
+    // fh_i^rho, always lambda_h elements
+    pub(crate) dh: Vec<G2Projective>,
 
     // h^rho
     pub(crate) e: G2Projective,
 }
 
 impl Node {
-    fn new_root(a: G1Projective, b: G2Projective, ds: Vec<G2Projective>, e: G2Projective) -> Self {
+    fn new_root(
+        a: G1Projective,
+        b: G2Projective,
+        ds: Vec<G2Projective>,
+        dh: Vec<G2Projective>,
+        e: G2Projective,
+    ) -> Self {
         Node {
             tau: Tau::new_root(),
             a,
             b,
             ds,
+            dh,
             e,
         }
     }
@@ -46,11 +56,18 @@ impl Node {
     pub(crate) fn reblind(&mut self, params: &Params, mut rng: impl RngCore) {
         let delta = Scalar::random(&mut rng);
         self.a += G1Projective::generator() * delta;
-        self.b += self.tau.evaluate_f(params) * delta;
+
+        // TODO: or do we have to do full tau evaluation here?
+        self.b += self.tau.evaluate_partial_f(params) * delta;
         self.ds
             .iter_mut()
             .zip(params.fs.iter().skip(self.tau.height()))
             .for_each(|(d_i, f_i)| *d_i += f_i * delta);
+        self.dh
+            .iter_mut()
+            .zip(params.fh.iter())
+            .for_each(|(d_i, f_i)| *d_i += f_i * delta);
+
         self.e += params.h * delta;
     }
 
@@ -81,6 +98,12 @@ impl Node {
             .skip(target_tau.height())
             .map(|(d_i, f_i)| d_i + f_i * delta)
             .collect();
+        let dh = self
+            .dh
+            .iter()
+            .zip(params.fh.iter())
+            .map(|(dh_i, fh_i)| dh_i + fh_i * delta)
+            .collect();
         let e = self.e + params.h * delta;
 
         Node {
@@ -88,6 +111,7 @@ impl Node {
             a,
             b,
             ds,
+            dh,
             e,
         }
     }
@@ -128,6 +152,13 @@ impl Node {
             .zip(params.fs.iter().skip(right_branch.height()))
             .map(|(d_i, f_i)| d_i + f_i * delta)
             .collect();
+        let dh = self
+            .dh
+            .iter()
+            .zip(params.fh.iter())
+            .map(|(dh_i, fh_i)| dh_i + fh_i * delta)
+            .collect();
+
         let e = self.e + params.h * delta;
 
         Node {
@@ -135,6 +166,7 @@ impl Node {
             a,
             b,
             ds,
+            dh,
             e,
         }
     }
@@ -156,9 +188,10 @@ pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicK
     let b = g2 * x + params.f0 * rho;
 
     let ds = params.fs.iter().map(|f_i| f_i * rho).collect();
+    let dh = params.fh.iter().map(|fh_i| fh_i * rho).collect();
     let e = params.h * rho;
 
-    let dk = DecryptionKey::new_root(Node::new_root(a, b, ds, e));
+    let dk = DecryptionKey::new_root(Node::new_root(a, b, ds, dh, e));
 
     let public_key = PublicKey(y);
     let key_with_proof = PublicKeyWithProof {
@@ -314,9 +347,9 @@ impl DecryptionKey {
         // accumulators, note that the previous elements have already been included by the parent,
         // i.e. for example for parent at height l <= n, b = g2^x * f0^rho * d1^{tau_1} * ... * dl^{tau_l}
         // new_b_accumulator = b * d1^{tau_1} * d2^{tau_2} * ... * dn^{tau_n}
-        // new_f_accumulator = f0 * f1^{tau_1} * f2^{tau_2} * ... * fn^{tau_n}
+        // new_f_accumulator = f0 * f1^{tau_1} * f2^{tau_2} * ... * fn^{tau_n} (up to lambda_t)
         let mut new_b_accumulator = parent.b;
-        let mut new_f_accumulator = parent.tau.evaluate_f(params);
+        let mut new_f_accumulator = parent.tau.evaluate_partial_f(params);
 
         let parent_height = parent.tau.height();
 

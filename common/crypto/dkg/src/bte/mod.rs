@@ -8,7 +8,7 @@ use bitvec::field::BitField;
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
 use bitvec::view::BitView;
-use bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt};
 use group::Curve;
 use lazy_static::lazy_static;
 use zeroize::Zeroize;
@@ -35,6 +35,7 @@ lazy_static! {
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
 const MAX_EPOCHS_EXP: usize = 32;
+const HASH_SECURITY_PARAM: usize = 256;
 
 // note: CHUNK_BYTES * NUM_CHUNKS must equal to SCALAR_SIZE
 pub const CHUNK_BYTES: usize = 2;
@@ -73,7 +74,7 @@ impl Tau {
     }
 
     pub fn is_leaf(&self, params: &Params) -> bool {
-        self.height() == params.tree_height
+        self.height() == params.lambda_t
     }
 
     pub fn try_get_parent_at_height(&self, height: usize) -> Result<Self, DkgError> {
@@ -100,7 +101,7 @@ impl Tau {
     }
 
     pub fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Epoch, DkgError> {
-        if self.0.len() > params.tree_height {
+        if self.0.len() > params.lambda_t {
             // this node is already BELOW a valid leaf-epoch node. it can only happen
             // if either some invariant was broken or additional data was pushed to `tau`
             // in order compute some intermediate results, but in that case this method should have
@@ -108,7 +109,7 @@ impl Tau {
             return Err(DkgError::NotAValidParent);
         }
         let mut child = self.0.clone();
-        for _ in 0..(params.tree_height - self.0.len()) {
+        for _ in 0..(params.lambda_t - self.0.len()) {
             child.push(false)
         }
 
@@ -122,8 +123,40 @@ impl Tau {
         self.0.len()
     }
 
+    fn extend(
+        &self,
+        _rs: &[G1Projective; NUM_CHUNKS],
+        _ss: &[G1Projective; NUM_CHUNKS],
+        _cs: &[[G1Projective; NUM_CHUNKS]],
+    ) -> Self {
+        // temporary placeholder
+        let oracle_output = [42u8; 32];
+        assert_eq!(oracle_output.len() * 8, HASH_SECURITY_PARAM);
+
+        let mut extended_tau = self.clone();
+        for byte in oracle_output {
+            // TODO: check endianness
+            extended_tau
+                .0
+                .extend_from_bitslice(byte.view_bits::<Msb0>())
+        }
+
+        extended_tau
+    }
+
+    // considers all lambda_t + lambda_h bits
     fn evaluate_f(&self, params: &Params) -> G2Projective {
-        // right now completely ignore existence of f_h
+        self.0
+            .iter()
+            .by_vals()
+            .zip(params.fs.iter().chain(params.fh.iter()))
+            .filter(|(i, _)| *i)
+            .map(|(_, f_i)| f_i)
+            .fold(params.f0, |acc, f_i| acc + f_i)
+    }
+
+    // only considers up to lambda_t bits
+    fn evaluate_partial_f(&self, params: &Params) -> G2Projective {
         self.0
             .iter()
             .by_vals()
@@ -154,6 +187,15 @@ impl Epoch {
         (*self).into()
     }
 
+    pub(crate) fn as_extended_tau(
+        &self,
+        rs: &[G1Projective; NUM_CHUNKS],
+        ss: &[G1Projective; NUM_CHUNKS],
+        cs: &[[G1Projective; NUM_CHUNKS]],
+    ) -> Tau {
+        self.as_tau().extend(rs, ss, cs)
+    }
+
     pub(crate) fn try_from_tau(tau: &Tau, params: &Params) -> Result<Self, DkgError> {
         if !tau.is_leaf(params) {
             Err(DkgError::MalformedEpoch)
@@ -176,12 +218,15 @@ impl From<u32> for Epoch {
 }
 
 pub struct Params {
-    /// In paper $\lambda$
-    tree_height: usize,
+    lambda_t: usize,
+
+    /// security parameter of our $H_{\Lamda_H}$ hash function
+    lambda_h: usize,
 
     // keeping f0 separate from the rest of the curve points makes it easier to work with tau
     f0: G2Projective,
-    fs: Vec<G2Projective>, // f_1, f_2, .... f_i in the paper
+    fs: Vec<G2Projective>, // f_1, f_2, .... f_{lambda_t} in the paper
+    fh: Vec<G2Projective>, // f_{lambda_t+1}, f_{lambda_t+1}, .... f_{lambda_t+lambda_h} in the paper
     h: G2Projective,
 
     /// Precomputed `h` used for the miller loop
@@ -191,19 +236,24 @@ pub struct Params {
 pub fn setup() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
 
-    // is there a point in generating ALL of them at start?
     let fs = (1..=MAX_EPOCHS_EXP)
         .map(|i| hash_g2(format!("f{}", i), SETUP_DOMAIN))
+        .collect();
+
+    let fh = (0..HASH_SECURITY_PARAM)
+        .map(|i| hash_g2(format!("fh{}", i), SETUP_DOMAIN))
         .collect();
 
     let h = hash_g2(b"h", SETUP_DOMAIN);
 
     Params {
-        tree_height: MAX_EPOCHS_EXP,
+        lambda_t: MAX_EPOCHS_EXP,
+        lambda_h: HASH_SECURITY_PARAM,
         f0,
         fs,
-        _h_prepared: G2Prepared::from(h.to_affine()),
+        fh,
         h,
+        _h_prepared: G2Prepared::from(h.to_affine()),
     }
 }
 

@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
+import { ListItemText, MenuItem, Select, SelectChangeEvent, Typography, useMediaQuery } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ClientContext } from '../context/main';
 import { validatorUrls } from '../utils';
 
@@ -14,6 +15,8 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
     const {
         network
     } = useContext(ClientContext);
+    const theme = useTheme();
+    const matches = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
         (async () => {
@@ -32,6 +35,9 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
         <Select
             labelId="validatorSelect_label"
             id="validatorSelect"
+            sx={{
+                width: matches ? 'auto' : 300
+            }}
             value={selectedValidator || 'choose validator url'}
             onChange={(e: SelectChangeEvent) => {
                 setSelectedValidator(e.target.value as TValidatorUrl);

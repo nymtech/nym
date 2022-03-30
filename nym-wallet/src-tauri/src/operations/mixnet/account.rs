@@ -60,6 +60,13 @@ pub struct Balance {
   printable_balance: String,
 }
 
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
+#[derive(Serialize, Deserialize)]
+pub struct ValidatorUrls {
+  urls: Vec<String>,
+}
+
 #[tauri::command]
 pub async fn connect_with_mnemonic(
   mnemonic: String,
@@ -155,6 +162,32 @@ pub async fn update_validator_urls(
   let mut w_state = state.write().await;
   let _r = w_state.fetch_updated_validator_urls().await;
   Ok(())
+}
+
+#[tauri::command]
+pub async fn get_validator_nymd_urls(
+  network: WalletNetwork,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<ValidatorUrls, BackendError> {
+  let config = state.read().await.config();
+  let urls: Vec<String> = config
+    .get_nymd_urls(network)
+    .map(|url| url.to_string())
+    .collect();
+  Ok(ValidatorUrls { urls })
+}
+
+#[tauri::command]
+pub async fn get_validator_api_urls(
+  network: WalletNetwork,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<ValidatorUrls, BackendError> {
+  let config = state.read().await.config();
+  let urls: Vec<String> = config
+    .get_api_urls(network)
+    .map(|url| url.to_string())
+    .collect();
+  Ok(ValidatorUrls { urls })
 }
 
 async fn _connect_with_mnemonic(

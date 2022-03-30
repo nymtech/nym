@@ -1,7 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use bls12_381::Scalar;
 use dkg::bte::{decrypt_share, keygen, setup, Tau};
+use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use dkg::{combine_shares, Dealing};
 use rand_core::SeedableRng;
 use std::collections::BTreeMap;
@@ -19,7 +21,7 @@ fn single_sender() {
     let threshold = 2;
 
     // the indices are going to get assigned externally, so for test sake, use non-consecutive ones
-    let node_indices = vec![1u64, 2, 4];
+    let node_indices = vec![1u64, 2, 3];
 
     let mut receivers = BTreeMap::new();
     let mut full_keys = Vec::new();
@@ -72,7 +74,7 @@ fn full_threshold_secret_sharing() {
     let threshold = 2;
 
     // the indices are going to get assigned externally, so for test sake, use non-consecutive ones
-    let node_indices = vec![1u64, 2, 4];
+    let node_indices = vec![1u64, 2, 3];
 
     let mut receivers = BTreeMap::new();
     let mut full_keys = Vec::new();
@@ -127,36 +129,33 @@ fn full_threshold_secret_sharing() {
         .verify(&params, &epoch, threshold, &receivers)
         .unwrap();
 
-    // let mut derived_secrets1 = Vec::new();
-    // let mut derived_secrets2 = Vec::new();
-    // let mut derived_secrets3 = Vec::new();
-
+    let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
         dk.try_update_to(&epoch, &params, &mut rng).unwrap();
 
         // threshold was 2
         let share1 = decrypt_share(dk, i, &dealing1.ciphertexts, &epoch, None).unwrap();
         let share2 = decrypt_share(dk, i, &dealing2.ciphertexts, &epoch, None).unwrap();
-        let derived_secret1 =
-            combine_shares(vec![share1, share2], &[node_indices[0], node_indices[1]]).unwrap();
-
-        let share2 = decrypt_share(dk, i, &dealing2.ciphertexts, &epoch, None).unwrap();
         let share3 = decrypt_share(dk, i, &dealing3.ciphertexts, &epoch, None).unwrap();
-        let derived_secret2 =
-            combine_shares(vec![share2, share3], &[node_indices[1], node_indices[2]]).unwrap();
 
-        println!("run {}", i);
-        assert_eq!(derived_secret1, derived_secret2)
-
-        // derived_secrets.push(derived_secret);
-
-        // unfortunately we have to repeat the decryption here since `Share` does not have `Clone` outside
-        // unit tests (and rightfully so)
+        // we know dealer_share matches, but it would be inconvenient to try to put them in here,
+        // so for ease of use (IN A TEST SETTING), just decrypt one's own share
+        derived_secrets.push(combine_shares(vec![share1, share2, share3]))
     }
 
-    // since this was a threshold sharing, those should be equal
+    // sanity check that the shares were combined correctly and if we take threshold number of them,
+    // we end up with the same master secret
+    let master1 = perform_lagrangian_interpolation_at_origin(&[
+        (Scalar::from(node_indices[0]), derived_secrets[0]),
+        (Scalar::from(node_indices[1]), derived_secrets[1]),
+    ])
+    .unwrap();
 
-    // Not entirely sure what more to do with `derived_secrets`. Their correctness can't be really checked
-    // via an integration test. It needs a more granular unit test with exposing underlying polynomials used
-    // in the dealings
+    let master2 = perform_lagrangian_interpolation_at_origin(&[
+        (Scalar::from(node_indices[1]), derived_secrets[1]),
+        (Scalar::from(node_indices[2]), derived_secrets[2]),
+    ])
+    .unwrap();
+
+    assert_eq!(master1, master2)
 }

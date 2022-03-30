@@ -23,13 +23,8 @@ pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 #[zeroize(drop)]
 pub struct Share(pub(crate) Scalar);
 
-pub fn combine_shares(shares: Vec<Share>, indices: &[NodeIndex]) -> Result<Scalar, DkgError> {
-    let samples = indices
-        .iter()
-        .zip(shares.into_iter())
-        .map(|(index, share)| (Scalar::from(*index), share.0))
-        .collect::<Vec<_>>();
-    perform_lagrangian_interpolation_at_origin(&samples)
+pub fn combine_shares(shares: Vec<Share>) -> Scalar {
+    shares.into_iter().map(|share| share.0).sum()
 }
 
 impl Share {

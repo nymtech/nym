@@ -149,9 +149,9 @@ impl Dealing {
             combined_ciphertexts,
         );
 
-        // if !self.proof_of_sharing.verify(sharing_instance) {
-        //     return Err(DkgError::InvalidProofOfSharing);
-        // }
+        if !self.proof_of_sharing.verify(sharing_instance) {
+            return Err(DkgError::InvalidProofOfSharing);
+        }
         Ok(())
     }
 }

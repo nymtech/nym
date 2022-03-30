@@ -66,9 +66,7 @@ fn generate_lagrangian_coefficients_at_origin(points: &[Scalar]) -> Result<Vec<S
 /// Performs a Lagrange interpolation at the origin for a polynomial defined by set of coordinates
 /// (x, f(x)), where x is a `Scalar` and f(x) is a generic type that can be obtained by evaluating `f` at `x`.
 /// It can be used for Scalars, G1 and G2 points.
-pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
-    points: &[(Scalar, T)],
-) -> Result<T, DkgError>
+pub fn perform_lagrangian_interpolation_at_origin<T>(points: &[(Scalar, T)]) -> Result<T, DkgError>
 where
     T: Sum,
     for<'a> &'a T: Mul<Scalar, Output = T>,

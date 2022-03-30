@@ -4,6 +4,7 @@ import { BalanceCard } from './balance';
 import { VestingCard } from './vesting';
 import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
+import { ValidatorSelector } from '../../components/ValidatorSelector';
 
 export const Balance = () => {
   const { userBalance } = useContext(ClientContext);
@@ -18,6 +19,9 @@ export const Balance = () => {
         <BalanceCard />
         {userBalance.originalVesting && <VestingCard />}
       </Box>
+      <ValidatorSelector
+        onChangeValidatorSelection={(selectedValidator) => console.log('selectedValidator:', selectedValidator)}
+      />
     </PageLayout>
   );
 };

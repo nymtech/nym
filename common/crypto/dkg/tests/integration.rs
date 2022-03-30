@@ -21,7 +21,7 @@ fn single_sender() {
     let threshold = 2;
 
     // the indices are going to get assigned externally, so for test sake, use non-consecutive ones
-    let node_indices = vec![1u64, 2, 3];
+    let node_indices = vec![15u64, 248, 33521];
 
     let mut receivers = BTreeMap::new();
     let mut full_keys = Vec::new();
@@ -74,7 +74,7 @@ fn full_threshold_secret_sharing() {
     let threshold = 2;
 
     // the indices are going to get assigned externally, so for test sake, use non-consecutive ones
-    let node_indices = vec![1u64, 2, 3];
+    let node_indices = vec![15u64, 248, 33521];
 
     let mut receivers = BTreeMap::new();
     let mut full_keys = Vec::new();

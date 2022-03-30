@@ -5,11 +5,12 @@ use crate::bte::PublicKey;
 use crate::error::DkgError;
 use crate::interpolation::polynomial::PublicCoefficients;
 use crate::utils::hash_to_scalar;
-use crate::Share;
+use crate::{NodeIndex, Share};
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
 use rand_core::RngCore;
+use std::collections::BTreeMap;
 
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
@@ -22,7 +23,7 @@ const CHALLENGE_DOMAIN: &[u8] =
 // TODO: perhaps break it down into separate arguments after all
 #[cfg_attr(test, derive(Clone))]
 pub struct Instance<'a> {
-    public_keys: &'a [PublicKey],
+    public_keys: &'a BTreeMap<NodeIndex, PublicKey>,
     public_coefficients: &'a PublicCoefficients,
     combined_randomizer: &'a G1Projective,
     combined_ciphertexts: &'a [G1Projective],
@@ -30,7 +31,7 @@ pub struct Instance<'a> {
 
 impl<'a> Instance<'a> {
     pub fn new(
-        public_keys: &'a [PublicKey],
+        public_keys: &'a BTreeMap<NodeIndex, PublicKey>,
         public_coefficients: &'a PublicCoefficients,
         combined_randomizer: &'a G1Projective,
         combined_ciphertexts: &'a [G1Projective],
@@ -48,7 +49,7 @@ impl<'a> Instance<'a> {
         let g2s = self.public_coefficients.size();
         let mut bytes = Vec::with_capacity(g1s * 48 + g2s * 96);
 
-        for pk in self.public_keys {
+        for (_, pk) in self.public_keys {
             bytes.extend_from_slice(pk.0.to_bytes().as_ref())
         }
         for coeff in &self.public_coefficients.0 {
@@ -116,7 +117,7 @@ impl ProofOfSecretSharing {
         let product =
             instance
                 .public_keys
-                .iter()
+                .values()
                 .rev()
                 .fold(G1Projective::identity(), |mut acc, pk| {
                     acc += pk.0;
@@ -168,19 +169,20 @@ impl ProofOfSecretSharing {
         }
 
         // check if
-        // (A_0 ^ (1^0 • x^1 + ... i^0 • x^n) • ... A_{t-1} ^ (1^{t-1} • x^{t-1} + ... i^{t-1} • x^n))^challenge * A
+        // (A_0 ^ (id1^0 • x^1 + ... idn^0 • x^n) • ... A_{t-1} ^ (id1^{t-1} • x^{t-1} + ... idn^{t-1} • x^n))^challenge * A
         // ==
         // g2^response_alpha
-        let n = instance.public_keys.len();
-
         let product = instance.public_coefficients.0.iter().enumerate().fold(
             G2Projective::identity(),
             |mut acc, (k, coeff)| {
-                // intermediate (1^k • x^1 + ... + n^k • x^n) sum
-                let sum: Scalar = (1..=n)
-                    .map(|i| {
-                        let i_scalar = Scalar::from(i as u64);
-                        i_scalar.pow(&[k as u64, 0, 0, 0]) * x.pow(&[i as u64, 0, 0, 0])
+                // intermediate (id1^k • x^1 + ... + idn^k • x^n) sum
+                let sum: Scalar = instance
+                    .public_keys
+                    .keys()
+                    .enumerate()
+                    .map(|(i, node_id)| {
+                        let id_scalar = Scalar::from(*node_id);
+                        id_scalar.pow(&[k as u64, 0, 0, 0]) * x.pow(&[(i + 1) as u64, 0, 0, 0])
                     })
                     .sum();
 
@@ -210,7 +212,7 @@ impl ProofOfSecretSharing {
         let product_2 =
             instance
                 .public_keys
-                .iter()
+                .values()
                 .rev()
                 .fold(G1Projective::identity(), |mut acc, pk| {
                     acc += pk.0;
@@ -255,7 +257,7 @@ mod tests {
     fn setup(
         mut rng: impl RngCore,
     ) -> (
-        Vec<PublicKey>,
+        BTreeMap<NodeIndex, PublicKey>,
         PublicCoefficients,
         G1Projective,
         Vec<G1Projective>,
@@ -264,25 +266,23 @@ mod tests {
     ) {
         let g1 = G1Projective::generator();
 
-        let mut pks = Vec::new();
+        let mut pks = BTreeMap::new();
         let polynomial = Polynomial::new_random(&mut rng, THRESHOLD - 1);
         let public_coefficients = polynomial.public_coefficients();
 
+        let mut shares: Vec<Share> = Vec::new();
         for _ in 0..NODES {
-            pks.push(PublicKey(g1 * Scalar::random(&mut rng)));
+            let node_index = rng.next_u64();
+            let share = polynomial.evaluate(&Scalar::from(node_index));
+            shares.push(share.into());
+            pks.insert(node_index, PublicKey(g1 * Scalar::random(&mut rng)));
         }
 
         let r = Scalar::random(&mut rng);
         let rr = g1 * r;
 
-        let mut shares: Vec<Share> = Vec::new();
-        for node_id in 1..NODES + 1 {
-            let share = polynomial.evaluate(&Scalar::from(node_id));
-            shares.push(share.into());
-        }
-
         let ciphertexts = pks
-            .iter()
+            .values()
             .zip(&shares)
             .map(|(pk, share)| pk.0 * r + g1 * share.inner())
             .collect();
@@ -296,12 +296,16 @@ mod tests {
 
         let g1 = G1Projective::generator();
 
-        let mut pks = Vec::new();
+        let mut pks = BTreeMap::new();
         let polynomial = Polynomial::new_random(&mut rng, THRESHOLD - 1);
         let public_coefficients = polynomial.public_coefficients();
 
+        let mut shares: Vec<Share> = Vec::new();
         for _ in 0..NODES {
-            pks.push(PublicKey(g1 * Scalar::random(&mut rng)));
+            let node_index = rng.next_u64();
+            let share = polynomial.evaluate(&Scalar::from(node_index));
+            shares.push(share.into());
+            pks.insert(node_index, PublicKey(g1 * Scalar::random(&mut rng)));
         }
 
         let r = Scalar::random(&mut rng);
@@ -314,14 +318,14 @@ mod tests {
         }
 
         let ciphertexts = pks
-            .iter()
+            .values()
             .zip(&shares)
             .map(|(pk, share)| pk.0 * r + g1 * share)
             .collect::<Vec<_>>();
 
         // no public keys
         let bad_instance1 = Instance {
-            public_keys: &[],
+            public_keys: &BTreeMap::new(),
             public_coefficients: &public_coefficients,
             combined_randomizer: &rr,
             combined_ciphertexts: &ciphertexts,
@@ -356,6 +360,20 @@ mod tests {
             combined_ciphertexts: &bad_ciphertexts,
         };
         assert!(!bad_instance4.validate());
+
+        // changed index of one of the keys
+        let mut bad_pks = pks.clone();
+        let first_id = bad_pks.keys().copied().take(1).collect::<Vec<_>>();
+        let first_val = bad_pks.remove(&first_id[0]).unwrap();
+        bad_pks.insert(rng.next_u64(), first_val);
+
+        let bad_instance5 = Instance {
+            public_keys: &bad_pks,
+            public_coefficients: &public_coefficients,
+            combined_randomizer: &rr,
+            combined_ciphertexts: &bad_ciphertexts,
+        };
+        assert!(!bad_instance5.validate());
 
         let good_instance = Instance {
             public_keys: &pks,
@@ -405,7 +423,7 @@ mod tests {
 
         // no public keys
         let bad_instance1 = Instance {
-            public_keys: &[],
+            public_keys: &BTreeMap::new(),
             public_coefficients: &public_coefficients,
             combined_randomizer: &rr,
             combined_ciphertexts: &ciphertexts,

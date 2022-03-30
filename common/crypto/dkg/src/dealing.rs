@@ -65,7 +65,7 @@ impl Dealing {
 
         let public_coefficients = polynomial.public_coefficients();
         let sharing_instance = proof_sharing::Instance::new(
-            &ordered_public_keys,
+            receivers,
             &public_coefficients,
             &combined_rr,
             &combined_ciphertexts,
@@ -143,7 +143,7 @@ impl Dealing {
         let combined_ciphertexts = &self.ciphertexts.combine_ciphertexts();
 
         let sharing_instance = proof_sharing::Instance::new(
-            &sorted_receivers,
+            receivers,
             &self.public_coefficients,
             combined_randomizer,
             combined_ciphertexts,

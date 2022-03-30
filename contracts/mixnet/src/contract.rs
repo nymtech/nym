@@ -29,11 +29,10 @@ use crate::rewards::queries::{
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, Order, QueryResponse, Response,
-    Storage, Uint128,
+    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -377,67 +376,8 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-// CLEAN UP DELEGATION STORAGE
-
-// applied on QAnet, Sandbox
-#[allow(dead_code)]
-pub fn clean_up_duplicate_delegations(storage: &mut dyn Storage) -> Result<(), ContractError> {
-    use crate::delegations::storage::{
-        DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
-        DELEGATION_PK_NAMESPACE,
-    };
-
-    use cw_storage_plus::{IndexedMap, MultiIndex};
-    use std::collections::HashSet;
-
-    type PrimaryKey = Vec<u8>;
-
-    fn all_delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
-        let indexes = DelegationIndex {
-            owner: MultiIndex::new(
-                |d| d.owner.clone(),
-                DELEGATION_PK_NAMESPACE,
-                DELEGATION_OWNER_IDX_NAMESPACE,
-            ),
-            mixnode: MultiIndex::new(
-                |d| d.node_identity.clone(),
-                DELEGATION_PK_NAMESPACE,
-                DELEGATION_MIXNODE_IDX_NAMESPACE,
-            ),
-        };
-
-        IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
-    }
-
-    let unique_delegations = all_delegations()
-        .range(storage, None, None, Order::Ascending)
-        .filter_map(|r| r.ok())
-        .map(|(_key, delegation)| delegation)
-        .collect::<HashSet<Delegation>>();
-
-    let keys: Vec<Vec<u8>> = all_delegations()
-        .keys(storage, None, None, Order::Ascending)
-        .filter_map(|r| r.ok())
-        .collect();
-
-    for key in keys {
-        all_delegations().remove(storage, key)?;
-    }
-
-    for delegation in unique_delegations {
-        crate::delegations::storage::delegations().save(
-            storage,
-            delegation.storage_key(),
-            &delegation,
-        )?;
-    }
-
-    Ok(())
-}
-
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    clean_up_duplicate_delegations(deps.storage)?;
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

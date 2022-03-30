@@ -4,14 +4,12 @@
 // forward-secure public key encryption scheme
 pub mod bte;
 pub mod error;
-mod event;
 pub mod interpolation;
 
 // this entire module is a big placeholder for whatever scheme we decide to use for the
 // secure channel encryption scheme, but I would assume that the top-level API would
 // remain more or less the same
 pub mod dealing;
-pub mod secure_channel;
 pub(crate) mod share;
 pub(crate) mod utils;
 

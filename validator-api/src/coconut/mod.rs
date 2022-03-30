@@ -6,7 +6,6 @@ use coconut_interface::{
     BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
-use dkg::secure_channel;
 use getset::{CopyGetters, Getters};
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
@@ -45,9 +44,8 @@ pub(crate) struct CredentialIssuer {
     // by seeing how it looks, we'll probably need some wrapper with an inner field
     partial_secret_key: Arc<RwLock<Option<SecretKey>>>,
     partial_verification_key: Arc<RwLock<Option<VerificationKey>>>,
-
     // this would need to be stored somewhere
-    secure_channel_keys: secure_channel::KeyPair,
+    // secure_channel_keys: secure_channel::KeyPair,
 }
 
 impl CredentialIssuer {

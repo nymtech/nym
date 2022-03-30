@@ -48,9 +48,13 @@ pub(crate) fn query_delegator_delegations_paged(
         .map(|record| record.map(|r| r.1))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.node_identity());
+    let start_next_after = if delegations.len() < limit {
+        None
+    } else {
+        delegations
+            .last()
+            .map(|delegation| delegation.node_identity())
+    };
 
     Ok(PagedDelegatorDelegationsResponse::new(
         delegations,
@@ -58,7 +62,7 @@ pub(crate) fn query_delegator_delegations_paged(
     ))
 }
 
-pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
+pub fn query_all_delegation_keys(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
     Ok(storage::delegations()
         .keys_raw(storage, None, None, Order::Ascending)
         .map(hex::encode)
@@ -67,7 +71,8 @@ pub fn query_all_delegations(storage: &dyn Storage) -> Result<Vec<String>, Contr
 
 use std::collections::HashSet;
 
-pub fn query_all_delegation_values(
+// This should only be exposed directly on the contract via nymd binary, not through the nymd clients
+pub fn debug_query_all_delegation_values(
     storage: &dyn Storage,
 ) -> Result<HashSet<Delegation>, ContractError> {
     use crate::delegations::storage::{
@@ -101,8 +106,6 @@ pub fn query_all_delegation_values(
         .filter_map(|r| r.ok())
         .map(|(_key, delegation)| delegation)
         .collect::<HashSet<Delegation>>();
-
-    // TODO: General plan - build HashSet of delegations, remove all keys from current delegation thing, reinsert delegations
 
     Ok(all_delegations)
 }
@@ -167,12 +170,16 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|record| record.1)
         .collect::<Vec<Delegation>>();
 
-    let start_next_after = delegations.last().map(|delegation| {
-        (
-            hex::encode(delegation.proxy_storage_key()),
-            delegation.block_height(),
-        )
-    });
+    let start_next_after = if delegations.len() < limit {
+        None
+    } else {
+        delegations.last().map(|delegation| {
+            (
+                hex::encode(delegation.proxy_storage_key()),
+                delegation.block_height(),
+            )
+        })
+    };
 
     Ok(PagedMixDelegationsResponse::new(
         delegations,

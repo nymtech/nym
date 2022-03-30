@@ -366,11 +366,11 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetPendingDelegationEvents { owner_address } => to_binary(
             &query_pending_delegation_events(deps.storage, owner_address)?,
         ),
-        QueryMsg::GetAllDelegations {} => to_binary(
-            &crate::delegations::queries::query_all_delegations(deps.storage)?,
+        QueryMsg::GetAllDelegationKeys {} => to_binary(
+            &crate::delegations::queries::query_all_delegation_keys(deps.storage)?,
         ),
-        QueryMsg::GetAllDelegationValues {} => to_binary(
-            &crate::delegations::queries::query_all_delegation_values(deps.storage)?,
+        QueryMsg::DebugGetAllDelegationValues {} => to_binary(
+            &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
         ),
     };
 

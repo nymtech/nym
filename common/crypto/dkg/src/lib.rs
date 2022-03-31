@@ -16,7 +16,7 @@ pub(crate) mod utils;
 pub use dealing::*;
 pub use share::*;
 
-// TODO: presumably this should live in a different, common, crate?
+// TODO: presumably this should live in a some different, common, crate?
 pub type Threshold = u64;
 pub type NodeIndex = u64;
 

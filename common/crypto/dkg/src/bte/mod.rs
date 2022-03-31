@@ -37,6 +37,7 @@ const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA
 
 // this particular domain is not for curve hashing, but might as well also follow the same naming pattern
 const TREE_TAU_EXTENSION_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_SHA-256_TREE_EXTENSION";
+
 const MAX_EPOCHS_EXP: usize = 32;
 const HASH_SECURITY_PARAM: usize = 256;
 
@@ -88,7 +89,7 @@ impl Tau {
         Ok(Tau(self.0[..height].to_bitvec()))
     }
 
-    // essentially is this those prefixing the other
+    // essentially is this tau prefixing the other
     pub fn is_parent_of(&self, other: &Tau) -> bool {
         if self.0.len() > other.0.len() {
             return false;

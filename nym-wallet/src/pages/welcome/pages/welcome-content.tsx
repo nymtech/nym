@@ -13,22 +13,11 @@ export const WelcomeContent: React.FC<{
     <Title title="Welcome to NYM" />
     <SubtitleSlick subtitle="Next generation of privacy" />
     <Stack spacing={3} sx={{ width: 300 }}>
-      <Button fullWidth variant="contained" color="primary" disableElevation size="large" onClick={onCreateAccount}>
-        Create Account
+      <Button fullWidth color="primary" variant="contained" size="large" onClick={onUseExisting}>
+        Sign in
       </Button>
-      <Button
-        fullWidth
-        variant="outlined"
-        size="large"
-        sx={{
-          color: 'common.white',
-          border: '1px solid white',
-          '&:hover': { border: '1px solid white', '&:hover': { background: 'none' } },
-        }}
-        onClick={onUseExisting}
-        disableRipple
-      >
-        Use existing account
+      <Button fullWidth color="inherit" disableElevation size="large" onClick={onCreateAccount}>
+        Create account
       </Button>
     </Stack>
   </>

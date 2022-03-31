@@ -7,17 +7,19 @@ export const WordTile = ({
   index,
   disabled,
   onClick,
+  button,
 }: {
   mnemonicWord: string;
   index?: number;
   disabled?: boolean;
   onClick?: boolean;
+  button?: boolean;
 }) => (
   <Card
     variant="outlined"
     sx={{
-      background: '#151A2C',
-      border: '1px solid #3A4053',
+      background: button ? '#151A2C' : 'transparent',
+      border: button ? '1px solid #3A4053' : 'none',
       cursor: onClick ? 'pointer' : 'default',
       opacity: disabled ? 0.2 : 1,
     }}
@@ -40,10 +42,12 @@ export const WordTiles = ({
   mnemonicWords,
   showIndex,
   onClick,
+  buttons,
 }: {
   mnemonicWords?: TMnemonicWords;
   showIndex?: boolean;
   onClick?: ({ name, index }: { name: string; index: number }) => void;
+  buttons?: boolean;
 }) => {
   if (mnemonicWords) {
     return (
@@ -55,6 +59,7 @@ export const WordTiles = ({
               index={showIndex ? index : undefined}
               onClick={!!onClick}
               disabled={disabled}
+              button={buttons}
             />
           </Grid>
         ))}

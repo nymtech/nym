@@ -1,34 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Button, CircularProgress, Stack } from '@mui/material';
-import { useSnackbar } from 'notistack';
+import { Button, Stack } from '@mui/material';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords, TPages } from '../types';
 import { randomNumberBetween } from '../../../utils';
 import { SignInContext } from '../context';
-import { createPassword } from '../../../requests';
 
 const numberOfRandomWords = 6;
 
-export const VerifyMnemonic = ({ page, onNext, onPrev }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
+export const VerifyMnemonic = ({ onNext }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>();
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
   const [currentSelection, setCurrentSelection] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const { mnemonicWords, mnemonic, password } = useContext(SignInContext);
-  const { enqueueSnackbar } = useSnackbar();
-
-  const storePassword = async () => {
-    try {
-      setIsLoading(true);
-      await createPassword({ mnemonic, password });
-      enqueueSnackbar('Password successfully created', { variant: 'success' });
-    } catch (e) {
-      enqueueSnackbar(e as string, { variant: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { mnemonicWords } = useContext(SignInContext);
 
   useEffect(() => {
     if (mnemonicWords) {
@@ -55,39 +39,25 @@ export const VerifyMnemonic = ({ page, onNext, onPrev }: { page: TPages; onNext:
   if (randomWords && hiddenRandomWords) {
     return (
       <>
-        <div id={page} />
         <Title title="Verify your mnemonic" />
         <Subtitle subtitle="Select the words from your mnmonic based on their order" />
         <HiddenWords mnemonicWords={hiddenRandomWords} />
         <WordTiles
           mnemonicWords={randomWords}
           onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined}
+          buttons
         />
         <Stack spacing={3} sx={{ width: 300 }}>
           <Button
             variant="contained"
             fullWidth
             size="large"
-            disabled={currentSelection !== numberOfRandomWords || isLoading}
-            onClick={async () => {
-              await storePassword();
+            disabled={currentSelection !== numberOfRandomWords}
+            onClick={() => {
               onNext();
             }}
-            endIcon={isLoading && <CircularProgress />}
           >
             Next
-          </Button>
-          <Button
-            size="large"
-            onClick={onPrev}
-            fullWidth
-            sx={{
-              color: 'common.white',
-              border: '1px solid white',
-              '&:hover': { border: '1px solid white', '&:hover': { background: 'none' } },
-            }}
-          >
-            Back
           </Button>
         </Stack>
       </>

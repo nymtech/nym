@@ -41,9 +41,7 @@ getset = "0.1.1"
 
 rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
-# validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
-console-subscriber = { version = "0.1.1", optional = true}
-cfg-if = "1.0"
+
 
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
@@ -58,9 +56,9 @@ validator-client = { path="../common/client-libs/validator-client", features = [
 version-checker = { path="../common/version-checker" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials", optional = true }
-
-dkg = { path = "../common/crypto/dkg"}
-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg-contract" }
+# validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+console-subscriber = { version = "0.1.1", optional = true}
+cfg-if = "1.0"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut"]

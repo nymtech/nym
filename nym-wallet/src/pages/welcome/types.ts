@@ -5,7 +5,9 @@ export type TPages =
   | 'create password'
   | 'existing account'
   | 'select network'
-  | 'legacy create account';
+  | 'legacy create account'
+  | 'sign in with mnemonic'
+  | 'sign in with password';
 
 export type TMnemonicWord = {
   name: string;

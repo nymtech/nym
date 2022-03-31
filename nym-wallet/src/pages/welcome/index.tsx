@@ -1,13 +1,21 @@
 import React, { useContext, useState } from 'react';
 import { Stack, Box, CircularProgress } from '@mui/material';
-import { NymLogo } from '@nymproject/react';
-import { CreatePassword, ExistingAccount, CreateMnemonic, VerifyMnemonic, WelcomeContent } from './pages';
+import { NymWordmark } from '@nymproject/react';
+import {
+  CreatePassword,
+  ExistingAccount,
+  CreateMnemonic,
+  VerifyMnemonic,
+  WelcomeContent,
+  SignInMnemonic,
+} from './pages';
 import { TPages } from './types';
-import { RenderPage } from './components';
+import { RenderPage, Step } from './components';
 import { ClientContext } from '../../context/main';
+import { SignInPassword } from './pages/signin-password';
 
 export const Welcome = () => {
-  const [page, setPage] = useState<TPages>('welcome');
+  const [page, setPage] = useState<TPages>('sign in with mnemonic');
   const { isLoading } = useContext(ClientContext);
 
   return (
@@ -30,24 +38,17 @@ export const Welcome = () => {
           margin: 'auto',
         }}
       >
-        {' '}
         {isLoading ? (
           <CircularProgress size={72} />
         ) : (
           <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
-            <NymLogo width={75} />
+            <NymWordmark width={75} />
+            <Step currentPage={page} totalSteps={3} />
             <RenderPage page={page}>
               <WelcomeContent
                 onUseExisting={() => setPage('existing account')}
-                onCreateAccount={() => setPage('create password')}
+                onCreateAccount={() => setPage('create mnemonic')}
                 page="welcome"
-              />
-              <CreatePassword
-                onPrev={() => setPage('welcome')}
-                onNext={() => {
-                  setPage('create mnemonic');
-                }}
-                page="create password"
               />
               <CreateMnemonic
                 onNext={() => setPage('verify mnemonic')}
@@ -55,11 +56,16 @@ export const Welcome = () => {
                 onComplete={() => setPage('existing account')}
                 page="create mnemonic"
               />
-              <VerifyMnemonic
-                onNext={() => setPage('existing account')}
-                onPrev={() => setPage('create mnemonic')}
-                page="verify mnemonic"
+              <VerifyMnemonic onNext={() => setPage('create password')} onPrev={() => {}} page="verify mnemonic" />
+              <CreatePassword
+                onSkip={() => setPage('sign in with mnemonic')}
+                onNext={() => {
+                  setPage('sign in with password');
+                }}
+                page="create password"
               />
+              <SignInMnemonic onPrev={() => setPage('welcome')} page="sign in with mnemonic" />
+              <SignInPassword onPrev={() => setPage('welcome')} page="sign in with password" />
               <ExistingAccount
                 onPrev={() => setPage('welcome')}
                 onCreatePassword={() => setPage('create password')}

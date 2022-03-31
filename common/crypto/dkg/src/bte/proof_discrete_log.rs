@@ -19,11 +19,7 @@ pub struct ProofOfDiscreteLog {
 }
 
 impl ProofOfDiscreteLog {
-    pub(crate) fn construct(
-        mut rng: impl RngCore,
-        public: &G1Projective,
-        witness: &Scalar,
-    ) -> Self {
+    pub fn construct(mut rng: impl RngCore, public: &G1Projective, witness: &Scalar) -> Self {
         let mut rand_x = Scalar::random(&mut rng);
         let rand_commitment = G1Projective::generator() * rand_x;
         let challenge = Self::compute_challenge(public, &rand_commitment);
@@ -39,7 +35,7 @@ impl ProofOfDiscreteLog {
 
     // note: we don't have to explicitly check whether points are on correct curves / fields
     // as if they weren't, they'd fail to get deserialized
-    pub(crate) fn verify(&self, public: &G1Projective) -> bool {
+    pub fn verify(&self, public: &G1Projective) -> bool {
         let challenge = Self::compute_challenge(public, &self.rand_commitment);
 
         // y^c • a == g1^rand_x

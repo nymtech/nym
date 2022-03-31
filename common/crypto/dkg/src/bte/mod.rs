@@ -226,10 +226,10 @@ impl From<u32> for Epoch {
 }
 
 pub struct Params {
-    lambda_t: usize,
+    pub lambda_t: usize,
 
     /// security parameter of our $H_{\Lamda_H}$ hash function
-    lambda_h: usize,
+    pub lambda_h: usize,
 
     // keeping f0 separate from the rest of the curve points makes it easier to work with tau
     f0: G2Projective,

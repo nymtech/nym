@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::DkgError;
-use crate::utils::hash_g2;
+use crate::utils::{hash_g2, RandomOracleBuilder};
 use crate::{Chunk, Share};
 use bitvec::field::BitField;
 use bitvec::order::Msb0;
@@ -34,6 +34,9 @@ lazy_static! {
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
+
+// this particular domain is not for curve hashing, but might as well also follow the same naming pattern
+const TREE_TAU_EXTENSION_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_SHA-256_TREE_EXTENSION";
 const MAX_EPOCHS_EXP: usize = 32;
 const HASH_SECURITY_PARAM: usize = 256;
 
@@ -125,17 +128,22 @@ impl Tau {
 
     fn extend(
         &self,
-        _rs: &[G1Projective; NUM_CHUNKS],
-        _ss: &[G1Projective; NUM_CHUNKS],
-        _cs: &[[G1Projective; NUM_CHUNKS]],
+        rs: &[G1Projective; NUM_CHUNKS],
+        ss: &[G1Projective; NUM_CHUNKS],
+        cs: &[[G1Projective; NUM_CHUNKS]],
     ) -> Self {
-        // temporary placeholder
-        let oracle_output = [42u8; 32];
-        assert_eq!(oracle_output.len() * 8, HASH_SECURITY_PARAM);
+        let mut random_oracle_builder = RandomOracleBuilder::new(TREE_TAU_EXTENSION_DOMAIN);
+        random_oracle_builder.update_with_g1_elements(rs.iter());
+        random_oracle_builder.update_with_g1_elements(ss.iter());
+        for ciphertext_chunks in cs {
+            random_oracle_builder.update_with_g1_elements(ciphertext_chunks.iter());
+        }
+
+        let oracle_output = random_oracle_builder.finalize();
+        debug_assert_eq!(oracle_output.len() * 8, HASH_SECURITY_PARAM);
 
         let mut extended_tau = self.clone();
         for byte in oracle_output {
-            // TODO: check endianness
             extended_tau
                 .0
                 .extend_from_bitslice(byte.view_bits::<Msb0>())

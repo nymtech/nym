@@ -12,7 +12,7 @@ use dkg::bte::{
     Epoch, PublicKey,
 };
 use dkg::interpolation::polynomial::Polynomial;
-use dkg::{Dealing, NodeIndex};
+use dkg::{Dealing, NodeIndex, Share};
 use ff::Field;
 use rand_core::{RngCore, SeedableRng};
 use std::collections::BTreeMap;
@@ -420,6 +420,76 @@ pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     });
 }
 
+pub fn single_share_encryption(c: &mut Criterion) {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup();
+    let epoch = Epoch::new(2);
+    let (_, pk) = keygen(&params, &mut rng);
+
+    let polynomial = Polynomial::new_random(&mut rng, 3);
+    let share: Share = polynomial.evaluate(&Scalar::from(42)).into();
+
+    c.bench_function("single share encryption", |b| {
+        b.iter(|| {
+            black_box(encrypt_shares(
+                &[(&share, pk.public_key())],
+                epoch,
+                &params,
+                &mut rng,
+            ))
+        })
+    });
+}
+
+pub fn share_encryption_100(c: &mut Criterion) {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup();
+    let epoch = Epoch::new(2);
+
+    let (receivers, _) = prepare_keys(&mut rng, 100);
+    let polynomial = Polynomial::new_random(&mut rng, 3);
+    let shares = receivers
+        .keys()
+        .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
+        .collect::<Vec<_>>();
+
+    let remote_share_key_pairs = shares
+        .iter()
+        .zip(receivers.values())
+        .map(|(share, key)| (share, key))
+        .collect::<Vec<_>>();
+
+    c.bench_function("100 shares encryption", |b| {
+        b.iter(|| {
+            black_box(encrypt_shares(
+                &remote_share_key_pairs,
+                epoch,
+                &params,
+                &mut rng,
+            ))
+        })
+    });
+}
+
+pub fn share_decryption(c: &mut Criterion) {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup();
+    let epoch = Epoch::new(2);
+    let (mut dk, pk) = keygen(&params, &mut rng);
+
+    let polynomial = Polynomial::new_random(&mut rng, 3);
+    let share: Share = polynomial.evaluate(&Scalar::from(42)).into();
+    let (ciphertexts, _) = encrypt_shares(&[(&share, pk.public_key())], epoch, &params, &mut rng);
+    dk.try_update_to(epoch, &params, &mut rng).unwrap();
+
+    c.bench_function("single share decryption", |b| {
+        b.iter(|| black_box(decrypt_share(&dk, 0, &ciphertexts, epoch, None)))
+    });
+}
+
 criterion_group!(
     utils,
     precompute_default_bsgs_table,
@@ -452,11 +522,19 @@ criterion_group!(
     verifying_proof_of_secret_sharing_for_100_parties
 );
 
+criterion_group!(
+    encryption,
+    single_share_encryption,
+    share_encryption_100,
+    share_decryption,
+);
+
 criterion_main!(
     utils,
     dealings_creation,
     dealings_verification,
-    proofs_of_knowledge
+    proofs_of_knowledge,
+    encryption
 );
 
 // TODO: benchmark using affine vs projective representation throughout the crate

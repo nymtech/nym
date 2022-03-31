@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Button, FormControl, Stack } from '@mui/material';
+import { Alert, Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { TPages } from '../types';
 import { Subtitle, Title, PasswordStrength } from '../components';
@@ -38,8 +38,8 @@ export const CreatePassword = ({ onSkip, onNext }: { page: TPages; onNext: () =>
 
   return (
     <Stack spacing={3} alignItems="center" minWidth="50%">
-      <Title title="Create password" />
-      <Subtitle subtitle="Create a strong password. Min 8 characters, at least one capital letter, number and special symbol" />
+      <Title title="Create optional password" />
+      <Subtitle subtitle="Password should be min 8 characters, at least one number and one symbol" />
       <FormControl fullWidth>
         <Stack spacing={2}>
           <>

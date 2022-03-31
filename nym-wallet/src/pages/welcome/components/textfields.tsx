@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconButton, Stack, TextField } from '@mui/material';
+import { Box, IconButton, Link, Stack, TextField, Typography } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Error } from './error';
 
@@ -12,12 +12,13 @@ export const MnemonicInput: React.FC<{
   return (
     <Stack spacing={2}>
       <TextField
-        placeholder="Mnemonic"
+        label="Mnemonic"
         type={showPassword ? 'input' : 'password'}
         value={mnemonic}
         onChange={(e) => onUpdateMnemonic(e.target.value)}
         multiline={!!showPassword}
         rows={4}
+        autoFocus
         fullWidth
         InputProps={{
           endAdornment: (
@@ -36,26 +37,40 @@ export const PasswordInput: React.FC<{
   password: string;
   error?: string;
   label: string;
+  showForgottenPassword?: boolean;
   onUpdatePassword: (password: string) => void;
-}> = ({ password, label, error, onUpdatePassword }) => {
+}> = ({ password, label, error, showForgottenPassword, onUpdatePassword }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <Stack spacing={2}>
-      <TextField
-        label={label}
-        fullWidth
-        value={password}
-        onChange={(e) => onUpdatePassword(e.target.value)}
-        type={showPassword ? 'input' : 'password'}
-        InputProps={{
-          endAdornment: (
-            <IconButton onClick={() => setShowPassword((show) => !show)}>
-              {showPassword ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          ),
-        }}
-      />
+      <Box>
+        <TextField
+          label={label}
+          fullWidth
+          value={password}
+          onChange={(e) => onUpdatePassword(e.target.value)}
+          type={showPassword ? 'input' : 'password'}
+          autoFocus
+          InputProps={{
+            endAdornment: (
+              <IconButton onClick={() => setShowPassword((show) => !show)}>
+                {showPassword ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            ),
+          }}
+        />
+        {showForgottenPassword && (
+          <Link
+            underline="none"
+            variant="body2"
+            component="div"
+            sx={{ mt: 1, textAlign: 'right', color: 'info.main', cursor: 'pointer' }}
+          >
+            Forgotten password?
+          </Link>
+        )}
+      </Box>
       {error && <Error message={error} />}
     </Stack>
   );

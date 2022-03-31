@@ -12,7 +12,7 @@ export const WelcomeContent: React.FC<{
   <>
     <Title title="Welcome to NYM" />
     <SubtitleSlick subtitle="Next generation of privacy" />
-    <Stack spacing={3} sx={{ width: 300 }}>
+    <Stack spacing={3} minWidth={300}>
       <Button fullWidth color="primary" variant="contained" size="large" onClick={onUseExisting}>
         Sign in
       </Button>

@@ -6,14 +6,7 @@ import { WordTiles } from '../components';
 import { TPages } from '../types';
 import { SignInContext } from '../context';
 
-export const CreateMnemonic = ({
-  onNext,
-}: {
-  page: TPages;
-  onNext: () => void;
-  onPrev: () => void;
-  onComplete: () => void;
-}) => {
+export const CreateMnemonic = ({ onNext }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
   const { mnemonic, mnemonicWords, generateMnemonic, validateMnemonic, setMnemonic, setError } =
     useContext(SignInContext);
 

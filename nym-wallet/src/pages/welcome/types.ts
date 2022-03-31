@@ -19,3 +19,5 @@ export type TMnemonicWords = TMnemonicWord[];
 export type THiddenMnemonicWord = { hidden: boolean } & TMnemonicWord;
 
 export type THiddenMnemonicWords = THiddenMnemonicWord[];
+
+export type TLoginType = 'mnemonic' | 'password';

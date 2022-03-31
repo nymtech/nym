@@ -9,13 +9,14 @@ import {
   WelcomeContent,
   SignInMnemonic,
 } from './pages';
-import { TPages } from './types';
+import { TLoginType, TPages } from './types';
 import { RenderPage, Step } from './components';
 import { ClientContext } from '../../context/main';
 import { SignInPassword } from './pages/signin-password';
 
 export const Welcome = () => {
-  const [page, setPage] = useState<TPages>('sign in with mnemonic');
+  const [page, setPage] = useState<TPages>('welcome');
+  const [loginType, setLoginType] = useState<TLoginType>('mnemonic');
   const { isLoading } = useContext(ClientContext);
 
   return (
@@ -53,24 +54,28 @@ export const Welcome = () => {
               <CreateMnemonic
                 onNext={() => setPage('verify mnemonic')}
                 onPrev={() => setPage('create password')}
-                onComplete={() => setPage('existing account')}
                 page="create mnemonic"
               />
               <VerifyMnemonic onNext={() => setPage('create password')} onPrev={() => {}} page="verify mnemonic" />
               <CreatePassword
-                onSkip={() => setPage('sign in with mnemonic')}
+                onSkip={() => {
+                  setLoginType('mnemonic');
+                  setPage('existing account');
+                }}
                 onNext={() => {
-                  setPage('sign in with password');
+                  setLoginType('password');
+                  setPage('existing account');
                 }}
                 page="create password"
               />
-              <SignInMnemonic onPrev={() => setPage('welcome')} page="sign in with mnemonic" />
-              <SignInPassword onPrev={() => setPage('welcome')} page="sign in with password" />
               <ExistingAccount
                 onPrev={() => setPage('welcome')}
-                onCreatePassword={() => setPage('create password')}
                 page="existing account"
+                loginType={loginType}
+                setLoginType={(loginType) => setLoginType(loginType)}
               />
+              <SignInMnemonic onPrev={() => setPage('welcome')} page="sign in with mnemonic" />
+              <SignInPassword onPrev={() => setPage('welcome')} page="sign in with password" />
             </RenderPage>
           </Stack>
         )}

@@ -7,6 +7,7 @@ import { config } from '../../config';
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
+import { TLoginType } from 'src/pages/welcome/types';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
@@ -93,7 +94,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     refreshAccount();
   }, [network]);
 
-  const logIn = async ({ type, value }: { type: 'mnemonic' | 'password'; value: string }) => {
+  const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
+    if (value.length === 0) {
+      setError(`A ${type} must be provided`);
+      return;
+    }
     try {
       setIsLoading(true);
       if (type === 'mnemonic') {

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnode::NodeRewardParams;
+use crate::reward_params::NodeRewardParams;
 use crate::ContractStateParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
@@ -15,6 +15,20 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    InitEpoch {},
+    ReconcileDelegations {},
+    CheckpointMixnodes {},
+    CompoundOperatorRewardOnBehalf {
+        owner: String,
+    },
+    CompoundDelegatorRewardOnBehalf {
+        owner: String,
+        mix_identity: IdentityKey,
+    },
+    CompoundOperatorReward {},
+    CompoundDelegatorReward {
+        mix_identity: IdentityKey,
+    },
     BondMixnode {
         mix_node: MixNode,
         owner_signature: String,
@@ -46,15 +60,12 @@ pub enum ExecuteMsg {
         identity: IdentityKey,
         // percentage value in range 0-100
         params: NodeRewardParams,
-
-        // id of the current rewarding interval
-        interval_id: u32,
     },
-    RewardNextMixDelegators {
-        mix_identity: IdentityKey,
-        // id of the current rewarding interval
-        interval_id: u32,
-    },
+    // RewardNextMixDelegators {
+    //     mix_identity: IdentityKey,
+    //     // id of the current rewarding interval
+    //     interval_id: u32,
+    // },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
         delegate: String,
@@ -83,7 +94,8 @@ pub enum ExecuteMsg {
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
     },
-    AdvanceCurrentInterval {},
+    // AdvanceCurrentInterval {},
+    AdvanceCurrentEpoch {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -105,18 +117,12 @@ pub enum QueryMsg {
         address: String,
     },
     StateParams {},
-    // gets all [paged] delegations in the entire network
-    // TODO: do we even want that?
-    GetAllNetworkDelegations {
-        start_after: Option<(IdentityKey, String)>,
-        limit: Option<u32>,
-    },
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {
         mix_identity: IdentityKey,
         // since `start_after` is user-provided input, we can't use `Addr` as we
         // can't guarantee it's validated.
-        start_after: Option<String>,
+        start_after: Option<(String, u64)>,
         limit: Option<u32>,
     },
     // gets all [paged] delegations associated with particular delegator
@@ -147,13 +153,21 @@ pub enum QueryMsg {
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    GetRewardedSetHeightsForInterval {
-        interval_id: u32,
-    },
     GetRewardedSetUpdateDetails {},
     GetCurrentRewardedSetHeight {},
-    GetCurrentInterval {},
     GetRewardedSetRefreshBlocks {},
+    GetCurrentEpoch {},
+    GetEpochsInInterval {},
+    QueryOperatorReward {
+        address: String,
+    },
+    QueryDelegatorReward {
+        address: String,
+        mix_identity: IdentityKey,
+    },
+    GetPendingDelegationEvents {
+        owner_address: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

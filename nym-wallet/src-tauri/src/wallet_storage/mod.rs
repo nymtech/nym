@@ -1,19 +1,26 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
+
 use crate::error::BackendError;
+use crate::operations::mixnet::account::create_new_account;
+use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
-use crate::wallet_storage::password::UserPassword;
 use cosmrs::bip32::DerivationPath;
+use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, OpenOptions};
 use std::path::PathBuf;
+
+use self::account_data::{EncryptedAccount, StoredWallet};
+
 pub(crate) mod account_data;
 pub(crate) mod encryption;
+
 mod password;
 
-const STORAGE_DIR_NAME: &str = "NymWallet";
-const WALLET_INFO_FILENAME: &str = "saved_wallet.json";
+pub(crate) const DEFAULT_WALLET_ACCOUNT_ID: &str = "default";
 
 fn get_storage_directory() -> Result<PathBuf, BackendError> {
   tauri::api::path::local_data_dir()
@@ -25,52 +32,76 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
   get_storage_directory().map(|dir| dir.join(WALLET_INFO_FILENAME))
 }
 
-pub(crate) fn load_existing_wallet_login_information(
-  password: &UserPassword,
-) -> Result<Vec<StoredAccount>, BackendError> {
+pub(crate) fn load_existing_wallet(password: &UserPassword) -> Result<StoredWallet, BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
+  load_existing_wallet_at_file(filepath)
+}
 
-  load_existing_wallet_login_information_at_file(filepath, password)
+fn load_existing_wallet_at_file(filepath: PathBuf) -> Result<StoredWallet, BackendError> {
+  if !filepath.exists() {
+    return Err(BackendError::WalletFileNotFound);
+  }
+  let file = OpenOptions::new().read(true).open(filepath)?;
+  let wallet: StoredWallet = serde_json::from_reader(file)?;
+  Ok(wallet)
+}
+
+pub(crate) fn load_existing_wallet_login_information(
+  id: &WalletAccountId,
+  password: &UserPassword,
+) -> Result<StoredAccount, BackendError> {
+  let store_dir = get_storage_directory()?;
+  let filepath = store_dir.join(WALLET_INFO_FILENAME);
+  load_existing_wallet_login_information_at_file(filepath, id, password)
 }
 
 fn load_existing_wallet_login_information_at_file(
   filepath: PathBuf,
+  id: &WalletAccountId,
   password: &UserPassword,
-) -> Result<Vec<StoredAccount>, BackendError> {
-  if !filepath.exists() {
-    return Ok(Vec::new());
-  }
-  let file = OpenOptions::new().read(true).open(filepath)?;
-  let encrypted_data: EncryptedData<Vec<StoredAccount>> = serde_json::from_reader(file)?;
-  encrypted_data.decrypt_struct(password)
+) -> Result<StoredAccount, BackendError> {
+  load_existing_wallet_at_file(filepath)?.decrypt_account(id, password)
 }
 
 pub(crate) fn store_wallet_login_information(
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
-  password: UserPassword,
+  id: WalletAccountId,
+  password: &UserPassword,
 ) -> Result<(), BackendError> {
   // make sure the entire directory structure exists
   let store_dir = get_storage_directory()?;
   create_dir_all(&store_dir)?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-  store_wallet_login_information_at_file(filepath, mnemonic, hd_path, &password)
+  store_wallet_login_information_at_file(filepath, mnemonic, hd_path, id, password)
 }
 
 fn store_wallet_login_information_at_file(
   filepath: PathBuf,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
+  id: WalletAccountId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
-  let mut all_accounts =
-    load_existing_wallet_login_information_at_file(filepath.clone(), password)?;
-  let new_account = StoredAccount::new_mnemonic_backed_account(mnemonic, hd_path);
-  all_accounts.push(new_account);
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
+    result => result?,
+  };
 
-  let encrypted = encrypt_struct(&all_accounts, password)?;
+  // Confirm that the given password also can unlock the other entries
+  if !stored_wallet.password_can_decrypt_all(password) {
+    return Err(BackendError::WalletDifferentPasswordDetected);
+  }
+
+  let new_account = StoredAccount::new_mnemonic_backed_account(mnemonic, hd_path);
+  let new_encrypted_account = EncryptedAccount {
+    id,
+    account: encrypt_struct(&new_account, password)?,
+  };
+
+  stored_wallet.add_encrypted_account(new_encrypted_account)?;
 
   let file = OpenOptions::new()
     .create(true)
@@ -78,9 +109,7 @@ fn store_wallet_login_information_at_file(
     .truncate(true)
     .open(filepath)?;
 
-  serde_json::to_writer_pretty(file, &encrypted)?;
-
-  Ok(())
+  Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
 }
 
 // this function should probably exist, but I guess we need to discuss how it should behave in the context of the UX
@@ -91,14 +120,10 @@ fn store_wallet_login_information_at_file(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::wallet_storage::encryption::encrypt_data;
   use config::defaults::COSMOS_DERIVATION_PATH;
   use std::path::Path;
   use tempfile::tempdir;
-
-  fn read_encrypted_blob(file: PathBuf) -> EncryptedData<Vec<StoredAccount>> {
-    let file = OpenOptions::new().read(true).open(&file).unwrap();
-    serde_json::from_reader(file).unwrap()
-  }
 
   // I'm not 100% sure how to feel about having to touch the file system at all
   #[test]
@@ -114,29 +139,36 @@ mod tests {
     let password = UserPassword::new("password".to_string());
     let bad_password = UserPassword::new("bad-password".to_string());
 
-    // nothing was stored on the disk, so regardless of password used, there will be no error, but
-    // returned list will be empty
-    assert!(
-      load_existing_wallet_login_information_at_file(wallet_file.clone(), &password)
-        .unwrap()
-        .is_empty()
-    );
-    assert!(
-      load_existing_wallet_login_information_at_file(wallet_file.clone(), &bad_password)
-        .unwrap()
-        .is_empty()
-    );
+    let id1 = WalletAccountId::new("first".to_string());
+    let id2 = WalletAccountId::new("second".to_string());
 
-    // store the first account
+    // Nothing was stored on the disk
+    assert!(matches!(
+      load_existing_wallet_at_file(wallet_file.clone()),
+      Err(BackendError::WalletFileNotFound),
+    ));
+    assert!(matches!(
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &password),
+      Err(BackendError::WalletFileNotFound),
+    ));
+
+    // Store the first account
     store_wallet_login_information_at_file(
       wallet_file.clone(),
       dummy_account1.clone(),
       cosmos_hd_path.clone(),
+      id1.clone(),
       &password,
     )
     .unwrap();
 
-    let encrypted_blob = read_encrypted_blob(wallet_file.clone());
+    let stored_wallet = load_existing_wallet_at_file(wallet_file.clone()).unwrap();
+    assert_eq!(stored_wallet.len(), 1);
+    assert_eq!(
+      stored_wallet.encrypted_account_by_index(0).unwrap().id,
+      WalletAccountId::new("first".to_string())
+    );
+    let encrypted_blob = &stored_wallet.encrypted_account_by_index(0).unwrap().account;
 
     // some actual ciphertext was saved
     assert!(!encrypted_blob.ciphertext().is_empty());
@@ -146,53 +178,78 @@ mod tests {
     let original_salt = encrypted_blob.salt().to_vec();
 
     // trying to load it with wrong password now fails
-    assert!(
-      load_existing_wallet_login_information_at_file(wallet_file.clone(), &bad_password).is_err()
-    );
+    assert!(matches!(
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &bad_password),
+      Err(BackendError::DecryptionError),
+    ));
+    // and with the wrong id also fails
+    assert!(matches!(
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id2, &password),
+      Err(BackendError::NoSuchIdInWallet),
+    ));
 
-    let loaded_accounts =
-      load_existing_wallet_login_information_at_file(wallet_file.clone(), &password).unwrap();
-    println!("{:?}", loaded_accounts);
-    assert_eq!(1, loaded_accounts.len());
+    // and storing the same id again fails
+    assert!(matches!(
+      store_wallet_login_information_at_file(
+        wallet_file.clone(),
+        dummy_account1.clone(),
+        cosmos_hd_path.clone(),
+        id1.clone(),
+        &password,
+      ),
+      Err(BackendError::IdAlreadyExistsInWallet),
+    ));
 
-    let StoredAccount::Mnemonic(acc) = &loaded_accounts[0];
+    let loaded_account =
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &password).unwrap();
+
+    let StoredAccount::Mnemonic(ref acc) = loaded_account;
     assert_eq!(&dummy_account1, acc.mnemonic());
     assert_eq!(&cosmos_hd_path, acc.hd_path());
 
-    // can't store extra account if you use different password
-    assert!(store_wallet_login_information_at_file(
-      wallet_file.clone(),
-      dummy_account2.clone(),
-      cosmos_hd_path.clone(),
-      &bad_password,
-    )
-    .is_err());
+    // Can't store extra account if you use different password
+    assert!(matches!(
+      store_wallet_login_information_at_file(
+        wallet_file.clone(),
+        dummy_account2.clone(),
+        cosmos_hd_path.clone(),
+        id2.clone(),
+        &bad_password
+      ),
+      Err(BackendError::WalletDifferentPasswordDetected),
+    ));
 
     // add extra account properly now
     store_wallet_login_information_at_file(
       wallet_file.clone(),
       dummy_account2.clone(),
       different_hd_path.clone(),
+      id2.clone(),
       &password,
     )
     .unwrap();
 
-    let encrypted_blob = read_encrypted_blob(wallet_file.clone());
+    let loaded_accounts = load_existing_wallet_at_file(wallet_file.clone()).unwrap();
+    assert_eq!(2, loaded_accounts.len());
+    let encrypted_blob = &loaded_accounts
+      .encrypted_account_by_index(1)
+      .unwrap()
+      .account;
 
     // fresh IV and salt are used
     assert_ne!(original_iv, encrypted_blob.iv());
     assert_ne!(original_salt, encrypted_blob.salt());
 
-    let loaded_accounts =
-      load_existing_wallet_login_information_at_file(wallet_file, &password).unwrap();
-    assert_eq!(2, loaded_accounts.len());
-
     // first account should be unchanged
-    let StoredAccount::Mnemonic(acc1) = &loaded_accounts[0];
+    let loaded_account =
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let StoredAccount::Mnemonic(ref acc1) = loaded_account;
     assert_eq!(&dummy_account1, acc1.mnemonic());
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
-    let StoredAccount::Mnemonic(acc2) = &loaded_accounts[1];
+    let loaded_account =
+      load_existing_wallet_login_information_at_file(wallet_file, &id2, &password).unwrap();
+    let StoredAccount::Mnemonic(ref acc2) = loaded_account;
     assert_eq!(&dummy_account2, acc2.mnemonic());
     assert_eq!(&different_hd_path, acc2.hd_path());
   }

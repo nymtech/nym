@@ -9,7 +9,6 @@ use crate::contract_cache::ValidatorCacheRefresher;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
-use crate::rewarding::Rewarder;
 use crate::storage::ValidatorApiStorage;
 use ::config::NymConfig;
 use anyhow::Result;
@@ -25,12 +24,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Notify;
 use url::Url;
-use validator_client::nymd::SigningNymdClient;
-use validator_client::ValidatorClientError;
+// use validator_client::nymd::SigningNymdClient;
+// use validator_client::ValidatorClientError;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::InternalSignRequest;
+use coconut::{client::QueryClient, InternalSignRequest};
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -38,7 +37,6 @@ mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
 mod rewarded_set_updater;
-mod rewarding;
 pub(crate) mod storage;
 
 #[cfg(feature = "coconut")]
@@ -55,6 +53,9 @@ const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 
 #[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
+
+#[cfg(feature = "coconut")]
+const SIGNED_DEPOSITS_ARG: &str = "signed-deposits";
 
 #[cfg(feature = "coconut")]
 const COCONUT_ONLY_FLAG: &str = "coconut-only";
@@ -180,6 +181,11 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .help("Path to the secret key file")
             .takes_value(true)
             .long(KEYPAIR_ARG),
+    ).arg(
+        Arg::with_name(SIGNED_DEPOSITS_ARG)
+            .help("Path to the directory used to store the already signed deposit transactions. This prevents the validator for double signing for the same deposit")
+            .takes_value(true)
+            .long(SIGNED_DEPOSITS_ARG),
     ).arg(
         Arg::with_name(COCONUT_ONLY_FLAG)
             .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
@@ -358,38 +364,14 @@ fn setup_network_monitor<'a>(
     ))
 }
 
+// TODO: Remove if still unused
+#[allow(dead_code)]
 fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usize {
     let test_delay = config.get_network_monitor_run_interval();
 
     // this is just a rough estimate. In real world there will be slightly fewer test runs
     // as they are not instantaneous and hence do not happen exactly every test_delay
     (interval_length.as_secs() / test_delay.as_secs()) as usize
-}
-
-async fn setup_rewarder(
-    config: &Config,
-    rocket: &Rocket<Ignite>,
-    nymd_client: &Client<SigningNymdClient>,
-) -> Result<Option<Rewarder>, ValidatorClientError> {
-    if config.get_rewarding_enabled() && config.get_network_monitor_enabled() {
-        // get instances of managed states
-        let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
-        let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
-        let rewarding_interval_length = nymd_client.get_current_interval().await?.length();
-
-        Ok(Some(Rewarder::new(
-            nymd_client.clone(),
-            validator_cache,
-            node_status_storage,
-            expected_monitor_test_runs(config, rewarding_interval_length),
-            config.get_minimum_interval_monitor_threshold(),
-        )))
-    } else if config.get_rewarding_enabled() {
-        warn!("Cannot enable rewarding with the network monitor being disabled");
-        Ok(None)
-    } else {
-        Ok(None)
-    }
 }
 
 async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
@@ -399,15 +381,25 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage());
 
+    // This is not a very nice approach. A lazy value would be more suitable, but that's still
+    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
+    let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
+        Some(ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?)
+    } else {
+        None
+    };
+
     #[cfg(feature = "coconut")]
-    let rocket = rocket.attach(InternalSignRequest::stage(config.keypair()));
+    let rocket = rocket.attach(InternalSignRequest::stage(
+        QueryClient::new()?,
+        config.keypair(),
+        storage.clone().unwrap(),
+    ));
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
         Ok(rocket
-            .attach(storage::ValidatorApiStorage::stage(
-                config.get_node_status_api_database_path(),
-            ))
+            .attach(storage::ValidatorApiStorage::stage(storage.unwrap()))
             .attach(node_status_api::stage_full())
             .ignite()
             .await?)
@@ -449,7 +441,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // this simplifies everything - we just want to run coconut things
         return rocket::build()
             .attach(setup_cors()?)
-            .attach(InternalSignRequest::stage(config.keypair()))
+            .attach(InternalSignRequest::stage(
+                QueryClient::new()?,
+                config.keypair(),
+                ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?,
+            ))
             .launch()
             .await
             .map_err(|err| err.into());
@@ -482,27 +478,19 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
         let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
-        let uptime_updater = HistoricalUptimeUpdater::new(storage);
+        let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         tokio::spawn(async move { uptime_updater.run().await });
 
-        if let Some(rewarder) = setup_rewarder(&config, &rocket, &nymd_client).await? {
-            info!("Periodic rewarding is starting...");
+        let mut rewarded_set_updater = RewardedSetUpdater::new(
+            nymd_client,
+            rewarded_set_update_notify,
+            validator_cache.clone(),
+            storage,
+        )
+        .await?;
 
-            let rewarded_set_updater = RewardedSetUpdater::new(
-                nymd_client.clone(),
-                rewarded_set_update_notify,
-                validator_cache.clone(),
-            );
-
-            // spawn rewarded set updater
-            tokio::spawn(async move { rewarded_set_updater.run().await });
-
-            // only update rewarded set if we're also distributing rewards
-
-            tokio::spawn(async move { rewarder.run().await });
-        } else {
-            info!("Periodic rewarding is disabled.");
-        }
+        // spawn rewarded set updater
+        tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
     } else {
         let nymd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(

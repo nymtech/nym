@@ -1,49 +1,59 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
-import { ClientContext } from '../context/main'
-import { checkGatewayOwnership, checkMixnodeOwnership } from '../requests'
-import { EnumNodeType, TNodeOwnership } from '../types'
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { Console } from '../utils/console';
+import { ClientContext } from '../context/main';
+import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests';
+import { EnumNodeType, TNodeOwnership } from '../types';
 
 const initial = {
   hasOwnership: false,
   nodeType: undefined,
-}
+  vestingPledge: undefined,
+};
 
 export const useCheckOwnership = () => {
-  const { clientDetails } = useContext(ClientContext)
-  const [ownership, setOwnership] = useState<TNodeOwnership>(initial)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string>()
+  const { clientDetails } = useContext(ClientContext);
+
+  const [ownership, setOwnership] = useState<TNodeOwnership>(initial);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>();
 
   const checkOwnership = useCallback(async () => {
-    const status = {} as TNodeOwnership
-
-    setIsLoading(true)
+    const status = {} as TNodeOwnership;
 
     try {
-      const ownsMixnode = await checkMixnodeOwnership()
-      const ownsGateway = await checkGatewayOwnership()
+      const [ownsMixnode, ownsGateway] = await Promise.all([checkMixnodeOwnership(), checkGatewayOwnership()]);
 
       if (ownsMixnode) {
-        status.hasOwnership = true
-        status.nodeType = EnumNodeType.mixnode
+        status.hasOwnership = true;
+        status.nodeType = EnumNodeType.mixnode;
+        status.vestingPledge = await getVestingPledgeInfo({
+          address: clientDetails?.client_address!,
+          type: EnumNodeType.mixnode,
+        });
       }
 
       if (ownsGateway) {
-        status.hasOwnership = true
-        status.nodeType = EnumNodeType.gateway
+        status.hasOwnership = true;
+        status.nodeType = EnumNodeType.gateway;
+        status.vestingPledge = await getVestingPledgeInfo({
+          address: clientDetails?.client_address!,
+          type: EnumNodeType.gateway,
+        });
       }
 
-      setOwnership(status)
+      setOwnership(status);
     } catch (e) {
-      setError(e as string)
-      setIsLoading(false)
-      setOwnership(initial)
+      Console.error(e as string);
+      setError(e as string);
+      setOwnership(initial);
+    } finally {
+      setIsLoading(false);
     }
-  }, [])
+  }, [clientDetails]);
 
   useEffect(() => {
-    checkOwnership()
-  }, [clientDetails])
+    checkOwnership();
+  }, [clientDetails]);
 
-  return { isLoading, error, ownership, checkOwnership }
-}
+  return { isLoading, error, ownership, checkOwnership };
+};

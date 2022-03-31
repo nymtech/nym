@@ -20,14 +20,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   onClick,
 }) => (
   <Card onClick={onClick} sx={{ height: '100%' }}>
-    {title && (
-      <CardHeader
-        title={title || ''}
-        avatar={Icon}
-        action={Action}
-        subheader={subtitle}
-      />
-    )}
+    {title && <CardHeader title={title || ''} avatar={Icon} action={Action} subheader={subtitle} />}
     {children && <CardContent>{children}</CardContent>}
     {errorMsg && (
       <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>

@@ -1,31 +1,30 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { Alert, Box, Button, CircularProgress } from '@mui/material'
-import { BondForm } from './BondForm'
-import { SuccessView } from './SuccessView'
-import { NymCard } from '../../components'
-import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus'
-import { unbond } from '../../requests'
-import { useCheckOwnership } from '../../hooks/useCheckOwnership'
-import { ClientContext } from '../../context/main'
-import { PageLayout } from '../../layouts'
+import React, { useEffect, useState } from 'react';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { useSnackbar } from 'notistack';
+import { BondForm } from './BondForm';
+import { SuccessView } from './SuccessView';
+import { NymCard } from '../../components';
+import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
+import { unbond, vestingUnbond } from '../../requests';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import { PageLayout } from '../../layouts';
 
 export const Bond = () => {
-  const [status, setStatus] = useState(EnumRequestStatus.initial)
-  const [error, setError] = useState<string>()
-  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>()
+  const [status, setStatus] = useState(EnumRequestStatus.initial);
+  const [error, setError] = useState<string>();
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
-  const { checkOwnership, ownership } = useCheckOwnership()
-  const { userBalance, getBondDetails } = useContext(ClientContext)
+  const { checkOwnership, ownership, isLoading } = useCheckOwnership();
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
       const initialiseForm = async () => {
-        await checkOwnership()
-        setStatus(EnumRequestStatus.initial)
-      }
-      initialiseForm()
+        await checkOwnership();
+      };
+      initialiseForm();
     }
-  }, [status])
+  }, [status, checkOwnership]);
 
   return (
     <PageLayout>
@@ -36,18 +35,25 @@ export const Bond = () => {
           </Box>
         )}
         {ownership?.hasOwnership && (
-          <Box sx={{ px: 3 }}>
+          <Box sx={{ px: 3, mb: 3 }}>
             <Alert
               severity="info"
               action={
                 <Button
                   disabled={status === EnumRequestStatus.loading}
                   onClick={async () => {
-                    setStatus(EnumRequestStatus.loading)
-                    await unbond(ownership.nodeType!)
-                    await getBondDetails()
-                    await userBalance.fetchBalance()
-                    setStatus(EnumRequestStatus.initial)
+                    setStatus(EnumRequestStatus.loading);
+                    try {
+                      if (ownership.vestingPledge) {
+                        await vestingUnbond(ownership.nodeType!);
+                      } else {
+                        await unbond(ownership.nodeType!);
+                      }
+                    } catch (e) {
+                      enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' });
+                    } finally {
+                      setStatus(EnumRequestStatus.initial);
+                    }
                   }}
                   data-testid="unBond"
                   color="inherit"
@@ -71,15 +77,15 @@ export const Bond = () => {
             <CircularProgress size={48} />
           </Box>
         )}
-        {status === EnumRequestStatus.initial && (
+        {status === EnumRequestStatus.initial && !ownership.hasOwnership && !isLoading && (
           <BondForm
             onError={(e?: string) => {
-              setError(e)
-              setStatus(EnumRequestStatus.error)
+              setError(e);
+              setStatus(EnumRequestStatus.error);
             }}
             onSuccess={(details) => {
-              setSuccessDetails(details)
-              setStatus(EnumRequestStatus.success)
+              setSuccessDetails(details);
+              setStatus(EnumRequestStatus.success);
             }}
             disabled={ownership?.hasOwnership}
           />
@@ -106,9 +112,12 @@ export const Bond = () => {
             >
               <Button
                 onClick={() => {
-                  setStatus(EnumRequestStatus.initial)
-                  checkOwnership()
+                  setStatus(EnumRequestStatus.initial);
                 }}
+                variant="contained"
+                color="primary"
+                size="large"
+                disableElevation
               >
                 {status === EnumRequestStatus.error ? 'Again?' : 'Finish'}
               </Button>
@@ -117,5 +126,5 @@ export const Bond = () => {
         )}
       </NymCard>
     </PageLayout>
-  )
-}
+  );
+};

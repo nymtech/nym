@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, ops::Deref, str::FromStr};
+use std::{collections::HashMap, fmt, str::FromStr};
 
 use crate::{
     DefaultNetworkDetails, ValidatorDetails, MAINNET_DEFAULTS, QA_DEFAULTS, SANDBOX_DEFAULTS,
@@ -86,7 +86,7 @@ impl fmt::Display for Network {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NetworkDetails {
     bech32_prefix: String,
     denom: String,
@@ -98,7 +98,7 @@ pub struct NetworkDetails {
 }
 
 impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
-    fn from(details: &DefaultNetworkDetails) -> Self {
+    fn from(details: &DefaultNetworkDetails<'_>) -> Self {
         NetworkDetails {
             bech32_prefix: details.bech32_prefix.into(),
             denom: details.denom.into(),
@@ -111,27 +111,19 @@ impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct SupportedNetworks {
     networks: HashMap<Network, NetworkDetails>,
 }
 
 impl SupportedNetworks {
     pub fn new(support: Vec<Network>) -> Self {
-        let mut networks = HashMap::new();
-
-        for network in support {
-            match network {
-                Network::MAINNET => {
-                    networks.insert(Network::MAINNET, MAINNET_DEFAULTS.deref().into())
-                }
-                Network::SANDBOX => {
-                    networks.insert(Network::SANDBOX, SANDBOX_DEFAULTS.deref().into())
-                }
-                Network::QA => networks.insert(Network::QA, QA_DEFAULTS.deref().into()),
-            };
+        SupportedNetworks {
+            networks: support
+                .into_iter()
+                .map(|n| (n, n.details().into()))
+                .collect(),
         }
-        SupportedNetworks { networks }
     }
 
     pub fn bech32_prefix(&self, network: Network) -> Option<&str> {
@@ -170,9 +162,11 @@ impl SupportedNetworks {
             .map(|network_details| network_details.rewarding_validator_address.as_str())
     }
 
-    pub fn validators(&self, network: Network) -> Option<&Vec<ValidatorDetails>> {
+    pub fn validators(&self, network: Network) -> impl Iterator<Item = &ValidatorDetails> {
         self.networks
             .get(&network)
             .map(|network_details| &network_details.validators)
+            .into_iter()
+            .flatten()
     }
 }

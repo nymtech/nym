@@ -1,19 +1,30 @@
-import React, { useContext } from 'react'
-import { Box, Tooltip, Typography } from '@mui/material'
-import { format } from 'date-fns'
-import { ClientContext } from '../../../context/main'
+/* eslint-disable react/no-array-index-key */
+import React, { useContext } from 'react';
+import { Box, Tooltip, Typography } from '@mui/material';
+import { format } from 'date-fns';
+import { ClientContext } from '../../../context/main';
 
-const calculateMarkerPosition = (arrLength: number, index: number) => (1 / arrLength) * 100 * index
+const calculateMarkerPosition = (arrLength: number, index: number) => (1 / arrLength) * 100 * index;
+
+const Marker: React.FC<{ tooltipText: string; color: string; position: string }> = ({
+  tooltipText,
+  color,
+  position,
+}) => (
+  <Tooltip title={tooltipText}>
+    <rect x={position} width="4" height="12" rx="1" fill={color} style={{ cursor: 'pointer' }} />
+  </Tooltip>
+);
 
 export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ percentageComplete }) => {
   const {
     userBalance: { currentVestingPeriod, vestingAccountInfo },
-  } = useContext(ClientContext)
+  } = useContext(ClientContext);
 
   const nextPeriod =
     typeof currentVestingPeriod === 'object' && !!vestingAccountInfo?.periods
       ? Number(vestingAccountInfo?.periods[currentVestingPeriod.In + 1]?.start_time)
-      : undefined
+      : undefined;
 
   return (
     <Box display="flex" flexDirection="column" gap={1} position="relative" width="100%">
@@ -34,21 +45,11 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
           tooltipText="End of vesting schedule"
         />
       </svg>
-      {nextPeriod && (
+      {!!nextPeriod && (
         <Typography variant="caption" sx={{ color: 'grey.500', position: 'absolute', top: 15, left: 0 }}>
           Next vesting period: {format(new Date(nextPeriod * 1000), 'HH:mm do MMM yyyy')}
         </Typography>
       )}
     </Box>
-  )
-}
-
-const Marker: React.FC<{ tooltipText: string; color: string; position: string }> = ({
-  tooltipText,
-  color,
-  position,
-}) => (
-  <Tooltip title={tooltipText}>
-    <rect x={position} width="4" height="12" rx="1" fill={color} style={{ cursor: 'pointer' }} />
-  </Tooltip>
-)
+  );
+};

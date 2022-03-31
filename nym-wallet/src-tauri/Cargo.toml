@@ -1,33 +1,45 @@
 [package]
 name = "nym_wallet"
-version = "1.0.0"
+version = "1.0.1"
 description = "Nym Native Wallet"
-authors = ["you"]
+authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
 default-run = "nym_wallet"
 edition = "2021"
 build = "src/build.rs"
-rust-version = "1.56"
+rust-version = "1.58"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.0.0-rc.3", features = [] }
+tauri-build = { version = "=1.0.0-rc.2", features = [] }
+
+tauri-codegen = "=1.0.0-rc.1"
+tauri-macros = "=1.0.0-rc.1"
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-strum = { version = "0.23", features = ["derive"] }
-tauri = { version = "1.0.0-rc.3", features = ["clipboard-all", "shell-open", "window-maximize"] }
-tokio = { version = "1.10", features = ["sync"] }
-dirs = "4.0"
 bip39 = "1.0"
-thiserror = "1.0"
-tendermint-rpc = "0.23.0"
-url = "2.2"
-rand = "0.6.5"
+cfg-if = "1.0.0"
+colored = "2.0"
+dirs = "4.0"
+dotenv = "0.15.0"
 eyre = "0.6.5"
+futures = "0.3.15"
+itertools = "0.10"
+log = "0.4"
+pretty_env_logger = "0.4"
+rand = "0.6.5"
+reqwest = "0.11.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+strum = { version = "0.23", features = ["derive"] }
+tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "window-maximize"] }
+tendermint-rpc = "0.23.0"
+thiserror = "1.0"
+tokio = { version = "1.10", features = ["sync", "time"] }
+toml = "0.5.8"
+url = "2.2"
 
 aes-gcm = "0.9.4"
 argon2 = { version = "0.3.2", features = ["std"] }
@@ -44,26 +56,12 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
-credentials = { path = "../../common/credentials" }
-
 # Used for Type conversion, can be extracted but its a lot of work
 vesting-contract = { path = "../../contracts/vesting" }
 
 [dev-dependencies]
-ts-rs = "5.1"
+ts-rs = "6.1.2"
 tempfile = "3.3.0"
-
-[dev-dependencies.mixnet-contract-common]
-path = "../../common/cosmwasm-smart-contracts/mixnet-contract"
-features = ["ts-rs"]
-
-[dev-dependencies.validator-client]
-path = "../../common/client-libs/validator-client"
-features = ["typescript-types"]
-
-[dev-dependencies.vesting-contract-common]
-path = "../../common/cosmwasm-smart-contracts/vesting-contract"
-features = ["ts-rs"]
 
 [features]
 default = ["custom-protocol"]

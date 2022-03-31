@@ -1,33 +1,64 @@
-import React, { useContext, useState } from 'react'
-import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material'
-import { PercentOutlined } from '@mui/icons-material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { useForm } from 'react-hook-form'
-import { InfoTooltip } from '../../components/InfoToolTip'
-import { InclusionProbabilityResponse, TMixnodeBondDetails } from '../../types'
-import { validationSchema } from './validationSchema'
-import { updateMixnode } from '../../requests'
-import { ClientContext } from '../../context/main'
-import { Fee } from '../../components'
+/* eslint-disable no-nested-ternary */
+import React, { useContext, useState } from 'react';
+import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
+import { PercentOutlined } from '@mui/icons-material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm } from 'react-hook-form';
+import { validationSchema } from './validationSchema';
+import { Fee, InfoTooltip } from '../../components';
+import { InclusionProbabilityResponse } from '../../types';
+import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import { updateMixnode, vestingUpdateMixnode } from '../../requests';
+import { ClientContext } from '../../context/main';
+import { Console } from '../../utils/console';
 
-type TFormData = {
-  profitMarginPercent: number
-}
+const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
+  <Grid container justifyContent="space-between">
+    <Grid item xs={12} md={6}>
+      <Box display="flex" alignItems="center">
+        <InfoTooltip title={info} tooltipPlacement="right" />
+        <Typography sx={{ ml: 1 }}>{title}</Typography>
+      </Box>
+    </Grid>
+
+    <Grid item xs={12} md={6}>
+      <Box display="flex" justifyContent="flex-end">
+        {Indicator}
+      </Box>
+    </Grid>
+  </Grid>
+);
+
+const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => (
+  <Grid container alignItems="center">
+    <Grid item xs={2}>
+      <Typography component="span" sx={{ color: warning ? 'error.main' : 'nym.fee', fontWeight: 600 }}>
+        {value}%
+      </Typography>
+    </Grid>
+    <Grid item xs={10}>
+      <LinearProgress
+        color="inherit"
+        sx={{ color: warning ? 'error.main' : 'nym.fee' }}
+        variant="determinate"
+        value={value < 100 ? value : 100}
+      />
+    </Grid>
+  </Grid>
+);
 
 export const SystemVariables = ({
-  mixnodeDetails,
   saturation,
   rewardEstimation,
   inclusionProbability,
-  onUpdate,
 }: {
-  mixnodeDetails: TMixnodeBondDetails['mix_node']
-  saturation: number
-  rewardEstimation: number
-  inclusionProbability: InclusionProbabilityResponse
-  onUpdate: () => void
+  saturation: number;
+  rewardEstimation: number;
+  inclusionProbability: InclusionProbabilityResponse;
 }) => {
-  const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>()
+  const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
+  const { currency, mixnodeDetails } = useContext(ClientContext);
+  const { ownership } = useCheckOwnership();
 
   const {
     register,
@@ -35,22 +66,25 @@ export const SystemVariables = ({
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails.profit_margin_percent.toString() },
-  })
+    defaultValues: { profitMarginPercent: mixnodeDetails?.mix_node.profit_margin_percent },
+  });
 
-  const { userBalance, currency } = useContext(ClientContext)
-
-  const onSubmit = async (data: TFormData) => {
-    try {
-      await updateMixnode({ profitMarginPercent: data.profitMarginPercent })
-      await userBalance.fetchBalance()
-      onUpdate()
-      setNodeUpdateResponse('success')
-    } catch (e) {
-      setNodeUpdateResponse('failed')
-      console.log(e)
+  const onSubmit = async (
+    profitMarginPercent: number | undefined,
+    cb: (profitMarginPercent: number) => Promise<any>,
+  ) => {
+    if (profitMarginPercent) {
+      try {
+        await cb(profitMarginPercent);
+        setNodeUpdateResponse('success');
+      } catch (e) {
+        setNodeUpdateResponse('failed');
+        Console.log(e as string);
+      }
     }
-  }
+  };
+
+  if (!mixnodeDetails) return null;
 
   return (
     <>
@@ -60,7 +94,7 @@ export const SystemVariables = ({
             {...register('profitMarginPercent', { valueAsNumber: true })}
             label="Profit margin"
             helperText={
-              !!errors.profitMarginPercent
+              errors.profitMarginPercent
                 ? errors.profitMarginPercent.message
                 : "The percentage of your delegators' rewards that you as the node operator will take"
             }
@@ -115,7 +149,9 @@ export const SystemVariables = ({
         <Button
           variant="contained"
           color="primary"
-          onClick={handleSubmit(onSubmit)}
+          onClick={handleSubmit((data) =>
+            onSubmit(data.profitMarginPercent, ownership.vestingPledge ? vestingUpdateMixnode : updateMixnode),
+          )}
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}
           disabled={Object.keys(errors).length > 0 || isSubmitting}
@@ -125,42 +161,5 @@ export const SystemVariables = ({
         </Button>
       </Box>
     </>
-  )
-}
-
-const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
-  <Grid container justifyContent="space-between">
-    <Grid item xs={12} md={6}>
-      <Box display="flex" alignItems="center">
-        <InfoTooltip title={info} tooltipPlacement="right" />
-        <Typography sx={{ ml: 1 }}>{title}</Typography>
-      </Box>
-    </Grid>
-
-    <Grid item xs={12} md={6}>
-      <Box display="flex" justifyContent="flex-end">
-        {Indicator}
-      </Box>
-    </Grid>
-  </Grid>
-)
-
-const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => {
-  return (
-    <Grid container alignItems="center">
-      <Grid item xs={2}>
-        <Typography component="span" sx={{ color: warning ? 'error.main' : 'nym.fee', fontWeight: 600 }}>
-          {value}%
-        </Typography>
-      </Grid>
-      <Grid item xs={10}>
-        <LinearProgress
-          color="inherit"
-          sx={{ color: warning ? 'error.main' : 'nym.fee' }}
-          variant="determinate"
-          value={value < 100 ? value : 100}
-        />
-      </Grid>
-    </Grid>
-  )
-}
+  );
+};

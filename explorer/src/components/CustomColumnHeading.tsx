@@ -2,9 +2,7 @@ import * as React from 'react';
 import { Box, Typography } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 
-export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({
-  headingTitle,
-}) => {
+export const CustomColumnHeading: React.FC<{ headingTitle: string }> = ({ headingTitle }) => {
   const [filter, toggleFilter] = React.useState<boolean>(false);
 
   const handleClick = () => {

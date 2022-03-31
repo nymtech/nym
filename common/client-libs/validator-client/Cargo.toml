@@ -9,6 +9,7 @@ rust-version = "1.56"
 
 [dependencies]
 base64 = "0.13"
+colored = "2.0"
 mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
 vesting-contract = { path = "../../../contracts/vesting" }
@@ -18,6 +19,8 @@ reqwest = { version = "0.11", features = ["json"] }
 thiserror = "1"
 log = "0.4"
 url = { version = "2.2", features = ["serde"] }
+tokio = { version = "1.10", features = ["sync", "time"] }
+futures = "0.3"
 
 coconut-interface = { path = "../../coconut-interface" }
 network-defaults = { path = "../../network-defaults" }
@@ -39,8 +42,9 @@ flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }
 cosmwasm-std = { version = "1.0.0-beta3", optional = true }
-# Leaving it as * so that it inherits whatever the wallet is using
-ts-rs = { version = "*", optional = true }
+
+[dev-dependencies]
+ts-rs = "6.1.2"
 
 [features]
 nymd-client = [
@@ -54,4 +58,3 @@ nymd-client = [
     "itertools",
     "cosmwasm-std",
 ]
-typescript-types = ["ts-rs", "validator-api-requests/ts-rs"]

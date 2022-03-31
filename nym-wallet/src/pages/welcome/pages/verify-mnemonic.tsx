@@ -1,45 +1,43 @@
-import React, { useEffect, useState } from 'react'
-import { Button } from '@mui/material'
-import { WordTiles, HiddenWords } from '../components/word-tiles'
-import { THiddenMnemonicWords, THiddenMnemonicWord, TMnemonicWord, TMnemonicWords } from '../types'
-import { randomNumberBetween } from '../../../utils'
-import { Title, Subtitle } from '../components'
+import React, { useEffect, useState } from 'react';
+import { Button } from '@mui/material';
+import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
+import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
+import { randomNumberBetween } from '../../../utils';
 
-const numberOfRandomWords = 4
+const numberOfRandomWords = 4;
 
 export const VerifyMnemonic = ({
   mnemonicWords,
   onComplete,
 }: {
-  page: 'verify mnemonic'
-  mnemonicWords?: TMnemonicWords
-  onComplete: () => void
+  mnemonicWords?: TMnemonicWords;
+  onComplete: () => void;
 }) => {
-  const [randomWords, setRandomWords] = useState<TMnemonicWords>()
-  const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>()
-  const [currentSelection, setCurrentSelection] = useState(0)
+  const [randomWords, setRandomWords] = useState<TMnemonicWords>();
+  const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
+  const [currentSelection, setCurrentSelection] = useState(0);
 
   useEffect(() => {
     if (mnemonicWords) {
-      const randomWords = getRandomEntriesFromArray<TMnemonicWord>(mnemonicWords, numberOfRandomWords)
-      const withHiddenProperty = randomWords.map((word) => ({ ...word, hidden: true }))
-      const shuffled = getRandomEntriesFromArray<THiddenMnemonicWord>(withHiddenProperty, numberOfRandomWords)
-      setRandomWords(randomWords)
-      setHiddenRandomWords(shuffled)
+      const newRandomWords = getRandomEntriesFromArray<TMnemonicWord>(mnemonicWords, numberOfRandomWords);
+      const withHiddenProperty = newRandomWords.map((word) => ({ ...word, hidden: true }));
+      const shuffled = getRandomEntriesFromArray<THiddenMnemonicWord>(withHiddenProperty, numberOfRandomWords);
+      setRandomWords(newRandomWords);
+      setHiddenRandomWords(shuffled);
     }
-  }, [mnemonicWords])
+  }, [mnemonicWords]);
 
   const revealWord = ({ name }: { name: string }) => {
     if (name === hiddenRandomWords![currentSelection].name) {
       setHiddenRandomWords((hiddenWords) =>
         hiddenWords?.map((word) => (word.name === name ? { ...word, hidden: false } : word)),
-      )
-      setRandomWords((randomWords) =>
-        randomWords?.map((word) => (word.name === name ? { ...word, disabled: true } : word)),
-      )
-      setCurrentSelection((current) => current + 1)
+      );
+      setRandomWords((argRandomWords) =>
+        argRandomWords?.map((word) => (word.name === name ? { ...word, disabled: true } : word)),
+      );
+      setCurrentSelection((current) => current + 1);
     }
-  }
+  };
 
   if (randomWords && hiddenRandomWords) {
     return (
@@ -61,20 +59,20 @@ export const VerifyMnemonic = ({
           Next
         </Button>
       </>
-    )
+    );
   }
-  return null
-}
+  return null;
+};
 
 function getRandomEntriesFromArray<T>(arr: T[], numberOfEntries: number) {
-  const init = [...arr]
-  let randomEntries: T[] = []
+  const init = [...arr];
+  const randomEntries: T[] = [];
 
   while (randomEntries.length !== numberOfEntries) {
-    const rand = randomNumberBetween(0, init.length - 1)
-    randomEntries.push(init[rand])
-    init.splice(rand, 1)
+    const rand = randomNumberBetween(0, init.length - 1);
+    randomEntries.push(init[rand]);
+    init.splice(rand, 1);
   }
 
-  return randomEntries
+  return randomEntries;
 }

@@ -1,15 +1,22 @@
-import React, { useContext } from 'react'
-import { Box } from '@mui/system'
-import { SuccessReponse, TransactionDetails } from '../../components'
-import { ClientContext } from '../../context/main'
+import React, { useContext } from 'react';
+import { Box, Stack, Typography } from '@mui/material';
+import { SuccessReponse, TransactionDetails } from '../../components';
+import { ClientContext } from '../../context/main';
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
-  const { userBalance, currency } = useContext(ClientContext)
+  const { userBalance, currency } = useContext(ClientContext);
   return (
     <>
       <SuccessReponse
-        title="Delegation Complete"
-        subtitle="Successfully delegated to node with following details"
+        title="Delegation Request Complete"
+        subtitle={
+          <Stack alignItems="center" spacing={1}>
+            <Typography>Successfully requested delegation to node </Typography>
+            <Typography sx={{ textDecoration: 'underline', fontWeight: 600 }}>
+              Note it may take up to one hour to take effect
+            </Typography>
+          </Stack>
+        }
         caption={`Your current balance is: ${userBalance.balance?.printable_balance}`}
       />
       {details && (
@@ -23,5 +30,5 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
         </Box>
       )}
     </>
-  )
-}
+  );
+};

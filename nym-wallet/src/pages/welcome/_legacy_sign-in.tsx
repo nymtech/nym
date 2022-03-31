@@ -1,36 +1,33 @@
-import React, { useContext, useState } from 'react'
-import { Button, CircularProgress, Grid, Stack, TextField, Typography, Alert } from '@mui/material'
-import { styled } from '@mui/material/styles'
-import { signInWithMnemonic } from '../../requests'
-import { ClientContext } from '../../context/main'
-import { NymLogo } from '../../components'
+import React, { useContext, useState } from 'react';
+import { NymLogo } from '@nymproject/react';
+import { Alert, Button, CircularProgress, Grid, Stack, Typography } from '@mui/material';
+import { ClientContext } from '../../context/main';
 
-export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ showCreateAccount }) => {
-  const [mnemonic, setMnemonic] = useState<string>('')
-  const [inputError, setInputError] = useState<string>()
-  const [isLoading, setIsLoading] = useState(false)
+export const SignInContent: React.FC = () => {
+  const [mnemonic] = useState<string>('');
+  const [inputError, setInputError] = useState<string>();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { logIn } = useContext(ClientContext)
+  const { logIn } = useContext(ClientContext);
 
   const handleSignIn = async (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    setIsLoading(true)
-    setInputError(undefined)
+    setIsLoading(true);
+    setInputError(undefined);
 
     try {
-      await signInWithMnemonic(mnemonic || '')
-      setIsLoading(false)
-      logIn()
-    } catch (e: any) {
-      setIsLoading(false)
-      setInputError(e)
+      await logIn(mnemonic || '');
+      setIsLoading(false);
+    } catch (error: any) {
+      setIsLoading(false);
+      setInputError(error);
     }
-  }
+  };
 
   return (
     <Stack spacing={3} alignItems="center" sx={{ width: '80%' }}>
-      <NymLogo />
+      <NymLogo width={50} />
       <Typography sx={{ color: 'common.white', fontWeight: 600 }}>Welcome to NYM</Typography>
       <Typography variant="caption" sx={{ color: 'grey.800', textTransform: 'uppercase', letterSpacing: 4 }}>
         Next generation of privacy
@@ -65,25 +62,5 @@ export const SignInContent: React.FC<{ showCreateAccount: () => void }> = ({ sho
         )}
       </Grid>
     </Stack>
-  )
-}
-
-const StyledInput = styled((props) => <TextField {...props} />)(({ theme }) => ({
-  '& input': {
-    color: theme.palette.nym.text.light,
-  },
-  '& label': {
-    color: theme.palette.nym.text.light,
-  },
-  '& label.Mui-focused': {
-    color: theme.palette.primary.main,
-  },
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': {
-      borderColor: theme.palette.common.white,
-    },
-    '&:hover fieldset': {
-      borderColor: theme.palette.primary.main,
-    },
-  },
-}))
+  );
+};

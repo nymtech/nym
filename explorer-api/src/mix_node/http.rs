@@ -12,14 +12,13 @@ use rocket_okapi::settings::OpenApiSettings;
 use mixnet_contract_common::Delegation;
 
 use crate::mix_node::models::{NodeDescription, NodeStats, PrettyDetailedMixNodeBond};
-use crate::mix_nodes::delegations::{get_mixnode_delegations, get_single_mixnode_delegations};
+use crate::mix_nodes::delegations::get_single_mixnode_delegations;
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: get_delegations,
         get_by_id,
-        get_all_delegations,
         get_description,
         get_stats,
     ]
@@ -46,12 +45,6 @@ pub(crate) async fn get_by_id(
 #[get("/<pubkey>/delegations")]
 pub(crate) async fn get_delegations(pubkey: &str) -> Json<Vec<Delegation>> {
     Json(get_single_mixnode_delegations(pubkey).await)
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/all_mix_delegations")]
-pub(crate) async fn get_all_delegations() -> Json<Vec<Delegation>> {
-    Json(get_mixnode_delegations().await)
 }
 
 #[openapi(tag = "mix_node")]

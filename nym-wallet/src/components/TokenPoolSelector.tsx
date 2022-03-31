@@ -1,18 +1,58 @@
-import { ListItem, ListItemText, Select } from '@mui/material'
-import React, { useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react';
+import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
+import { ClientContext } from '../context/main';
 
-type TPool = 'balance' | 'locked'
+type TPoolOption = 'balance' | 'locked';
 
-export const TokenPoolSelector: React.FC<{ onSelect: (pool: TPool) => void }> = ({ onSelect }) => {
-  const [value, setValue] = useState<TPool>()
+export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: TPoolOption) => void }> = ({
+  disabled,
+  onSelect,
+}) => {
+  const [value, setValue] = useState<TPoolOption>('balance');
+  const {
+    userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
+    currency,
+  } = useContext(ClientContext);
+
+  useEffect(() => {
+    (async () => {
+      await fetchBalance();
+      await fetchTokenAllocation();
+    })();
+  }, []);
+
+  useEffect(() => {
+    onSelect(value);
+  }, [value]);
+
+  const handleChange = (e: SelectChangeEvent) => setValue(e.target.value as TPoolOption);
 
   return (
-    <>
-      <Select label="Token Pool" value={value}>
-        <ListItem>
-          <ListItemText primary="Balance" secondary="123 nymt" />
-        </ListItem>
+    <FormControl fullWidth>
+      <InputLabel>Token pool</InputLabel>
+      <Select
+        label="Token Pool"
+        onChange={handleChange}
+        value={value}
+        disabled={disabled}
+        renderValue={(val) => <Typography sx={{ textTransform: 'capitalize' }}>{val}</Typography>}
+      >
+        <MenuItem value="balance">
+          <ListItemText
+            primary="Balance"
+            secondary={`${balance?.printable_balance}`}
+            secondaryTypographyProps={{ sx: { textTransform: 'uppercase' } }}
+          />
+        </MenuItem>
+        <MenuItem value="locked">
+          {tokenAllocation && (
+            <ListItemText
+              primary="Locked"
+              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${currency?.major}`}
+            />
+          )}
+        </MenuItem>
       </Select>
-    </>
-  )
-}
+    </FormControl>
+  );
+};

@@ -1,4 +1,4 @@
-import { Coin } from "./coin";
+import type { Coin } from './coin';
 
 export interface Balance {
   coin: Coin;

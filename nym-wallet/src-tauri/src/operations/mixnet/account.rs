@@ -1,18 +1,32 @@
 use crate::coin::{Coin, Denom};
+use crate::config::Config;
 use crate::error::BackendError;
-use crate::network::Network;
+use crate::network::Network as WalletNetwork;
 use crate::nymd_client;
 use crate::state::State;
+use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
+use config::defaults::all::Network;
+use config::defaults::COSMOS_DERIVATION_PATH;
+use cosmrs::bip32::DerivationPath;
+use itertools::Itertools;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+use std::collections::HashMap;
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
+use url::Url;
+
+use validator_client::{
+  connection_tester::run_validator_connection_test, nymd::SigningNymdClient, Client,
+};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct Account {
   contract_address: String,
@@ -31,6 +45,7 @@ impl Account {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct CreatedAccount {
   account: Account,
@@ -38,6 +53,7 @@ pub struct CreatedAccount {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/balance.ts"))]
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
   coin: Coin,
@@ -92,9 +108,15 @@ pub async fn create_new_account(
 }
 
 #[tauri::command]
+pub async fn create_new_mnemonic() -> Result<String, BackendError> {
+  let rand_mnemonic = random_mnemonic();
+  Ok(rand_mnemonic.to_string())
+}
+
+#[tauri::command]
 pub async fn switch_network(
   state: tauri::State<'_, Arc<RwLock<State>>>,
-  network: Network,
+  network: WalletNetwork,
 ) -> Result<Account, BackendError> {
   let account = {
     let r_state = state.read().await;
@@ -125,44 +147,192 @@ fn random_mnemonic() -> Mnemonic {
   Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
 }
 
+#[tauri::command]
+pub async fn update_validator_urls(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  // Update the list of validators by fecthing additional ones remotely. If it fails, just ignore.
+  let mut w_state = state.write().await;
+  let _r = w_state.fetch_updated_validator_urls().await;
+  Ok(())
+}
+
 async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  let default_network = Network::try_from(config::defaults::DEFAULT_NETWORK)?;
-  let mut default_account = None;
-  for network in Network::iter() {
-    let client = {
-      let config = state.read().await.config();
-      match validator_client::Client::new_signing(
-        validator_client::Config::new(
-          network.into(),
-          config.get_nymd_validator_url(network),
-          config.get_validator_api_url(network),
-          config.get_mixnet_contract_address(network),
-          config.get_vesting_contract_address(network),
-          config.get_bandwidth_claim_contract_address(network),
-        ),
-        mnemonic.clone(),
-      ) {
-        Ok(client) => client,
-        Err(e) => panic!("{}", e),
-      }
-    };
+  update_validator_urls(state.clone()).await?;
+  let config = state.read().await.config();
 
-    if network == default_network {
-      default_account = Some(Account::new(
-        client.nymd.mixnet_contract_address()?.to_string(),
-        client.nymd.address().to_string(),
-        network.denom().try_into()?,
-      ));
-    }
+  for network in WalletNetwork::iter() {
+    log::debug!(
+      "List of validators for {network}: [\n{}\n]",
+      config.get_validators(network).format(",\n")
+    );
+  }
 
+  // Run connection tests on all nymd and validator-api endpoints
+  let (nymd_urls, api_urls) = {
+    let mixnet_contract_address = WalletNetwork::iter()
+      .map(|network| (network.into(), config.get_mixnet_contract_address(network)))
+      .collect::<HashMap<_, _>>();
+    let nymd_urls = WalletNetwork::iter().flat_map(|network| {
+      config
+        .get_nymd_urls(network)
+        .map(move |url| (network.into(), url))
+    });
+    let api_urls = WalletNetwork::iter().flat_map(|network| {
+      config
+        .get_api_urls(network)
+        .map(move |url| (network.into(), url))
+    });
+
+    run_validator_connection_test(nymd_urls, api_urls, mixnet_contract_address).await
+  };
+
+  let clients = create_clients(&nymd_urls, &api_urls, &mnemonic, &config)?;
+
+  // Set the default account
+  let default_network: WalletNetwork = config::defaults::DEFAULT_NETWORK.into();
+  let client_for_default_network = clients
+    .iter()
+    .find(|client| WalletNetwork::from(client.network) == default_network);
+  let account_for_default_network = match client_for_default_network {
+    Some(client) => Ok(Account::new(
+      client.nymd.mixnet_contract_address()?.to_string(),
+      client.nymd.address().to_string(),
+      default_network.denom().try_into()?,
+    )),
+    None => Err(BackendError::NetworkNotSupported(
+      config::defaults::DEFAULT_NETWORK,
+    )),
+  };
+
+  // Register all the clients
+  for client in clients {
+    let network: WalletNetwork = client.network.into();
     let mut w_state = state.write().await;
     w_state.add_client(network, client);
   }
 
-  default_account.ok_or(BackendError::NetworkNotSupported(
-    config::defaults::DEFAULT_NETWORK,
-  ))
+  account_for_default_network
+}
+
+fn select_random_responding_nymd_url(
+  nymd_urls: &HashMap<Network, Vec<(Url, bool)>>,
+  network: WalletNetwork,
+  config: &Config,
+) -> Url {
+  // We pick a randon responding nymd url, and if not, fall back on the first one in the list.
+  nymd_urls
+    .get(&network.into())
+    .and_then(|urls| {
+      let nymd_urls: Vec<_> = urls
+        .iter()
+        .filter_map(|(url, result)| if *result { Some(url.clone()) } else { None })
+        .collect();
+      nymd_urls.choose(&mut rand::thread_rng()).cloned()
+    })
+    .unwrap_or_else(|| {
+      log::debug!("No passing nymd_urls for {network}: using default");
+      config
+        .get_nymd_urls(network)
+        .next()
+        .expect("Expected at least one hardcoded nymd url")
+    })
+}
+
+fn select_first_responding_api_url(
+  api_urls: &HashMap<Network, Vec<(Url, bool)>>,
+  network: WalletNetwork,
+  config: &Config,
+) -> Url {
+  // We pick the first API url among the responding ones. If none exists, fall back on the first
+  // one in the list.
+  api_urls
+    .get(&network.into())
+    .and_then(|urls| {
+      urls
+        .iter()
+        .find_map(|(url, result)| if *result { Some(url.clone()) } else { None })
+    })
+    .unwrap_or_else(|| {
+      log::debug!("No passing api_urls for {network}: using default");
+      config
+        .get_api_urls(network)
+        .next()
+        .expect("Expected at least one hardcoded api url")
+    })
+}
+
+fn create_clients(
+  nymd_urls: &HashMap<Network, Vec<(Url, bool)>>,
+  api_urls: &HashMap<Network, Vec<(Url, bool)>>,
+  mnemonic: &Mnemonic,
+  config: &Config,
+) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
+  let mut clients = Vec::new();
+  for network in WalletNetwork::iter() {
+    let nymd_url = select_random_responding_nymd_url(nymd_urls, network, config);
+    let api_url = select_first_responding_api_url(api_urls, network, config);
+
+    log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
+    log::info!("Connecting to: api_url: {api_url} for {network}");
+
+    let client = validator_client::Client::new_signing(
+      validator_client::Config::new(
+        network.into(),
+        nymd_url,
+        api_url,
+        config.get_mixnet_contract_address(network),
+        config.get_vesting_contract_address(network),
+        config.get_bandwidth_claim_contract_address(network),
+      ),
+      mnemonic.clone(),
+    )?;
+    clients.push(client);
+  }
+  Ok(clients)
+}
+
+#[tauri::command]
+pub fn does_password_file_exist() -> Result<bool, BackendError> {
+  log::info!("Checking wallet file");
+  let file = wallet_storage::wallet_login_filepath()?;
+  if file.exists() {
+    log::info!("Exists: {}", file.to_string_lossy());
+    Ok(true)
+  } else {
+    log::info!("Does not exist: {}", file.to_string_lossy());
+    Ok(false)
+  }
+}
+
+#[tauri::command]
+pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
+  if does_password_file_exist()? {
+    return Err(BackendError::WalletFileAlreadyExists);
+  }
+  log::info!("Creating password");
+
+  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let password = wallet_storage::UserPassword::new(password);
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
+}
+
+#[tauri::command]
+pub async fn sign_in_with_password(
+  password: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  log::info!("Signing in with password");
+
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let password = wallet_storage::UserPassword::new(password);
+  let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
 }

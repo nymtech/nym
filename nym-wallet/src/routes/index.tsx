@@ -1,7 +1,7 @@
-import React from 'react'
-import { Switch, Route } from 'react-router-dom'
-import { Balance } from '../pages/balance'
-import { Bond, Delegate, InternalDocs, Receive, Send, Unbond, Undelegate } from '../pages'
+import React from 'react';
+import { Switch, Route } from 'react-router-dom';
+import { Balance } from '../pages/balance';
+import { Bond, Delegate, InternalDocs, Receive, Send, Unbond, Undelegate } from '../pages';
 
 export const Routes = () => (
   <Switch>
@@ -30,4 +30,4 @@ export const Routes = () => (
       <InternalDocs />
     </Route>
   </Switch>
-)
+);

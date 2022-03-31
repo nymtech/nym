@@ -6,10 +6,7 @@ interface TelegramIconProps {
   color?: string;
 }
 
-export const TelegramIcon: React.FC<TelegramIconProps> = ({
-  size,
-  color: colorProp,
-}) => {
+export const TelegramIcon: React.FC<TelegramIconProps> = ({ size, color: colorProp }) => {
   const theme = useTheme();
   const color = colorProp || theme.palette.text.primary;
   return (

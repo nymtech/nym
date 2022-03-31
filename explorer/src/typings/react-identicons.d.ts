@@ -12,9 +12,7 @@ declare module 'react-identicons' {
     // getColor: Function;
   }
 
-  declare function Identicon(
-    props: IdenticonProps,
-  ): React.ReactElement<IdenticonProps>;
+  declare function Identicon(props: IdenticonProps): React.ReactElement<IdenticonProps>;
 
   export default Identicon;
 }

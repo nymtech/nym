@@ -1,9 +1,9 @@
 use super::VestingPeriod;
 use crate::errors::ContractError;
 use crate::storage::{
-    load_balance, load_bond_pledge, load_gateway_pledge, remove_bond_pledge, remove_delegation,
-    remove_gateway_pledge, save_account, save_balance, save_bond_pledge, save_gateway_pledge,
-    DELEGATIONS, KEY,
+    load_balance, load_bond_pledge, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
+    remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
+    save_gateway_pledge, save_withdrawn, DELEGATIONS, KEY,
 };
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
@@ -121,6 +121,33 @@ impl Account {
         }
     }
 
+    pub fn withdraw(
+        &self,
+        amount: &Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<u128, ContractError> {
+        let new_balance = self
+            .load_balance(storage)?
+            .u128()
+            .saturating_sub(amount.amount.u128());
+        self.save_balance(Uint128::new(new_balance), storage)?;
+        let withdrawn = self.load_withdrawn(storage)?;
+        self.save_withdrawn(withdrawn + amount.amount, storage)?;
+        Ok(new_balance)
+    }
+
+    pub fn load_withdrawn(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+        load_withdrawn(self.storage_key, storage)
+    }
+
+    pub fn save_withdrawn(
+        &self,
+        withdrawn: Uint128,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        save_withdrawn(self.storage_key, withdrawn, storage)
+    }
+
     pub fn load_balance(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
         load_balance(self.storage_key(), storage)
     }
@@ -204,7 +231,7 @@ impl Account {
 
             prev_len = block_heights.len();
 
-            start_after = block_heights.last().map(|last| Bound::exclusive_int(*last));
+            start_after = block_heights.last().map(|last| Bound::exclusive(*last));
             if start_after.is_none() {
                 break;
             }

@@ -64,7 +64,8 @@ impl Aggregatable for PartialSignature {
 
 /// Ensures all provided verification keys were generated to verify the same number of attributes.
 fn check_same_key_size(keys: &[VerificationKey]) -> bool {
-    keys.iter().map(|vk| vk.beta.len()).all_equal()
+    keys.iter().map(|vk| vk.beta_g1.len()).all_equal()
+        && keys.iter().map(|vk| vk.beta_g2.len()).all_equal()
 }
 
 pub fn aggregate_verification_keys(
@@ -98,7 +99,7 @@ pub fn aggregate_signatures(
 
     let tmp = attributes
         .iter()
-        .zip(verification_key.beta.iter())
+        .zip(verification_key.beta_g2.iter())
         .map(|(attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 
@@ -149,8 +150,8 @@ mod tests {
 
     #[test]
     fn key_aggregation_works_for_any_subset_of_keys() {
-        let mut params = Parameters::new(2).unwrap();
-        let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
+        let params = Parameters::new(2).unwrap();
+        let keypairs = ttp_keygen(&params, 3, 5).unwrap();
 
         let vks = keypairs
             .into_iter()
@@ -213,7 +214,7 @@ mod tests {
         let mut params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
 
-        let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
+        let keypairs = ttp_keygen(&params, 3, 5).unwrap();
 
         let (sks, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
@@ -310,9 +311,9 @@ mod tests {
     #[test]
     fn signature_aggregation_doesnt_work_for_empty_set_of_signatures() {
         let signatures: Vec<Signature> = vec![];
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
-        let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
+        let keypairs = ttp_keygen(&params, 3, 5).unwrap();
 
         let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
@@ -328,9 +329,9 @@ mod tests {
     #[test]
     fn signature_aggregation_doesnt_work_if_indices_have_invalid_length() {
         let signatures = vec![random_signature()];
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
-        let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
+        let keypairs = ttp_keygen(&params, 3, 5).unwrap();
         let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
             .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
@@ -354,9 +355,9 @@ mod tests {
     #[test]
     fn signature_aggregation_doesnt_work_for_non_unique_indices() {
         let signatures = vec![random_signature(), random_signature()];
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         let attributes = params.n_random_scalars(2);
-        let keypairs = ttp_keygen(&mut params, 3, 5).unwrap();
+        let keypairs = ttp_keygen(&params, 3, 5).unwrap();
         let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
             .map(|keypair| (keypair.secret_key(), keypair.verification_key()))

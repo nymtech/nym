@@ -6,7 +6,6 @@ use crypto::asymmetric::identity::{PublicKey, Signature, PUBLIC_KEY_LENGTH, SIGN
 use crate::error::Error;
 use std::convert::TryInto;
 
-#[cfg(not(feature = "coconut"))]
 pub struct TokenCredential {
     verification_key: PublicKey,
     gateway_identity: PublicKey,
@@ -14,7 +13,6 @@ pub struct TokenCredential {
     signature: Signature,
 }
 
-#[cfg(not(feature = "coconut"))]
 impl TokenCredential {
     pub fn new(
         verification_key: PublicKey,
@@ -99,7 +97,6 @@ impl TokenCredential {
 mod tests {
     use super::*;
 
-    #[cfg(not(feature = "coconut"))]
     #[test]
     fn token_serde() {
         // pre-generated, valid values

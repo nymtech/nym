@@ -42,7 +42,7 @@ pub(crate) struct EncryptedData<T> {
 
 impl<T> Drop for EncryptedData<T> {
   fn drop(&mut self) {
-    self.zeroize()
+    self.zeroize();
   }
 }
 

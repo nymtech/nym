@@ -63,9 +63,7 @@ export class Api {
     return json;
   };
 
-  static fetchMixnodesActiveSetByStatus = async (
-    status: MixnodeStatus,
-  ): Promise<MixNodeResponse> => {
+  static fetchMixnodesActiveSetByStatus = async (status: MixnodeStatus): Promise<MixNodeResponse> => {
     const cachedMixnodes = getFromCache(`mixnodes-${status}`);
     if (cachedMixnodes) {
       return cachedMixnodes;
@@ -76,9 +74,7 @@ export class Api {
     return json;
   };
 
-  static fetchMixnodeByID = async (
-    id: string,
-  ): Promise<MixNodeResponseItem | undefined> => {
+  static fetchMixnodeByID = async (id: string): Promise<MixNodeResponseItem | undefined> => {
     const response = await fetch(`${MIXNODE_API}/${id}`);
 
     // when the mixnode is not found, returned undefined
@@ -117,24 +113,17 @@ export class Api {
     return result;
   };
 
-  static fetchDelegationsById = async (
-    id: string,
-  ): Promise<DelegationsResponse> =>
+  static fetchDelegationsById = async (id: string): Promise<DelegationsResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/delegations`)).json();
 
   static fetchStatsById = async (id: string): Promise<StatsResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/stats`)).json();
 
-  static fetchMixnodeDescriptionById = async (
-    id: string,
-  ): Promise<MixNodeDescriptionResponse> =>
+  static fetchMixnodeDescriptionById = async (id: string): Promise<MixNodeDescriptionResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/description`)).json();
 
-  static fetchStatusById = async (id: string): Promise<StatusResponse> =>
-    (await fetch(`${MIXNODE_PING}/${id}`)).json();
+  static fetchStatusById = async (id: string): Promise<StatusResponse> => (await fetch(`${MIXNODE_PING}/${id}`)).json();
 
-  static fetchUptimeStoryById = async (
-    id: string,
-  ): Promise<UptimeStoryResponse> =>
+  static fetchUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
     (await fetch(`${UPTIME_STORY_API}/${id}/history`)).json();
 }

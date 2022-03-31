@@ -1,1 +1,1 @@
-export type Denom = "Major" | "Minor";
+export type Denom = 'Major' | 'Minor';

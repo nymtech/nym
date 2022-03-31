@@ -15,6 +15,7 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.52"
 clap = "2.33.0"
 dirs = "3.0"
 dotenv = "0.15.0"
@@ -45,6 +46,7 @@ console-subscriber = { version = "0.1.1", optional = true}
 cfg-if = "1.0"
 
 ## internal
+coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../common/config" }
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
@@ -61,7 +63,8 @@ dkg = { path = "../common/crypto/dkg"}
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg-contract" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
+coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut"]
+no-reward = []
 
 [build-dependencies]
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
@@ -70,3 +73,4 @@ vergen = { version = "5", default-features = false, features = ["build", "git", 
 
 [dev-dependencies]
 attohttpc = {version = "0.18.0", features = ["json"]}
+nymcoconut = { path = "../common/nymcoconut" }

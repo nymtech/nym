@@ -1,31 +1,30 @@
-import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material'
-import { createAccount } from '../../requests'
-import { TCreateAccount } from '../../types'
-import { CopyToClipboard } from '../../components'
+/* eslint-disable no-unused-vars */
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Card, CardActions, CardContent, CardHeader, Stack, Typography } from '@mui/material';
+import { createMnemonic } from '../../requests';
+import { CopyToClipboard } from '../../components';
+import { TPages } from './types';
 
-export const CreateAccountContent: React.FC<{ page: 'legacy create account'; showSignIn: () => void }> = ({
-  showSignIn,
-}) => {
-  const [accountDetails, setAccountDetails] = useState<TCreateAccount>()
-  const [error, setError] = useState<Error>()
+export const CreateAccountContent: React.FC<{ page: TPages; showSignIn: () => void }> = ({ page, showSignIn }) => {
+  const [mnemonic, setMnemonic] = useState<string>();
+  const [error, setError] = useState<Error>();
 
-  const handleCreateAccount = async () => {
-    setError(undefined)
+  const handleCreateMnemonic = async () => {
+    setError(undefined);
     try {
-      const account = await createAccount()
-      setAccountDetails(account)
+      const newMnemonic = await createMnemonic();
+      setMnemonic(newMnemonic);
     } catch (e: any) {
-      setError(e)
+      setError(e);
     }
-  }
+  };
 
   useEffect(() => {
-    handleCreateAccount()
-  }, [])
+    handleCreateMnemonic();
+  }, []);
 
   return (
-    <Stack spacing={4} alignItems="center" sx={{ width: 700 }}>
+    <Stack spacing={4} alignItems="center" sx={{ width: 700 }} id={page}>
       <Typography sx={{ color: 'common.white' }} variant="h4">
         Congratulations
       </Typography>
@@ -33,15 +32,15 @@ export const CreateAccountContent: React.FC<{ page: 'legacy create account'; sho
         Account setup complete!
       </Typography>
       <Alert severity="info" variant="outlined" sx={{ color: 'info.light' }} data-testid="mnemonic-warning">
-        <Typography>Please store your mnemonic in a safe place. You'll need it to access your account!</Typography>
+        <Typography>Please store your mnemonic in a safe place. You will need it to access your account!</Typography>
       </Alert>
       <Card variant="outlined" sx={{ bgcolor: 'transparent', p: 2, borderColor: 'common.white' }}>
         <CardHeader sx={{ color: 'common.white' }} title="Mnemonic" />
         <CardContent sx={{ color: 'common.white' }} data-testid="mnemonic-phrase">
-          {accountDetails?.mnemonic}
+          {mnemonic}
         </CardContent>
         <CardActions sx={{ justifyContent: 'flex-end' }}>
-          <CopyToClipboard text={accountDetails?.mnemonic || ''} light />
+          <CopyToClipboard text={mnemonic || ''} light />
         </CardActions>
       </Card>
       {error && (
@@ -53,5 +52,5 @@ export const CreateAccountContent: React.FC<{ page: 'legacy create account'; sho
         Sign in
       </Button>
     </Stack>
-  )
-}
+  );
+};

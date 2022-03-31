@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, prepare_blind_sign,
-    prove_bandwidth_credential, Attribute, BlindSignRequestBody, Credential, Parameters, Signature,
-    SignatureShare, VerificationKey,
+    aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
+    BlindSignRequestBody, BlindedSignature, Credential, Parameters, Signature, SignatureShare,
+    VerificationKey,
 };
+use crypto::asymmetric::encryption::PublicKey;
+use crypto::shared_key::recompute_shared_key;
+use crypto::symmetric::stream_cipher;
 use url::Url;
 
-use crate::coconut::bandwidth::PRIVATE_ATTRIBUTES;
+use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES};
+use crate::coconut::params::{
+    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+};
 use crate::error::Error;
 
 /// Contacts all provided validators and then aggregate their verification keys.
@@ -47,13 +53,13 @@ pub async fn obtain_aggregate_verification_key(
     let mut client = validator_client::ApiClient::new(validators[0].clone());
     let response = client.get_coconut_verification_key().await?;
 
-    indices.push(0);
+    indices.push(1);
     shares.push(response.key);
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
         let response = client.get_coconut_verification_key().await?;
-        indices.push(id as u64);
+        indices.push((id + 1) as u64);
         shares.push(response.key);
     }
 
@@ -62,38 +68,53 @@ pub async fn obtain_aggregate_verification_key(
 
 async fn obtain_partial_credential(
     params: &Parameters,
-    public_attributes: &[Attribute],
-    private_attributes: &[Attribute],
+    attributes: &BandwidthVoucher,
     client: &validator_client::ApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
-    let elgamal_keypair = coconut_interface::elgamal_keygen(params);
-    let blind_sign_request = prepare_blind_sign(
-        params,
-        &elgamal_keypair,
-        private_attributes,
-        public_attributes,
-    )?;
+    let public_attributes = attributes.get_public_attributes();
+    let public_attributes_plain = attributes.get_public_attributes_plain();
+    let private_attributes = attributes.get_private_attributes();
+    let blind_sign_request = attributes.blind_sign_request();
 
-    let blind_sign_request_body = BlindSignRequestBody::new(
-        &blind_sign_request,
-        elgamal_keypair.public_key(),
-        public_attributes,
-        (public_attributes.len() + private_attributes.len()) as u32,
+    let response = if attributes.use_request() {
+        let blind_sign_request_body = BlindSignRequestBody::new(
+            blind_sign_request,
+            attributes.tx_hash().to_string(),
+            attributes.sign(blind_sign_request).to_base58_string(),
+            &public_attributes,
+            public_attributes_plain,
+            (public_attributes.len() + private_attributes.len()) as u32,
+        );
+        client.blind_sign(&blind_sign_request_body).await?
+    } else {
+        client
+            .partial_bandwidth_credential(&attributes.tx_hash().to_string())
+            .await?
+    };
+    let encrypted_signature = response.encrypted_signature;
+    let remote_key = PublicKey::from_bytes(&response.remote_key)?;
+
+    let encryption_key = recompute_shared_key::<
+        ValidatorApiCredentialEncryptionAlgorithm,
+        ValidatorApiCredentialHkdfAlgorithm,
+    >(&remote_key, attributes.encryption_key());
+    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+        &encryption_key,
+        &zero_iv,
+        &encrypted_signature,
     );
 
-    let blinded_signature = client
-        .blind_sign(&blind_sign_request_body)
-        .await?
-        .blinded_signature;
+    let blinded_signature = BlindedSignature::from_bytes(&blinded_signature_bytes)?;
 
     let unblinded_signature = blinded_signature.unblind(
         params,
-        elgamal_keypair.private_key(),
         validator_vk,
-        private_attributes,
-        public_attributes,
+        &private_attributes,
+        &public_attributes,
         &blind_sign_request.get_commitment_hash(),
+        attributes.pedersen_commitments_openings(),
     )?;
 
     Ok(unblinded_signature)
@@ -101,13 +122,14 @@ async fn obtain_partial_credential(
 
 pub async fn obtain_aggregate_signature(
     params: &Parameters,
-    public_attributes: &[Attribute],
-    private_attributes: &[Attribute],
+    attributes: &BandwidthVoucher,
     validators: &[Url],
 ) -> Result<Signature, Error> {
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
+    let public_attributes = attributes.get_public_attributes();
+    let private_attributes = attributes.get_private_attributes();
 
     let mut shares = Vec::with_capacity(validators.len());
     let mut validators_partial_vks: Vec<VerificationKey> = Vec::with_capacity(validators.len());
@@ -116,39 +138,28 @@ pub async fn obtain_aggregate_signature(
     let validator_partial_vk = client.get_coconut_verification_key().await?;
     validators_partial_vks.push(validator_partial_vk.key.clone());
 
-    let first = obtain_partial_credential(
-        params,
-        public_attributes,
-        private_attributes,
-        &client,
-        &validator_partial_vk.key,
-    )
-    .await?;
-    shares.push(SignatureShare::new(first, 0));
+    let first =
+        obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key).await?;
+    shares.push(SignatureShare::new(first, 1));
 
     for (id, validator_url) in validators.iter().enumerate().skip(1) {
         client.change_validator_api(validator_url.clone());
         let validator_partial_vk = client.get_coconut_verification_key().await?;
         validators_partial_vks.push(validator_partial_vk.key.clone());
-        let signature = obtain_partial_credential(
-            params,
-            public_attributes,
-            private_attributes,
-            &client,
-            &validator_partial_vk.key,
-        )
-        .await?;
-        let share = SignatureShare::new(signature, id as u64);
+        let signature =
+            obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key)
+                .await?;
+        let share = SignatureShare::new(signature, (id + 1) as u64);
         shares.push(share)
     }
 
     let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
-    attributes.extend_from_slice(private_attributes);
-    attributes.extend_from_slice(public_attributes);
+    attributes.extend_from_slice(&private_attributes);
+    attributes.extend_from_slice(&public_attributes);
 
     let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
     for i in 0..validators_partial_vks.len() {
-        indices.push(i as u64);
+        indices.push((i + 1) as u64);
     }
     let verification_key =
         aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;

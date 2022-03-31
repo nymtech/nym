@@ -6,10 +6,7 @@ interface DiscordIconProps {
   color?: string;
 }
 
-export const DiscordIcon: React.FC<DiscordIconProps> = ({
-  size,
-  color: colorProp,
-}) => {
+export const DiscordIcon: React.FC<DiscordIconProps> = ({ size, color: colorProp }) => {
   const theme = useTheme();
   const color = colorProp || theme.palette.text.primary;
   return (

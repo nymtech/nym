@@ -3,7 +3,11 @@
 
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{IdentityKey, Interval, RewardedSetNodeStatus};
+use mixnet_contract_common::{
+    reward_params::EpochRewardParams, IdentityKey, Interval, RewardedSetNodeStatus,
+};
+
+use crate::{error::ContractError, support::helpers::epoch_reward_params};
 
 // type aliases for better reasoning for storage keys
 // (I found it helpful)
@@ -14,17 +18,48 @@ type IntervalId = u32;
 pub(crate) const REWARDED_NODE_DEFAULT_PAGE_LIMIT: u32 = 1000;
 pub(crate) const REWARDED_NODE_MAX_PAGE_LIMIT: u32 = 1500;
 
-pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new("cep");
+const CURRENT_EPOCH: Item<'_, Interval> = Item::new("ceph");
+const CURRENT_EPOCH_REWARD_PARAMS: Item<'_, EpochRewardParams> = Item::new("erp");
 pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<'_, BlockHeight> = Item::new("crh");
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
 // taking more space than a single digit u8. If we don't care about what's there, why not go with more efficient approach? : )
-pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHeight), u8> =
-    Map::new("rsh");
+// pub(crate) const REWARDED_SET_HEIGHTS_FOR_INTERVAL: Map<'_, (IntervalId, BlockHeight), u8> =
+//     Map::new("rsh");
 
 // pub(crate) const REWARDED_SET: Map<(u64, IdentityKey), NodeStatus> = Map::new("rs");
 pub(crate) const REWARDED_SET: Map<'_, (BlockHeight, IdentityKey), RewardedSetNodeStatus> =
     Map::new("rs");
+
+pub(crate) const EPOCHS: Map<'_, IntervalId, Interval> = Map::new("ephs");
+
+pub fn save_epoch(storage: &mut dyn Storage, epoch: &Interval) -> Result<(), ContractError> {
+    CURRENT_EPOCH.save(storage, epoch)?;
+    EPOCHS.save(storage, epoch.id(), epoch)?;
+    Ok(())
+}
+
+pub fn current_epoch_reward_params(
+    storage: &dyn Storage,
+) -> Result<EpochRewardParams, ContractError> {
+    Ok(CURRENT_EPOCH_REWARD_PARAMS.load(storage)?)
+}
+
+pub fn save_epoch_reward_params(
+    epoch_id: u32,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    let epoch_reward_params = epoch_reward_params(epoch_id, storage)?;
+    CURRENT_EPOCH_REWARD_PARAMS.save(storage, &epoch_reward_params)?;
+    crate::rewards::storage::EPOCH_REWARD_PARAMS.save(storage, epoch_id, &epoch_reward_params)?;
+    Ok(())
+}
+
+pub fn current_epoch(storage: &dyn Storage) -> Result<Interval, ContractError> {
+    CURRENT_EPOCH
+        .load(storage)
+        .map_err(|_| ContractError::EpochNotInitialized)
+}
 
 pub(crate) fn save_rewarded_set(
     storage: &mut dyn Storage,

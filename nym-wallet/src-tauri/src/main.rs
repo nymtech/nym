@@ -15,6 +15,7 @@ mod error;
 mod menu;
 mod network;
 mod operations;
+mod platform_constants;
 mod state;
 mod utils;
 // temporarily until it is actually used
@@ -29,26 +30,38 @@ use crate::operations::vesting;
 use crate::state::State;
 
 fn main() {
+  dotenv::dotenv().ok();
+  setup_logging();
+
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::default())))
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
+      mixnet::account::create_new_mnemonic,
+      mixnet::account::create_password,
+      mixnet::account::does_password_file_exist,
       mixnet::account::get_balance,
       mixnet::account::logout,
+      mixnet::account::sign_in_with_password,
       mixnet::account::switch_network,
+      mixnet::account::update_validator_urls,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
       mixnet::bond::bond_gateway,
       mixnet::bond::bond_mixnode,
       mixnet::bond::gateway_bond_details,
+      mixnet::bond::get_operator_rewards,
       mixnet::bond::mixnode_bond_details,
       mixnet::bond::unbond_gateway,
       mixnet::bond::unbond_mixnode,
       mixnet::bond::update_mixnode,
       mixnet::delegate::delegate_to_mixnode,
+      mixnet::delegate::get_delegator_rewards,
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,
+      mixnet::delegate::get_pending_delegation_events,
+      mixnet::epoch::get_current_epoch,
       mixnet::send::send,
       utils::major_to_minor,
       utils::minor_to_major,
@@ -66,6 +79,7 @@ fn main() {
       vesting::bond::vesting_unbond_gateway,
       vesting::bond::vesting_unbond_mixnode,
       vesting::bond::withdraw_vested_coins,
+      vesting::bond::vesting_update_mixnode,
       vesting::delegate::vesting_delegate_to_mixnode,
       vesting::delegate::vesting_undelegate_from_mixnode,
       vesting::queries::delegated_free,
@@ -87,32 +101,25 @@ fn main() {
     .expect("error while running tauri application");
 }
 
-#[cfg(test)]
-mod test {
-  ts_rs::export! {
-    mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
-    crate::coin::Coin => "../src/types/rust/coin.ts",
-    crate::network::Network => "../src/types/rust/network.ts",
-    crate::mixnet::account::Balance => "../src/types/rust/balance.ts",
-    mixnet_contract_common::Gateway => "../src/types/rust/gateway.ts",
-    crate::mixnet::send::TauriTxResult => "../src/types/rust/tauritxresult.ts",
-    crate::mixnet::send::TransactionDetails => "../src/types/rust/transactiondetails.ts",
-    validator_client::nymd::fee::helpers::Operation => "../src/types/rust/operation.ts",
-    crate::coin::Denom => "../src/types/rust/denom.ts",
-    crate::utils::DelegationResult => "../src/types/rust/delegationresult.ts",
-    crate::mixnet::account::Account => "../src/types/rust/account.ts",
-    crate::mixnet::account::CreatedAccount => "../src/types/rust/createdaccount.ts",
-    crate::mixnet::admin::TauriContractStateParams => "../src/types/rust/stateparams.ts",
-    validator_client::models::CoreNodeStatusResponse => "../src/types/corenodestatusresponse.ts",
-    validator_client::models::MixnodeStatus => "../src/types/rust/mixnodestatus.ts",
-    validator_client::models::MixnodeStatusResponse => "../src/types/rust/mixnodestatusresponse.ts",
-    validator_client::models::RewardEstimationResponse => "../src/types/rust/rewardestimationresponse.ts",
-    validator_client::models::StakeSaturationResponse => "../src/types/rust/stakesaturaionresponse.ts",
-    validator_client::models::InclusionProbabilityResponse => "../src/types/rust/inclusionprobabilityresponse.ts",
-    vesting_contract_common::Period => "../src/types/rust/period.ts",
-    crate::vesting::PledgeData => "../src/types/rust/pledgedata.ts",
-    crate::vesting::OriginalVestingResponse => "../src/types/rust/originalvestingresponse.ts",
-    crate::vesting::VestingAccountInfo => "../src/types/rust/vestingaccountinfo.ts",
-    crate::vesting::VestingPeriod => "../src/types/rust/vestingperiod.ts",
+fn setup_logging() {
+  let mut log_builder = pretty_env_logger::formatted_timed_builder();
+  if let Ok(s) = ::std::env::var("RUST_LOG") {
+    log_builder.parse_filters(&s);
+  } else {
+    // default to 'Info'
+    log_builder.filter(None, log::LevelFilter::Info);
   }
+
+  log_builder
+    .filter_module("hyper", log::LevelFilter::Warn)
+    .filter_module("tokio_reactor", log::LevelFilter::Warn)
+    .filter_module("reqwest", log::LevelFilter::Warn)
+    .filter_module("mio", log::LevelFilter::Warn)
+    .filter_module("want", log::LevelFilter::Warn)
+    .filter_module("sled", log::LevelFilter::Warn)
+    .filter_module("tungstenite", log::LevelFilter::Warn)
+    .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+    .filter_module("rustls", log::LevelFilter::Warn)
+    .filter_module("tokio_util", log::LevelFilter::Warn)
+    .init();
 }

@@ -1,10 +1,8 @@
-import * as Yup from 'yup'
-import { validateKey } from '../../utils'
+import * as Yup from 'yup';
+import { validateKey } from '../../utils';
 
 export const validationSchema = Yup.object().shape({
   identity: Yup.string()
     .required()
-    .test('valid-id-key', 'A valid identity key is required', function (value) {
-      return validateKey(value || '', 32)
-    }),
-})
+    .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),
+});

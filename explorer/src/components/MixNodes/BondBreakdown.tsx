@@ -14,8 +14,7 @@ import { useMixnodeContext } from '../../context/mixnode';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixNode, delegations } = useMixnodeContext();
-  const [showDelegations, toggleShowDelegations] =
-    React.useState<boolean>(false);
+  const [showDelegations, toggleShowDelegations] = React.useState<boolean>(false);
 
   const [bonds, setBonds] = React.useState({
     delegations: '0',
@@ -43,9 +42,7 @@ export const BondBreakdownTable: React.FC = () => {
       // bonds total (del + pledges)
       const pledgesSum = Number(mixNode.data.pledge_amount.amount);
       const delegationsSum = Number(mixNode.data.total_delegation.amount);
-      const bondsTotal = currencyToString(
-        (delegationsSum + pledgesSum).toString(),
-      );
+      const bondsTotal = currencyToString((delegationsSum + pledgesSum).toString());
 
       setBonds({
         delegations: decimalisedDelegations,
@@ -79,116 +76,95 @@ export const BondBreakdownTable: React.FC = () => {
     return <Alert severity="error">Mixnode not found</Alert>;
   }
   if (delegations?.error) {
-    return (
-      <Alert severity="error">Unable to get delegations for mixnode</Alert>
-    );
+    return <Alert severity="error">Unable to get delegations for mixnode</Alert>;
   }
 
   return (
-    <>
-      <TableContainer component={Paper}>
-        <Table sx={{ minWidth: 650 }} aria-label="bond breakdown totals">
-          <TableBody>
-            <TableRow sx={matches ? { minWidth: '70vw' } : null}>
-              <TableCell
+    <TableContainer component={Paper}>
+      <Table sx={{ minWidth: 650 }} aria-label="bond breakdown totals">
+        <TableBody>
+          <TableRow sx={matches ? { minWidth: '70vw' } : null}>
+            <TableCell
+              sx={{
+                fontWeight: 400,
+                width: '150px',
+              }}
+              align="left"
+            >
+              Bond total
+            </TableCell>
+            <TableCell align="left" data-testid="bond-total-amount">
+              {bonds.bondsTotal}
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell align="left">Pledge total</TableCell>
+            <TableCell align="left" data-testid="pledge-total-amount">
+              {bonds.pledges}
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell onClick={expandDelegations} align="left">
+              <Box
                 sx={{
-                  fontWeight: 400,
-                  width: '150px',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
-                align="left"
               >
-                Bond total
-              </TableCell>
-              <TableCell align="left" data-testid="bond-total-amount">
-                {bonds.bondsTotal}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell align="left">Pledge total</TableCell>
-              <TableCell align="left" data-testid="pledge-total-amount">
-                {bonds.pledges}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell onClick={expandDelegations} align="left">
-                <Box
+                Delegation total {'\u00A0'}
+                {delegations?.data && delegations?.data?.length > 0 && <ExpandMore />}
+              </Box>
+            </TableCell>
+            <TableCell align="left" data-testid="delegation-total-amount">
+              {bonds.delegations}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+
+      {showDelegations && (
+        <Box
+          sx={{
+            maxHeight: 400,
+            overflowY: 'scroll',
+          }}
+        >
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600, background: '#242C3D' }} align="left">
+                  Delegators
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, background: '#242C3D' }} align="left">
+                  Stake
+                </TableCell>
+                <TableCell
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
+                    fontWeight: 600,
+                    background: '#242C3D',
+                    width: '200px',
                   }}
+                  align="left"
                 >
-                  Delegation total {'\u00A0'}
-                  {delegations?.data && delegations?.data?.length > 0 && (
-                    <ExpandMore />
-                  )}
-                </Box>
-              </TableCell>
-              <TableCell align="left" data-testid="delegation-total-amount">
-                {bonds.delegations}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+                  Share from bond
+                </TableCell>
+              </TableRow>
+            </TableHead>
 
-        {showDelegations && (
-          <Box
-            sx={{
-              maxHeight: 400,
-              overflowY: 'scroll',
-            }}
-          >
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell
-                    sx={{ fontWeight: 600, background: '#242C3D' }}
-                    align="left"
-                  >
-                    Delegators
+            <TableBody>
+              {delegations?.data?.map(({ owner, amount: { amount, denom } }) => (
+                <TableRow key={owner}>
+                  <TableCell sx={matches ? { width: 190 } : null} align="left">
+                    {owner}
                   </TableCell>
-                  <TableCell
-                    sx={{ fontWeight: 600, background: '#242C3D' }}
-                    align="left"
-                  >
-                    Stake
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 600,
-                      background: '#242C3D',
-                      width: '200px',
-                    }}
-                    align="left"
-                  >
-                    Share from bond
-                  </TableCell>
+                  <TableCell align="left">{currencyToString(amount.toString(), denom)}</TableCell>
+                  <TableCell align="left">{calcBondPercentage(amount)}%</TableCell>
                 </TableRow>
-              </TableHead>
-
-              <TableBody>
-                {delegations?.data?.map(
-                  ({ owner, amount: { amount, denom } }) => (
-                    <TableRow key={owner}>
-                      <TableCell
-                        sx={matches ? { width: 190 } : null}
-                        align="left"
-                      >
-                        {owner}
-                      </TableCell>
-                      <TableCell align="left">
-                        {currencyToString(amount.toString(), denom)}
-                      </TableCell>
-                      <TableCell align="left">
-                        {calcBondPercentage(amount)}%
-                      </TableCell>
-                    </TableRow>
-                  ),
-                )}
-              </TableBody>
-            </Table>
-          </Box>
-        )}
-      </TableContainer>
-    </>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+    </TableContainer>
   );
 };

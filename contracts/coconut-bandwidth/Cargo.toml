@@ -1,0 +1,21 @@
+[package]
+name = "coconut-bandwidth"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
+coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+config = { path = "../../common/config"}
+
+cosmwasm-std = "1.0.0-beta3"
+cosmwasm-storage = "1.0.0-beta3"
+
+schemars = "0.8"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+thiserror = "1.0.23"

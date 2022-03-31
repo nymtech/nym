@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_std::Env;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
@@ -55,7 +56,6 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-/// Representation of rewarding interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,
@@ -65,14 +65,29 @@ pub struct Interval {
 }
 
 impl Interval {
-    /// Creates new interval instance.
-    pub const fn new(id: u32, start: OffsetDateTime, length: Duration) -> Self {
-        Interval { id, start, length }
+    /// Initialize epoch in the contract with default values.
+    pub fn init_epoch(env: Env) -> Self {
+        Interval {
+            id: 0,
+            // I really don't see a way for this to fail, unless the blockchain is lying to us
+            start: OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64)
+                .expect("Invalid timestamp from env.block.time"),
+            length: Duration::from_secs(3600),
+        }
+    }
+
+    pub fn is_over(&self, env: Env) -> bool {
+        self.end_unix_timestamp() <= env.block.time.seconds() as i64
+    }
+
+    pub fn in_progress(&self, env: Env) -> bool {
+        let block_time = env.block.time.seconds() as i64;
+        self.start_unix_timestamp() <= block_time && block_time < self.end_unix_timestamp()
     }
 
     /// Returns the next interval.
     #[must_use]
-    pub fn next_interval(&self) -> Self {
+    pub fn next(&self) -> Self {
         Interval {
             id: self.id + 1,
             start: self.end(),
@@ -80,8 +95,19 @@ impl Interval {
         }
     }
 
+    pub fn next_on_chain(&self, env: Env) -> Self {
+        let start = self
+            .end()
+            .max(OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap());
+        Interval {
+            id: self.id + 1,
+            start,
+            length: self.length,
+        }
+    }
+
     /// Returns the last interval.
-    pub fn previous_interval(&self) -> Option<Self> {
+    pub fn previous(&self) -> Option<Self> {
         if self.id > 0 {
             Some(Interval {
                 id: self.id - 1,
@@ -125,14 +151,14 @@ impl Interval {
                 if candidate.contains(now) {
                     return Some(candidate);
                 }
-                candidate = candidate.next_interval();
+                candidate = candidate.next();
             }
         } else {
             loop {
                 if candidate.contains(now) {
                     return Some(candidate);
                 }
-                candidate = candidate.previous_interval()?;
+                candidate = candidate.previous()?;
             }
         }
     }
@@ -151,14 +177,14 @@ impl Interval {
                 if candidate.contains_timestamp(now_unix) {
                     return Some(candidate);
                 }
-                candidate = candidate.next_interval();
+                candidate = candidate.next();
             }
         } else {
             loop {
                 if candidate.contains_timestamp(now_unix) {
                     return Some(candidate);
                 }
-                candidate = candidate.previous_interval()?;
+                candidate = candidate.previous()?;
             }
         }
     }
@@ -239,7 +265,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn previous_interval() {
+    fn previous() {
         let interval = Interval {
             id: 1,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
@@ -250,18 +276,18 @@ mod tests {
             start: time::macros::datetime!(2021-08-22 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
-        assert_eq!(expected, interval.previous_interval().unwrap());
+        assert_eq!(expected, interval.previous().unwrap());
 
         let genesis_interval = Interval {
             id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
             length: Duration::from_secs(24 * 60 * 60),
         };
-        assert!(genesis_interval.previous_interval().is_none());
+        assert!(genesis_interval.previous().is_none());
     }
 
     #[test]
-    fn next_interval() {
+    fn next() {
         let interval = Interval {
             id: 0,
             start: time::macros::datetime!(2021-08-23 12:00 UTC),
@@ -273,7 +299,7 @@ mod tests {
             length: Duration::from_secs(24 * 60 * 60),
         };
 
-        assert_eq!(expected, interval.next_interval())
+        assert_eq!(expected, interval.next())
     }
 
     #[test]
@@ -291,8 +317,8 @@ mod tests {
         let in_the_midle = interval.start + Duration::from_secs(interval.length.as_secs() / 2);
         assert!(interval.contains(in_the_midle));
 
-        assert!(!interval.contains(interval.next_interval().end()));
-        assert!(!interval.contains(interval.previous_interval().unwrap().start()));
+        assert!(!interval.contains(interval.next().end()));
+        assert!(!interval.contains(interval.previous().unwrap().start()));
     }
 
     #[test]
@@ -305,10 +331,7 @@ mod tests {
 
         // interval just before
         let fake_now = first_interval.start - Duration::from_secs(123);
-        assert_eq!(
-            first_interval.previous_interval(),
-            first_interval.current(fake_now)
-        );
+        assert_eq!(first_interval.previous(), first_interval.current(fake_now));
 
         // this interval (start boundary)
         assert_eq!(
@@ -329,7 +352,7 @@ mod tests {
         // next interval
         let fake_now = first_interval.end() + Duration::from_secs(123);
         assert_eq!(
-            first_interval.next_interval(),
+            first_interval.next(),
             first_interval.current(fake_now).unwrap()
         );
 
@@ -340,11 +363,11 @@ mod tests {
             - first_interval.length;
         assert_eq!(
             first_interval
-                .previous_interval()
+                .previous()
                 .unwrap()
-                .previous_interval()
+                .previous()
                 .unwrap()
-                .previous_interval()
+                .previous()
                 .unwrap(),
             first_interval.current(fake_now).unwrap()
         );
@@ -355,10 +378,7 @@ mod tests {
             + first_interval.length
             + first_interval.length;
         assert_eq!(
-            first_interval
-                .next_interval()
-                .next_interval()
-                .next_interval(),
+            first_interval.next().next().next(),
             first_interval.current(fake_now).unwrap()
         );
     }

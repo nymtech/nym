@@ -1,4 +1,4 @@
-import { Denom } from "./denom";
+import type { Denom } from './denom';
 
 export interface Account {
   contract_address: string;

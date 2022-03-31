@@ -29,7 +29,6 @@ pub mod test_helpers {
     use cosmwasm_std::{coin, Env, Timestamp};
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Empty, MemoryStorage};
-    use cw_storage_plus::PrimaryKey;
     use mixnet_contract_common::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
     use rand::thread_rng;
 
@@ -114,31 +113,34 @@ pub mod test_helpers {
         };
 
         delegations_storage::delegations()
-            .save(storage, delegation.storage_key().joined_key(), &delegation)
+            .save(storage, delegation.storage_key(), &delegation)
             .unwrap();
     }
 
     pub(crate) fn read_delegation(
         storage: &dyn Storage,
         mix: impl Into<String>,
-        owner: impl Into<String>,
+        owner: impl Into<Vec<u8>>,
+        block_height: u64,
     ) -> Option<Delegation> {
         delegations_storage::delegations()
-            .may_load(storage, (mix.into(), owner.into()).joined_key())
+            .may_load(storage, (mix.into(), owner.into(), block_height))
             .unwrap()
     }
 
     pub(crate) fn update_env_and_progress_interval(env: &mut Env, storage: &mut dyn Storage) {
         // make sure current block time is within the expected next interval
         env.block.time = Timestamp::from_seconds(
-            (interval_storage::CURRENT_INTERVAL
-                .load(storage)
+            (interval_storage::current_epoch(storage)
                 .unwrap()
-                .next_interval()
+                .next()
                 .start_unix_timestamp()
                 + 123) as u64,
         );
 
-        interval::transactions::try_advance_interval(env.clone(), storage).unwrap();
+        let sender =
+            crate::mixnet_contract_settings::storage::rewarding_validator_address(storage).unwrap();
+
+        interval::transactions::try_advance_epoch(env.clone(), storage, sender).unwrap();
     }
 }

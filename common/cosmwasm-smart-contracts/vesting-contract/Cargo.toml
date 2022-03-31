@@ -12,4 +12,6 @@ serde = { version = "1.0", features = ["derive"] }
 schemars = "0.8"
 cw-storage-plus = "0.11.1"
 config = { path = "../../config" }
-ts-rs = { version = "*", optional = true }
+
+[dev-dependencies]
+ts-rs = "6.1.2"

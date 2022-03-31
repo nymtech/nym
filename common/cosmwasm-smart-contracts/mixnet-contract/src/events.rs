@@ -1,15 +1,17 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::mixnode::NodeRewardResult;
-use crate::{ContractStateParams, Delegation, IdentityKeyRef, Interval, Layer};
+use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 pub use contracts_common::events::*;
-
+// FIXME: This should becoma an Enum
 // event types
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
+pub const PENDING_DELEGATION_EVENT_TYPE: &str = "pending_delegation";
+pub const RECONCILE_DELEGATION_EVENT_TYPE: &str = "reconcile_delegation";
 pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
+pub const PENDING_UNDELEGATION_EVENT_TYPE: &str = "pending_undelegation";
 pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
 pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
 pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
@@ -19,6 +21,10 @@ pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_INTERVAL_EVENT_TYPE: &str = "advance_interval";
+pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
+pub const COMPOUND_DELEGATOR_REWARD_EVENT_TYPE: &str = "compound_delegator_reward";
+pub const COMPOUND_OPERATOR_REWARD_EVENT_TYPE: &str = "compound_operator_reward";
+pub const SNAPSHOT_MIXNODES_EVENT: &str = "snapshot_mixnodes";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -70,6 +76,19 @@ pub const NODES_IN_REWARDED_SET_KEY: &str = "nodes_in_rewarded_set";
 pub const CURRENT_INTERVAL_ID_KEY: &str = "current_interval";
 
 pub const NEW_CURRENT_INTERVAL_KEY: &str = "new_current_interval";
+pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
+pub const BLOCK_HEIGHT_KEY: &str = "block_height";
+pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
+pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
+
+pub fn new_checkpoint_mixnodes_event(block_height: u64) -> Event {
+    Event::new(CHECKPOINT_MIXNODES_EVENT)
+        .add_attribute(BLOCK_HEIGHT_KEY, format!("{}", block_height))
+}
+
+pub fn new_error_event(err: String) -> Event {
+    Event::new(RECONCILIATION_ERROR_EVENT).add_attribute("error", err)
+}
 
 pub fn new_delegation_event(
     delegator: &Addr,
@@ -89,11 +108,74 @@ pub fn new_delegation_event(
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
 }
 
+pub fn new_pending_delegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(PENDING_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_reconcile_delegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(RECONCILE_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_compound_operator_reward_event(owner: &Addr, amount: Uint128) -> Event {
+    let event = Event::new(COMPOUND_OPERATOR_REWARD_EVENT_TYPE).add_attribute(OWNER_KEY, owner);
+    event.add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_compound_delegator_reward_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: Uint128,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(COMPOUND_DELEGATOR_REWARD_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+        .add_attribute(DELEGATOR_KEY, delegator)
+}
+
 pub fn new_undelegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
-    old_delegation: &Delegation,
     mix_identity: IdentityKeyRef<'_>,
+    amount: Uint128,
 ) -> Event {
     let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
 
@@ -103,12 +185,24 @@ pub fn new_undelegation_event(
 
     // coin implements Display trait and we use that implementation here
     event
-        .add_attribute(AMOUNT_KEY, old_delegation.amount.to_string())
-        .add_attribute(
-            DELEGATION_HEIGHT_KEY,
-            old_delegation.block_height.to_string(),
-        )
+        .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+}
+
+pub fn new_pending_undelegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(PENDING_UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event.add_attribute(DELEGATION_TARGET_KEY, mix_identity)
 }
 
 pub fn new_gateway_bonding_event(
@@ -280,9 +374,6 @@ pub fn new_mix_operator_rewarding_event(
     node_reward_result: NodeRewardResult,
     node_pledge: Uint128,
     node_delegation: Uint128,
-    operator_reward: Uint128,
-    delegation_rewards_distributed: Uint128,
-    further_delegations: bool,
 ) -> Event {
     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
         .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
@@ -295,15 +386,6 @@ pub fn new_mix_operator_rewarding_event(
         )
         .add_attribute(LAMBDA_KEY, node_reward_result.lambda().to_string())
         .add_attribute(SIGMA_KEY, node_reward_result.sigma().to_string())
-        .add_attribute(OPERATOR_REWARD_KEY, operator_reward)
-        .add_attribute(
-            DISTRIBUTED_DELEGATION_REWARDS_KEY,
-            delegation_rewards_distributed,
-        )
-        .add_attribute(
-            FURTHER_DELEGATIONS_TO_REWARD_KEY,
-            further_delegations.to_string(),
-        )
 }
 
 pub fn new_mix_delegators_rewarding_event(
@@ -330,16 +412,18 @@ pub fn new_change_rewarded_set_event(
     active_set_size: u32,
     rewarded_set_size: u32,
     nodes_in_rewarded_set: u32,
-    current_interval_id: u32,
 ) -> Event {
     Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
-        .add_attribute(CURRENT_INTERVAL_ID_KEY, current_interval_id.to_string())
 }
 
 pub fn new_advance_interval_event(interval: Interval) -> Event {
     Event::new(ADVANCE_INTERVAL_EVENT_TYPE)
         .add_attribute(NEW_CURRENT_INTERVAL_KEY, interval.to_string())
+}
+
+pub fn new_advance_epoch_event(interval: Interval) -> Event {
+    Event::new(ADVANCE_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
 }

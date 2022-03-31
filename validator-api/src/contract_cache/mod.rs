@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd_client::Client;
-use crate::rewarding::IntervalRewardParams;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
+use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
@@ -13,6 +13,7 @@ use mixnet_contract_common::{
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -40,11 +41,14 @@ struct ValidatorCacheInner {
     mixnodes: Cache<Vec<MixNodeBond>>,
     gateways: Cache<Vec<GatewayBond>>,
 
+    mixnodes_blacklist: Cache<HashSet<IdentityKey>>,
+    gateways_blacklist: Cache<HashSet<IdentityKey>>,
+
     rewarded_set: Cache<Vec<MixNodeBond>>,
     active_set: Cache<Vec<MixNodeBond>>,
 
-    current_reward_params: Cache<IntervalRewardParams>,
-    current_interval: Cache<Interval>,
+    current_reward_params: Cache<EpochRewardParams>,
+    current_epoch: Cache<Option<Interval>>,
 }
 
 fn current_unix_timestamp() -> i64 {
@@ -131,11 +135,7 @@ impl<C> ValidatorCacheRefresher<C> {
         let (rewarded_set, active_set) =
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
-        let interval_rewarding_params = self
-            .nymd_client
-            .get_current_interval_reward_params()
-            .await?;
-        let current_interval = self.nymd_client.get_current_interval().await?;
+        let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -149,8 +149,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 gateways,
                 rewarded_set,
                 active_set,
-                interval_rewarding_params,
-                current_interval,
+                epoch_rewarding_params,
             )
             .await;
 
@@ -208,6 +207,8 @@ impl ValidatorCache {
                     routes::get_gateways,
                     routes::get_active_set,
                     routes::get_rewarded_set,
+                    routes::get_blacklisted_mixnodes,
+                    routes::get_blacklisted_gateways,
                 ],
             )
         })
@@ -219,8 +220,7 @@ impl ValidatorCache {
         gateways: Vec<GatewayBond>,
         rewarded_set: Vec<MixNodeBond>,
         active_set: Vec<MixNodeBond>,
-        interval_rewarding_params: IntervalRewardParams,
-        current_interval: Interval,
+        epoch_rewarding_params: EpochRewardParams,
     ) {
         let mut inner = self.inner.write().await;
 
@@ -228,18 +228,85 @@ impl ValidatorCache {
         inner.gateways.update(gateways);
         inner.rewarded_set.update(rewarded_set);
         inner.active_set.update(active_set);
-        inner
-            .current_reward_params
-            .update(interval_rewarding_params);
-        inner.current_interval.update(current_interval);
+        inner.current_reward_params.update(epoch_rewarding_params);
     }
 
-    pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.read().await.mixnodes.clone()
+    pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
+        self.inner.read().await.mixnodes_blacklist.clone()
     }
 
-    pub async fn gateways(&self) -> Cache<Vec<GatewayBond>> {
-        self.inner.read().await.gateways.clone()
+    pub async fn gateways_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
+        self.inner.read().await.gateways_blacklist.clone()
+    }
+
+    pub async fn insert_mixnodes_blacklist(&mut self, mix_identity: IdentityKey) {
+        self.inner
+            .write()
+            .await
+            .mixnodes_blacklist
+            .value
+            .insert(mix_identity);
+    }
+
+    pub async fn remove_mixnodes_blacklist(&mut self, mix_identity: &str) {
+        self.inner
+            .write()
+            .await
+            .mixnodes_blacklist
+            .value
+            .remove(mix_identity);
+    }
+
+    pub async fn insert_gateways_blacklist(&mut self, gateway_identity: IdentityKey) {
+        self.inner
+            .write()
+            .await
+            .gateways_blacklist
+            .value
+            .insert(gateway_identity);
+    }
+
+    pub async fn remove_gateways_blacklist(&mut self, gateway_identity: &str) {
+        self.inner
+            .write()
+            .await
+            .gateways_blacklist
+            .value
+            .remove(gateway_identity);
+    }
+
+    pub async fn mixnodes(&self) -> Vec<MixNodeBond> {
+        let blacklist = self.mixnodes_blacklist().await.value;
+        self.inner
+            .read()
+            .await
+            .mixnodes
+            .value
+            .iter()
+            .filter(|mix| !blacklist.contains(mix.identity()))
+            .cloned()
+            .collect()
+    }
+
+    pub async fn mixnodes_all(&self) -> Vec<MixNodeBond> {
+        self.inner.read().await.mixnodes.value.clone()
+    }
+
+    pub async fn gateways(&self) -> Vec<GatewayBond> {
+        let blacklist = self.gateways_blacklist().await.value;
+        self.inner
+            .read()
+            .await
+            .gateways
+            .value
+            .iter()
+            .filter(|gateway| !blacklist.contains(gateway.identity()))
+            .cloned()
+            .collect()
+    }
+
+    pub async fn gateways_all(&self) -> Vec<GatewayBond> {
+        self.inner.read().await.gateways.value.clone()
     }
 
     pub async fn rewarded_set(&self) -> Cache<Vec<MixNodeBond>> {
@@ -250,12 +317,12 @@ impl ValidatorCache {
         self.inner.read().await.active_set.clone()
     }
 
-    pub(crate) async fn interval_reward_params(&self) -> Cache<IntervalRewardParams> {
+    pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {
         self.inner.read().await.current_reward_params.clone()
     }
 
-    pub(crate) async fn current_interval(&self) -> Cache<Interval> {
-        self.inner.read().await.current_interval.clone()
+    pub(crate) async fn current_epoch(&self) -> Cache<Option<Interval>> {
+        self.inner.read().await.current_epoch.clone()
     }
 
     pub async fn mixnode_details(
@@ -320,14 +387,12 @@ impl ValidatorCacheInner {
             gateways: Cache::default(),
             rewarded_set: Cache::default(),
             active_set: Cache::default(),
-            current_reward_params: Cache::new(IntervalRewardParams::new_empty()),
+            current_reward_params: Cache::new(EpochRewardParams::new_empty()),
+            mixnodes_blacklist: Cache::default(),
+            gateways_blacklist: Cache::default(),
             // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
             // since 'initialised' flag won't be set
-            current_interval: Cache::new(Interval::new(
-                u32::MAX,
-                OffsetDateTime::UNIX_EPOCH,
-                Duration::default(),
-            )),
+            current_epoch: Cache::new(None),
         }
     }
 }

@@ -20,6 +20,9 @@ mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 
 [network_monitor]
 
+# Mixnodes and gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
+min_reliability = {{ network_monitor.min_reliability }}
+
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -9,38 +9,38 @@ import {
   Grid,
   InputAdornment,
   TextField,
-  Typography,
-} from '@mui/material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { useForm } from 'react-hook-form'
-import { EnumNodeType } from '../../types/global'
-import { NodeTypeSelector } from '../../components/NodeTypeSelector'
-import { bond, majorToMinor } from '../../requests'
-import { validationSchema } from './validationSchema'
-import { Gateway, MixNode } from '../../types'
-import { ClientContext } from '../../context/main'
-import { Fee } from '../../components'
+} from '@mui/material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm } from 'react-hook-form';
+import { NodeTypeSelector } from '../../components/NodeTypeSelector';
+import { bond, vestingBond, majorToMinor } from '../../requests';
+import { validationSchema } from './validationSchema';
+import { Gateway, MixNode, TBondArgs, EnumNodeType } from '../../types';
+import { ClientContext } from '../../context/main';
+import { Fee, TokenPoolSelector } from '../../components';
 
 type TBondFormFields = {
-  withAdvancedOptions: boolean
-  nodeType: EnumNodeType
-  ownerSignature: string
-  identityKey: string
-  sphinxKey: string
-  profitMarginPercent: number
-  amount: string
-  host: string
-  version: string
-  location?: string
-  mixPort: number
-  verlocPort: number
-  clientsPort: number
-  httpApiPort: number
-}
+  withAdvancedOptions: boolean;
+  nodeType: EnumNodeType;
+  tokenPool: string;
+  ownerSignature: string;
+  identityKey: string;
+  sphinxKey: string;
+  profitMarginPercent: number;
+  amount: string;
+  host: string;
+  version: string;
+  location?: string;
+  mixPort: number;
+  verlocPort: number;
+  clientsPort: number;
+  httpApiPort: number;
+};
 
 const defaultValues = {
   withAdvancedOptions: false,
   nodeType: EnumNodeType.mixnode,
+  tokenPool: 'balance',
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
@@ -53,7 +53,7 @@ const defaultValues = {
   verlocPort: 1790,
   httpApiPort: 8000,
   clientsPort: 9000,
-}
+};
 
 const formatData = (data: TBondFormFields) => {
   const payload: { [key: string]: any } = {
@@ -63,58 +63,65 @@ const formatData = (data: TBondFormFields) => {
     version: data.version,
     mix_port: data.mixPort,
     profit_margin_percent: data.profitMarginPercent,
-  }
+  };
 
   if (data.nodeType === EnumNodeType.mixnode) {
-    payload.verloc_port = data.verlocPort
-    payload.http_api_port = data.httpApiPort
-    return payload as MixNode
-  } else {
-    payload.clients_port = data.clientsPort
-    payload.location = data.location
-    return payload as Gateway
+    payload.verloc_port = data.verlocPort;
+    payload.http_api_port = data.httpApiPort;
+    return payload as MixNode;
   }
-}
+  payload.clients_port = data.clientsPort;
+  payload.location = data.location;
+  return payload as Gateway;
+};
 
 export const BondForm = ({
   disabled,
   onError,
   onSuccess,
 }: {
-  disabled: boolean
-  onError: (message?: string) => void
-  onSuccess: (details: { address: string; amount: string }) => void
+  disabled: boolean;
+  onError: (message?: string) => void;
+  onSuccess: (details: { address: string; amount: string }) => void;
 }) => {
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
     resolver: yupResolver(validationSchema),
     defaultValues,
-  })
+  });
 
-  const { userBalance, currency, getBondDetails } = useContext(ClientContext)
+  const { userBalance, currency, clientDetails } = useContext(ClientContext);
 
-  const watchNodeType = watch('nodeType', defaultValues.nodeType)
-  const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions)
+  useEffect(() => {
+    reset();
+  }, [clientDetails]);
 
-  const onSubmit = async (data: TBondFormFields) => {
-    const formattedData = formatData(data)
-    const pledge = await majorToMinor(data.amount)
+  const watchNodeType = watch('nodeType', defaultValues.nodeType);
+  const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
 
-    await bond({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
+  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<void>) => {
+    const formattedData = formatData(data);
+    const pledge = await majorToMinor(data.amount);
+
+    await cb({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
       .then(async () => {
-        await getBondDetails()
-        userBalance.fetchBalance()
-        onSuccess({ address: data.identityKey, amount: data.amount })
+        if (data.tokenPool === 'balance') {
+          await userBalance.fetchBalance();
+        } else {
+          await userBalance.fetchTokenAllocation();
+        }
+        onSuccess({ address: data.identityKey, amount: data.amount });
       })
       .catch((e) => {
-        onError(e)
-      })
-  }
+        onError(e);
+      });
+  };
 
   return (
     <FormControl fullWidth>
@@ -125,8 +132,8 @@ export const BondForm = ({
               <NodeTypeSelector
                 nodeType={watchNodeType}
                 setNodeType={(nodeType) => {
-                  setValue('nodeType', nodeType)
-                  if (nodeType === EnumNodeType.mixnode) setValue('location', undefined)
+                  setValue('nodeType', nodeType);
+                  if (nodeType === EnumNodeType.mixnode) setValue('location', undefined);
                 }}
                 disabled={disabled}
               />
@@ -175,6 +182,12 @@ export const BondForm = ({
               disabled={disabled}
             />
           </Grid>
+
+          {userBalance.originalVesting && (
+            <Grid item xs={12} sm={6}>
+              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} disabled={disabled} />
+            </Grid>
+          )}
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -268,20 +281,19 @@ export const BondForm = ({
                     if (watchAdvancedOptions) {
                       setValue('mixPort', defaultValues.mixPort, {
                         shouldValidate: true,
-                      })
+                      });
                       setValue('clientsPort', defaultValues.clientsPort, {
                         shouldValidate: true,
-                      })
+                      });
                       setValue('verlocPort', defaultValues.verlocPort, {
                         shouldValidate: true,
-                      })
+                      });
                       setValue('httpApiPort', defaultValues.httpApiPort, {
                         shouldValidate: true,
-                      })
-                      setValue('withAdvancedOptions', false)
-                      resizeTo
+                      });
+                      setValue('withAdvancedOptions', false);
                     } else {
-                      setValue('withAdvancedOptions', true)
+                      setValue('withAdvancedOptions', true);
                     }
                   }}
                 />
@@ -351,7 +363,7 @@ export const BondForm = ({
               )}
             </>
           )}
-          <Grid item>
+          <Grid item xs={12}>
             {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
           </Grid>
         </Grid>
@@ -372,7 +384,7 @@ export const BondForm = ({
           type="submit"
           data-testid="submit-button"
           disableElevation
-          onClick={handleSubmit(onSubmit)}
+          onClick={handleSubmit((data) => onSubmit(data, data.tokenPool === 'balance' ? bond : vestingBond))}
           endIcon={isSubmitting && <CircularProgress size={20} />}
           size="large"
         >
@@ -380,5 +392,5 @@ export const BondForm = ({
         </Button>
       </Box>
     </FormControl>
-  )
-}
+  );
+};

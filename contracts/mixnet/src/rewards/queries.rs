@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::error::ContractError;
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{IdentityKey, MixnodeRewardingStatusResponse};
@@ -24,6 +25,36 @@ pub(crate) fn query_rewarding_status(
     Ok(MixnodeRewardingStatusResponse { status })
 }
 
+pub fn query_operator_reward(deps: Deps, owner: String) -> Result<Uint128, ContractError> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    let bond = match crate::mixnodes::storage::mixnodes()
+        .idx
+        .owner
+        .item(deps.storage, owner_address.clone())?
+    {
+        Some(record) => record.1,
+        None => {
+            // Return if bond does not exist
+            return Ok(Uint128::zero());
+        }
+    };
+
+    super::transactions::calculate_operator_reward(deps.storage, &owner_address, &bond)
+}
+
+pub fn query_delegator_reward(
+    deps: Deps,
+    owner: String,
+    mix_identity: IdentityKey,
+) -> Result<Uint128, ContractError> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    super::transactions::calculate_delegator_reward(
+        deps.storage,
+        owner_address.as_str(),
+        &mix_identity,
+    )
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -37,13 +68,12 @@ pub(crate) mod tests {
         use super::*;
         use crate::constants;
         use crate::delegations::transactions::try_delegate_to_mixnode;
-        use crate::rewards::transactions::{
-            try_reward_mixnode, try_reward_next_mixnode_delegators,
-        };
+        use crate::interval::storage::{save_epoch, save_epoch_reward_params};
+        use crate::rewards::transactions::try_reward_mixnode;
         use config::defaults::DENOM;
         use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{
-            RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
+            Interval, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
         };
 
         #[test]
@@ -73,10 +103,9 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info,
+                info.clone(),
                 node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
-                0,
+                tests::fixtures::node_reward_params_fixture(100),
             )
             .unwrap();
 
@@ -87,6 +116,7 @@ pub(crate) mod tests {
         }
 
         #[test]
+
         fn returns_complete_status_for_fully_rewarded_node() {
             // with single page
             let mut deps = test_helpers::init_contract();
@@ -106,13 +136,17 @@ pub(crate) mod tests {
             env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
             let info = mock_info(rewarding_validator_address.as_ref(), &[]);
+
+            let epoch = Interval::init_epoch(env.clone());
+            save_epoch(&mut deps.storage, &epoch).unwrap();
+            save_epoch_reward_params(epoch.id(), &mut deps.storage).unwrap();
+
             try_reward_mixnode(
                 deps.as_mut(),
                 env.clone(),
-                info,
+                info.clone(),
                 node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
-                0,
+                tests::fixtures::node_reward_params_fixture(100),
             )
             .unwrap();
 
@@ -121,14 +155,7 @@ pub(crate) mod tests {
 
             match res.status.unwrap() {
                 RewardingStatus::Complete(result) => {
-                    assert_ne!(
-                        RewardingResult::default().operator_reward,
-                        result.operator_reward
-                    );
-                    assert_eq!(
-                        RewardingResult::default().total_delegator_reward,
-                        result.total_delegator_reward
-                    );
+                    assert_ne!(RewardingResult::default().node_reward, result.node_reward);
                 }
                 _ => unreachable!(),
             }
@@ -159,95 +186,22 @@ pub(crate) mod tests {
             try_reward_mixnode(
                 deps.as_mut(),
                 env,
-                info.clone(),
+                info,
                 node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
-                1,
+                tests::fixtures::node_reward_params_fixture(100),
             )
             .unwrap();
 
             // rewards all pending
-            try_reward_next_mixnode_delegators(deps.as_mut(), info, node_identity.to_string(), 1)
-                .unwrap();
+            // try_reward_next_mixnode_delegators(deps.as_mut(), info, node_identity.to_string(), 1)
+            //     .unwrap();
 
             let res = query_rewarding_status(deps.as_ref(), node_identity, 1).unwrap();
             assert!(matches!(res.status, Some(RewardingStatus::Complete(..))));
 
             match res.status.unwrap() {
                 RewardingStatus::Complete(result) => {
-                    assert_ne!(
-                        RewardingResult::default().operator_reward,
-                        result.operator_reward
-                    );
-                    assert_ne!(
-                        RewardingResult::default().total_delegator_reward,
-                        result.total_delegator_reward
-                    );
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        #[test]
-        fn returns_pending_next_delegator_page_status_when_there_are_more_delegators_to_reward() {
-            let mut deps = test_helpers::init_contract();
-            let mut env = mock_env();
-            let current_state = mixnet_params_storage::CONTRACT_STATE
-                .load(deps.as_mut().storage)
-                .unwrap();
-            let rewarding_validator_address = current_state.rewarding_validator_address;
-
-            let node_owner: Addr = Addr::unchecked("bob");
-            let node_identity = test_helpers::add_mixnode(
-                node_owner.as_str(),
-                tests::fixtures::good_mixnode_pledge(),
-                deps.as_mut(),
-            );
-
-            for i in 0..MIXNODE_DELEGATORS_PAGE_LIMIT + 123 {
-                try_delegate_to_mixnode(
-                    deps.as_mut(),
-                    env.clone(),
-                    mock_info(&*format!("delegator{:04}", i), &[coin(200_000000, DENOM)]),
-                    node_identity.clone(),
-                )
-                .unwrap();
-            }
-
-            env.block.height += constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
-
-            let info = mock_info(rewarding_validator_address.as_ref(), &[]);
-
-            try_reward_mixnode(
-                deps.as_mut(),
-                env,
-                info,
-                node_identity.clone(),
-                tests::fixtures::node_rewarding_params_fixture(100),
-                0,
-            )
-            .unwrap();
-
-            let res = query_rewarding_status(deps.as_ref(), node_identity, 0).unwrap();
-            assert!(matches!(
-                res.status,
-                Some(RewardingStatus::PendingNextDelegatorPage(..))
-            ));
-
-            match res.status.unwrap() {
-                RewardingStatus::PendingNextDelegatorPage(result) => {
-                    assert_ne!(
-                        RewardingResult::default().operator_reward,
-                        result.running_results.operator_reward
-                    );
-                    assert_ne!(
-                        RewardingResult::default().total_delegator_reward,
-                        result.running_results.total_delegator_reward
-                    );
-                    assert_eq!(
-                        &*format!("delegator{:04}", MIXNODE_DELEGATORS_PAGE_LIMIT),
-                        result.next_start
-                    );
+                    assert_ne!(RewardingResult::default().node_reward, result.node_reward);
                 }
                 _ => unreachable!(),
             }

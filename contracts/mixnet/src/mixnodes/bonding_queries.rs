@@ -17,7 +17,7 @@ pub fn query_mixnodes_paged(
         .unwrap_or(storage::BOND_PAGE_DEFAULT_LIMIT)
         .min(storage::BOND_PAGE_MAX_LIMIT) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after.as_deref().map(Bound::exclusive);
 
     let nodes = storage::mixnodes()
         .range(deps.storage, start, None, Order::Ascending)
@@ -203,6 +203,7 @@ pub(crate) mod tests {
     #[test]
     fn query_for_mixnode_owner_works() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
 
         // "fred" does not own a mixnode if there are no mixnodes
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
@@ -225,8 +226,12 @@ pub(crate) mod tests {
         assert!(res.mixnode.is_some());
 
         // but after unbonding it, he doesn't own one anymore
-        crate::mixnodes::transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]))
-            .unwrap();
+        crate::mixnodes::transactions::try_remove_mixnode(
+            env,
+            deps.as_mut(),
+            mock_info("fred", &[]),
+        )
+        .unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.mixnode.is_none());

@@ -42,19 +42,25 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all
+          args: --workspace
 
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all
+          args: --workspace
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
+
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
@@ -67,33 +73,28 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: -- -D warnings
+          args: --workspace --all-targets -- -D warnings
 
-#        COCONUT stuff
-      - name: Reclaim some disk space (because Windows is being annoying)
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          command: clean
 
+      # COCONUT stuff
       - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --features=coconut
+          args: --workspace --features=coconut
 
       - name: Run all tests with coconut enabled
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --features=coconut
+          args: --workspace --features=coconut
 
       - name: Run clippy with coconut enabled
         uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --features=coconut -- -D warnings
+          args: --workspace --all-targets --features=coconut -- -D warnings
   notification:
     needs: build
     runs-on: ubuntu-latest

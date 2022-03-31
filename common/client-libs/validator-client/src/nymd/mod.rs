@@ -9,16 +9,18 @@ use crate::nymd::cosmwasm_client::types::{
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmrs::rpc::Error as TendermintRpcError;
+use cosmrs::rpc::HttpClientUrl;
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
+use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
     IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
+    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
+    PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::convert::TryInto;
@@ -27,9 +29,12 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
 pub use cosmrs::rpc::Paging;
+pub use cosmrs::tendermint::abci::responses::{DeliverTx, Event};
+pub use cosmrs::tendermint::abci::tag::Tag;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
@@ -82,7 +87,7 @@ impl NymdClient<QueryNymdClient> {
 
 impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
-    pub fn connect_with_signer<U>(
+    pub fn connect_with_signer<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
@@ -113,7 +118,7 @@ impl NymdClient<SigningNymdClient> {
         })
     }
 
-    pub fn connect_with_mnemonic<U>(
+    pub fn connect_with_mnemonic<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
         mixnet_contract_address: Option<AccountId>,
@@ -272,6 +277,13 @@ impl<C> NymdClient<C> {
         self.client.get_balance(address, denom).await
     }
 
+    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_tx(id).await
+    }
+
     pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -284,6 +296,56 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::StateParams {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_operator_rewards(&self, address: String) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::QueryOperatorReward { address };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_delegator_rewards(
+        &self,
+        address: String,
+        mix_identity: IdentityKey,
+    ) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::QueryDelegatorReward {
+            address,
+            mix_identity,
+        };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_pending_delegation_events(
+        &self,
+        owner_address: String,
+    ) -> Result<Vec<DelegationEvent>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetPendingDelegationEvents { owner_address };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Interval, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentEpoch {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -368,16 +430,6 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_current_interval(&self) -> Result<Interval, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetCurrentInterval {};
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
     pub async fn get_reward_pool(&self) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -423,6 +475,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetIntervalRewardPercent {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn get_epochs_in_interval(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetEpochsInInterval {};
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -496,7 +558,7 @@ impl<C> NymdClient<C> {
     pub async fn get_mix_delegations_paged(
         &self,
         mix_identity: IdentityKey,
-        start_after: Option<String>,
+        start_after: Option<(String, u64)>,
         page_limit: Option<u32>,
     ) -> Result<PagedMixDelegationsResponse, NymdError>
     where
@@ -504,24 +566,6 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetMixnodeDelegations {
             mix_identity: mix_identity.to_owned(),
-            start_after,
-            limit: page_limit,
-        };
-        self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
-            .await
-    }
-
-    /// Gets list of all mixnode delegations on particular page.
-    pub async fn get_all_network_delegations_paged(
-        &self,
-        start_after: Option<(IdentityKey, String)>,
-        page_limit: Option<u32>,
-    ) -> Result<PagedAllDelegationsResponse, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = QueryMsg::GetAllNetworkDelegations {
             start_after,
             limit: page_limit,
         };
@@ -1175,20 +1219,58 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn advance_current_interval(&self) -> Result<ExecuteResult, NymdError>
+    pub async fn advance_current_epoch(&self) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::AdvanceCurrentInterval);
+        let fee = self.operation_fee(Operation::AdvanceCurrentEpoch);
 
-        let req = ExecuteMsg::AdvanceCurrentInterval {};
+        let req = ExecuteMsg::AdvanceCurrentEpoch {};
         self.client
             .execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
-                "Advancing current interval",
+                "Advance current epoch",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn reconcile_delegations(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::ReconcileDelegations);
+
+        let req = ExecuteMsg::ReconcileDelegations {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Reconciling delegation events",
+                Vec::new(),
+            )
+            .await
+    }
+
+    pub async fn checkpoint_mixnodes(&self) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = self.operation_fee(Operation::CheckpointMixnodes);
+
+        let req = ExecuteMsg::CheckpointMixnodes {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "Snapshotting mixnodes",
                 Vec::new(),
             )
             .await

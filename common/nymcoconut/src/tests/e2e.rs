@@ -1,8 +1,10 @@
 use crate::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
-    prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
-    CoconutError, Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, prepare_blind_sign,
+    prove_bandwidth_credential, setup, ttp_keygen, verify_credential, CoconutError, Signature,
+    SignatureShare, VerificationKey,
 };
+
+use itertools::izip;
 
 #[test]
 fn main() -> Result<(), CoconutError> {
@@ -13,15 +15,9 @@ fn main() -> Result<(), CoconutError> {
     let binding_number = params.random_scalar();
     let private_attributes = vec![serial_number, binding_number];
 
-    let elgamal_keypair = elgamal_keygen(&params);
-
-    // generate commitment and encryption
-    let blind_sign_request = prepare_blind_sign(
-        &params,
-        &elgamal_keypair,
-        &private_attributes,
-        &public_attributes,
-    )?;
+    // generate commitment
+    let (commitments_openings, blind_sign_request) =
+        prepare_blind_sign(&params, &private_attributes, &public_attributes)?;
 
     // generate_keys
     let coconut_keypairs = ttp_keygen(&params, 2, 3)?;
@@ -41,7 +37,6 @@ fn main() -> Result<(), CoconutError> {
         let blinded_signature = blind_sign(
             &params,
             &keypair.secret_key(),
-            &elgamal_keypair.public_key(),
             &blind_sign_request,
             &public_attributes,
         )?;
@@ -49,26 +44,22 @@ fn main() -> Result<(), CoconutError> {
     }
 
     // Unblind
-
-    let unblinded_signatures: Vec<Signature> = blinded_signatures
-        .into_iter()
-        .zip(verification_keys.iter())
-        .map(|(signature, verification_key)| {
-            signature
-                .unblind(
+    let unblinded_signatures: Vec<Signature> =
+        izip!(blinded_signatures.iter(), verification_keys.iter())
+            .map(|(s, vk)| {
+                s.unblind(
                     &params,
-                    &elgamal_keypair.private_key(),
-                    &verification_key,
+                    vk,
                     &private_attributes,
                     &public_attributes,
                     &blind_sign_request.get_commitment_hash(),
+                    &commitments_openings,
                 )
                 .unwrap()
-        })
-        .collect();
+            })
+            .collect();
 
     // Aggregate signatures
-
     let signature_shares: Vec<SignatureShare> = unblinded_signatures
         .iter()
         .enumerate()
@@ -84,7 +75,6 @@ fn main() -> Result<(), CoconutError> {
         aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
 
     // Generate cryptographic material to verify them
-
     let theta = prove_bandwidth_credential(
         &params,
         &verification_key,
@@ -94,7 +84,6 @@ fn main() -> Result<(), CoconutError> {
     )?;
 
     // Verify credentials
-
     assert!(verify_credential(
         &params,
         &verification_key,

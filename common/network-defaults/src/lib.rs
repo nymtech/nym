@@ -84,7 +84,7 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
     validators: qa::validators(),
 });
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nymd_url: String,
@@ -95,10 +95,9 @@ pub struct ValidatorDetails {
 
 impl ValidatorDetails {
     pub fn new(nymd_url: &str, api_url: Option<&str>) -> Self {
-        let api_url = api_url.map(|api_url_str| api_url_str.to_string());
         ValidatorDetails {
             nymd_url: nymd_url.to_string(),
-            api_url,
+            api_url: api_url.map(ToString::to_string),
         }
     }
 
@@ -118,14 +117,14 @@ impl ValidatorDetails {
 pub fn default_nymd_endpoints() -> Vec<Url> {
     DEFAULT_NETWORK
         .validators()
-        .map(|validator| validator.nymd_url())
+        .map(ValidatorDetails::nymd_url)
         .collect()
 }
 
 pub fn default_api_endpoints() -> Vec<Url> {
     DEFAULT_NETWORK
         .validators()
-        .filter_map(|validator| validator.api_url())
+        .filter_map(ValidatorDetails::api_url)
         .collect()
 }
 
@@ -147,6 +146,8 @@ pub const TOKENS_TO_BURN: u64 = 1;
 pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
+
+pub const VOUCHER_INFO: &str = "BandwidthVoucher";
 
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
 
@@ -179,7 +180,8 @@ pub const VALIDATOR_API_VERSION: &str = "v1";
 // REWARDING
 
 /// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
-pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
+// pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
+pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 55_556; // 40$/1hr at 1 Nym == 1$
 
 // TODO: is there a way to get this from the chain
 pub const TOTAL_SUPPLY: u128 = 1_000_000_000_000_000;

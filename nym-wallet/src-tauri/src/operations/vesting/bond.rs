@@ -64,3 +64,14 @@ pub async fn withdraw_vested_coins(
   nymd_client!(state).withdraw_vested_coins(amount).await?;
   Ok(())
 }
+
+#[tauri::command]
+pub async fn vesting_update_mixnode(
+  profit_margin_percent: u8,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  nymd_client!(state)
+    .vesting_update_mixnode_config(profit_margin_percent)
+    .await?;
+  Ok(())
+}

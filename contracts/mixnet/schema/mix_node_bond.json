@@ -3,21 +3,28 @@
   "title": "MixNodeBond",
   "type": "object",
   "required": [
-    "bond_amount",
+    "block_height",
     "layer",
     "mix_node",
     "owner",
+    "pledge_amount",
     "total_delegation"
   ],
   "properties": {
+    "accumulated_rewards": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Uint128"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "block_height": {
-      "default": 0,
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
-    },
-    "bond_amount": {
-      "$ref": "#/definitions/Coin"
     },
     "layer": {
       "$ref": "#/definitions/Layer"
@@ -27,6 +34,19 @@
     },
     "owner": {
       "$ref": "#/definitions/Addr"
+    },
+    "pledge_amount": {
+      "$ref": "#/definitions/Coin"
+    },
+    "proxy": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "total_delegation": {
       "$ref": "#/definitions/Coin"
@@ -68,6 +88,7 @@
         "http_api_port",
         "identity_key",
         "mix_port",
+        "profit_margin_percent",
         "sphinx_key",
         "verloc_port",
         "version"
@@ -88,6 +109,11 @@
         "mix_port": {
           "type": "integer",
           "format": "uint16",
+          "minimum": 0.0
+        },
+        "profit_margin_percent": {
+          "type": "integer",
+          "format": "uint8",
           "minimum": 0.0
         },
         "sphinx_key": {

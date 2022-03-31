@@ -1,72 +1,73 @@
-import React, { useContext } from 'react'
-import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField, Typography } from '@mui/material'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { useForm } from 'react-hook-form'
-import { EnumNodeType } from '../../types'
-import { validationSchema } from './validationSchema'
-import { ClientContext } from '../../context/main'
-import { delegate, majorToMinor } from '../../requests'
-import { checkHasEnoughFunds } from '../../utils'
-import { Fee } from '../../components'
+import React, { useEffect, useContext } from 'react';
+import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField } from '@mui/material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm } from 'react-hook-form';
+import { DelegationResult, EnumNodeType, TDelegateArgs } from '../../types';
+import { validationSchema } from './validationSchema';
+import { ClientContext } from '../../context/main';
+import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests';
+import { Fee, TokenPoolSelector } from '../../components';
+import { Console } from '../../utils/console';
 
 type TDelegateForm = {
-  nodeType: EnumNodeType
-  identity: string
-  amount: string
-}
+  identity: string;
+  amount: string;
+  tokenPool: string;
+  type: EnumNodeType;
+};
 
 const defaultValues: TDelegateForm = {
-  nodeType: EnumNodeType.mixnode,
   identity: '',
   amount: '',
-}
+  tokenPool: 'balance',
+  type: EnumNodeType.mixnode,
+};
 
 export const DelegateForm = ({
   onError,
   onSuccess,
 }: {
-  onError: (message?: string) => void
-  onSuccess: (details: { amount: string; address: string }) => void
+  onError: (message?: string) => void;
+  onSuccess: (details: { amount: string; address: string }) => void;
 }) => {
   const {
     register,
-    watch,
     handleSubmit,
-    setError,
+    setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<TDelegateForm>({
     defaultValues,
     resolver: yupResolver(validationSchema),
-  })
+  });
 
-  const watchNodeType = watch('nodeType', defaultValues.nodeType)
+  const { userBalance, currency, clientDetails } = useContext(ClientContext);
 
-  const { userBalance, currency } = useContext(ClientContext)
+  useEffect(() => {
+    reset();
+  }, [clientDetails]);
 
-  const onSubmit = async (data: TDelegateForm) => {
-    const hasEnoughFunds = await checkHasEnoughFunds(data.amount)
-    if (!hasEnoughFunds) {
-      return setError('amount', {
-        message: 'Not enough funds in wallet',
-      })
-    }
+  const onSubmit = async (data: TDelegateForm, cb: (data: TDelegateArgs) => Promise<DelegationResult>) => {
+    const amount = await majorToMinor(data.amount);
 
-    const amount = await majorToMinor(data.amount)
-
-    await delegate({
-      type: data.nodeType,
+    await cb({
+      type: data.type,
       identity: data.identity,
       amount,
     })
-      .then((res) => {
-        onSuccess({ amount: data.amount, address: res.target_address })
-        userBalance.fetchBalance()
+      .then(async (res) => {
+        if (data.tokenPool === 'balance') {
+          await userBalance.fetchBalance();
+        } else {
+          await userBalance.fetchTokenAllocation();
+        }
+        onSuccess({ amount: data.amount, address: res.target_address });
       })
       .catch((e) => {
-        console.log(e)
-        onError(e)
-      })
-  }
+        Console.error(e as string);
+        onError(e);
+      });
+  };
 
   return (
     <FormControl fullWidth>
@@ -86,7 +87,13 @@ export const DelegateForm = ({
             />
           </Grid>
 
-          <Grid item xs={12}>
+          {userBalance.originalVesting && (
+            <Grid item xs={6}>
+              <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} disabled={false} />
+            </Grid>
+          )}
+
+          <Grid item xs={6}>
             <TextField
               {...register('amount')}
               required
@@ -102,7 +109,7 @@ export const DelegateForm = ({
               }}
             />
           </Grid>
-          <Grid item>
+          <Grid item xs={12}>
             <Fee feeType="DelegateToMixnode" />
           </Grid>
         </Grid>
@@ -117,7 +124,9 @@ export const DelegateForm = ({
         }}
       >
         <Button
-          onClick={handleSubmit(onSubmit)}
+          onClick={handleSubmit((data) =>
+            onSubmit(data, data.tokenPool === 'balance' ? delegate : vestingDelegateToMixnode),
+          )}
           disabled={isSubmitting}
           data-testid="delegate-button"
           variant="contained"
@@ -131,5 +140,5 @@ export const DelegateForm = ({
         </Button>
       </Box>
     </FormControl>
-  )
-}
+  );
+};

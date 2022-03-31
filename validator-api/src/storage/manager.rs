@@ -1,13 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeStatuses;
-use crate::storage::models::{
-    ActiveNode, FailedMixnodeRewardChunk, IntervalRewarding, NodeStatus, PossiblyUnrewardedMixnode,
-    RewardingReport, TestingRoute,
-};
+use crate::storage::models::{ActiveNode, NodeStatus, RewardingReport, TestingRoute};
 use std::convert::TryFrom;
 
 #[derive(Clone)]
@@ -173,9 +169,9 @@ impl StorageManager {
         // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
         // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
-            Uptime::try_from(row.uptime)
+            Uptime::try_from(row.uptime.unwrap_or_default())
                 .map(|uptime| HistoricalUptime {
-                    date: row.date,
+                    date: row.date.unwrap_or_default(),
                     uptime,
                 })
                 .ok()
@@ -211,9 +207,9 @@ impl StorageManager {
         // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
         // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
-            Uptime::try_from(row.uptime)
+            Uptime::try_from(row.uptime.unwrap_or_default())
                 .map(|uptime| HistoricalUptime {
-                    date: row.date,
+                    date: row.date.unwrap_or_default(),
                     uptime,
                 })
                 .ok()
@@ -666,55 +662,6 @@ impl StorageManager {
         .await
     }
 
-    /// Inserts information about starting new interval rewarding into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `interval_start_timestamp`: Unix timestamp of start of this rewarding interval.
-    /// * `interval_end_timestamp`: Unix timestamp of end of this rewarding interval.
-    pub(super) async fn insert_new_interval_rewarding(
-        &self,
-        interval_start_timestamp: i64,
-        interval_end_timestamp: i64,
-    ) -> Result<i64, sqlx::Error> {
-        let res = sqlx::query!(
-            r#"
-                INSERT INTO interval_rewarding (interval_start_timestamp, interval_end_timestamp, finished)
-                VALUES (?, ?, 0) 
-            "#,
-            interval_start_timestamp,
-            interval_end_timestamp,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(res.last_insert_rowid())
-    }
-
-    /// Sets the `finished` field on the interval rewarding to true.
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: id of the entry we want to update.
-    pub(super) async fn update_finished_interval_rewarding(
-        &self,
-        id: i64,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                UPDATE interval_rewarding
-                SET finished = 1
-                WHERE id = ?
-            "#,
-            id
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(())
-    }
-
     // /// Tries to obtain the most recent interval rewarding entry currently stored.
     // ///
     // /// Returns None if no data exists.
@@ -732,29 +679,6 @@ impl StorageManager {
     //     .fetch_optional(&self.connection_pool)
     //     .await
     // }
-
-    /// Tries to obtain the interval rewarding entry that has the provided timestamp.
-    ///
-    /// Returns None if no data exists.
-    ///
-    /// # Arguments
-    ///
-    /// * `interval_start_timestamp`: Unix timestamp of the start of this rewarding interval.
-    pub(super) async fn get_interval_rewarding_entry(
-        &self,
-        interval_start_timestamp: i64,
-    ) -> Result<Option<IntervalRewarding>, sqlx::Error> {
-        sqlx::query_as!(
-            IntervalRewarding,
-            r#"
-                SELECT * FROM interval_rewarding
-                WHERE interval_start_timestamp = ?
-            "#,
-            interval_start_timestamp
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
-    }
 
     /// Inserts new rewarding report into the database.
     ///
@@ -777,47 +701,6 @@ impl StorageManager {
         )
         .execute(&self.connection_pool)
         .await?;
-        Ok(())
-    }
-
-    /// Inserts new failed mixnode reward chunk information into the database.
-    /// Returns id of the newly created entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `failed_chunk`: chunk information to insert.
-    pub(super) async fn insert_failed_mixnode_reward_chunk(
-        &self,
-        failed_chunk: FailedMixnodeRewardChunk,
-    ) -> Result<i64, sqlx::Error> {
-        let res = sqlx::query!(
-            r#"
-                INSERT INTO failed_mixnode_reward_chunk (error_message, reward_summary_id) VALUES (?, ?)
-            "#,
-            failed_chunk.error_message,
-            failed_chunk.interval_rewarding_id,
-        ).execute(&self.connection_pool).await?;
-
-        Ok(res.last_insert_rowid())
-    }
-
-    /// Inserts information into the database about a mixnode that might have been unfairly unrewarded this interval.
-    ///
-    /// # Arguments
-    ///
-    /// * `mixnode`: mixnode information to insert.
-    pub(super) async fn insert_possibly_unrewarded_mixnode(
-        &self,
-        mixnode: PossiblyUnrewardedMixnode,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO possibly_unrewarded_mixnode (identity, uptime, failed_mixnode_reward_chunk_id) VALUES (?, ?, ?)
-            "#,
-            mixnode.identity,
-            mixnode.uptime,
-            mixnode.chunk_id
-        ).execute(&self.connection_pool).await?;
         Ok(())
     }
 
@@ -885,5 +768,48 @@ impl StorageManager {
         }
 
         Ok(active_day_statuses)
+    }
+
+    /// Creates new encrypted blinded signature response entry for a given deposit tx hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash`: hash of the deposit transaction.
+    /// * `blinded_signature_response`: the encrypted blinded signature response.
+    #[cfg(feature = "coconut")]
+    pub(super) async fn insert_blinded_signature_response(
+        &self,
+        tx_hash: &str,
+        blinded_signature_response: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO signed_deposit(tx_hash, blinded_signature_response) VALUES (?, ?)",
+            tx_hash,
+            blinded_signature_response
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Tries to obtain encrypted blinded signature response for a given transaction hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash`: transaction hash of the deposit.
+    #[cfg(feature = "coconut")]
+    pub(super) async fn get_blinded_signature_response(
+        &self,
+        tx_hash: &str,
+    ) -> Result<Option<String>, sqlx::Error> {
+        let blinded_signature_response = sqlx::query!(
+            "SELECT blinded_signature_response FROM signed_deposit WHERE tx_hash = ?",
+            tx_hash
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|row| row.blinded_signature_response);
+
+        Ok(blinded_signature_response)
     }
 }

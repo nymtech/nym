@@ -1,8 +1,8 @@
 use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
-use validator_client::nymd::error::NymdError;
 use validator_client::validator_api::error::ValidatorAPIError;
+use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -51,6 +51,16 @@ pub enum BackendError {
     #[from]
     source: serde_json::Error,
   },
+  #[error("{source}")]
+  MalformedUrlProvided {
+    #[from]
+    source: url::ParseError,
+  },
+  #[error("{source}")]
+  ReqwestError {
+    #[from]
+    source: reqwest::Error,
+  },
   #[error("failed to encrypt the given data with the provided password")]
   EncryptionError,
   #[error("failed to decrypt the given data with the provided password")]
@@ -67,6 +77,18 @@ pub enum BackendError {
   NetworkNotSupported(config::defaults::all::Network),
   #[error("Could not access the local data storage directory")]
   UnknownStorageDirectory,
+  #[error("No validator API URL configured")]
+  NoValidatorApiUrlConfigured,
+  #[error("The wallet file already exists")]
+  WalletFileAlreadyExists,
+  #[error("The wallet file is not found")]
+  WalletFileNotFound,
+  #[error("Account ID not found in wallet")]
+  NoSuchIdInWallet,
+  #[error("Account ID already found in wallet")]
+  IdAlreadyExistsInWallet,
+  #[error("Adding a different password to the wallet not currently supported")]
+  WalletDifferentPasswordDetected,
 }
 
 impl Serialize for BackendError {
@@ -75,5 +97,15 @@ impl Serialize for BackendError {
     S: Serializer,
   {
     serializer.collect_str(self)
+  }
+}
+
+impl From<ValidatorClientError> for BackendError {
+  fn from(e: ValidatorClientError) -> Self {
+    match e {
+      ValidatorClientError::ValidatorAPIError { source } => source.into(),
+      ValidatorClientError::MalformedUrlProvided(e) => e.into(),
+      ValidatorClientError::NymdError(e) => e.into(),
+    }
   }
 }

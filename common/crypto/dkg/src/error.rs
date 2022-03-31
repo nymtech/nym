@@ -71,4 +71,19 @@ pub enum DkgError {
 
     #[error("The provided proof of chunking was invalid")]
     InvalidProofOfChunking,
+
+    #[error("Failed to deserialize {name} - {reason}")]
+    DeserializationFailure { name: String, reason: String },
+}
+
+impl DkgError {
+    pub fn new_deserialization_failure<S: Into<String>, T: Into<String>>(
+        name: S,
+        reason: T,
+    ) -> DkgError {
+        DkgError::DeserializationFailure {
+            name: name.into(),
+            reason: reason.into(),
+        }
+    }
 }

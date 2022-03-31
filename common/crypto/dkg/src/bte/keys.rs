@@ -4,8 +4,9 @@
 use crate::bte::proof_discrete_log::ProofOfDiscreteLog;
 use crate::bte::{Epoch, Params, Tau};
 use crate::error::DkgError;
-use bls12_381::{G1Projective, G2Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Projective, Scalar};
 use ff::Field;
+use group::GroupEncoding;
 use rand_core::RngCore;
 use zeroize::Zeroize;
 
@@ -205,7 +206,7 @@ pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicK
     (dk, key_with_proof)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
@@ -214,6 +215,8 @@ impl PublicKey {
     }
 }
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,
     pub(crate) proof: ProofOfDiscreteLog,
@@ -226,6 +229,63 @@ impl PublicKeyWithProof {
 
     pub fn public_key(&self) -> &PublicKey {
         &self.key
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // we have 2 G1 elements and 1 Scalar
+        let mut bytes = Vec::with_capacity(2 * 48 + 32);
+        bytes.extend_from_slice(self.key.0.to_bytes().as_ref());
+        bytes.extend_from_slice(self.proof.rand_commitment.to_bytes().as_ref());
+        bytes.extend_from_slice(self.proof.response.to_bytes().as_ref());
+
+        bytes
+    }
+
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
+        if bytes.len() != 2 * 48 + 32 {
+            return Err(DkgError::new_deserialization_failure(
+                "PublicKeyWithProof",
+                "provided bytes had invalid length",
+            ));
+        }
+
+        // we verified we have correct number of bytes and thus unwraps are fine here
+        let y_bytes: [u8; 48] = bytes[..48].try_into().unwrap();
+        let commitment_bytes: [u8; 48] = bytes[48..96].try_into().unwrap();
+        let response_bytes: [u8; 32] = bytes[96..].try_into().unwrap();
+
+        let y = Into::<Option<G1Projective>>::into(
+            G1Affine::from_compressed(&y_bytes).map(G1Projective::from),
+        )
+        .ok_or_else(|| {
+            DkgError::new_deserialization_failure("PublicKeyWithProof.key.0", "invalid curve point")
+        })?;
+
+        let rand_commitment = Into::<Option<G1Projective>>::into(
+            G1Affine::from_compressed(&commitment_bytes).map(G1Projective::from),
+        )
+        .ok_or_else(|| {
+            DkgError::new_deserialization_failure(
+                "PublicKeyWithProof.proof.rand_commitment",
+                "invalid curve point",
+            )
+        })?;
+
+        let response = Into::<Option<Scalar>>::into(Scalar::from_bytes(&response_bytes))
+            .ok_or_else(|| {
+                DkgError::new_deserialization_failure(
+                    "PublicKeyWithProof.proof.response",
+                    "invalid scalar",
+                )
+            })?;
+
+        Ok(PublicKeyWithProof {
+            key: PublicKey(y),
+            proof: ProofOfDiscreteLog {
+                rand_commitment,
+                response,
+            },
+        })
     }
 }
 
@@ -563,5 +623,19 @@ mod tests {
             Some(Epoch::new(3292547436)),
             dk.current_epoch(&params).unwrap()
         );
+    }
+
+    #[test]
+    fn public_key_with_proof_roundtrip() {
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (_, pk) = keygen(&params, &mut rng);
+        let bytes = pk.to_bytes();
+        let recovered = PublicKeyWithProof::try_from_bytes(&bytes).unwrap();
+
+        assert_eq!(pk, recovered)
     }
 }

@@ -20,5 +20,11 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://rpc.nyx.nodes.guru/",
         Some("https://api.nyx.nodes.guru/"),
+    ), ValidatorDetails::new(
+        "https://test2.nyx.nodes.guru/",
+        Some("https://test1.nyx.nodes.guru/"),
+    ), ValidatorDetails::new(
+        "https://test2.nyx.nodes.guru/",
+        Some("https://test1.nyx.nodes.guru/"),
     )]
 }

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { ListItemText, MenuItem, Select, SelectChangeEvent, Typography, useMediaQuery } from '@mui/material';
+import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ClientContext } from '../context/main';
 import { validatorUrls } from '../utils';
@@ -32,25 +32,29 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
     }, [selectedValidator]);
 
     return (
-        <Select
-            labelId="validatorSelect_label"
-            id="validatorSelect"
-            sx={{
-                width: matches ? 'auto' : 300
-            }}
-            value={selectedValidator || 'choose validator url'}
-            onChange={(e: SelectChangeEvent) => {
-                setSelectedValidator(e.target.value as TValidatorUrl);
-            }}
-            renderValue={(value) => <Typography sx={{ textTransform: 'capitalize' }}>{value}</Typography>}
-        >
-            {
-                validators && validators.map((validator) => (
-                    <MenuItem value={validator} key={validator}>
-                        <ListItemText>{validator}</ListItemText>
-                    </MenuItem>
-                ))
-            }
-        </Select>
+        <FormControl fullWidth>
+            <InputLabel id="validatorSelect_label">Choose a Validator</InputLabel>
+            <Select
+                labelId="validatorSelect_label"
+                id="validatorSelect"
+                sx={{
+                    width: matches ? 'auto' : 300
+                }}
+                value={selectedValidator || ''}
+                label="Choose a Validator"
+                onChange={(e: SelectChangeEvent) => {
+                    setSelectedValidator(e.target.value as TValidatorUrl);
+                }}
+                renderValue={(value) => <Typography sx={{ textTransform: 'capitalize' }}>{value}</Typography>}
+            >
+                {
+                    validators && validators.map((validator) => (
+                        <MenuItem value={validator} key={validator}>
+                            <ListItemText>{validator}</ListItemText>
+                        </MenuItem>
+                    ))
+                }
+            </Select>
+        </FormControl>
     )
 };

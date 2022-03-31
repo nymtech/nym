@@ -93,58 +93,43 @@ fn full_threshold_secret_sharing() {
         assert!(key.1.verify());
     }
 
-    let (dealing1, _dealer_share1) = Dealing::create(
-        &mut rng,
-        &params,
-        node_indices[0],
-        threshold,
-        epoch,
-        &receivers,
-    );
-    dealing1
-        .verify(&params, epoch, threshold, &receivers)
-        .unwrap();
-
-    let (dealing2, _dealer_share2) = Dealing::create(
-        &mut rng,
-        &params,
-        node_indices[1],
-        threshold,
-        epoch,
-        &receivers,
-    );
-    dealing2
-        .verify(&params, epoch, threshold, &receivers)
-        .unwrap();
-
-    let (dealing3, _dealer_share3) = Dealing::create(
-        &mut rng,
-        &params,
-        node_indices[2],
-        threshold,
-        epoch,
-        &receivers,
-    );
-    dealing3
-        .verify(&params, epoch, threshold, &receivers)
-        .unwrap();
+    let dealings = node_indices
+        .iter()
+        .map(|&dealer_index| {
+            Dealing::create(
+                &mut rng,
+                &params,
+                dealer_index,
+                threshold,
+                epoch,
+                &receivers,
+            )
+            .0
+        })
+        .collect::<Vec<_>>();
+    for dealing in &dealings {
+        dealing
+            .verify(&params, epoch, threshold, &receivers)
+            .unwrap();
+    }
 
     let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
         dk.try_update_to(epoch, &params, &mut rng).unwrap();
 
-        // threshold was 2
-        let share1 = decrypt_share(dk, i, &dealing1.ciphertexts, epoch, None).unwrap();
-        let share2 = decrypt_share(dk, i, &dealing2.ciphertexts, epoch, None).unwrap();
-        let share3 = decrypt_share(dk, i, &dealing3.ciphertexts, epoch, None).unwrap();
+        let shares = dealings
+            .iter()
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap())
+            .collect();
 
         // we know dealer_share matches, but it would be inconvenient to try to put them in here,
         // so for ease of use (IN A TEST SETTING), just decrypt one's own share
-        derived_secrets.push(combine_shares(vec![share1, share2, share3]))
+        derived_secrets.push(combine_shares(shares))
     }
 
     // sanity check that the shares were combined correctly and if we take threshold number of them,
-    // we end up with the same master secret
+    // we end up with the same master secret, note: those are NEVER explicitly recovered in actual system
+    // (remember threshold was 2)
     let master1 = perform_lagrangian_interpolation_at_origin(&[
         (Scalar::from(node_indices[0]), derived_secrets[0]),
         (Scalar::from(node_indices[1]), derived_secrets[1]),

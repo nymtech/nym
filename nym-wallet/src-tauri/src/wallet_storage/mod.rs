@@ -9,7 +9,6 @@ use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
 use cosmrs::bip32::DerivationPath;
-use cosmwasm_std::BankMsg;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::os::unix::prelude::OpenOptionsExt;

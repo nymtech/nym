@@ -44,6 +44,7 @@ export const ExistingAccount: React.FC<{
                 password={password}
                 onUpdatePassword={(pswd) => setPassword(pswd)}
                 label="Password"
+                autoFocus
                 error={error}
               />
             )}

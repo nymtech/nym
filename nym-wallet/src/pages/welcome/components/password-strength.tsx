@@ -5,8 +5,8 @@ import { LinearProgress, Stack, Typography, Box } from '@mui/material';
 
 type TStrength = 'weak' | 'medium' | 'strong' | 'init';
 
-const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
-const medium = /^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[A-Z])(?=.*[0-9])))(?=.{6,})/;
+const strong = /^(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+const medium = /^(((?=.*[a-z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[0-9])))(?=.{6,})/;
 
 const colorMap = {
   init: 'inherit' as 'inherit',

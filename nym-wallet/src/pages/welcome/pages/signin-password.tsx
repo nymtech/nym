@@ -19,6 +19,7 @@ export const SignInPassword = ({ onPrev }: { page: TPages; onPrev: () => void })
               password={password}
               onUpdatePassword={(pswd) => setPassword(pswd)}
               error={error}
+              autoFocus
             />
             <Button
               variant="contained"

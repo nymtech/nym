@@ -43,7 +43,12 @@ export const CreatePassword = ({ onSkip, onNext }: { page: TPages; onNext: () =>
       <FormControl fullWidth>
         <Stack spacing={2}>
           <>
-            <PasswordInput password={password} onUpdatePassword={(pswd) => setPassword(pswd)} label="Password" />
+            <PasswordInput
+              password={password}
+              onUpdatePassword={(pswd) => setPassword(pswd)}
+              label="Password"
+              autoFocus
+            />
             <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
           </>
           <PasswordInput

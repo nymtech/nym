@@ -6,7 +6,7 @@ export const Title = ({ title }: { title: string }) => (
 );
 
 export const Subtitle = ({ subtitle }: { subtitle: string }) => (
-  <Typography sx={{ color: 'common.white', textAlign: 'center', maxWidth: 400 }}>{subtitle}</Typography>
+  <Typography sx={{ color: 'common.white', textAlign: 'center', maxWidth: 450 }}>{subtitle}</Typography>
 );
 
 export const SubtitleSlick = ({ subtitle }: { subtitle: string }) => (

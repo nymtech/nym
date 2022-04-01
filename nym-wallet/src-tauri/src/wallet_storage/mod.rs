@@ -4,14 +4,11 @@
 pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
 
 use crate::error::BackendError;
-use crate::operations::mixnet::account::create_new_account;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
-use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
+use crate::wallet_storage::encryption::encrypt_struct;
 use cosmrs::bip32::DerivationPath;
-use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all, OpenOptions};
-use std::os::unix::prelude::OpenOptionsExt;
 use std::path::PathBuf;
 
 use self::account_data::{EncryptedAccount, StoredWallet};
@@ -33,6 +30,7 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
   get_storage_directory().map(|dir| dir.join(WALLET_INFO_FILENAME))
 }
 
+#[allow(unused)]
 pub(crate) fn load_existing_wallet(password: &UserPassword) -> Result<StoredWallet, BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
@@ -154,9 +152,7 @@ pub(crate) fn remove_wallet_login_information_at_file(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::wallet_storage::encryption::encrypt_data;
   use config::defaults::COSMOS_DERIVATION_PATH;
-  use std::path::Path;
   use tempfile::tempdir;
 
   // I'm not 100% sure how to feel about having to touch the file system at all

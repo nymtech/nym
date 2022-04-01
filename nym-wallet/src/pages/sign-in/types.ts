@@ -1,11 +1,13 @@
 export type TPages =
   | 'welcome'
-  | 'create account'
+  | 'create mnemonic'
   | 'verify mnemonic'
   | 'create password'
   | 'existing account'
   | 'select network'
-  | 'legacy create account';
+  | 'legacy create account'
+  | 'sign in with mnemonic'
+  | 'sign in with password';
 
 export type TMnemonicWord = {
   name: string;
@@ -17,3 +19,5 @@ export type TMnemonicWords = TMnemonicWord[];
 export type THiddenMnemonicWord = { hidden: boolean } & TMnemonicWord;
 
 export type THiddenMnemonicWords = THiddenMnemonicWord[];
+
+export type TLoginType = 'mnemonic' | 'password';

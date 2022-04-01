@@ -4,14 +4,13 @@
 use super::password::UserPassword;
 use crate::error::BackendError;
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::aead::{Aead, NewAead, Payload};
+use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{
   password_hash::rand_core::{OsRng, RngCore},
   Algorithm, Argon2, Params, Version,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::convert::TryFrom;
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zeroize::Zeroize;
 
@@ -78,6 +77,7 @@ mod base64 {
 }
 
 impl<T> EncryptedData<T> {
+  #[allow(unused)]
   pub(crate) fn encrypt_struct(data: &T, password: &UserPassword) -> Result<Self, BackendError>
   where
     T: Serialize,
@@ -94,10 +94,12 @@ impl<T> EncryptedData<T> {
 }
 
 impl EncryptedData<Vec<u8>> {
+  #[allow(unused)]
   pub(crate) fn encrypt_data(data: &[u8], password: &UserPassword) -> Result<Self, BackendError> {
     encrypt_data(data, password)
   }
 
+  #[allow(unused)]
   pub(crate) fn decrypt_data(&self, password: &UserPassword) -> Result<Vec<u8>, BackendError> {
     decrypt_data(self, password)
   }
@@ -159,6 +161,7 @@ fn decrypt(
     .map_err(|_| BackendError::DecryptionError)
 }
 
+#[allow(unused)]
 pub(crate) fn encrypt_data(
   data: &[u8],
   password: &UserPassword,
@@ -194,6 +197,7 @@ where
   })
 }
 
+#[allow(unused)]
 pub(crate) fn decrypt_data(
   encrypted_data: &EncryptedData<Vec<u8>>,
   password: &UserPassword,

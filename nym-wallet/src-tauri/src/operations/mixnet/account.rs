@@ -112,9 +112,8 @@ pub async fn create_new_mnemonic() -> Result<String, BackendError> {
 }
 
 #[tauri::command]
-pub fn validate_mnemonic(mnemonic: &str) -> Result<(), BackendError> {
-  Mnemonic::from_str(mnemonic)?;
-  Ok(())
+pub fn validate_mnemonic(mnemonic: &str) -> bool {
+  Mnemonic::from_str(mnemonic).is_ok()
 }
 
 #[tauri::command]

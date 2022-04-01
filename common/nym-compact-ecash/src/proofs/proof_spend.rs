@@ -1,7 +1,8 @@
 use std::convert::{TryFrom, TryInto};
+use std::ops::Neg;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
-use group::GroupEncoding;
+use group::{Curve, Group, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
@@ -137,12 +138,11 @@ impl SpendProof {
         let r_o_d = params.random_scalar();
         let r_mu = params.random_scalar();
         let r_lambda = params.random_scalar();
-
         let r_o_mu = params.random_scalar();
         let r_o_lambda = params.random_scalar();
 
-        let g1 = params.gen1();
-        let gamma1 = params.gamma1();
+        let g1 = *params.gen1();
+        let gamma1 = *params.gamma1();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -163,7 +163,6 @@ impl SpendProof {
         let zkcm_D = g1 * r_o_d + gamma1 * r_t;
         let zkcm_S = g1 * r_mu;
         let zkcm_gamma11 = (instance.A + instance.C + gamma1) * r_mu + g1 * r_o_mu;
-        // println!("Cst: {:?}", zkcm_gamma11);
         let zkcm_T = g1 * r_sk + (g1 * R) * r_lambda;
         let zkcm_gamma12 = (instance.A + instance.D + gamma1) * r_lambda + g1 * r_o_lambda;
 
@@ -181,9 +180,9 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
-                // .chain(std::iter::once(zkcm_gamma11.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_gamma11.to_affine().to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_gamma12.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_gamma12.to_affine().to_bytes().as_ref()))
         );
 
         // compute response for each witness
@@ -197,11 +196,10 @@ impl SpendProof {
         let response_o_a = produce_response(&r_o_a, &challenge, &witness.o_a);
         let response_o_c = produce_response(&r_o_c, &challenge, &witness.o_c);
         let response_o_d = produce_response(&r_o_d, &challenge, &witness.o_d);
-        // let response_mu = produce_response(&r_mu, &challenge, &witness.mu);
+
         let response_mu = produce_response(&r_mu, &challenge, &witness.mu);
         let response_lambda = produce_response(&r_lambda, &challenge, &witness.lambda);
-        // let response_o_mu = produce_response(&r_o_mu, &challenge, &witness.o_mu);
-        let response_o_mu = ((response_o_a + response_o_c) * response_mu).neg();
+        let response_o_mu = produce_response(&r_o_mu, &challenge, &witness.o_mu);
         let response_o_lambda = produce_response(&r_o_lambda, &challenge, &witness.o_lambda);
 
         SpendProof {
@@ -223,8 +221,8 @@ impl SpendProof {
                   instance: &SpendInstance,
                   verification_key: &VerificationKeyAuth,
                   R: Scalar) -> bool {
-        let g1 = params.gen1();
-        let gamma1 = params.gamma1();
+        let g1 = *params.gen1();
+        let gamma1 = *params.gamma1();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -246,7 +244,6 @@ impl SpendProof {
         let zkcm_D = g1 * self.response_o_d + gamma1 * self.response_attributes[2] + instance.D * self.challenge;
         let zkcm_S = g1 * self.response_mu + instance.S * self.challenge;
         let zkcm_gamma11 = (instance.A + instance.C + gamma1) * self.response_mu + g1 * self.response_o_mu + gamma1 * self.challenge;
-        // println!("Vfy: {:?}", zkcm_gamma11);
         let zkcm_T = g1 * self.response_attributes[0] + (g1 * R) * self.response_lambda + instance.T * self.challenge;
         let zkcm_gamma12 = (instance.A + instance.D + gamma1) * self.response_lambda + g1 * self.response_o_lambda + gamma1 * self.challenge;
 
@@ -262,9 +259,9 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
-                // .chain(std::iter::once(zkcm_gamma11.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_gamma11.to_affine().to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
-            // .chain(std::iter::once(zkcm_gamma12.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_gamma12.to_affine().to_bytes().as_ref()))
         );
 
         challenge == self.challenge
@@ -274,6 +271,7 @@ impl SpendProof {
 #[cfg(test)]
 mod tests {
     use bls12_381::{G1Projective, G2Projective, Scalar};
+    use group::Curve;
     use rand::thread_rng;
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
@@ -304,8 +302,8 @@ mod tests {
         let t = params.random_scalar();
         let attributes = vec![sk, v, t];
         let l = 5;
-        let gamma1 = params.gamma1();
-        let g1 = params.gen1();
+        let gamma1 = *params.gamma1();
+        let g1 = *params.gen1();
 
         let r = params.random_scalar();
         let kappa = params.gen2() * r
@@ -326,7 +324,7 @@ mod tests {
         let D = g1 * o_d + gamma1 * t;
 
         // compute hash of the payment info
-        let payInfo = PayInfo { info: [5u8; 32] };
+        let payInfo = PayInfo { info: [37u8; 32] };
         let R = hash_to_scalar(payInfo.info);
 
         // evaluate the pseudorandom functions
@@ -338,26 +336,6 @@ mod tests {
         let o_mu = ((o_a + o_c) * mu).neg();
         let lambda = (t + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
         let o_lambda = ((o_a + o_d) * lambda).neg();
-
-        let testVal = (A + C + gamma1) * mu + g1 * o_mu;//(A + C + gamma1) * mu + g1 * o_mu;
-        let x = params.random_scalar();
-        let y = x.neg();
-        let z = x + y;
-        // println!("z {:?}", z);
-        // println!("g*Z {:?}", g1 * z);
-        // println!("g*Scalar::Zero {:?}", g1 * Scalar::zero());
-        // println!("inf {:?}", G1Projective::identity());
-        println!("Expected gamma1: {:?}", gamma1);
-        println!("Obtained gamma1: {:?}", testVal);
-        // assert_eq!(A, g1 * o_a + gamma1 * Scalar::from(l));
-        // assert_eq!(C, g1 * o_c + gamma1 * v);
-        // assert_eq!(g1 * o_mu, g1 * ((o_a + o_c) * mu).neg());
-        let xx = (o_a + o_c) * mu;
-        let yy = xx.neg();
-        let zz = xx + yy;
-        println!("zz {:?}", zz);
-        assert_eq!((A + C + gamma1) * mu + g1 * o_mu, (g1 * o_a + gamma1 * Scalar::from(l) + g1 * o_c + gamma1 * v + gamma1) * mu + g1 * o_mu);
-        println!("{:?}", Scalar::from(5));
 
         let instance = SpendInstance {
             kappa,

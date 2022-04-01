@@ -35,6 +35,9 @@ export const ConfirmMnemonic = () => {
       >
         Next
       </Button>
+      <Button size="large" color="inherit" fullWidth onClick={() => history.goBack()}>
+        Back
+      </Button>
     </Stack>
   );
 };

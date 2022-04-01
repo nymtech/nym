@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
 import { useHistory } from 'react-router-dom';
-import { Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { SubtitleSlick, Title } from '../components';
 
 export const ExistingAccount = () => {
@@ -18,9 +18,14 @@ export const ExistingAccount = () => {
         <Button variant="contained" size="large" fullWidth onClick={() => history.push('/sign-in-password')}>
           Sign in with password
         </Button>
-        <Button color="info" onClick={() => history.push('/confirm-mnemonic')}>
-          Create a password
-        </Button>
+        <Box display="flex" justifyContent="space-between">
+          <Button color="inherit" onClick={() => history.goBack()}>
+            Back
+          </Button>
+          <Button color="info" onClick={() => history.push('/confirm-mnemonic')}>
+            Create a password
+          </Button>
+        </Box>
       </Stack>
     </>
   );

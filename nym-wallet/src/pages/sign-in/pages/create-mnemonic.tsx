@@ -55,6 +55,9 @@ export const CreateMnemonic = () => {
       >
         I saved my mnemonic
       </Button>
+      <Button onClick={() => history.goBack()} color="inherit">
+        Back
+      </Button>
     </Stack>
   );
 };

@@ -2,7 +2,7 @@ require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-truffle5");
 require("@nomiclabs/hardhat-web3");
 require("@nomiclabs/hardhat-ethers");
-// require('dotenv').config({ path: require('find-config')('.env') });
+require('dotenv').config({ path: require('find-config')('.env') });
 
 /**
  * @type import('hardhat/config').HardhatUserConfig

@@ -2,28 +2,29 @@ import React, { useCallback } from 'react';
 import { Typography } from '@mui/material';
 import { useLocation } from 'react-router';
 
-export const Step = ({ totalSteps }: { totalSteps: number }) => {
+export const Step = () => {
   const location = useLocation();
 
   const mapPage = useCallback(() => {
     switch (location.pathname) {
       case '/create-mnemonic':
-        return 1;
+        return { value: 1, type: 'account', total: 3 };
       case '/verify-mnemonic':
-        return 2;
+        return { value: 2, type: 'account', total: 3 };
       case '/create-password':
-        return 3;
+        return { value: 3, type: 'account', total: 3 };
+      case '/confirm-mnemonic':
+        return { value: 1, type: 'account password', total: 2 };
+      case '/connect-password':
+        return { value: 2, type: 'account password', total: 2 };
       default:
-        return 0;
+        return { value: 0, type: '', total: 0 };
     }
   }, [location.pathname]);
 
-  if (mapPage() === 0) {
+  if (mapPage().value === 0) {
     return null;
   }
-  return (
-    <Typography sx={{ color: 'grey.400' }}>
-      Create account. Step {mapPage()}/{totalSteps}
-    </Typography>
-  );
+  const { value, type, total } = mapPage();
+  return <Typography sx={{ color: 'grey.400' }}>{`Create ${type}. Step ${value}/${total}`}</Typography>;
 };

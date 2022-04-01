@@ -5,7 +5,7 @@ import { SignInContext } from '../context';
 import { useHistory } from 'react-router';
 
 export const ConfirmMnemonic = () => {
-  const { validateMnemonic, setMnemonic } = useContext(SignInContext);
+  const { validateMnemonic, setMnemonic, error } = useContext(SignInContext);
   const [localMnemonic, setLocalMnemonic] = useState('');
   const history = useHistory();
 
@@ -19,8 +19,9 @@ export const ConfirmMnemonic = () => {
         fullWidth
         onClick={async () => {
           setMnemonic(localMnemonic);
-          history.push('/create-password');
+          history.push('/connect-password');
         }}
+        disabled={localMnemonic.length === 0 || !!error}
       >
         Next
       </Button>

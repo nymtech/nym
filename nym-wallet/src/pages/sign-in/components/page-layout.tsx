@@ -26,7 +26,7 @@ export const PageLayout: React.FC = ({ children }) => {
       >
         <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
           <NymWordmark width={75} />
-          <Step totalSteps={3} />
+          <Step />
           {children}
         </Stack>
       </Box>

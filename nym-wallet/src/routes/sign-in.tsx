@@ -9,6 +9,7 @@ import {
   SignInPassword,
   VerifyMnemonic,
   WelcomeContent,
+  ConnectPassword,
 } from 'src/pages/sign-in/pages';
 import { ConfirmMnemonic } from 'src/pages/sign-in/pages/confirm-mnemonic';
 
@@ -38,6 +39,9 @@ export const SignInRoutes = () => (
       </Route>
       <Route path="/confirm-mnemonic">
         <ConfirmMnemonic />
+      </Route>
+      <Route path="/connect-password">
+        <ConnectPassword />
       </Route>
     </Switch>
   </PageLayout>

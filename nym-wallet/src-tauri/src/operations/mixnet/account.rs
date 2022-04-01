@@ -114,6 +114,12 @@ pub async fn create_new_mnemonic() -> Result<String, BackendError> {
 }
 
 #[tauri::command]
+pub fn validate_mnemonic(mnemonic: &str) -> Result<(), BackendError> {
+  Mnemonic::from_str(mnemonic)?;
+  Ok(())
+}
+
+#[tauri::command]
 pub async fn switch_network(
   state: tauri::State<'_, Arc<RwLock<State>>>,
   network: WalletNetwork,

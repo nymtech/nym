@@ -47,6 +47,7 @@ fn main() {
       mixnet::account::sign_in_with_password,
       mixnet::account::switch_network,
       mixnet::account::update_validator_urls,
+      mixnet::account::validate_mnemonic,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
       mixnet::bond::bond_gateway,

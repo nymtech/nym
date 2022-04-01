@@ -30,6 +30,7 @@ use crate::operations::vesting;
 use crate::state::State;
 
 fn main() {
+  dotenv::dotenv().ok();
   setup_logging();
 
   tauri::Builder::default()

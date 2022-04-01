@@ -9,7 +9,8 @@
     "explorer"
   ],
   "scripts": {
-    "build": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react build --stream",
+    "build": "run-s build:packages",
+    "build:packages": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react --stream build",
     "build:react-example": "lerna run --scope @nymproject/react-webpack-with-theme-example build --stream",
     "build:playground": "lerna run --scope @nymproject/react storybook:build --stream",
     "build:ci": "yarn build && run-p build:react-example build:playground && yarn build:ci:collect-artifacts",

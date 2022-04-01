@@ -55,7 +55,7 @@ validator-client = { path = "../common/client-libs/validator-client", features =
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut"]
+coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut"]
 eth = []
 
 [build-dependencies]

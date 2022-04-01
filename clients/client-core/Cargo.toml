@@ -32,4 +32,4 @@ validator-client = { path = "../../common/client-libs/validator-client" }
 tempfile = "3.1.0"
 
 [features]
-coconut = []
+coconut = ["gateway-client/coconut", "gateway-requests/coconut"]

@@ -7,4 +7,7 @@ pub enum ValidatorAPIError {
         #[from]
         source: reqwest::Error,
     },
+
+    #[error("Request failed with error message - {0}")]
+    GenericRequestFailure(String),
 }

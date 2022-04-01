@@ -231,7 +231,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ValidatorApiStorageError {
     MixnodeReportNotFound(String),
     GatewayReportNotFound(String),

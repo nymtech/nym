@@ -5,11 +5,12 @@ use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 #[cfg(feature = "coconut")]
-use coconut_interface::{hash_to_scalar, Credential, Parameters};
+use coconut_interface::{Credential, Parameters};
 use config::NymConfig;
 #[cfg(feature = "coconut")]
-use credentials::coconut::bandwidth::{
-    obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
+use credentials::coconut::{
+    bandwidth::prepare_for_spending, bandwidth::BandwidthVoucher, bandwidth::TOTAL_ATTRIBUTES,
+    utils::obtain_aggregate_signature,
 };
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
@@ -17,7 +18,7 @@ use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 #[cfg(feature = "coconut")]
-use network_defaults::BANDWIDTH_VALUE;
+use network_defaults::{BANDWIDTH_VALUE, VOUCHER_INFO};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::rngs::OsRng;
@@ -28,6 +29,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+#[cfg(feature = "coconut")]
+use validator_client::nymd::tx::Hash;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
@@ -107,15 +110,25 @@ async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) 
         .expect("could not obtain aggregate verification key of validators");
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-    let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-        serial_number: params.random_scalar(),
-        binding_number: params.random_scalar(),
-        voucher_value: hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-        voucher_info: hash_to_scalar(String::from("BandwidthVoucher").as_bytes()),
-    };
+    let mut rng = OsRng;
+    let bandwidth_credential_attributes = BandwidthVoucher::new(
+        &params,
+        BANDWIDTH_VALUE.to_string(),
+        VOUCHER_INFO.to_string(),
+        Hash::new([0; 32]),
+        // workaround for putting a valid value here, without deriving clone for the private
+        // key, until we have actual useful values
+        identity::PrivateKey::from_base58_string(
+            identity::KeyPair::new(&mut rng)
+                .private_key()
+                .to_base58_string(),
+        )
+        .unwrap(),
+        encryption::KeyPair::new(&mut rng).private_key().clone(),
+    );
 
     let bandwidth_credential =
-        obtain_signature(&params, &bandwidth_credential_attributes, validators)
+        obtain_aggregate_signature(&params, &bandwidth_credential_attributes, validators)
             .await
             .expect("could not obtain bandwidth credential");
 

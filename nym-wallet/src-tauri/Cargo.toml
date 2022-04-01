@@ -21,9 +21,12 @@ tauri-macros = "=1.0.0-rc.1"
 [dependencies]
 bip39 = "1.0"
 cfg-if = "1.0.0"
+colored = "2.0"
 dirs = "4.0"
+dotenv = "0.15.0"
 eyre = "0.6.5"
 futures = "0.3.15"
+itertools = "0.10"
 log = "0.4"
 pretty_env_logger = "0.4"
 rand = "0.6.5"
@@ -53,7 +56,6 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
-credentials = { path = "../../common/credentials" }
 # Used for Type conversion, can be extracted but its a lot of work
 vesting-contract = { path = "../../contracts/vesting" }
 

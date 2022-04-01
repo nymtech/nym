@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
+use cosmrs::tx::Hash;
+#[cfg(feature = "coconut")]
 use credentials::coconut::{
-    bandwidth::{
-        obtain_signature, prepare_for_spending, BandwidthVoucherAttributes, TOTAL_ATTRIBUTES,
-    },
-    utils::obtain_aggregate_verification_key,
+    bandwidth::{prepare_for_spending, BandwidthVoucher, TOTAL_ATTRIBUTES},
+    utils::{obtain_aggregate_signature, obtain_aggregate_verification_key},
 };
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
-#[cfg(not(feature = "coconut"))]
+#[cfg(feature = "coconut")]
+use crypto::asymmetric::encryption;
 use crypto::asymmetric::identity;
-use crypto::asymmetric::identity::PublicKey;
 use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
@@ -22,7 +22,6 @@ use network_defaults::{
 };
 #[cfg(not(feature = "coconut"))]
 use pemstore::traits::PemStorableKeyPair;
-#[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
@@ -73,7 +72,7 @@ pub struct BandwidthController {
     #[cfg(feature = "coconut")]
     validator_endpoints: Vec<url::Url>,
     #[cfg(feature = "coconut")]
-    identity: PublicKey,
+    identity: identity::PublicKey,
     #[cfg(not(feature = "coconut"))]
     contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
@@ -86,7 +85,7 @@ pub struct BandwidthController {
 
 impl BandwidthController {
     #[cfg(feature = "coconut")]
-    pub fn new(validator_endpoints: Vec<url::Url>, identity: PublicKey) -> Self {
+    pub fn new(validator_endpoints: Vec<url::Url>, identity: identity::PublicKey) -> Self {
         BandwidthController {
             validator_endpoints,
             identity,
@@ -175,17 +174,25 @@ impl BandwidthController {
         let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
         let params = coconut_interface::Parameters::new(TOTAL_ATTRIBUTES).unwrap();
 
+        let mut rng = OsRng;
         // TODO: Decide what is the value and additional info associated with the bandwidth voucher
-        let bandwidth_credential_attributes = BandwidthVoucherAttributes {
-            serial_number: params.random_scalar(),
-            binding_number: params.random_scalar(),
-            voucher_value: coconut_interface::hash_to_scalar(BANDWIDTH_VALUE.to_be_bytes()),
-            voucher_info: coconut_interface::hash_to_scalar(
-                String::from("BandwidthVoucher").as_bytes(),
-            ),
-        };
+        let bandwidth_credential_attributes = BandwidthVoucher::new(
+            &params,
+            BANDWIDTH_VALUE.to_string(),
+            network_defaults::VOUCHER_INFO.to_string(),
+            Hash::new([0; 32]),
+            // workaround for putting a valid value here, without deriving clone for the private
+            // key, until we have actual useful values
+            identity::PrivateKey::from_base58_string(
+                identity::KeyPair::new(&mut rng)
+                    .private_key()
+                    .to_base58_string(),
+            )
+            .unwrap(),
+            encryption::KeyPair::new(&mut rng).private_key().clone(),
+        );
 
-        let bandwidth_credential = obtain_signature(
+        let bandwidth_credential = obtain_aggregate_signature(
             &params,
             &bandwidth_credential_attributes,
             &self.validator_endpoints,
@@ -205,7 +212,7 @@ impl BandwidthController {
     #[cfg(not(feature = "coconut"))]
     pub async fn prepare_token_credential(
         &self,
-        gateway_identity: PublicKey,
+        gateway_identity: identity::PublicKey,
         gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
         let kp = match self.restore_keypair() {
@@ -244,7 +251,7 @@ impl BandwidthController {
     #[cfg(not(feature = "coconut"))]
     pub async fn buy_token_credential(
         &self,
-        verification_key: PublicKey,
+        verification_key: identity::PublicKey,
         signed_verification_key: identity::Signature,
         gateway_owner: String,
     ) -> Result<(), GatewayClientError> {

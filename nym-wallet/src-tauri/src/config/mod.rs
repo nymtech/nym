@@ -4,10 +4,9 @@
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use config::NymConfig;
-use reqwest::StatusCode;
+use core::fmt;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::iter::zip;
 use std::time::Duration;
 use std::{fs, io, path::PathBuf};
 use strum::IntoEnumIterator;
@@ -115,16 +114,18 @@ impl Config {
       .chain(self.network.validators(network))
       .cloned()
       .chain(base_validators)
+      .unique()
   }
 
-  pub fn get_validators_with_api_endpoint(
-    &self,
-    network: WalletNetwork,
-  ) -> impl Iterator<Item = ValidatorUrlWithApiEndpoint> + '_ {
+  pub fn get_nymd_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
+    self.get_validators(network).into_iter().map(|v| v.nymd_url)
+  }
+
+  pub fn get_api_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
     self
       .get_validators(network)
       .into_iter()
-      .filter_map(|validator| ValidatorUrlWithApiEndpoint::try_from(validator).ok())
+      .filter_map(|v| v.api_url)
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
@@ -164,66 +165,24 @@ impl Config {
     let client = reqwest::Client::builder()
       .timeout(Duration::from_secs(3))
       .build()?;
+    log::debug!(
+      "Fetching validator urls from: {}",
+      REMOTE_SOURCE_OF_VALIDATOR_URLS
+    );
     let response = client
       .get(REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
       .send()
       .await?;
     self.base.fetched_validators = serde_json::from_str(&response.text().await?)?;
-    Ok(())
-  }
-
-  pub async fn check_validator_health(
-    &self,
-    network: WalletNetwork,
-  ) -> Result<Vec<(ValidatorUrl, StatusCode)>, BackendError> {
-    // Limit the number of validators we query
-    let max_validators = 200_usize;
-    let validators_to_query = || self.get_validators(network).take(max_validators);
-
-    let validator_urls = validators_to_query().map(|v| {
-      let mut health_url = v.nymd_url.clone();
-      health_url.set_path("health");
-      (v, health_url)
-    });
-
-    let client = reqwest::Client::builder()
-      .timeout(Duration::from_secs(3))
-      .build()?;
-
-    let requests = validator_urls.map(|(_, url)| client.get(url).send());
-    let responses = futures::future::join_all(requests).await;
-
-    let validators_responding_success =
-      zip(validators_to_query(), responses).filter_map(|(v, r)| match r {
-        Ok(r) if r.status().is_success() => Some((v, r.status())),
-        _ => None,
-      });
-
-    Ok(validators_responding_success.collect::<Vec<_>>())
-  }
-
-  #[allow(unused)]
-  pub async fn check_validator_health_for_all_networks(
-    &self,
-  ) -> Result<HashMap<WalletNetwork, Vec<(ValidatorUrl, StatusCode)>>, BackendError> {
-    let validator_health_requests =
-      WalletNetwork::iter().map(|network| self.check_validator_health(network));
-
-    let responses_keyed_by_network = zip(
-      WalletNetwork::iter(),
-      futures::future::join_all(validator_health_requests).await,
+    log::debug!(
+      "Received validator urls: \n{}",
+      self.base.fetched_validators
     );
-
-    // Iterate and collect manually to be able to return errors in the response
-    let mut responses = HashMap::new();
-    for (network, response) in responses_keyed_by_network {
-      responses.insert(network, response?);
-    }
-    Ok(responses)
+    Ok(())
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ValidatorUrl {
   pub nymd_url: Url,
   pub api_url: Option<Url>,
@@ -243,23 +202,14 @@ impl TryFrom<ValidatorDetails> for ValidatorUrl {
   }
 }
 
-#[derive(Clone, Debug)]
-pub struct ValidatorUrlWithApiEndpoint {
-  pub nymd_url: Url,
-  pub api_url: Url,
-}
-
-impl TryFrom<ValidatorUrl> for ValidatorUrlWithApiEndpoint {
-  type Error = BackendError;
-
-  fn try_from(validator: ValidatorUrl) -> Result<Self, Self::Error> {
-    match validator.api_url {
-      Some(api_url) => Ok(ValidatorUrlWithApiEndpoint {
-        nymd_url: validator.nymd_url,
-        api_url,
-      }),
-      None => Err(BackendError::NoValidatorApiUrlConfigured),
-    }
+impl fmt::Display for ValidatorUrl {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let s1 = format!("nymd_url: {}", self.nymd_url);
+    let s2 = self
+      .api_url
+      .as_ref()
+      .map(|url| format!(", api_url: {}", url));
+    write!(f, "    {}{},", s1, s2.unwrap_or_default())
   }
 }
 
@@ -282,6 +232,27 @@ impl OptionalValidators {
     }
     .into_iter()
     .flatten()
+  }
+}
+
+impl fmt::Display for OptionalValidators {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let s1 = self
+      .mainnet
+      .as_ref()
+      .map(|validators| format!("mainnet: [\n{}\n]", validators.iter().format("\n")))
+      .unwrap_or_default();
+    let s2 = self
+      .sandbox
+      .as_ref()
+      .map(|validators| format!(",\nsandbox: [\n{}\n]", validators.iter().format("\n")))
+      .unwrap_or_default();
+    let s3 = self
+      .qa
+      .as_ref()
+      .map(|validators| format!(",\nqa: [\n{}\n]", validators.iter().format("\n")))
+      .unwrap_or_default();
+    write!(f, "{}{}{}", s1, s2, s3)
   }
 }
 

@@ -147,6 +147,8 @@ pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
 
+pub const VOUCHER_INFO: &str = "BandwidthVoucher";
+
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
 
 /// Defaults Cosmos Hub/ATOM path

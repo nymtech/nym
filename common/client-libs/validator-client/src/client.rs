@@ -685,6 +685,16 @@ impl ApiClient {
         Ok(self.validator_api.blind_sign(request_body).await?)
     }
 
+    pub async fn partial_bandwidth_credential(
+        &self,
+        request_body: &str,
+    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .partial_bandwidth_credential(request_body)
+            .await?)
+    }
+
     pub async fn get_coconut_verification_key(
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorClientError> {

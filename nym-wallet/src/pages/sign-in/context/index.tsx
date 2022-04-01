@@ -14,6 +14,7 @@ export type TSignInContent = {
   setMnemonic: (mnc: string) => void;
   generateMnemonic: () => Promise<void>;
   setPassword: (paswd: string) => void;
+  resetState: () => void;
 };
 
 const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
@@ -47,6 +48,11 @@ export const SignInProvider: React.FC = ({ children }) => {
     }
   }, [mnemonic]);
 
+  const resetState = () => {
+    setPassword('');
+    setMnemonic('');
+  };
+
   return (
     <SignInContext.Provider
       value={useMemo(
@@ -59,6 +65,7 @@ export const SignInProvider: React.FC = ({ children }) => {
           setMnemonic,
           generateMnemonic,
           setPassword,
+          resetState,
         }),
         [error, password, mnemonic, mnemonicWords],
       )}

@@ -7,7 +7,7 @@ import { WordTiles } from '../components';
 import { SignInContext } from '../context';
 
 export const CreateMnemonic = () => {
-  const { mnemonic, mnemonicWords, generateMnemonic } = useContext(SignInContext);
+  const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(SignInContext);
   const history = useHistory();
 
   useEffect(() => {
@@ -55,7 +55,13 @@ export const CreateMnemonic = () => {
       >
         I saved my mnemonic
       </Button>
-      <Button onClick={() => history.goBack()} color="inherit">
+      <Button
+        onClick={() => {
+          resetState();
+          history.goBack();
+        }}
+        color="inherit"
+      >
         Back
       </Button>
     </Stack>

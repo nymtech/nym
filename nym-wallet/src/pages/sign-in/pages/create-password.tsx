@@ -8,7 +8,7 @@ import { SignInContext } from '../context';
 import { createPassword } from '../../../requests';
 
 export const CreatePassword = () => {
-  const { password, setPassword } = useContext(SignInContext);
+  const { password, setPassword, resetState } = useContext(SignInContext);
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
   const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,12 +28,11 @@ export const CreatePassword = () => {
       setIsLoading(true);
       await createPassword({ mnemonic, password });
       enqueueSnackbar('Password successfully created', { variant: 'success' });
-      setPassword('');
+      resetState();
       history.push('/sign-in-password');
     } catch (e) {
-      enqueueSnackbar(e as string, { variant: 'error' });
-    } finally {
       setIsLoading(false);
+      enqueueSnackbar(e as string, { variant: 'error' });
     }
   };
 

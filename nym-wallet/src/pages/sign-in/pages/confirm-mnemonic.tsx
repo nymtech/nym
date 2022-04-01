@@ -6,8 +6,8 @@ import { MnemonicInput, Subtitle } from '../components';
 import { SignInContext } from '../context';
 
 export const ConfirmMnemonic = () => {
-  const { error, setError, setMnemonic } = useContext(SignInContext);
-  const [localMnemonic, setLocalMnemonic] = useState('');
+  const { error, setError, setMnemonic, mnemonic } = useContext(SignInContext);
+  const [localMnemonic, setLocalMnemonic] = useState(mnemonic);
   const history = useHistory();
 
   useEffect(() => {
@@ -35,7 +35,15 @@ export const ConfirmMnemonic = () => {
       >
         Next
       </Button>
-      <Button size="large" color="inherit" fullWidth onClick={() => history.goBack()}>
+      <Button
+        size="large"
+        color="inherit"
+        fullWidth
+        onClick={() => {
+          setMnemonic('');
+          history.goBack();
+        }}
+      >
         Back
       </Button>
     </Stack>

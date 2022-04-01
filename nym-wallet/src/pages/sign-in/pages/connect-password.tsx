@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Button, FormControl, Stack } from '@mui/material';
+import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { Subtitle, Title, PasswordStrength } from '../components';
 import { PasswordInput } from '../components/textfields';
@@ -8,12 +8,11 @@ import { SignInContext } from '../context';
 import { createPassword } from '../../../requests';
 
 export const ConnectPassword = () => {
-  const { password, setPassword } = useContext(SignInContext);
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
   const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { mnemonic } = useContext(SignInContext);
+  const { mnemonic, password, setPassword, resetState } = useContext(SignInContext);
   const history = useHistory();
 
   const { enqueueSnackbar } = useSnackbar();
@@ -22,12 +21,11 @@ export const ConnectPassword = () => {
     try {
       setIsLoading(true);
       await createPassword({ mnemonic, password });
+      resetState();
       enqueueSnackbar('Password successfully created', { variant: 'success' });
-      setPassword('');
       history.push('/sign-in-password');
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -58,7 +56,17 @@ export const ConnectPassword = () => {
             disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
             onClick={storePassword}
           >
-            Create password
+            {isLoading ? <CircularProgress size={25} /> : 'Create password'}
+          </Button>
+          <Button
+            size="large"
+            color="inherit"
+            onClick={() => {
+              setPassword('');
+              history.goBack();
+            }}
+          >
+            Back
           </Button>
         </Stack>
       </FormControl>

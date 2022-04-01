@@ -22,22 +22,22 @@ module.exports = {
    localhost: {
       url: "http://127.0.0.1:8545"
    },
-  //  rinkeby: {
-  //     url: process.env.RINKEBY_URL, //Infura url with projectId
-  //     accounts: [process.env.PRIV_KEY], // private key of account used for contract interaction
-  //     gas: "auto", 
-  //     gasPrice: "auto"
-  //   },
-  //   mainnet: {
-  //     url: process.env.MAINNET_URL, //Infura url with projectId
-  //     accounts: [process.env.PRIV_KEY], // private key of account used for contract interaction
-  //     gas: "auto", 
-  //     gasPrice: "auto"
-  //   }
+   rinkeby: {
+      url: process.env.RINKEBY_URL, //Infura url with projectId
+      accounts: [process.env.PRIV_KEY], // private key of account used for contract interaction
+      gas: "auto", 
+      gasPrice: "auto"
+    },
+    mainnet: {
+      url: process.env.MAINNET_URL, //Infura url with projectId
+      accounts: [process.env.PRIV_KEY], // private key of account used for contract interaction
+      gas: "auto", 
+      gasPrice: "auto"
+    }
   }, 
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
-    // apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: process.env.ETHERSCAN_API_KEY
   }
 };  

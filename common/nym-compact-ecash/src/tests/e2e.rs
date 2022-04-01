@@ -1,17 +1,18 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
+use crate::scheme::{PartialWallet, Payment, pseudorandom_fgt};
 use crate::scheme::aggregation::{
     aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets,
 };
+use crate::scheme::identify::identify;
 use crate::scheme::keygen::{
-    generate_keypair_user, ttp_keygen, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
+use crate::scheme::PayInfo;
 use crate::scheme::setup::Parameters;
 use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
-use crate::scheme::PartialWallet;
-use crate::scheme::PayInfo;
-use crate::utils::SignatureShare;
+use crate::utils::{hash_to_scalar, SignatureShare};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
@@ -43,8 +44,8 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-    .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-    .collect();
+        .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
@@ -68,6 +69,26 @@ fn main() -> Result<(), CompactEcashError> {
     assert!(payment
         .spend_verify(&params, &verification_key, &payInfo)
         .unwrap());
+
+    // try to spend twice the same payment with different payInfo.
+    let payment1 = payment.clone();
+    let payInfo2 = PayInfo { info: [9u8; 32] };
+    let R2 = hash_to_scalar(payInfo2.info);
+    let l2 = aggr_wallet.l() - 1;
+    let payment2 = Payment {
+        kappa: payment1.kappa.clone(),
+        sig: payment1.sig.clone(),
+        S: payment1.S.clone(),
+        T: params.gen1() * user_keypair.secret_key().sk + pseudorandom_fgt(&params, aggr_wallet.t(), l2) * R2,
+        A: payment1.A.clone(),
+        C: payment1.C.clone(),
+        D: payment1.D.clone(),
+        R: R2,
+        zk_proof: payment1.zk_proof.clone(),
+    };
+
+    let identifiedUser = identify(payment1, payment2).unwrap();
+    assert_eq!(user_keypair.public_key().pk, identifiedUser.pk);
 
     Ok(())
 }

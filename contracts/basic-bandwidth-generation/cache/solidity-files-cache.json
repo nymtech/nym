@@ -1,9 +1,9 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
-      "lastModificationDate": 1643129770695,
-      "contentHash": "642b72e2d50d565db7bc994cace3f5a0",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/BandwidthGenerator.sol": {
+      "lastModificationDate": 1648818985185,
+      "contentHash": "cc45839db61ac60d7e8fe32ef9005eb3",
       "sourceName": "contracts/BandwidthGenerator.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -40,8 +40,8 @@
         "BandwidthGenerator"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/CosmosToken.sol": {
-      "lastModificationDate": 1642773899716,
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/CosmosToken.sol": {
+      "lastModificationDate": 1648465653397,
       "contentHash": "fc5dd09fe73bc6cfece970f702a3aba1",
       "sourceName": "contracts/CosmosToken.sol",
       "solcConfig": {
@@ -76,8 +76,8 @@
         "CosmosERC20"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/Gravity.sol": {
-      "lastModificationDate": 1642773899716,
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/Gravity.sol": {
+      "lastModificationDate": 1648465653397,
       "contentHash": "0d6dae561f7b541bafb892b8593a08ac",
       "sourceName": "contracts/Gravity.sol",
       "solcConfig": {
@@ -117,9 +117,9 @@
         "Gravity"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
-      "lastModificationDate": 1641812554274,
-      "contentHash": "4fe56b59ced59d87df6b796758f62895",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
+      "lastModificationDate": 1648741041841,
+      "contentHash": "8398972af73b4e9e5ff3b31cad86234f",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -153,9 +153,9 @@
         "Ownable"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol": {
-      "lastModificationDate": 1641812554378,
-      "contentHash": "5365090efc586b728719e562ebfed0d6",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol": {
+      "lastModificationDate": 1648741041848,
+      "contentHash": "a6a9d6c1f662e922b82c1ba4d81cdd48",
       "sourceName": "@openzeppelin/contracts/utils/math/SafeMath.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -187,9 +187,9 @@
         "SafeMath"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {
-      "lastModificationDate": 1641812553614,
-      "contentHash": "2cd550cedf51b8d294607dad5023d717",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {
+      "lastModificationDate": 1648741041814,
+      "contentHash": "f48de0eaae9544072b8766e2eac528a7",
       "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -225,9 +225,9 @@
         "ERC20"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
-      "lastModificationDate": 1641812554110,
-      "contentHash": "0eac3e1a83ee62326ca007811285b274",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
+      "lastModificationDate": 1648741041831,
+      "contentHash": "302d9755e46bc69d7058b0cbe7185e37",
       "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -259,9 +259,9 @@
         "IERC20"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
-      "lastModificationDate": 1641812554118,
-      "contentHash": "aa1be06992a99bb7393b26a6af3c4dfb",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
+      "lastModificationDate": 1648741041831,
+      "contentHash": "909ab67fc5c25033fe6cd364f8c056f9",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -295,9 +295,9 @@
         "IERC20Metadata"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Context.sol": {
-      "lastModificationDate": 1641812553346,
-      "contentHash": "851485d5b925529b1a2f34a0be077891",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Context.sol": {
+      "lastModificationDate": 1648741041804,
+      "contentHash": "5f2c5c4b6af2dd4551027144797bc8be",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -329,9 +329,9 @@
         "Context"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol": {
-      "lastModificationDate": 1641812554370,
-      "contentHash": "d37406082a74a9b6b114de522fcb6349",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol": {
+      "lastModificationDate": 1648741041848,
+      "contentHash": "76814c83c32552ed2b521c816b4d801a",
       "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -366,9 +366,9 @@
         "SafeERC20"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/security/ReentrancyGuard.sol": {
-      "lastModificationDate": 1641812554322,
-      "contentHash": "53fbff678f378956efcb207fa748eaa6",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/security/ReentrancyGuard.sol": {
+      "lastModificationDate": 1648741041844,
+      "contentHash": "92f9448b23a90ea3bb932ee55cc3ccce",
       "sourceName": "@openzeppelin/contracts/security/ReentrancyGuard.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -400,9 +400,9 @@
         "ReentrancyGuard"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Address.sol": {
-      "lastModificationDate": 1641812553270,
-      "contentHash": "c5f6c4e4df069c789e7d84b4c3011913",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Address.sol": {
+      "lastModificationDate": 1648741041804,
+      "contentHash": "4cff8b2ea0d958750786b4e3ca308445",
       "sourceName": "@openzeppelin/contracts/utils/Address.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -434,10 +434,46 @@
         "Address"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol": {
-      "lastModificationDate": 1641812553414,
-      "contentHash": "197dbfaf7146845fa76331a4c9980e9f",
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol": {
+      "lastModificationDate": 1648741041808,
+      "contentHash": "395edffd6bb2b3ba29970d5814039654",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+      "solcConfig": {
+        "version": "0.8.10",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../Strings.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "ECDSA"
+      ]
+    },
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/node_modules/@openzeppelin/contracts/utils/Strings.sol": {
+      "lastModificationDate": 1648741041848,
+      "contentHash": "9c54c6c065d9e590fdcdd72c451425b9",
+      "sourceName": "@openzeppelin/contracts/utils/Strings.sol",
       "solcConfig": {
         "version": "0.8.10",
         "settings": {
@@ -465,11 +501,11 @@
         "^0.8.0"
       ],
       "artifacts": [
-        "ECDSA"
+        "Strings"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestCosmosToken.sol": {
-      "lastModificationDate": 1642773899716,
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestCosmosToken.sol": {
+      "lastModificationDate": 1648465653397,
       "contentHash": "957b6079ee0d5a6e048fce8555c14dee",
       "sourceName": "contracts/test-contracts/TestCosmosToken.sol",
       "solcConfig": {
@@ -504,8 +540,8 @@
         "TestCosmosERC20"
       ]
     },
-    "/home/max/dev/nymtech/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestGravity.sol": {
-      "lastModificationDate": 1642773899716,
+    "/home/mx/dev/nym/nym/contracts/basic-bandwidth-generation/contracts/test-contracts/TestGravity.sol": {
+      "lastModificationDate": 1648465653397,
       "contentHash": "f24299c3acb20aff23914e16b7ba95e1",
       "sourceName": "contracts/test-contracts/TestGravity.sol",
       "solcConfig": {

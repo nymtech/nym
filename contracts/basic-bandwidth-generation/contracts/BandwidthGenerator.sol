@@ -80,12 +80,12 @@ contract BandwidthGenerator is Ownable {
     }
     
     /**
-     * @dev                           Function to create a BBC for account owning the verification key on the Nym Cosmos Blockchain
+     * @dev                           Function to create a BBC for account owning the verification key on the Nyx Blockchain
      *                                by transfering erc20NYM via the Gravity Bridge. 
      * @param _amount                 Amount of erc20NYM tokens to spend on BBC - denominated in wei. 
-     * @param _verificationKey        Verification key of account on Nym blockchain who is purchasing BBC.
+     * @param _verificationKey        Verification key of account on Nyx blockchain who is purchasing BBC.
      * @param _signedVerificationKey  Number of erc20NYMs to spend signed by _verificationKey for auth on Cosmos Blockchain.
-     * @param _cosmosRecipient        Address of the recipient of payment on Nym Cosmos Blockchain.
+     * @param _cosmosRecipient        Address of the recipient of payment on Nyx Blockchain.
      */    
     function generateBasicBandwidthCredential(uint256 _amount, uint256 _verificationKey, bytes memory _signedVerificationKey, string calldata _cosmosRecipient) public checkEnabled {
         require(_signedVerificationKey.length == 64, "BandwidthGenerator: Signature doesn't have 64 bytes");

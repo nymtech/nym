@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Typography } from '@mui/material';
-import { useLocation } from 'react-router';
+import { useLocation } from 'react-router-dom';
 
 export const Step = () => {
   const location = useLocation();

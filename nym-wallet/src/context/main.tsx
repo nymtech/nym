@@ -1,13 +1,13 @@
 import React, { useMemo, createContext, useEffect, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { TLoginType } from 'src/pages/sign-in/types';
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
-import { TLoginType } from 'src/pages/sign-in/types';
 
 export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
@@ -59,12 +59,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const userBalance = useGetBalance(clientDetails?.client_address);
   const history = useHistory();
-  const location = useLocation();
   const { enqueueSnackbar } = useSnackbar();
-
-  useEffect(() => {
-    console.log(location.pathname);
-  }, [location.pathname]);
 
   const loadAccount = async (n: Network) => {
     try {

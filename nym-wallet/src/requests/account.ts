@@ -12,6 +12,11 @@ export const signInWithMnemonic = async (mnemonic: string): Promise<Account> => 
   return res;
 };
 
+export const validateMnemonic = async (mnemonic: string): Promise<boolean> => {
+  const res: boolean = await invoke('validate_mnemonic', { mnemonic });
+  return res;
+};
+
 export const signInWithPassword = async (password: string): Promise<Account> => {
   const res: Account = await invoke('sign_in_with_password', { password });
   return res;

@@ -1,8 +1,8 @@
 import React, { useContext, useState } from 'react';
-import { Box, Button, CircularProgress, FormControl, LinearProgress, Stack } from '@mui/material';
+import { Box, Button, FormControl, LinearProgress, Stack } from '@mui/material';
+import { useHistory } from 'react-router-dom';
 import { MnemonicInput, Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
-import { useHistory } from 'react-router';
 
 export const SignInMnemonic = () => {
   const [mnemonic, setMnemonic] = useState('');
@@ -28,7 +28,7 @@ export const SignInMnemonic = () => {
             fullWidth
             onClick={() => logIn({ type: 'mnemonic', value: mnemonic })}
           >
-            {`Sign in with mnemonic`}
+            Sign in with mnemonic
           </Button>
           <Button
             variant="outlined"

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useHistory } from 'react-router';
+import { useHistory } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';

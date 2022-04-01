@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { useHistory } from 'react-router';
+import { useHistory } from 'react-router-dom';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { Subtitle, Title, PasswordStrength } from '../components';

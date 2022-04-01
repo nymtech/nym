@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router';
-import { createMnemonic, signInWithMnemonic } from 'src/requests';
+import { useHistory } from 'react-router-dom';
+import { createMnemonic } from 'src/requests';
 import { TMnemonicWords } from '../types';
 
 export const SignInContext = createContext({} as TSignInContent);
@@ -13,7 +13,6 @@ export type TSignInContent = {
   setError: (err?: string) => void;
   setMnemonic: (mnc: string) => void;
   generateMnemonic: () => Promise<void>;
-  validateMnemonic: () => Promise<void>;
   setPassword: (paswd: string) => void;
 };
 
@@ -33,14 +32,6 @@ export const SignInProvider: React.FC = ({ children }) => {
   const generateMnemonic = async () => {
     const mnemonicPhrase = await createMnemonic();
     setMnemonic(mnemonicPhrase);
-  };
-
-  const validateMnemonic = async () => {
-    try {
-      await signInWithMnemonic(mnemonic);
-    } catch (e) {
-      setError(e as string);
-    }
   };
 
   useEffect(() => {
@@ -67,7 +58,6 @@ export const SignInProvider: React.FC = ({ children }) => {
           setError,
           setMnemonic,
           generateMnemonic,
-          validateMnemonic,
           setPassword,
         }),
         [error, password, mnemonic, mnemonicWords],

@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
-import { useHistory } from 'react-router';
+import { useHistory } from 'react-router-dom';
 import { Button, Stack, Typography } from '@mui/material';
 import { SubtitleSlick, Title } from '../components';
 

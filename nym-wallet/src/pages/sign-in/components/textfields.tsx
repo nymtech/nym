@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Link, Stack, TextField, Typography } from '@mui/material';
+import { Box, IconButton, Link, Stack, TextField } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Error } from './error';
 
@@ -61,12 +61,14 @@ export const PasswordInput: React.FC<{
             ),
           }}
         />
+        {/* currently unused */}
         {showForgottenPassword && (
           <Link
             underline="none"
             variant="body2"
             component="div"
             sx={{ mt: 1, textAlign: 'right', color: 'info.main', cursor: 'pointer' }}
+            href="/forgotten-password"
           >
             Forgotten password?
           </Link>

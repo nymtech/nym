@@ -37,6 +37,7 @@ fn main() {
     .manage(Arc::new(RwLock::new(State::default())))
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
+      mixnet::account::validate_mnemonic,
       mixnet::account::create_new_account,
       mixnet::account::create_new_mnemonic,
       mixnet::account::create_password,

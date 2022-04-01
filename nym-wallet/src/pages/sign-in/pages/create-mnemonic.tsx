@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react';
-import { useHistory } from 'react-router';
+import { useHistory } from 'react-router-dom';
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { Check, ContentCopySharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';

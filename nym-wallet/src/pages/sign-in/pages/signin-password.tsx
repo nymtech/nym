@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { useHistory } from 'react-router';
+import { useHistory } from 'react-router-dom';
 import { Button, LinearProgress, FormControl, Stack, Box } from '@mui/material';
 import { PasswordInput, Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
@@ -34,7 +34,7 @@ export const SignInPassword = () => {
             fullWidth
             onClick={() => logIn({ type: 'password', value: password })}
           >
-            {`Sign in with password`}
+            Sign in with password
           </Button>
           <Button
             variant="outlined"

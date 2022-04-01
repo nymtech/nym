@@ -1,39 +1,60 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::platform_constants::{CONFIG_DIR_NAME, CONFIG_FILENAME};
 use crate::{error::BackendError, network::Network as WalletNetwork};
+use config::defaults::all::Network;
 use config::defaults::{all::SupportedNetworks, ValidatorDetails};
-use config::NymConfig;
 use core::fmt;
 use itertools::Itertools;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::collections::HashMap;
+use std::str::FromStr;
 use std::{fs, io, path::PathBuf};
 use strum::IntoEnumIterator;
 use url::Url;
 
-const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
+pub const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
   "https://nymtech.net/.wellknown/wallet/validators.json";
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
   // Base configuration is not part of the configuration file as it's not intended to be changed.
-  #[serde(skip)]
   base: Base,
 
-  // Network level configuration
-  network: OptionalValidators,
+  // Global configuration file
+  global: Option<GlobalConfig>,
+
+  // One configuration file per network
+  networks: HashMap<String, NetworkConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
 struct Base {
   /// Information on all the networks that the wallet connects to.
   networks: SupportedNetworks,
+}
 
-  /// Validators that have been fetched dynamically, probably during startup.
-  fetched_validators: OptionalValidators,
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct GlobalConfig {
+  // TODO: there are no global settings (yet)
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct NetworkConfig {
+  // User selected urls
+  selected_nymd_url: Option<Url>,
+  selected_api_url: Option<Url>,
+
+  // Additional user provided validators
+  validator_urls: Option<Vec<ValidatorUrl>>,
+}
+
+impl NetworkConfig {
+  fn validators(&self) -> impl Iterator<Item = &ValidatorUrl> {
+    self.validator_urls.iter().flat_map(|v| v.iter())
+  }
 }
 
 impl Default for Base {
@@ -41,91 +62,125 @@ impl Default for Base {
     let networks = WalletNetwork::iter().map(Into::into).collect();
     Base {
       networks: SupportedNetworks::new(networks),
-      fetched_validators: OptionalValidators::default(),
     }
   }
 }
 
-impl NymConfig for Config {
-  fn template() -> &'static str {
-    // For now we're not using a template
-    unimplemented!();
+impl Config {
+  fn root_directory() -> PathBuf {
+    tauri::api::path::config_dir().expect("Failed to get config directory")
   }
 
-  fn default_root_directory() -> PathBuf {
-    dirs::home_dir()
-      .expect("Failed to evaluate $HOME value")
-      .join(".nym")
-      .join("wallet")
+  fn config_directory() -> PathBuf {
+    Self::root_directory().join(CONFIG_DIR_NAME)
   }
 
-  fn root_directory(&self) -> PathBuf {
-    Self::default_root_directory()
+  fn config_file_path(network: Option<WalletNetwork>) -> PathBuf {
+    if let Some(network) = network {
+      let network_filename = format!("{}.toml", network.as_key());
+      Self::config_directory().join(network_filename)
+    } else {
+      Self::config_directory().join(CONFIG_FILENAME)
+    }
   }
 
-  fn config_directory(&self) -> PathBuf {
-    self.root_directory().join("config")
-  }
-
-  fn data_directory(&self) -> PathBuf {
-    self.root_directory().join("data")
-  }
-
-  fn save_to_file(&self, custom_location: Option<PathBuf>) -> io::Result<()> {
-    let config_toml = toml::to_string_pretty(&self)
-      .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))?;
+  pub fn save_to_files(&self) -> io::Result<()> {
+    log::trace!("Config::save_to_file");
 
     // Make sure the whole directory structure actually exists
-    match custom_location.clone() {
-      Some(loc) => {
-        if let Some(parent_dir) = loc.parent() {
-          fs::create_dir_all(parent_dir)
-        } else {
-          Ok(())
+    fs::create_dir_all(Self::config_directory())?;
+
+    // Global config
+    if let Some(global) = &self.global {
+      let location = Self::config_file_path(None);
+
+      match toml::to_string_pretty(&global)
+        .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+        .map(|toml| fs::write(location.clone(), toml))
+      {
+        Ok(_) => log::debug!("Writing to: {:#?}", location),
+        Err(err) => log::warn!("Failed to write to {:#?}: {err}", location),
+      }
+    }
+
+    // One file per network
+    for (network, config) in &self.networks {
+      let network = match Network::from_str(network).map(Into::into) {
+        Ok(network) => network,
+        Err(err) => {
+          log::warn!("Unexpected name for network configuration, not saving: {err}");
+          break;
+        }
+      };
+
+      let location = Self::config_file_path(Some(network));
+      match toml::to_string_pretty(config)
+        .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+        .map(|toml| fs::write(location.clone(), toml))
+      {
+        Ok(_) => log::debug!("Writing to: {:#?}", location),
+        Err(err) => log::warn!("Failed to write to {:#?}: {err}", location),
+      }
+    }
+    Ok(())
+  }
+
+  pub fn load_from_files() -> Self {
+    // Global
+    let global = {
+      let file = Self::config_file_path(None);
+      match load_from_file::<GlobalConfig>(file.clone()) {
+        Ok(global) => {
+          log::debug!("Loaded from file {:#?}", file);
+          Some(global)
+        }
+        Err(err) => {
+          log::trace!("Not loading {:#?}: {}", file, err);
+          None
         }
       }
-      None => fs::create_dir_all(self.config_directory()),
-    }?;
+    };
 
-    fs::write(
-      custom_location.unwrap_or_else(|| self.config_directory().join(Self::config_file_name())),
-      config_toml,
-    )
+    // One file per network
+    let mut networks = HashMap::new();
+    for network in WalletNetwork::iter() {
+      let file = Self::config_file_path(Some(network));
+      match load_from_file::<NetworkConfig>(file.clone()) {
+        Ok(config) => {
+          log::trace!("Loaded from file {:#?}", file);
+          networks.insert(network.as_key(), config);
+        }
+        Err(err) => log::trace!("Not loading {:#?}: {}", file, err),
+      };
+    }
+
+    Self {
+      base: Base::default(),
+      global,
+      networks,
+    }
   }
-}
 
-impl Config {
-  /// Get the available validators in the order
-  /// 1. from the configuration file
-  /// 2. provided remotely
-  /// 3. hardcoded fallback
-  pub fn get_validators(&self, network: WalletNetwork) -> impl Iterator<Item = ValidatorUrl> + '_ {
-    // The base validators are (currently) stored as strings
-    let base_validators = self.base.networks.validators(network.into()).map(|v| {
+  pub fn get_base_validators(
+    &self,
+    network: WalletNetwork,
+  ) -> impl Iterator<Item = ValidatorUrl> + '_ {
+    self.base.networks.validators(network.into()).map(|v| {
       v.clone()
         .try_into()
         .expect("The hardcoded validators are assumed to be valid urls")
-    });
-
-    self
-      .base
-      .fetched_validators
-      .validators(network)
-      .chain(self.network.validators(network))
-      .cloned()
-      .chain(base_validators)
-      .unique()
+    })
   }
 
-  pub fn get_nymd_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
-    self.get_validators(network).into_iter().map(|v| v.nymd_url)
-  }
-
-  pub fn get_api_urls(&self, network: WalletNetwork) -> impl Iterator<Item = Url> + '_ {
+  pub fn get_configured_validators(
+    &self,
+    network: WalletNetwork,
+  ) -> impl Iterator<Item = ValidatorUrl> + '_ {
     self
-      .get_validators(network)
+      .networks
+      .get(&network.as_key())
       .into_iter()
-      .filter_map(|v| v.api_url)
+      .flat_map(|c| c.validators().cloned())
   }
 
   pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
@@ -161,25 +216,80 @@ impl Config {
       .ok()
   }
 
-  pub async fn fetch_updated_validator_urls(&mut self) -> Result<(), BackendError> {
-    let client = reqwest::Client::builder()
-      .timeout(Duration::from_secs(3))
-      .build()?;
-    log::debug!(
-      "Fetching validator urls from: {}",
-      REMOTE_SOURCE_OF_VALIDATOR_URLS
-    );
-    let response = client
-      .get(REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
-      .send()
-      .await?;
-    self.base.fetched_validators = serde_json::from_str(&response.text().await?)?;
-    log::debug!(
-      "Received validator urls: \n{}",
-      self.base.fetched_validators
-    );
-    Ok(())
+  pub fn select_validator_nymd_url(&mut self, nymd_url: Url, network: WalletNetwork) {
+    if let Some(net) = self.networks.get_mut(&network.as_key()) {
+      net.selected_nymd_url = Some(nymd_url);
+    } else {
+      self.networks.insert(
+        network.as_key(),
+        NetworkConfig {
+          selected_nymd_url: Some(nymd_url),
+          ..NetworkConfig::default()
+        },
+      );
+    }
   }
+
+  pub fn select_validator_api_url(&mut self, api_url: Url, network: WalletNetwork) {
+    if let Some(net) = self.networks.get_mut(&network.as_key()) {
+      net.selected_api_url = Some(api_url);
+    } else {
+      self.networks.insert(
+        network.as_key(),
+        NetworkConfig {
+          selected_nymd_url: Some(api_url),
+          ..NetworkConfig::default()
+        },
+      );
+    }
+  }
+
+  pub fn get_selected_validator_nymd_url(&self, network: &WalletNetwork) -> Option<Url> {
+    self
+      .networks
+      .get(&network.as_key())
+      .and_then(|config| config.selected_nymd_url.clone())
+  }
+
+  pub fn get_selected_validator_api_url(&self, network: &WalletNetwork) -> Option<Url> {
+    self
+      .networks
+      .get(&network.as_key())
+      .and_then(|config| config.selected_api_url.clone())
+  }
+
+  pub fn add_validator_url(&mut self, url: ValidatorUrl, network: WalletNetwork) {
+    if let Some(net) = self.networks.get_mut(&network.as_key()) {
+      if let Some(ref mut urls) = net.validator_urls {
+        urls.push(url);
+      } else {
+        net.validator_urls = Some(vec![url]);
+      }
+    } else {
+      self.networks.insert(
+        network.as_key(),
+        NetworkConfig {
+          validator_urls: Some(vec![url]),
+          ..NetworkConfig::default()
+        },
+      );
+    }
+  }
+
+  #[allow(unused)]
+  pub fn remove_validator_url(&mut self, _url: ValidatorUrl, _network: WalletNetwork) {
+    todo!();
+  }
+}
+
+fn load_from_file<T>(file: PathBuf) -> Result<T, io::Error>
+where
+  T: DeserializeOwned,
+{
+  fs::read_to_string(file).and_then(|contents| {
+    toml::from_str::<T>(&contents)
+      .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+  })
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -215,7 +325,7 @@ impl fmt::Display for ValidatorUrl {
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-struct OptionalValidators {
+pub struct OptionalValidators {
   // User supplied additional validator urls in addition to the hardcoded ones.
   // These are separate fields, rather than a map, to force the serialization order.
   mainnet: Option<Vec<ValidatorUrl>>,
@@ -224,7 +334,7 @@ struct OptionalValidators {
 }
 
 impl OptionalValidators {
-  fn validators(&self, network: WalletNetwork) -> impl Iterator<Item = &ValidatorUrl> {
+  pub fn validators(&self, network: WalletNetwork) -> impl Iterator<Item = &ValidatorUrl> {
     match network {
       WalletNetwork::MAINNET => self.mainnet.as_ref(),
       WalletNetwork::SANDBOX => self.sandbox.as_ref(),
@@ -261,53 +371,63 @@ mod tests {
   use super::*;
 
   fn test_config() -> Config {
-    Config {
-      base: Base::default(),
-      network: OptionalValidators {
-        mainnet: Some(vec![
-          ValidatorDetails {
-            nymd_url: "https://foo".to_string(),
-            api_url: None,
-          }
-          .try_into()
-          .unwrap(),
-          ValidatorUrl {
-            nymd_url: "https://baz".parse().unwrap(),
-            api_url: Some("https://baz/api".parse().unwrap()),
-          },
-        ]),
-        sandbox: Some(vec![ValidatorUrl {
+    let netconfig = NetworkConfig {
+      selected_nymd_url: None,
+      selected_api_url: Some("https://my_api_url.com".parse().unwrap()),
+
+      validator_urls: Some(vec![
+        ValidatorUrl {
+          nymd_url: "https://foo".parse().unwrap(),
+          api_url: None,
+        },
+        ValidatorUrl {
           nymd_url: "https://bar".parse().unwrap(),
           api_url: Some("https://bar/api".parse().unwrap()),
-        }]),
-        qa: None,
-      },
+        },
+        ValidatorUrl {
+          nymd_url: "https://baz".parse().unwrap(),
+          api_url: Some("https://baz/api".parse().unwrap()),
+        },
+      ]),
+    };
+
+    Config {
+      base: Base::default(),
+      global: Some(GlobalConfig::default()),
+      networks: [(WalletNetwork::MAINNET.as_key(), netconfig)]
+        .into_iter()
+        .collect(),
     }
   }
 
   #[test]
   fn serialize_to_toml() {
+    let config = test_config();
+    let netconfig = &config.networks[&WalletNetwork::MAINNET.as_key()];
     assert_eq!(
-      toml::to_string_pretty(&test_config()).unwrap(),
-      r#"[[network.mainnet]]
+      toml::to_string_pretty(netconfig).unwrap(),
+      r#"selected_api_url = 'https://my_api_url.com/'
+
+[[validator_urls]]
 nymd_url = 'https://foo/'
 
-[[network.mainnet]]
-nymd_url = 'https://baz/'
-api_url = 'https://baz/api'
-
-[[network.sandbox]]
+[[validator_urls]]
 nymd_url = 'https://bar/'
 api_url = 'https://bar/api'
+
+[[validator_urls]]
+nymd_url = 'https://baz/'
+api_url = 'https://baz/api'
 "#
     );
   }
   #[test]
   fn serialize_and_deserialize_to_toml() {
     let config = test_config();
-    let config_str = toml::to_string_pretty(&config).unwrap();
-    let config_from_toml = toml::from_str(&config_str).unwrap();
-    assert_eq!(config, config_from_toml);
+    let netconfig = &config.networks[&WalletNetwork::MAINNET.as_key()];
+    let config_str = toml::to_string_pretty(netconfig).unwrap();
+    let config_from_toml: NetworkConfig = toml::from_str(&config_str).unwrap();
+    assert_eq!(netconfig, &config_from_toml);
   }
 
   #[test]
@@ -315,7 +435,7 @@ api_url = 'https://bar/api'
     let config = test_config();
 
     let nymd_url = config
-      .get_validators(WalletNetwork::MAINNET)
+      .get_configured_validators(WalletNetwork::MAINNET)
       .next()
       .map(|v| v.nymd_url)
       .unwrap();
@@ -323,7 +443,7 @@ api_url = 'https://bar/api'
 
     // The first entry is missing an API URL
     let api_url = config
-      .get_validators(WalletNetwork::MAINNET)
+      .get_configured_validators(WalletNetwork::MAINNET)
       .next()
       .and_then(|v| v.api_url);
     assert_eq!(api_url, None);
@@ -334,14 +454,14 @@ api_url = 'https://bar/api'
     let config = Config::default();
 
     let nymd_url = config
-      .get_validators(WalletNetwork::MAINNET)
+      .get_base_validators(WalletNetwork::MAINNET)
       .next()
       .map(|v| v.nymd_url)
       .unwrap();
     assert_eq!(nymd_url.as_ref(), "https://rpc.nyx.nodes.guru/");
 
     let api_url = config
-      .get_validators(WalletNetwork::MAINNET)
+      .get_base_validators(WalletNetwork::MAINNET)
       .next()
       .and_then(|v| v.api_url)
       .unwrap();

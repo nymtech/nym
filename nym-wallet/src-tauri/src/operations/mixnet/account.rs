@@ -21,9 +21,7 @@ use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 use url::Url;
 
-use validator_client::{
-  connection_tester::run_validator_connection_test, nymd::SigningNymdClient, Client,
-};
+use validator_client::{nymd::SigningNymdClient, Client};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
@@ -167,36 +165,54 @@ async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  update_validator_urls(state.clone()).await?;
-  let config = state.read().await.config();
-
-  for network in WalletNetwork::iter() {
-    log::debug!(
-      "List of validators for {network}: [\n{}\n]",
-      config.get_validators(network).format(",\n")
-    );
+  {
+    let mut w_state = state.write().await;
+    w_state.load_config_files();
   }
 
-  // Run connection tests on all nymd and validator-api endpoints
-  let (nymd_urls, api_urls) = {
-    let mixnet_contract_address = WalletNetwork::iter()
-      .map(|network| (network.into(), config.get_mixnet_contract_address(network)))
-      .collect::<HashMap<_, _>>();
-    let nymd_urls = WalletNetwork::iter().flat_map(|network| {
-      config
-        .get_nymd_urls(network)
-        .map(move |url| (network.into(), url))
-    });
-    let api_urls = WalletNetwork::iter().flat_map(|network| {
-      config
-        .get_api_urls(network)
-        .map(move |url| (network.into(), url))
-    });
+  update_validator_urls(state.clone()).await?;
 
-    run_validator_connection_test(nymd_urls, api_urls, mixnet_contract_address).await
+  let config = {
+    let state = state.read().await;
+
+    // Take the oppertunity to list all the known validators while we have the state.
+    for network in WalletNetwork::iter() {
+      log::debug!(
+        "List of validators for {network}: [\n{}\n]",
+        state.get_validators(network).format(",\n")
+      );
+    }
+
+    state.config().clone()
   };
 
-  let clients = create_clients(&nymd_urls, &api_urls, &mnemonic, &config)?;
+  // Get all the urls needed for the connection test
+  let (untested_nymd_urls, untested_api_urls) = {
+    let state = state.read().await;
+    (state.get_all_nymd_urls(), state.get_all_api_urls())
+  };
+  let default_nymd_urls: HashMap<WalletNetwork, Url> = untested_nymd_urls
+    .iter()
+    .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
+    .collect();
+  let default_api_urls: HashMap<WalletNetwork, Url> = untested_api_urls
+    .iter()
+    .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
+    .collect();
+
+  // Run connection tests on all nymd and validator-api endpoints
+  let (nymd_urls, api_urls) =
+    run_connection_test(untested_nymd_urls, untested_api_urls, &config).await;
+
+  // Create clients for all networks
+  let clients = create_clients(
+    &nymd_urls,
+    &api_urls,
+    &default_nymd_urls,
+    &default_api_urls,
+    &config,
+    &mnemonic,
+  )?;
 
   // Set the default account
   let default_network: WalletNetwork = config::defaults::DEFAULT_NETWORK.into();
@@ -224,63 +240,69 @@ async fn _connect_with_mnemonic(
   account_for_default_network
 }
 
-fn select_random_responding_nymd_url(
-  nymd_urls: &HashMap<Network, Vec<(Url, bool)>>,
-  network: WalletNetwork,
+async fn run_connection_test(
+  untested_nymd_urls: HashMap<WalletNetwork, Vec<Url>>,
+  untested_api_urls: HashMap<WalletNetwork, Vec<Url>>,
   config: &Config,
-) -> Url {
-  // We pick a randon responding nymd url, and if not, fall back on the first one in the list.
-  nymd_urls
-    .get(&network.into())
-    .and_then(|urls| {
-      let nymd_urls: Vec<_> = urls
-        .iter()
-        .filter_map(|(url, result)| if *result { Some(url.clone()) } else { None })
-        .collect();
-      nymd_urls.choose(&mut rand::thread_rng()).cloned()
-    })
-    .unwrap_or_else(|| {
-      log::debug!("No passing nymd_urls for {network}: using default");
-      config
-        .get_nymd_urls(network)
-        .next()
-        .expect("Expected at least one hardcoded nymd url")
-    })
-}
+) -> (
+  HashMap<Network, Vec<(Url, bool)>>,
+  HashMap<Network, Vec<(Url, bool)>>,
+) {
+  let mixnet_contract_address = WalletNetwork::iter()
+    .map(|network| (network.into(), config.get_mixnet_contract_address(network)))
+    .collect::<HashMap<_, _>>();
 
-fn select_first_responding_api_url(
-  api_urls: &HashMap<Network, Vec<(Url, bool)>>,
-  network: WalletNetwork,
-  config: &Config,
-) -> Url {
-  // We pick the first API url among the responding ones. If none exists, fall back on the first
-  // one in the list.
-  api_urls
-    .get(&network.into())
-    .and_then(|urls| {
-      urls
-        .iter()
-        .find_map(|(url, result)| if *result { Some(url.clone()) } else { None })
-    })
-    .unwrap_or_else(|| {
-      log::debug!("No passing api_urls for {network}: using default");
-      config
-        .get_api_urls(network)
-        .next()
-        .expect("Expected at least one hardcoded api url")
-    })
+  let untested_nymd_urls = untested_nymd_urls
+    .into_iter()
+    .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
+
+  let untested_api_urls = untested_api_urls
+    .into_iter()
+    .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
+
+  validator_client::connection_tester::run_validator_connection_test(
+    untested_nymd_urls,
+    untested_api_urls,
+    mixnet_contract_address,
+  )
+  .await
 }
 
 fn create_clients(
   nymd_urls: &HashMap<Network, Vec<(Url, bool)>>,
   api_urls: &HashMap<Network, Vec<(Url, bool)>>,
-  mnemonic: &Mnemonic,
+  default_nymd_urls: &HashMap<WalletNetwork, Url>,
+  default_api_urls: &HashMap<WalletNetwork, Url>,
   config: &Config,
+  mnemonic: &Mnemonic,
 ) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
   let mut clients = Vec::new();
   for network in WalletNetwork::iter() {
-    let nymd_url = select_random_responding_nymd_url(nymd_urls, network, config);
-    let api_url = select_first_responding_api_url(api_urls, network, config);
+    let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(&network) {
+      log::debug!("Using selected nymd_url for {network}: {url}");
+      url.clone()
+    } else {
+      let default_nymd_url = default_nymd_urls
+        .get(&network)
+        .expect("Expected at least one nymd_url");
+      select_random_responding_url(nymd_urls, network).unwrap_or_else(|| {
+        log::debug!("No successful nymd_urls for {network}: using default: {default_nymd_url}");
+        default_nymd_url.clone()
+      })
+    };
+
+    let api_url = if let Some(url) = config.get_selected_validator_api_url(&network) {
+      log::debug!("Using selected api_url for {network}: {url}");
+      url.clone()
+    } else {
+      let default_api_url = default_api_urls
+        .get(&network)
+        .expect("Expected at least one api url");
+      select_first_responding_url(api_urls, network).unwrap_or_else(|| {
+        log::debug!("No passing api_urls for {network}: using default: {default_api_url}");
+        default_api_url.clone()
+      })
+    };
 
     log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
     log::info!("Connecting to: api_url: {api_url} for {network}");
@@ -299,6 +321,31 @@ fn create_clients(
     clients.push(client);
   }
   Ok(clients)
+}
+
+fn select_random_responding_url(
+  urls: &HashMap<Network, Vec<(Url, bool)>>,
+  network: WalletNetwork,
+) -> Option<Url> {
+  urls.get(&network.into()).and_then(|urls| {
+    let urls: Vec<_> = urls
+      .iter()
+      .filter_map(|(url, result)| if *result { Some(url.clone()) } else { None })
+      .collect();
+    urls.choose(&mut rand::thread_rng()).cloned()
+  })
+}
+
+fn select_first_responding_url(
+  urls: &HashMap<Network, Vec<(Url, bool)>>,
+  network: WalletNetwork,
+  //config: &Config,
+) -> Option<Url> {
+  urls.get(&network.into()).and_then(|urls| {
+    urls
+      .iter()
+      .find_map(|(url, result)| if *result { Some(url.clone()) } else { None })
+  })
 }
 
 #[tauri::command]

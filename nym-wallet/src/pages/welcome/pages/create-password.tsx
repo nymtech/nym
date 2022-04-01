@@ -1,4 +1,5 @@
 import React, { useContext, useState } from 'react';
+import { useHistory } from 'react-router';
 import { Alert, Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { TPages } from '../types';
@@ -7,17 +8,18 @@ import { PasswordInput } from '../components/textfields';
 import { SignInContext } from '../context';
 import { createPassword } from '../../../requests';
 
-export const CreatePassword = ({ onSkip, onNext }: { page: TPages; onNext: () => void; onSkip: () => void }) => {
+export const CreatePassword = () => {
   const { password, setPassword } = useContext(SignInContext);
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
   const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const { mnemonic } = useContext(SignInContext);
+  const history = useHistory();
 
   const handleSkip = () => {
     setPassword('');
-    onSkip();
+    history.push('/sign-in-mnemonic');
   };
 
   const { enqueueSnackbar } = useSnackbar();
@@ -28,7 +30,7 @@ export const CreatePassword = ({ onSkip, onNext }: { page: TPages; onNext: () =>
       await createPassword({ mnemonic, password });
       enqueueSnackbar('Password successfully created', { variant: 'success' });
       setPassword('');
-      onNext();
+      history.push('/sign-in-password');
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
     } finally {

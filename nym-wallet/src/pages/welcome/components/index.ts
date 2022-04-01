@@ -5,3 +5,4 @@ export * from './password-strength';
 export * from './error';
 export * from './textfields';
 export * from './step';
+export * from './page-layout';

@@ -1,18 +1,20 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useHistory } from 'react-router';
 import { Button, Stack } from '@mui/material';
-import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
+import { HiddenWords, Subtitle, Title, WordTiles, PageLayout } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords, TPages } from '../types';
 import { randomNumberBetween } from '../../../utils';
 import { SignInContext } from '../context';
 
 const numberOfRandomWords = 6;
 
-export const VerifyMnemonic = ({ onNext }: { page: TPages; onNext: () => void; onPrev: () => void }) => {
+export const VerifyMnemonic = () => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>();
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
   const [currentSelection, setCurrentSelection] = useState(0);
 
   const { mnemonicWords } = useContext(SignInContext);
+  const history = useHistory();
 
   useEffect(() => {
     if (mnemonicWords) {
@@ -38,7 +40,7 @@ export const VerifyMnemonic = ({ onNext }: { page: TPages; onNext: () => void; o
 
   if (randomWords && hiddenRandomWords) {
     return (
-      <>
+      <PageLayout>
         <Title title="Verify your mnemonic" />
         <Subtitle subtitle="Select the words from your mnmonic based on their order" />
         <HiddenWords mnemonicWords={hiddenRandomWords} />
@@ -53,14 +55,12 @@ export const VerifyMnemonic = ({ onNext }: { page: TPages; onNext: () => void; o
             fullWidth
             size="large"
             disabled={currentSelection !== numberOfRandomWords}
-            onClick={() => {
-              onNext();
-            }}
+            onClick={() => history.push('/create-password')}
           >
             Next
           </Button>
         </Stack>
-      </>
+      </PageLayout>
     );
   }
   return null;

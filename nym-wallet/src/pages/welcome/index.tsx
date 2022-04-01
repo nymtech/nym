@@ -44,30 +44,7 @@ export const Welcome = () => {
         ) : (
           <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
             <NymWordmark width={75} />
-            <Step currentPage={page} totalSteps={3} />
             <RenderPage page={page}>
-              <WelcomeContent
-                onUseExisting={() => setPage('existing account')}
-                onCreateAccount={() => setPage('create mnemonic')}
-                page="welcome"
-              />
-              <CreateMnemonic
-                onNext={() => setPage('verify mnemonic')}
-                onPrev={() => setPage('create password')}
-                page="create mnemonic"
-              />
-              <VerifyMnemonic onNext={() => setPage('create password')} onPrev={() => {}} page="verify mnemonic" />
-              <CreatePassword
-                onSkip={() => {
-                  setLoginType('mnemonic');
-                  setPage('existing account');
-                }}
-                onNext={() => {
-                  setLoginType('password');
-                  setPage('existing account');
-                }}
-                page="create password"
-              />
               <ExistingAccount
                 onPrev={() => setPage('welcome')}
                 page="existing account"

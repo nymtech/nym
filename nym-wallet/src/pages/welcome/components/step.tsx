@@ -1,10 +1,12 @@
 import React, { useCallback } from 'react';
 import { Typography } from '@mui/material';
-import { TPages } from '../types';
+import { useLocation } from 'react-router';
 
-export const Step = ({ currentPage, totalSteps }: { currentPage: TPages; totalSteps: number }) => {
+export const Step = ({ totalSteps }: { totalSteps: number }) => {
+  const location = useLocation();
+
   const mapPage = useCallback(() => {
-    switch (currentPage) {
+    switch (location.pathname) {
       case 'create mnemonic':
         return 1;
       case 'verify mnemonic':
@@ -14,7 +16,7 @@ export const Step = ({ currentPage, totalSteps }: { currentPage: TPages; totalSt
       default:
         return 0;
     }
-  }, [currentPage]);
+  }, [location.pathname]);
 
   if (mapPage() === 0) {
     return null;

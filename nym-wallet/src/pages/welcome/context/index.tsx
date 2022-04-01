@@ -1,4 +1,5 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { useHistory } from 'react-router';
 import { createMnemonic, signInWithMnemonic } from 'src/requests';
 import { TMnemonicWords } from '../types';
 
@@ -27,6 +28,8 @@ export const SignInProvider: React.FC = ({ children }) => {
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>([]);
   const [error, setError] = useState<string>();
 
+  const history = useHistory();
+
   const generateMnemonic = async () => {
     const mnemonicPhrase = await createMnemonic();
     setMnemonic(mnemonicPhrase);
@@ -39,6 +42,10 @@ export const SignInProvider: React.FC = ({ children }) => {
       setError(e as string);
     }
   };
+
+  useEffect(() => {
+    history.push('/welcome');
+  }, []);
 
   useEffect(() => {
     if (mnemonic.length > 0) {

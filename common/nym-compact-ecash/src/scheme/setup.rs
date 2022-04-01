@@ -48,13 +48,21 @@ impl Parameters {
         &self.gammas
     }
 
-    pub(crate) fn gamma1(&self) -> &G1Projective { &self.gammas[0] }
+    pub(crate) fn gamma1(&self) -> &G1Projective {
+        &self.gammas[0]
+    }
 
-    pub(crate) fn gamma2(&self) -> Option<&G1Projective> { self.gammas.get(2) }
+    pub(crate) fn gamma2(&self) -> Option<&G1Projective> {
+        self.gammas.get(2)
+    }
 
-    pub(crate) fn gamma3(&self) -> Option<&G1Projective> { self.gammas.get(3) }
+    pub(crate) fn gamma3(&self) -> Option<&G1Projective> {
+        self.gammas.get(3)
+    }
 
-    pub(crate) fn L(&self) -> u64 { self.L }
+    pub(crate) fn L(&self) -> u64 {
+        self.L
+    }
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system

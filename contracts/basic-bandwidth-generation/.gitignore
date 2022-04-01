@@ -1,5 +1,5 @@
 node_modules
-../.env
+.env
 .to_do.md
 
 #Hardhat files

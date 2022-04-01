@@ -1,14 +1,16 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
-use crate::scheme::aggregation::{aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets};
-use crate::scheme::keygen::{
-    generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
+use crate::scheme::aggregation::{
+    aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets,
 };
-use crate::scheme::PartialWallet;
-use crate::scheme::PayInfo;
+use crate::scheme::keygen::{
+    generate_keypair_user, ttp_keygen, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+};
 use crate::scheme::setup::Parameters;
 use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
+use crate::scheme::PartialWallet;
+use crate::scheme::PayInfo;
 use crate::utils::SignatureShare;
 
 #[test]
@@ -41,20 +43,31 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-        .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-        .collect();
+    .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+    .collect();
 
     // Aggregate partial wallets
-    let aggr_wallet = aggregate_wallets(&params, &verification_key, &user_keypair.secret_key(), &unblinded_wallet_shares, &req_info)?;
+    let aggr_wallet = aggregate_wallets(
+        &params,
+        &verification_key,
+        &user_keypair.secret_key(),
+        &unblinded_wallet_shares,
+        &req_info,
+    )?;
 
     // Let's try to spend some coins
-    let payInfo = PayInfo {
-        info: [6u8; 32],
-    };
+    let payInfo = PayInfo { info: [6u8; 32] };
 
-    let (payment, upd_wallet) = aggr_wallet.spend(&params, &verification_key, &user_keypair.secret_key(), &payInfo)?;
+    let (payment, upd_wallet) = aggr_wallet.spend(
+        &params,
+        &verification_key,
+        &user_keypair.secret_key(),
+        &payInfo,
+    )?;
 
-    assert!(payment.spend_verify(&params, &verification_key, &payInfo).unwrap());
+    assert!(payment
+        .spend_verify(&params, &verification_key, &payInfo)
+        .unwrap());
 
     Ok(())
 }

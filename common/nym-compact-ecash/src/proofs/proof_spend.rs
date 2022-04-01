@@ -5,7 +5,7 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::{Curve, Group, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
+use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
 use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective};
@@ -103,7 +103,6 @@ pub struct SpendWitness {
     pub lambda: Scalar,
     pub o_mu: Scalar,
     pub o_lambda: Scalar,
-
 }
 
 pub struct SpendProof {
@@ -121,11 +120,13 @@ pub struct SpendProof {
 }
 
 impl SpendProof {
-    pub fn construct(params: &Parameters,
-                     instance: &SpendInstance,
-                     witness: &SpendWitness,
-                     verification_key: &VerificationKeyAuth,
-                     R: Scalar, ) -> Self {
+    pub fn construct(
+        params: &Parameters,
+        instance: &SpendInstance,
+        witness: &SpendWitness,
+        verification_key: &VerificationKeyAuth,
+        R: Scalar,
+    ) -> Self {
         // generate random values to replace each witness
         let r_attributes = params.n_random_scalars(witness.attributes.len());
         let r_sk = r_attributes[0];
@@ -153,10 +154,10 @@ impl SpendProof {
         let zkcm_kappa = params.gen2() * r_r
             + verification_key.alpha
             + r_attributes
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(attr, beta_i)| beta_i * attr)
-            .sum::<G2Projective>();
+                .iter()
+                .zip(verification_key.beta_g2.iter())
+                .map(|(attr, beta_i)| beta_i * attr)
+                .sum::<G2Projective>();
 
         let zkcm_A = g1 * r_o_a + gamma1 * r_l;
         let zkcm_C = g1 * r_o_c + gamma1 * r_v;
@@ -180,9 +181,13 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_gamma11.to_affine().to_bytes().as_ref()))
+                .chain(std::iter::once(
+                    zkcm_gamma11.to_affine().to_bytes().as_ref(),
+                ))
                 .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_gamma12.to_affine().to_bytes().as_ref()))
+                .chain(std::iter::once(
+                    zkcm_gamma12.to_affine().to_bytes().as_ref(),
+                )),
         );
 
         // compute response for each witness
@@ -216,11 +221,13 @@ impl SpendProof {
             response_attributes,
         }
     }
-    pub fn verify(&self,
-                  params: &Parameters,
-                  instance: &SpendInstance,
-                  verification_key: &VerificationKeyAuth,
-                  R: Scalar) -> bool {
+    pub fn verify(
+        &self,
+        params: &Parameters,
+        instance: &SpendInstance,
+        verification_key: &VerificationKeyAuth,
+        R: Scalar,
+    ) -> bool {
         let g1 = *params.gen1();
         let gamma1 = *params.gamma1();
         let beta2_bytes = verification_key
@@ -233,19 +240,31 @@ impl SpendProof {
         let zkcm_kappa = instance.kappa * self.challenge
             + params.gen2() * self.response_r
             + verification_key.alpha * (Scalar::one() - self.challenge)
-            + self.response_attributes
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(attr, beta_i)| beta_i * attr)
-            .sum::<G2Projective>();
+            + self
+                .response_attributes
+                .iter()
+                .zip(verification_key.beta_g2.iter())
+                .map(|(attr, beta_i)| beta_i * attr)
+                .sum::<G2Projective>();
 
-        let zkcm_A = g1 * self.response_o_a + gamma1 * self.response_l + instance.A * self.challenge;
-        let zkcm_C = g1 * self.response_o_c + gamma1 * self.response_attributes[1] + instance.C * self.challenge;
-        let zkcm_D = g1 * self.response_o_d + gamma1 * self.response_attributes[2] + instance.D * self.challenge;
+        let zkcm_A =
+            g1 * self.response_o_a + gamma1 * self.response_l + instance.A * self.challenge;
+        let zkcm_C = g1 * self.response_o_c
+            + gamma1 * self.response_attributes[1]
+            + instance.C * self.challenge;
+        let zkcm_D = g1 * self.response_o_d
+            + gamma1 * self.response_attributes[2]
+            + instance.D * self.challenge;
         let zkcm_S = g1 * self.response_mu + instance.S * self.challenge;
-        let zkcm_gamma11 = (instance.A + instance.C + gamma1) * self.response_mu + g1 * self.response_o_mu + gamma1 * self.challenge;
-        let zkcm_T = g1 * self.response_attributes[0] + (g1 * R) * self.response_lambda + instance.T * self.challenge;
-        let zkcm_gamma12 = (instance.A + instance.D + gamma1) * self.response_lambda + g1 * self.response_o_lambda + gamma1 * self.challenge;
+        let zkcm_gamma11 = (instance.A + instance.C + gamma1) * self.response_mu
+            + g1 * self.response_o_mu
+            + gamma1 * self.challenge;
+        let zkcm_T = g1 * self.response_attributes[0]
+            + (g1 * R) * self.response_lambda
+            + instance.T * self.challenge;
+        let zkcm_gamma12 = (instance.A + instance.D + gamma1) * self.response_lambda
+            + g1 * self.response_o_lambda
+            + gamma1 * self.challenge;
 
         // re-compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
@@ -259,9 +278,13 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_gamma11.to_affine().to_bytes().as_ref()))
+                .chain(std::iter::once(
+                    zkcm_gamma11.to_affine().to_bytes().as_ref(),
+                ))
                 .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_gamma12.to_affine().to_bytes().as_ref()))
+                .chain(std::iter::once(
+                    zkcm_gamma12.to_affine().to_bytes().as_ref(),
+                )),
         );
 
         challenge == self.challenge
@@ -275,11 +298,11 @@ mod tests {
     use rand::thread_rng;
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-    use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
     use crate::scheme::aggregation::aggregate_verification_keys;
-    use crate::scheme::keygen::{PublicKeyUser, ttp_keygen, VerificationKeyAuth};
-    use crate::scheme::PayInfo;
+    use crate::scheme::keygen::{ttp_keygen, PublicKeyUser, VerificationKeyAuth};
     use crate::scheme::setup::Parameters;
+    use crate::scheme::PayInfo;
+    use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
     use crate::utils::hash_to_scalar;
 
     #[test]
@@ -296,7 +319,8 @@ mod tests {
             .map(|keypair| keypair.verification_key())
             .collect();
 
-        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
 
         let v = params.random_scalar();
         let t = params.random_scalar();
@@ -309,10 +333,10 @@ mod tests {
         let kappa = params.gen2() * r
             + verification_key.alpha
             + attributes
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-            .sum::<G2Projective>();
+                .iter()
+                .zip(verification_key.beta_g2.iter())
+                .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+                .sum::<G2Projective>();
 
         let o_a = params.random_scalar();
         let o_c = params.random_scalar();

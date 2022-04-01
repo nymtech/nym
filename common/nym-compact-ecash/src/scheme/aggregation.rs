@@ -6,13 +6,16 @@ use bls12_381::{G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use itertools::Itertools;
 
-use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
-use crate::scheme::{PartialWallet, Wallet};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
 use crate::scheme::withdrawal::RequestInfo;
-use crate::utils::{check_bilinear_pairing, PartialSignature, perform_lagrangian_interpolation_at_origin, Signature, SignatureShare, SignerIndex};
+use crate::scheme::{PartialWallet, Wallet};
+use crate::utils::{
+    check_bilinear_pairing, perform_lagrangian_interpolation_at_origin, PartialSignature,
+    Signature, SignatureShare, SignerIndex,
+};
+use crate::Attribute;
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;
@@ -24,19 +27,23 @@ pub(crate) trait Aggregatable: Sized {
 }
 
 impl<T> Aggregatable for T
-    where
-        T: Sum,
-        for<'a> T: Sum<&'a T>,
-        for<'a> &'a T: Mul<Scalar, Output=T>,
+where
+    T: Sum,
+    for<'a> T: Sum<&'a T>,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     fn aggregate(aggregatable: &[T], indices: Option<&[u64]>) -> Result<T> {
         if aggregatable.is_empty() {
-            return Err(CompactEcashError::Aggregation("Empty set of values".to_string()));
+            return Err(CompactEcashError::Aggregation(
+                "Empty set of values".to_string(),
+            ));
         }
 
         if let Some(indices) = indices {
             if !Self::check_unique_indices(indices) {
-                return Err(CompactEcashError::Aggregation("Non-unique indices".to_string()));
+                return Err(CompactEcashError::Aggregation(
+                    "Non-unique indices".to_string(),
+                ));
             }
             perform_lagrangian_interpolation_at_origin(indices, aggregatable)
         } else {
@@ -135,8 +142,13 @@ pub fn aggregate_signatures(
     Ok(signature)
 }
 
-pub fn aggregate_wallets(params: &Parameters, verification_key: &VerificationKeyAuth, skUser: &SecretKeyUser, wallets: &[PartialWallet], reqInfo: &RequestInfo) -> Result<Wallet> {
-
+pub fn aggregate_wallets(
+    params: &Parameters,
+    verification_key: &VerificationKeyAuth,
+    skUser: &SecretKeyUser,
+    wallets: &[PartialWallet],
+    reqInfo: &RequestInfo,
+) -> Result<Wallet> {
     // Aggregate partial wallets
     let signature_shares: Vec<SignatureShare> = wallets
         .iter()

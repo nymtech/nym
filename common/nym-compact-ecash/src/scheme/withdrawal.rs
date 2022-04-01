@@ -2,13 +2,15 @@ use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
-use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
+use crate::proofs::proof_withdrawal::{
+    WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
+};
 use crate::scheme::keygen::ttp_keygen;
-use crate::scheme::PartialWallet;
+use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
-use crate::utils::{BlindedSignature, Signature};
+use crate::scheme::PartialWallet;
 use crate::utils::{check_bilinear_pairing, hash_g1};
+use crate::utils::{BlindedSignature, Signature};
 
 pub struct WithdrawalRequest {
     com_hash: G1Projective,
@@ -26,11 +28,21 @@ pub struct RequestInfo {
 }
 
 impl RequestInfo {
-    pub fn get_com(&self) -> G1Projective { self.com_hash }
-    pub fn get_com_openings(&self) -> Scalar { self.com_opening }
-    pub fn get_pc_coms_openings(&self) -> &Vec<Scalar> { &self.pc_coms_openings }
-    pub fn get_v(&self) -> Scalar { self.v }
-    pub fn get_t(&self) -> Scalar { self.t }
+    pub fn get_com(&self) -> G1Projective {
+        self.com_hash
+    }
+    pub fn get_com_openings(&self) -> Scalar {
+        self.com_opening
+    }
+    pub fn get_pc_coms_openings(&self) -> &Vec<Scalar> {
+        &self.pc_coms_openings
+    }
+    pub fn get_v(&self) -> Scalar {
+        self.v
+    }
+    pub fn get_t(&self) -> Scalar {
+        self.t
+    }
 }
 
 pub fn withdrawal_request(
@@ -45,10 +57,10 @@ pub fn withdrawal_request(
     let com_opening = params.random_scalar();
     let com = params.gen1() * com_opening
         + attributes
-        .iter()
-        .zip(gammas)
-        .map(|(&m, gamma)| gamma * m)
-        .sum::<G1Projective>();
+            .iter()
+            .zip(gammas)
+            .map(|(&m, gamma)| gamma * m)
+            .sum::<G1Projective>();
 
     // Value h in the paper
     let com_hash = hash_g1(com.to_bytes());

@@ -18,8 +18,6 @@ mod operations;
 mod platform_constants;
 mod state;
 mod utils;
-// temporarily until it is actually used
-#[allow(unused)]
 mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;

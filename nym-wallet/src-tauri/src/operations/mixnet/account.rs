@@ -336,3 +336,10 @@ pub async fn sign_in_with_password(
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
   _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
 }
+
+#[tauri::command]
+pub fn remove_password() -> Result<(), BackendError> {
+  log::info!("Removing password");
+  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  wallet_storage::remove_wallet_login_information(&id)
+}

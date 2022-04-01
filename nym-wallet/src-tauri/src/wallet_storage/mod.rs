@@ -9,8 +9,10 @@ use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
 use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
 use cosmrs::bip32::DerivationPath;
+use cosmwasm_std::BankMsg;
 use serde::{Deserialize, Serialize};
-use std::fs::{create_dir_all, OpenOptions};
+use std::fs::{self, create_dir_all, OpenOptions};
+use std::os::unix::prelude::OpenOptionsExt;
 use std::path::PathBuf;
 
 use self::account_data::{EncryptedAccount, StoredWallet};
@@ -112,10 +114,43 @@ fn store_wallet_login_information_at_file(
   Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
 }
 
-// this function should probably exist, but I guess we need to discuss how it should behave in the context of the UX
-// pub(crate) fn remove_wallet_login_information(
-//
-// )
+pub(crate) fn remove_wallet_login_information(id: &WalletAccountId) -> Result<(), BackendError> {
+  let store_dir = get_storage_directory()?;
+  let filepath = store_dir.join(WALLET_INFO_FILENAME);
+  remove_wallet_login_information_at_file(filepath, id)
+}
+
+pub(crate) fn remove_wallet_login_information_at_file(
+  filepath: PathBuf,
+  id: &WalletAccountId,
+) -> Result<(), BackendError> {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
+    result => result?,
+  };
+
+  if stored_wallet.is_empty() {
+    log::info!("Removing file: {:#?}", filepath);
+    return Ok(fs::remove_file(filepath)?);
+  }
+
+  stored_wallet
+    .remove_account(id)
+    .ok_or(BackendError::NoSuchIdInWallet)?;
+
+  if stored_wallet.is_empty() {
+    log::info!("Removing file: {:#?}", filepath);
+    Ok(fs::remove_file(filepath)?)
+  } else {
+    let file = OpenOptions::new()
+      .create(true)
+      .write(true)
+      .truncate(true)
+      .open(filepath)?;
+
+    Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+  }
+}
 
 #[cfg(test)]
 mod tests {
@@ -127,6 +162,7 @@ mod tests {
 
   // I'm not 100% sure how to feel about having to touch the file system at all
   #[test]
+  #[allow(clippy::too_many_lines)]
   fn storing_wallet_information() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -248,9 +284,33 @@ mod tests {
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
     let loaded_account =
-      load_existing_wallet_login_information_at_file(wallet_file, &id2, &password).unwrap();
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id2, &password).unwrap();
     let StoredAccount::Mnemonic(ref acc2) = loaded_account;
     assert_eq!(&dummy_account2, acc2.mnemonic());
     assert_eq!(&different_hd_path, acc2.hd_path());
+
+    // Fails to delete non-existent id in the wallet
+    let id3 = WalletAccountId::new("phony".to_string());
+    assert!(matches!(
+      remove_wallet_login_information_at_file(wallet_file.clone(), &id3),
+      Err(BackendError::NoSuchIdInWallet),
+    ));
+
+    // Delete the second account
+    remove_wallet_login_information_at_file(wallet_file.clone(), &id2).unwrap();
+
+    // The first account should be unchanged
+    let loaded_account =
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let StoredAccount::Mnemonic(ref acc1) = loaded_account;
+    assert_eq!(&dummy_account1, acc1.mnemonic());
+    assert_eq!(&cosmos_hd_path, acc1.hd_path());
+
+    // Delete the first account
+    assert!(wallet_file.exists());
+    remove_wallet_login_information_at_file(wallet_file.clone(), &id1).unwrap();
+
+    // The file should now be removed
+    assert!(!wallet_file.exists());
   }
 }

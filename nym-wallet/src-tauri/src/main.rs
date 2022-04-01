@@ -43,6 +43,7 @@ fn main() {
       mixnet::account::does_password_file_exist,
       mixnet::account::get_balance,
       mixnet::account::logout,
+      mixnet::account::remove_password,
       mixnet::account::sign_in_with_password,
       mixnet::account::switch_network,
       mixnet::account::update_validator_urls,

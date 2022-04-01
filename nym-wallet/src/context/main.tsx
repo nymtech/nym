@@ -28,6 +28,7 @@ type TClientContext = {
   userBalance: TUseuserBalance;
   showAdmin: boolean;
   showSettings: boolean;
+  showValidatorSettings: boolean;
   network?: Network;
   currency?: TCurrency;
   isLoading: boolean;
@@ -35,6 +36,7 @@ type TClientContext = {
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
+  handleShowValidatorSettings: () => void;
   handleShowAdmin: () => void;
   logIn: (mnemonic: string) => void;
   logOut: () => void;
@@ -49,6 +51,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showValidatorSettings, setShowValidatorSettings] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -117,6 +120,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleShowValidatorSettings = () => setShowValidatorSettings((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
   const memoizedValue = useMemo(
@@ -129,17 +133,21 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       userBalance,
       showAdmin,
       showSettings,
+      showValidatorSettings,
       network,
       currency,
       switchNetwork,
       getBondDetails,
       handleShowSettings,
+      handleShowValidatorSettings,
       handleShowAdmin,
       logIn,
       logOut,
     }),
-    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
+    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, showValidatorSettings, network, currency],
   );
+
+  console.log('showValidatorSettings', showValidatorSettings);
 
   return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;
 };

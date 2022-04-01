@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ClientContext } from '../context/main';
-import { validatorUrls } from '../utils';
+import { ClientContext } from '../../context/main';
+import { validatorUrls } from '../../utils';
 
 type TValidatorUrl = string;
 
@@ -12,6 +12,10 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
     const [validators, setValidators] = useState<string[] | null>();
     const [selectedValidator, setSelectedValidator] = useState<TValidatorUrl>('');
 
+    const resetState = () => {
+        setValidators(undefined);
+    };
+    
     const {
         network
     } = useContext(ClientContext);
@@ -25,6 +29,9 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
                 setValidators(validator?.urls);
             }
         })();
+
+        // will unmount
+        return () => resetState();
     }, []);
 
     useEffect(() => {

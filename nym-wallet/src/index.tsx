@@ -10,7 +10,7 @@ import { Admin, Settings } from './pages';
 import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
-import { SignInProvider } from './pages/welcome/context';
+import { SignInProvider } from './pages/sign-in/context';
 
 const App = () => {
   const { clientDetails } = useContext(ClientContext);

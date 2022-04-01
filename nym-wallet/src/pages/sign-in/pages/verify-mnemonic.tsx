@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router';
 import { Button, Stack } from '@mui/material';
-import { HiddenWords, Subtitle, Title, WordTiles, PageLayout } from '../components';
-import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords, TPages } from '../types';
+import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
+import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
 import { randomNumberBetween } from '../../../utils';
 import { SignInContext } from '../context';
 
@@ -40,7 +40,7 @@ export const VerifyMnemonic = () => {
 
   if (randomWords && hiddenRandomWords) {
     return (
-      <PageLayout>
+      <>
         <Title title="Verify your mnemonic" />
         <Subtitle subtitle="Select the words from your mnmonic based on their order" />
         <HiddenWords mnemonicWords={hiddenRandomWords} />
@@ -60,7 +60,7 @@ export const VerifyMnemonic = () => {
             Next
           </Button>
         </Stack>
-      </PageLayout>
+      </>
     );
   }
   return null;

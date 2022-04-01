@@ -7,11 +7,11 @@ export const Step = ({ totalSteps }: { totalSteps: number }) => {
 
   const mapPage = useCallback(() => {
     switch (location.pathname) {
-      case 'create mnemonic':
+      case '/create-mnemonic':
         return 1;
-      case 'verify mnemonic':
+      case '/verify-mnemonic':
         return 2;
-      case 'create password':
+      case '/create-password':
         return 3;
       default:
         return 0;

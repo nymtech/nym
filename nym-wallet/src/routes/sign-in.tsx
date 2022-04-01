@@ -1,20 +1,44 @@
 import React from 'react';
 import { Switch, Route } from 'react-router-dom';
-import { CreateMnemonic, VerifyMnemonic, WelcomeContent } from 'src/pages/welcome/pages';
+import { PageLayout } from 'src/pages/sign-in/components';
+import {
+  CreateMnemonic,
+  CreatePassword,
+  ExistingAccount,
+  SignInMnemonic,
+  SignInPassword,
+  VerifyMnemonic,
+  WelcomeContent,
+} from 'src/pages/sign-in/pages';
+import { ConfirmMnemonic } from 'src/pages/sign-in/pages/confirm-mnemonic';
 
 export const SignInRoutes = () => (
-  <Switch>
-    <Route path="/welcome">
-      <WelcomeContent />
-    </Route>
-    <Route path="/existing-account">
-      <h1>Existing account</h1>
-    </Route>
-    <Route path="/create-mnemonic">
-      <CreateMnemonic />
-    </Route>
-    <Route path="/verify-mnemonic">
-      <VerifyMnemonic />
-    </Route>
-  </Switch>
+  <PageLayout>
+    <Switch>
+      <Route path="/welcome">
+        <WelcomeContent />
+      </Route>
+      <Route path="/existing-account">
+        <ExistingAccount />
+      </Route>
+      <Route path="/create-mnemonic">
+        <CreateMnemonic />
+      </Route>
+      <Route path="/verify-mnemonic">
+        <VerifyMnemonic />
+      </Route>
+      <Route path="/create-password">
+        <CreatePassword />
+      </Route>
+      <Route path="/sign-in-mnemonic">
+        <SignInMnemonic />
+      </Route>
+      <Route path="/sign-in-password">
+        <SignInPassword />
+      </Route>
+      <Route path="/confirm-mnemonic">
+        <ConfirmMnemonic />
+      </Route>
+    </Switch>
+  </PageLayout>
 );

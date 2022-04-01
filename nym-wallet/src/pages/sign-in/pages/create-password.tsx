@@ -1,8 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router';
-import { Alert, Button, FormControl, Stack } from '@mui/material';
+import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { TPages } from '../types';
 import { Subtitle, Title, PasswordStrength } from '../components';
 import { PasswordInput } from '../components/textfields';
 import { SignInContext } from '../context';

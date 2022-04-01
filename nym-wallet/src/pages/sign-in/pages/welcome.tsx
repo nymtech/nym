@@ -2,13 +2,13 @@
 import React from 'react';
 import { Button, Stack } from '@mui/material';
 import { useHistory } from 'react-router';
-import { SubtitleSlick, Title, PageLayout } from '../components';
+import { SubtitleSlick, Title } from '../components';
 
 export const WelcomeContent: React.FC<{}> = () => {
   const history = useHistory();
 
   return (
-    <PageLayout>
+    <>
       <Title title="Welcome to NYM" />
       <SubtitleSlick subtitle="Next generation of privacy" />
       <Stack spacing={3} minWidth={300}>
@@ -31,6 +31,6 @@ export const WelcomeContent: React.FC<{}> = () => {
           Create account
         </Button>
       </Stack>
-    </PageLayout>
+    </>
   );
 };

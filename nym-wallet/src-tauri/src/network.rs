@@ -21,6 +21,10 @@ pub enum Network {
 }
 
 impl Network {
+  pub fn as_key(&self) -> String {
+    self.to_string().to_lowercase()
+  }
+
   pub fn denom(&self) -> Denom {
     match self {
       // network defaults should be correctly formatted

@@ -35,6 +35,16 @@ impl StoredWallet {
     self.accounts.len()
   }
 
+  pub fn remove_account(&mut self, id: &WalletAccountId) -> Option<EncryptedAccount> {
+    if let Some(index) = self.accounts.iter().position(|account| &account.id == id) {
+      log::info!("Removing from wallet file: {id}");
+      Some(self.accounts.remove(index))
+    } else {
+      log::debug!("Tried to remove non-existent id from wallet: {id}");
+      None
+    }
+  }
+
   pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
     self.accounts.get(index)
   }

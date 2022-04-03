@@ -215,7 +215,7 @@ mod test {
         ));
         assert!(!BandwidthVoucher::verify_against_plain(
             &voucher.get_public_attributes(),
-            &vec![],
+            &[],
         ));
         assert!(!BandwidthVoucher::verify_against_plain(
             &voucher.get_public_attributes(),

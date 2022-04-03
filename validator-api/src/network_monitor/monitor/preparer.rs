@@ -229,10 +229,19 @@ impl PacketPreparer {
     }
 
     async fn all_mixnodes_and_gateways(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
-        info!(target: "Monitor", "Obtaining network topology...");
+        info!(target: "Monitor", "Obtaining entire network topology...");
 
         let mixnodes = self.validator_cache.mixnodes_all().await;
         let gateways = self.validator_cache.gateways_all().await;
+
+        (mixnodes, gateways)
+    }
+
+    async fn mixnodes_and_gateways(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
+        info!(target: "Monitor", "Obtaining good network topology...");
+
+        let mixnodes = self.validator_cache.mixnodes().await;
+        let gateways = self.validator_cache.gateways().await;
 
         (mixnodes, gateways)
     }
@@ -266,7 +275,7 @@ impl PacketPreparer {
         n: usize,
         blacklist: &mut HashSet<String>,
     ) -> Option<Vec<TestRoute>> {
-        let (mixnodes, gateways) = self.all_mixnodes_and_gateways().await;
+        let (mixnodes, gateways) = self.mixnodes_and_gateways().await;
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
         for mix in mixnodes {

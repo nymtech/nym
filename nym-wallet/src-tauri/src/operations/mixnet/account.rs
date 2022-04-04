@@ -394,6 +394,14 @@ pub fn does_password_file_exist() -> Result<bool, BackendError> {
 }
 
 #[tauri::command]
+pub fn does_account_id_exist(id: String) -> Result<bool, BackendError> {
+  let wallet = wallet_storage::load_existing_wallet()?;
+  let id = wallet_storage::WalletAccountId::new(id);
+  Ok(wallet.account_id_exists(&id))
+}
+
+// Will be deprecated once we support multiple accounts.
+#[tauri::command]
 pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
   if does_password_file_exist()? {
     return Err(BackendError::WalletFileAlreadyExists);
@@ -409,6 +417,21 @@ pub fn create_password(mnemonic: String, password: String) -> Result<(), Backend
 }
 
 #[tauri::command]
+pub fn create_password_for_id(
+  id: String,
+  mnemonic: String,
+  password: String,
+) -> Result<(), BackendError> {
+  log::info!("Creating password for: {id}");
+  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  let id = wallet_storage::WalletAccountId::new(id);
+  let password = wallet_storage::UserPassword::new(password);
+  wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
+}
+
+// Deprecated as soon as we support multiple accounts
+#[tauri::command]
 pub async fn sign_in_with_password(
   password: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
@@ -423,8 +446,28 @@ pub async fn sign_in_with_password(
 }
 
 #[tauri::command]
+pub async fn sign_in_with_password_and_id(
+  id: String,
+  password: String,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  log::info!("Signing in with: {id}");
+  let id = wallet_storage::WalletAccountId::new(id);
+  let password = wallet_storage::UserPassword::new(password);
+  let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
+}
+
+#[tauri::command]
 pub fn remove_password() -> Result<(), BackendError> {
   log::info!("Removing password");
   let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  wallet_storage::remove_wallet_login_information(&id)
+}
+
+#[tauri::command]
+pub fn remove_password_for_id(id: String) -> Result<(), BackendError> {
+  log::info!("Removing password");
+  let id = wallet_storage::WalletAccountId::new(id);
   wallet_storage::remove_wallet_login_information(&id)
 }

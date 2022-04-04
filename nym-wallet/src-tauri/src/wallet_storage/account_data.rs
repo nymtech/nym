@@ -44,6 +44,14 @@ impl StoredWallet {
     }
   }
 
+  pub fn account_id_exists(&self, id: &WalletAccountId) -> bool {
+    self
+      .accounts
+      .iter()
+      .find(|account| &account.id == id)
+      .is_some()
+  }
+
   #[allow(unused)]
   pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
     self.accounts.get(index)

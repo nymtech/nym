@@ -49,7 +49,14 @@ export const SignInPassword = () => {
               Back
             </Button>
 
-            <Button color="info" onClick={() => history.push('/sign-in-mnemonic')} size="small">
+            <Button
+              color="info"
+              onClick={() => {
+                setError(undefined);
+                history.push('/sign-in-mnemonic');
+              }}
+              size="small"
+            >
               Forgotten password?
             </Button>
           </Box>

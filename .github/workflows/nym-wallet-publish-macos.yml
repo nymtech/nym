@@ -64,6 +64,8 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY_ID }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: yarn && yarn build
 
       - name: Upload to release based on tag name

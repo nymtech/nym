@@ -37,9 +37,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Install app dependencies and build it
-        run: yarn && yarn build
-
+      - name: Install app dependencies
+        run: yarn
+      - name: Build app
+        run: yarn build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         with:

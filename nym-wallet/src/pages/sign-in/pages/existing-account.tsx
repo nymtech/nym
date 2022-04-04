@@ -1,11 +1,23 @@
 /* eslint-disable react/no-unused-prop-types */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import { isPasswordCreated } from 'src/requests';
 import { SubtitleSlick, Title } from '../components';
 
 export const ExistingAccount = () => {
+  const [passwordExists, setPasswordExists] = useState(true);
   const history = useHistory();
+
+  const checkForPassword = async () => {
+    const hasPassword = await isPasswordCreated();
+    setPasswordExists(hasPassword);
+  };
+
+  useEffect(() => {
+    checkForPassword();
+  }, []);
+
   return (
     <>
       <Title title="Welcome to Nym" />
@@ -18,13 +30,15 @@ export const ExistingAccount = () => {
         <Button variant="contained" size="large" fullWidth onClick={() => history.push('/sign-in-password')}>
           Sign in with password
         </Button>
-        <Box display="flex" justifyContent="space-between">
-          <Button color="inherit" onClick={() => history.goBack()}>
+        <Box display="flex" justifyContent={passwordExists ? 'center' : 'space-between'}>
+          <Button color="inherit" onClick={() => history.push('/welcome')}>
             Back
           </Button>
-          <Button color="info" onClick={() => history.push('/confirm-mnemonic')}>
-            Create a password
-          </Button>
+          {!passwordExists && (
+            <Button color="info" onClick={() => history.push('/confirm-mnemonic')}>
+              Create a password
+            </Button>
+          )}
         </Box>
       </Stack>
     </>

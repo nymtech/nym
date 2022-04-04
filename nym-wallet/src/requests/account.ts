@@ -25,3 +25,8 @@ export const signInWithPassword = async (password: string): Promise<Account> => 
 export const signOut = async (): Promise<void> => {
   await invoke('logout');
 };
+
+export const isPasswordCreated = async (): Promise<boolean> => {
+  const res: boolean = await invoke('does_password_file_exist');
+  return res;
+};

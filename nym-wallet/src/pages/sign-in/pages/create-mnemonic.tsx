@@ -11,7 +11,9 @@ export const CreateMnemonic = () => {
   const history = useHistory();
 
   useEffect(() => {
-    generateMnemonic();
+    if (mnemonicWords.length === 0) {
+      generateMnemonic();
+    }
   }, []);
 
   const { copy, copied } = useClipboard({ copiedTimeout: 5000 });

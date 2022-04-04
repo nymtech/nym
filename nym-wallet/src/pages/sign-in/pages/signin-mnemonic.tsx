@@ -31,7 +31,7 @@ export const SignInMnemonic = () => {
             Sign in with mnemonic
           </Button>
           <Button
-            variant="outlined"
+            color="inherit"
             disableElevation
             size="large"
             onClick={() => {
@@ -39,7 +39,6 @@ export const SignInMnemonic = () => {
               history.push('/existing-account');
             }}
             fullWidth
-            sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
           >
             Back
           </Button>

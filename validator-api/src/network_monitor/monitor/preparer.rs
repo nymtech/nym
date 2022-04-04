@@ -239,9 +239,9 @@ impl PacketPreparer {
 
     pub(crate) fn try_parse_mix_bond(&self, mix: &MixNodeBond) -> Result<mix::Node, String> {
         let identity = mix.mix_node.identity_key.clone();
-        if !self.check_version_compatibility(&mix.mix_node.version) {
-            return Err(identity);
-        }
+        // if !self.check_version_compatibility(&mix.mix_node.version) {
+        //     return Err(identity);
+        // }
         mix.try_into().map_err(|_| identity)
     }
 
@@ -250,9 +250,9 @@ impl PacketPreparer {
         gateway: &GatewayBond,
     ) -> Result<gateway::Node, String> {
         let identity = gateway.gateway.identity_key.clone();
-        if !self.check_version_compatibility(&gateway.gateway.version) {
-            return Err(identity);
-        }
+        // if !self.check_version_compatibility(&gateway.gateway.version) {
+        //     return Err(identity);
+        // }
         gateway.try_into().map_err(|_| identity)
     }
 
@@ -271,18 +271,20 @@ impl PacketPreparer {
         let mut layered_mixes = HashMap::new();
         for mix in mixnodes {
             // filter out mixes on the blacklist
-            if blacklist.contains(&mix.mix_node.identity_key) {
-                continue;
-            }
+            // if blacklist.contains(&mix.mix_node.identity_key) {
+            //     debug!("Mixnode {} is blacklisted", mix.mix_node.identity_key);
+            //     continue;
+            // }
             let layer = mix.layer;
             let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
             mixes.push(mix)
         }
+
         // filter out gateways on the blacklist
-        let gateways = gateways
-            .into_iter()
-            .filter(|gateway| !blacklist.contains(&gateway.gateway.identity_key))
-            .collect::<Vec<_>>();
+        // let gateways = gateways
+        //     .into_iter()
+        //     .filter(|gateway| !blacklist.contains(&gateway.gateway.identity_key))
+        //     .collect::<Vec<_>>();
 
         // get all nodes from each layer...
         let l1 = layered_mixes.get(&Layer::One)?;
@@ -315,6 +317,7 @@ impl PacketPreparer {
             // it's impossible to generate a single route
             None
         } else {
+            trace!("Generating test routes...");
             let mut routes = Vec::new();
             for i in 0..most_available {
                 let node_1 = match self.try_parse_mix_bond(rand_l1[i]) {

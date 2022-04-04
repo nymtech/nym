@@ -1,5 +1,5 @@
 [workspace]
-members = ["bandwidth-claim", "coconut-bandwidth", "mixnet", "vesting"]
+members = ["bandwidth-claim", "coconut-bandwidth", "mixnet", "vesting", "multisig/cw3-flex-multisig", "multisig/cw4-group"]
 
 [profile.release]
 opt-level = 3

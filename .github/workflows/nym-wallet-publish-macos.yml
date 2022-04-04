@@ -69,7 +69,9 @@ jobs:
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         with:
-          files: nym-wallet/target/release/bundle/dmg/*.dmg
+          files: |
+            nym-wallet/target/release/bundle/dmg/*.dmg
+            nym-wallet/target/release/bundle/dmg/*.dmg.sig
 
       - name: Clean up keychain
         if: ${{ always() }}

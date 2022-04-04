@@ -2,26 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod error;
+mod state;
 mod support;
 mod transactions;
 
 use cosmwasm_std::{entry_point, DepsMut, Env, MessageInfo, Response};
 
 use crate::error::ContractError;
+use crate::state::{Config, ADMIN, CONFIG};
 use coconut_bandwidth_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
 
 /// Instantiate the contract.
 ///
 /// `deps` contains Storage, API and Querier
-/// `env` contains block, message and contract info
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    _deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
+    let pool_addr = deps.api.addr_validate(&msg.pool_addr)?;
+
+    ADMIN.set(deps.branch(), Some(multisig_addr.clone()))?;
+
+    let cfg = Config {
+        multisig_addr,
+        pool_addr,
+    };
+    CONFIG.save(deps.storage, &cfg)?;
+
     Ok(Response::default())
 }
 
@@ -35,6 +47,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::DepositFunds { data } => transactions::deposit_funds(deps, env, info, data),
+        ExecuteMsg::ReleaseFunds { funds } => transactions::release_funds(deps, env, info, funds),
     }
 }
 

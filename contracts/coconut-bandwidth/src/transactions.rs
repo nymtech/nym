@@ -1,9 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
+use crate::{ADMIN, CONFIG};
+
 use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
@@ -35,6 +37,25 @@ pub(crate) fn deposit_funds(
         .add_attribute(DEPOSIT_ENCRYPTION_KEY, data.encryption_key());
 
     Ok(Response::new().add_event(event))
+}
+
+pub(crate) fn release_funds(
+    deps: DepsMut<'_>,
+    _env: Env,
+    info: MessageInfo,
+    funds: Vec<Coin>,
+) -> Result<Response, ContractError> {
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+
+    let cfg = CONFIG.load(deps.storage)?;
+
+    let return_tokens = BankMsg::Send {
+        to_address: cfg.pool_addr.into(),
+        amount: funds,
+    };
+    let response = Response::new().add_message(return_tokens);
+
+    Ok(response)
 }
 
 #[cfg(test)]

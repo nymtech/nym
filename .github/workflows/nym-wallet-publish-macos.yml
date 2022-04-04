@@ -73,7 +73,7 @@ jobs:
         with:
           files: |
             nym-wallet/target/release/bundle/dmg/*.dmg
-            nym-wallet/target/release/bundle/dmg/*.dmg.sig
+            nym-wallet/target/release/bundle/dmg/*.dmg.tar.gz*
 
       - name: Clean up keychain
         if: ${{ always() }}

@@ -72,4 +72,4 @@ jobs:
         with:
           files: |
             nym-wallet/target/release/bundle/msi/*.msi
-            nym-wallet/target/release/bundle/msi/*.msi.sig
+            nym-wallet/target/release/bundle/msi/*.msi.zip*

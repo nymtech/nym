@@ -4,7 +4,7 @@
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
-use crate::{ADMIN, CONFIG};
+use crate::state::{ADMIN, CONFIG};
 
 use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::events::{

@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
-import { Button, Stack } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
 import { useHistory } from 'react-router-dom';
 import { SubtitleSlick, Title } from '../components';
 
@@ -30,6 +30,7 @@ export const WelcomeContent: React.FC<{}> = () => {
         >
           Create account
         </Button>
+        <Typography>This is a new version</Typography>
       </Stack>
     </>
   );

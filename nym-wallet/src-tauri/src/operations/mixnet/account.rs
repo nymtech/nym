@@ -172,8 +172,8 @@ pub async fn get_validator_nymd_urls(
   network: WalletNetwork,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<ValidatorUrls, BackendError> {
-  let config = state.read().await.config();
-  let urls: Vec<String> = config
+  let state = state.read().await;
+  let urls: Vec<String> = state
     .get_nymd_urls(network)
     .map(|url| url.to_string())
     .collect();
@@ -185,8 +185,8 @@ pub async fn get_validator_api_urls(
   network: WalletNetwork,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<ValidatorUrls, BackendError> {
-  let config = state.read().await.config();
-  let urls: Vec<String> = config
+  let state = state.read().await;
+  let urls: Vec<String> = state
     .get_api_urls(network)
     .map(|url| url.to_string())
     .collect();

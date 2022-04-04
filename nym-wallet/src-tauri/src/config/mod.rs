@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::network_config;
 use crate::platform_constants::{CONFIG_DIR_NAME, CONFIG_FILENAME};
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::all::Network;
@@ -302,6 +303,20 @@ impl TryFrom<ValidatorDetails> for ValidatorUrl {
   type Error = BackendError;
 
   fn try_from(validator: ValidatorDetails) -> Result<Self, Self::Error> {
+    Ok(ValidatorUrl {
+      nymd_url: validator.nymd_url.parse()?,
+      api_url: match &validator.api_url {
+        Some(url) => Some(url.parse()?),
+        None => None,
+      },
+    })
+  }
+}
+
+impl TryFrom<network_config::Validator> for ValidatorUrl {
+  type Error = BackendError;
+
+  fn try_from(validator: network_config::Validator) -> Result<Self, Self::Error> {
     Ok(ValidatorUrl {
       nymd_url: validator.nymd_url.parse()?,
       api_url: match &validator.api_url {

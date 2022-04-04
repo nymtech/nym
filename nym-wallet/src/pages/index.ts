@@ -9,3 +9,4 @@ export * from './welcome';
 export * from './settings';
 export * from './unbond';
 export * from './undelegate';
+export * from './validators';

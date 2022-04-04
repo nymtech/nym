@@ -6,8 +6,8 @@ import { validatorUrls } from '../../utils';
 
 type TValidatorUrl = string;
 
-export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validator: TValidatorUrl) => void }> = ({
-    onChangeValidatorSelection,
+export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validator: TValidatorUrl) => void, type: string }> = ({
+    onChangeValidatorSelection, type,
 }) => {
     const [validators, setValidators] = useState<string[] | null>();
     const [selectedValidator, setSelectedValidator] = useState<TValidatorUrl>('');
@@ -15,7 +15,7 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
     const resetState = () => {
         setValidators(undefined);
     };
-    
+
     const {
         network
     } = useContext(ClientContext);
@@ -29,6 +29,7 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
                 setValidators(validator?.urls);
             }
         })();
+        console.log('type', type);
 
         // will unmount
         return () => resetState();
@@ -40,7 +41,7 @@ export const ValidatorSelector: React.FC<{ onChangeValidatorSelection: (validato
 
     return (
         <FormControl fullWidth>
-            <InputLabel id="validatorSelect_label">Choose a Validator</InputLabel>
+            <InputLabel id="validatorSelect_label">{type}</InputLabel>
             <Select
                 labelId="validatorSelect_label"
                 id="validatorSelect"

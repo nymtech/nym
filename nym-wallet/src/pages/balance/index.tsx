@@ -19,9 +19,6 @@ export const Balance = () => {
         <BalanceCard />
         {userBalance.originalVesting && <VestingCard />}
       </Box>
-      <ValidatorSelector
-        onChangeValidatorSelection={(selectedValidator) => console.log('selectedValidator:', selectedValidator)}
-      />
     </PageLayout>
   );
 };

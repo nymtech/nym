@@ -1,20 +1,43 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Alert, Box, Dialog } from '@mui/material';
+import { Button, Box, Dialog, CircularProgress } from '@mui/material';
+import { Tabs } from '../settings/tabs';
 import { NymCard } from '../../components';
 import { ClientContext } from '../../context/main';
 import { ValidatorSelector } from './ValidatorSelector';
 import { Delegate as DelegateIcon } from '../../svg-icons';
+import { Console } from '../../utils/console';
+
+const tabs = ['Validators', 'APIs'];
 
 export const ValidatorSettings = () => {
+    const [selectedTab, setSelectedTab] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [data, setData] = useState({});
 
-    const { mixnodeDetails, showValidatorSettings, getBondDetails, handleShowSettings } = useContext(ClientContext);
+    const { showValidatorSettings, getBondDetails, handleShowValidatorSettings } = useContext(ClientContext);
+
+    const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab);
 
     useEffect(() => {
         getBondDetails();
     }, [showValidatorSettings]);
 
+    const onDataChanged = (selectedValidator?: string, selectedAPI?: string) => {
+        if (selectedValidator) {
+            setData(selectedValidator);
+        };
+        if (selectedAPI) {
+            setData(selectedAPI);
+        };
+        console.log('selectedValidator:', selectedValidator, 'selectedAPI', selectedAPI);
+    }
+
+    const handleSubmit = (data: {}) => {
+        console.log('data', data);
+    }
+
     return showValidatorSettings ? (
-        <Dialog open onClose={handleShowSettings} maxWidth="md" fullWidth>
+        <Dialog open onClose={handleShowValidatorSettings} maxWidth="md" fullWidth>
             <NymCard
                 title={
                     <Box display="flex" alignItems="center">
@@ -22,10 +45,51 @@ export const ValidatorSettings = () => {
                         Settings
                     </Box>
                 }
+                noPadding
             >
-                <ValidatorSelector
-                    onChangeValidatorSelection={(selectedValidator) => console.log('selectedValidator:', selectedValidator)}
-                />
+                <>
+                    <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={false} />
+                    {selectedTab === 0 &&
+                        <ValidatorSelector
+                            type={tabs[selectedTab]}
+                            onChangeValidatorSelection={(selectedValidator) => onDataChanged(selectedValidator)}
+                        />
+                    }
+                    {selectedTab === 1 &&
+                        <ValidatorSelector
+                            type={tabs[selectedTab]} onChangeValidatorSelection={(selectedAPI) => onDataChanged(selectedAPI)}
+                        />
+                    }
+                </>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                    }}
+                >
+                    <Button
+                        size="large"
+                        variant="contained"
+                        data-testid="validatorsSettings-button"
+                        color="primary"
+                        disableElevation
+                        onClick={async () => {
+                            setIsSubmitting(true);
+                            try {
+                                console.log('hello')
+                            } catch (e) {
+                                Console.error(e as string);
+                            } finally {
+                                setIsSubmitting(false);
+                            }
+                        }}
+                        disabled={isSubmitting}
+                        endIcon={isSubmitting && <CircularProgress size={20} />}
+                    >
+                        Save Changes
+                    </Button>
+                </Box>
             </NymCard>
         </Dialog>
     ) : null;

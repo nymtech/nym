@@ -8,7 +8,7 @@ import { Delegate as DelegateIcon } from '../svg-icons';
 
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings, handleShowValidatorSettings } = useContext(ClientContext);
+  const { showSettings, showValidatorSettings, logOut, handleShowSettings, handleShowValidatorSettings } = useContext(ClientContext);
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
@@ -21,7 +21,7 @@ export const AppBar = () => {
             <Grid item>
               <IconButton
                 onClick={handleShowValidatorSettings}
-                sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
+                sx={{ color: showValidatorSettings ? 'primary.main' : 'nym.background.dark' }}
                 size="small"
               >
                 <DelegateIcon fontSize="small" />

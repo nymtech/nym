@@ -119,8 +119,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
-  const handleShowSettings = () => setShowSettings((show) => !show);
-  const handleShowValidatorSettings = () => setShowValidatorSettings((show) => !show);
+  const handleShowSettings = () => {
+    setShowSettings((show) => !show)
+    setShowValidatorSettings(false);
+  };
+  const handleShowValidatorSettings = () => {
+    setShowValidatorSettings((show) => !show)
+    setShowSettings(false);
+  };
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
   const memoizedValue = useMemo(

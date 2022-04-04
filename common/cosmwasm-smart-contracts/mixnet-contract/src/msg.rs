@@ -15,6 +15,9 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    UpdateRewardingValidatorAddress {
+        address: String,
+    },
     InitEpoch {},
     ReconcileDelegations {},
     CheckpointMixnodes {},
@@ -101,6 +104,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetRewardingValidatorAddress {},
     GetAllDelegationKeys {},
     DebugGetAllDelegationValues {},
     GetContractVersion {},

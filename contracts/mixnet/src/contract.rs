@@ -18,9 +18,10 @@ use crate::interval::queries::{
 use crate::interval::transactions::{init_epoch, try_init_epoch};
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
-    query_contract_settings_params, query_contract_version,
+    query_contract_settings_params, query_contract_version, query_rewarding_validator_address,
 };
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
@@ -96,6 +97,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+            try_update_rewarding_validator_address(deps, info, address)
+        }
         ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
         ExecuteMsg::BondMixnode {
             mix_node,
@@ -276,6 +280,9 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
+        QueryMsg::GetRewardingValidatorAddress {} => {
+            to_binary(&query_rewarding_validator_address(deps)?)
+        }
         QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
             to_binary(&query_mixnodes_paged(deps, start_after, limit)?)

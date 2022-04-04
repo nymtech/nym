@@ -11,6 +11,12 @@ pub(crate) fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<Contra
         .map(|settings| settings.params)
 }
 
+pub fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<String> {
+    storage::CONTRACT_STATE
+        .load(deps.storage)
+        .map(|settings| settings.rewarding_validator_address.to_string())
+}
+
 pub(crate) fn query_contract_version() -> MixnetContractVersion {
     // as per docs
     // env! macro will expand to the value of the named environment variable at

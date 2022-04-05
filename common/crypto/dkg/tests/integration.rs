@@ -124,7 +124,8 @@ fn full_threshold_secret_sharing() {
 
         // we know dealer_share matches, but it would be inconvenient to try to put them in here,
         // so for ease of use (IN A TEST SETTING), just decrypt one's own share
-        derived_secrets.push(combine_shares(shares))
+        derived_secrets
+            .push(combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap())
     }
 
     // sanity check that the shares were combined correctly and if we take threshold number of them,

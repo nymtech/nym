@@ -3,6 +3,8 @@
 
 use crate::bte::{CHUNK_BYTES, NUM_CHUNKS, SCALAR_SIZE};
 use crate::error::DkgError;
+use crate::interpolation::perform_lagrangian_interpolation_at_origin;
+use crate::NodeIndex;
 use bls12_381::Scalar;
 use zeroize::Zeroize;
 
@@ -14,8 +16,21 @@ pub type Chunk = u16;
 #[zeroize(drop)]
 pub struct Share(pub(crate) Scalar);
 
-pub fn combine_shares(shares: Vec<Share>) -> Scalar {
-    shares.into_iter().map(|share| share.0).sum()
+pub fn combine_shares(shares: Vec<Share>, node_indices: &[NodeIndex]) -> Result<Scalar, DkgError> {
+    if shares.len() != node_indices.len() {
+        return Err(DkgError::MismatchedLagrangianSamplesLengths {
+            x: node_indices.len(),
+            y: shares.len(),
+        });
+    }
+
+    let samples = shares
+        .into_iter()
+        .zip(node_indices.iter())
+        .map(|(share, index)| (Scalar::from(*index), share.0))
+        .collect::<Vec<_>>();
+
+    perform_lagrangian_interpolation_at_origin(&samples)
 }
 
 impl Share {

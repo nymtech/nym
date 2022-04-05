@@ -41,17 +41,24 @@ pub(crate) fn deposit_funds(
 
 pub(crate) fn release_funds(
     deps: DepsMut<'_>,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
-    funds: Vec<Coin>,
+    funds: Coin,
 ) -> Result<Response, ContractError> {
+    if funds.denom != DENOM {
+        return Err(ContractError::WrongDenom);
+    }
+    let current_balance = deps.querier.query_balance(env.contract.address, DENOM)?;
+    if funds.amount > current_balance.amount {
+        return Err(ContractError::NotEnoughFunds);
+    }
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     let cfg = CONFIG.load(deps.storage)?;
 
     let return_tokens = BankMsg::Send {
         to_address: cfg.pool_addr.into(),
-        amount: funds,
+        amount: vec![funds],
     };
     let response = Response::new().add_message(return_tokens);
 
@@ -63,7 +70,8 @@ mod tests {
     use super::*;
     use crate::support::tests::helpers;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Coin;
+    use cosmwasm_std::{Coin, CosmosMsg};
+    use cw_controllers::AdminError;
 
     #[test]
     fn invalid_deposit() {
@@ -153,5 +161,50 @@ mod tests {
             .find(|attr| attr.key == DEPOSIT_ENCRYPTION_KEY)
             .unwrap();
         assert_eq!(encryption_key_attr.value, encryption_key);
+    }
+
+    #[test]
+    fn invalid_release() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let invalid_admin = "invalid admin";
+        let funds = Coin::new(1, DENOM);
+
+        let err = release_funds(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(invalid_admin, &[]),
+            funds.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+
+        let err =
+            release_funds(deps.as_mut(), env, mock_info(invalid_admin, &[]), funds).unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+    }
+
+    #[test]
+    fn valid_release() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let valid_admin = "Multisig contract address";
+        let pool_addr = "Mix pool contract address";
+        let coin = Coin::new(1, DENOM);
+
+        let res = release_funds(
+            deps.as_mut(),
+            env,
+            mock_info(valid_admin, &[]),
+            coin.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            res.messages[0].msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: String::from(pool_addr),
+                amount: vec![coin]
+            })
+        );
     }
 }

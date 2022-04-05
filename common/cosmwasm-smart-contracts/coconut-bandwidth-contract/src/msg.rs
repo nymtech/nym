@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     DepositFunds { data: DepositData },
-    ReleaseFunds { funds: Vec<Coin> },
+    ReleaseFunds { funds: Coin },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

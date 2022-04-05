@@ -1,20 +1,58 @@
-import React, { useContext } from 'react';
-import { Box, Typography } from '@mui/material';
+import React, { FC, useContext } from 'react';
+import { Box, Typography, Tooltip } from '@mui/material';
 import { ClientContext } from '../context/main';
 import { CopyToClipboard } from './CopyToClipboard';
 import { splice } from '../utils';
 
-export const ClientAddress = ({ withCopy }: { withCopy?: boolean }) => {
-  const { clientDetails } = useContext(ClientContext);
+const AddressTooltip: FC<{ visible?: boolean; address?: string; children: React.ReactElement<any, any> }> = ({
+  visible,
+  address,
+  children,
+}) => {
+  if (!visible) {
+    return children;
+  }
+  if (!address) {
+    return children;
+  }
   return (
-    <Box>
-      <Typography variant="body2" component="span" sx={{ color: 'grey.600' }}>
-        Address:
-      </Typography>{' '}
-      <Typography variant="body2" component="span" color="nym.background.dark" sx={{ mr: 1 }}>
-        {splice(4, 35, clientDetails?.client_address)}
-      </Typography>
-      {withCopy && <CopyToClipboard text={clientDetails?.client_address} iconButton />}
-    </Box>
+    <Tooltip title={address} arrow>
+      {children}
+    </Tooltip>
   );
+};
+
+type ClientAddressProps = {
+  withLabel?: boolean;
+  withCopy?: boolean;
+  showEntireAddress?: boolean;
+};
+
+export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }> = ({
+  withLabel,
+  withCopy,
+  showEntireAddress,
+  address,
+}) => (
+  <Box>
+    {withLabel && (
+      <>
+        <Typography variant="body2" component="span" sx={{ color: 'grey.600' }}>
+          Address:
+        </Typography>{' '}
+      </>
+    )}
+
+    <AddressTooltip address={address} visible={!showEntireAddress}>
+      <Typography variant="body2" component="span" color="nym.background.dark" sx={{ mr: 1 }}>
+        {showEntireAddress ? address || '' : splice(6, address)}
+      </Typography>
+    </AddressTooltip>
+    {withCopy && <CopyToClipboard text={address} iconButton />}
+  </Box>
+);
+
+export const ClientAddress: FC<ClientAddressProps> = ({ ...props }) => {
+  const { clientDetails } = useContext(ClientContext);
+  return <ClientAddressDisplay {...props} address={clientDetails?.client_address} />;
 };

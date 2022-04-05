@@ -71,6 +71,8 @@ fn main() {
       network_config::select_validator_api_url,
       network_config::select_validator_nymd_url,
       network_config::update_validator_urls,
+      state::load_config_from_files,
+      state::save_config_to_files,
       utils::major_to_minor,
       utils::minor_to_major,
       utils::outdated_get_approximate_fee,

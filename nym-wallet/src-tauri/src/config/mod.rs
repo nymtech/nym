@@ -48,7 +48,8 @@ pub struct NetworkConfig {
   selected_nymd_url: Option<Url>,
   selected_api_url: Option<Url>,
 
-  // Additional user provided validators
+  // Additional user provided validators.
+  // It is an option for the purpuse of file serialization.
   validator_urls: Option<Vec<ValidatorUrl>>,
 }
 
@@ -260,11 +261,11 @@ impl Config {
   }
 
   pub fn add_validator_url(&mut self, url: ValidatorUrl, network: WalletNetwork) {
-    if let Some(net) = self.networks.get_mut(&network.as_key()) {
-      if let Some(ref mut urls) = net.validator_urls {
+    if let Some(network_config) = self.networks.get_mut(&network.as_key()) {
+      if let Some(ref mut urls) = network_config.validator_urls {
         urls.push(url);
       } else {
-        net.validator_urls = Some(vec![url]);
+        network_config.validator_urls = Some(vec![url]);
       }
     } else {
       self.networks.insert(
@@ -277,9 +278,13 @@ impl Config {
     }
   }
 
-  #[allow(unused)]
-  pub fn remove_validator_url(&mut self, _url: ValidatorUrl, _network: WalletNetwork) {
-    todo!();
+  pub fn remove_validator_url(&mut self, url: ValidatorUrl, network: WalletNetwork) {
+    if let Some(network_config) = self.networks.get_mut(&network.as_key()) {
+      if let Some(ref mut urls) = network_config.validator_urls {
+        // Removes duplicates too if there are any
+        urls.retain(|existing_url| existing_url != &url);
+      }
+    }
   }
 }
 

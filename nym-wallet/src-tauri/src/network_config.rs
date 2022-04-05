@@ -6,7 +6,7 @@ use crate::network::Network as WalletNetwork;
 use crate::state::State;
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -18,10 +18,22 @@ pub struct ValidatorUrls {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Validator {
   pub nymd_url: String,
   pub api_url: Option<String>,
+}
+
+impl fmt::Display for Validator {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let nymd_url = format!("nymd_url: {}", self.nymd_url);
+    let api_url = self
+      .api_url
+      .as_ref()
+      .map(|api_url| format!(", api_url: {}", api_url))
+      .unwrap_or_default();
+    write!(f, "{nymd_url}{api_url}")
+  }
 }
 
 #[tauri::command]
@@ -56,6 +68,7 @@ pub async fn select_validator_nymd_url(
   network: WalletNetwork,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  log::debug!("Selecting new validator nymd_url for {network}: {url}");
   state
     .write()
     .await
@@ -69,6 +82,7 @@ pub async fn select_validator_api_url(
   network: WalletNetwork,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  log::debug!("Selecting new validator api_url for {network}: {url}");
   state.write().await.select_validator_api_url(url, network)?;
   Ok(())
 }
@@ -79,6 +93,7 @@ pub async fn add_validator(
   network: WalletNetwork,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  log::debug!("Add validator for {network}: {validator}");
   let url = validator.try_into()?;
   state.write().await.add_validator_url(url, network);
   Ok(())
@@ -90,6 +105,7 @@ pub async fn remove_validator(
   network: WalletNetwork,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+  log::debug!("Remove validator for {network}: {validator}");
   let url = validator.try_into()?;
   state.write().await.remove_validator_url(url, network);
   Ok(())

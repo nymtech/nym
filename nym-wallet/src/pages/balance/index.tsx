@@ -4,7 +4,6 @@ import { BalanceCard } from './balance';
 import { VestingCard } from './vesting';
 import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
-import { ValidatorSelector } from '../validators/ValidatorSelector';
 
 export const Balance = () => {
   const { userBalance } = useContext(ClientContext);

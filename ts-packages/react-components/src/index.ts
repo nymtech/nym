@@ -1,3 +1,3 @@
 export * from './components';
 export * from './hooks';
-export { Playground } from './playground';
+export { Playground } from './playground/Playground';

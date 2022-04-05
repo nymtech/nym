@@ -188,8 +188,8 @@ impl PacketPreparer {
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
         loop {
-            let gateways = self.validator_cache.gateways().await;
-            let mixnodes = self.validator_cache.rewarded_set().await;
+            let gateways = self.validator_cache.gateways_all().await;
+            let mixnodes = self.validator_cache.mixnodes_all().await;
 
             if gateways.len() < minimum_full_routes {
                 info!(
@@ -201,7 +201,7 @@ impl PacketPreparer {
             }
 
             let mut layered_mixes = HashMap::new();
-            for mix in mixnodes.into_inner() {
+            for mix in mixnodes {
                 let layer = mix.layer;
                 let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
                 mixes.push(mix)

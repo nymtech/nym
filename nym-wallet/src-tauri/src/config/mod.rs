@@ -19,6 +19,9 @@ use url::Url;
 pub const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
   "https://nymtech.net/.wellknown/wallet/validators.json";
 
+const CURRENT_GLOBAL_CONFIG_VERSION: u32 = 1;
+const CURRENT_NETWORK_CONFIG_VERSION: u32 = 1;
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
   // Base configuration is not part of the configuration file as it's not intended to be changed.
@@ -37,13 +40,16 @@ struct Base {
   networks: SupportedNetworks,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct GlobalConfig {
+  version: u32,
   // TODO: there are no global settings (yet)
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct NetworkConfig {
+  version: u32,
+
   // User selected urls
   selected_nymd_url: Option<Url>,
   selected_api_url: Option<Url>,
@@ -53,18 +59,37 @@ pub struct NetworkConfig {
   validator_urls: Option<Vec<ValidatorUrl>>,
 }
 
-impl NetworkConfig {
-  fn validators(&self) -> impl Iterator<Item = &ValidatorUrl> {
-    self.validator_urls.iter().flat_map(|v| v.iter())
-  }
-}
-
 impl Default for Base {
   fn default() -> Self {
     let networks = WalletNetwork::iter().map(Into::into).collect();
     Base {
       networks: SupportedNetworks::new(networks),
     }
+  }
+}
+
+impl Default for GlobalConfig {
+  fn default() -> Self {
+    Self {
+      version: CURRENT_GLOBAL_CONFIG_VERSION,
+    }
+  }
+}
+
+impl Default for NetworkConfig {
+  fn default() -> Self {
+    Self {
+      version: CURRENT_NETWORK_CONFIG_VERSION,
+      selected_nymd_url: None,
+      selected_api_url: None,
+      validator_urls: None,
+    }
+  }
+}
+
+impl NetworkConfig {
+  fn validators(&self) -> impl Iterator<Item = &ValidatorUrl> {
+    self.validator_urls.iter().flat_map(|v| v.iter())
   }
 }
 
@@ -409,6 +434,7 @@ mod tests {
           api_url: Some("https://baz/api".parse().unwrap()),
         },
       ]),
+      ..NetworkConfig::default()
     };
 
     Config {
@@ -426,7 +452,8 @@ mod tests {
     let netconfig = &config.networks[&WalletNetwork::MAINNET.as_key()];
     assert_eq!(
       toml::to_string_pretty(netconfig).unwrap(),
-      r#"selected_api_url = 'https://my_api_url.com/'
+      r#"version = 1
+selected_api_url = 'https://my_api_url.com/'
 
 [[validator_urls]]
 nymd_url = 'https://foo/'

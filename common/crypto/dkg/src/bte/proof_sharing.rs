@@ -52,7 +52,7 @@ impl<'a> Instance<'a> {
         for pk in self.public_keys.values() {
             bytes.extend_from_slice(pk.0.to_bytes().as_ref())
         }
-        for coeff in &self.public_coefficients.0 {
+        for coeff in self.public_coefficients.inner() {
             bytes.extend_from_slice(coeff.to_bytes().as_ref())
         }
         bytes.extend_from_slice(self.combined_randomizer.to_bytes().as_ref());
@@ -172,9 +172,12 @@ impl ProofOfSecretSharing {
         // (A_0 ^ (id1^0 • x^1 + ... idn^0 • x^n) • ... A_{t-1} ^ (id1^{t-1} • x^{t-1} + ... idn^{t-1} • x^n))^challenge * A
         // ==
         // g2^response_alpha
-        let product = instance.public_coefficients.0.iter().enumerate().fold(
-            G2Projective::identity(),
-            |mut acc, (k, coeff)| {
+        let product = instance
+            .public_coefficients
+            .inner()
+            .iter()
+            .enumerate()
+            .fold(G2Projective::identity(), |mut acc, (k, coeff)| {
                 // intermediate (id1^k • x^1 + ... + idn^k • x^n) sum
                 let sum: Scalar = instance
                     .public_keys
@@ -188,8 +191,7 @@ impl ProofOfSecretSharing {
 
                 acc += coeff * sum;
                 acc
-            },
-        );
+            });
 
         if product * challenge + self.a != g2 * self.response_alpha {
             return false;
@@ -275,7 +277,7 @@ mod tests {
         node_indices.sort_unstable();
 
         for node_index in node_indices {
-            let share = polynomial.evaluate(&Scalar::from(node_index));
+            let share = polynomial.evaluate_at(&Scalar::from(node_index));
             shares.push(share.into());
             pks.insert(node_index, PublicKey(g1 * Scalar::random(&mut rng)));
         }
@@ -305,7 +307,7 @@ mod tests {
         let mut shares: Vec<Share> = Vec::new();
         for _ in 0..NODES {
             let node_index = rng.next_u64();
-            let share = polynomial.evaluate(&Scalar::from(node_index));
+            let share = polynomial.evaluate_at(&Scalar::from(node_index));
             shares.push(share.into());
             pks.insert(node_index, PublicKey(g1 * Scalar::random(&mut rng)));
         }
@@ -315,7 +317,7 @@ mod tests {
 
         let mut shares = Vec::new();
         for node_id in 1..NODES + 1 {
-            let share = polynomial.evaluate(&Scalar::from(node_id));
+            let share = polynomial.evaluate_at(&Scalar::from(node_id));
             shares.push(share);
         }
 
@@ -337,7 +339,9 @@ mod tests {
         // no public coefficients
         let bad_instance2 = Instance {
             public_keys: &pks,
-            public_coefficients: &PublicCoefficients(Vec::new()),
+            public_coefficients: &PublicCoefficients {
+                coefficients: Vec::new(),
+            },
             combined_randomizer: &rr,
             combined_ciphertexts: &ciphertexts,
         };
@@ -435,7 +439,9 @@ mod tests {
         // no public coefficients
         let bad_instance2 = Instance {
             public_keys: &public_keys,
-            public_coefficients: &PublicCoefficients(Vec::new()),
+            public_coefficients: &PublicCoefficients {
+                coefficients: Vec::new(),
+            },
             combined_randomizer: &rr,
             combined_ciphertexts: &ciphertexts,
         };

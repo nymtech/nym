@@ -74,6 +74,20 @@ pub enum DkgError {
 
     #[error("Failed to deserialize {name} - {reason}")]
     DeserializationFailure { name: String, reason: String },
+
+    #[error("No dealings were provided")]
+    NoDealingsAvailable,
+
+    #[error("Provided dealings were created under different parameters")]
+    MismatchedDealings,
+
+    #[error(
+        "Not enough dealings are available. We have {available} while require at least {required}"
+    )]
+    NotEnoughDealingsAvailable { available: usize, required: usize },
+
+    #[error("Received different number of x and y coordinates for lagrangian interpolation (xs: {x}, ys: {y})")]
+    MismatchedLagrangianSamplesLengths { x: usize, y: usize },
 }
 
 impl DkgError {

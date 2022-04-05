@@ -267,7 +267,7 @@ pub fn creating_proof_of_chunking_for_100_parties(c: &mut Criterion) {
     let polynomial = Polynomial::new_random(&mut rng, 67);
     let shares = receivers
         .keys()
-        .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
+        .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
     let remote_share_key_pairs = shares
@@ -302,7 +302,7 @@ pub fn verifying_proof_of_chunking_for_100_parties(c: &mut Criterion) {
     let polynomial = Polynomial::new_random(&mut rng, 67);
     let shares = receivers
         .keys()
-        .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
+        .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
     let remote_share_key_pairs = shares
@@ -339,7 +339,7 @@ pub fn creating_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     let polynomial = Polynomial::new_random(&mut rng, 67);
     let shares = receivers
         .keys()
-        .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
+        .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
     let remote_share_key_pairs = shares
@@ -382,7 +382,7 @@ pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     let polynomial = Polynomial::new_random(&mut rng, 67);
     let shares = receivers
         .keys()
-        .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
+        .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
     let remote_share_key_pairs = shares
@@ -428,7 +428,7 @@ pub fn single_share_encryption(c: &mut Criterion) {
     let (_, pk) = keygen(&params, &mut rng);
 
     let polynomial = Polynomial::new_random(&mut rng, 3);
-    let share: Share = polynomial.evaluate(&Scalar::from(42)).into();
+    let share: Share = polynomial.evaluate_at(&Scalar::from(42)).into();
 
     c.bench_function("single share encryption", |b| {
         b.iter(|| {
@@ -452,7 +452,7 @@ pub fn share_encryption_100(c: &mut Criterion) {
     let polynomial = Polynomial::new_random(&mut rng, 3);
     let shares = receivers
         .keys()
-        .map(|&node_index| polynomial.evaluate(&Scalar::from(node_index)).into())
+        .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
     let remote_share_key_pairs = shares
@@ -481,7 +481,7 @@ pub fn share_decryption(c: &mut Criterion) {
     let (mut dk, pk) = keygen(&params, &mut rng);
 
     let polynomial = Polynomial::new_random(&mut rng, 3);
-    let share: Share = polynomial.evaluate(&Scalar::from(42)).into();
+    let share: Share = polynomial.evaluate_at(&Scalar::from(42)).into();
     let (ciphertexts, _) = encrypt_shares(&[(&share, pk.public_key())], epoch, &params, &mut rng);
     dk.try_update_to(epoch, &params, &mut rng).unwrap();
 

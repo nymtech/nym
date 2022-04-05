@@ -53,14 +53,22 @@ mod tests {
         // note: master polynomial is NEVER explicitly computed
         let expected_master = &p1 + &p2 + &p3 + &p4;
 
-        let v1_secret =
-            p1.evaluate(&one) + p2.evaluate(&one) + p3.evaluate(&one) + p4.evaluate(&one);
-        let v2_secret =
-            p1.evaluate(&two) + p2.evaluate(&two) + p3.evaluate(&two) + p4.evaluate(&two);
-        let v3_secret =
-            p1.evaluate(&three) + p2.evaluate(&three) + p3.evaluate(&three) + p4.evaluate(&three);
-        let v4_secret =
-            p1.evaluate(&four) + p2.evaluate(&four) + p3.evaluate(&four) + p4.evaluate(&four);
+        let v1_secret = p1.evaluate_at(&one)
+            + p2.evaluate_at(&one)
+            + p3.evaluate_at(&one)
+            + p4.evaluate_at(&one);
+        let v2_secret = p1.evaluate_at(&two)
+            + p2.evaluate_at(&two)
+            + p3.evaluate_at(&two)
+            + p4.evaluate_at(&two);
+        let v3_secret = p1.evaluate_at(&three)
+            + p2.evaluate_at(&three)
+            + p3.evaluate_at(&three)
+            + p4.evaluate_at(&three);
+        let v4_secret = p1.evaluate_at(&four)
+            + p2.evaluate_at(&four)
+            + p3.evaluate_at(&four)
+            + p4.evaluate_at(&four);
 
         // note that the following would have never happened in actual dkg setting, but it's
         // used here mostly for a sanity check on the maths used
@@ -72,11 +80,11 @@ mod tests {
         ];
         let master_secret = perform_lagrangian_interpolation_at_origin(&samples).unwrap();
 
-        assert_eq!(expected_master.evaluate(&zero), master_secret);
-        assert_eq!(expected_master.evaluate(&one), v1_secret);
-        assert_eq!(expected_master.evaluate(&two), v2_secret);
-        assert_eq!(expected_master.evaluate(&three), v3_secret);
-        assert_eq!(expected_master.evaluate(&four), v4_secret);
+        assert_eq!(expected_master.evaluate_at(&zero), master_secret);
+        assert_eq!(expected_master.evaluate_at(&one), v1_secret);
+        assert_eq!(expected_master.evaluate_at(&two), v2_secret);
+        assert_eq!(expected_master.evaluate_at(&three), v3_secret);
+        assert_eq!(expected_master.evaluate_at(&four), v4_secret);
 
         // since we have 4 parties, but polynomials used are of degree 2, we only need at least 3
         // issuers to contribute

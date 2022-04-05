@@ -7,17 +7,44 @@ use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};
 use zeroize::Zeroize;
 
-// it only exists for the ease of serialization
 #[derive(Clone, Debug)]
-pub struct PublicCoefficients(pub(crate) Vec<G2Projective>);
+pub struct PublicCoefficients {
+    pub(crate) coefficients: Vec<G2Projective>,
+}
 
 impl PublicCoefficients {
     pub(crate) fn size(&self) -> usize {
-        self.0.len()
+        self.coefficients.len()
+    }
+
+    pub(crate) fn nth(&self, n: usize) -> &G2Projective {
+        &self.coefficients[n]
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.coefficients.is_empty()
+    }
+
+    pub(crate) fn inner(&self) -> &[G2Projective] {
+        &self.coefficients
+    }
+
+    pub(crate) fn evaluate_at(&self, x: &Scalar) -> G2Projective {
+        if self.coefficients.is_empty() {
+            G2Projective::identity()
+            // if x is zero then we can ignore most of the expensive computation and
+            // just return the last term of the polynomial
+        } else if x.is_zero().into() {
+            // we checked that coefficients are not empty so unwrap here is fine
+            *self.coefficients.first().unwrap()
+        } else {
+            self.coefficients
+                .iter()
+                .enumerate()
+                // coefficient[n] * x ^ n
+                .map(|(i, coefficient)| coefficient * x.pow(&[i as u64, 0, 0, 0]))
+                .sum()
+        }
     }
 }
 
@@ -52,11 +79,13 @@ impl Polynomial {
     /// Returns public coefficients associated with this polynomial.
     pub fn public_coefficients(&self) -> PublicCoefficients {
         let g2 = G2Projective::generator();
-        PublicCoefficients(self.coefficients.iter().map(|a_i| g2 * a_i).collect())
+        let coefficients = self.coefficients.iter().map(|a_i| g2 * a_i).collect();
+
+        PublicCoefficients { coefficients }
     }
 
     /// Evaluates the polynomial at point x.
-    pub fn evaluate(&self, x: &Scalar) -> Scalar {
+    pub fn evaluate_at(&self, x: &Scalar) -> Scalar {
         if self.coefficients.is_empty() {
             Scalar::zero()
             // if x is zero then we can ignore most of the expensive computation and
@@ -74,8 +103,6 @@ impl Polynomial {
         }
     }
 }
-
-// PURGE ENDS HERE
 
 impl Index<usize> for Polynomial {
     type Output = Scalar;
@@ -153,16 +180,16 @@ mod tests {
             coefficients: vec![Scalar::from(42)],
         };
 
-        assert_eq!(Scalar::from(42), poly.evaluate(&Scalar::from(1)));
-        assert_eq!(Scalar::from(42), poly.evaluate(&Scalar::from(0)));
-        assert_eq!(Scalar::from(42), poly.evaluate(&Scalar::from(10)));
+        assert_eq!(Scalar::from(42), poly.evaluate_at(&Scalar::from(1)));
+        assert_eq!(Scalar::from(42), poly.evaluate_at(&Scalar::from(0)));
+        assert_eq!(Scalar::from(42), poly.evaluate_at(&Scalar::from(10)));
 
         // y = x + 10, at x = 2 (exp: 12)
         let poly = Polynomial {
             coefficients: vec![Scalar::from(10), Scalar::from(1)],
         };
 
-        assert_eq!(Scalar::from(12), poly.evaluate(&Scalar::from(2)));
+        assert_eq!(Scalar::from(12), poly.evaluate_at(&Scalar::from(2)));
 
         // y = x^4 - 5x^2 + 2x - 3, at x = 3 (exp: 39)
         let poly = Polynomial {
@@ -175,15 +202,15 @@ mod tests {
             ],
         };
 
-        assert_eq!(Scalar::from(39), poly.evaluate(&Scalar::from(3)));
+        assert_eq!(Scalar::from(39), poly.evaluate_at(&Scalar::from(3)));
 
         // empty polynomial
         let poly = Polynomial::zero();
 
         // should always be 0
-        assert_eq!(Scalar::from(0), poly.evaluate(&Scalar::from(1)));
-        assert_eq!(Scalar::from(0), poly.evaluate(&Scalar::from(0)));
-        assert_eq!(Scalar::from(0), poly.evaluate(&Scalar::from(10)));
+        assert_eq!(Scalar::from(0), poly.evaluate_at(&Scalar::from(1)));
+        assert_eq!(Scalar::from(0), poly.evaluate_at(&Scalar::from(0)));
+        assert_eq!(Scalar::from(0), poly.evaluate_at(&Scalar::from(10)));
     }
 
     #[test]
@@ -203,5 +230,60 @@ mod tests {
         assert_eq!(p1, empty + &p1);
         assert_eq!(expected_sum, &p1 + &p2);
         assert_eq!(expected_sum, &p2 + &p1);
+    }
+
+    #[test]
+    fn public_coefficients_evaluation() {
+        // we use the same values as in polynomial evaluation test
+
+        let g2 = G2Projective::generator();
+
+        // y = 42 (it should be 42 regardless of x)
+        let coeffs = PublicCoefficients {
+            coefficients: vec![g2 * Scalar::from(42)],
+        };
+
+        assert_eq!(g2 * Scalar::from(42), coeffs.evaluate_at(&Scalar::from(1)));
+        assert_eq!(g2 * Scalar::from(42), coeffs.evaluate_at(&Scalar::from(0)));
+        assert_eq!(g2 * Scalar::from(42), coeffs.evaluate_at(&Scalar::from(10)));
+
+        // y = x + 10, at x = 2 (exp: 12)
+        let poly = PublicCoefficients {
+            coefficients: vec![g2 * Scalar::from(10), g2 * Scalar::from(1)],
+        };
+
+        assert_eq!(g2 * Scalar::from(12), poly.evaluate_at(&Scalar::from(2)));
+
+        // y = x^4 - 5x^2 + 2x - 3, at x = 3 (exp: 39)
+        let coeffs = PublicCoefficients {
+            coefficients: vec![
+                (-g2 * Scalar::from(3)),
+                g2 * Scalar::from(2),
+                (-g2 * Scalar::from(5)),
+                G2Projective::identity(),
+                g2 * Scalar::from(1),
+            ],
+        };
+
+        assert_eq!(g2 * Scalar::from(39), coeffs.evaluate_at(&Scalar::from(3)));
+
+        // empty coefficients
+        let coeffs = PublicCoefficients {
+            coefficients: Vec::new(),
+        };
+
+        // should always be 0
+        assert_eq!(
+            G2Projective::identity(),
+            coeffs.evaluate_at(&Scalar::from(1))
+        );
+        assert_eq!(
+            G2Projective::identity(),
+            coeffs.evaluate_at(&Scalar::from(0))
+        );
+        assert_eq!(
+            G2Projective::identity(),
+            coeffs.evaluate_at(&Scalar::from(10))
+        );
     }
 }

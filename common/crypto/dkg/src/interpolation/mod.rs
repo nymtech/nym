@@ -22,9 +22,10 @@ fn contains_duplicates(vals: &[Scalar]) -> bool {
 }
 
 #[inline]
-fn generate_lagrangian_coefficients_at_origin(points: &[Scalar]) -> Result<Vec<Scalar>, DkgError> {
-    let x = Scalar::zero();
-
+fn generate_lagrangian_coefficients_at_x(
+    x: &Scalar,
+    points: &[Scalar],
+) -> Result<Vec<Scalar>, DkgError> {
     let num_points = points.len();
     if num_points == 0 {
         return Ok(Vec::new());
@@ -63,6 +64,27 @@ fn generate_lagrangian_coefficients_at_origin(points: &[Scalar]) -> Result<Vec<S
     Ok(res)
 }
 
+/// Performs a Lagrange interpolation at specified x for a polynomial defined by set of coordinates
+/// (x, f(x)), where x is a `Scalar` and f(x) is a generic type that can be obtained by evaluating `f` at `x`.
+/// It can be used for Scalars, G1 and G2 points.
+pub fn perform_lagrangian_interpolation_at_x<T>(
+    x: &Scalar,
+    points: &[(Scalar, T)],
+) -> Result<T, DkgError>
+where
+    T: Sum,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
+{
+    let xs = points.iter().map(|p| p.0).collect::<Vec<_>>();
+    let coefficients = generate_lagrangian_coefficients_at_x(x, &xs)?;
+
+    Ok(coefficients
+        .into_iter()
+        .zip(points.iter().map(|p| &p.1))
+        .map(|(coeff, y)| y * coeff)
+        .sum())
+}
+
 /// Performs a Lagrange interpolation at the origin for a polynomial defined by set of coordinates
 /// (x, f(x)), where x is a `Scalar` and f(x) is a generic type that can be obtained by evaluating `f` at `x`.
 /// It can be used for Scalars, G1 and G2 points.
@@ -71,14 +93,7 @@ where
     T: Sum,
     for<'a> &'a T: Mul<Scalar, Output = T>,
 {
-    let xs = points.iter().map(|p| p.0).collect::<Vec<_>>();
-    let coefficients = generate_lagrangian_coefficients_at_origin(&xs)?;
-
-    Ok(coefficients
-        .into_iter()
-        .zip(points.iter().map(|p| &p.1))
-        .map(|(coeff, y)| y * coeff)
-        .sum())
+    perform_lagrangian_interpolation_at_x(&Scalar::zero(), points)
 }
 
 #[cfg(test)]

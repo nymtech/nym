@@ -7,8 +7,10 @@ use crate::bte::{
     encrypt_shares, proof_chunking, proof_sharing, Ciphertexts, Epoch, Params, PublicKey,
 };
 use crate::error::DkgError;
-use crate::interpolation::perform_lagrangian_interpolation_at_origin;
 use crate::interpolation::polynomial::{Polynomial, PublicCoefficients};
+use crate::interpolation::{
+    perform_lagrangian_interpolation_at_origin, perform_lagrangian_interpolation_at_x,
+};
 use crate::{NodeIndex, Share, Threshold};
 use bls12_381::{G2Projective, Scalar};
 use rand_core::RngCore;
@@ -210,6 +212,49 @@ pub fn try_recover_verification_keys(
     Ok((master_verification_key, verification_key_shares))
 }
 
+pub fn verify_verification_keys(
+    master_key: &G2Projective,
+    shares: &[G2Projective],
+    receivers: &BTreeMap<NodeIndex, PublicKey>,
+    threshold: Threshold,
+) -> Result<(), DkgError> {
+    if shares.len() != receivers.len() {
+        return Err(DkgError::NotEnoughReceiversProvided);
+    }
+
+    if threshold as usize > receivers.len() {
+        return Err(DkgError::InvalidThreshold {
+            actual: threshold as usize,
+            participating: receivers.len(),
+        });
+    }
+
+    let indices = receivers.keys().copied().collect::<Vec<_>>();
+
+    let indices_with_origin = std::iter::once(&0)
+        .chain(receivers.keys())
+        .collect::<Vec<_>>();
+    let all_shares = std::iter::once(master_key)
+        .chain(shares.iter())
+        .collect::<Vec<_>>();
+
+    for (i, share) in shares.iter().enumerate() {
+        let samples = indices_with_origin
+            .iter()
+            .zip(all_shares.iter())
+            .map(|(&node_index, &share)| (Scalar::from(*node_index), *share))
+            .take(threshold as usize)
+            .collect::<Vec<_>>();
+        let interpolated =
+            perform_lagrangian_interpolation_at_x(&Scalar::from(indices[i]), &samples)?;
+        if share != &interpolated {
+            return Err(DkgError::MismatchedVerificationKey);
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +327,52 @@ mod tests {
         assert_eq!(g2 * derived_secrets[0], recovered_partials[0]);
         assert_eq!(g2 * derived_secrets[1], recovered_partials[1]);
         assert_eq!(g2 * derived_secrets[2], recovered_partials[2]);
+    }
+
+    #[test]
+    fn verifying_partial_verification_keys() {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let threshold = 2;
+        let node_indices = vec![1, 4, 7];
+
+        let mut receivers = BTreeMap::new();
+        let mut full_keys = Vec::new();
+        for index in &node_indices {
+            let (dk, pk) = keygen(&params, &mut rng);
+            receivers.insert(*index, *pk.public_key());
+            full_keys.push((dk, pk))
+        }
+
+        // start off in a defined epoch (i.e. not root);
+        let epoch = Epoch::new(2);
+
+        let dealings = node_indices
+            .iter()
+            .map(|&dealer_index| {
+                Dealing::create(
+                    &mut rng,
+                    &params,
+                    dealer_index,
+                    threshold,
+                    epoch,
+                    &receivers,
+                )
+                .0
+            })
+            .collect::<Vec<_>>();
+
+        let (recovered_master, recovered_partials) =
+            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+
+        assert!(verify_verification_keys(
+            &recovered_master,
+            &recovered_partials,
+            &receivers,
+            threshold
+        )
+        .is_ok())
     }
 }

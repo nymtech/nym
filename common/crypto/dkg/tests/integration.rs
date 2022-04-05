@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
+use bls12_381::{G2Projective, Scalar};
 use dkg::bte::{decrypt_share, keygen, setup, Epoch};
 use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
-use dkg::{combine_shares, Dealing};
+use dkg::{combine_shares, try_recover_verification_keys, Dealing};
 use rand_core::SeedableRng;
 use std::collections::BTreeMap;
 
@@ -61,7 +61,7 @@ fn single_sender() {
     // and for good measure, check that the dealer's share matches decryption result
     let recovered_dealer =
         decrypt_share(&full_keys[0].0, 0, &dealing.ciphertexts, epoch, None).unwrap();
-    assert_eq!(recovered_dealer, dealer_share.unwrap())
+    assert_eq!(recovered_dealer, dealer_share.unwrap());
 }
 
 #[test]
@@ -113,6 +113,12 @@ fn full_threshold_secret_sharing() {
             .unwrap();
     }
 
+    // recover verification keys
+    let (recovered_master, recovered_partials) =
+        try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+
+    let g2 = G2Projective::generator();
+
     let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
         dk.try_update_to(epoch, &params, &mut rng).unwrap();
@@ -124,8 +130,13 @@ fn full_threshold_secret_sharing() {
 
         // we know dealer_share matches, but it would be inconvenient to try to put them in here,
         // so for ease of use (IN A TEST SETTING), just decrypt one's own share
-        derived_secrets
-            .push(combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap())
+        let recovered_secret =
+            combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap();
+
+        // make sure it matches the associated vk
+        assert_eq!(recovered_partials[i], g2 * recovered_secret);
+
+        derived_secrets.push(recovered_secret)
     }
 
     // sanity check that the shares were combined correctly and if we take threshold number of them,
@@ -143,5 +154,6 @@ fn full_threshold_secret_sharing() {
     ])
     .unwrap();
 
-    assert_eq!(master1, master2)
+    assert_eq!(master1, master2);
+    assert_eq!(recovered_master, g2 * master1);
 }

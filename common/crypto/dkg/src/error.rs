@@ -88,6 +88,12 @@ pub enum DkgError {
 
     #[error("Received different number of x and y coordinates for lagrangian interpolation (xs: {x}, ys: {y})")]
     MismatchedLagrangianSamplesLengths { x: usize, y: usize },
+
+    #[error("Derived partial verification key is mismatched")]
+    MismatchedVerificationKey,
+
+    #[error("Insufficient number of receivers was provided")]
+    NotEnoughReceiversProvided,
 }
 
 impl DkgError {

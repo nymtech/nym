@@ -29,11 +29,7 @@ validator-api-requests = { path = "../../../validator-api/validator-api-requests
 async-trait = { version = "0.1.51", optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 config = { path = "../../config", optional = true }
-cosmrs = { version = "0.4.1", features = [
-    "rpc",
-    "bip32",
-    "cosmwasm",
-], optional = true }
+cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"], optional = true}
 prost = { version = "0.9", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }

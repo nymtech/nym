@@ -1,13 +1,29 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Box, Button, FormControl, LinearProgress, Stack } from '@mui/material';
 import { useHistory } from 'react-router-dom';
+import { isPasswordCreated } from 'src/requests';
 import { MnemonicInput, Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
 
 export const SignInMnemonic = () => {
   const [mnemonic, setMnemonic] = useState('');
   const { setError, logIn, error, isLoading } = useContext(ClientContext);
+  const [passwordExists, setPasswordExists] = useState(true);
   const history = useHistory();
+
+  const checkForPassword = async () => {
+    const hasPassword = await isPasswordCreated();
+    setPasswordExists(hasPassword);
+  };
+
+  const handlePageChange = (page: string) => {
+    setError(undefined);
+    history.push(page);
+  };
+
+  useEffect(() => {
+    checkForPassword();
+  }, []);
 
   if (isLoading)
     return (
@@ -30,18 +46,16 @@ export const SignInMnemonic = () => {
           >
             Sign in with mnemonic
           </Button>
-          <Button
-            color="inherit"
-            disableElevation
-            size="large"
-            onClick={() => {
-              setError(undefined);
-              history.push('/existing-account');
-            }}
-            fullWidth
-          >
-            Back
-          </Button>
+          <Box display="flex" justifyContent={passwordExists ? 'center' : 'space-between'}>
+            <Button color="inherit" onClick={() => handlePageChange('/existing-account')}>
+              Back
+            </Button>
+            {!passwordExists && (
+              <Button color="info" onClick={() => handlePageChange('/confirm-mnemonic')}>
+                Create a password
+              </Button>
+            )}
+          </Box>
         </Stack>
       </FormControl>
     </Stack>

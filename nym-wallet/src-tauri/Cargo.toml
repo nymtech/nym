@@ -46,7 +46,7 @@ argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
 zeroize = "1.4.3"
 
-cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
+cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [

@@ -4,14 +4,11 @@
 pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
 
 use crate::error::BackendError;
-use crate::operations::mixnet::account::create_new_account;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
-use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
+use crate::wallet_storage::encryption::encrypt_struct;
 use cosmrs::bip32::DerivationPath;
-use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all, OpenOptions};
-use std::os::unix::prelude::OpenOptionsExt;
 use std::path::PathBuf;
 
 use self::account_data::{EncryptedAccount, StoredWallet};
@@ -33,6 +30,7 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
   get_storage_directory().map(|dir| dir.join(WALLET_INFO_FILENAME))
 }
 
+#[allow(unused)]
 pub(crate) fn load_existing_wallet(password: &UserPassword) -> Result<StoredWallet, BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
@@ -154,9 +152,8 @@ pub(crate) fn remove_wallet_login_information_at_file(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::wallet_storage::encryption::encrypt_data;
   use config::defaults::COSMOS_DERIVATION_PATH;
-  use std::path::Path;
+  use std::str::FromStr;
   use tempfile::tempdir;
 
   // I'm not 100% sure how to feel about having to touch the file system at all
@@ -311,5 +308,39 @@ mod tests {
 
     // The file should now be removed
     assert!(!wallet_file.exists());
+  }
+
+  #[test]
+  fn decrypt_stored_wallet() {
+    const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet.json";
+    let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+
+    let wallet = load_existing_wallet_at_file(wallet_file).unwrap();
+
+    let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let password = UserPassword::new("password".to_string());
+    let bad_password = UserPassword::new("bad-password".to_string());
+    let id1 = WalletAccountId::new("first".to_string());
+    let id2 = WalletAccountId::new("second".to_string());
+
+    assert!(!wallet.password_can_decrypt_all(&bad_password));
+    assert!(wallet.password_can_decrypt_all(&password));
+
+    let account1 = wallet.decrypt_account(&id1, &password).unwrap();
+    let account2 = wallet.decrypt_account(&id2, &password).unwrap();
+
+    let expected_account1 = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
+    let expected_account2 =  bip39::Mnemonic::from_str("home mansion start quiz dress decide hint second dragon sunny juice always steak real minimum art rival skin draw total pulp foot goddess agent").unwrap();
+
+    assert_eq!(account1.mnemonic(), &expected_account1);
+    assert_eq!(account2.mnemonic(), &expected_account2);
+
+    let StoredAccount::Mnemonic(ref mnemonic1) = account1;
+    assert_eq!(mnemonic1.mnemonic(), &expected_account1);
+    assert_eq!(mnemonic1.hd_path(), &cosmos_hd_path);
+
+    let StoredAccount::Mnemonic(ref mnemonic2) = account2;
+    assert_eq!(mnemonic2.mnemonic(), &expected_account2);
+    assert_eq!(mnemonic2.hd_path(), &cosmos_hd_path);
   }
 }

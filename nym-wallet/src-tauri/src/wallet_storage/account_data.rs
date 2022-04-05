@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::bip32::DerivationPath;
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::Formatter;
+use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
-use zeroize::Zeroizing;
 
 use crate::error::BackendError;
 
@@ -23,6 +20,7 @@ pub(crate) struct StoredWallet {
 }
 
 impl StoredWallet {
+  #[allow(unused)]
   pub fn version(&self) -> u32 {
     self.version
   }
@@ -31,6 +29,7 @@ impl StoredWallet {
     self.accounts.is_empty()
   }
 
+  #[allow(unused)]
   pub fn len(&self) -> usize {
     self.accounts.len()
   }
@@ -45,6 +44,7 @@ impl StoredWallet {
     }
   }
 
+  #[allow(unused)]
   pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
     self.accounts.get(index)
   }
@@ -146,6 +146,7 @@ impl MnemonicAccount {
     &self.mnemonic
   }
 
+  #[allow(unused)]
   pub(crate) fn hd_path(&self) -> &DerivationPath {
     &self.hd_path
   }

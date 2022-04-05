@@ -2,12 +2,10 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
-
 import { SubtitleSlick, Title } from '../components';
 
 export const ExistingAccount = () => {
   const history = useHistory();
-
   return (
     <>
       <Title title="Welcome to Nym" />

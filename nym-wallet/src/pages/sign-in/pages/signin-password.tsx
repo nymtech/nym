@@ -28,7 +28,6 @@ export const SignInPassword = () => {
             error={error}
             autoFocus
           />
-
           <Button
             variant="contained"
             size="large"

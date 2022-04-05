@@ -139,7 +139,7 @@ async fn signed_before() {
         &params,
         "1234".to_string(),
         VOUCHER_INFO.to_string(),
-        tx_hash.clone(),
+        tx_hash,
         identity::PrivateKey::from_base58_string(
             identity::KeyPair::new(&mut rng)
                 .private_key()
@@ -335,7 +335,7 @@ async fn blind_sign_correct() {
         &params,
         "1234".to_string(),
         VOUCHER_INFO.to_string(),
-        tx_hash.clone(),
+        tx_hash,
         identity::PrivateKey::from_base58_string(
             identity::KeyPair::new(&mut rng)
                 .private_key()

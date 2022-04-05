@@ -139,7 +139,7 @@ impl RewardedSetUpdater {
             .insert_rewarding_report(rewarding_report)
             .await?;
 
-        Ok(self.generate_reward_messages(&to_reward).await?)
+        self.generate_reward_messages(&to_reward).await
     }
 
     #[allow(unused_variables)]

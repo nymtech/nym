@@ -1,21 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { Button } from '@mui/material';
+import React, { useContext, useEffect, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import { Button, Stack } from '@mui/material';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
 import { randomNumberBetween } from '../../../utils';
+import { SignInContext } from '../context';
 
-const numberOfRandomWords = 4;
+const numberOfRandomWords = 6;
 
-export const VerifyMnemonic = ({
-  mnemonicWords,
-  onComplete,
-}: {
-  mnemonicWords?: TMnemonicWords;
-  onComplete: () => void;
-}) => {
+export const VerifyMnemonic = () => {
   const [randomWords, setRandomWords] = useState<TMnemonicWords>();
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
   const [currentSelection, setCurrentSelection] = useState(0);
+
+  const { mnemonicWords } = useContext(SignInContext);
+  const history = useHistory();
 
   useEffect(() => {
     if (mnemonicWords) {
@@ -48,16 +47,19 @@ export const VerifyMnemonic = ({
         <WordTiles
           mnemonicWords={randomWords}
           onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined}
+          buttons
         />
-        <Button
-          variant="contained"
-          sx={{ width: 300 }}
-          size="large"
-          disabled={currentSelection !== numberOfRandomWords}
-          onClick={onComplete}
-        >
-          Next
-        </Button>
+        <Stack spacing={3} sx={{ width: 300 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
+            disabled={currentSelection !== numberOfRandomWords}
+            onClick={() => history.push('/create-password')}
+          >
+            Next
+          </Button>
+        </Stack>
       </>
     );
   }

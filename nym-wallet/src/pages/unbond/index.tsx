@@ -1,15 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { useSnackbar } from 'notistack';
 import { Fee, NymCard } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { ClientContext } from '../../context/main';
-import { unbond } from '../../requests';
+import { unbond, vestingUnbond } from '../../requests';
 import { PageLayout } from '../../layouts';
 
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { checkOwnership, ownership } = useCheckOwnership();
   const { userBalance, getBondDetails } = useContext(ClientContext);
+
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     const initialiseForm = async () => {
@@ -32,11 +35,20 @@ export const Unbond = () => {
                   disabled={isLoading}
                   onClick={async () => {
                     setIsLoading(true);
-                    await unbond(ownership.nodeType!);
-                    await userBalance.fetchBalance();
-                    await getBondDetails();
-                    await checkOwnership();
-                    setIsLoading(false);
+                    try {
+                      if (ownership.vestingPledge) {
+                        await vestingUnbond(ownership.nodeType!);
+                      } else {
+                        await unbond(ownership.nodeType!);
+                      }
+                    } catch (e) {
+                      enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' });
+                    } finally {
+                      await getBondDetails();
+                      await checkOwnership();
+                      await userBalance.fetchBalance();
+                      setIsLoading(false);
+                    }
                   }}
                   color="inherit"
                 >

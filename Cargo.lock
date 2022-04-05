@@ -623,6 +623,7 @@ version = "0.1.0"
 dependencies = [
  "handlebars",
  "humantime-serde",
+ "log",
  "network-defaults",
  "serde",
  "toml",

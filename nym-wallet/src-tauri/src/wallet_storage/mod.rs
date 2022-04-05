@@ -4,13 +4,11 @@
 pub(crate) use crate::wallet_storage::password::{UserPassword, WalletAccountId};
 
 use crate::error::BackendError;
-use crate::operations::mixnet::account::create_new_account;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::wallet_storage::account_data::StoredAccount;
-use crate::wallet_storage::encryption::{encrypt_struct, EncryptedData};
+use crate::wallet_storage::encryption::encrypt_struct;
 use cosmrs::bip32::DerivationPath;
-use serde::{Deserialize, Serialize};
-use std::fs::{create_dir_all, OpenOptions};
+use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::PathBuf;
 
 use self::account_data::{EncryptedAccount, StoredWallet};
@@ -32,6 +30,7 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
   get_storage_directory().map(|dir| dir.join(WALLET_INFO_FILENAME))
 }
 
+#[allow(unused)]
 pub(crate) fn load_existing_wallet(password: &UserPassword) -> Result<StoredWallet, BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
@@ -112,21 +111,54 @@ fn store_wallet_login_information_at_file(
   Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
 }
 
-// this function should probably exist, but I guess we need to discuss how it should behave in the context of the UX
-// pub(crate) fn remove_wallet_login_information(
-//
-// )
+pub(crate) fn remove_wallet_login_information(id: &WalletAccountId) -> Result<(), BackendError> {
+  let store_dir = get_storage_directory()?;
+  let filepath = store_dir.join(WALLET_INFO_FILENAME);
+  remove_wallet_login_information_at_file(filepath, id)
+}
+
+pub(crate) fn remove_wallet_login_information_at_file(
+  filepath: PathBuf,
+  id: &WalletAccountId,
+) -> Result<(), BackendError> {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
+    result => result?,
+  };
+
+  if stored_wallet.is_empty() {
+    log::info!("Removing file: {:#?}", filepath);
+    return Ok(fs::remove_file(filepath)?);
+  }
+
+  stored_wallet
+    .remove_account(id)
+    .ok_or(BackendError::NoSuchIdInWallet)?;
+
+  if stored_wallet.is_empty() {
+    log::info!("Removing file: {:#?}", filepath);
+    Ok(fs::remove_file(filepath)?)
+  } else {
+    let file = OpenOptions::new()
+      .create(true)
+      .write(true)
+      .truncate(true)
+      .open(filepath)?;
+
+    Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+  }
+}
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::wallet_storage::encryption::encrypt_data;
   use config::defaults::COSMOS_DERIVATION_PATH;
-  use std::path::Path;
+  use std::str::FromStr;
   use tempfile::tempdir;
 
   // I'm not 100% sure how to feel about having to touch the file system at all
   #[test]
+  #[allow(clippy::too_many_lines)]
   fn storing_wallet_information() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -248,9 +280,67 @@ mod tests {
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
     let loaded_account =
-      load_existing_wallet_login_information_at_file(wallet_file, &id2, &password).unwrap();
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id2, &password).unwrap();
     let StoredAccount::Mnemonic(ref acc2) = loaded_account;
     assert_eq!(&dummy_account2, acc2.mnemonic());
     assert_eq!(&different_hd_path, acc2.hd_path());
+
+    // Fails to delete non-existent id in the wallet
+    let id3 = WalletAccountId::new("phony".to_string());
+    assert!(matches!(
+      remove_wallet_login_information_at_file(wallet_file.clone(), &id3),
+      Err(BackendError::NoSuchIdInWallet),
+    ));
+
+    // Delete the second account
+    remove_wallet_login_information_at_file(wallet_file.clone(), &id2).unwrap();
+
+    // The first account should be unchanged
+    let loaded_account =
+      load_existing_wallet_login_information_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let StoredAccount::Mnemonic(ref acc1) = loaded_account;
+    assert_eq!(&dummy_account1, acc1.mnemonic());
+    assert_eq!(&cosmos_hd_path, acc1.hd_path());
+
+    // Delete the first account
+    assert!(wallet_file.exists());
+    remove_wallet_login_information_at_file(wallet_file.clone(), &id1).unwrap();
+
+    // The file should now be removed
+    assert!(!wallet_file.exists());
+  }
+
+  #[test]
+  fn decrypt_stored_wallet() {
+    const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet.json";
+    let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+
+    let wallet = load_existing_wallet_at_file(wallet_file).unwrap();
+
+    let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let password = UserPassword::new("password".to_string());
+    let bad_password = UserPassword::new("bad-password".to_string());
+    let id1 = WalletAccountId::new("first".to_string());
+    let id2 = WalletAccountId::new("second".to_string());
+
+    assert!(!wallet.password_can_decrypt_all(&bad_password));
+    assert!(wallet.password_can_decrypt_all(&password));
+
+    let account1 = wallet.decrypt_account(&id1, &password).unwrap();
+    let account2 = wallet.decrypt_account(&id2, &password).unwrap();
+
+    let expected_account1 = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
+    let expected_account2 =  bip39::Mnemonic::from_str("home mansion start quiz dress decide hint second dragon sunny juice always steak real minimum art rival skin draw total pulp foot goddess agent").unwrap();
+
+    assert_eq!(account1.mnemonic(), &expected_account1);
+    assert_eq!(account2.mnemonic(), &expected_account2);
+
+    let StoredAccount::Mnemonic(ref mnemonic1) = account1;
+    assert_eq!(mnemonic1.mnemonic(), &expected_account1);
+    assert_eq!(mnemonic1.hd_path(), &cosmos_hd_path);
+
+    let StoredAccount::Mnemonic(ref mnemonic2) = account2;
+    assert_eq!(mnemonic2.mnemonic(), &expected_account2);
+    assert_eq!(mnemonic2.hd_path(), &cosmos_hd_path);
   }
 }

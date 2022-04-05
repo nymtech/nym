@@ -1,7 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,6 +18,12 @@ impl WalletAccountId {
 impl AsRef<str> for WalletAccountId {
   fn as_ref(&self) -> &str {
     self.0.as_ref()
+  }
+}
+
+impl fmt::Display for WalletAccountId {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
   }
 }
 

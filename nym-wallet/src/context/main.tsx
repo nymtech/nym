@@ -1,10 +1,11 @@
 import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { TLoginType } from 'src/pages/sign-in/types';
 import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
-import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signOut } from '../requests';
+import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
 
@@ -33,12 +34,15 @@ type TClientContext = {
   currency?: TCurrency;
   isLoading: boolean;
   error?: string;
+  setIsLoading: (isLoading: boolean) => void;
+  setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowValidatorSettings: () => void;
   handleShowAdmin: () => void;
-  logIn: (mnemonic: string) => void;
+  logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
+  signInWithPassword: (password: string) => void;
   logOut: () => void;
 };
 
@@ -93,17 +97,24 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     refreshAccount();
   }, [network]);
 
-  const logIn = async (mnemonic: string) => {
+  const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
+    if (value.length === 0) {
+      setError(`A ${type} must be provided`);
+      return;
+    }
     try {
       setIsLoading(true);
-      await signInWithMnemonic(mnemonic || '');
-      await getBondDetails();
+      if (type === 'mnemonic') {
+        await signInWithMnemonic(value);
+      } else {
+        await signInWithPassword(value);
+      }
       setNetwork('MAINNET');
+      history.push('/balance');
     } catch (e) {
-      setIsLoading(false);
       setError(e as string);
     } finally {
-      history.push('/balance');
+      setIsLoading(false);
     }
   };
 
@@ -142,6 +153,9 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       showValidatorSettings,
       network,
       currency,
+      setIsLoading,
+      setError,
+      signInWithPassword,
       switchNetwork,
       getBondDetails,
       handleShowSettings,

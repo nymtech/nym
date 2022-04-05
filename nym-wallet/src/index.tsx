@@ -3,13 +3,14 @@ import ReactDOM from 'react-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
-import { Routes } from './routes';
+import { AppRoutes, SignInRoutes } from './routes';
 import { ClientContext, ClientContextProvider } from './context/main';
 import { ApplicationLayout } from './layouts';
-import { Admin, Welcome, Settings, ValidatorSettings } from './pages';
+import { Admin, Settings, ValidatorSettings } from './pages';
 import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
+import { SignInProvider } from './pages/sign-in/context';
 
 const App = () => {
   const { clientDetails } = useContext(ClientContext);
@@ -20,7 +21,9 @@ const App = () => {
 
   return !clientDetails ? (
     <WelcomeTheme>
-      <Welcome />
+      <SignInProvider>
+        <SignInRoutes />
+      </SignInProvider>
     </WelcomeTheme>
   ) : (
     <NymWalletTheme>
@@ -28,7 +31,7 @@ const App = () => {
         <Settings />
         <ValidatorSettings />
         <Admin />
-        <Routes />
+        <AppRoutes />
       </ApplicationLayout>
     </NymWalletTheme>
   );

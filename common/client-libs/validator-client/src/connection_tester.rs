@@ -93,7 +93,11 @@ async fn test_nymd_connection(
     {
         Ok(Err(NymdError::TendermintError(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
-            log::debug!("Checking: nymd_url: {network}: {url}: failed: {}", e);
+            log::debug!(
+                "Checking: nymd_url: {network}: {url}: {}: {}",
+                "failed".red(),
+                e
+            );
             false
         }
         Ok(Err(NymdError::AbciError(code, log))) => {

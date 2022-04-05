@@ -13,6 +13,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn template() -> &'static str;
 
     fn config_file_name() -> String {
+        log::trace!("NymdConfig::config_file_name");
         "config.toml".to_string()
     }
 
@@ -20,6 +21,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
     // default, most probable, implementations; can be easily overridden where required
     fn default_config_directory(id: Option<&str>) -> PathBuf {
+        log::trace!("NymdConfig::default_config_directory");
         if let Some(id) = id {
             Self::default_root_directory().join(id).join("config")
         } else {
@@ -28,6 +30,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     }
 
     fn default_data_directory(id: Option<&str>) -> PathBuf {
+        log::trace!("NymdConfig::default_data_path");
         if let Some(id) = id {
             Self::default_root_directory().join(id).join("data")
         } else {
@@ -36,6 +39,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     }
 
     fn default_config_file_path(id: Option<&str>) -> PathBuf {
+        log::trace!("NymdConfig::default_config_file_path");
         Self::default_config_directory(id).join(Self::config_file_name())
     }
 
@@ -68,7 +72,9 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     }
 
     fn load_from_file(id: Option<&str>) -> io::Result<Self> {
-        let config_contents = fs::read_to_string(Self::default_config_file_path(id))?;
+        let file = Self::default_config_file_path(id);
+        log::trace!("Loading from file: {:#?}", file);
+        let config_contents = fs::read_to_string(file)?;
 
         toml::from_str(&config_contents)
             .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))

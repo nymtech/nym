@@ -6,7 +6,7 @@ import { SnackbarProvider } from 'notistack';
 import { AppRoutes, SignInRoutes } from './routes';
 import { ClientContext, ClientContextProvider } from './context/main';
 import { ApplicationLayout } from './layouts';
-import { Admin, Settings, ValidatorSettings } from './pages';
+import { Admin, Settings, ValidatorSettingsModal } from './pages';
 import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
@@ -29,7 +29,7 @@ const App = () => {
     <NymWalletTheme>
       <ApplicationLayout>
         <Settings />
-        <ValidatorSettings />
+        <ValidatorSettingsModal />
         <Admin />
         <AppRoutes />
       </ApplicationLayout>

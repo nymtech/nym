@@ -2,7 +2,7 @@ import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 
 import { Button, Paper } from '@mui/material';
-import { ValidatorSettingsModal } from './validator-modal';
+import { ValidatorSettingsModal } from './validatorModal';
 
 export default {
   title: 'Modals/Validator Setting Modal',

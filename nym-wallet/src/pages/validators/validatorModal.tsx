@@ -3,7 +3,7 @@ import { Button, Box, Dialog, CircularProgress, Typography } from '@mui/material
 import { Tabs } from '../settings/tabs';
 import { NymCard } from '../../components';
 import { ClientContext } from '../../context/main';
-import { ValidatorSelector } from './validator-selector';
+import { ValidatorSelector } from './validatorSelector';
 import { Delegate as DelegateIcon } from '../../svg-icons';
 import { Console } from '../../utils/console';
 

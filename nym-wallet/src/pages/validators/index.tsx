@@ -1,1 +1,1 @@
-export { ValidatorSettingsModal } from './validator-modal';
+export { ValidatorSettingsModal } from './validatorModal';

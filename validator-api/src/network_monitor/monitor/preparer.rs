@@ -314,7 +314,7 @@ impl PacketPreparer {
         .unwrap();
 
         if most_available == 0 {
-            // it's impossible to generate a single route
+            error!("Cannot construct test routes. No nodes or gateways available");
             None
         } else {
             trace!("Generating test routes...");
@@ -361,6 +361,7 @@ impl PacketPreparer {
                     gateway,
                 ))
             }
+            info!("{:?}", routes);
             Some(routes)
         }
     }

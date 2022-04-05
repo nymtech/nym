@@ -41,9 +41,14 @@ impl PacketReceiver {
         match update {
             GatewayClientUpdate::New(id, (message_receiver, ack_receiver)) => {
                 let channel = GatewayChannel::new(id, message_receiver, ack_receiver);
-                self.gateways_reader.insert_channel(channel);
+                // self.gateways_reader.insert_channel(channel);
+                self.gateways_reader.add_recievers(channel);
             }
-            GatewayClientUpdate::Failure(id) => self.gateways_reader.remove_by_key(id),
+            GatewayClientUpdate::Failure(id) => {
+                self.gateways_reader
+                    .remove_recievers(&id.to_string());
+                // self.gateways_reader.remove_by_key(id)
+            }
         }
     }
 
@@ -62,7 +67,9 @@ impl PacketReceiver {
                 // similarly gateway reader will never return a `None` as it's implemented
                 // as an infinite stream that returns Poll::Pending if it doesn't have anything
                 // to return
-                messages = self.gateways_reader.next() => self.process_gateway_messages(messages.unwrap()),
+                Some((_gateway_id, message)) = self.gateways_reader.stream_map().next() => {
+                        self.process_gateway_messages(message)
+                }
             }
         }
     }

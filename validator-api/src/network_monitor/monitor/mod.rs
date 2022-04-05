@@ -209,7 +209,7 @@ impl Monitor {
         let mut current_attempt = 0;
 
         // todo: tweak this to something more appropriate
-        let max_attempts = self.test_routes * 4;
+        let max_attempts = self.test_routes * 10;
 
         'outer: loop {
             if current_attempt >= max_attempts {

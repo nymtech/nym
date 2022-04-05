@@ -366,9 +366,9 @@ impl PacketPreparer {
         }
     }
 
-    fn check_version_compatibility(&self, node_version: &str) -> bool {
-        version_checker::is_minor_version_compatible(node_version, &self.system_version)
-    }
+    // fn check_version_compatibility(&self, node_version: &str) -> bool {
+    //     version_checker::is_minor_version_compatible(node_version, &self.system_version)
+    // }
 
     fn create_packet_sender(&self, gateway: &gateway::Node) -> Recipient {
         Recipient::new(
@@ -408,14 +408,14 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for mixnode in nodes {
-            if !self.check_version_compatibility(&mixnode.mix_node.version) {
-                invalid_nodes.push(InvalidNode::Outdated(
-                    mixnode.mix_node.identity_key,
-                    mixnode.owner,
-                    mixnode.mix_node.version,
-                ));
-                continue;
-            }
+            // if !self.check_version_compatibility(&mixnode.mix_node.version) {
+            //     invalid_nodes.push(InvalidNode::Outdated(
+            //         mixnode.mix_node.identity_key,
+            //         mixnode.owner,
+            //         mixnode.mix_node.version,
+            //     ));
+            //     continue;
+            // }
             if let Ok(parsed_node) = (&mixnode).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -435,14 +435,14 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for gateway in nodes {
-            if !self.check_version_compatibility(&gateway.gateway.version) {
-                invalid_nodes.push(InvalidNode::Outdated(
-                    gateway.gateway.identity_key,
-                    gateway.owner,
-                    gateway.gateway.version,
-                ));
-                continue;
-            }
+            // if !self.check_version_compatibility(&gateway.gateway.version) {
+            //     invalid_nodes.push(InvalidNode::Outdated(
+            //         gateway.gateway.identity_key,
+            //         gateway.owner,
+            //         gateway.gateway.version,
+            //     ));
+            //     continue;
+            // }
             if let Ok(parsed_node) = (&gateway).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -464,18 +464,18 @@ impl PacketPreparer {
         // (remember that "idle" nodes are still part of that set)
         // we don't care about other nodes, i.e. nodes that are bonded but will not get
         // any reward during the current rewarding interval
-        let (rewarded_set, all_gateways) = self.all_mixnodes_and_gateways().await;
+        let (mixnodes, gateways) = self.all_mixnodes_and_gateways().await;
 
-        let (mixes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(rewarded_set);
+        let (mixnodes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnodes);
         let (gateways, invalid_gateways) =
-            self.filter_outdated_and_malformed_gateways(all_gateways);
+            self.filter_outdated_and_malformed_gateways(gateways);
 
-        let tested_mixnodes = mixes.iter().map(|node| node.into()).collect::<Vec<_>>();
+        let tested_mixnodes = mixnodes.iter().map(|node| node.into()).collect::<Vec<_>>();
         let tested_gateways = gateways.iter().map(|node| node.into()).collect::<Vec<_>>();
 
         let packets_to_create = (test_routes.len() * self.per_node_test_packets)
             * (tested_mixnodes.len() + tested_gateways.len());
-        info!(target: "TestPreparer", "Need to create {} mix packets", packets_to_create);
+        info!("Need to create {} mix packets", packets_to_create);
 
         let mut all_gateway_packets = HashMap::new();
 
@@ -487,10 +487,10 @@ impl PacketPreparer {
             let gateway_owner = test_route.gateway_owner();
 
             // it's actually going to be a tiny bit more due to gateway testing, but it's a good enough approximation
-            let mut mix_packets = Vec::with_capacity(mixes.len() * self.per_node_test_packets);
+            let mut mix_packets = Vec::with_capacity(mixnodes.len() * self.per_node_test_packets);
 
             // and for each mixnode...
-            for mixnode in &mixes {
+            for mixnode in &mixnodes {
                 let test_packet = TestPacket::from_mixnode(mixnode, test_route.id(), test_nonce);
                 let topology = test_route.substitute_mix(mixnode);
                 // produce n mix packets

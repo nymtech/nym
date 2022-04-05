@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Button, Box, Dialog, CircularProgress } from '@mui/material';
+import { Button, Box, Dialog, CircularProgress, Typography } from '@mui/material';
 import { Tabs } from '../settings/tabs';
 import { NymCard } from '../../components';
 import { ClientContext } from '../../context/main';
@@ -47,25 +47,52 @@ export const ValidatorSettings = () => {
                 }
                 noPadding
             >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: 3,
+                        borderTop: '1px solid',
+                        borderColor: 'grey.300',
+                    }}
+                >
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 600,
+                        }}>
+                        Wallet Settings
+                    </Typography>
+                </Box>
                 <>
                     <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={false} />
-                    {selectedTab === 0 &&
-                        <ValidatorSelector
-                            type={tabs[selectedTab]}
-                            onChangeValidatorSelection={(selectedValidator) => onDataChanged(selectedValidator)}
-                        />
-                    }
-                    {selectedTab === 1 &&
-                        <ValidatorSelector
-                            type={tabs[selectedTab]} onChangeValidatorSelection={(selectedAPI) => onDataChanged(selectedAPI)}
-                        />
-                    }
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: 3,
+                        }}
+                    >
+                        {selectedTab === 0 &&
+                            <ValidatorSelector
+                                type="Validator API Url"
+                                onChangeValidatorSelection={(selectedValidator) => onDataChanged(selectedValidator)}
+                            />
+                        }
+                        {selectedTab === 1 &&
+                            <ValidatorSelector
+                                type={tabs[selectedTab]} onChangeValidatorSelection={(selectedAPI) => onDataChanged(selectedAPI)}
+                            />
+                        }
+                    </Box>
                 </>
                 <Box
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'flex-end',
+                        padding: 3,
+                        bgcolor: 'grey.200',
                     }}
                 >
                     <Button

@@ -19,11 +19,11 @@ export const ExistingAccount = () => {
           Sign in with password
         </Button>
         <Box display="flex" justifyContent="space-between">
-          <Button color="inherit" onClick={() => history.goBack()}>
+          <Button color="inherit" onClick={() => history.push('/welcome')}>
             Back
           </Button>
-          <Button color="info" onClick={() => history.push('/confirm-mnemonic')}>
-            Create a password
+          <Button color="info" onClick={() => history.push('/sign-in-mnemonic')}>
+            Forgot password?
           </Button>
         </Box>
       </Stack>

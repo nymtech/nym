@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api';
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
-import { minor, valid } from 'semver';
+import { valid } from 'semver';
 import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins } from '../requests';
 import { Coin, Network, TCurrency } from '../types';
 import { Console } from './console';
@@ -71,9 +71,7 @@ export const isValidHostname = (value: string) => {
 
 export const validateVersion = (version: string): boolean => {
   try {
-    const minorVersion = minor(version);
-    const validVersion = valid(version);
-    return validVersion !== null && minorVersion >= 11;
+    return valid(version) !== null;
   } catch (e) {
     return false;
   }

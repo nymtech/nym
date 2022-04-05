@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Button, LinearProgress, FormControl, Stack, Box } from '@mui/material';
+import { Box, Button, LinearProgress, FormControl, Stack } from '@mui/material';
 import { PasswordInput, Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
 
@@ -36,19 +36,29 @@ export const SignInPassword = () => {
           >
             Sign in with password
           </Button>
-          <Button
-            variant="outlined"
-            disableElevation
-            size="large"
-            onClick={() => {
-              setError(undefined);
-              history.push('/existing-account');
-            }}
-            fullWidth
-            sx={{ color: 'common.white', border: '1px solid white', '&:hover': { border: '1px solid white' } }}
-          >
-            Back
-          </Button>
+          <Box display="flex" justifyContent="space-between">
+            <Button
+              color="inherit"
+              disableElevation
+              onClick={() => {
+                setError(undefined);
+                history.push('/existing-account');
+              }}
+            >
+              Back
+            </Button>
+
+            <Button
+              color="info"
+              onClick={() => {
+                setError(undefined);
+                history.push('/sign-in-mnemonic');
+              }}
+              size="small"
+            >
+              Forgotten password?
+            </Button>
+          </Box>
         </Stack>
       </FormControl>
     </Stack>

@@ -56,6 +56,24 @@ const columns: ColumnsType[] = [
     headerAlign: 'left',
     flex: 1,
   },
+  {
+    field: 'profit_percentage',
+    title: 'Profit Margin',
+    headerAlign: 'left',
+    flex: 1,
+  },
+  {
+    field: 'delegators_number',
+    title: 'Delegators',
+    headerAlign: 'left',
+    flex: 1,
+  },
+  {
+    field: 'avg_update',
+    title: 'Avg. Update',
+    headerAlign: 'left',
+    flex: 1,
+  },
 ];
 
 /**

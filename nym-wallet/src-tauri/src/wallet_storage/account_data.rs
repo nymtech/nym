@@ -99,6 +99,14 @@ impl StoredWallet {
   pub fn password_can_decrypt_all(&self, password: &UserPassword) -> bool {
     self.decrypt_all(password).is_ok()
   }
+
+  pub fn try_decrypt_all(&self, password: &UserPassword) -> Vec<StoredAccount> {
+    self
+      .accounts
+      .iter()
+      .filter_map(|account| account.account.decrypt_struct(password).ok())
+      .collect()
+  }
 }
 
 impl Default for StoredWallet {

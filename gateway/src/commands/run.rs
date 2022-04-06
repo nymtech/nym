@@ -43,6 +43,10 @@ pub struct Run {
     #[clap(long)]
     validator_apis: Option<String>,
 
+    /// Cosmos wallet mnemonic
+    #[clap(long)]
+    mnemonic: Option<String>,
+
     /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
@@ -57,11 +61,6 @@ pub struct Run {
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     validators: Option<String>,
-
-    /// Cosmos wallet mnemonic
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    mnemonic: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -74,6 +73,7 @@ impl From<Run> for OverrideConfig {
             datastore: run_config.datastore,
             announce_host: run_config.announce_host,
             validator_apis: run_config.validator_apis,
+            mnemonic: run_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             testnet_mode: run_config.testnet_mode,
@@ -83,9 +83,6 @@ impl From<Run> for OverrideConfig {
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             validators: run_config.validators,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            mnemonic: run_config.mnemonic,
         }
     }
 }

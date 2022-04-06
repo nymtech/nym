@@ -12,7 +12,7 @@ export type MixnodeRowType = {
   host: string;
   layer: string;
   profit_percentage: string;
-  delegators_number: number;
+  delegators_number?: number;
   avg_update: string;
 };
 
@@ -25,6 +25,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const delegations = Number(item.total_delegation.amount) || 0;
   const totalBond = pledge + delegations;
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
+  const profit_percentage = item.mix_node.profit_margin_percent || 0;
   return {
     id: item.owner,
     status: item.status,
@@ -35,8 +36,8 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     self_percentage: selfPercentage,
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
-    profit_percentage: '12%',
-    delegators_number: 123,
+    profit_percentage: `${profit_percentage}%`,
+    delegators_number: undefined,
     avg_update: '3'
   };
 }

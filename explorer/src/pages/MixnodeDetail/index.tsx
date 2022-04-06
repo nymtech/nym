@@ -80,7 +80,13 @@ const columns: ColumnsType[] = [
  * Shows mix node details
  */
 const PageMixnodeDetailWithState: React.FC = () => {
-  const { mixNode, mixNodeRow, description, stats, status, uptimeStory } = useMixnodeContext();
+  const { mixNode, mixNodeRow, description, stats, status, uptimeStory, delegations } = useMixnodeContext();
+
+  const delegationsNumber = delegations?.data?.length || mixNodeRow?.delegators_number;
+
+  if (mixNodeRow) {
+    mixNodeRow.delegators_number = delegationsNumber;
+  }
 
   return (
     <Box component="main">

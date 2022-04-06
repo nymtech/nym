@@ -49,9 +49,11 @@ pub const SCALAR_SIZE: usize = 32;
 /// In paper B; number of distinct chunks
 pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 
+pub(crate) type EpochStore = u32;
+
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 // None empty bitvec implies this is a root node
-pub(crate) struct Tau(BitVec<u32, Msb0>);
+pub(crate) struct Tau(BitVec<EpochStore, Msb0>);
 
 impl Tau {
     pub fn new_root() -> Self {
@@ -60,7 +62,7 @@ impl Tau {
 
     // TODO: perhaps this should be explicitly moved to some test module
     #[cfg(test)]
-    pub(crate) fn new(epoch: u32) -> Self {
+    pub(crate) fn new(epoch: EpochStore) -> Self {
         Tau(epoch.view_bits().to_bitvec())
     }
 
@@ -178,6 +180,59 @@ impl Tau {
             .map(|(_, f_i)| f_i)
             .fold(params.f0, |acc, f_i| acc + f_i)
     }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let len_bytes = (self.0.len() as u32).to_be_bytes();
+        len_bytes
+            .into_iter()
+            .chain(self.0.chunks(8).map(BitField::load_be))
+            .collect()
+    }
+
+    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, DkgError> {
+        if b.len() < 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "Tau",
+                "insufficient number of bytes provided",
+            ));
+        }
+        let tau_len = u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize;
+
+        // maximum theoretical length
+        if tau_len > MAX_EPOCHS_EXP + HASH_SECURITY_PARAM {
+            return Err(DkgError::new_deserialization_failure(
+                "Tau",
+                format!(
+                    "malformed length {} is greater than maximum {}",
+                    tau_len,
+                    MAX_EPOCHS_EXP + HASH_SECURITY_PARAM
+                ),
+            ));
+        }
+
+        if tau_len == 0 {
+            if b.len() != 4 {
+                Err(DkgError::new_deserialization_failure(
+                    "Tau",
+                    "malformed bytes",
+                ))
+            } else {
+                Ok(Tau::new_root())
+            }
+        } else if b.len() == 4 {
+            Err(DkgError::new_deserialization_failure(
+                "Tau",
+                "insufficient number of bytes provided",
+            ))
+        } else {
+            let mut inner = BitVec::repeat(false, tau_len);
+            for (slot, &byte) in inner.chunks_mut(8).zip(b[4..].iter()) {
+                slot.store_be(byte);
+            }
+
+            Ok(Tau(inner))
+        }
+    }
 }
 
 impl Zeroize for Tau {
@@ -189,10 +244,10 @@ impl Zeroize for Tau {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub struct Epoch(u32);
+pub struct Epoch(EpochStore);
 
 impl Epoch {
-    pub fn new(value: u32) -> Self {
+    pub fn new(value: EpochStore) -> Self {
         Epoch(value)
     }
 
@@ -224,8 +279,8 @@ impl From<Epoch> for Tau {
     }
 }
 
-impl From<u32> for Epoch {
-    fn from(epoch: u32) -> Self {
+impl From<EpochStore> for Epoch {
+    fn from(epoch: EpochStore) -> Self {
         Epoch(epoch)
     }
 }
@@ -363,5 +418,45 @@ mod tests {
             0, 1, 1, 0
         ]);
         assert!(Epoch::try_from_tau(&_33bit_tau, &params).is_err());
+    }
+
+    #[test]
+    fn tau_roundtrip() {
+        let good_taus = vec![
+            Tau::new_root(),
+            Tau::new(0),
+            Tau::new(1),
+            Tau::new(2),
+            Tau::new(42),
+            Tau::new(123456),
+            Tau::new(3292547435),
+            Tau::new(u32::MAX),
+        ];
+
+        for tau in good_taus {
+            let bytes = tau.to_bytes();
+            let recovered = Tau::try_from_bytes(&bytes).unwrap();
+            assert_eq!(tau, recovered);
+        }
+
+        // more valid variants
+        let mut another_tau = Tau::new(u32::MAX);
+        another_tau.0.push(true);
+        another_tau.0.push(false);
+        another_tau.0.push(true);
+
+        let bytes = another_tau.to_bytes();
+        let recovered = Tau::try_from_bytes(&bytes).unwrap();
+        assert_eq!(another_tau, recovered);
+
+        // ensure there are no panics
+        let big_length_bytes = [255, 255, 255, 255, 42];
+        assert!(Tau::try_from_bytes(&big_length_bytes).is_err());
+
+        assert!(Tau::try_from_bytes(&[]).is_err());
+        assert!(Tau::try_from_bytes(&[1, 1, 1, 1]).is_err());
+        assert!(Tau::try_from_bytes(&[0, 0, 0, 1]).is_err());
+        assert!(Tau::try_from_bytes(&[1, 0, 0, 0]).is_err());
+        assert!(Tau::try_from_bytes(&[1, 0, 0]).is_err());
     }
 }

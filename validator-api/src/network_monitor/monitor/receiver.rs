@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::gateways_reader::{GatewayChannel, GatewayMessages, GatewaysReader};
+use crate::network_monitor::gateways_reader::{GatewayMessages, GatewaysReader};
 use crate::network_monitor::monitor::processor::ReceivedProcessorSender;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
@@ -40,13 +40,11 @@ impl PacketReceiver {
     fn process_gateway_update(&mut self, update: GatewayClientUpdate) {
         match update {
             GatewayClientUpdate::New(id, (message_receiver, ack_receiver)) => {
-                let channel = GatewayChannel::new(id, message_receiver, ack_receiver);
-                // self.gateways_reader.insert_channel(channel);
-                self.gateways_reader.add_recievers(channel);
+                self.gateways_reader
+                    .add_recievers(id, message_receiver, ack_receiver);
             }
             GatewayClientUpdate::Failure(id) => {
                 self.gateways_reader.remove_recievers(&id.to_string());
-                // self.gateways_reader.remove_by_key(id)
             }
         }
     }

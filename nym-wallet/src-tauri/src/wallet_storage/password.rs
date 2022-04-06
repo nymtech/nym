@@ -47,3 +47,9 @@ impl AsRef<str> for UserPassword {
     self.0.as_ref()
   }
 }
+
+impl From<String> for UserPassword {
+    fn from(username: String) -> Self {
+        Self::new(username)
+    }
+}

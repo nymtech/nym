@@ -458,6 +458,7 @@ pub async fn sign_in_with_password_and_id(
   _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
 }
 
+// Deprecated as soon as we support multiple accounts
 #[tauri::command]
 pub fn remove_password() -> Result<(), BackendError> {
   log::info!("Removing password");

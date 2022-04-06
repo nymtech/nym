@@ -1,13 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::DkgError;
+use crate::utils::deserialize_g2;
 use bls12_381::{G2Projective, Scalar};
 use ff::Field;
+use group::GroupEncoding;
 use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};
 use zeroize::Zeroize;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PublicCoefficients {
     pub(crate) coefficients: Vec<G2Projective>,
 }
@@ -45,6 +48,51 @@ impl PublicCoefficients {
                 .map(|(i, coefficient)| coefficient * x.pow(&[i as u64, 0, 0, 0]))
                 .sum()
         }
+    }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let coeffs = self.coefficients.len();
+        let mut bytes = Vec::with_capacity(4 + 96 * coeffs);
+        bytes.extend_from_slice(&((coeffs as u32).to_be_bytes()));
+        for coeff in &self.coefficients {
+            bytes.extend_from_slice(coeff.to_bytes().as_ref())
+        }
+
+        bytes
+    }
+
+    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, DkgError> {
+        if b.len() < 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "PublicCoefficients",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let coeffs = u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize;
+        let mut coefficients = Vec::with_capacity(coeffs);
+
+        if b.len() != 4 + coeffs * 96 {
+            return Err(DkgError::new_deserialization_failure(
+                "PublicCoefficients",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut i = 4;
+        for _ in 0..coeffs {
+            let coefficient = deserialize_g2(&b[i..i + 96]).ok_or_else(|| {
+                DkgError::new_deserialization_failure(
+                    "PublicCoefficients.coefficient",
+                    "invalid curve point",
+                )
+            })?;
+
+            coefficients.push(coefficient);
+            i += 96;
+        }
+
+        Ok(PublicCoefficients { coefficients })
     }
 }
 
@@ -172,6 +220,7 @@ impl<'a, 'b> Add<&'b Polynomial> for &'a Polynomial {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand_core::SeedableRng;
 
     #[test]
     fn polynomial_evaluation() {
@@ -285,5 +334,40 @@ mod tests {
             G2Projective::identity(),
             coeffs.evaluate_at(&Scalar::from(10))
         );
+    }
+
+    #[test]
+    fn public_coefficients_roundtrip() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let good = vec![
+            Polynomial::zero().public_coefficients(),
+            Polynomial::new_random(&mut rng, 0).public_coefficients(),
+            Polynomial::new_random(&mut rng, 1).public_coefficients(),
+            Polynomial::new_random(&mut rng, 4).public_coefficients(),
+            Polynomial::new_random(&mut rng, 15).public_coefficients(),
+        ];
+
+        for coefficient in good {
+            let bytes = coefficient.to_bytes();
+            let recovered = PublicCoefficients::try_from_bytes(&bytes).unwrap();
+            assert_eq!(coefficient, recovered);
+        }
+
+        assert!(PublicCoefficients::try_from_bytes(&[]).is_err());
+        assert!(PublicCoefficients::try_from_bytes(&[1]).is_err());
+        assert!(PublicCoefficients::try_from_bytes(&[1, 2, 3, 4]).is_err());
+
+        let g2 = G2Projective::generator().to_bytes();
+        let mut bad_length = Vec::new();
+        bad_length.extend_from_slice(&2u32.to_be_bytes());
+        bad_length.extend_from_slice(g2.as_ref());
+        assert!(PublicCoefficients::try_from_bytes(&bad_length).is_err());
+
+        let mut incomplete = Vec::new();
+        incomplete.extend_from_slice(&1u32.to_be_bytes());
+        incomplete.extend_from_slice(&g2.as_ref()[..95]);
+        assert!(PublicCoefficients::try_from_bytes(&incomplete).is_err());
     }
 }

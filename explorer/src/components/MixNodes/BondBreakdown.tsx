@@ -128,6 +128,7 @@ export const BondBreakdownTable: React.FC = () => {
             maxHeight: 400,
             overflowY: 'scroll',
             p: 2,
+            background: theme.palette.background.paper,
           }}
         >
           <Box
@@ -136,10 +137,10 @@ export const BondBreakdownTable: React.FC = () => {
               alignItems: 'baseline',
               width: '100%',
               p: 2,
-              borderBottom: '1px solid rgb(81, 81, 81)',
+              borderBottom: `1px solid ${theme.palette.divider}`,
             }}
             data-testid="delegations-total-amount"
-            >
+          >
             <Typography
               sx={{
                 fontSize: 16,
@@ -160,16 +161,22 @@ export const BondBreakdownTable: React.FC = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600, background: '#242C3D' }} align="left">
+                <TableCell sx={{
+                  fontWeight: 600,
+                  background: theme.palette.background.paper,
+                }} align="left">
                   Delegators
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, background: '#242C3D' }} align="left">
+                <TableCell sx={{
+                  fontWeight: 600,
+                  background: theme.palette.background.paper,
+                }} align="left">
                   Stake
                 </TableCell>
                 <TableCell
                   sx={{
                     fontWeight: 600,
-                    background: '#242C3D',
+                    background: theme.palette.background.paper,
                     width: '200px',
                   }}
                   align="left"

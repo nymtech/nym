@@ -315,7 +315,10 @@ impl Monitor {
         let start = Instant::now();
 
         if let Some(test_routes) = self.prepare_test_routes().await {
-            info!("Determined reliable routes to test all other nodes against. : {:?}", test_routes);
+            info!(
+                "Determined reliable routes to test all other nodes against. : {:?}",
+                test_routes
+            );
             self.test_network_against(&test_routes).await;
         } else {
             error!("We failed to construct sufficient number of test routes to test the network against")

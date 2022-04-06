@@ -25,6 +25,7 @@ type Id = String;
 type Owner = Addr;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) enum InvalidNode {
     Outdated(Id, Owner, Version),
     Malformed(Id, Owner),
@@ -239,9 +240,6 @@ impl PacketPreparer {
 
     pub(crate) fn try_parse_mix_bond(&self, mix: &MixNodeBond) -> Result<mix::Node, String> {
         let identity = mix.mix_node.identity_key.clone();
-        // if !self.check_version_compatibility(&mix.mix_node.version) {
-        //     return Err(identity);
-        // }
         mix.try_into().map_err(|_| identity)
     }
 
@@ -250,9 +248,6 @@ impl PacketPreparer {
         gateway: &GatewayBond,
     ) -> Result<gateway::Node, String> {
         let identity = gateway.gateway.identity_key.clone();
-        // if !self.check_version_compatibility(&gateway.gateway.version) {
-        //     return Err(identity);
-        // }
         gateway.try_into().map_err(|_| identity)
     }
 
@@ -270,21 +265,10 @@ impl PacketPreparer {
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
         for mix in mixnodes {
-            // filter out mixes on the blacklist
-            // if blacklist.contains(&mix.mix_node.identity_key) {
-            //     debug!("Mixnode {} is blacklisted", mix.mix_node.identity_key);
-            //     continue;
-            // }
             let layer = mix.layer;
             let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
             mixes.push(mix)
         }
-
-        // filter out gateways on the blacklist
-        // let gateways = gateways
-        //     .into_iter()
-        //     .filter(|gateway| !blacklist.contains(&gateway.gateway.identity_key))
-        //     .collect::<Vec<_>>();
 
         // get all nodes from each layer...
         let l1 = layered_mixes.get(&Layer::One)?;
@@ -298,9 +282,6 @@ impl PacketPreparer {
         let rand_l2 = l2.choose_multiple(&mut rng, n).collect::<Vec<_>>();
         let rand_l3 = l3.choose_multiple(&mut rng, n).collect::<Vec<_>>();
         let rand_gateways = gateways.choose_multiple(&mut rng, n).collect::<Vec<_>>();
-
-        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "109.74.196.254".to_string()).collect::<Vec<_>>();
-        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "185.3.94.33".to_string()).collect::<Vec<_>>();
 
         // the unwrap on `min()` is fine as we know the iterator is not empty
         let most_available = *[
@@ -366,10 +347,6 @@ impl PacketPreparer {
         }
     }
 
-    // fn check_version_compatibility(&self, node_version: &str) -> bool {
-    //     version_checker::is_minor_version_compatible(node_version, &self.system_version)
-    // }
-
     fn create_packet_sender(&self, gateway: &gateway::Node) -> Recipient {
         Recipient::new(
             self.self_public_identity,
@@ -408,14 +385,6 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for mixnode in nodes {
-            // if !self.check_version_compatibility(&mixnode.mix_node.version) {
-            //     invalid_nodes.push(InvalidNode::Outdated(
-            //         mixnode.mix_node.identity_key,
-            //         mixnode.owner,
-            //         mixnode.mix_node.version,
-            //     ));
-            //     continue;
-            // }
             if let Ok(parsed_node) = (&mixnode).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -435,14 +404,6 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for gateway in nodes {
-            // if !self.check_version_compatibility(&gateway.gateway.version) {
-            //     invalid_nodes.push(InvalidNode::Outdated(
-            //         gateway.gateway.identity_key,
-            //         gateway.owner,
-            //         gateway.gateway.version,
-            //     ));
-            //     continue;
-            // }
             if let Ok(parsed_node) = (&gateway).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -467,8 +428,7 @@ impl PacketPreparer {
         let (mixnodes, gateways) = self.all_mixnodes_and_gateways().await;
 
         let (mixnodes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnodes);
-        let (gateways, invalid_gateways) =
-            self.filter_outdated_and_malformed_gateways(gateways);
+        let (gateways, invalid_gateways) = self.filter_outdated_and_malformed_gateways(gateways);
 
         let tested_mixnodes = mixnodes.iter().map(|node| node.into()).collect::<Vec<_>>();
         let tested_gateways = gateways.iter().map(|node| node.into()).collect::<Vec<_>>();

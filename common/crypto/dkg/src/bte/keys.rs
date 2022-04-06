@@ -410,8 +410,9 @@ impl PublicKeyWithProof {
     }
 }
 
-#[derive(Zeroize)]
+#[derive(Debug, Zeroize)]
 #[zeroize(drop)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct DecryptionKey {
     // note that the nodes are ordered from "right" to "left"
     pub(crate) nodes: Vec<Node>,
@@ -584,6 +585,60 @@ impl DecryptionKey {
         ));
 
         Ok(())
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let num_nodes = self.nodes.len() as u32;
+
+        // unfortunately we're not going to know the expected capacity
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&num_nodes.to_be_bytes());
+
+        for node in &self.nodes {
+            let mut node_bytes = node.to_bytes();
+            bytes.extend_from_slice(&((node_bytes.len() as u32).to_be_bytes()));
+            bytes.append(&mut node_bytes)
+        }
+
+        bytes
+    }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<Self, DkgError> {
+        // we have to be able to read the length of nodes
+        if b.len() < 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "DecryptionKey",
+                "insufficient number of bytes provided",
+            ));
+        }
+        let nodes_len = u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize;
+        let mut nodes = Vec::with_capacity(nodes_len);
+
+        let mut i = 4;
+        for _ in 0..nodes_len {
+            // check if we can actually read the length...
+            if b[i..].len() < 4 {
+                return Err(DkgError::new_deserialization_failure(
+                    "DecryptionKey.Node",
+                    "insufficient number of bytes provided for BTE Node recovery",
+                ));
+            }
+
+            let node_bytes = u32::from_be_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]) as usize;
+            if b[i + 4..].len() < node_bytes {
+                return Err(DkgError::new_deserialization_failure(
+                    "DecryptionKey.Node",
+                    "insufficient number of bytes provided for BTE Node recovery",
+                ));
+            }
+            i += 4;
+
+            let node = Node::try_from_bytes(&b[i..i + node_bytes])?;
+            nodes.push(node);
+            i += node_bytes;
+        }
+
+        Ok(DecryptionKey { nodes })
     }
 }
 
@@ -781,5 +836,40 @@ mod tests {
             let recovered = Node::try_from_bytes(&bytes).unwrap();
             assert_eq!(node, &recovered);
         }
+    }
+
+    #[test]
+    fn decryption_key_node_roundtrip() {
+        let params = setup();
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (mut dk, _) = keygen(&params, &mut rng);
+
+        let bytes = dk.to_bytes();
+        let recovered = DecryptionKey::try_from_bytes(&bytes).unwrap();
+        assert_eq!(dk, recovered);
+
+        dk.try_update_to(Epoch::new(0), &params, &mut rng).unwrap();
+        let bytes = dk.to_bytes();
+        let recovered = DecryptionKey::try_from_bytes(&bytes).unwrap();
+        assert_eq!(dk, recovered);
+
+        dk.try_update_to(Epoch::new(1), &params, &mut rng).unwrap();
+        let bytes = dk.to_bytes();
+        let recovered = DecryptionKey::try_from_bytes(&bytes).unwrap();
+        assert_eq!(dk, recovered);
+
+        dk.try_update_to(Epoch::new(42), &params, &mut rng).unwrap();
+        let bytes = dk.to_bytes();
+        let recovered = DecryptionKey::try_from_bytes(&bytes).unwrap();
+        assert_eq!(dk, recovered);
+
+        dk.try_update_to(Epoch::new(3292547435), &params, &mut rng)
+            .unwrap();
+        let bytes = dk.to_bytes();
+        let recovered = DecryptionKey::try_from_bytes(&bytes).unwrap();
+        assert_eq!(dk, recovered);
     }
 }

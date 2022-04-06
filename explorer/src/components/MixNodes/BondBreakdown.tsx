@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Box, CircularProgress, useMediaQuery } from '@mui/material';
+import { Alert, Box, CircularProgress, useMediaQuery, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -127,8 +127,36 @@ export const BondBreakdownTable: React.FC = () => {
           sx={{
             maxHeight: 400,
             overflowY: 'scroll',
+            p: 2,
           }}
         >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'baseline',
+              width: '100%',
+              p: 2,
+              borderBottom: '1px solid rgb(81, 81, 81)',
+            }}
+            data-testid="delegations-total-amount"
+            >
+            <Typography
+              sx={{
+                fontSize: 16,
+                fontWeight: 600,
+              }}
+            >
+              Delegations&nbsp;&nbsp;
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 12,
+                fontWeight: 400,
+              }}
+            >
+              {`(${delegations?.data?.length} delegators)`}
+            </Typography>
+          </Box>
           <Table stickyHeader>
             <TableHead>
               <TableRow>

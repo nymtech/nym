@@ -82,3 +82,33 @@ pub(crate) fn combine_g1_chunks(chunks: &[G1Projective]) -> G1Projective {
             acc
         })
 }
+
+pub(crate) fn deserialize_scalar(b: &[u8]) -> Option<Scalar> {
+    if b.len() != 32 {
+        None
+    } else {
+        let mut repr: [u8; 32] = Default::default();
+        repr.as_mut().copy_from_slice(b);
+        Scalar::from_bytes(&repr).into()
+    }
+}
+
+pub(crate) fn deserialize_g1(b: &[u8]) -> Option<G1Projective> {
+    if b.len() != 48 {
+        None
+    } else {
+        let mut encoding = <G1Projective as GroupEncoding>::Repr::default();
+        encoding.as_mut().copy_from_slice(b);
+        G1Projective::from_bytes(&encoding).into()
+    }
+}
+
+pub(crate) fn deserialize_g2(b: &[u8]) -> Option<G2Projective> {
+    if b.len() != 96 {
+        None
+    } else {
+        let mut encoding = <G2Projective as GroupEncoding>::Repr::default();
+        encoding.as_mut().copy_from_slice(b);
+        G2Projective::from_bytes(&encoding).into()
+    }
+}

@@ -125,14 +125,13 @@ mod tests {
                 String::from("enc"),
             ),
         };
-        let err = app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                contract_addr.clone(),
-                &msg,
-                &deposit_funds,
-            )
-            .unwrap();
+        app.execute_contract(
+            Addr::unchecked(OWNER),
+            contract_addr.clone(),
+            &msg,
+            &deposit_funds,
+        )
+        .unwrap();
 
         // try to release more then it's in the contract
         let msg = ExecuteMsg::ReleaseFunds {
@@ -151,14 +150,13 @@ mod tests {
         let msg = ExecuteMsg::ReleaseFunds {
             funds: deposit_funds[0].clone(),
         };
-        let err = app
-            .execute_contract(
-                Addr::unchecked(multisig_addr),
-                contract_addr.clone(),
-                &msg,
-                &[],
-            )
-            .unwrap();
+        app.execute_contract(
+            Addr::unchecked(multisig_addr),
+            contract_addr.clone(),
+            &msg,
+            &[],
+        )
+        .unwrap();
         let pool_bal = app.wrap().query_balance(pool_addr, DENOM).unwrap();
         assert_eq!(pool_bal, deposit_funds[0]);
     }

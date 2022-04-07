@@ -163,6 +163,7 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
+            mnemonic: "a b c".to_string(),
         };
 
         let config = Config::new(&args.id);

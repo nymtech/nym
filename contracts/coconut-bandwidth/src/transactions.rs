@@ -174,13 +174,29 @@ mod tests {
             deps.as_mut(),
             env.clone(),
             mock_info(invalid_admin, &[]),
+            Coin::new(1, "invalid denom"),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::WrongDenom);
+
+        let err = release_funds(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(invalid_admin, &[]),
             funds.clone(),
         )
         .unwrap_err();
-        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+        assert_eq!(err, ContractError::NotEnoughFunds);
 
-        let err =
-            release_funds(deps.as_mut(), env, mock_info(invalid_admin, &[]), funds).unwrap_err();
+        deps.querier
+            .update_balance(env.contract.address.clone(), vec![funds.clone()]);
+        let err = release_funds(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(invalid_admin, &[]),
+            funds.clone(),
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
     }
 
@@ -192,6 +208,8 @@ mod tests {
         let pool_addr = "Mix pool contract address";
         let coin = Coin::new(1, DENOM);
 
+        deps.querier
+            .update_balance(env.contract.address.clone(), vec![coin.clone()]);
         let res = release_funds(
             deps.as_mut(),
             env,

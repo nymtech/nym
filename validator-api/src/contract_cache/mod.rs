@@ -17,7 +17,7 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::RwLock;
 use tokio::time;
 use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::CosmWasmClient;
@@ -28,7 +28,6 @@ pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
     cache: ValidatorCache,
     caching_interval: Duration,
-    update_rewarded_set_notify: Option<Arc<Notify>>,
 }
 
 #[derive(Clone)]
@@ -89,13 +88,11 @@ impl<C> ValidatorCacheRefresher<C> {
         nymd_client: Client<C>,
         caching_interval: Duration,
         cache: ValidatorCache,
-        update_rewarded_set_notify: Option<Arc<Notify>>,
     ) -> Self {
         ValidatorCacheRefresher {
             nymd_client,
             cache,
             caching_interval,
-            update_rewarded_set_notify,
         }
     }
 
@@ -152,20 +149,6 @@ impl<C> ValidatorCacheRefresher<C> {
                 epoch_rewarding_params,
             )
             .await;
-
-        if let Some(notify) = &self.update_rewarded_set_notify {
-            let update_details = self
-                .nymd_client
-                .get_current_rewarded_set_update_details()
-                .await?;
-
-            if update_details.last_refreshed_block + (update_details.refresh_rate_blocks as u64)
-                < update_details.current_height
-            {
-                // there's only ever a single waiter -> the set updater
-                notify.notify_one()
-            }
-        }
 
         Ok(())
     }

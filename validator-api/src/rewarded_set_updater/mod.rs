@@ -22,9 +22,9 @@ use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Notify;
+use time::OffsetDateTime;
+use tokio::time::sleep;
 use validator_client::nymd::{CosmosCoin, SigningNymdClient};
 
 pub(crate) mod error;
@@ -62,7 +62,6 @@ type Epoch = Interval;
 
 pub struct RewardedSetUpdater {
     nymd_client: Client<SigningNymdClient>,
-    update_rewarded_set_notify: Arc<Notify>,
     validator_cache: ValidatorCache,
     storage: ValidatorApiStorage,
 }
@@ -74,13 +73,11 @@ impl RewardedSetUpdater {
 
     pub(crate) async fn new(
         nymd_client: Client<SigningNymdClient>,
-        update_rewarded_set_notify: Arc<Notify>,
         validator_cache: ValidatorCache,
         storage: ValidatorApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {
             nymd_client,
-            update_rewarded_set_notify,
             validator_cache,
             storage,
         })
@@ -247,8 +244,20 @@ impl RewardedSetUpdater {
 
         loop {
             // wait until the cache refresher determined its time to update the rewarded/active sets
-            self.update_rewarded_set_notify.notified().await;
-            self.update_rewarded_set().await?;
+            let time = OffsetDateTime::now_utc().unix_timestamp();
+            let epoch = self.epoch().await?;
+            let time_to_epoch_change = epoch.end_unix_timestamp() - time;
+            if time_to_epoch_change <= 0 {
+                log::info!("Time to epoch change is 0, updating rewarded set");
+                self.update_rewarded_set().await?;
+            } else {
+                log::info!(
+                    "Waiting for epoch change, time to epoch change is {}",
+                    time_to_epoch_change
+                );
+                sleep(Duration::from_secs(time_to_epoch_change as u64)).await;
+            }
+            sleep(Duration::from_secs(10)).await;
         }
         #[allow(unreachable_code)]
         Ok(())

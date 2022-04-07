@@ -11,10 +11,11 @@ use rocket_okapi::settings::OpenApiSettings;
 
 use mixnet_contract_common::Delegation;
 
+use crate::mix_node::delegations::get_single_mixnode_delegations;
+use crate::mix_node::econ_stats::retrieve_mixnode_econ_stats;
 use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond,
 };
-use crate::mix_nodes::delegations::get_single_mixnode_delegations;
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
@@ -46,8 +47,11 @@ pub(crate) async fn get_by_id(
 
 #[openapi(tag = "mix_node")]
 #[get("/<pubkey>/delegations")]
-pub(crate) async fn get_delegations(pubkey: &str) -> Json<Vec<Delegation>> {
-    Json(get_single_mixnode_delegations(pubkey).await)
+pub(crate) async fn get_delegations(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<Delegation>> {
+    Json(get_single_mixnode_delegations(&state.inner.validator_client, pubkey).await)
 }
 
 #[openapi(tag = "mix_node")]
@@ -143,11 +147,22 @@ pub(crate) async fn get_economic_dynamics_stats(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<EconomicDynamicsStats>> {
-    // if mixnode exists -> return fixture, otherwise return a None
-    if state.inner.get_mix_node(pubkey).await.is_some() {
-        Some(Json(EconomicDynamicsStats::dummy_fixture()))
-    } else {
-        None
+    match state.inner.mixnode.get_econ_stats(pubkey).await {
+        Some(cache_value) => {
+            trace!("Returning cached value for {}", pubkey);
+            Some(Json(cache_value))
+        }
+        None => {
+            trace!("No valid cache value for {}", pubkey);
+
+            // get fresh value from the validator API
+            let econ_stats =
+                retrieve_mixnode_econ_stats(&state.inner.validator_client, pubkey).await?;
+
+            // update cache
+            state.inner.mixnode.set_econ_stats(pubkey, econ_stats).await;
+            Some(Json(econ_stats))
+        }
     }
 }
 

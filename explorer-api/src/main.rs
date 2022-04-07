@@ -42,7 +42,7 @@ impl ExplorerApi {
     async fn run(&mut self) {
         info!("Explorer API starting up...");
 
-        let validator_api_url = network_defaults::default_api_endpoints()[0].clone();
+        let validator_api_url = self.state.inner.validator_client.api_endpoint();
         info!("Using validator API - {}", validator_api_url);
 
         // spawn concurrent tasks

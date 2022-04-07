@@ -32,6 +32,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
 pub(crate) struct MixNodeCache {
     pub(crate) descriptions: Cache<NodeDescription>,
     pub(crate) node_stats: Cache<NodeStats>,
+    pub(crate) econ_stats: Cache<EconomicDynamicsStats>,
 }
 
 #[derive(Clone)]
@@ -45,6 +46,7 @@ impl ThreadsafeMixNodeCache {
             inner: Arc::new(RwLock::new(MixNodeCache {
                 descriptions: Cache::new(),
                 node_stats: Cache::new(),
+                econ_stats: Cache::new(),
             })),
         }
     }
@@ -55,6 +57,10 @@ impl ThreadsafeMixNodeCache {
 
     pub(crate) async fn get_node_stats(&self, identity_key: &str) -> Option<NodeStats> {
         self.inner.read().await.node_stats.get(identity_key)
+    }
+
+    pub(crate) async fn get_econ_stats(&self, identity_key: &str) -> Option<EconomicDynamicsStats> {
+        self.inner.read().await.econ_stats.get(identity_key)
     }
 
     pub(crate) async fn set_description(&self, identity_key: &str, description: NodeDescription) {
@@ -71,6 +77,18 @@ impl ThreadsafeMixNodeCache {
             .await
             .node_stats
             .set(identity_key, node_stats);
+    }
+
+    pub(crate) async fn set_econ_stats(
+        &self,
+        identity_key: &str,
+        econ_stats: EconomicDynamicsStats,
+    ) {
+        self.inner
+            .write()
+            .await
+            .econ_stats
+            .set(identity_key, econ_stats);
     }
 }
 
@@ -104,7 +122,7 @@ pub(crate) struct NodeStats {
     packets_explicitly_dropped_since_last_update: u64,
 }
 
-#[derive(Serialize, Clone, Deserialize, JsonSchema)]
+#[derive(Serialize, Clone, Copy, Deserialize, JsonSchema)]
 pub(crate) struct EconomicDynamicsStats {
     pub(crate) stake_saturation: f32,
 
@@ -116,18 +134,4 @@ pub(crate) struct EconomicDynamicsStats {
     pub(crate) estimated_delegators_reward: u64,
 
     pub(crate) current_interval_uptime: u8,
-}
-
-impl EconomicDynamicsStats {
-    pub(crate) fn dummy_fixture() -> Self {
-        EconomicDynamicsStats {
-            stake_saturation: 12.3,
-            active_set_inclusion_probability: 4.56,
-            reserve_set_inclusion_probability: 7.89,
-            estimated_total_node_reward: 100000,
-            estimated_operator_reward: 80000,
-            estimated_delegators_reward: 20000,
-            current_interval_uptime: 80,
-        }
-    }
 }

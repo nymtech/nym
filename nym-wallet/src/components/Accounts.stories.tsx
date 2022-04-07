@@ -2,6 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Accounts } from 'src/components/Accounts';
+import { v4 as uuid4 } from 'uuid';
 
 export default {
   title: 'Wallet / Multi Account',
@@ -16,8 +17,13 @@ const Template: ComponentStory<typeof Accounts> = (args) => (
 
 export const Default = Template.bind({});
 Default.args = {
-  accounts: [
-    { name: 'Account 1', address: 'abcd1234uvw987xyz' },
-    { name: 'Account 2', address: 'cd102034u087xyz' },
+  storedAccounts: [{ name: 'Account 1', address: uuid4() }],
+};
+
+export const MultipleAccounts = Template.bind({});
+MultipleAccounts.args = {
+  storedAccounts: [
+    { name: 'Account 1', address: uuid4() },
+    { name: 'Account 2', address: uuid4() },
   ],
 };

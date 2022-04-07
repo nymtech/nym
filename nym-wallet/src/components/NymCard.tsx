@@ -14,10 +14,11 @@ export const NymCard: React.FC<{
   title: string | React.ReactElement;
   subheader?: string;
   Action?: React.ReactNode;
-  Icon?: any;
+  Icon?: React.ReactNode;
   noPadding?: boolean;
-}> = ({ title, subheader, Action, Icon, noPadding, children }) => (
-  <Card variant="outlined" sx={{ overflow: 'auto' }}>
+  borderless?: boolean;
+}> = ({ title, subheader, Action, Icon, noPadding, borderless, children }) => (
+  <Card variant="outlined" sx={{ overflow: 'auto', ...(borderless && { border: 'none', dropShadow: 'none' }) }}>
     <CardHeader
       sx={{ p: 3, color: 'nym.background.dark' }}
       title={<Title title={title} Icon={Icon} />}

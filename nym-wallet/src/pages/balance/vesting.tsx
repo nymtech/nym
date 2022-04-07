@@ -137,7 +137,7 @@ export const VestingCard = () => {
     <NymCard
       title="Vesting Schedule"
       data-testid="check-unvested-tokens"
-      Icon={InfoOutlined}
+      Icon={<InfoOutlined />}
       Action={
         <IconButton
           onClick={async () => {

@@ -13,9 +13,19 @@ const AccountColor = ({ address }: { address: string }) => <Circle sx={{ color: 
 
 const AccountItem = ({ name, address }: { name: string; address: string }) => (
   <NymCard
-    title={name}
-    subheader={address}
+    title={
+      <Box>
+        <Typography>{name}</Typography>
+        <Typography variant="caption">{address}</Typography>
+      </Box>
+    }
     noPadding
+    borderless
+    Icon={
+      <Box sx={{ mr: 1.5 }}>
+        <AccountColor address={address} />
+      </Box>
+    }
     Action={
       <IconButton size="small">
         <Edit fontSize="small" />

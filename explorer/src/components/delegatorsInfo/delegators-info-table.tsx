@@ -5,7 +5,6 @@ import { useTheme, Theme, styled } from '@mui/material/styles';
 import Tooltip, { TooltipProps, tooltipClasses } from '@mui/material/Tooltip';
 import LinearProgress from '@mui/material/LinearProgress';
 import { cellStyles } from '../Universal-DataGrid';
-import { currencyToString } from '../../utils/currency';
 import { InfoSVG } from '../../icons/InfoSVG';
 import { ColumnsType, RowsType, UniversalTableProps } from './types';
 

@@ -29,7 +29,8 @@ use url::Url;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::{client::QueryClient, InternalSignRequest};
+use coconut::InternalSignRequest;
+use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -362,7 +363,11 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
     (interval_length.as_secs() / test_delay.as_secs()) as usize
 }
 
-async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
+async fn setup_rocket(
+    config: &Config,
+    liftoff_notify: Arc<Notify>,
+    _nymd_client: Option<Client<SigningNymdClient>>,
+) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket = rocket::build()
         .attach(setup_cors()?)
@@ -381,7 +386,7 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     let rocket = if config.get_coconut_signer_enabled() {
         #[cfg(feature = "coconut")]
         rocket.attach(InternalSignRequest::stage(
-            QueryClient::new()?,
+            _nymd_client.expect("Should have a signing client here"),
             config.keypair(),
             storage.clone().unwrap(),
         ))
@@ -429,10 +434,21 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         return Ok(());
     }
 
+    let signing_nymd_client = if matches.is_present(MNEMONIC_ARG) {
+        Some(Client::new_signing(&config))
+    } else {
+        None
+    };
+
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!
-    let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
+    let rocket = setup_rocket(
+        &config,
+        Arc::clone(&liftoff_notify),
+        signing_nymd_client.clone(),
+    )
+    .await?;
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
@@ -442,7 +458,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     if config.get_network_monitor_enabled() {
         let rewarded_set_update_notify = Arc::new(Notify::new());
 
-        let nymd_client = Client::new_signing(&config);
+        let nymd_client = signing_nymd_client.expect("We should have a signing client here");
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client.clone(),
             config.get_caching_interval(),

@@ -3,7 +3,7 @@
 
 pub(crate) mod client;
 mod deposit;
-mod error;
+pub(crate) mod error;
 #[cfg(test)]
 mod tests;
 

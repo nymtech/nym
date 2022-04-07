@@ -282,7 +282,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[cfg(feature = "coconut")]
 pub struct CoconutSigner {
@@ -291,16 +291,6 @@ pub struct CoconutSigner {
 
     /// Base58 encoded signing keypair
     keypair_bs58: String,
-}
-
-#[cfg(feature = "coconut")]
-impl Default for CoconutSigner {
-    fn default() -> Self {
-        CoconutSigner {
-            enabled: false,
-            keypair_bs58: String::default(),
-        }
-    }
 }
 
 impl Config {

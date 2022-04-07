@@ -17,6 +17,8 @@ use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,
     pub ciphertexts: Ciphertexts,
@@ -154,6 +156,80 @@ impl Dealing {
             return Err(DkgError::InvalidProofOfSharing);
         }
         Ok(())
+    }
+
+    // coeff_len || coeff || cc_len || cc || pi_c_len || pi_c || pi_s_len || pi_s
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+
+        let mut coefficients_bytes = self.public_coefficients.to_bytes();
+        bytes.extend_from_slice(&(coefficients_bytes.len() as u32).to_be_bytes());
+        bytes.append(&mut coefficients_bytes);
+
+        let mut ciphertexts_bytes = self.ciphertexts.to_bytes();
+        bytes.extend_from_slice(&(ciphertexts_bytes.len() as u32).to_be_bytes());
+        bytes.append(&mut ciphertexts_bytes);
+
+        let mut proof_sharing_bytes = self.proof_of_sharing.to_bytes();
+        bytes.extend_from_slice(&(proof_sharing_bytes.len() as u32).to_be_bytes());
+        bytes.append(&mut proof_sharing_bytes);
+
+        let mut proof_chunking_bytes = self.proof_of_chunking.to_bytes();
+        bytes.extend_from_slice(&(proof_chunking_bytes.len() as u32).to_be_bytes());
+        bytes.append(&mut proof_chunking_bytes);
+
+        bytes
+    }
+
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
+        // can we read the length of serialized public coefficients?
+        if bytes.len() < 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "Dealing",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut i = 0;
+        let coefficients_bytes_len =
+            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+        let public_coefficients =
+            PublicCoefficients::try_from_bytes(&bytes[i..i + coefficients_bytes_len])?;
+        i += coefficients_bytes_len;
+
+        let ciphertexts_bytes_len =
+            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+        let ciphertexts = Ciphertexts::try_from_bytes(&bytes[i..i + ciphertexts_bytes_len])?;
+        i += ciphertexts_bytes_len;
+
+        let proof_of_sharing_bytes_len =
+            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+        let proof_of_sharing =
+            ProofOfSecretSharing::try_from_bytes(&bytes[i..i + proof_of_sharing_bytes_len])?;
+        i += proof_of_sharing_bytes_len;
+
+        let proof_of_chunking_bytes_len =
+            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        if bytes[i..].len() != proof_of_chunking_bytes_len {
+            return Err(DkgError::new_deserialization_failure(
+                "Dealing",
+                "invalid number of bytes provided",
+            ));
+        }
+
+        let proof_of_chunking = ProofOfChunking::try_from_bytes(&bytes[i..])?;
+
+        Ok(Dealing {
+            public_coefficients,
+            ciphertexts,
+            proof_of_chunking,
+            proof_of_sharing,
+        })
     }
 }
 
@@ -374,5 +450,36 @@ mod tests {
             threshold
         )
         .is_ok())
+    }
+
+    #[test]
+    fn dealing_roundtrip() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let parties = 5;
+        let threshold = ((parties as f32 * 2.) / 3. + 1.) as Threshold;
+        let node_indices = (1..=parties).collect::<Vec<_>>();
+        let epoch = Epoch::new(2);
+
+        let mut receivers = BTreeMap::new();
+        for index in &node_indices {
+            let (_, pk) = keygen(&params, &mut rng);
+            receivers.insert(*index, *pk.public_key());
+        }
+
+        let (dealing, _) = Dealing::create(
+            &mut rng,
+            &params,
+            node_indices[0],
+            threshold,
+            epoch,
+            &receivers,
+        );
+
+        let bytes = dealing.to_bytes();
+        let recovered = Dealing::try_from_bytes(&bytes).unwrap();
+        assert_eq!(dealing, recovered);
     }
 }

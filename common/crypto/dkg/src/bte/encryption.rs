@@ -4,17 +4,18 @@
 use crate::bte::keys::{DecryptionKey, PublicKey};
 use crate::bte::{Epoch, Params, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUNKS, PAIRING_BASE};
 use crate::error::DkgError;
-use crate::utils::{combine_g1_chunks, combine_scalar_chunks};
+use crate::utils::{combine_g1_chunks, combine_scalar_chunks, deserialize_g1, deserialize_g2};
 use crate::{Chunk, ChunkedShare, Share};
 use bls12_381::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
-use group::{Curve, Group};
+use group::{Curve, Group, GroupEncoding};
 use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
 use zeroize::Zeroize;
 
-#[cfg_attr(test, derive(Clone))]
+#[derive(Debug)]
+#[cfg_attr(test, derive(Clone, PartialEq))]
 pub struct Ciphertexts {
     pub r: [G1Projective; NUM_CHUNKS],
     pub s: [G1Projective; NUM_CHUNKS],
@@ -68,6 +69,101 @@ impl Ciphertexts {
             .iter()
             .map(|share_ciphertext| combine_g1_chunks(share_ciphertext))
             .collect()
+    }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let num_receivers = self.ciphertext_chunks.len();
+
+        let mut bytes = Vec::with_capacity(NUM_CHUNKS * ((num_receivers + 2) * 48 + 96) + 4);
+        for r_i in &self.r {
+            bytes.extend_from_slice(r_i.to_bytes().as_ref())
+        }
+        for s_i in &self.s {
+            bytes.extend_from_slice(s_i.to_bytes().as_ref())
+        }
+        for z_i in &self.z {
+            bytes.extend_from_slice(z_i.to_bytes().as_ref())
+        }
+
+        bytes.extend_from_slice(&(num_receivers as u32).to_be_bytes());
+        for c_i in &self.ciphertext_chunks {
+            for c_ij in c_i {
+                bytes.extend_from_slice(c_ij.to_bytes().as_ref())
+            }
+        }
+
+        bytes
+    }
+
+    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
+        // at the very minimum we must have enough bytes for a single receiver
+
+        if bytes.len() < NUM_CHUNKS * (3 * 48 + 96) + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "Ciphertexts",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut r = Vec::with_capacity(NUM_CHUNKS);
+        let mut s = Vec::with_capacity(NUM_CHUNKS);
+        let mut z = Vec::with_capacity(NUM_CHUNKS);
+
+        let mut i = 0;
+        for _ in 0..NUM_CHUNKS {
+            r.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+                DkgError::new_deserialization_failure("Ciphertexts.r", "invalid curve point")
+            })?);
+            i += 48;
+        }
+        for _ in 0..NUM_CHUNKS {
+            s.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+                DkgError::new_deserialization_failure("Ciphertexts.s", "invalid curve point")
+            })?);
+            i += 48;
+        }
+        for _ in 0..NUM_CHUNKS {
+            z.push(deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
+                DkgError::new_deserialization_failure("Ciphertexts.z", "invalid curve point")
+            })?);
+            i += 96;
+        }
+
+        let num_receivers = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
+        i += 4;
+
+        if bytes[i..].len() != num_receivers * NUM_CHUNKS * 48 {
+            return Err(DkgError::new_deserialization_failure(
+                "Ciphertexts",
+                "invalid number of bytes provided",
+            ));
+        }
+
+        let mut ciphertext_chunks = Vec::with_capacity(num_receivers);
+
+        for _ in 0..num_receivers {
+            let mut ci = Vec::with_capacity(NUM_CHUNKS);
+            for _ in 0..NUM_CHUNKS {
+                ci.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+                    DkgError::new_deserialization_failure(
+                        "Ciphertexts.ciphertext_chunks",
+                        "invalid curve point",
+                    )
+                })?);
+                i += 48;
+            }
+
+            // this unwrap is fine as we have exactly NUM_CHUNKS elements in each vector
+            ciphertext_chunks.push(ci.try_into().unwrap())
+        }
+
+        // and the same is true here, the unwraps are fine as we have exactly NUM_CHUNKS elements in each as required
+        Ok(Ciphertexts {
+            r: r.try_into().unwrap(),
+            s: s.try_into().unwrap(),
+            z: z.try_into().unwrap(),
+            ciphertext_chunks,
+        })
     }
 }
 
@@ -617,5 +713,57 @@ mod tests {
             assert_eq!(expected, combined_ciphertexts[i]);
             assert_eq!(combined_rr, g1 * combined_r);
         }
+    }
+
+    #[test]
+    fn ciphertexts_roundtrip() {
+        fn random_ciphertexts(mut rng: impl RngCore, num_receivers: usize) -> Ciphertexts {
+            Ciphertexts {
+                r: (0..NUM_CHUNKS)
+                    .map(|_| G1Projective::random(&mut rng))
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                s: (0..NUM_CHUNKS)
+                    .map(|_| G1Projective::random(&mut rng))
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                z: (0..NUM_CHUNKS)
+                    .map(|_| G2Projective::random(&mut rng))
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                ciphertext_chunks: (0..num_receivers)
+                    .map(|_| {
+                        (0..NUM_CHUNKS)
+                            .map(|_| G1Projective::random(&mut rng))
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap()
+                    })
+                    .collect(),
+            }
+        }
+
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let good_ciphertexts = vec![
+            random_ciphertexts(&mut rng, 1),
+            random_ciphertexts(&mut rng, 2),
+            random_ciphertexts(&mut rng, 10),
+        ];
+
+        for ciphertexts in &good_ciphertexts {
+            let bytes = ciphertexts.to_bytes();
+            let recovered = Ciphertexts::try_from_bytes(&bytes).unwrap();
+            assert_eq!(ciphertexts, &recovered);
+        }
+
+        // ciphertext for 0 receivers is invalid by default
+        let ciphertexts = random_ciphertexts(&mut rng, 0);
+        let bytes = ciphertexts.to_bytes();
+        assert!(Ciphertexts::try_from_bytes(&bytes).is_err());
     }
 }

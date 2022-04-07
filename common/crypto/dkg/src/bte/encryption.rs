@@ -97,7 +97,6 @@ impl Ciphertexts {
 
     pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
         // at the very minimum we must have enough bytes for a single receiver
-
         if bytes.len() < NUM_CHUNKS * (3 * 48 + 96) + 4 {
             return Err(DkgError::new_deserialization_failure(
                 "Ciphertexts",

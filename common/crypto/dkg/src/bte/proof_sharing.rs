@@ -4,7 +4,7 @@
 use crate::bte::PublicKey;
 use crate::error::DkgError;
 use crate::interpolation::polynomial::PublicCoefficients;
-use crate::utils::hash_to_scalar;
+use crate::utils::{deserialize_g1, deserialize_g2, deserialize_scalar, hash_to_scalar};
 use crate::{NodeIndex, Share};
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
@@ -77,7 +77,8 @@ impl<'a> Instance<'a> {
     }
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[derive(Debug)]
+#[cfg_attr(test, derive(Clone, PartialEq))]
 pub struct ProofOfSecretSharing {
     // TODO: ask @AP for better names for those
     f: G1Projective,
@@ -245,12 +246,72 @@ impl ProofOfSecretSharing {
 
         hash_to_scalar(&bytes, CHALLENGE_DOMAIN)
     }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        // we have 2 G1 elements, single G2 element and 2 scalars
+        let mut bytes = Vec::with_capacity(2 * 48 + 96 + 2 * 32);
+        bytes.extend_from_slice(self.f.to_bytes().as_ref());
+        bytes.extend_from_slice(self.a.to_bytes().as_ref());
+        bytes.extend_from_slice(self.y.to_bytes().as_ref());
+        bytes.extend_from_slice(self.response_r.to_bytes().as_ref());
+        bytes.extend_from_slice(self.response_alpha.to_bytes().as_ref());
+        bytes
+    }
+
+    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
+        if bytes.len() != 2 * 48 + 96 + 2 * 32 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfSecretSharing",
+                "invalid number of bytes provided",
+            ));
+        }
+
+        let mut i = 0;
+        let f = deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("ProofOfSecretSharing.f", "invalid curve point")
+        })?;
+        i += 48;
+
+        let a = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("ProofOfSecretSharing.a", "invalid curve point")
+        })?;
+        i += 96;
+
+        let y = deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("ProofOfSecretSharing.y", "invalid curve point")
+        })?;
+        i += 48;
+
+        let response_r = deserialize_scalar(&bytes[i..i + 32]).ok_or_else(|| {
+            DkgError::new_deserialization_failure(
+                "ProofOfSecretSharing.response_r",
+                "invalid scalar",
+            )
+        })?;
+        i += 32;
+
+        let response_alpha = deserialize_scalar(&bytes[i..]).ok_or_else(|| {
+            DkgError::new_deserialization_failure(
+                "ProofOfSecretSharing.response_alpha",
+                "invalid scalar",
+            )
+        })?;
+
+        Ok(ProofOfSecretSharing {
+            f,
+            a,
+            y,
+            response_r,
+            response_alpha,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::interpolation::polynomial::Polynomial;
+    use group::Group;
     use rand_core::SeedableRng;
 
     const NODES: u64 = 50;
@@ -532,5 +593,25 @@ mod tests {
         let mut bad_proof = good_proof;
         bad_proof.response_alpha = Scalar::from(42);
         assert!(!bad_proof.verify(instance));
+    }
+
+    #[test]
+    fn proof_of_secret_sharing_roundtrip() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let proof_fixture = ProofOfSecretSharing {
+            f: G1Projective::random(&mut rng),
+            a: G2Projective::random(&mut rng),
+            y: G1Projective::random(&mut rng),
+            response_r: Scalar::random(&mut rng),
+            response_alpha: Scalar::random(&mut rng),
+        };
+
+        let bytes = proof_fixture.to_bytes();
+        let recovered = ProofOfSecretSharing::try_from_bytes(&bytes).unwrap();
+        assert_eq!(proof_fixture, recovered);
+
+        assert!(ProofOfSecretSharing::try_from_bytes(&bytes[1..]).is_err())
     }
 }

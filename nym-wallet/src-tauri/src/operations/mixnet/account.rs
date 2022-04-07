@@ -4,6 +4,7 @@ use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::nymd_client;
 use crate::state::State;
+use crate::wallet_storage::account_data::StoredLogin;
 use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
@@ -113,9 +114,8 @@ pub async fn create_new_account(
 }
 
 #[tauri::command]
-pub async fn create_new_mnemonic() -> Result<String, BackendError> {
-  let rand_mnemonic = random_mnemonic();
-  Ok(rand_mnemonic.to_string())
+pub fn create_new_mnemonic() -> String {
+  random_mnemonic().to_string()
 }
 
 #[tauri::command]
@@ -394,16 +394,16 @@ pub fn does_password_file_exist() -> Result<bool, BackendError> {
 }
 
 #[tauri::command]
-pub fn create_password(mnemonic: String, password: String) -> Result<(), BackendError> {
+pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendError> {
   if does_password_file_exist()? {
     return Err(BackendError::WalletFileAlreadyExists);
   }
   log::info!("Creating password");
 
-  let mnemonic = Mnemonic::from_str(&mnemonic)?;
+  let mnemonic = Mnemonic::from_str(mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
 }
@@ -416,15 +416,70 @@ pub async fn sign_in_with_password(
   log::info!("Signing in with password");
 
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  _connect_with_mnemonic(stored_account.mnemonic().clone(), state).await
+  let mnemonic = match stored_account {
+    StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
+    StoredLogin::Multiple(ref accounts) => {
+      // Login using the first account in the list
+      accounts
+        .get_accounts()
+        .next()
+        .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+        .account
+        .mnemonic()
+        .clone()
+    }
+  };
+  _connect_with_mnemonic(mnemonic, state).await
 }
 
 #[tauri::command]
 pub fn remove_password() -> Result<(), BackendError> {
   log::info!("Removing password");
-  let id = wallet_storage::WalletAccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   wallet_storage::remove_wallet_login_information(&id)
+}
+
+#[tauri::command]
+pub fn add_account_for_password(
+  mnemonic: &str,
+  password: &str,
+  inner_id: &str,
+) -> Result<(), BackendError> {
+  let mnemonic = Mnemonic::from_str(mnemonic)?;
+  let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
+  let password = wallet_storage::UserPassword::new(password.to_string());
+  wallet_storage::append_account_to_wallet_login_information(
+    mnemonic, hd_path, id, inner_id, &password,
+  )
+}
+
+#[tauri::command]
+pub fn remove_account_for_password(password: &str, inner_id: &str) -> Result<(), BackendError> {
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
+  let password = wallet_storage::UserPassword::new(password.to_string());
+  wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)
+}
+
+#[tauri::command]
+pub fn list_accounts_for_password(password: &str) -> Result<Vec<String>, BackendError> {
+  // Currently we only support a single, default, id in the wallet
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let password = wallet_storage::UserPassword::new(password.to_string());
+  let login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  let ids = match login {
+    StoredLogin::Mnemonic(_) => vec![id.to_string()],
+    StoredLogin::Multiple(ref accounts) => accounts
+      .get_accounts()
+      .map(|account| account.id.to_string())
+      .collect::<Vec<_>>(),
+  };
+  Ok(ids)
 }

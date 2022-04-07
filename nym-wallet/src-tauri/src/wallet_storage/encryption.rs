@@ -184,10 +184,18 @@ pub(crate) fn encrypt_struct<T>(
 where
   T: Serialize,
 {
+  let encrypting_string_representation = serde_json::to_string_pretty(data).unwrap();
+  dbg!(&encrypting_string_representation);
   let bytes = serde_json::to_vec(data).map_err(|_| BackendError::EncryptionError)?;
 
+  //let time_for_key = Instant::now();
   let (salt, iv) = random_salt_and_iv();
+  //let key_duration = time_for_key.elapsed();
+  //dbg!(&key_duration);
+  //let time_for_encrypt = Instant::now();
   let ciphertext = encrypt(&bytes, password, &salt, &iv)?;
+  //let encrypt_duration = time_for_key.elapsed();
+  //dbg!(&encrypt_duration);
 
   Ok(EncryptedData {
     ciphertext,

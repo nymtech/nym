@@ -238,6 +238,59 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
+    async fn update_blacklist(&mut self, epoch: &Interval) -> Result<(), RewardingError> {
+        info!("Updating blacklist");
+        let mixnodes = self
+            .storage
+            .get_all_avg_mix_reliability_in_last_24hr(epoch.end_unix_timestamp())
+            .await?;
+        let gateways = self
+            .storage
+            .get_all_avg_gateway_reliability_in_last_24hr(epoch.end_unix_timestamp())
+            .await?;
+        for mix in mixnodes {
+            if mix.value() <= 50.0 {
+                self.validator_cache
+                    .insert_mixnodes_blacklist(mix.identity().to_owned())
+                    .await;
+            } else {
+                self.validator_cache
+                    .remove_mixnodes_blacklist(mix.identity())
+                    .await;
+            }
+        }
+
+        for gateway in gateways {
+            if gateway.value() <= 50.0 {
+                self.validator_cache
+                    .insert_gateways_blacklist(gateway.identity().to_owned())
+                    .await;
+            } else {
+                self.validator_cache
+                    .remove_gateways_blacklist(gateway.identity())
+                    .await;
+            }
+        }
+
+        info!(
+            "Blacklisted mixnodes: {}",
+            self.validator_cache
+                .mixnodes_blacklist()
+                .await
+                .into_inner()
+                .len()
+        );
+        info!(
+            "Blacklisted gateways: {}",
+            self.validator_cache
+                .gateways_blacklist()
+                .await
+                .into_inner()
+                .len()
+        );
+        Ok(())
+    }
+
     pub(crate) async fn run(&mut self) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
@@ -247,6 +300,7 @@ impl RewardedSetUpdater {
             let epoch = self.epoch().await?;
             let time_to_epoch_change = epoch.end_unix_timestamp() - time;
             if time_to_epoch_change <= 0 {
+                self.update_blacklist(&epoch).await?;
                 log::info!(
                     "Time to epoch change is {}, updating rewarded set",
                     time_to_epoch_change

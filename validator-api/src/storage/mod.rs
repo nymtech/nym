@@ -16,6 +16,8 @@ use sqlx::ConnectOptions;
 use std::path::PathBuf;
 use time::OffsetDateTime;
 
+use self::manager::AvgReliability;
+
 pub(crate) mod manager;
 pub(crate) mod models;
 
@@ -63,6 +65,32 @@ impl ValidatorApiStorage {
         AdHoc::try_on_ignite("SQLx Database", |rocket| {
             ValidatorApiStorage::init(rocket, database_path)
         })
+    }
+
+    pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
+        &self,
+        end_ts_secs: i64,
+    ) -> Result<Vec<AvgReliability>, ValidatorApiStorageError> {
+        let result = self
+            .manager
+            .get_all_avg_gateway_reliability_in_last_24hr(end_ts_secs)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(format!("{}", e)))?;
+
+        Ok(result)
+    }
+
+    pub(crate) async fn get_all_avg_mix_reliability_in_last_24hr(
+        &self,
+        end_ts_secs: i64,
+    ) -> Result<Vec<AvgReliability>, ValidatorApiStorageError> {
+        let result = self
+            .manager
+            .get_all_avg_mix_reliability_in_last_24hr(end_ts_secs)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(format!("{}", e)))?;
+
+        Ok(result)
     }
 
     /// Gets all statuses for particular mixnode that were inserted
@@ -261,10 +289,10 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
         identity: &str,
-        end: i64,
+        end_ts_secs: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
-        let start = end - 86400;
-        self.get_average_mixnode_uptime_in_interval(identity, start, end)
+        let start = end_ts_secs - 86400;
+        self.get_average_mixnode_uptime_in_interval(identity, start, end_ts_secs)
             .await
     }
 

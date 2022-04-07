@@ -250,6 +250,8 @@ export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => 
         startIcon={<AccountColor address={selectedAccount.address} />}
         color="inherit"
         onClick={() => setDialogToDisplay('Accounts')}
+        size="large"
+        disableRipple
       >
         {selectedAccount.name}
       </Button>

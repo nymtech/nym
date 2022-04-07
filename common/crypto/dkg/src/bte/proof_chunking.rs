@@ -5,8 +5,8 @@ use crate::bte::encryption::Ciphertexts;
 use crate::bte::{Chunk, PublicKey, Share, CHUNK_SIZE, NUM_CHUNKS};
 use crate::ensure_len;
 use crate::error::DkgError;
-use crate::utils::hash_to_scalar;
-use crate::utils::RandomOracleBuilder;
+use crate::utils::{deserialize_g1, hash_to_scalar};
+use crate::utils::{deserialize_scalar, RandomOracleBuilder};
 use bls12_381::{G1Projective, Scalar};
 use ff::Field;
 use group::{Group, GroupEncoding};
@@ -68,7 +68,8 @@ impl<'a> Instance<'a> {
     }
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[derive(Debug)]
+#[cfg_attr(test, derive(Clone, PartialEq))]
 pub struct ProofOfChunking {
     // TODO: ask @AP for better names for those
     y0: G1Projective,
@@ -464,6 +465,182 @@ impl ProofOfChunking {
         bytes.extend_from_slice(y.to_bytes().as_ref());
 
         hash_to_scalar(bytes, SECOND_CHALLENGE_DOMAIN)
+    }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let g1s = self.bb.len() + self.cc.len() + self.dd.len() + 2;
+        let scalars = self.responses_r.len() + 1;
+        let u64s = self.responses_chunks.len();
+
+        // we also need length indicators for bb, cc, dd, responses_r and responses_chunks
+        let mut bytes = Vec::with_capacity(g1s * 48 + scalars * 32 + u64s * 8 + 5 * 4);
+        bytes.extend_from_slice(self.y0.to_bytes().as_ref());
+
+        bytes.extend_from_slice(&(self.bb.len() as u32).to_be_bytes());
+        for b in &self.bb {
+            bytes.extend_from_slice(b.to_bytes().as_ref());
+        }
+
+        bytes.extend_from_slice(&(self.cc.len() as u32).to_be_bytes());
+        for c in &self.cc {
+            bytes.extend_from_slice(c.to_bytes().as_ref());
+        }
+
+        bytes.extend_from_slice(&(self.dd.len() as u32).to_be_bytes());
+        for d in &self.dd {
+            bytes.extend_from_slice(d.to_bytes().as_ref());
+        }
+
+        bytes.extend_from_slice(self.yy.to_bytes().as_ref());
+
+        bytes.extend_from_slice(&(self.responses_r.len() as u32).to_be_bytes());
+        for rr in &self.responses_r {
+            bytes.extend_from_slice(rr.to_bytes().as_ref());
+        }
+
+        bytes.extend_from_slice(&(self.responses_chunks.len() as u32).to_be_bytes());
+        for rc in &self.responses_chunks {
+            bytes.extend_from_slice(rc.to_be_bytes().as_ref());
+        }
+
+        bytes.extend_from_slice(self.response_beta.to_bytes().as_ref());
+
+        bytes
+    }
+
+    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
+        // determining the minimum number of bytes is tricky, so we'll be checking if we have enough as we go
+
+        // can we read y0 and length of bb?
+        if bytes.len() < 48 + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfChunking",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut i = 0;
+        let y0 = deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("ProofOfChunking.y0", "invalid curve point")
+        })?;
+        i += 48;
+
+        let bb_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        // can we read bb and length of cc?
+        if bytes[i..].len() < 48 * bb_len + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfChunking",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut bb = Vec::with_capacity(bb_len);
+        for _ in 0..bb_len {
+            bb.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+                DkgError::new_deserialization_failure("ProofOfChunking.bb", "invalid curve point")
+            })?);
+            i += 48;
+        }
+
+        let cc_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        // can we read cc and length of dd?
+        if bytes[i..].len() < 48 * cc_len + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfChunking",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut cc = Vec::with_capacity(cc_len);
+        for _ in 0..cc_len {
+            cc.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+                DkgError::new_deserialization_failure("ProofOfChunking.cc", "invalid curve point")
+            })?);
+            i += 48;
+        }
+
+        let dd_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        // can we read dd, yy and length of responses_r?
+        if bytes[i..].len() < 48 * dd_len + 48 + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfChunking",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut dd = Vec::with_capacity(dd_len);
+        for _ in 0..dd_len {
+            dd.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+                DkgError::new_deserialization_failure("ProofOfChunking.dd", "invalid curve point")
+            })?);
+            i += 48;
+        }
+
+        let yy = deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("ProofOfChunking.y0", "invalid curve point")
+        })?;
+        i += 48;
+
+        let responses_r_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        // can we read responses_r and length of responses_chunks?
+        if bytes[i..].len() < 32 * responses_r_len + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfChunking",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut responses_r = Vec::with_capacity(responses_r_len);
+        for _ in 0..responses_r_len {
+            responses_r.push(deserialize_scalar(&bytes[i..i + 32]).ok_or_else(|| {
+                DkgError::new_deserialization_failure(
+                    "ProofOfChunking.responses_r",
+                    "invalid scalar",
+                )
+            })?);
+            i += 32;
+        }
+
+        let responses_chunks_len =
+            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        // can we read the rest of the proof, i.e. responses_chunks and response_beta?
+        if bytes[i..].len() != responses_chunks_len * 8 + 32 {
+            return Err(DkgError::new_deserialization_failure(
+                "ProofOfChunking",
+                "invalid number of bytes provided",
+            ));
+        }
+
+        let mut responses_chunks = Vec::with_capacity(responses_chunks_len);
+        for _ in 0..responses_chunks_len {
+            responses_chunks.push(u64::from_be_bytes((&bytes[i..i + 8]).try_into().unwrap()));
+            i += 8;
+        }
+
+        let response_beta = deserialize_scalar(&bytes[i..i + 32]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("ProofOfChunking.response_beta", "invalid scalar")
+        })?;
+
+        Ok(ProofOfChunking {
+            y0,
+            bb,
+            cc,
+            dd,
+            yy,
+            responses_r,
+            responses_chunks,
+            response_beta,
+        })
     }
 }
 
@@ -883,5 +1060,25 @@ mod tests {
         let mut bad_proof = good_proof;
         bad_proof.response_beta = Scalar::one();
         assert!(!bad_proof.verify(instance));
+    }
+
+    #[test]
+    fn proof_of_chunking_roundtrip() {
+        let dummy_seed = [1u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let (owned_instance, r, shares) = setup(&mut rng);
+        let instance = Instance {
+            public_keys: &owned_instance.public_keys,
+            randomizers_r: &owned_instance.randomizers_r,
+            ciphertext_chunks: &owned_instance.ciphertext_chunks,
+        };
+
+        let good_proof =
+            ProofOfChunking::construct(&mut rng, instance.clone(), &r, &shares).unwrap();
+
+        let bytes = good_proof.to_bytes();
+        let recovered = ProofOfChunking::try_from_bytes(&bytes).unwrap();
+        assert_eq!(good_proof, recovered)
     }
 }

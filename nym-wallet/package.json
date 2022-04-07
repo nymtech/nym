@@ -42,6 +42,7 @@
     "react-hook-form": "^7.14.2",
     "react-router-dom": "^5.2.0",
     "semver": "^6.3.0",
+    "string-to-color": "^2.2.2",
     "use-clipboard-copy": "^0.2.0",
     "yup": "^0.32.9"
   },

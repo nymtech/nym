@@ -55,7 +55,7 @@ const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 const KEYPAIR_ARG: &str = "keypair";
 
 #[cfg(feature = "coconut")]
-const COCONUT_ONLY_FLAG: &str = "coconut-only";
+const COCONUT_ENABLED: &str = "enable-coconut";
 
 #[cfg(not(feature = "coconut"))]
 const ETH_ENDPOINT: &str = "eth_endpoint";
@@ -173,16 +173,18 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         );
 
     #[cfg(feature = "coconut")]
-        let base_app = base_app.arg(
-        Arg::with_name(KEYPAIR_ARG)
-            .help("Path to the secret key file")
-            .takes_value(true)
-            .long(KEYPAIR_ARG),
-    ).arg(
-        Arg::with_name(COCONUT_ONLY_FLAG)
-            .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
-            .long(COCONUT_ONLY_FLAG),
-    );
+    let base_app = base_app
+        .arg(
+            Arg::with_name(KEYPAIR_ARG)
+                .help("Path to the secret key file")
+                .takes_value(true)
+                .long(KEYPAIR_ARG),
+        )
+        .arg(
+            Arg::with_name(COCONUT_ENABLED)
+                .help("Flag to indicate whether coconut signer authority is enabled on this API")
+                .long(COCONUT_ENABLED),
+        );
 
     #[cfg(not(feature = "coconut"))]
         let base_app = base_app.arg(
@@ -382,11 +384,16 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     };
 
     #[cfg(feature = "coconut")]
-    let rocket = rocket.attach(InternalSignRequest::stage(
-        QueryClient::new()?,
-        config.keypair(),
-        storage.clone().unwrap(),
-    ));
+    let rocket = if config.get_coconut_signer_enabled() {
+        #[cfg(feature = "coconut")]
+        rocket.attach(InternalSignRequest::stage(
+            QueryClient::new()?,
+            config.keypair(),
+            storage.clone().unwrap(),
+        ))
+    } else {
+        rocket
+    };
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
@@ -426,21 +433,6 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if we just wanted to write data to the config, exit
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
-    }
-
-    #[cfg(feature = "coconut")]
-    if matches.is_present(COCONUT_ONLY_FLAG) {
-        // this simplifies everything - we just want to run coconut things
-        return rocket::build()
-            .attach(setup_cors()?)
-            .attach(InternalSignRequest::stage(
-                QueryClient::new()?,
-                config.keypair(),
-                ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?,
-            ))
-            .launch()
-            .await
-            .map_err(|err| err.into());
     }
 
     let liftoff_notify = Arc::new(Notify::new());

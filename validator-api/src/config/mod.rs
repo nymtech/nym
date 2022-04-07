@@ -52,6 +52,10 @@ pub struct Config {
 
     #[serde(default)]
     rewarding: Rewarding,
+
+    #[serde(default)]
+    #[cfg(feature = "coconut")]
+    coconut_signer: CoconutSigner,
 }
 
 impl NymConfig for Config {
@@ -87,9 +91,8 @@ pub struct Base {
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
 
-    // Avoid breaking derives for now
-    #[cfg(feature = "coconut")]
-    keypair_bs58: String,
+    /// Mnemonic used for rewarding and/or multisig operations
+    mnemonic: String,
 }
 
 impl Default for Base {
@@ -99,8 +102,7 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_NETWORK.mixnet_contract_address().to_string(),
-            #[cfg(feature = "coconut")]
-            keypair_bs58: String::default(),
+            mnemonic: String::default(),
         }
     }
 }
@@ -259,9 +261,6 @@ pub struct Rewarding {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
 
-    /// Mnemonic (currently of the network monitor) used for rewarding
-    mnemonic: String,
-
     /// Specifies the minimum percentage of monitor test run data present in order to
     /// distribute rewards for given interval.
     /// Note, only values in range 0-100 are valid
@@ -272,8 +271,28 @@ impl Default for Rewarding {
     fn default() -> Self {
         Rewarding {
             enabled: false,
-            mnemonic: String::default(),
             minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+#[cfg(feature = "coconut")]
+pub struct CoconutSigner {
+    /// Specifies whether rewarding service is enabled in this process.
+    enabled: bool,
+
+    /// Base58 encoded signing keypair
+    keypair_bs58: String,
+}
+
+#[cfg(feature = "coconut")]
+impl Default for CoconutSigner {
+    fn default() -> Self {
+        CoconutSigner {
+            enabled: false,
+            keypair_bs58: String::default(),
         }
     }
 }
@@ -285,7 +304,7 @@ impl Config {
 
     #[cfg(feature = "coconut")]
     pub fn keypair(&self) -> KeyPair {
-        KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
+        KeyPair::try_from_bs58(self.coconut_signer.keypair_bs58.clone()).unwrap()
     }
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
@@ -314,13 +333,13 @@ impl Config {
     }
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
-        self.rewarding.mnemonic = mnemonic.into();
+        self.base.mnemonic = mnemonic.into();
         self
     }
 
     #[cfg(feature = "coconut")]
     pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
-        self.base.keypair_bs58 = keypair_bs58.into();
+        self.coconut_signer.keypair_bs58 = keypair_bs58.into();
         self
     }
 
@@ -348,6 +367,11 @@ impl Config {
 
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn get_coconut_signer_enabled(&self) -> bool {
+        self.coconut_signer.enabled
     }
 
     pub fn get_testnet_mode(&self) -> bool {
@@ -384,7 +408,7 @@ impl Config {
     }
 
     pub fn get_mnemonic(&self) -> String {
-        self.rewarding.mnemonic.clone()
+        self.base.mnemonic.clone()
     }
 
     pub fn get_network_monitor_run_interval(&self) -> Duration {

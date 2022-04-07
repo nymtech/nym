@@ -107,10 +107,6 @@ fn long_version() -> String {
 }
 
 fn parse_args<'a>() -> ArgMatches<'a> {
-    #[cfg(feature = "coconut")]
-    let monitor_reqs = &[];
-    #[cfg(not(feature = "coconut"))]
-    let monitor_reqs = &[ETH_ENDPOINT, ETH_PRIVATE_KEY];
     let build_details = long_version();
     let base_app = App::new("Nym Validator API")
         .version(crate_version!())
@@ -121,14 +117,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
                 .short("m")
-                .requires_all(monitor_reqs)
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
                 .short("r")
-                .requires(MONITORING_ENABLED)
+                .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
         )
         .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
@@ -145,7 +140,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .long(MNEMONIC_ARG)
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
-                 .requires(REWARDING_ENABLED),
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
@@ -164,7 +158,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
-                .requires(REWARDING_ENABLED)
         )
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)
@@ -183,6 +176,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
+                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG])
                 .long(COCONUT_ENABLED),
         );
 

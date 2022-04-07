@@ -27,6 +27,12 @@ const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_ETH_PRIVATE_KEY: &str =
+    "0000000000000000000000000000000000000000000000000000000000000001";
+
 const DEFAULT_TEST_ROUTES: usize = 3;
 const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
@@ -208,9 +214,9 @@ impl Default for NetworkMonitor {
             #[cfg(not(feature = "coconut"))]
             backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
             #[cfg(not(feature = "coconut"))]
-            eth_private_key: "".to_string(),
+            eth_private_key: DEFAULT_ETH_PRIVATE_KEY.to_string(),
             #[cfg(not(feature = "coconut"))]
-            eth_endpoint: "".to_string(),
+            eth_endpoint: DEFAULT_ETH_ENDPOINT.to_string(),
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
             route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,

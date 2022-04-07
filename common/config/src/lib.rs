@@ -71,9 +71,11 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
         fs::write(location.clone(), templated_config)?;
 
+        #[cfg(unix)]
         let mut perms = fs::metadata(location.clone())?.permissions();
         #[cfg(unix)]
         perms.set_mode(0o600);
+        #[cfg(unix)]
         fs::set_permissions(location, perms)?;
 
         Ok(())

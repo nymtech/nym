@@ -236,7 +236,7 @@ impl Config {
         self.gateway.validator_nymd_urls.clone()
     }
 
-    pub fn get_cosmos_mnemonic(&self) -> String {
+    pub fn _get_cosmos_mnemonic(&self) -> String {
         self.gateway.cosmos_mnemonic.clone()
     }
 

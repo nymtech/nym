@@ -66,7 +66,7 @@ export const DelegatorsInfoTable: React.FC<{
                                                 }}
                                                 arrow
                                             >
-                                                <IconButton>
+                                                <IconButton disableFocusRipple disableRipple>
                                                     <InfoSVG />
                                                 </IconButton>
                                             </CustomTooltip>

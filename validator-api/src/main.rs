@@ -55,9 +55,6 @@ const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 const KEYPAIR_ARG: &str = "keypair";
 
 #[cfg(feature = "coconut")]
-const SIGNED_DEPOSITS_ARG: &str = "signed-deposits";
-
-#[cfg(feature = "coconut")]
 const COCONUT_ONLY_FLAG: &str = "coconut-only";
 
 #[cfg(not(feature = "coconut"))]
@@ -181,11 +178,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .help("Path to the secret key file")
             .takes_value(true)
             .long(KEYPAIR_ARG),
-    ).arg(
-        Arg::with_name(SIGNED_DEPOSITS_ARG)
-            .help("Path to the directory used to store the already signed deposit transactions. This prevents the validator for double signing for the same deposit")
-            .takes_value(true)
-            .long(SIGNED_DEPOSITS_ARG),
     ).arg(
         Arg::with_name(COCONUT_ONLY_FLAG)
             .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")

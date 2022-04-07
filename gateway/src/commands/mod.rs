@@ -117,7 +117,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(cosmos_mnemonic) = args.mnemonic {
-        config = config.with_cosmos_mnemonic(String::from(cosmos_mnemonic));
+        config = config.with_cosmos_mnemonic(cosmos_mnemonic);
     }
 
     #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]

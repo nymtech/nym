@@ -103,3 +103,31 @@ pub(crate) struct NodeStats {
     packets_sent_since_last_update: u64,
     packets_explicitly_dropped_since_last_update: u64,
 }
+
+#[derive(Serialize, Clone, Deserialize, JsonSchema)]
+pub(crate) struct EconomicDynamicsStats {
+    pub(crate) stake_saturation: f32,
+
+    pub(crate) active_set_inclusion_probability: f32,
+    pub(crate) reserve_set_inclusion_probability: f32,
+
+    pub(crate) estimated_total_node_reward: u64,
+    pub(crate) estimated_operator_reward: u64,
+    pub(crate) estimated_delegators_reward: u64,
+
+    pub(crate) current_interval_uptime: u8,
+}
+
+impl EconomicDynamicsStats {
+    pub(crate) fn dummy_fixture() -> Self {
+        EconomicDynamicsStats {
+            stake_saturation: 12.3,
+            active_set_inclusion_probability: 4.56,
+            reserve_set_inclusion_probability: 7.89,
+            estimated_total_node_reward: 100000,
+            estimated_operator_reward: 80000,
+            estimated_delegators_reward: 20000,
+            current_interval_uptime: 80,
+        }
+    }
+}

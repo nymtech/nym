@@ -11,7 +11,9 @@ use rocket_okapi::settings::OpenApiSettings;
 
 use mixnet_contract_common::Delegation;
 
-use crate::mix_node::models::{NodeDescription, NodeStats, PrettyDetailedMixNodeBond};
+use crate::mix_node::models::{
+    EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond,
+};
 use crate::mix_nodes::delegations::get_single_mixnode_delegations;
 use crate::state::ExplorerApiStateContext;
 
@@ -21,6 +23,7 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
         get_by_id,
         get_description,
         get_stats,
+        get_economic_dynamics_stats,
     ]
 }
 
@@ -131,6 +134,20 @@ pub(crate) async fn get_stats(
                 None => Option::None,
             }
         }
+    }
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<pubkey>/economic-dynamics-stats")]
+pub(crate) async fn get_economic_dynamics_stats(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Option<Json<EconomicDynamicsStats>> {
+    // if mixnode exists -> return fixture, otherwise return a None
+    if state.inner.get_mix_node(pubkey).await.is_some() {
+        Some(Json(EconomicDynamicsStats::dummy_fixture()))
+    } else {
+        None
     }
 }
 

@@ -320,18 +320,11 @@ impl ValidatorApiStorage {
             None => return Ok(Uptime::zero()),
         };
 
-        info!(
-            "Getting average uptime of mixnode {}({}) in interval [{}, {}]",
-            identity, mixnode_database_id, start, end
-        );
-
         let reliability = self
             .manager
             .get_average_reliability_in_interval(mixnode_database_id, start, end)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(format!("{}", e)))?;
-
-        info!("{:?}", reliability);
 
         if let Some(reliability) = reliability {
             Ok(Uptime::new(reliability))

@@ -126,9 +126,6 @@ pub(crate) async fn get_mixnode_reward_estimation(
         info!("{:?}", current_epoch);
 
         let uptime = if let Some(epoch) = current_epoch {
-            info!("{}", identity);
-            info!("{}", epoch.end_unix_timestamp());
-            info!("{}", epoch.end_unix_timestamp() - 86400);
             storage
                 .get_average_mixnode_uptime_in_the_last_24hrs(&identity, epoch.end_unix_timestamp())
                 .await
@@ -136,8 +133,6 @@ pub(crate) async fn get_mixnode_reward_estimation(
         } else {
             Uptime::default()
         };
-
-        info!("{:?}", uptime);
 
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
         let reward_params = RewardParams::new(reward_params, node_reward_params);

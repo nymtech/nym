@@ -133,6 +133,7 @@ impl<C> ValidatorCacheRefresher<C> {
             self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
+        let current_epoch = self.nymd_client.get_current_epoch().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -147,6 +148,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 rewarded_set,
                 active_set,
                 epoch_rewarding_params,
+                current_epoch,
             )
             .await;
 
@@ -204,6 +206,7 @@ impl ValidatorCache {
         rewarded_set: Vec<MixNodeBond>,
         active_set: Vec<MixNodeBond>,
         epoch_rewarding_params: EpochRewardParams,
+        current_epoch: Interval,
     ) {
         let mut inner = self.inner.write().await;
 
@@ -212,6 +215,7 @@ impl ValidatorCache {
         inner.rewarded_set.update(rewarded_set);
         inner.active_set.update(active_set);
         inner.current_reward_params.update(epoch_rewarding_params);
+        inner.current_epoch.update(Some(current_epoch));
     }
 
     pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<IdentityKey>> {

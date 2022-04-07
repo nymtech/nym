@@ -174,9 +174,8 @@ impl RewardedSetUpdater {
         for rewarded_node in rewarded_set.into_iter() {
             let uptime = self
                 .storage
-                .get_average_mixnode_uptime_in_interval(
+                .get_average_mixnode_uptime_in_the_last_24hrs(
                     rewarded_node.identity(),
-                    epoch.start_unix_timestamp(),
                     epoch.end_unix_timestamp(),
                 )
                 .await?;

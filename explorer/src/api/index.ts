@@ -18,6 +18,7 @@ import {
   MixNodeResponse,
   MixNodeResponseItem,
   MixnodeStatus,
+  MixNodeEconomicDynamicsStatsResponse,
   StatsResponse,
   StatusResponse,
   SummaryOverviewResponse,
@@ -121,6 +122,9 @@ export class Api {
 
   static fetchMixnodeDescriptionById = async (id: string): Promise<MixNodeDescriptionResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/description`)).json();
+
+  static fetchMixnodeEconomicDynamicsStatsById = async (id: string): Promise<MixNodeEconomicDynamicsStatsResponse> =>
+    (await fetch(`${MIXNODE_API}/${id}/economic-dynamics-stats`)).json();
 
   static fetchStatusById = async (id: string): Promise<StatusResponse> => (await fetch(`${MIXNODE_PING}/${id}`)).json();
 

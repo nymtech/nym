@@ -44,14 +44,17 @@ impl GatewayPinger {
     }
 
     async fn ping_and_cleanup_all_gateways(&self) {
-        info!(target: "GatewayPinger", "Pinging all active gateways");
+        info!("Pinging all active gateways");
 
         let lock_acquire_start = Instant::now();
         let active_gateway_clients_guard = self.gateway_clients.lock().await;
-        trace!(target: "GatewayPinger", "Acquiring lock took {:?}", Instant::now().duration_since(lock_acquire_start));
+        trace!(
+            "Acquiring lock took {:?}",
+            Instant::now().duration_since(lock_acquire_start)
+        );
 
         if active_gateway_clients_guard.is_empty() {
-            debug!(target: "GatewayPinger", "no gateways to ping");
+            debug!("no gateways to ping");
             return;
         }
 
@@ -89,7 +92,6 @@ impl GatewayPinger {
                     {
                         Err(_timeout) => {
                             warn!(
-                                target: "GatewayPinger",
                                 "we timed out trying to ping {} - assuming the connection is dead.",
                                 active_client.gateway_identity().to_base58_string(),
                             );
@@ -97,7 +99,6 @@ impl GatewayPinger {
                         }
                         Ok(Err(err)) => {
                             warn!(
-                                target: "GatewayPinger",
                                 "failed to send ping message to gateway {} - {} - assuming the connection is dead.",
                                 active_client.gateway_identity().to_base58_string(),
                                 err,
@@ -112,25 +113,34 @@ impl GatewayPinger {
             }
         }
 
+        info!(
+            "Purging {} gateways, acquiring lock",
+            clients_to_purge.len()
+        );
         // purge all dead connections
         // reacquire the guard
         let lock_acquire_start = Instant::now();
         let mut active_gateway_clients_guard = self.gateway_clients.lock().await;
-        trace!(target: "GatewayPinger", "Acquiring lock took {:?}", Instant::now().duration_since(lock_acquire_start));
+        info!(
+            "Acquiring lock took {:?}",
+            Instant::now().duration_since(lock_acquire_start)
+        );
 
         for gateway_id in clients_to_purge.into_iter() {
             if let Some(removed_handle) = active_gateway_clients_guard.remove(&gateway_id) {
                 if !removed_handle.is_invalid().await {
+                    info!("Handle is invalid, purging");
                     // it was not invalidated by the packet sender meaning it probably was some unbonded node
                     // that was never cleared
                     self.notify_connection_failure(gateway_id);
                 }
+                info!("Handle is not invalid, not purged")
             }
         }
 
         let ping_end = Instant::now();
         let time_taken = ping_end.duration_since(ping_start);
-        debug!(target: "GatewayPinger", "Pinging all active gateways took {:?}", time_taken);
+        info!("Pinging all active gateways took {:?}", time_taken);
     }
 
     pub(crate) async fn run(&self) {

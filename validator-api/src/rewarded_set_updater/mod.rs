@@ -197,7 +197,7 @@ impl RewardedSetUpdater {
     }
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
-    async fn update_rewarded_set(&self) -> Result<(), RewardingError> {
+    async fn update(&self) -> Result<(), RewardingError> {
         let epoch = self.epoch().await?;
         log::info!("Starting rewarded set update");
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
@@ -248,15 +248,21 @@ impl RewardedSetUpdater {
             let epoch = self.epoch().await?;
             let time_to_epoch_change = epoch.end_unix_timestamp() - time;
             if time_to_epoch_change <= 0 {
-                log::info!("Time to epoch change is 0, updating rewarded set");
-                self.update_rewarded_set().await?;
+                log::info!(
+                    "Time to epoch change is {}, updating rewarded set",
+                    time_to_epoch_change
+                );
+                self.update().await?;
             } else {
                 log::info!(
                     "Waiting for epoch change, time to epoch change is {}",
                     time_to_epoch_change
                 );
-                sleep(Duration::from_secs(time_to_epoch_change as u64)).await;
+                // Sleep at most 300 before checking again, to keep logs busy
+                let s = time_to_epoch_change.min(300).max(0) as u64;
+                sleep(Duration::from_secs(s)).await;
             }
+            // allow some blocks to pass
             sleep(Duration::from_secs(10)).await;
         }
         #[allow(unreachable_code)]

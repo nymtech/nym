@@ -231,7 +231,8 @@ fn setup_logging() {
         .filter_module("sled", log::LevelFilter::Warn)
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .filter_module("rocket", log::LevelFilter::Warn)
+        .filter_module("_", log::LevelFilter::Warn)
+        .filter_module("rocket::server", log::LevelFilter::Warn)
         .init();
 }
 

@@ -1,36 +1,20 @@
 import * as React from 'react';
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, IconButton } from '@mui/material';
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton } from '@mui/material';
 import { CopyToClipboard } from '@nymproject/react';
 import { Box } from '@mui/system';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, styled } from '@mui/material/styles';
+import Tooltip, { TooltipProps, tooltipClasses } from '@mui/material/Tooltip';
 import { cellStyles } from '../Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
 import { InfoSVG } from '../../icons/InfoSVG';
+import { ColumnsType, RowsType, UniversalTableProps } from './types';
 
-export type ColumnsType = {
-    field: string;
-    title: string;
-    headerAlign: string;
-    flex?: number;
-    width?: number;
-    tooltipInfo?: boolean;
-};
 
-export type RowsType = {
-    value: string;
-    visualProgressValue?: number;
-};
 
-export interface UniversalTableProps {
-    tableName: string;
-    columnsData: ColumnsType[];
-    rows: any[];
-}
+const formatCellValues = (val: RowsType, field: string) => {
 
-function formatCellValues(val: RowsType, field: string) {
-    console.log('val', val, 'field', field);
     if (val.visualProgressValue) {
-
+        console.log('val', val, 'field', field);
     }
     if (field === 'identity_key' && typeof val === 'string') {
         return (
@@ -56,6 +40,17 @@ export const DelegatorsInfoTable: React.FC<{
     rows: [];
 }> = ({ tableName, columnsData, rows }: UniversalTableProps) => {
     const theme = useTheme();
+
+    const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
+        <Tooltip {...props} classes={{ popper: className }} />
+    ))({
+        [`& .${tooltipClasses.tooltip}`]: {
+            maxWidth: 230,
+            background: '#A0AED1',
+            color: theme.palette.nym.networkExplorer.nav.hover,
+        },
+    });
+    
     return (
         <TableContainer component={Paper}>
             <Table sx={{ minWidth: 650 }} aria-label={tableName}>
@@ -66,11 +61,21 @@ export const DelegatorsInfoTable: React.FC<{
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     {tooltipInfo && (
                                         <Box sx={{ mr: .5, display: 'flex', alignItems: 'center' }}>
-                                            <Tooltip title={tooltipInfo}>
+                                            <CustomTooltip
+                                                title={tooltipInfo}
+                                                id={field}
+                                                placement='top-start'
+                                                sx={{
+                                                    '& .MuiTooltip-arrow': {
+                                                        color: '#A0AED1',
+                                                    },
+                                                }}
+                                                arrow
+                                            >
                                                 <IconButton>
                                                     <InfoSVG />
                                                 </IconButton>
-                                            </Tooltip>
+                                            </CustomTooltip>
                                         </Box>
                                     )}
                                     {title}

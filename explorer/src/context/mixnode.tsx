@@ -3,6 +3,7 @@ import {
   ApiState,
   DelegationsResponse,
   MixNodeDescriptionResponse,
+  MixNodeEconomicDynamicsStatsResponse,
   MixNodeResponseItem,
   StatsResponse,
   StatusResponse,
@@ -18,6 +19,7 @@ import { mixNodeResponseItemToMixnodeRowType, MixnodeRowType } from '../componen
 interface MixnodeState {
   delegations?: ApiState<DelegationsResponse>;
   description?: ApiState<MixNodeDescriptionResponse>;
+  economicDynamicsStats?: ApiState<MixNodeEconomicDynamicsStatsResponse>;
   mixNode?: ApiState<MixNodeResponseItem | undefined>;
   mixNodeRow?: MixnodeRowType;
   stats?: ApiState<StatsResponse>;
@@ -71,6 +73,14 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
     'Failed to fetch mixnode description',
   );
 
+  const [economicDynamicsStats, fetchEconomicDynamicsStats, clearEconomicDynamicsStats] = useApiState<MixNodeEconomicDynamicsStatsResponse>(
+    mixNodeIdentityKey,
+    Api.fetchMixnodeEconomicDynamicsStatsById,
+    'Failed to fetch mixnode dynamics stats by id',
+  );
+
+  
+
   const [uptimeStory, fetchUptimeHistory, clearUptimeHistory] = useApiState<UptimeStoryResponse>(
     mixNodeIdentityKey,
     Api.fetchUptimeStoryById,
@@ -84,6 +94,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
     clearStatus();
     clearStats();
     clearDescription();
+    clearEconomicDynamicsStats();
     clearUptimeHistory();
 
     // fetch the mixnode, then get all the other stuff
@@ -93,7 +104,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
         return;
       }
       setMixnodeRow(mixNodeResponseItemToMixnodeRowType(value.data));
-      Promise.all([fetchDelegations(), fetchStatus(), fetchStats(), fetchDescription(), fetchUptimeHistory()]);
+      Promise.all([fetchDelegations(), fetchStatus(), fetchStats(), fetchDescription(), fetchEconomicDynamicsStats(), fetchUptimeHistory()]);
     });
   }, [mixNodeIdentityKey]);
 
@@ -103,6 +114,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
       mixNode,
       mixNodeRow,
       description,
+      economicDynamicsStats,
       stats,
       status,
       uptimeStory,
@@ -113,6 +125,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
         mixNode,
         mixNodeRow,
         description,
+        economicDynamicsStats,
         stats,
         status,
         uptimeStory,

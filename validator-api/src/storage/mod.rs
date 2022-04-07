@@ -292,28 +292,24 @@ impl ValidatorApiStorage {
             None => return Ok(Uptime::zero()),
         };
 
-        let monitor_runs = self.get_monitor_runs_count(start, end).await?;
-        let mixnode_statuses = self
+        info!(
+            "Getting average uptime of mixnode {}({}) in interval [{}, {}]",
+            identity, mixnode_database_id, start, end
+        );
+
+        let reliability = self
             .manager
-            .get_mixnode_statuses_by_id(mixnode_database_id, start, end)
+            .get_average_reliability_in_interval(mixnode_database_id, start, end)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(format!("{}", e)))?;
 
-        let mut total: f32 = 0.0;
-        for mixnode_status in mixnode_statuses {
-            total += mixnode_status.reliability() as f32;
+        info!("{:?}", reliability);
+
+        if let Some(reliability) = reliability {
+            Ok(Uptime::new(reliability))
+        } else {
+            Ok(Uptime::zero())
         }
-
-        let uptime = match Uptime::from_uptime_sum(total, monitor_runs) {
-            Ok(uptime) => uptime,
-            Err(_) => {
-                // this should really ever happen...
-                error!("mixnode {} has uptime > 100!", identity);
-                Uptime::default()
-            }
-        };
-
-        Ok(uptime)
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.

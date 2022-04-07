@@ -247,6 +247,26 @@ impl StorageManager {
         .await
     }
 
+    pub(super) async fn get_average_reliability_in_interval(
+        &self,
+        id: i64,
+        start: i64,
+        end: i64,
+    ) -> Result<Option<f32>, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+            SELECT AVG(reliability) as "reliability: f32" FROM mixnode_status
+            WHERE mixnode_details_id= ? AND timestamp >= ? AND timestamp <= ?
+            "#,
+            id,
+            start,
+            end
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+        Ok(result.reliability)
+    }
+
     /// Gets all reliability statuses for gateway with particular id that were inserted
     /// into the database within the specified time interval.
     ///

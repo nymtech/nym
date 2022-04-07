@@ -258,6 +258,16 @@ impl ValidatorApiStorage {
         ))
     }
 
+    pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
+        &self,
+        identity: &str,
+        end: i64,
+    ) -> Result<Uptime, ValidatorApiStorageError> {
+        let start = end - 86400;
+        self.get_average_mixnode_uptime_in_interval(identity, start, end)
+            .await
+    }
+
     /// Based on the data available in the validator API, determines the average uptime of particular
     /// mixnode during the specified time interval.
     ///

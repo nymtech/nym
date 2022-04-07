@@ -117,6 +117,14 @@ impl Polynomial {
         Polynomial { coefficients }
     }
 
+    pub fn set_constant_coefficient(&mut self, value: Scalar) {
+        if self.coefficients.is_empty() {
+            self.coefficients = vec![value]
+        } else {
+            self.coefficients[0] = value
+        }
+    }
+
     /// Creates a zero-polynomial, i.e. p(x) = 0
     pub const fn zero() -> Self {
         Polynomial {

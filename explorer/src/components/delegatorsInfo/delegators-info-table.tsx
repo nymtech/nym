@@ -1,37 +1,32 @@
 import * as React from 'react';
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton } from '@mui/material';
-import { CopyToClipboard } from '@nymproject/react';
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Typography } from '@mui/material';
 import { Box } from '@mui/system';
-import { useTheme, styled } from '@mui/material/styles';
+import { useTheme, Theme, styled } from '@mui/material/styles';
 import Tooltip, { TooltipProps, tooltipClasses } from '@mui/material/Tooltip';
+import LinearProgress from '@mui/material/LinearProgress';
 import { cellStyles } from '../Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
 import { InfoSVG } from '../../icons/InfoSVG';
 import { ColumnsType, RowsType, UniversalTableProps } from './types';
 
+const tooltipBackGroundColor = '#A0AED1';
 
-
-const formatCellValues = (val: RowsType, field: string) => {
-
+const formatCellValues = (val: RowsType, field: string, theme: Theme) => {
     if (val.visualProgressValue) {
-        console.log('val', val, 'field', field);
-    }
-    if (field === 'identity_key' && typeof val === 'string') {
         return (
-            <Box display="flex" justifyContent="flex-end">
-                <CopyToClipboard
-                    sx={{ mr: 1, mt: 0.5, fontSize: '18px' }}
-                    value={val}
-                    tooltip={`Copy identity key ${val} to clipboard`}
-                />
-                <span>{val}</span>
+            <Box sx={{ display: 'flex', alignItems: 'center' }} id='field' >
+                <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }}>
+                    {val.value}
+                </Typography>
+                <LinearProgress variant="determinate" value={val.visualProgressValue} color='inherit' sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.nym.networkExplorer.nav.text }} />
             </Box>
-        );
+        )
     }
-    if (field === 'bond') {
-        return currencyToString(val.toString());
-    }
-    return val.value;
+    return (
+            <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field} >
+                {val.value}
+            </Typography>
+    );
 }
 
 export const DelegatorsInfoTable: React.FC<{
@@ -46,11 +41,11 @@ export const DelegatorsInfoTable: React.FC<{
     ))({
         [`& .${tooltipClasses.tooltip}`]: {
             maxWidth: 230,
-            background: '#A0AED1',
+            background: tooltipBackGroundColor,
             color: theme.palette.nym.networkExplorer.nav.hover,
         },
     });
-    
+
     return (
         <TableContainer component={Paper}>
             <Table sx={{ minWidth: 650 }} aria-label={tableName}>
@@ -103,7 +98,7 @@ export const DelegatorsInfoTable: React.FC<{
                                     }}
                                     data-testid={`${_.title.replace(/ /g, '-')}-value`}
                                 >
-                                    {formatCellValues(eachRow[columnsData[index].field], columnsData[index].field)}
+                                    {formatCellValues(eachRow[columnsData[index].field], columnsData[index].field, theme)}
                                 </TableCell>
                             ))}
                         </TableRow>

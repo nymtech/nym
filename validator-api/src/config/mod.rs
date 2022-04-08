@@ -318,6 +318,12 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
+    pub fn with_coconut_signer_enabled(mut self, enabled: bool) -> Self {
+        self.coconut_signer.enabled = enabled;
+        self
+    }
+
     pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self

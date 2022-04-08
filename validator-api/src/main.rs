@@ -237,6 +237,11 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
         config = config.with_rewarding_enabled(true)
     }
 
+    #[cfg(feature = "coconut")]
+    if matches.is_present(COCONUT_ENABLED) {
+        config = config.with_coconut_signer_enabled(true)
+    }
+
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
     }
@@ -384,7 +389,6 @@ async fn setup_rocket(
 
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
-        #[cfg(feature = "coconut")]
         rocket.attach(InternalSignRequest::stage(
             _nymd_client.expect("Should have a signing client here"),
             config.keypair(),

@@ -109,7 +109,7 @@ const PageMixnodeDetailWithState: React.FC = () => {
 
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
-          <DelegatorsInfoTable columnsData={delegatorsInfoColumns} tableName="Delegators info table" rows={[delegatorsInfoRows]} />
+          <DelegatorsInfoTable columnsData={delegatorsInfoColumns} tableName="Delegators info table" rows={[delegatorsInfoRows()]} />
         </Grid>
       </Grid>
 

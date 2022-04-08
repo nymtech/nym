@@ -1,24 +1,31 @@
 import { currencyToString } from '../../utils/currency';
+import { useMixnodeContext } from '../../context/mixnode';
 
-const estimatedReward = currencyToString('12345');
-const activeSetProbability = 45;
-const stakeSaturation = 10;
-const profitMargin = 12;
+export const delegatorsInfoRows: any = () => {
 
-export const delegatorsInfoRows: any = {
+    const { economicDynamicsStats } = useMixnodeContext();
+
+    const estimatedDelegatorsReward = economicDynamicsStats?.data?.estimated_delegators_reward || 0;
+    const estimatedNodeRewards = economicDynamicsStats?.data?.estimated_total_node_reward || 0;
+    const activeSetProbability = economicDynamicsStats?.data?.active_set_inclusion_probability || 0;
+    const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || 0;
+    const profitMargin = (estimatedDelegatorsReward / estimatedNodeRewards) * 100 || 0;
+
+
+    return ({
     id: 1,
     estimated_reward: {
-        value: estimatedReward || 0,
+        value: currencyToString(estimatedDelegatorsReward.toString()),
     },
     active_set_probability: {
-        value: `${activeSetProbability} %` || 0,
+        value: `${activeSetProbability} %`,
         visualProgressValue: activeSetProbability,
     },
     stake_saturation: {
-        value: `${stakeSaturation} %` || 0,
-        visualProgressValue: stakeSaturation || 0,
+        value: `${stakeSaturation} %`,
+        visualProgressValue: stakeSaturation,
     },
     profit_margin: {
-        value: `${profitMargin} %` || 0,
+        value: `${profitMargin} %`,
     },
-}
+})}

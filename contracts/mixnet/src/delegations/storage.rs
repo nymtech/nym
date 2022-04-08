@@ -24,9 +24,9 @@ type OwnerAddress = Vec<u8>;
 type PrimaryKey = (IdentityKey, OwnerAddress, BlockHeight);
 
 pub(crate) struct DelegationIndex<'a> {
-    pub(crate) owner: MultiIndex<'a, Addr, Delegation>,
+    pub(crate) owner: MultiIndex<'a, Addr, Delegation, PrimaryKey>,
 
-    pub(crate) mixnode: MultiIndex<'a, IdentityKey, Delegation>,
+    pub(crate) mixnode: MultiIndex<'a, IdentityKey, Delegation, PrimaryKey>,
 }
 
 impl<'a> IndexList<Delegation> for DelegationIndex<'a> {

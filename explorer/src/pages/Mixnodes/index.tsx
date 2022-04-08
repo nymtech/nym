@@ -212,6 +212,54 @@ export const PageMixnodes: React.FC = () => {
           {params.value}
         </MuiLink>
       ),
+    },{
+      field: 'profit_percentage',
+      headerName: 'Profit Margin',
+      renderHeader: () => <CustomColumnHeading headingTitle="Profit Margin" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 150,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },{
+      field: 'delegators_number',
+      headerName: 'Delegators',
+      renderHeader: () => <CustomColumnHeading headingTitle="Delegators" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 150,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },{
+      field: 'avg_update',
+      headerName: 'Avg. Update',
+      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Update" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 150,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
     },
   ];
 

@@ -2,8 +2,15 @@ import { ColumnsType } from '../DetailTable';
 
 export const delegatorsInfoColumns: ColumnsType[] = [
     {
-      field: 'estimated_reward',
-      title: 'Estimated Reward',
+      field: 'estimated_total_reward',
+      title: 'Estimated Total Reward',
+      flex: 1,
+      headerAlign: 'left',
+      tooltipInfo: 'Estimated reward per epoch for this profit margin if your node is selected in the active set.',
+    },
+    {
+      field: 'estimated_operator_reward',
+      title: 'Estimated Operator Reward',
       flex: 1,
       headerAlign: 'left',
       tooltipInfo: 'Estimated reward per epoch for this profit margin if your node is selected in the active set.',
@@ -27,5 +34,11 @@ export const delegatorsInfoColumns: ColumnsType[] = [
       title: 'Profit Margin',
       flex: 1,
       headerAlign: 'left',
-    }
+    },
+    {
+      field: 'avg_update',
+      title: 'Avg. Update',
+      flex: 1,
+      headerAlign: 'left',
+    },
 ]

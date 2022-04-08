@@ -57,36 +57,13 @@ const columns: ColumnsType[] = [
     headerAlign: 'left',
     flex: 1,
   },
-  {
-    field: 'profit_percentage',
-    title: 'Profit Margin',
-    headerAlign: 'left',
-    flex: 1,
-  },
-  {
-    field: 'delegators_number',
-    title: 'Delegators',
-    headerAlign: 'left',
-    flex: 1,
-  },
-  {
-    field: 'avg_update',
-    title: 'Avg. Update',
-    headerAlign: 'left',
-    flex: 1,
-  },
 ];
 
 /**
  * Shows mix node details
  */
 const PageMixnodeDetailWithState: React.FC = () => {
-  const { mixNode, mixNodeRow, description, stats, status, uptimeStory, delegations, economicDynamicsStats } = useMixnodeContext();
-
-  if (mixNodeRow) {
-    mixNodeRow.delegators_number = delegations?.data?.length;
-    mixNodeRow.avg_update = economicDynamicsStats?.data?.current_interval_uptime;
-  }
+  const { mixNode, mixNodeRow, description, stats, status, uptimeStory } = useMixnodeContext();
 
   return (
     <Box component="main">

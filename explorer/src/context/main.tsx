@@ -81,6 +81,22 @@ export const MainContextProvider: React.FC = ({ children }) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
       const data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+
+      // console.log(data.map((node) => {
+      //   const economicStats = Api.fetchMixnodeEconomicDynamicsStatsById(node?.mix_node?.identity_key);
+      //   const delegations = Api.fetchDelegationsById(node?.mix_node?.identity_key);
+
+      //   return Promise.all([economicStats, delegations]).then((values) => {
+      //     const updateAvg = values[0].current_interval_uptime;
+      //     const validatorsNumber = values[1].length;
+      //     return {
+      //       node,
+      //       updateAvg,
+      //       validatorsNumber,
+      //     }
+      //   });
+      // }));
+
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({

@@ -159,7 +159,7 @@ impl BandwidthVoucher {
 
     pub fn sign(&self, request: &BlindSignRequest) -> identity::Signature {
         let mut message = request.to_bytes();
-        message.extend_from_slice(self.tx_hash.as_bytes());
+        message.extend_from_slice(self.tx_hash.to_string().as_bytes());
         self.signing_key.sign(&message)
     }
 }

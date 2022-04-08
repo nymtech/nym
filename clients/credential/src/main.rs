@@ -32,6 +32,8 @@ cfg_if::cfg_if! {
         #[tokio::main]
         async fn main() -> Result<()> {
             let args = Cli::parse();
+
+            let shared_storage = credential_storage::initialise_storage(std::path::PathBuf::from("/tmp/credential.db")).await;
             let mut db = match PickleDb::load(
                 "credential.db",
                 PickleDbDumpPolicy::AutoDump,
@@ -46,9 +48,9 @@ cfg_if::cfg_if! {
             };
 
             match &args.command {
-                Commands::Deposit(m) => m.execute(&mut db).await?,
-                Commands::ListDeposits(m) => m.execute(&mut db).await?,
-                Commands::GetCredential(m) => m.execute(&mut db).await?,
+                Commands::Deposit(m) => m.execute(&mut db, shared_storage).await?,
+                Commands::ListDeposits(m) => m.execute(&mut db, shared_storage).await?,
+                Commands::GetCredential(m) => m.execute(&mut db, shared_storage).await?,
             }
 
             Ok(())

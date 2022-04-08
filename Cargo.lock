@@ -879,6 +879,7 @@ dependencies = [
  "clap 3.1.6",
  "coconut-bandwidth-contract-common",
  "coconut-interface",
+ "credential-storage",
  "credentials",
  "crypto",
  "network-defaults",
@@ -896,6 +897,7 @@ dependencies = [
 name = "credential-storage"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "log",
  "nymcoconut",
  "sqlx",

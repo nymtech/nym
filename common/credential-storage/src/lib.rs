@@ -5,18 +5,21 @@
 
 use crate::coconut::CoconutCredentialManager;
 use crate::error::StorageError;
+use crate::storage::Storage;
 
+use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
 use std::path::{Path, PathBuf};
 
 mod coconut;
-mod error;
+pub mod error;
 mod models;
+pub mod storage;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
-pub(crate) struct PersistentStorage {
+pub struct PersistentStorage {
     coconut_credential_manager: CoconutCredentialManager,
 }
 
@@ -57,7 +60,36 @@ impl PersistentStorage {
     }
 }
 
-async fn initialise_storage(path: PathBuf) -> PersistentStorage {
+#[async_trait]
+impl Storage for PersistentStorage {
+    async fn insert_coconut_credential(&self, credential: String) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .insert_coconut_credential(credential)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_next_coconut_credential(&self) -> Result<Option<String>, StorageError> {
+        let credential = self
+            .coconut_credential_manager
+            .get_next_coconut_credential()
+            .await?
+            .map(|c| c.credential);
+
+        Ok(credential)
+    }
+
+    async fn remove_coconut_credential(&self, credential: String) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .remove_coconut_credential(credential)
+            .await?;
+
+        Ok(())
+    }
+}
+
+pub async fn initialise_storage(path: PathBuf) -> PersistentStorage {
     match PersistentStorage::init(path).await {
         Err(err) => panic!("failed to initialise credential storage - {}", err),
         Ok(storage) => storage,

@@ -39,6 +39,10 @@ impl Client {
         self.url = new_url
     }
 
+    pub fn current_url(&self) -> &Url {
+        &self.url
+    }
+
     async fn query_validator_api<T, K, V>(
         &self,
         path: PathSegments<'_>,

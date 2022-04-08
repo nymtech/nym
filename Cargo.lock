@@ -744,13 +744,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmos-sdk-proto"
+version = "0.9.0"
+source = "git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation#911fbe1236cfed591783ccef01018f7ccc97c496"
+dependencies = [
+ "prost",
+ "prost-types",
+ "tendermint-proto",
+]
+
+[[package]]
 name = "cosmrs"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "505ea048e9ff2f906d6b954f9f8157d903ca468bfb301d906b40ecc25ba6838d"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto",
+ "cosmos-sdk-proto 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ecdsa 0.13.4",
+ "eyre",
+ "getrandom 0.2.5",
+ "k256 0.10.4",
+ "prost",
+ "prost-types",
+ "rand_core 0.6.3",
+ "serde",
+ "serde_json",
+ "subtle-encoding",
+ "tendermint",
+ "thiserror",
+]
+
+[[package]]
+name = "cosmrs"
+version = "0.4.1"
+source = "git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation#911fbe1236cfed591783ccef01018f7ccc97c496"
+dependencies = [
+ "bip32",
+ "cosmos-sdk-proto 0.9.0 (git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation)",
  "ecdsa 0.13.4",
  "eyre",
  "getrandom 0.2.5",
@@ -862,12 +893,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "credential-storage"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nymcoconut",
+ "sqlx",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "credentials"
 version = "0.1.0"
 dependencies = [
  "bls12_381",
  "coconut-interface",
- "cosmrs",
+ "cosmrs 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crypto",
  "network-defaults",
  "rand 0.7.3",
@@ -1857,7 +1899,7 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
- "cosmrs",
+ "cosmrs 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "credentials",
  "crypto",
  "fluvio-wasm-timer",
@@ -6072,7 +6114,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
- "cosmrs",
+ "cosmrs 0.4.1 (git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation)",
  "cosmwasm-std",
  "flate2",
  "futures",

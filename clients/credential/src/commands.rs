@@ -170,17 +170,3 @@ impl Execute for GetCredential {
         Ok(())
     }
 }
-
-#[derive(Args, Clone)]
-pub(crate) struct SpendCredential {
-    /// Spend one of the acquired credentials
-    #[clap(long)]
-    id: usize,
-}
-
-#[async_trait]
-impl Execute for SpendCredential {
-    async fn execute(&self, _db: &mut PickleDb) -> Result<()> {
-        Ok(())
-    }
-}

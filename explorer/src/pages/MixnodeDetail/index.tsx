@@ -81,12 +81,11 @@ const columns: ColumnsType[] = [
  * Shows mix node details
  */
 const PageMixnodeDetailWithState: React.FC = () => {
-  const { mixNode, mixNodeRow, description, stats, status, uptimeStory, delegations } = useMixnodeContext();
-
-  const delegationsNumber = delegations?.data?.length || mixNodeRow?.delegators_number;
+  const { mixNode, mixNodeRow, description, stats, status, uptimeStory, delegations, economicDynamicsStats } = useMixnodeContext();
 
   if (mixNodeRow) {
-    mixNodeRow.delegators_number = delegationsNumber;
+    mixNodeRow.delegators_number = delegations?.data?.length;
+    mixNodeRow.avg_update = economicDynamicsStats?.data?.current_interval_uptime;
   }
 
   return (

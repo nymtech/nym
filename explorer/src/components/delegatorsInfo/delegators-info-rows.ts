@@ -21,11 +21,11 @@ export const delegatorsInfoRows: any = () => {
         value: currencyToString(estimatedOperatorRewards.toString()),
     },
     active_set_probability: {
-        value: `${activeSetProbability} %`,
+        value: `${activeSetProbability.toFixed(2)} %`,
         visualProgressValue: activeSetProbability,
     },
     stake_saturation: {
-        value: `${stakeSaturation} %`,
+        value: `${stakeSaturation.toFixed(2)} %`,
         visualProgressValue: stakeSaturation,
     },
     profit_margin: {

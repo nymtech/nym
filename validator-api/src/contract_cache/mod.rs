@@ -194,6 +194,8 @@ impl ValidatorCache {
                     routes::get_rewarded_set,
                     routes::get_blacklisted_mixnodes,
                     routes::get_blacklisted_gateways,
+                    routes::get_epoch_reward_params,
+                    routes::get_current_epoch
                 ],
             )
         })

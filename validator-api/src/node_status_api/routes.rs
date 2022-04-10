@@ -136,17 +136,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
 
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
         let reward_params = RewardParams::new(reward_params, node_reward_params);
-        let epoch_start = if let Some(epoch) = current_epoch {
-            epoch.start_unix_timestamp()
-        } else {
-            0
-        };
 
-        let epoch_end = if let Some(epoch) = current_epoch {
-            epoch.end_unix_timestamp()
-        } else {
-            0
-        };
         match bond.estimate_reward(&reward_params) {
             Ok((
                 estimated_total_node_reward,
@@ -157,9 +147,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
                     estimated_total_node_reward,
                     estimated_operator_reward,
                     estimated_delegators_reward,
-                    current_interval_start: epoch_start,
-                    current_interval_end: epoch_end,
-                    current_interval_uptime: uptime.u8(),
+                    reward_params,
                     as_at,
                 };
                 Ok(Json(reponse))

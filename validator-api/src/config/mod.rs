@@ -435,14 +435,6 @@ impl Config {
         self.network_monitor.minimum_test_routes
     }
 
-    pub fn get_min_mixnode_reliability(&self) -> u8 {
-        self.network_monitor.min_mixnode_reliability
-    }
-
-    pub fn get_min_gateway_reliability(&self) -> u8 {
-        self.network_monitor.min_gateway_reliability
-    }
-
     pub fn get_route_test_packets(&self) -> usize {
         self.network_monitor.route_test_packets
     }

@@ -8,7 +8,6 @@ use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
-    RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -262,19 +261,6 @@ impl<C> Client<C> {
             .read()
             .await
             .get_all_nymd_rewarded_set_mixnode_identities()
-            .await
-    }
-
-    pub(crate) async fn get_current_rewarded_set_update_details(
-        &self,
-    ) -> Result<RewardedSetUpdateDetails, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0
-            .read()
-            .await
-            .get_current_rewarded_set_update_details()
             .await
     }
 

@@ -36,6 +36,6 @@ pub(crate) async fn retrieve_mixnode_econ_stats(
         estimated_total_node_reward: reward_estimation.estimated_total_node_reward,
         estimated_operator_reward: reward_estimation.estimated_operator_reward,
         estimated_delegators_reward: reward_estimation.estimated_delegators_reward,
-        current_interval_uptime: reward_estimation.current_interval_uptime,
+        current_interval_uptime: reward_estimation.reward_params.node.uptime() as u8,
     })
 }

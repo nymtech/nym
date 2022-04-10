@@ -240,6 +240,12 @@ impl RewardedSetUpdater {
 
     async fn update_blacklist(&mut self, epoch: &Interval) -> Result<(), RewardingError> {
         info!("Updating blacklist");
+
+        let mut mix_blacklist_add = HashSet::new();
+        let mut mix_blacklist_remove = HashSet::new();
+        let mut gate_blacklist_add = HashSet::new();
+        let mut gate_blacklist_remove = HashSet::new();
+
         let mixnodes = self
             .storage
             .get_all_avg_mix_reliability_in_last_24hr(epoch.end_unix_timestamp())
@@ -248,29 +254,31 @@ impl RewardedSetUpdater {
             .storage
             .get_all_avg_gateway_reliability_in_last_24hr(epoch.end_unix_timestamp())
             .await?;
+
+        // TODO: Make thresholds configurable
         for mix in mixnodes {
             if mix.value() <= 50.0 {
-                self.validator_cache
-                    .insert_mixnodes_blacklist(mix.identity().to_owned())
-                    .await;
+                mix_blacklist_add.insert(mix.identity().to_string());
             } else {
-                self.validator_cache
-                    .remove_mixnodes_blacklist(mix.identity())
-                    .await;
+                mix_blacklist_remove.insert(mix.identity().to_string());
             }
         }
 
+        self.validator_cache
+            .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
+            .await;
+
         for gateway in gateways {
             if gateway.value() <= 50.0 {
-                self.validator_cache
-                    .insert_gateways_blacklist(gateway.identity().to_owned())
-                    .await;
+                gate_blacklist_add.insert(gateway.identity().to_string());
             } else {
-                self.validator_cache
-                    .remove_gateways_blacklist(gateway.identity())
-                    .await;
+                gate_blacklist_remove.insert(gateway.identity().to_string());
             }
         }
+
+        self.validator_cache
+            .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
+            .await;
 
         info!(
             "Blacklisted mixnodes: {}",

@@ -228,40 +228,52 @@ impl ValidatorCache {
         self.inner.read().await.gateways_blacklist.clone()
     }
 
-    pub async fn insert_mixnodes_blacklist(&mut self, mix_identity: IdentityKey) {
+    pub async fn update_mixnodes_blacklist(
+        &self,
+        add: HashSet<IdentityKey>,
+        remove: HashSet<IdentityKey>,
+    ) {
+        let blacklist = self.mixnodes_blacklist().await.value;
+        let mut blacklist = blacklist
+            .union(&add)
+            .cloned()
+            .collect::<HashSet<IdentityKey>>();
+        let to_remove = blacklist
+            .intersection(&remove)
+            .cloned()
+            .collect::<HashSet<IdentityKey>>();
+        for key in to_remove {
+            blacklist.remove(&key);
+        }
         self.inner
             .write()
             .await
             .mixnodes_blacklist
-            .value
-            .insert(mix_identity);
+            .update(blacklist);
     }
 
-    pub async fn remove_mixnodes_blacklist(&mut self, mix_identity: &str) {
-        self.inner
-            .write()
-            .await
-            .mixnodes_blacklist
-            .value
-            .remove(mix_identity);
-    }
-
-    pub async fn insert_gateways_blacklist(&mut self, gateway_identity: IdentityKey) {
+    pub async fn update_gateways_blacklist(
+        &self,
+        add: HashSet<IdentityKey>,
+        remove: HashSet<IdentityKey>,
+    ) {
+        let blacklist = self.gateways_blacklist().await.value;
+        let mut blacklist = blacklist
+            .union(&add)
+            .cloned()
+            .collect::<HashSet<IdentityKey>>();
+        let to_remove = blacklist
+            .intersection(&remove)
+            .cloned()
+            .collect::<HashSet<IdentityKey>>();
+        for key in to_remove {
+            blacklist.remove(&key);
+        }
         self.inner
             .write()
             .await
             .gateways_blacklist
-            .value
-            .insert(gateway_identity);
-    }
-
-    pub async fn remove_gateways_blacklist(&mut self, gateway_identity: &str) {
-        self.inner
-            .write()
-            .await
-            .gateways_blacklist
-            .value
-            .remove(gateway_identity);
+            .update(blacklist);
     }
 
     pub async fn mixnodes(&self) -> Vec<MixNodeBond> {

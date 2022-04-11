@@ -6,7 +6,7 @@ use crate::reward_params::RewardParams;
 use crate::{Delegation, IdentityKey, SphinxKey};
 use crate::{ONE, U128};
 use az::CheckedCast;
-use cosmwasm_std::{coin, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
 use log::error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -195,22 +195,16 @@ pub struct DelegatorRewardParams {
 
     // to be completely honest I don't understand all consequences of using `#[schemars(with = "String")]`
     // for U128 here, but it seems that CosmWasm is using the same attribute for their Uint128
-    #[schemars(with = "String")]
-    #[serde(with = "fixed_U128_as_string")]
-    sigma: U128,
-    #[schemars(with = "String")]
-    #[serde(with = "fixed_U128_as_string")]
-    profit_margin: U128,
-    #[schemars(with = "String")]
-    #[serde(with = "fixed_U128_as_string")]
-    node_profit: U128,
+    sigma: Decimal,
+    profit_margin: Decimal,
+    node_profit: Uint128,
 }
 
 impl DelegatorRewardParams {
     pub fn new(
-        sigma: U128,
-        profit_margin: U128,
-        node_profit: U128,
+        sigma: Decimal,
+        profit_margin: Decimal,
+        node_profit: Uint128,
         reward_params: RewardParams,
     ) -> Self {
         DelegatorRewardParams {
@@ -223,23 +217,14 @@ impl DelegatorRewardParams {
 
     pub fn determine_delegation_reward(&self, delegation_amount: Uint128) -> u128 {
         // change all values into their fixed representations
-        let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(self.reward_params.circulating_supply());
 
-        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let scaled_delegation_amount = delegation_amount / Uint128::new(self.reward_params.circulating_supply());
         let delegator_reward =
-            (ONE - self.profit_margin) * scaled_delegation_amount / self.sigma * self.node_profit;
+            (Decimal::one() - self.profit_margin) * (scaled_delegation_amount / self.sigma.atomics()) * self.node_profit;
 
-        let reward = delegator_reward.max(U128::ZERO);
-        if let Some(int_reward) = reward.checked_cast() {
-            int_reward
-        } else {
-            error!(
-                "Could not cast delegator reward ({}) to u128, returning 0",
-                reward,
-            );
-            0u128
-        }
+        let reward = delegator_reward.max(Uint128::zero());
+
+        reward.u128()
     }
 
     pub fn node_reward_params(&self) -> RewardParams {
@@ -250,8 +235,8 @@ impl DelegatorRewardParams {
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
-    lambda: Uint128,
-    sigma: Uint128,
+    lambda: Decimal,
+    sigma: Decimal,
 }
 
 impl StoredNodeRewardResult {
@@ -259,11 +244,11 @@ impl StoredNodeRewardResult {
         self.reward
     }
 
-    pub fn lambda(&self) -> Uint128 {
+    pub fn lambda(&self) -> Decimal {
         self.lambda
     }
 
-    pub fn sigma(&self) -> Uint128 {
+    pub fn sigma(&self) -> Decimal {
         self.sigma
     }
 }
@@ -273,45 +258,30 @@ impl TryFrom<NodeRewardResult> for StoredNodeRewardResult {
 
     fn try_from(node_reward_result: NodeRewardResult) -> Result<Self, Self::Error> {
         Ok(StoredNodeRewardResult {
-            reward: Uint128::new(
-                node_reward_result
-                    .reward()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
-            lambda: Uint128::new(
-                node_reward_result
-                    .lambda()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
-            sigma: Uint128::new(
-                node_reward_result
-                    .sigma()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
+            reward: node_reward_result.reward(),
+            lambda: node_reward_result.lambda(),
+            sigma: node_reward_result.sigma(),
         })
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeRewardResult {
-    reward: U128,
-    lambda: U128,
-    sigma: U128,
+    reward: Uint128,
+    lambda: Decimal,
+    sigma: Decimal,
 }
 
 impl NodeRewardResult {
-    pub fn reward(&self) -> U128 {
+    pub fn reward(&self) -> Uint128 {
         self.reward
     }
 
-    pub fn lambda(&self) -> U128 {
+    pub fn lambda(&self) -> Decimal {
         self.lambda
     }
 
-    pub fn sigma(&self) -> U128 {
+    pub fn sigma(&self) -> Decimal {
         self.sigma
     }
 }
@@ -357,6 +327,10 @@ impl MixNodeBond {
         U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
     }
 
+    pub fn profit_margin_dec(&self) -> Decimal {
+        Decimal::from_ratio(self.mix_node.profit_margin_percent, 100u128)
+    }
+
     pub fn identity(&self) -> &String {
         &self.mix_node.identity_key
     }
@@ -390,53 +364,61 @@ impl MixNodeBond {
         self.total_delegation.clone()
     }
 
-    pub fn stake_saturation(&self, circulating_supply: u128, rewarded_set_size: u32) -> U128 {
+    pub fn stake_saturation(&self, circulating_supply: u128, rewarded_set_size: u32) -> Decimal {
         self.total_bond_to_circulating_supply(circulating_supply)
-            * U128::from_num(rewarded_set_size)
+            * Decimal::from_atomics(rewarded_set_size, 0).unwrap()
     }
 
     // TODO: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
     // affect lambda, but will affect sigma, in turn over time, if left unclaimed operator rewards will not compound, but
     // behave similarly to delegations.
     // The question is should this be taken into account when calculating operator rewards?
-    pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
-        U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(circulating_supply)
+    pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> Decimal {
+        // U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(circulating_supply);
+
+        Decimal::from_atomics(self.pledge_amount().amount.u128(), 0).unwrap()
+            / Uint128::from(circulating_supply)
     }
 
-    pub fn total_bond_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
-        U128::from_num(self.pledge_amount().amount.u128() + self.total_delegation().amount.u128())
-            / U128::from_num(circulating_supply)
+    pub fn total_bond_to_circulating_supply(&self, circulating_supply: u128) -> Decimal {
+        // U128::from_num(self.pledge_amount().amount.u128() + self.total_delegation().amount.u128())
+        //     / U128::from_num(circulating_supply)
+
+        Decimal::from_atomics(
+            self.total_bond().unwrap_or(0) + self.pledge_amount().amount.u128(),
+            0,
+        )
+        .unwrap()
+            / Uint128::from(circulating_supply)
     }
 
-    pub fn lambda(&self, params: &RewardParams) -> U128 {
+    pub fn lambda(&self, params: &RewardParams) -> Decimal {
         // Ratio of a bond to the token circulating supply
         let pledge_to_circulating_supply_ratio =
             self.pledge_to_circulating_supply(params.circulating_supply());
-        pledge_to_circulating_supply_ratio.min(params.one_over_k())
+        pledge_to_circulating_supply_ratio.min(params.one_over_k_dec())
     }
 
-    pub fn sigma(&self, params: &RewardParams) -> U128 {
+    pub fn sigma(&self, params: &RewardParams) -> Decimal {
         // Ratio of a delegation to the the token circulating supply
         let total_bond_to_circulating_supply_ratio =
             self.total_bond_to_circulating_supply(params.circulating_supply());
-        total_bond_to_circulating_supply_ratio.min(params.one_over_k())
+        total_bond_to_circulating_supply_ratio.min(params.one_over_k_dec())
     }
 
     pub fn estimate_reward(
         &self,
         params: &RewardParams,
     ) -> Result<(u64, u64, u64), MixnetContractError> {
-        let total_node_reward = self.reward(params);
+        let total_node_reward = self
+            .reward(params)
+            .reward();
         let operator_reward = self.operator_reward(params);
-        // TODO: This overestimates the reward by a lot, it should take a Uint128 and return estiamte for that
-        let delegators_reward = self.reward_delegation(self.total_delegation().amount, params);
+        // Total reward has to be the sum of operator and delegator rewards
+        let delegators_reward = total_node_reward.u128() - operator_reward;
 
         Ok((
-            total_node_reward
-                .reward()
-                .checked_to_num::<u128>()
-                .unwrap_or_default()
-                .try_into()?,
+            total_node_reward.u128().try_into()?,
             operator_reward.try_into()?,
             delegators_reward.try_into()?,
         ))
@@ -446,11 +428,16 @@ impl MixNodeBond {
         let lambda = self.lambda(params);
         let sigma = self.sigma(params);
 
-        let reward = params.performance()
-            * params.epoch_reward_pool()
+        println!("performance: {}", params.performance_dec().atomics());
+        println!("reward pool: {}", Uint128::from(params.epoch_reward_pool()));
+        println!("omega: {}", params.omega());
+
+
+        let reward = params.performance_dec()
+            * Uint128::from(params.epoch_reward_pool())
             * (sigma * params.omega()
-                + params.alpha() * lambda * sigma * params.rewarded_set_size())
-            / (ONE + params.alpha());
+                + params.alpha_dec() * lambda * sigma * Uint128::from(params.rewarded_set_size()))
+            / (Decimal::one() + params.alpha_dec()).atomics();
 
         NodeRewardResult {
             reward,
@@ -459,53 +446,45 @@ impl MixNodeBond {
         }
     }
 
-    pub fn node_profit(&self, params: &RewardParams) -> U128 {
-        if self.reward(params).reward() < params.node.operator_cost() {
-            U128::from_num(0u128)
+    pub fn node_profit(&self, params: &RewardParams) -> Uint128 {
+        if self.reward(params).reward() < params.node.operator_cost_dec() {
+            Uint128::zero()
         } else {
-            self.reward(params).reward() - params.node.operator_cost()
+            self.reward(params).reward() - params.node.operator_cost_dec()
         }
     }
 
     pub fn operator_reward(&self, params: &RewardParams) -> u128 {
         let reward = self.reward(params);
-        let profit = if reward.reward < params.node.operator_cost() {
-            U128::from_num(0u128)
+        println!("{:?}", reward);
+        let profit = if reward.reward < params.node.operator_cost_dec() {
+            Uint128::zero()
         } else {
-            reward.reward - params.node.operator_cost()
+            reward.reward - params.node.operator_cost_dec()
         };
-        let operator_base_reward = reward.reward.min(params.node.operator_cost());
-        let operator_reward = (self.profit_margin()
-            + (ONE - self.profit_margin()) * reward.lambda / reward.sigma)
+        let operator_base_reward = reward.reward.min(params.node.operator_cost_dec());
+        let operator_reward = (self.profit_margin_dec()
+            + (Decimal::one() - self.profit_margin_dec()) * reward.lambda / reward.sigma.atomics())
             * profit;
 
-        let reward = (operator_reward + operator_base_reward).max(U128::from_num(0));
+        let reward = (operator_reward + operator_base_reward).max(Uint128::new(0));
 
-        if let Some(int_reward) = reward.checked_cast() {
-            int_reward
-        } else {
-            error!(
-                "Could not cast reward ({}) to u128, returning 0 - mixnode {}",
-                reward,
-                self.identity()
-            );
-            0u128
-        }
+        reward.u128()
     }
 
-    pub fn sigma_ratio(&self, params: &RewardParams) -> U128 {
-        if self.total_bond_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
-        {
-            self.total_bond_to_circulating_supply(params.circulating_supply())
-        } else {
-            params.one_over_k()
-        }
-    }
+    // pub fn sigma_ratio(&self, params: &RewardParams) -> U128 {
+    //     if self.total_bond_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
+    //     {
+    //         self.total_bond_to_circulating_supply(params.circulating_supply())
+    //     } else {
+    //         params.one_over_k()
+    //     }
+    // }
 
     pub fn reward_delegation(&self, delegation_amount: Uint128, params: &RewardParams) -> u128 {
         let reward_params = DelegatorRewardParams::new(
             self.sigma(params),
-            self.profit_margin(),
+            self.profit_margin_dec(),
             self.node_profit(params),
             params.to_owned(),
         );

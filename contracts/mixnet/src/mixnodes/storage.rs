@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::defaults::DENOM;
-use cosmwasm_std::{StdResult, Storage, Uint128};
+use cosmwasm_std::{StdResult, Storage, Uint128, Decimal};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
 use mixnet_contract_common::U128;
 use mixnet_contract_common::{
@@ -134,6 +134,10 @@ impl StoredMixnodeBond {
 
     pub fn profit_margin(&self) -> U128 {
         U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
+    }
+
+    pub fn profit_margin_dec(&self) -> Decimal {
+        Decimal::from_ratio(self.mix_node.profit_margin_percent, 100u128)
     }
 }
 

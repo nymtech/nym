@@ -1,9 +1,13 @@
 use crate::{error::MixnetContractError, mixnode::StoredNodeRewardResult, ONE, U128};
 use az::CheckedCast;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+fn sane_decimal(value: &Uint128) -> Decimal {
+    Decimal::new(value * Uint128::new(1_000_000_000_000_000_000u128))
+}
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct NodeEpochRewards {
@@ -25,11 +29,11 @@ impl NodeEpochRewards {
         self.epoch_id
     }
 
-    pub fn sigma(&self) -> Uint128 {
+    pub fn sigma(&self) -> Decimal {
         self.result.sigma()
     }
 
-    pub fn lambda(&self) -> Uint128 {
+    pub fn lambda(&self) -> Decimal {
         self.result.lambda()
     }
 
@@ -45,6 +49,19 @@ impl NodeEpochRewards {
         U128::from_num(self.params.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
     }
 
+    pub fn operator_cost_dec(&self) -> Uint128 {
+        Decimal::from_ratio(self.params.uptime, 100u128)
+            * Uint128::from(DEFAULT_OPERATOR_INTERVAL_COST)
+    }
+
+    pub fn node_profit_dec(&self) -> Uint128 {
+        if self.reward() < self.operator_cost_dec() {
+            Uint128::zero()
+        } else {
+            self.reward() - self.operator_cost_dec()
+        }
+    }
+
     pub fn node_profit(&self) -> U128 {
         let reward = U128::from_num(self.reward().u128());
         if reward < self.operator_cost() {
@@ -54,44 +71,34 @@ impl NodeEpochRewards {
         }
     }
 
-    pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {
-        let reward = self.node_profit();
-        let operator_base_reward = reward.min(self.operator_cost());
+    pub fn operator_reward(&self, profit_margin: Decimal) -> Result<Uint128, MixnetContractError> {
+        let reward = self.node_profit_dec();
+        let operator_base_reward = reward.min(self.operator_cost_dec());
         let operator_reward = (profit_margin
-            + (ONE - profit_margin) * U128::from_num(self.lambda().u128())
-                / U128::from_num(self.sigma().u128()))
+            + (Decimal::one() - profit_margin) * self.lambda() / self.sigma().atomics())
             * reward;
 
-        let reward = (operator_reward + operator_base_reward).max(U128::from_num(0u128));
+        let reward = (operator_reward + operator_base_reward).max(Uint128::zero());
 
-        if let Some(int_reward) = reward.checked_cast() {
-            Ok(Uint128::new(int_reward))
-        } else {
-            Err(MixnetContractError::CastError)
-        }
+        Ok(reward)
     }
 
     pub fn delegation_reward(
         &self,
         delegation_amount: Uint128,
-        profit_margin: U128,
+        profit_margin: Decimal,
         epoch_reward_params: EpochRewardParams,
     ) -> Result<Uint128, MixnetContractError> {
-        // change all values into their fixed representations
-        let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(epoch_reward_params.circulating_supply());
+        // change all values into their fixed representations;
 
-        let scaled_delegation_amount = delegation_amount / circulating_supply;
-        let delegator_reward = (ONE - profit_margin) * scaled_delegation_amount
-            / U128::from_num(self.sigma().u128())
-            * self.node_profit();
+        let scaled_delegation_amount =
+            delegation_amount / Uint128::from(epoch_reward_params.circulating_supply());
+        let delegator_reward = (Decimal::one() - profit_margin) * scaled_delegation_amount
+            / self.sigma().atomics()
+            * self.node_profit_dec();
 
-        let reward = delegator_reward.max(U128::ZERO);
-        if let Some(int_reward) = reward.checked_cast() {
-            Ok(Uint128::new(int_reward))
-        } else {
-            Err(MixnetContractError::CastError)
-        }
+        let reward = delegator_reward.max(Uint128::zero());
+        Ok(reward)
     }
 }
 
@@ -176,6 +183,11 @@ impl NodeRewardParams {
         U128::from_num(self.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
     }
 
+    pub fn operator_cost_dec(&self) -> Uint128 {
+        Decimal::from_ratio(self.uptime.u128(), 100u128)
+            * Uint128::new(DEFAULT_OPERATOR_INTERVAL_COST as u128)
+    }
+
     pub fn uptime(&self) -> u128 {
         self.uptime.u128()
     }
@@ -196,18 +208,36 @@ impl RewardParams {
         RewardParams { epoch, node }
     }
 
-    pub fn omega(&self) -> U128 {
+    pub fn omega(&self) -> Uint128 {
         // As per keybase://chat/nymtech#tokeneconomics/1179
-        let denom = self.active_set_work_factor() * U128::from_num(self.rewarded_set_size())
-            - (self.active_set_work_factor() - ONE) * U128::from_num(self.idle_nodes().u128());
+        // let denom = self.active_set_work_factor() * U128::from_num(self.rewarded_set_size())
+        //     - (self.active_set_work_factor() - ONE) * U128::from_num(self.idle_nodes().u128());
 
-        if self.in_active_set() {
+        let active_set_work_factor = self.active_set_work_factor_dec();
+        let rewarded_set_size = sane_decimal(&self.epoch.rewarded_set_size);
+        let idle_nodes = sane_decimal(&self.idle_nodes());
+
+        println!("active_set_work_factor: {}", active_set_work_factor);
+        println!("rewarded_set_size: {}", rewarded_set_size);
+        println!("idle_nodes: {}", idle_nodes);
+
+        let denom = active_set_work_factor * rewarded_set_size
+            - (active_set_work_factor - Decimal::one()) * idle_nodes;
+
+        println!("denom: {}", denom);
+
+        let result = if self.in_active_set() {
             // work_active = factor / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
-            self.active_set_work_factor() / denom * self.rewarded_set_size()
+            active_set_work_factor
+                * Decimal::from_ratio(Decimal::one().atomics(), denom.atomics())
+                * rewarded_set_size
         } else {
             // work_idle = 1 / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
-            ONE / denom * self.rewarded_set_size()
-        }
+            Decimal::one() / denom.atomics() * rewarded_set_size
+        };
+
+        println!("omega_result: {}", result);
+        result.atomics()
     }
 
     pub fn idle_nodes(&self) -> Uint128 {
@@ -218,12 +248,20 @@ impl RewardParams {
         U128::from_num(self.epoch.active_set_work_factor)
     }
 
+    pub fn active_set_work_factor_dec(&self) -> Decimal {
+        sane_decimal(&Uint128::new(self.epoch.active_set_work_factor as u128))
+    }
+
     pub fn in_active_set(&self) -> bool {
         self.node.in_active_set
     }
 
     pub fn performance(&self) -> U128 {
         U128::from_num(self.node.uptime.u128()) / U128::from_num(100)
+    }
+
+    pub fn performance_dec(&self) -> Decimal {
+        Decimal::from_ratio(self.node.uptime, 100u128)
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
@@ -254,7 +292,15 @@ impl RewardParams {
         ONE / U128::from_num(self.epoch.rewarded_set_size.u128())
     }
 
+    pub fn one_over_k_dec(&self) -> Decimal {
+        Decimal::one() / self.epoch.rewarded_set_size
+    }
+
     pub fn alpha(&self) -> U128 {
         U128::from_num(self.epoch.sybil_resistance_percent) / U128::from_num(100)
+    }
+
+    pub fn alpha_dec(&self) -> Decimal {
+        Decimal::from_atomics(self.epoch.sybil_resistance_percent, 2).unwrap()
     }
 }

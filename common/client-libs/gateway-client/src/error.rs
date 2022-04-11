@@ -21,6 +21,13 @@ pub enum GatewayClientError {
     #[error("There was a network error - {0}")]
     NetworkError(#[from] WsError),
 
+    #[error("There was a credential storage error - {0}")]
+    CredentialStorageError(#[from] credential_storage::error::StorageError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Coconut error - {0}")]
+    CoconutError(#[from] coconut_interface::CoconutError),
+
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]
@@ -68,6 +75,9 @@ pub enum GatewayClientError {
 
     #[error("Client does not have enough bandwidth: estimated {0}, remaining: {1}")]
     NotEnoughBandwidth(i64, i64),
+
+    #[error("There are no more bandwidth credentials acquired. Please buy some more if you want to use the mixnet")]
+    NoMoreBandwidthCredentials,
 
     #[error("Received an unexpected response")]
     UnexpectedResponse,

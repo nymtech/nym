@@ -167,6 +167,11 @@ pub struct NetworkMonitor {
     #[cfg(not(feature = "coconut"))]
     backup_bandwidth_token_keys_dir: PathBuf,
 
+    /// Path to the database containing bandwidth credentials of this client.
+    // TODO: Unify this with backup_bandwidth_token_keys_dir and no coconut feature condition
+    #[cfg(feature = "coconut")]
+    credentials_database_path: PathBuf,
+
     /// Ethereum private key.
     #[cfg(not(feature = "coconut"))]
     eth_private_key: String,
@@ -195,6 +200,11 @@ impl NetworkMonitor {
     fn default_backup_bandwidth_token_keys_dir() -> PathBuf {
         Config::default_data_directory(None).join("backup_bandwidth_token_keys_dir")
     }
+
+    #[cfg(feature = "coconut")]
+    fn default_credentials_database_path() -> PathBuf {
+        Config::default_data_directory(None).join("credentials_database.db")
+    }
 }
 
 impl Default for NetworkMonitor {
@@ -213,6 +223,8 @@ impl Default for NetworkMonitor {
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
             #[cfg(not(feature = "coconut"))]
             backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
+            #[cfg(feature = "coconut")]
+            credentials_database_path: Self::default_credentials_database_path(),
             #[cfg(not(feature = "coconut"))]
             eth_private_key: DEFAULT_ETH_PRIVATE_KEY.to_string(),
             #[cfg(not(feature = "coconut"))]
@@ -383,6 +395,11 @@ impl Config {
     #[cfg(not(feature = "coconut"))]
     pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
         self.network_monitor.backup_bandwidth_token_keys_dir.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn get_credentials_database_path(&self) -> PathBuf {
+        self.network_monitor.credentials_database_path.clone()
     }
 
     #[cfg(not(feature = "coconut"))]

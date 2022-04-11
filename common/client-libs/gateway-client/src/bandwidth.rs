@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
+use coconut_interface::Base58;
+#[cfg(feature = "coconut")]
 use cosmrs::tx::Hash;
+use credential_storage::storage::Storage;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
     bandwidth::{prepare_for_spending, BandwidthVoucher, TOTAL_ATTRIBUTES},
-    utils::{obtain_aggregate_signature, obtain_aggregate_verification_key},
+    utils::obtain_aggregate_verification_key,
 };
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
@@ -68,7 +71,8 @@ pub fn eth_erc20_contract(web3: Web3<Http>) -> Contract<Http> {
 }
 
 #[derive(Clone)]
-pub struct BandwidthController {
+pub struct BandwidthController<St: Storage> {
+    storage: St,
     #[cfg(feature = "coconut")]
     validator_endpoints: Vec<url::Url>,
     #[cfg(feature = "coconut")]
@@ -83,10 +87,18 @@ pub struct BandwidthController {
     backup_bandwidth_token_keys_dir: std::path::PathBuf,
 }
 
-impl BandwidthController {
+impl<St> BandwidthController<St>
+where
+    St: Storage + Clone + 'static,
+{
     #[cfg(feature = "coconut")]
-    pub fn new(validator_endpoints: Vec<url::Url>, identity: identity::PublicKey) -> Self {
+    pub fn new(
+        storage: St,
+        validator_endpoints: Vec<url::Url>,
+        identity: identity::PublicKey,
+    ) -> Self {
         BandwidthController {
+            storage,
             validator_endpoints,
             identity,
         }
@@ -94,6 +106,7 @@ impl BandwidthController {
 
     #[cfg(not(feature = "coconut"))]
     pub fn new(
+        storage: St,
         eth_endpoint: String,
         eth_private_key: String,
         backup_bandwidth_token_keys_dir: std::path::PathBuf,
@@ -109,6 +122,7 @@ impl BandwidthController {
             .map_err(|_| GatewayClientError::InvalidEthereumPrivateKey)?;
 
         Ok(BandwidthController {
+            storage,
             contract,
             erc20_contract,
             eth_private_key,
@@ -192,13 +206,13 @@ impl BandwidthController {
             encryption::KeyPair::new(&mut rng).private_key().clone(),
         );
 
-        let bandwidth_credential = obtain_aggregate_signature(
-            &params,
-            &bandwidth_credential_attributes,
-            &self.validator_endpoints,
-        )
-        .await?;
-        // the above would presumably be loaded from a file
+        let bandwidth_credential_str = self
+            .storage
+            .get_next_coconut_credential()
+            .await?
+            .ok_or(GatewayClientError::NoMoreBandwidthCredentials)?;
+        let bandwidth_credential =
+            coconut_interface::Signature::try_from_bs58(bandwidth_credential_str)?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
         Ok(prepare_for_spending(

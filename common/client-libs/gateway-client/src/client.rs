@@ -11,6 +11,7 @@ pub use crate::packet_router::{
 use crate::socket_state::{PartiallyDelegated, SocketState};
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
+use credential_storage::PersistentStorage;
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
@@ -51,7 +52,7 @@ pub struct GatewayClient {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
-    bandwidth_controller: Option<BandwidthController>,
+    bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -75,7 +76,7 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        bandwidth_controller: Option<BandwidthController>,
+        bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
     ) -> Self {
         GatewayClient {
             authenticated: false,

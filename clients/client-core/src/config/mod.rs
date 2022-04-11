@@ -114,6 +114,11 @@ impl<T: NymConfig> Config<T> {
                 self::Client::<T>::default_backup_bandwidth_token_keys_dir(&id);
         }
 
+        #[cfg(feature = "coconut")]
+        if self.client.database_path.as_os_str().is_empty() {
+            self.client.database_path = self::Client::<T>::default_database_path(&id);
+        }
+
         self.client.id = id;
     }
 
@@ -216,6 +221,11 @@ impl<T: NymConfig> Config<T> {
     #[cfg(not(feature = "coconut"))]
     pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
         self.client.backup_bandwidth_token_keys_dir.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn get_database_path(&self) -> PathBuf {
+        self.client.database_path.clone()
     }
 
     #[cfg(not(feature = "coconut"))]
@@ -343,6 +353,11 @@ pub struct Client<T> {
     #[cfg(not(feature = "coconut"))]
     backup_bandwidth_token_keys_dir: PathBuf,
 
+    /// Path to the database containing bandwidth credentials of this client.
+    // TODO: Unify this with backup_bandwidth_token_keys_dir and no coconut feature condition
+    #[cfg(feature = "coconut")]
+    database_path: PathBuf,
+
     /// Ethereum private key.
     #[cfg(not(feature = "coconut"))]
     eth_private_key: String,
@@ -377,6 +392,8 @@ impl<T: NymConfig> Default for Client<T> {
             gateway_endpoint: Default::default(),
             #[cfg(not(feature = "coconut"))]
             backup_bandwidth_token_keys_dir: Default::default(),
+            #[cfg(feature = "coconut")]
+            database_path: Default::default(),
             #[cfg(not(feature = "coconut"))]
             eth_private_key: "".to_string(),
             #[cfg(not(feature = "coconut"))]
@@ -419,6 +436,11 @@ impl<T: NymConfig> Client<T> {
     #[cfg(not(feature = "coconut"))]
     fn default_backup_bandwidth_token_keys_dir(id: &str) -> PathBuf {
         T::default_data_directory(Some(id)).join("backup_bandwidth_token_keys")
+    }
+
+    #[cfg(feature = "coconut")]
+    fn default_database_path(id: &str) -> PathBuf {
+        T::default_data_directory(Some(id)).join("db.sqlite")
     }
 }
 

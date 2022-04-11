@@ -51,6 +51,9 @@ reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
 # The public key is the name of the file, while the private key is the content.
 backup_bandwidth_token_keys_dir = '{{ client.backup_bandwidth_token_keys_dir }}'
 
+# Path to the database containing bandwidth credentials
+database_path = '{{ client.database_path }}'
+
 # Ethereum private key.
 eth_private_key = '{{ client.eth_private_key }}'
 

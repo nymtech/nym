@@ -7,6 +7,7 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
 use config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
+use credential_storage::PersistentStorage;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -97,7 +98,7 @@ struct FreshGatewayClientData {
     // for coconut bandwidth credentials we currently have no double spending protection, just to
     // get things running we're re-using the same credential for all gateways all the time.
     // THIS IS VERY BAD!!
-    bandwidth_controller: BandwidthController,
+    bandwidth_controller: BandwidthController<PersistentStorage>,
     testnet_mode: bool,
 }
 
@@ -157,7 +158,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        bandwidth_controller: BandwidthController,
+        bandwidth_controller: BandwidthController<PersistentStorage>,
         testnet_mode: bool,
     ) -> Self {
         PacketSender {

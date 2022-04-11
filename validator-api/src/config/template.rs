@@ -67,6 +67,8 @@ packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 # The public key is the name of the file, while the private key is the content.
 backup_bandwidth_token_keys_dir = '{{ network_monitor.backup_bandwidth_token_keys_dir }}'
 
+credentials_database_path = '{{ network_monitor.credentials_database_path }}'
+
 # Ethereum private key.
 eth_private_key = '{{ network_monitor.eth_private_key }}'
 

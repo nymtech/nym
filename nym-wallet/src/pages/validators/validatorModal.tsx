@@ -6,28 +6,39 @@ import { ValidatorSelector } from './validatorSelector';
 import { Delegate as DelegateIcon } from '../../svg-icons';
 import { Console } from '../../utils/console';
 
-const tabs = ['Validators'];
-
 export const ValidatorSettingsModal = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [data, setData] = useState({});
+    const [validatorSelectedSuccessfully, setValidatorSelectedSuccessfully] = useState(false);
+    const [validator, setValidator] = useState('');
 
-    const { showValidatorSettings, getBondDetails, handleShowValidatorSettings } = useContext(ClientContext);
+    const { showValidatorSettings, getBondDetails, handleShowValidatorSettings, network, selectValidatorNymd } = useContext(ClientContext);
+
 
     useEffect(() => {
         getBondDetails();
-    }, [showValidatorSettings]);
+        // will unmount
+        return () => setValidatorSelectedSuccessfully(false);
+    }, []);
 
-    const onDataChanged = (selectedValidator?: string, selectedAPI?: string) => {
+    const onDataChanged = (selectedValidator: string) => {
         if (selectedValidator) {
-            setData(selectedValidator);
+            setValidator(selectedValidator);
         };
-        console.log('selectedValidator:', selectedValidator, 'network', selectedAPI);
     }
 
-    const handleSubmit = (data: {}) => {
-        console.log('data', data);
-    }
+    const handleSubmit = async () => {
+        setIsSubmitting(true);
+        try {
+            if (network) {
+                selectValidatorNymd(validator, network).then(res => console.log('res', res));
+                setValidatorSelectedSuccessfully(true);
+            }
+        } catch (e) {
+            Console.error(e as string);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return showValidatorSettings ? (
         <Dialog open onClose={handleShowValidatorSettings} maxWidth="md" fullWidth>
@@ -81,7 +92,9 @@ export const ValidatorSettingsModal = () => {
                     <Box
                         sx={{
                             display: 'flex',
-                            alignItems: 'center',
+                            flexDirection: 'column',
+                            alignItems: 'start',
+                            minHeight: 300,
                             padding: 3,
                         }}
                     >
@@ -89,6 +102,12 @@ export const ValidatorSettingsModal = () => {
                             type="Validator API Url"
                             onChangeValidatorSelection={(selectedValidator) => onDataChanged(selectedValidator)}
                         />
+
+                        {validatorSelectedSuccessfully && (
+                            <Typography sx={{pt: 2, fontSize: 12, color: 'green'}}>
+                                Successfully selected the validator: {validator}
+                            </Typography>
+                        )}
                     </Box>
                 </>
                 <Box
@@ -108,16 +127,7 @@ export const ValidatorSettingsModal = () => {
                         data-testid="validatorsSettings-button"
                         color="primary"
                         disableElevation
-                        onClick={async () => {
-                            setIsSubmitting(true);
-                            try {
-                                console.log('hello')
-                            } catch (e) {
-                                Console.error(e as string);
-                            } finally {
-                                setIsSubmitting(false);
-                            }
-                        }}
+                        onClick={() => handleSubmit()}
                         disabled={isSubmitting}
                         endIcon={isSubmitting && <CircularProgress size={20} />}
                     >

@@ -146,13 +146,3 @@ export const maximizeWindow = async () => {
 export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {
   return arr.filter((v, i, a) => a.findIndex((v2) => v2[id] === v[id]) === i);
 }
-
-export const validatorUrls = async (network: Network) => {
-  try {
-    const urls = await getValidatorUrls(network);
-    return urls;
-  } catch (e) {
-    Console.error(e as string);
-  }
-  return null;
-};

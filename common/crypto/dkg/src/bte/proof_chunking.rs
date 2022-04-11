@@ -33,14 +33,13 @@ const NUM_CHALLENGE_BITS: usize = (SECURITY_PARAMETER + PARALLEL_RUNS - 1) / PAR
 // type alias for ease of use
 type FirstChallenge = Vec<Vec<Vec<u64>>>;
 
-// TODO: perhaps break it down into separate arguments after all
 #[cfg_attr(test, derive(Clone))]
 pub struct Instance<'a> {
     /// y_1, ..., y_n
     public_keys: &'a [PublicKey],
 
     /// R_1, ..., R_m
-    randomizers_r: &'a [G1Projective; NUM_CHUNKS],
+    rr: &'a [G1Projective; NUM_CHUNKS],
 
     /// C_{1,1}, ..., C_{n,m}
     ciphertext_chunks: &'a [[G1Projective; NUM_CHUNKS]],
@@ -50,7 +49,7 @@ impl<'a> Instance<'a> {
     pub fn new(public_keys: &'a [PublicKey], ciphertext: &'a Ciphertexts) -> Instance<'a> {
         Instance {
             public_keys,
-            randomizers_r: &ciphertext.r,
+            rr: &ciphertext.rr,
             ciphertext_chunks: &ciphertext.ciphertext_chunks,
         }
     }
@@ -71,7 +70,6 @@ impl<'a> Instance<'a> {
 #[derive(Debug)]
 #[cfg_attr(test, derive(Clone, PartialEq))]
 pub struct ProofOfChunking {
-    // TODO: ask @AP for better names for those
     y0: G1Projective,
     bb: Vec<G1Projective>,
     cc: Vec<G1Projective>,
@@ -160,7 +158,6 @@ impl ProofOfChunking {
                 // scalar in range of [0, Z - 1 + S]
                 let shifted = rng.gen_range(0..=combined_upper_range);
                 // [-S, Z - 1] as required
-                // TODO: CHECK FOR OFF BY ONE ERRORS
                 let blinding_factor = Scalar::from(shifted) - ss_scalar;
 
                 // y0 ^ beta_l • g1 ^ sigma_l
@@ -273,7 +270,7 @@ impl ProofOfChunking {
 
         let g1 = G1Projective::generator();
         let n = instance.public_keys.len();
-        let m = instance.randomizers_r.len();
+        let m = instance.rr.len();
 
         ensure_len!(&self.bb, PARALLEL_RUNS);
         ensure_len!(&self.cc, PARALLEL_RUNS);
@@ -326,7 +323,7 @@ impl ProofOfChunking {
                 }
                 // for j in [1..m]
                 // rhs = D_i • R_1 ^ sum_1 • ... • R_m ^ sum_m
-                product += instance.randomizers_r[j] * sum
+                product += instance.rr[j] * sum
             }
 
             if product != g1 * response_r_i {
@@ -405,7 +402,7 @@ impl ProofOfChunking {
 
         let mut random_oracle_builder = RandomOracleBuilder::new(CHUNKING_ORACLE_DOMAIN);
         random_oracle_builder.update_with_g1_elements(instance.public_keys.iter().map(|pk| &pk.0));
-        random_oracle_builder.update_with_g1_elements(instance.randomizers_r.iter());
+        random_oracle_builder.update_with_g1_elements(instance.rr.iter());
         instance
             .ciphertext_chunks
             .iter()
@@ -418,7 +415,6 @@ impl ProofOfChunking {
         let mut oracle = rand_chacha::ChaCha20Rng::from_seed(random_oracle_builder.finalize());
         let range_max_excl = 1 << NUM_CHALLENGE_BITS;
 
-        // TODO: possibly might have to swap m and n around. not sure yet.
         (0..n)
             .map(|_| {
                 (0..m)
@@ -712,7 +708,7 @@ mod tests {
         let (owned_instance, _, _) = setup(&mut rng);
         let good_instance = Instance {
             public_keys: &owned_instance.public_keys,
-            randomizers_r: &owned_instance.randomizers_r,
+            rr: &owned_instance.randomizers_r,
             ciphertext_chunks: &owned_instance.ciphertext_chunks,
         };
 
@@ -773,7 +769,7 @@ mod tests {
 
         let instance = Instance {
             public_keys: &owned_instance.public_keys,
-            randomizers_r: &owned_instance.randomizers_r,
+            rr: &owned_instance.randomizers_r,
             ciphertext_chunks: &owned_instance.ciphertext_chunks,
         };
 
@@ -858,7 +854,7 @@ mod tests {
 
         let instance = Instance {
             public_keys: &pks,
-            randomizers_r: &randomizers_r,
+            rr: &randomizers_r,
             ciphertext_chunks: &ciphertext_chunks,
         };
 
@@ -876,7 +872,7 @@ mod tests {
         let (owned_instance, r, shares) = setup(&mut rng);
         let good_instance = Instance {
             public_keys: &owned_instance.public_keys,
-            randomizers_r: &owned_instance.randomizers_r,
+            rr: &owned_instance.randomizers_r,
             ciphertext_chunks: &owned_instance.ciphertext_chunks,
         };
 
@@ -936,7 +932,7 @@ mod tests {
         let (owned_instance, r, shares) = setup(&mut rng);
         let instance = Instance {
             public_keys: &owned_instance.public_keys,
-            randomizers_r: &owned_instance.randomizers_r,
+            rr: &owned_instance.randomizers_r,
             ciphertext_chunks: &owned_instance.ciphertext_chunks,
         };
 
@@ -946,7 +942,7 @@ mod tests {
         let (owned_instance2, _, _) = setup(&mut rng);
         let bad_instance = Instance {
             public_keys: &owned_instance2.public_keys,
-            randomizers_r: &owned_instance2.randomizers_r,
+            rr: &owned_instance2.randomizers_r,
             ciphertext_chunks: &owned_instance2.ciphertext_chunks,
         };
 
@@ -961,7 +957,7 @@ mod tests {
         let (owned_instance, r, shares) = setup(&mut rng);
         let instance = Instance {
             public_keys: &owned_instance.public_keys,
-            randomizers_r: &owned_instance.randomizers_r,
+            rr: &owned_instance.randomizers_r,
             ciphertext_chunks: &owned_instance.ciphertext_chunks,
         };
 
@@ -1069,7 +1065,7 @@ mod tests {
         let (owned_instance, r, shares) = setup(&mut rng);
         let instance = Instance {
             public_keys: &owned_instance.public_keys,
-            randomizers_r: &owned_instance.randomizers_r,
+            rr: &owned_instance.randomizers_r,
             ciphertext_chunks: &owned_instance.ciphertext_chunks,
         };
 

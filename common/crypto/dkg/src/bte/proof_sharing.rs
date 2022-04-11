@@ -20,7 +20,6 @@ const INSTANCE_DOMAIN: &[u8] =
 const CHALLENGE_DOMAIN: &[u8] =
     b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381_XMD:SHA-256_SSWU_RO_PROOF_SECRET_SHARING_CHALLENGE";
 
-// TODO: perhaps break it down into separate arguments after all
 #[cfg_attr(test, derive(Clone))]
 pub struct Instance<'a> {
     public_keys: &'a BTreeMap<NodeIndex, PublicKey>,
@@ -80,10 +79,9 @@ impl<'a> Instance<'a> {
 #[derive(Debug)]
 #[cfg_attr(test, derive(Clone, PartialEq))]
 pub struct ProofOfSecretSharing {
-    // TODO: ask @AP for better names for those
-    f: G1Projective,
-    a: G2Projective,
-    y: G1Projective,
+    ff: G1Projective,
+    aa: G2Projective,
+    yy: G1Projective,
     response_r: Scalar,
     response_alpha: Scalar,
 }
@@ -109,9 +107,9 @@ impl ProofOfSecretSharing {
         let rho = Scalar::random(&mut rng);
 
         // F = g1^rho
-        let f = g1 * rho;
+        let ff = g1 * rho;
         // A = g2^alpha
-        let a = g2 * alpha;
+        let aa = g2 * alpha;
 
         // Y = (y_1^{x^1} • ...  y_n^{x^n})^rho • g1^alpha
         // produce intermediate product (y_1^{x^1} • ...  y_n^{x^n})
@@ -125,9 +123,9 @@ impl ProofOfSecretSharing {
                     acc *= x;
                     acc
                 });
-        let y = product * rho + g1 * alpha;
+        let yy = product * rho + g1 * alpha;
 
-        let challenge = Self::compute_challenge(&x, &f, &a, &y);
+        let challenge = Self::compute_challenge(&x, &ff, &aa, &yy);
 
         // response_r = r • challenge + rho
         let response_r = witness_r * challenge + rho;
@@ -145,9 +143,9 @@ impl ProofOfSecretSharing {
         let response_alpha = sum * challenge + alpha;
 
         Ok(ProofOfSecretSharing {
-            f,
-            a,
-            y,
+            ff,
+            aa,
+            yy,
             response_r,
             response_alpha,
         })
@@ -162,10 +160,10 @@ impl ProofOfSecretSharing {
         let g2 = G2Projective::generator();
 
         let x = instance.hash_to_scalar();
-        let challenge = Self::compute_challenge(&x, &self.f, &self.a, &self.y);
+        let challenge = Self::compute_challenge(&x, &self.ff, &self.aa, &self.yy);
 
         // check if R^challenge * F == g1^response_r
-        if instance.combined_randomizer * challenge + self.f != g1 * self.response_r {
+        if instance.combined_randomizer * challenge + self.ff != g1 * self.response_r {
             return false;
         }
 
@@ -194,7 +192,7 @@ impl ProofOfSecretSharing {
                 acc
             });
 
-        if product * challenge + self.a != g2 * self.response_alpha {
+        if product * challenge + self.aa != g2 * self.response_alpha {
             return false;
         }
 
@@ -223,7 +221,7 @@ impl ProofOfSecretSharing {
                     acc
                 });
 
-        if product_1 * challenge + self.y != product_2 * self.response_r + g1 * self.response_alpha
+        if product_1 * challenge + self.yy != product_2 * self.response_r + g1 * self.response_alpha
         {
             return false;
         }
@@ -250,9 +248,9 @@ impl ProofOfSecretSharing {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         // we have 2 G1 elements, single G2 element and 2 scalars
         let mut bytes = Vec::with_capacity(2 * 48 + 96 + 2 * 32);
-        bytes.extend_from_slice(self.f.to_bytes().as_ref());
-        bytes.extend_from_slice(self.a.to_bytes().as_ref());
-        bytes.extend_from_slice(self.y.to_bytes().as_ref());
+        bytes.extend_from_slice(self.ff.to_bytes().as_ref());
+        bytes.extend_from_slice(self.aa.to_bytes().as_ref());
+        bytes.extend_from_slice(self.yy.to_bytes().as_ref());
         bytes.extend_from_slice(self.response_r.to_bytes().as_ref());
         bytes.extend_from_slice(self.response_alpha.to_bytes().as_ref());
         bytes
@@ -298,9 +296,9 @@ impl ProofOfSecretSharing {
         })?;
 
         Ok(ProofOfSecretSharing {
-            f,
-            a,
-            y,
+            ff: f,
+            aa: a,
+            yy: y,
             response_r,
             response_alpha,
         })
@@ -575,15 +573,15 @@ mod tests {
             ProofOfSecretSharing::construct(&mut rng, instance.clone(), &r, &shares).unwrap();
 
         let mut bad_proof = good_proof.clone();
-        bad_proof.f = G1Projective::generator();
+        bad_proof.ff = G1Projective::generator();
         assert!(!bad_proof.verify(instance.clone()));
 
         let mut bad_proof = good_proof.clone();
-        bad_proof.a = G2Projective::generator();
+        bad_proof.aa = G2Projective::generator();
         assert!(!bad_proof.verify(instance.clone()));
 
         let mut bad_proof = good_proof.clone();
-        bad_proof.y = G1Projective::generator();
+        bad_proof.yy = G1Projective::generator();
         assert!(!bad_proof.verify(instance.clone()));
 
         let mut bad_proof = good_proof.clone();
@@ -601,9 +599,9 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let proof_fixture = ProofOfSecretSharing {
-            f: G1Projective::random(&mut rng),
-            a: G2Projective::random(&mut rng),
-            y: G1Projective::random(&mut rng),
+            ff: G1Projective::random(&mut rng),
+            aa: G2Projective::random(&mut rng),
+            yy: G1Projective::random(&mut rng),
             response_r: Scalar::random(&mut rng),
             response_alpha: Scalar::random(&mut rng),
         };

@@ -131,14 +131,14 @@ impl Tau {
 
     fn extend(
         &self,
-        rs: &[G1Projective; NUM_CHUNKS],
+        rr: &[G1Projective; NUM_CHUNKS],
         ss: &[G1Projective; NUM_CHUNKS],
-        cs: &[[G1Projective; NUM_CHUNKS]],
+        cc: &[[G1Projective; NUM_CHUNKS]],
     ) -> Self {
         let mut random_oracle_builder = RandomOracleBuilder::new(TREE_TAU_EXTENSION_DOMAIN);
-        random_oracle_builder.update_with_g1_elements(rs.iter());
+        random_oracle_builder.update_with_g1_elements(rr.iter());
         random_oracle_builder.update_with_g1_elements(ss.iter());
-        for ciphertext_chunks in cs {
+        for ciphertext_chunks in cc {
             random_oracle_builder.update_with_g1_elements(ciphertext_chunks.iter());
         }
 
@@ -257,11 +257,11 @@ impl Epoch {
 
     pub(crate) fn as_extended_tau(
         &self,
-        rs: &[G1Projective; NUM_CHUNKS],
+        rr: &[G1Projective; NUM_CHUNKS],
         ss: &[G1Projective; NUM_CHUNKS],
-        cs: &[[G1Projective; NUM_CHUNKS]],
+        cc: &[[G1Projective; NUM_CHUNKS]],
     ) -> Tau {
-        self.as_tau().extend(rs, ss, cs)
+        self.as_tau().extend(rr, ss, cc)
     }
 
     pub(crate) fn try_from_tau(tau: &Tau, params: &Params) -> Result<Self, DkgError> {
@@ -286,9 +286,10 @@ impl From<EpochStore> for Epoch {
 }
 
 pub struct Params {
+    /// Maximum size of an epoch, in bits.
     pub lambda_t: usize,
 
-    /// security parameter of our $H_{\Lamda_H}$ hash function
+    /// Security parameter of our $H_{\Lamda_H}$ hash function
     pub lambda_h: usize,
 
     // keeping f0 separate from the rest of the curve points makes it easier to work with tau

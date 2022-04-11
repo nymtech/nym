@@ -17,9 +17,9 @@ use zeroize::Zeroize;
 #[derive(Debug)]
 #[cfg_attr(test, derive(Clone, PartialEq))]
 pub struct Ciphertexts {
-    pub r: [G1Projective; NUM_CHUNKS],
-    pub s: [G1Projective; NUM_CHUNKS],
-    pub z: [G2Projective; NUM_CHUNKS],
+    pub rr: [G1Projective; NUM_CHUNKS],
+    pub ss: [G1Projective; NUM_CHUNKS],
+    pub zz: [G2Projective; NUM_CHUNKS],
     pub ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
 }
 
@@ -34,7 +34,7 @@ impl Ciphertexts {
 
         let g1_neg = G1Affine::generator().neg();
         let f = epoch
-            .as_extended_tau(&self.r, &self.s, &self.ciphertext_chunks)
+            .as_extended_tau(&self.rr, &self.ss, &self.ciphertext_chunks)
             .evaluate_f(params);
 
         // we have to use `f` in up to `NUM_CHUNKS` pairings (if everything is valid),
@@ -44,11 +44,11 @@ impl Ciphertexts {
         // for each triple (R_i, S_i, Z_i) check whether e(g1, Z_i) == e(R_j, f) • e(S_i, h),
         // which is equivalent to checking whether e(R_j, f) • e(S_i, h) • e(g1, Z_i)^-1 == id
         // and due to bilinear property whether e(R_j, f) • e(S_i, h) • e(g1^-1, Z_i) == id
-        for i in 0..self.r.len() {
+        for i in 0..self.rr.len() {
             let miller = bls12_381::multi_miller_loop(&[
-                (&self.r[i].to_affine(), &f_prepared),
-                (&self.s[i].to_affine(), &params._h_prepared),
-                (&g1_neg, &G2Prepared::from(self.z[i].to_affine())),
+                (&self.rr[i].to_affine(), &f_prepared),
+                (&self.ss[i].to_affine(), &params._h_prepared),
+                (&g1_neg, &G2Prepared::from(self.zz[i].to_affine())),
             ]);
             let res = miller.final_exponentiation();
             if !bool::from(res.is_identity()) {
@@ -60,7 +60,7 @@ impl Ciphertexts {
     }
 
     pub fn combine_rs(&self) -> G1Projective {
-        combine_g1_chunks(&self.r)
+        combine_g1_chunks(&self.rr)
     }
 
     // required for the purposes of the proof of secret sharing
@@ -75,13 +75,13 @@ impl Ciphertexts {
         let num_receivers = self.ciphertext_chunks.len();
 
         let mut bytes = Vec::with_capacity(NUM_CHUNKS * ((num_receivers + 2) * 48 + 96) + 4);
-        for r_i in &self.r {
+        for r_i in &self.rr {
             bytes.extend_from_slice(r_i.to_bytes().as_ref())
         }
-        for s_i in &self.s {
+        for s_i in &self.ss {
             bytes.extend_from_slice(s_i.to_bytes().as_ref())
         }
-        for z_i in &self.z {
+        for z_i in &self.zz {
             bytes.extend_from_slice(z_i.to_bytes().as_ref())
         }
 
@@ -104,25 +104,25 @@ impl Ciphertexts {
             ));
         }
 
-        let mut r = Vec::with_capacity(NUM_CHUNKS);
-        let mut s = Vec::with_capacity(NUM_CHUNKS);
-        let mut z = Vec::with_capacity(NUM_CHUNKS);
+        let mut rr = Vec::with_capacity(NUM_CHUNKS);
+        let mut ss = Vec::with_capacity(NUM_CHUNKS);
+        let mut zz = Vec::with_capacity(NUM_CHUNKS);
 
         let mut i = 0;
         for _ in 0..NUM_CHUNKS {
-            r.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            rr.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
                 DkgError::new_deserialization_failure("Ciphertexts.r", "invalid curve point")
             })?);
             i += 48;
         }
         for _ in 0..NUM_CHUNKS {
-            s.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            ss.push(deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
                 DkgError::new_deserialization_failure("Ciphertexts.s", "invalid curve point")
             })?);
             i += 48;
         }
         for _ in 0..NUM_CHUNKS {
-            z.push(deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
+            zz.push(deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
                 DkgError::new_deserialization_failure("Ciphertexts.z", "invalid curve point")
             })?);
             i += 96;
@@ -158,9 +158,9 @@ impl Ciphertexts {
 
         // and the same is true here, the unwraps are fine as we have exactly NUM_CHUNKS elements in each as required
         Ok(Ciphertexts {
-            r: r.try_into().unwrap(),
-            s: s.try_into().unwrap(),
-            z: z.try_into().unwrap(),
+            rr: rr.try_into().unwrap(),
+            ss: ss.try_into().unwrap(),
+            zz: zz.try_into().unwrap(),
             ciphertext_chunks,
         })
     }
@@ -200,7 +200,7 @@ pub fn encrypt_shares(
 
     let mut rand_rs = Vec::with_capacity(NUM_CHUNKS);
     let mut rand_ss = Vec::with_capacity(NUM_CHUNKS);
-    let mut rs = Vec::with_capacity(NUM_CHUNKS);
+    let mut rr = Vec::with_capacity(NUM_CHUNKS);
     let mut ss = Vec::with_capacity(NUM_CHUNKS);
 
     // generate relevant re-usable pseudorandom data
@@ -209,15 +209,15 @@ pub fn encrypt_shares(
         let rand_s = Scalar::random(&mut rng);
 
         // g1^r
-        let r = g1 * rand_r;
+        let rr_i = g1 * rand_r;
         // g1^s
-        let s = g1 * rand_s;
+        let ss_i = g1 * rand_s;
 
         rand_rs.push(rand_r);
         rand_ss.push(rand_s);
 
-        rs.push(r);
-        ss.push(s);
+        rr.push(rr_i);
+        ss.push(ss_i);
     }
 
     // produce per-chunk ciphertexts
@@ -238,22 +238,23 @@ pub fn encrypt_shares(
         cc.push(ci.try_into().unwrap())
     }
 
-    let r = rs.try_into().unwrap();
-    let s = ss.try_into().unwrap();
+    // convert into arrays, note that the unwraps are fine as we have exactly `NUM_CHUNKS` elements in each vector
+    let rr = rr.try_into().unwrap();
+    let ss = ss.try_into().unwrap();
 
-    let f = epoch.as_extended_tau(&r, &s, &cc).evaluate_f(params);
+    let f = epoch.as_extended_tau(&rr, &ss, &cc).evaluate_f(params);
 
-    let mut zs = Vec::with_capacity(NUM_CHUNKS);
+    let mut zz = Vec::with_capacity(NUM_CHUNKS);
     for i in 0..NUM_CHUNKS {
-        zs.push(f * rand_rs[i] + params.h * rand_ss[i]);
+        zz.push(f * rand_rs[i] + params.h * rand_ss[i]);
     }
 
     // the conversions here must also succeed since the other vecs also have `NUM_CHUNKS` elements
     (
         Ciphertexts {
-            r,
-            s,
-            z: zs.try_into().unwrap(),
+            rr,
+            ss,
+            zz: zz.try_into().unwrap(),
             ciphertext_chunks: cc,
         },
         HazmatRandomness {
@@ -274,8 +275,11 @@ pub fn decrypt_share(
     let mut plaintext = ChunkedShare::default();
 
     let decryption_node = dk.try_get_compatible_node(epoch)?;
-    let extended_tau =
-        epoch.as_extended_tau(&ciphertext.r, &ciphertext.s, &ciphertext.ciphertext_chunks);
+    let extended_tau = epoch.as_extended_tau(
+        &ciphertext.rr,
+        &ciphertext.ss,
+        &ciphertext.ciphertext_chunks,
+    );
 
     if i >= ciphertext.ciphertext_chunks.len() {
         return Err(DkgError::UnavailableCiphertext(i));
@@ -296,16 +300,16 @@ pub fn decrypt_share(
     let e_neg = decryption_node.e.neg().to_affine();
 
     for j in 0..NUM_CHUNKS {
-        let r = &ciphertext.r[j];
-        let s = &ciphertext.s[j];
-        let z = ciphertext.z[j].to_affine();
-        let c = &ciphertext.ciphertext_chunks[i][j];
+        let rr_j = &ciphertext.rr[j];
+        let ss_j = &ciphertext.ss[j];
+        let zz_j = ciphertext.zz[j].to_affine();
+        let cc_ij = &ciphertext.ciphertext_chunks[i][j];
 
         let miller = bls12_381::multi_miller_loop(&[
-            (&c.to_affine(), &G2_GENERATOR_PREPARED),
-            (&r.to_affine(), &G2Prepared::from(b_neg)),
-            (&decryption_node.a.to_affine(), &G2Prepared::from(z)),
-            (&s.to_affine(), &G2Prepared::from(e_neg)),
+            (&cc_ij.to_affine(), &G2_GENERATOR_PREPARED),
+            (&rr_j.to_affine(), &G2Prepared::from(b_neg)),
+            (&decryption_node.a.to_affine(), &G2Prepared::from(zz_j)),
+            (&ss_j.to_affine(), &G2Prepared::from(e_neg)),
         ]);
         let m = miller.final_exponentiation();
 
@@ -411,9 +415,9 @@ mod tests {
     fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {
         let g1 = G1Projective::generator();
 
-        for i in 0..ciphertext.r.len() {
-            assert_eq!(ciphertext.r[i], g1 * randomness.r[i]);
-            assert_eq!(ciphertext.s[i], g1 * randomness.s[i]);
+        for i in 0..ciphertext.rr.len() {
+            assert_eq!(ciphertext.rr[i], g1 * randomness.r[i]);
+            assert_eq!(ciphertext.ss[i], g1 * randomness.s[i]);
         }
     }
 
@@ -651,15 +655,15 @@ mod tests {
             encrypt_shares(&[(&share, &public_key.key)], epoch, &params, &mut rng);
 
         let mut bad_cipher1 = ciphertext.clone();
-        bad_cipher1.r[4] = G1Projective::generator();
+        bad_cipher1.rr[4] = G1Projective::generator();
         assert!(!bad_cipher1.verify_integrity(&params, epoch));
 
         let mut bad_cipher2 = ciphertext.clone();
-        bad_cipher2.s[4] = G1Projective::generator();
+        bad_cipher2.ss[4] = G1Projective::generator();
         assert!(!bad_cipher2.verify_integrity(&params, epoch));
 
         let mut bad_cipher3 = ciphertext;
-        bad_cipher3.z[4] = G2Projective::generator();
+        bad_cipher3.zz[4] = G2Projective::generator();
         assert!(!bad_cipher3.verify_integrity(&params, epoch));
     }
 
@@ -718,17 +722,17 @@ mod tests {
     fn ciphertexts_roundtrip() {
         fn random_ciphertexts(mut rng: impl RngCore, num_receivers: usize) -> Ciphertexts {
             Ciphertexts {
-                r: (0..NUM_CHUNKS)
+                rr: (0..NUM_CHUNKS)
                     .map(|_| G1Projective::random(&mut rng))
                     .collect::<Vec<_>>()
                     .try_into()
                     .unwrap(),
-                s: (0..NUM_CHUNKS)
+                ss: (0..NUM_CHUNKS)
                     .map(|_| G1Projective::random(&mut rng))
                     .collect::<Vec<_>>()
                     .try_into()
                     .unwrap(),
-                z: (0..NUM_CHUNKS)
+                zz: (0..NUM_CHUNKS)
                     .map(|_| G2Projective::random(&mut rng))
                     .collect::<Vec<_>>()
                     .try_into()

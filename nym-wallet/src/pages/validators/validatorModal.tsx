@@ -15,10 +15,12 @@ export const ValidatorSettingsModal = () => {
 
 
     useEffect(() => {
-        getBondDetails();
-        // will unmount
-        return () => setValidatorSelectedSuccessfully(false);
-    }, []);
+        if (showValidatorSettings) {
+            getBondDetails();
+        } else {
+            setValidatorSelectedSuccessfully(false);
+        };
+    }, [showValidatorSettings]);
 
     const onDataChanged = (selectedValidator: string) => {
         if (selectedValidator) {
@@ -104,7 +106,7 @@ export const ValidatorSettingsModal = () => {
                         />
 
                         {validatorSelectedSuccessfully && (
-                            <Typography sx={{pt: 2, fontSize: 12, color: 'green'}}>
+                            <Typography sx={{ pt: 2, fontSize: 12, color: (theme) => theme.palette.success.light }}>
                                 Successfully selected the validator: {validator}
                             </Typography>
                         )}

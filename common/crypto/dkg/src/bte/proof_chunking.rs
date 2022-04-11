@@ -229,8 +229,7 @@ impl ProofOfChunking {
 
         // compute responses
 
-        // TODO: is this correct capacity?
-        let mut responses_r = Vec::with_capacity(PARALLEL_RUNS);
+        let mut responses_r = Vec::with_capacity(n);
 
         for (i, e_i) in first_challenge.iter().enumerate() {
             let mut response_r_k = deltas[i + 1];

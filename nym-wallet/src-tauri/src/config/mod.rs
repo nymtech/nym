@@ -42,13 +42,13 @@ struct Base {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct GlobalConfig {
-  version: u32,
+  version: Option<u32>,
   // TODO: there are no global settings (yet)
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct NetworkConfig {
-  version: u32,
+  version: Option<u32>,
 
   // User selected urls
   selected_nymd_url: Option<Url>,
@@ -71,7 +71,7 @@ impl Default for Base {
 impl Default for GlobalConfig {
   fn default() -> Self {
     Self {
-      version: CURRENT_GLOBAL_CONFIG_VERSION,
+      version: Some(CURRENT_GLOBAL_CONFIG_VERSION),
     }
   }
 }
@@ -79,7 +79,7 @@ impl Default for GlobalConfig {
 impl Default for NetworkConfig {
   fn default() -> Self {
     Self {
-      version: CURRENT_NETWORK_CONFIG_VERSION,
+      version: Some(CURRENT_NETWORK_CONFIG_VERSION),
       selected_nymd_url: None,
       selected_api_url: None,
       validator_urls: None,

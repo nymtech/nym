@@ -18,8 +18,6 @@ mod operations;
 mod platform_constants;
 mod state;
 mod utils;
-// temporarily until it is actually used
-#[allow(unused)]
 mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;
@@ -37,15 +35,20 @@ fn main() {
     .manage(Arc::new(RwLock::new(State::default())))
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
+      mixnet::account::validate_mnemonic,
       mixnet::account::create_new_account,
       mixnet::account::create_new_mnemonic,
       mixnet::account::create_password,
       mixnet::account::does_password_file_exist,
       mixnet::account::get_balance,
+      mixnet::account::get_validator_nymd_urls,
+      mixnet::account::get_validator_api_urls,
       mixnet::account::logout,
+      mixnet::account::remove_password,
       mixnet::account::sign_in_with_password,
       mixnet::account::switch_network,
       mixnet::account::update_validator_urls,
+      mixnet::account::validate_mnemonic,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
       mixnet::bond::bond_gateway,

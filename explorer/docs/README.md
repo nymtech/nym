@@ -18,6 +18,8 @@ We use the following:
 
 ## Development mode
 
+Copy the `.env.prod` file to `.env` to configure your environment. Using the live sandbox Explorer API is the best way to do development, so the prod settings are good.
+
 Run the following:
 
 ```

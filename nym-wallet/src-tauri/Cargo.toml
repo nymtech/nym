@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.0.1"
+version = "1.0.2"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -34,7 +34,7 @@ reqwest = "0.11.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.23", features = ["derive"] }
-tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "window-maximize"] }
+tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 tokio = { version = "1.10", features = ["sync", "time"] }
@@ -46,7 +46,7 @@ argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
 zeroize = "1.4.3"
 
-cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
+cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [

@@ -72,7 +72,12 @@ impl PacketRouter {
 
         if !received_acks.is_empty() {
             trace!("routing acks");
-            self.ack_sender.unbounded_send(received_acks).unwrap();
+            match self.ack_sender.unbounded_send(received_acks) {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("failed to send ack: {:?}", e);
+                }
+            };
         }
     }
 }

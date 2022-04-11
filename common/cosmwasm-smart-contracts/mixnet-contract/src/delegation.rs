@@ -9,6 +9,23 @@ use cosmwasm_std::{Coin, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
+
+type OwnerAddressBytes = Vec<u8>;
+type BlockHeight = u64;
+
+pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
+    if let Some(proxy) = &proxy {
+        address
+            .as_bytes()
+            .iter()
+            .zip(proxy.as_bytes())
+            .map(|(x, y)| x ^ y)
+            .collect()
+    } else {
+        address.as_bytes().to_vec()
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct Delegation {
@@ -19,12 +36,24 @@ pub struct Delegation {
     pub proxy: Option<Addr>, // proxy address used to delegate the funds on behalf of anouther address
 }
 
+impl Eq for Delegation {}
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for Delegation {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.owner.hash(state);
+        self.node_identity.hash(state);
+        self.block_height.hash(state);
+        self.proxy.hash(state);
+    }
+}
+
 impl Delegation {
     pub fn new(
         owner: Addr,
         node_identity: IdentityKey,
         amount: Coin,
-        block_height: u64,
+        block_height: BlockHeight,
         proxy: Option<Addr>,
     ) -> Self {
         Delegation {
@@ -36,13 +65,28 @@ impl Delegation {
         }
     }
 
-    // TODO: change that to use .joined_key() and return Vec<u8>
-    pub fn storage_key(&self) -> (IdentityKey, Vec<u8>, u64) {
+    pub fn storage_key(&self) -> (IdentityKey, OwnerAddressBytes, BlockHeight) {
         (
             self.node_identity(),
-            self.owner().as_bytes().to_vec(),
+            self.proxy_storage_key(),
             self.block_height(),
         )
+    }
+
+    pub fn event_storage_key(&self) -> (OwnerAddressBytes, BlockHeight, IdentityKey) {
+        (
+            self.proxy_storage_key(),
+            self.block_height(),
+            self.node_identity(),
+        )
+    }
+
+    pub fn proxy_storage_key(&self) -> OwnerAddressBytes {
+        generate_storage_key(&self.owner, self.proxy.as_ref())
+    }
+
+    pub fn proxy(&self) -> Option<&Addr> {
+        self.proxy.as_ref()
     }
 
     pub fn increment_amount(&mut self, amount: Uint128, at_height: Option<u64>) {
@@ -86,10 +130,10 @@ pub struct PagedMixDelegationsResponse {
 }
 
 impl PagedMixDelegationsResponse {
-    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(Addr, u64)>) -> Self {
+    pub fn new(delegations: Vec<Delegation>, start_next_after: Option<(String, u64)>) -> Self {
         PagedMixDelegationsResponse {
             delegations,
-            start_next_after: start_next_after.map(|(s, h)| (s.to_string(), h)),
+            start_next_after,
         }
     }
 }

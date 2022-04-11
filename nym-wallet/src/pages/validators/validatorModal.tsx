@@ -1,22 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Button, Box, Dialog, CircularProgress, Typography } from '@mui/material';
-import { Tabs } from '../settings/tabs';
 import { NymCard } from '../../components';
 import { ClientContext } from '../../context/main';
 import { ValidatorSelector } from './validatorSelector';
 import { Delegate as DelegateIcon } from '../../svg-icons';
 import { Console } from '../../utils/console';
 
-const tabs = ['Validators', 'APIs'];
+const tabs = ['Validators'];
 
 export const ValidatorSettingsModal = () => {
-    const [selectedTab, setSelectedTab] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [data, setData] = useState({});
 
     const { showValidatorSettings, getBondDetails, handleShowValidatorSettings } = useContext(ClientContext);
-
-    const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab);
 
     useEffect(() => {
         getBondDetails();
@@ -26,10 +22,7 @@ export const ValidatorSettingsModal = () => {
         if (selectedValidator) {
             setData(selectedValidator);
         };
-        if (selectedAPI) {
-            setData(selectedAPI);
-        };
-        console.log('selectedValidator:', selectedValidator, 'selectedAPI', selectedAPI);
+        console.log('selectedValidator:', selectedValidator, 'network', selectedAPI);
     }
 
     const handleSubmit = (data: {}) => {
@@ -64,8 +57,27 @@ export const ValidatorSettingsModal = () => {
                         Wallet Settings
                     </Typography>
                 </Box>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        p: 2,
+                        pl: 3,
+                        borderTop: '1px solid',
+                        borderBottom: '1px solid',
+                        borderColor: 'grey.300',
+                        bgcolor: 'grey.200',
+                    }}
+                >
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 600,
+                        }}>
+                        Validators
+                    </Typography>
+                </Box>
                 <>
-                    <Tabs tabs={tabs} selectedTab={selectedTab} onChange={handleTabChange} disabled={false} />
                     <Box
                         sx={{
                             display: 'flex',
@@ -73,17 +85,10 @@ export const ValidatorSettingsModal = () => {
                             padding: 3,
                         }}
                     >
-                        {selectedTab === 0 &&
-                            <ValidatorSelector
-                                type="Validator API Url"
-                                onChangeValidatorSelection={(selectedValidator) => onDataChanged(selectedValidator)}
-                            />
-                        }
-                        {selectedTab === 1 &&
-                            <ValidatorSelector
-                                type={tabs[selectedTab]} onChangeValidatorSelection={(selectedAPI) => onDataChanged(selectedAPI)}
-                            />
-                        }
+                        <ValidatorSelector
+                            type="Validator API Url"
+                            onChangeValidatorSelection={(selectedValidator) => onDataChanged(selectedValidator)}
+                        />
                     </Box>
                 </>
                 <Box
@@ -93,6 +98,8 @@ export const ValidatorSettingsModal = () => {
                         justifyContent: 'flex-end',
                         padding: 3,
                         bgcolor: 'grey.200',
+                        borderTop: '1px solid',
+                        borderColor: 'grey.300',
                     }}
                 >
                     <Button

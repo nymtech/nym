@@ -228,7 +228,7 @@ impl DelegatorRewardParams {
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
         let delegator_reward =
-            (ONE - self.profit_margin) * scaled_delegation_amount / self.sigma * self.node_profit;
+            (ONE - self.profit_margin) * (scaled_delegation_amount / self.sigma) * self.node_profit;
 
         let reward = delegator_reward.max(U128::ZERO);
         if let Some(int_reward) = reward.checked_cast() {
@@ -426,17 +426,17 @@ impl MixNodeBond {
         &self,
         params: &RewardParams,
     ) -> Result<(u64, u64, u64), MixnetContractError> {
-        let total_node_reward = self.reward(params);
+        let total_node_reward = self
+            .reward(params)
+            .reward()
+            .checked_to_num::<u128>()
+            .unwrap_or_default();
         let operator_reward = self.operator_reward(params);
-        // TODO: This overestimates the reward by a lot, it should take a Uint128 and return estiamte for that
-        let delegators_reward = self.reward_delegation(self.total_delegation().amount, params);
+        // Total reward has to be the sum of operator and delegator rewards
+        let delegators_reward = total_node_reward - operator_reward;
 
         Ok((
-            total_node_reward
-                .reward()
-                .checked_to_num::<u128>()
-                .unwrap_or_default()
-                .try_into()?,
+            total_node_reward.try_into()?,
             operator_reward.try_into()?,
             delegators_reward.try_into()?,
         ))

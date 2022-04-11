@@ -59,6 +59,9 @@ export const VerifyMnemonic = () => {
           >
             Next
           </Button>
+          <Button color="inherit" fullWidth size="large" onClick={() => history.goBack()}>
+            Back
+          </Button>
         </Stack>
       </>
     );

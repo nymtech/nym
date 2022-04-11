@@ -42,7 +42,8 @@ pub(super) struct Monitor {
     /// The minimum number of test routes that need to be constructed (and working) in order for
     /// a monitor test run to be valid.
     minimum_test_routes: usize,
-    min_reliability: u8,
+    min_mixnode_reliability: u8,
+    min_gateway_reliability: u8,
 }
 
 impl Monitor {
@@ -67,7 +68,8 @@ impl Monitor {
             route_test_packets: config.get_route_test_packets(),
             test_routes: config.get_test_routes(),
             minimum_test_routes: config.get_minimum_test_routes(),
-            min_reliability: config.get_min_reliability(),
+            min_mixnode_reliability: config.get_min_mixnode_reliability(),
+            min_gateway_reliability: config.get_min_gateway_reliability(),
         }
     }
 
@@ -78,7 +80,7 @@ impl Monitor {
         // uptime calculations
 
         for result in test_summary.mixnode_results.iter() {
-            if result.reliability < self.min_reliability {
+            if result.reliability < self.min_mixnode_reliability {
                 self.packet_preparer
                     .validator_cache()
                     .insert_mixnodes_blacklist(result.identity.clone())
@@ -92,7 +94,7 @@ impl Monitor {
         }
 
         for result in test_summary.gateway_results.iter() {
-            if result.reliability < self.min_reliability {
+            if result.reliability < self.min_gateway_reliability {
                 self.packet_preparer
                     .validator_cache()
                     .insert_gateways_blacklist(result.identity.clone())
@@ -175,9 +177,9 @@ impl Monitor {
 
         for entry in results.iter() {
             if *entry.1 == self.route_test_packets {
-                debug!("✔️ {} succeeded", entry.0)
+                info!("✔️ {} succeeded", entry.0)
             } else {
-                debug!(
+                info!(
                     "❌️ {} failed ({}/{} received)",
                     entry.0, entry.1, self.route_test_packets
                 )
@@ -198,7 +200,7 @@ impl Monitor {
     }
 
     async fn prepare_test_routes(&mut self) -> Option<Vec<TestRoute>> {
-        info!(target: "Monitor", "Generating test routes...");
+        info!("Generating test routes...");
 
         // keep track of nodes that should not be used for route construction
         let mut blacklist = HashSet::new();
@@ -207,7 +209,7 @@ impl Monitor {
         let mut current_attempt = 0;
 
         // todo: tweak this to something more appropriate
-        let max_attempts = self.test_routes * 2;
+        let max_attempts = self.test_routes * 10;
 
         'outer: loop {
             if current_attempt >= max_attempts {
@@ -275,13 +277,12 @@ impl Monitor {
             .set_new_test_nonce(self.test_nonce)
             .await;
 
-        debug!("Sending packets to all gateways...");
+        info!("Sending packets to all gateways...");
         self.packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
-        debug!(
-            target: "Monitor",
+        info!(
             "Sending is over, waiting for {:?} before checking what we received",
             self.packet_delivery_timeout
         );
@@ -291,6 +292,8 @@ impl Monitor {
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
+        info!("Test routes: {:?}", routes);
+        info!("Received {}/{} packets", total_received, total_sent);
 
         let summary = self.summary_producer.produce_summary(
             prepared_packets.tested_mixnodes,
@@ -308,11 +311,14 @@ impl Monitor {
     }
 
     async fn test_run(&mut self) {
-        info!(target: "Monitor", "Starting test run no. {}", self.test_nonce);
+        info!("Starting test run no. {}", self.test_nonce);
         let start = Instant::now();
 
         if let Some(test_routes) = self.prepare_test_routes().await {
-            debug!(target: "Monitor", "Determined reliable routes to test all other nodes against. : {:?}", test_routes);
+            info!(
+                "Determined reliable routes to test all other nodes against. : {:?}",
+                test_routes
+            );
             self.test_network_against(&test_routes).await;
         } else {
             error!("We failed to construct sufficient number of test routes to test the network against")

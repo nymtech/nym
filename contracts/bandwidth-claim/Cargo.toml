@@ -14,8 +14,8 @@ config = { path = "../../common/config"}
 [dependencies]
 bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 
-cosmwasm-std = "1.0.0-beta6"
-cosmwasm-storage = "1.0.0-beta6"
+cosmwasm-std = "1.0.0-beta8"
+cosmwasm-storage = "1.0.0-beta8"
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

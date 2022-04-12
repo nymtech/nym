@@ -622,6 +622,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [

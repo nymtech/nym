@@ -1,0 +1,18 @@
+[package]
+name = "coconut-dkg"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg-contract" }
+config = { path = "../../common/config"}
+
+cosmwasm-std = "1.0.0-beta8"
+cosmwasm-storage = "1.0.0-beta8"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+thiserror = "1.0.23"

@@ -103,12 +103,13 @@ pub mod test_helpers {
         storage: &mut dyn Storage,
         mix: impl Into<String>,
         owner: impl Into<String>,
+        block_height: u64,
     ) {
         let delegation = Delegation {
             owner: Addr::unchecked(owner.into()),
             node_identity: mix.into(),
             amount: coin(12345, DENOM),
-            block_height: 12345,
+            block_height: block_height,
             proxy: None,
         };
 

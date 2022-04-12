@@ -8,21 +8,16 @@ use validator_client::nymd::error::NymdError;
 use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
 use validator_client::ValidatorClientError;
 
-use crate::client::new_nymd_client;
 use crate::mix_nodes::CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct ExplorerApiTasks {
     state: ExplorerApiStateContext,
-    validator_client: validator_client::Client<QueryNymdClient>,
 }
 
 impl ExplorerApiTasks {
     pub(crate) fn new(state: ExplorerApiStateContext) -> Self {
-        ExplorerApiTasks {
-            state,
-            validator_client: new_nymd_client(),
-        }
+        ExplorerApiTasks { state }
     }
 
     // a helper to remove duplicate code when grabbing active/rewarded/all mixnodes
@@ -31,7 +26,7 @@ impl ExplorerApiTasks {
         F: FnOnce(&'a validator_client::Client<QueryNymdClient>) -> Fut,
         Fut: Future<Output = Result<Vec<MixNodeBond>, ValidatorClientError>>,
     {
-        let bonds = match f(&self.validator_client).await {
+        let bonds = match f(&self.state.inner.validator_client.0).await {
             Ok(result) => result,
             Err(e) => {
                 error!("Unable to retrieve mixnode bonds: {:?}", e);
@@ -51,18 +46,29 @@ impl ExplorerApiTasks {
 
     async fn retrieve_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         info!("About to retrieve all gateways...");
-        self.validator_client.get_cached_gateways().await
+        self.state
+            .inner
+            .validator_client
+            .0
+            .get_cached_gateways()
+            .await
     }
 
     async fn retrieve_all_validators(&self) -> Result<ValidatorResponse, NymdError> {
         info!("About to retrieve all validators...");
         let height = self
+            .state
+            .inner
             .validator_client
+            .0
             .nymd
             .get_current_block_height()
             .await?;
         let response: ValidatorResponse = self
+            .state
+            .inner
             .validator_client
+            .0
             .nymd
             .get_validators(height.value(), Paging::All)
             .await?;

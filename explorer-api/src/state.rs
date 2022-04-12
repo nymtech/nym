@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use log::info;
 use serde::{Deserialize, Serialize};
 
+use crate::client::ThreadsafeValidatorClient;
 use mixnet_contract_common::MixNodeBond;
 
 use crate::country_statistics::country_nodes_distribution::{
@@ -28,6 +29,9 @@ pub struct ExplorerApiState {
     pub(crate) mixnodes: ThreadsafeMixNodesCache,
     pub(crate) ping: ThreadsafePingCache,
     pub(crate) validators: ThreadsafeValidatorCache,
+
+    // TODO: discuss with @MS whether this is an appropriate spot for it
+    pub(crate) validator_client: ThreadsafeValidatorClient,
 }
 
 impl ExplorerApiState {
@@ -75,6 +79,7 @@ impl ExplorerApiStateContext {
                     ),
                     ping: ThreadsafePingCache::new(),
                     validators: ThreadsafeValidatorCache::new(),
+                    validator_client: ThreadsafeValidatorClient::new(),
                 }
             }
             _ => {
@@ -90,6 +95,7 @@ impl ExplorerApiStateContext {
                     mixnodes: ThreadsafeMixNodesCache::new(),
                     ping: ThreadsafePingCache::new(),
                     validators: ThreadsafeValidatorCache::new(),
+                    validator_client: ThreadsafeValidatorClient::new(),
                 }
             }
         }

@@ -43,12 +43,12 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 websocket-requests = { path = "websocket-requests" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../../common/version-checker" }
 network-defaults = { path = "../../common/network-defaults" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "credentials/coconut", "gateway-requests/coconut", "gateway-client/coconut"]
+coconut = ["coconut-interface", "credentials", "credentials/coconut", "gateway-requests/coconut", "gateway-client/coconut", "client-core/coconut"]
 eth = []
 
 [dev-dependencies]

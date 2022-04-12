@@ -206,11 +206,7 @@ where
             encryption::KeyPair::new(&mut rng).private_key().clone(),
         );
 
-        let bandwidth_credential_str = self
-            .storage
-            .get_next_coconut_credential()
-            .await?
-            .ok_or(GatewayClientError::NoMoreBandwidthCredentials)?;
+        let bandwidth_credential_str = self.storage.get_next_coconut_credential().await?;
         let bandwidth_credential =
             coconut_interface::Signature::try_from_bs58(bandwidth_credential_str)?;
 

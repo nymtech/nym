@@ -70,12 +70,12 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn get_next_coconut_credential(&self) -> Result<Option<String>, StorageError> {
+    async fn get_next_coconut_credential(&self) -> Result<String, StorageError> {
         let credential = self
             .coconut_credential_manager
             .get_next_coconut_credential()
             .await?
-            .map(|c| c.credential);
+            .credential;
 
         Ok(credential)
     }

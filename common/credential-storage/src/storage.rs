@@ -15,7 +15,7 @@ pub trait Storage: Send + Sync {
     async fn insert_coconut_credential(&self, credential: String) -> Result<(), StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
-    async fn get_next_coconut_credential(&self) -> Result<Option<String>, StorageError>;
+    async fn get_next_coconut_credential(&self) -> Result<String, StorageError>;
 
     /// Removes from the database the specified credential.
     ///

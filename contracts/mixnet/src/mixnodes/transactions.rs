@@ -374,6 +374,7 @@ pub mod tests {
     use mixnet_contract_common::{
         ExecuteMsg, Layer, LayerDistribution, MixNode, PagedMixnodeResponse, QueryMsg,
     };
+    use rand::thread_rng;
 
     #[test]
     fn mixnode_add() {
@@ -843,5 +844,40 @@ pub mod tests {
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, bob_identity);
         assert_eq!(bob_node.layer, mixnet_contract_common::Layer::Two);
+    }
+
+    #[test]
+    fn adding_mixnode_with_duplicate_sphinx_key_errors_out() {
+        let mut deps = test_helpers::init_contract();
+
+        let keypair1 = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let keypair2 = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let sig1 = keypair1.private_key().sign_text("alice");
+        let sig2 = keypair1.private_key().sign_text("bob");
+
+        let info_alice = mock_info("alice", &tests::fixtures::good_mixnode_pledge());
+        let info_bob = mock_info("bob", &tests::fixtures::good_mixnode_pledge());
+
+        let mut mixnode = MixNode {
+            host: "1.2.3.4".to_string(),
+            mix_port: 1234,
+            verloc_port: 1234,
+            http_api_port: 1234,
+            sphinx_key: crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng())
+                .public_key()
+                .to_base58_string(),
+            identity_key: keypair1.public_key().to_base58_string(),
+            version: "v0.1.2.3".to_string(),
+            profit_margin_percent: 10,
+        };
+
+        assert!(
+            try_add_mixnode(deps.as_mut(), mock_env(), info_alice, mixnode.clone(), sig1).is_ok()
+        );
+
+        mixnode.identity_key = keypair2.public_key().to_base58_string();
+
+        // change identity but reuse sphinx key
+        assert!(try_add_mixnode(deps.as_mut(), mock_env(), info_bob, mixnode, sig2).is_err());
     }
 }

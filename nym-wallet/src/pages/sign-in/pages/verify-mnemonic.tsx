@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
+import { SignInContext } from 'src/context/sign-in';
+import { randomNumberBetween } from 'src/utils';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
-import { randomNumberBetween } from '../../../utils';
-import { SignInContext } from '../context';
 
 const numberOfRandomWords = 6;
 

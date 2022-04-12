@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createMnemonic } from 'src/requests';
-import { TMnemonicWords } from '../types';
+import { TMnemonicWords } from 'src/pages/sign-in/types';
 
 export const SignInContext = createContext({} as TSignInContent);
 

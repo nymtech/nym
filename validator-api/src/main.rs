@@ -239,6 +239,8 @@ fn setup_logging() {
         .filter_module("sled", log::LevelFilter::Warn)
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+        .filter_module("_", log::LevelFilter::Warn)
+        .filter_module("rocket::server", log::LevelFilter::Warn)
         .init();
 }
 
@@ -483,14 +485,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
-        let rewarded_set_update_notify = Arc::new(Notify::new());
-
         let nymd_client = Client::new_signing(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
-            Some(Arc::clone(&rewarded_set_update_notify)),
         );
 
         // spawn our cacher
@@ -502,13 +501,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         tokio::spawn(async move { uptime_updater.run().await });
 
-        let mut rewarded_set_updater = RewardedSetUpdater::new(
-            nymd_client,
-            rewarded_set_update_notify,
-            validator_cache.clone(),
-            storage,
-        )
-        .await?;
+        let mut rewarded_set_updater =
+            RewardedSetUpdater::new(nymd_client, validator_cache.clone(), storage).await?;
 
         // spawn rewarded set updater
         tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
@@ -518,7 +512,6 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             nymd_client,
             config.get_caching_interval(),
             validator_cache,
-            None,
         );
 
         // spawn our cacher

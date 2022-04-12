@@ -118,18 +118,16 @@ pub(crate) async fn get_mixnode_reward_estimation(
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     let (bond, status) = cache.mixnode_details(&identity).await;
     if let Some(bond) = bond {
-        let interval_reward_params = cache.epoch_reward_params().await;
-        let as_at = interval_reward_params.timestamp();
-        let interval_reward_params = interval_reward_params.into_inner();
+        let reward_params = cache.epoch_reward_params().await;
+        let as_at = reward_params.timestamp();
+        let reward_params = reward_params.into_inner();
 
         let current_epoch = cache.current_epoch().await.into_inner();
+        info!("{:?}", current_epoch);
+
         let uptime = if let Some(epoch) = current_epoch {
             storage
-                .get_average_mixnode_uptime_in_interval(
-                    &identity,
-                    epoch.start_unix_timestamp(),
-                    epoch.end_unix_timestamp(),
-                )
+                .get_average_mixnode_uptime_in_the_last_24hrs(&identity, epoch.end_unix_timestamp())
                 .await
                 .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?
         } else {
@@ -137,18 +135,8 @@ pub(crate) async fn get_mixnode_reward_estimation(
         };
 
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
-        let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
-        let epoch_start = if let Some(epoch) = current_epoch {
-            epoch.start_unix_timestamp()
-        } else {
-            0
-        };
+        let reward_params = RewardParams::new(reward_params, node_reward_params);
 
-        let epoch_end = if let Some(epoch) = current_epoch {
-            epoch.end_unix_timestamp()
-        } else {
-            0
-        };
         match bond.estimate_reward(&reward_params) {
             Ok((
                 estimated_total_node_reward,
@@ -159,9 +147,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
                     estimated_total_node_reward,
                     estimated_operator_reward,
                     estimated_delegators_reward,
-                    current_interval_start: epoch_start,
-                    current_interval_end: epoch_end,
-                    current_interval_uptime: uptime.u8(),
+                    reward_params,
                     as_at,
                 };
                 Ok(Json(reponse))

@@ -151,10 +151,6 @@ impl PacketPreparer {
         }
     }
 
-    pub fn validator_cache(&mut self) -> &mut ValidatorCache {
-        &mut self.validator_cache
-    }
-
     async fn wrap_test_packet(
         &mut self,
         packet: &TestPacket,

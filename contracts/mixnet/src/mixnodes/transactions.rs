@@ -410,7 +410,7 @@ pub mod tests {
 
         // if we send enough funds
         let info = mock_info("anyone", &tests::fixtures::good_mixnode_pledge());
-        let (msg, identity) = tests::messages::valid_bond_mixnode_msg("anyone");
+        let (msg, (identity, sphinx)) = tests::messages::valid_bond_mixnode_msg("anyone");
 
         // we get back a message telling us everything was OK
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -431,6 +431,7 @@ pub mod tests {
         assert_eq!(
             &MixNode {
                 identity_key: identity,
+                sphinx_key: sphinx,
                 ..tests::fixtures::mix_node_fixture()
             },
             page.nodes[0].mix_node()
@@ -490,7 +491,7 @@ pub mod tests {
             .unwrap()
             .is_none());
 
-        let (msg, identity) = tests::messages::valid_bond_mixnode_msg("mix-owner");
+        let (msg, (identity, _)) = tests::messages::valid_bond_mixnode_msg("mix-owner");
 
         // it's all fine, owner is saved
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -664,7 +665,7 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
 
         let info = mock_info("mix-owner", &tests::fixtures::good_mixnode_pledge());
-        let (bond_msg, identity) = tests::messages::valid_bond_mixnode_msg("mix-owner");
+        let (bond_msg, (identity, _)) = tests::messages::valid_bond_mixnode_msg("mix-owner");
         execute(deps.as_mut(), mock_env(), info, bond_msg.clone()).unwrap();
 
         assert_eq!(

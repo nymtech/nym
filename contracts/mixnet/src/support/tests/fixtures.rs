@@ -53,6 +53,7 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
         12_345,
         MixNode {
             identity_key: format!("id-{}", owner),
+            sphinx_key: format!("sphinx-{}", owner),
             ..super::fixtures::mix_node_fixture()
         },
         None,

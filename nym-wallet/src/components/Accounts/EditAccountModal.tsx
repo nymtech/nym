@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import { TAccount } from './types';
 
 export const EditAccountModal = ({
   account,

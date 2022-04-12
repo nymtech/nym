@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@mui/material';
 import { v4 as uuidv4 } from 'uuid';
-import { EditAccountModal } from './EditAccount';
-import { AddAccountModal } from './AddAccount';
+import { EditAccountModal } from './EditAccountModal';
+import { AddAccountModal } from './AddAccountModal';
 import { AccountColor } from './AccountColor';
-import { AccountsModal } from './Accounts';
-
-export type TAccount = {
-  name: string;
-  address: string;
-};
-
-type TDialog = 'Accounts' | 'Add' | 'Edit';
+import { AccountsModal } from './AccountsModal';
+import { TAccount, TDialog } from './types';
 
 export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => {
   const [accounts, setAccounts] = useState(storedAccounts);

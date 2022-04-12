@@ -1,13 +1,7 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import stc from 'string-to-color';
 import { Edit } from '@mui/icons-material';
 import { AccountColor } from './AccountColor';
-
-export type TAccount = {
-  name: string;
-  address: string;
-};
 
 export const AccountItem = ({
   name,

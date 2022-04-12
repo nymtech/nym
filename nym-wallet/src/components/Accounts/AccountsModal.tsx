@@ -1,16 +1,8 @@
-import Reactfrom 'react';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Typography,
-} from '@mui/material';
-import { CircleTwoTone, Close } from '@mui/icons-material';
-import { AccountColor } from './AccountColor';
+import React from 'react';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
+import { Add, Close } from '@mui/icons-material';
+import { AccountItem } from './AccountItem';
+import { TAccount } from './types';
 
 export const AccountsModal = ({
   show,

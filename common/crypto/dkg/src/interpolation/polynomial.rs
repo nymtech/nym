@@ -96,6 +96,20 @@ impl PublicCoefficients {
     }
 }
 
+impl Index<usize> for PublicCoefficients {
+    type Output = G2Projective;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.coefficients.index(index)
+    }
+}
+
+impl IndexMut<usize> for PublicCoefficients {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.coefficients.index_mut(index)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Zeroize)]
 #[zeroize(drop)]
 pub struct Polynomial {

@@ -37,10 +37,15 @@ impl Dealing {
         epoch: Epoch,
         // BTreeMap ensures the keys are sorted by their indices
         receivers: &BTreeMap<NodeIndex, PublicKey>,
+        prior_resharing_secret: Option<Scalar>,
     ) -> (Self, Option<Share>) {
         assert!(threshold > 0);
 
-        let polynomial = Polynomial::new_random(&mut rng, threshold - 1);
+        let mut polynomial = Polynomial::new_random(&mut rng, threshold - 1);
+        if let Some(prior_secret) = prior_resharing_secret {
+            polynomial.set_constant_coefficient(prior_secret)
+        }
+
         let mut shares = receivers
             .keys()
             .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
@@ -97,9 +102,7 @@ impl Dealing {
             (dealing, None)
         }
     }
-}
 
-impl Dealing {
     // rather than returning a bool for whether the dealing is valid or not, a Result is returned
     // instead so that we would have more information regarding a possible failure cause
     pub fn verify(
@@ -108,6 +111,7 @@ impl Dealing {
         epoch: Epoch,
         threshold: Threshold,
         receivers: &BTreeMap<NodeIndex, PublicKey>,
+        prior_resharing_public: Option<G2Projective>,
     ) -> Result<(), DkgError> {
         if threshold == 0 || threshold as usize > receivers.len() {
             return Err(DkgError::InvalidThreshold {
@@ -155,6 +159,14 @@ impl Dealing {
         if !self.proof_of_sharing.verify(sharing_instance) {
             return Err(DkgError::InvalidProofOfSharing);
         }
+
+        if let Some(prior_public) = prior_resharing_public {
+            let dealt_public = &self.public_coefficients[0];
+            if dealt_public != &prior_public {
+                return Err(DkgError::InvalidResharing);
+            }
+        }
+
         Ok(())
     }
 
@@ -369,6 +381,7 @@ mod tests {
                     threshold,
                     epoch,
                     &receivers,
+                    None,
                 )
                 .0
             })
@@ -435,6 +448,7 @@ mod tests {
                     threshold,
                     epoch,
                     &receivers,
+                    None,
                 )
                 .0
             })
@@ -476,6 +490,7 @@ mod tests {
             threshold,
             epoch,
             &receivers,
+            None,
         );
 
         let bytes = dealing.to_bytes();

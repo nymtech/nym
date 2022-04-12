@@ -94,6 +94,11 @@ pub enum DkgError {
 
     #[error("Insufficient number of receivers was provided")]
     NotEnoughReceiversProvided,
+
+    #[error(
+        "The reshared dealing has different public constant coefficient than its prior variant"
+    )]
+    InvalidResharing,
 }
 
 impl DkgError {

@@ -36,8 +36,8 @@ export const delegatorsInfoColumns: ColumnsType[] = [
       headerAlign: 'left',
     },
     {
-      field: 'avg_update',
-      title: 'Avg. Update',
+      field: 'avg_uptime',
+      title: 'Avg. Uptime',
       flex: 1,
       headerAlign: 'left',
     },

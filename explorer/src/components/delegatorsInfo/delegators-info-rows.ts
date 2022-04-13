@@ -31,7 +31,7 @@ export const delegatorsInfoRows: any = () => {
     profit_margin: {
         value: `${profitMargin} %`,
     },
-    avg_update: {
+    avg_uptime: {
         value: economicDynamicsStats?.data?.current_interval_uptime,
     }
 })}

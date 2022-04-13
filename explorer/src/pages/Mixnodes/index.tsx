@@ -246,9 +246,9 @@ export const PageMixnodes: React.FC = () => {
         </MuiLink>
       ),
     },{
-      field: 'avg_update',
-      headerName: 'Avg. Update',
-      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Update" />,
+      field: 'avg_uptime',
+      headerName: 'Avg. Uptime',
+      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 140,
       headerAlign: 'left',

@@ -13,7 +13,7 @@ export type MixnodeRowType = {
   layer: string;
   profit_percentage: string;
   delegators_number?: number;
-  avg_update?: number;
+  avg_uptime?: number;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -38,6 +38,6 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     layer: item?.layer || '',
     profit_percentage: `${profit_percentage}%`,
     delegators_number: undefined,
-    avg_update: undefined
+    avg_uptime: undefined
   };
 }

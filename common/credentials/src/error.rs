@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
-use coconut_interface::CoconutError;
+use coconut_interface::{CoconutError, error::CoconutInterfaceError};
 use crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
 
-use coconut_interface::error::CoconutInterfaceError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "config",
  "crypto",
@@ -1580,7 +1580,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chrono",
  "humantime-serde",
@@ -3028,7 +3028,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "clap 2.34.0",
  "client-core",
@@ -3062,7 +3062,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3108,7 +3108,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "anyhow",
  "bs58",
@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "clap 2.34.0",
  "dirs",
@@ -3167,7 +3167,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "clap 2.34.0",
  "client-core",
@@ -3202,7 +3202,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "anyhow",
  "async-trait",

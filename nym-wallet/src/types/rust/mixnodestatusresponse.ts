@@ -1,5 +1,3 @@
-import type { MixnodeStatus } from './mixnodestatus';
+import type { MixnodeStatus } from "./mixnodestatus";
 
-export interface MixnodeStatusResponse {
-  status: MixnodeStatus;
-}
+export interface MixnodeStatusResponse { status: MixnodeStatus, }

@@ -53,6 +53,14 @@ pub struct MixnodeStatusResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/rewardestimationresponse.ts"
+    )
+)]
 pub struct RewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,

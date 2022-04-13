@@ -11,3 +11,4 @@ mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/m
 
 [dev-dependencies]
 ts-rs = "6.1.2"
+mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["ts-rs"] }

@@ -96,10 +96,18 @@ impl NodeEpochRewards {
 }
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 pub struct EpochRewardParams {
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     epoch_reward_pool: Uint128,
+
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     rewarded_set_size: Uint128,
+
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     active_set_size: Uint128,
+
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     circulating_supply: Uint128,
     sybil_resistance_percent: u8,
     active_set_work_factor: u8,
@@ -157,8 +165,10 @@ impl EpochRewardParams {
 }
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 pub struct NodeRewardParams {
     reward_blockstamp: u64,
+    #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     uptime: Uint128,
     in_active_set: bool,
 }
@@ -186,6 +196,7 @@ impl NodeRewardParams {
 }
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 pub struct RewardParams {
     pub epoch: EpochRewardParams,
     pub node: NodeRewardParams,

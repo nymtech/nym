@@ -165,7 +165,13 @@ impl Execute for GetCredential {
         let signature =
             obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
         shared_storage
-            .insert_coconut_credential(signature.to_bs58())
+            .insert_coconut_credential(
+                state.amount.to_string(),
+                VOUCHER_INFO.to_string(),
+                bandwidth_credential_attributes.get_private_attributes()[0].to_bs58(),
+                bandwidth_credential_attributes.get_private_attributes()[1].to_bs58(),
+                signature.to_bs58(),
+            )
             .await?;
         state.signature = Some(signature.to_bs58());
         db.set(&self.tx_hash, &state).unwrap();

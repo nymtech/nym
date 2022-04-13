@@ -25,11 +25,15 @@ impl CoconutCredentialManager {
     /// * `signature`: Coconut credential in the form of a signature.
     pub(crate) async fn insert_coconut_credential(
         &self,
-        credential: String,
+        voucher_value: String,
+        voucher_info: String,
+        serial_number: String,
+        binding_number: String,
+        signature: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO coconut_credentials(credential) VALUES (?)",
-            credential,
+            "INSERT INTO coconut_credentials(voucher_value, voucher_info, serial_number, binding_number, signature) VALUES (?, ?, ?, ?, ?)",
+            voucher_value, voucher_info, serial_number, binding_number, signature
         )
         .execute(&self.connection_pool)
         .await?;
@@ -50,16 +54,10 @@ impl CoconutCredentialManager {
     /// # Arguments
     ///
     /// * `signature`: Coconut credential in the form of a signature.
-    pub(crate) async fn remove_coconut_credential(
-        &self,
-        credential: String,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM coconut_credentials WHERE credential = ?",
-            credential
-        )
-        .execute(&self.connection_pool)
-        .await?;
+    pub(crate) async fn remove_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM coconut_credentials WHERE id = ?", id)
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 }

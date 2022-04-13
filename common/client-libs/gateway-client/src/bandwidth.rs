@@ -3,34 +3,29 @@
 
 #[cfg(feature = "coconut")]
 use coconut_interface::Base58;
-#[cfg(feature = "coconut")]
-use cosmrs::tx::Hash;
 use credential_storage::storage::Storage;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
-    bandwidth::{prepare_for_spending, BandwidthVoucher, TOTAL_ATTRIBUTES},
-    utils::obtain_aggregate_verification_key,
+    bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
 };
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
-#[cfg(feature = "coconut")]
-use crypto::asymmetric::encryption;
+#[cfg(not(feature = "coconut"))]
 use crypto::asymmetric::identity;
-use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME,
-    ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME, ETH_ERC20_CONTRACT_ADDRESS,
-    ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
+    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE,
+    ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME,
+    ETH_ERC20_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
 use pemstore::traits::PemStorableKeyPair;
+#[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
 #[cfg(not(feature = "coconut"))]
 use std::io::{Read, Write};
-#[cfg(not(feature = "coconut"))]
 use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
@@ -75,8 +70,6 @@ pub struct BandwidthController<St: Storage> {
     storage: St,
     #[cfg(feature = "coconut")]
     validator_endpoints: Vec<url::Url>,
-    #[cfg(feature = "coconut")]
-    identity: identity::PublicKey,
     #[cfg(not(feature = "coconut"))]
     contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
@@ -92,15 +85,10 @@ where
     St: Storage + Clone + 'static,
 {
     #[cfg(feature = "coconut")]
-    pub fn new(
-        storage: St,
-        validator_endpoints: Vec<url::Url>,
-        identity: identity::PublicKey,
-    ) -> Self {
+    pub fn new(storage: St, validator_endpoints: Vec<url::Url>) -> Self {
         BandwidthController {
             storage,
             validator_endpoints,
-            identity,
         }
     }
 
@@ -186,35 +174,24 @@ where
         &self,
     ) -> Result<coconut_interface::Credential, GatewayClientError> {
         let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
-        let params = coconut_interface::Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-
-        let mut rng = OsRng;
-        // TODO: Decide what is the value and additional info associated with the bandwidth voucher
-        let bandwidth_credential_attributes = BandwidthVoucher::new(
-            &params,
-            BANDWIDTH_VALUE.to_string(),
-            network_defaults::VOUCHER_INFO.to_string(),
-            Hash::new([0; 32]),
-            // workaround for putting a valid value here, without deriving clone for the private
-            // key, until we have actual useful values
-            identity::PrivateKey::from_base58_string(
-                identity::KeyPair::new(&mut rng)
-                    .private_key()
-                    .to_base58_string(),
-            )
-            .unwrap(),
-            encryption::KeyPair::new(&mut rng).private_key().clone(),
-        );
-
-        let bandwidth_credential_str = self.storage.get_next_coconut_credential().await?;
-        let bandwidth_credential =
-            coconut_interface::Signature::try_from_bs58(bandwidth_credential_str)?;
+        let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
+        let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
+            .map_err(|_| credential_storage::error::StorageError::InconsistentData)?;
+        let voucher_info = bandwidth_credential.voucher_info.clone();
+        let serial_number =
+            coconut_interface::Attribute::try_from_bs58(bandwidth_credential.serial_number)?;
+        let binding_number =
+            coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
+        let signature =
+            coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
         Ok(prepare_for_spending(
-            &self.identity.to_bytes(),
-            &bandwidth_credential,
-            &bandwidth_credential_attributes,
+            voucher_value,
+            voucher_info,
+            serial_number,
+            binding_number,
+            &signature,
             &verification_key,
         )?)
     }

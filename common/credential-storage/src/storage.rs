@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 
-use crate::StorageError;
+use crate::{CoconutCredential, StorageError};
 
 #[async_trait]
 pub trait Storage: Send + Sync {
@@ -12,15 +12,22 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `signature`: Coconut credential in the form of a signature.
-    async fn insert_coconut_credential(&self, credential: String) -> Result<(), StorageError>;
+    async fn insert_coconut_credential(
+        &self,
+        voucher_value: String,
+        voucher_info: String,
+        serial_number: String,
+        binding_number: String,
+        signature: String,
+    ) -> Result<(), StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
-    async fn get_next_coconut_credential(&self) -> Result<String, StorageError>;
+    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError>;
 
     /// Removes from the database the specified credential.
     ///
     /// # Arguments
     ///
     /// * `signature`: Coconut credential in the form of a signature.
-    async fn remove_coconut_credential(&self, credential: String) -> Result<(), StorageError>;
+    async fn remove_coconut_credential(&self, id: i64) -> Result<(), StorageError>;
 }

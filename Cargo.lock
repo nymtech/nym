@@ -1901,7 +1901,6 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "coconut-interface",
- "cosmrs 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "credential-storage",
  "credentials",
  "crypto",

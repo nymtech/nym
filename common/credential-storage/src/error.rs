@@ -10,4 +10,7 @@ pub enum StorageError {
 
     #[error("Failed to perform database migration - {0}")]
     MigrationError(#[from] sqlx::migrate::MigrateError),
+
+    #[error("Inconsistent data in database")]
+    InconsistentData,
 }

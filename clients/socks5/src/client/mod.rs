@@ -165,7 +165,6 @@ impl NymClient {
             credential_storage::initialise_storage(self.config.get_base().get_database_path())
                 .await,
             self.config.get_base().get_validator_api_endpoints(),
-            *self.key_manager.identity_keypair().public_key(),
         );
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(

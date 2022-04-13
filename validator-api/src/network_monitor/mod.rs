@@ -77,7 +77,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
             credential_storage::initialise_storage(self.config.get_credentials_database_path())
                 .await,
             self.config.get_all_validator_api_endpoints(),
-            *identity_keypair.public_key(),
         );
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(

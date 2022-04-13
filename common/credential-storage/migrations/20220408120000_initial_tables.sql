@@ -6,5 +6,9 @@
 CREATE TABLE coconut_credentials
 (
     id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    credential          TEXT    NOT NULL UNIQUE
+    voucher_value       TEXT    NOT NULL,
+    voucher_info        TEXT    NOT NULL,
+    serial_number       TEXT    NOT NULL,
+    binding_number      TEXT    NOT NULL,
+    signature           TEXT    NOT NULL UNIQUE
 );

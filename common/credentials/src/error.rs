@@ -6,6 +6,7 @@ use coconut_interface::CoconutError;
 use crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
 
+use coconut_interface::error::CoconutInterfaceError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -17,17 +18,15 @@ pub enum Error {
     NoValidatorsAvailable,
 
     #[cfg(feature = "coconut")]
-    #[error("Run into a coconut error - {0}")]
+    #[error("Ran into a coconut error - {0}")]
     CoconutError(#[from] CoconutError),
 
-    #[error("Run into a validato client error - {0}")]
+    #[cfg(feature = "coconut")]
+    #[error("Ran into a coconut interface error - {0}")]
+    CoconutInterfaceError(#[from] CoconutInterfaceError),
+
+    #[error("Ran into a validator client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
-
-    #[error("Not enough public attributes were specified")]
-    NotEnoughPublicAttributes,
-
-    #[error("Bandwidth is expected to be represented on 8 bytes")]
-    InvalidBandwidthSize,
 
     #[error("Bandwidth operation overflowed. {0}")]
     BandwidthOverflow(String),

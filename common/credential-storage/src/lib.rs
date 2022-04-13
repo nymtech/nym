@@ -7,6 +7,7 @@ use crate::coconut::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
 
+use crate::models::CoconutCredential;
 use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
@@ -62,27 +63,39 @@ impl PersistentStorage {
 
 #[async_trait]
 impl Storage for PersistentStorage {
-    async fn insert_coconut_credential(&self, credential: String) -> Result<(), StorageError> {
+    async fn insert_coconut_credential(
+        &self,
+        voucher_value: String,
+        voucher_info: String,
+        serial_number: String,
+        binding_number: String,
+        signature: String,
+    ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .insert_coconut_credential(credential)
+            .insert_coconut_credential(
+                voucher_value,
+                voucher_info,
+                serial_number,
+                binding_number,
+                signature,
+            )
             .await?;
 
         Ok(())
     }
 
-    async fn get_next_coconut_credential(&self) -> Result<String, StorageError> {
+    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {
         let credential = self
             .coconut_credential_manager
             .get_next_coconut_credential()
-            .await?
-            .credential;
+            .await?;
 
         Ok(credential)
     }
 
-    async fn remove_coconut_credential(&self, credential: String) -> Result<(), StorageError> {
+    async fn remove_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .remove_coconut_credential(credential)
+            .remove_coconut_credential(id)
             .await?;
 
         Ok(())

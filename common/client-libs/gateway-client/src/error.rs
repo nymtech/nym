@@ -34,10 +34,6 @@ pub enum GatewayClientError {
     NetworkErrorWasm(JsValue),
 
     #[cfg(not(feature = "coconut"))]
-    #[error("Keypair IO error - {0}")]
-    IOError(#[from] std::io::Error),
-
-    #[cfg(not(feature = "coconut"))]
     #[error("Could not burn ERC20 token in Ethereum smart contract - {0}")]
     BurnTokenError(#[from] Web3Error),
 

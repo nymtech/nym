@@ -4,16 +4,18 @@
  */
 
 use crate::coconut::CoconutCredentialManager;
+use crate::erc20::ERC20CredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
 
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, ERC20Credential};
 use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
 use std::path::{Path, PathBuf};
 
 mod coconut;
+mod erc20;
 pub mod error;
 mod models;
 pub mod storage;
@@ -22,6 +24,7 @@ pub mod storage;
 #[derive(Clone)]
 pub struct PersistentStorage {
     coconut_credential_manager: CoconutCredentialManager,
+    erc20_credential_manager: ERC20CredentialManager,
 }
 
 impl PersistentStorage {
@@ -56,7 +59,8 @@ impl PersistentStorage {
         }
 
         Ok(PersistentStorage {
-            coconut_credential_manager: CoconutCredentialManager::new(connection_pool),
+            coconut_credential_manager: CoconutCredentialManager::new(connection_pool.clone()),
+            erc20_credential_manager: ERC20CredentialManager::new(connection_pool),
         })
     }
 }
@@ -99,6 +103,36 @@ impl Storage for PersistentStorage {
             .await?;
 
         Ok(())
+    }
+
+    async fn insert_erc20_credential(
+        &self,
+        public_key: String,
+        private_key: String,
+    ) -> Result<(), StorageError> {
+        self.erc20_credential_manager
+            .insert_erc20_credential(public_key, private_key)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_next_erc20_credential(&self) -> Result<ERC20Credential, StorageError> {
+        let credential = self
+            .erc20_credential_manager
+            .get_next_erc20_credential()
+            .await?;
+
+        Ok(credential)
+    }
+
+    async fn consume_erc20_credential(&self, public_key: String) -> Result<(), StorageError> {
+        let credential = self
+            .erc20_credential_manager
+            .consume_erc20_credential(public_key)
+            .await?;
+
+        Ok(credential)
     }
 }
 

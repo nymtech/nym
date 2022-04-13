@@ -162,15 +162,7 @@ pub struct NetworkMonitor {
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
 
-    /// Path to directory containing public/private keys used for bandwidth token purchase.
-    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
-    /// The public key is the name of the file, while the private key is the content.
-    #[cfg(not(feature = "coconut"))]
-    backup_bandwidth_token_keys_dir: PathBuf,
-
     /// Path to the database containing bandwidth credentials of this client.
-    // TODO: Unify this with backup_bandwidth_token_keys_dir and no coconut feature condition
-    #[cfg(feature = "coconut")]
     credentials_database_path: PathBuf,
 
     /// Ethereum private key.
@@ -197,12 +189,6 @@ pub struct NetworkMonitor {
 }
 
 impl NetworkMonitor {
-    #[cfg(not(feature = "coconut"))]
-    fn default_backup_bandwidth_token_keys_dir() -> PathBuf {
-        Config::default_data_directory(None).join("backup_bandwidth_token_keys_dir")
-    }
-
-    #[cfg(feature = "coconut")]
     fn default_credentials_database_path() -> PathBuf {
         Config::default_data_directory(None).join("credentials_database.db")
     }
@@ -223,9 +209,6 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
-            #[cfg(not(feature = "coconut"))]
-            backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
-            #[cfg(feature = "coconut")]
             credentials_database_path: Self::default_credentials_database_path(),
             #[cfg(not(feature = "coconut"))]
             eth_private_key: DEFAULT_ETH_PRIVATE_KEY.to_string(),
@@ -404,12 +387,6 @@ impl Config {
         self.network_monitor.testnet_mode
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
-        self.network_monitor.backup_bandwidth_token_keys_dir.clone()
-    }
-
-    #[cfg(feature = "coconut")]
     pub fn get_credentials_database_path(&self) -> PathBuf {
         self.network_monitor.credentials_database_path.clone()
     }

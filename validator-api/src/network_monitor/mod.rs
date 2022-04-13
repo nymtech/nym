@@ -80,13 +80,10 @@ impl<'a> NetworkMonitorBuilder<'a> {
         );
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(
-                self.config.get_backup_bandwidth_token_keys_dir(),
-            )
-            .await,
+            credential_storage::initialise_storage(self.config.get_credentials_database_path())
+                .await,
             self.config.get_network_monitor_eth_endpoint(),
             self.config.get_network_monitor_eth_private_key(),
-            self.config.get_backup_bandwidth_token_keys_dir(),
         )
         .expect("Could not create bandwidth controller");
 

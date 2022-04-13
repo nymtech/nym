@@ -10,3 +10,11 @@ pub struct CoconutCredential {
     pub binding_number: String,
     pub signature: String,
 }
+
+pub struct ERC20Credential {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub public_key: String,
+    pub private_key: String,
+    pub consumed: bool,
+}

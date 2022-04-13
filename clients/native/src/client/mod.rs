@@ -180,13 +180,10 @@ impl NymClient {
         );
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(
-                self.config.get_base().get_backup_bandwidth_token_keys_dir(),
-            )
-            .await,
+            credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                .await,
             self.config.get_base().get_eth_endpoint(),
             self.config.get_base().get_eth_private_key(),
-            self.config.get_base().get_backup_bandwidth_token_keys_dir(),
         )
         .expect("Could not create bandwidth controller");
 

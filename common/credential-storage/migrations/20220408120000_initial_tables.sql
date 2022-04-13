@@ -12,3 +12,11 @@ CREATE TABLE coconut_credentials
     binding_number      TEXT    NOT NULL,
     signature           TEXT    NOT NULL UNIQUE
 );
+
+CREATE TABLE erc20_credentials
+(
+    id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    public_key          TEXT    NOT NULL,
+    private_key         TEXT    NOT NULL,
+    consumed            BOOLEAN NOT NULL
+);

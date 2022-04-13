@@ -24,8 +24,6 @@ use pemstore::traits::PemStorableKeyPair;
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
-#[cfg(not(feature = "coconut"))]
-use std::io::{Read, Write};
 use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
@@ -76,8 +74,6 @@ pub struct BandwidthController<St: Storage> {
     erc20_contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
     eth_private_key: SecretKey,
-    #[cfg(not(feature = "coconut"))]
-    backup_bandwidth_token_keys_dir: std::path::PathBuf,
 }
 
 impl<St> BandwidthController<St>
@@ -97,7 +93,6 @@ where
         storage: St,
         eth_endpoint: String,
         eth_private_key: String,
-        backup_bandwidth_token_keys_dir: std::path::PathBuf,
     ) -> Result<Self, GatewayClientError> {
         // Fail early, on invalid url
         let transport =
@@ -114,57 +109,38 @@ where
             contract,
             erc20_contract,
             eth_private_key,
-            backup_bandwidth_token_keys_dir,
         })
     }
 
     #[cfg(not(feature = "coconut"))]
-    fn backup_keypair(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
-        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
-        let file_path = self
-            .backup_bandwidth_token_keys_dir
-            .join(keypair.public_key().to_base58_string());
-        let mut file = std::fs::File::create(file_path)?;
-        file.write_all(&keypair.private_key().to_bytes())?;
+    async fn backup_keypair(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
+        self.storage
+            .insert_erc20_credential(
+                keypair.public_key().to_base58_string(),
+                keypair.private_key().to_base58_string(),
+            )
+            .await?;
 
         Ok(())
     }
 
     #[cfg(not(feature = "coconut"))]
-    fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
-        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
-        let file = std::fs::read_dir(&self.backup_bandwidth_token_keys_dir)?
-            .find(|entry| {
-                entry
-                    .as_ref()
-                    .map(|entry| entry.path().is_file())
-                    .unwrap_or(false)
-            })
-            .unwrap_or_else(|| Err(std::io::Error::from(std::io::ErrorKind::NotFound)))?;
-        let file_path = file.path();
-        let pub_key = file_path
-            .file_name()
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?
-            .to_str()
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?;
-        let mut priv_key = vec![];
-        std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
-        Ok(identity::KeyPair::from_keys(
-            identity::PrivateKey::from_bytes(&priv_key).unwrap(),
-            identity::PublicKey::from_base58_string(pub_key).unwrap(),
-        ))
+    async fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
+        let data = self.storage.get_next_erc20_credential().await?;
+        let public_key = identity::PublicKey::from_base58_string(data.public_key).unwrap();
+        let private_key = identity::PrivateKey::from_base58_string(data.private_key).unwrap();
+
+        Ok(identity::KeyPair::from_keys(private_key, public_key))
     }
 
     #[cfg(not(feature = "coconut"))]
-    fn mark_keypair_as_spent(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
-        let mut spent_dir = self.backup_bandwidth_token_keys_dir.clone();
-        spent_dir.push("spent");
-        std::fs::create_dir_all(&spent_dir)?;
-        let file_path_old = self
-            .backup_bandwidth_token_keys_dir
-            .join(keypair.public_key().to_base58_string());
-        let file_path_new = spent_dir.join(keypair.public_key().to_base58_string());
-        std::fs::rename(file_path_old, file_path_new)?;
+    async fn mark_keypair_as_spent(
+        &self,
+        keypair: &identity::KeyPair,
+    ) -> Result<(), GatewayClientError> {
+        self.storage
+            .consume_erc20_credential(keypair.public_key().to_base58_string())
+            .await?;
 
         Ok(())
     }
@@ -202,12 +178,12 @@ where
         gateway_identity: identity::PublicKey,
         gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
-        let kp = match self.restore_keypair() {
+        let kp = match self.restore_keypair().await {
             Ok(kp) => kp,
             Err(_) => {
                 let mut rng = OsRng;
                 let kp = identity::KeyPair::new(&mut rng);
-                self.backup_keypair(&kp)?;
+                self.backup_keypair(&kp).await?;
                 kp
             }
         };
@@ -217,7 +193,7 @@ where
         self.buy_token_credential(verification_key, signed_verification_key, gateway_owner)
             .await?;
 
-        self.mark_keypair_as_spent(&kp)?;
+        self.mark_keypair_as_spent(&kp).await?;
 
         let message: Vec<u8> = verification_key
             .to_bytes()

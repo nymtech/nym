@@ -22,6 +22,10 @@ impl CoconutCredentialManager {
     ///
     /// # Arguments
     ///
+    /// * `voucher_value`: Plaintext bandwidth value of the credential.
+    /// * `voucher_info`: Plaintext information of the credential.
+    /// * `serial_number`: Base58 representation of the serial number attribute.
+    /// * `binding_number`: Base58 representation of the binding number attribute.
     /// * `signature`: Coconut credential in the form of a signature.
     pub(crate) async fn insert_coconut_credential(
         &self,
@@ -53,7 +57,7 @@ impl CoconutCredentialManager {
     ///
     /// # Arguments
     ///
-    /// * `signature`: Coconut credential in the form of a signature.
+    /// * `id`: Database id.
     pub(crate) async fn remove_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM coconut_credentials WHERE id = ?", id)
             .execute(&self.connection_pool)

@@ -12,7 +12,8 @@ crate-type = ["cdylib", "rlib"]
 coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg-contract" }
 config = { path = "../../common/config"}
 
-cosmwasm-std = "1.0.0-beta8"
+cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
 cosmwasm-storage = "1.0.0-beta8"
+cw-storage-plus = "0.13.2"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"

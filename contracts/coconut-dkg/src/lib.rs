@@ -7,6 +7,7 @@ use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, 
 
 mod error;
 mod queries;
+mod storage;
 mod support;
 mod transactions;
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { Edit } from '@mui/icons-material';
-import { AccountColor } from './AccountColor';
+import { AccountAvatar } from './AccountAvatar';
 
 export const AccountItem = ({
   name,
@@ -19,7 +19,7 @@ export const AccountItem = ({
   <ListItem disablePadding disableGutters sx={selected ? { bgcolor: 'rgba(33, 208, 115, 0.1)' } : {}}>
     <ListItemButton disableRipple onClick={onSelect}>
       <ListItemAvatar sx={{ minWidth: 0, mr: 2 }}>
-        <AccountColor address={address} />
+        <AccountAvatar name={name} address={address} />
       </ListItemAvatar>
       <ListItemText primary={name} secondary={address} />
       <ListItemIcon>

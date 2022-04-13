@@ -18,6 +18,7 @@ cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
         pub const DENOM: &str = mainnet::DENOM;
+        pub const STAKE_DENOM: &str = mainnet::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -25,6 +26,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(network = "qa")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
         pub const DENOM: &str = qa::DENOM;
+        pub const STAKE_DENOM: &str = qa::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -32,6 +34,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(network = "sandbox")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX;
         pub const DENOM: &str = sandbox::DENOM;
+        pub const STAKE_DENOM: &str = sandbox::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;

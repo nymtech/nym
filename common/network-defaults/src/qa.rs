@@ -5,6 +5,7 @@ use crate::ValidatorDetails;
 
 pub(crate) const BECH32_PREFIX: &str = "nymt";
 pub const DENOM: &str = "unymt";
+pub const STAKE_DENOM: &str = "unyxt";
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt17x6pt4msccvawgxjeg5nmnygttu56tftg5l6j3";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt1t4dmskxea0avvrj8xtmu66hv7dkyg9s8059t3c";

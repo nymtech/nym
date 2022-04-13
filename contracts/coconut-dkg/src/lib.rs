@@ -5,6 +5,7 @@ use crate::error::ContractError;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 
+mod constants;
 mod error;
 mod queries;
 mod storage;
@@ -29,16 +30,25 @@ pub fn instantiate(
 /// Handle an incoming message
 #[entry_point]
 pub fn execute(
-    _deps: DepsMut<'_>,
-    _env: Env,
-    _info: MessageInfo,
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        _ => (),
+        ExecuteMsg::RegisterDealer {
+            ed25519_key,
+            bte_key_with_proof,
+            owner_signature,
+        } => transactions::try_add_dealer(
+            deps,
+            env,
+            info,
+            ed25519_key,
+            bte_key_with_proof,
+            owner_signature,
+        ),
     }
-
-    Ok(Default::default())
 }
 
 #[entry_point]

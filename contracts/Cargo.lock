@@ -217,6 +217,7 @@ dependencies = [
 name = "coconut-dkg"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "coconut-dkg-common",
  "config",
  "cosmwasm-std",

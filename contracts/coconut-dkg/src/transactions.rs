@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{INVALID_ED25519_BLACKLISTING_EXPIRATION, MINIMUM_DEPOSIT};
-use crate::storage::{next_node_index, BLACKLISTED_DEALERS, CURRENT_DEALERS, PAST_DEALERS};
+use crate::storage::{
+    blacklist_dealer, next_node_index, obtain_blacklisting, BLACKLISTED_DEALERS, CURRENT_DEALERS,
+    PAST_DEALERS,
+};
 use crate::ContractError;
 use coconut_dkg_common::types::{
     Blacklisting, BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
@@ -20,16 +23,13 @@ fn verify_dealer(
     current_height: BlockHeight,
     dealer: &Addr,
 ) -> Result<(), ContractError> {
-    if let Some(blacklisting) = BLACKLISTED_DEALERS.may_load(deps.storage, dealer)? {
-        // TODO: perhaps whenever we touch anything to do with blacklisting, each should check for
-        // expiration and auto-magically clear stale ones
-        if !blacklisting.has_expired(current_height) {
+    if let Some((blacklisting, expired)) =
+        obtain_blacklisting(deps.storage, dealer, current_height)?
+    {
+        if !expired {
             return Err(ContractError::BlacklistedDealer {
                 reason: blacklisting,
             });
-        } else {
-            // remove the expired blacklisting
-            BLACKLISTED_DEALERS.remove(deps.storage, dealer)
         }
     }
 
@@ -123,13 +123,13 @@ pub fn try_add_dealer(
         owner_signature,
         &ed25519_key,
     ) {
-        // TODO: it looks like blacklisting could use a constructor
-        let blacklisting = Blacklisting {
-            reason: BlacklistingReason::Ed25519PossessionVerificationFailure,
-            height: env.block.height,
-            expiration: Some(env.block.height + INVALID_ED25519_BLACKLISTING_EXPIRATION),
-        };
-        BLACKLISTED_DEALERS.save(deps.storage, &info.sender, &blacklisting)?;
+        blacklist_dealer(
+            deps.storage,
+            &info.sender,
+            BlacklistingReason::Ed25519PossessionVerificationFailure,
+            env.block.height,
+            Some(env.block.height + INVALID_ED25519_BLACKLISTING_EXPIRATION),
+        )?;
         return Err(err);
     }
 

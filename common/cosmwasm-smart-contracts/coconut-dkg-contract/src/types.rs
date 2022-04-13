@@ -55,7 +55,7 @@ impl Display for Blacklisting {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BlacklistingReason {
     InactiveForConsecutiveEpochs,

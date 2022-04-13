@@ -5,8 +5,8 @@
 pub mod helpers {
     pub const OWNER: &str = "admin0001";
     pub const SOMEBODY: &str = "somebody";
-    pub const MULTISIG_CONTRACT: &str = "Multisig contract address";
-    pub const POOL_CONTRACT: &str = "Mix pool contract address";
+    pub const MULTISIG_CONTRACT: &str = "multisig contract address";
+    pub const POOL_CONTRACT: &str = "mix pool contract address";
 
     use crate::contract::instantiate;
     use coconut_bandwidth_contract_common::msg::InstantiateMsg;
@@ -17,8 +17,8 @@ pub mod helpers {
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
-            multisig_addr: String::from("Multisig contract address"),
-            pool_addr: String::from("Mix pool contract address"),
+            multisig_addr: String::from(MULTISIG_CONTRACT),
+            pool_addr: String::from(POOL_CONTRACT),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);

@@ -69,6 +69,7 @@ pub(crate) fn release_funds(
 mod tests {
     use super::*;
     use crate::support::tests::helpers;
+    use crate::support::tests::helpers::{MULTISIG_CONTRACT, POOL_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Coin, CosmosMsg};
     use cw_controllers::AdminError;
@@ -204,8 +205,6 @@ mod tests {
     fn valid_release() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let valid_admin = "Multisig contract address";
-        let pool_addr = "Mix pool contract address";
         let coin = Coin::new(1, DENOM);
 
         deps.querier
@@ -213,14 +212,14 @@ mod tests {
         let res = release_funds(
             deps.as_mut(),
             env,
-            mock_info(valid_admin, &[]),
+            mock_info(MULTISIG_CONTRACT, &[]),
             coin.clone(),
         )
         .unwrap();
         assert_eq!(
             res.messages[0].msg,
             CosmosMsg::Bank(BankMsg::Send {
-                to_address: String::from(pool_addr),
+                to_address: String::from(POOL_CONTRACT),
                 amount: vec![coin]
             })
         );

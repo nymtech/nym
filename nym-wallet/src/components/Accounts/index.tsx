@@ -4,9 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { TAccount } from 'src/types';
 import { EditAccountModal } from './EditAccountModal';
 import { AddAccountModal } from './AddAccountModal';
-import { AccountColor } from './AccountColor';
 import { AccountsModal } from './AccountsModal';
 import { ImportAccountModal } from './ImportAccountModal';
+import { AccountAvatar } from './AccountAvatar';
 
 export type TDialog = 'Accounts' | 'Add' | 'Edit' | 'Import';
 
@@ -24,10 +24,9 @@ export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => 
   return (
     <>
       <Button
-        startIcon={<AccountColor address={selectedAccount.address} />}
+        startIcon={<AccountAvatar address={selectedAccount.address} name={selectedAccount.name} />}
         color="inherit"
         onClick={() => setDialogToDisplay('Accounts')}
-        size="large"
         disableRipple
       >
         {selectedAccount.name}
@@ -50,7 +49,7 @@ export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => 
       <AddAccountModal
         show={dialogToDisplasy === 'Add'}
         onClose={() => {
-          setDialogToDisplay(undefined);
+          setDialogToDisplay('Accounts');
         }}
         onAdd={(name) => {
           setAccounts((accs) => [...accs, { address: uuidv4(), name }]);
@@ -71,7 +70,7 @@ export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => 
       <ImportAccountModal
         show={dialogToDisplasy === 'Import'}
         onClose={() => setDialogToDisplay('Accounts')}
-        onImport={(mnemonic) => {
+        onImport={() => {
           setAccounts((accs) => [...accs, { name: 'New Account', address: uuidv4() }]);
           setDialogToDisplay('Accounts');
         }}

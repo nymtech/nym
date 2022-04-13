@@ -12,7 +12,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Add, Close } from '@mui/icons-material';
+import { Check, Close, ContentCopySharp } from '@mui/icons-material';
+import { useClipboard } from 'use-clipboard-copy';
+
+const createAccountSteps = ['Save and copy mnemonic for your new account', 'Name your new account'];
 
 const passwordCreationSteps = [
   'Log out',
@@ -22,20 +25,91 @@ const passwordCreationSteps = [
   'Now you can create multiple accounts',
 ];
 
-const NoPassword = () => (
-  <Stack spacing={2}>
-    <Alert severity="warning" icon={false} sx={{ display: 'block' }}>
-      <Typography sx={{ textAlign: 'center' }}>
-        You can’t add new accounts if your wallet doesn’t have a password.
-      </Typography>
-      <Typography sx={{ textAlign: 'center' }}>Follow steps below to create password.</Typography>
-    </Alert>
-    <Typography variant="h6">How to create password to your account</Typography>
-    {passwordCreationSteps.map((step, i) => (
-      <Typography>{`${i + 1}. ${step}`}</Typography>
-    ))}
-  </Stack>
+const NoPassword = ({ onClose }: { onClose: () => void }) => (
+  <Box sx={{ mt: 1 }}>
+    <DialogContent>
+      <Stack spacing={2}>
+        <Alert severity="warning" icon={false} sx={{ display: 'block' }}>
+          <Typography sx={{ textAlign: 'center' }}>
+            You can’t add new accounts if your wallet doesn’t have a password.
+          </Typography>
+          <Typography sx={{ textAlign: 'center' }}>Follow steps below to create password.</Typography>
+        </Alert>
+        <Typography variant="h6">How to create password to your account</Typography>
+        {passwordCreationSteps.map((step, i) => (
+          <Typography>{`${i + 1}. ${step}`}</Typography>
+        ))}
+      </Stack>
+    </DialogContent>
+    <DialogActions sx={{ p: 3 }}>
+      <Button fullWidth disableElevation variant="contained" size="large" onClick={onClose}>
+        OK
+      </Button>
+    </DialogActions>
+  </Box>
 );
+
+const MnemonicStep = ({ mnemonic, onSave }: { mnemonic: string; onSave: () => void }) => {
+  const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
+  return (
+    <Box sx={{ mt: 1 }}>
+      <DialogContent>
+        <Stack spacing={2} alignItems="center">
+          <Alert severity="warning" icon={false} sx={{ display: 'block' }}>
+            <Typography sx={{ textAlign: 'center' }}>
+              Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the
+              future
+            </Typography>
+          </Alert>
+          <TextField multiline rows={3} value={mnemonic} fullWidth />
+
+          <Button
+            color="inherit"
+            disableElevation
+            size="large"
+            onClick={() => {
+              copy(mnemonic);
+            }}
+            sx={{
+              width: 250,
+            }}
+            endIcon={!copied ? <ContentCopySharp /> : <Check color="success" />}
+          >
+            Copy mnemonic
+          </Button>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button disabled={!copied} fullWidth disableElevation variant="contained" size="large" onClick={onSave}>
+          I saved my mnemonic
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+const NameAccount = ({ onAdd }: { onAdd: (value: string) => void }) => {
+  const [value, setValue] = useState('');
+  return (
+    <Box sx={{ mt: 1 }}>
+      <DialogContent>
+        <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button
+          disabled={!value.length}
+          fullWidth
+          disableElevation
+          variant="contained"
+          size="large"
+          onClick={() => onAdd(value)}
+        >
+          Add
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
 
 export const AddAccountModal = ({
   show,
@@ -48,11 +122,7 @@ export const AddAccountModal = ({
   onClose: () => void;
   onAdd: (accountName: string) => void;
 }) => {
-  const [accountName, setAccountName] = useState('');
-
-  useEffect(() => {
-    if (!show) setAccountName('');
-  }, [show]);
+  const [step, setStep] = useState(0);
 
   return (
     <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
@@ -63,38 +133,30 @@ export const AddAccountModal = ({
             <Close />
           </IconButton>
         </Box>
-        <Typography variant="body1" sx={{ color: 'grey.600' }}>
-          New wallet address
-        </Typography>
+        {!withoutPassword && (
+          <Typography variant="body1" sx={{ color: 'grey.600' }}>
+            {`Step ${step + 1}/${createAccountSteps.length}`}
+          </Typography>
+        )}
+        <Typography sx={{ mt: 2 }}>{createAccountSteps[step]}</Typography>
       </DialogTitle>
-      <DialogContent sx={{ p: 0 }}>
-        <Box sx={{ px: 3, mt: 1 }}>
-          {withoutPassword ? (
-            <NoPassword />
-          ) : (
-            <TextField
-              label="Account name"
-              fullWidth
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-              autoFocus
-            />
-          )}
-        </Box>
-      </DialogContent>
-      <DialogActions sx={{ p: 3 }}>
-        <Button
-          fullWidth
-          disableElevation
-          variant="contained"
-          size="large"
-          startIcon={withoutPassword ? undefined : <Add fontSize="small" />}
-          onClick={() => (withoutPassword ? onClose() : onAdd(accountName))}
-          disabled={!withoutPassword && !accountName.length}
-        >
-          {withoutPassword ? 'OK' : 'Add'}
-        </Button>
-      </DialogActions>
+      {withoutPassword && <NoPassword onClose={onClose} />}
+      {!withoutPassword &&
+        (() => {
+          switch (step) {
+            case 0:
+              return (
+                <MnemonicStep
+                  mnemonic="lonely employ curtain skull gas swim pizza injury tail birth inmate apart giraffe behave caution hammer echo action best symptom skull toast beyond casino"
+                  onSave={() => setStep((s) => s + 1)}
+                />
+              );
+            case 1:
+              return <NameAccount onAdd={onAdd} />;
+            default:
+              return null;
+          }
+        })()}
     </Dialog>
   );
 };

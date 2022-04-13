@@ -85,10 +85,18 @@ pub enum BackendError {
   WalletFileNotFound,
   #[error("Account ID not found in wallet")]
   NoSuchIdInWallet,
+  #[error("Account ID not found in wallet login entry")]
+  NoSuchIdInWalletLoginEntry,
   #[error("Account ID already found in wallet")]
   IdAlreadyExistsInWallet,
+  #[error("Account ID already found in stored wallet login")]
+  IdAlreadyExistsInStoredWalletLogin,
   #[error("Adding a different password to the wallet not currently supported")]
   WalletDifferentPasswordDetected,
+  #[error("Unexpted multiple account entries found")]
+  WalletUnexpectedMultipleAccounts,
+  #[error("Unexpted mnemonic account found")]
+  WalletUnexpectedMnemonicAccount,
 }
 
 impl Serialize for BackendError {

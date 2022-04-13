@@ -6,22 +6,22 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct WalletAccountId(String);
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+pub(crate) struct AccountId(String);
 
-impl WalletAccountId {
-  pub(crate) fn new(id: String) -> WalletAccountId {
-    WalletAccountId(id)
+impl AccountId {
+  pub(crate) fn new(id: String) -> AccountId {
+    AccountId(id)
   }
 }
 
-impl AsRef<str> for WalletAccountId {
+impl AsRef<str> for AccountId {
   fn as_ref(&self) -> &str {
     self.0.as_ref()
   }
 }
 
-impl fmt::Display for WalletAccountId {
+impl fmt::Display for AccountId {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "{}", self.0)
   }

@@ -1,0 +1,2 @@
+
+export interface EpochRewardParams { epoch_reward_pool: string, rewarded_set_size: string, active_set_size: string, circulating_supply: string, sybil_resistance_percent: number, active_set_work_factor: number, }

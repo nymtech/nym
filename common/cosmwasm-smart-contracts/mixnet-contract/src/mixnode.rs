@@ -14,9 +14,9 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
+    all(feature = "ts-rs", test),
     ts(
         export,
         export_to = "../../../nym-wallet/src/types/rust/rewardedsetnodestatus.ts"
@@ -109,9 +109,9 @@ impl PendingUndelegate {
     }
 }
 
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
+    all(feature = "ts-rs", test),
     ts(export, export_to = "../../../nym-wallet/src/types/rust/mixnode.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]

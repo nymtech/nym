@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
+    all(feature = "ts-rs", test),
     ts(export, export_to = "../../../nym-wallet/src/types/rust/gateway.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]

@@ -97,6 +97,13 @@ impl NodeEpochRewards {
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(
+    all(feature = "ts-rs", test),
+    ts(
+        export,
+        export_to = "../../../nym-wallet/src/types/rust/epochrewardparams.ts"
+    )
+)]
 pub struct EpochRewardParams {
     #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
     epoch_reward_pool: Uint128,
@@ -166,6 +173,13 @@ impl EpochRewardParams {
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(
+    all(feature = "ts-rs", test),
+    ts(
+        export,
+        export_to = "../../../nym-wallet/src/types/rust/noderewardparams.ts"
+    )
+)]
 pub struct NodeRewardParams {
     reward_blockstamp: u64,
     #[cfg_attr(feature = "ts-rs", ts(type = "string"))]
@@ -197,6 +211,13 @@ impl NodeRewardParams {
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 #[cfg_attr(feature = "ts-rs", derive(ts_rs::TS))]
+#[cfg_attr(
+    all(feature = "ts-rs", test),
+    ts(
+        export,
+        export_to = "../../../nym-wallet/src/types/rust/rewardparams.ts"
+    )
+)]
 pub struct RewardParams {
     pub epoch: EpochRewardParams,
     pub node: NodeRewardParams,

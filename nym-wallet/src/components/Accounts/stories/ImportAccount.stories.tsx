@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { ImportAccountModal } from './ImportAccountModal';
+import { ImportAccountModal } from 'src/components/Accounts/ImportAccountModal';
 
 export default {
   title: 'Wallet / Multi Account / Import Account',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { ShowMnemonicModal } from './ShowMnemonicModal';
+import { ShowMnemonicModal } from 'src/components/Accounts/ShowMnemonicModal';
 
 export default {
   title: 'Wallet / Multi Account / Show Mnemonic',

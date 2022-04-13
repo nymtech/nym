@@ -2,7 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { v4 as uuid } from 'uuid';
-import { EditAccountModal } from './EditAccountModal';
+import { EditAccountModal } from 'src/components/Accounts/EditAccountModal';
 
 export default {
   title: 'Wallet / Multi Account / Edit Account',

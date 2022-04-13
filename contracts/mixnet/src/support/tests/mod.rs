@@ -39,6 +39,8 @@ pub mod test_helpers {
             .sign(sender.as_bytes())
             .to_base58_string();
 
+        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng());
+
         let info = mock_info(sender, &stake);
         let key = keypair.public_key().to_base58_string();
 
@@ -48,6 +50,7 @@ pub mod test_helpers {
             info,
             MixNode {
                 identity_key: key.clone(),
+                sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
                 ..tests::fixtures::mix_node_fixture()
             },
             owner_signature,

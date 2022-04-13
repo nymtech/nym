@@ -29,13 +29,17 @@ pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBo
 }
 
 #[get("/mixnodes/blacklisted")]
-pub async fn get_blacklisted_mixnodes(cache: &State<ValidatorCache>) -> Json<HashSet<String>> {
-    Json(cache.mixnodes_blacklist().await.value)
+pub async fn get_blacklisted_mixnodes(
+    cache: &State<ValidatorCache>,
+) -> Json<Option<HashSet<String>>> {
+    Json(cache.mixnodes_blacklist().await.map(|c| c.value))
 }
 
 #[get("/gateways/blacklisted")]
-pub async fn get_blacklisted_gateways(cache: &State<ValidatorCache>) -> Json<HashSet<String>> {
-    Json(cache.gateways_blacklist().await.value)
+pub async fn get_blacklisted_gateways(
+    cache: &State<ValidatorCache>,
+) -> Json<Option<HashSet<String>>> {
+    Json(cache.gateways_blacklist().await.map(|c| c.value))
 }
 
 #[get("/epoch/reward_params")]

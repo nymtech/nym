@@ -210,22 +210,39 @@ impl ValidatorCache {
         epoch_rewarding_params: EpochRewardParams,
         current_epoch: Interval,
     ) {
-        let mut inner = self.inner.write().await;
-
-        inner.mixnodes.update(mixnodes);
-        inner.gateways.update(gateways);
-        inner.rewarded_set.update(rewarded_set);
-        inner.active_set.update(active_set);
-        inner.current_reward_params.update(epoch_rewarding_params);
-        inner.current_epoch.update(Some(current_epoch));
+        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+            Ok(mut cache) => {
+                cache.mixnodes.update(mixnodes);
+                cache.gateways.update(gateways);
+                cache.rewarded_set.update(rewarded_set);
+                cache.active_set.update(active_set);
+                cache.current_reward_params.update(epoch_rewarding_params);
+                cache.current_epoch.update(Some(current_epoch));
+            }
+            Err(e) => {
+                error!("{}", e);
+            }
+        }
     }
 
-    pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
-        self.inner.read().await.mixnodes_blacklist.clone()
+    pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => Some(cache.mixnodes_blacklist.clone()),
+            Err(e) => {
+                error!("{}", e);
+                None
+            }
+        }
     }
 
-    pub async fn gateways_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
-        self.inner.read().await.gateways_blacklist.clone()
+    pub async fn gateways_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => Some(cache.gateways_blacklist.clone()),
+            Err(e) => {
+                error!("{}", e);
+                None
+            }
+        }
     }
 
     pub async fn update_mixnodes_blacklist(
@@ -233,23 +250,29 @@ impl ValidatorCache {
         add: HashSet<IdentityKey>,
         remove: HashSet<IdentityKey>,
     ) {
-        let blacklist = self.mixnodes_blacklist().await.value;
-        let mut blacklist = blacklist
-            .union(&add)
-            .cloned()
-            .collect::<HashSet<IdentityKey>>();
-        let to_remove = blacklist
-            .intersection(&remove)
-            .cloned()
-            .collect::<HashSet<IdentityKey>>();
-        for key in to_remove {
-            blacklist.remove(&key);
+        let blacklist = self.mixnodes_blacklist().await;
+        if let Some(blacklist) = blacklist {
+            let mut blacklist = blacklist
+                .value
+                .union(&add)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            let to_remove = blacklist
+                .intersection(&remove)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            for key in to_remove {
+                blacklist.remove(&key);
+            }
+            match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+                Ok(mut cache) => {
+                    cache.mixnodes_blacklist.update(blacklist);
+                    return;
+                }
+                Err(e) => error!("{}", e),
+            }
         }
-        self.inner
-            .write()
-            .await
-            .mixnodes_blacklist
-            .update(blacklist);
+        error!("Failed to update mixnodes blacklist");
     }
 
     pub async fn update_gateways_blacklist(
@@ -257,73 +280,133 @@ impl ValidatorCache {
         add: HashSet<IdentityKey>,
         remove: HashSet<IdentityKey>,
     ) {
-        let blacklist = self.gateways_blacklist().await.value;
-        let mut blacklist = blacklist
-            .union(&add)
-            .cloned()
-            .collect::<HashSet<IdentityKey>>();
-        let to_remove = blacklist
-            .intersection(&remove)
-            .cloned()
-            .collect::<HashSet<IdentityKey>>();
-        for key in to_remove {
-            blacklist.remove(&key);
+        let blacklist = self.gateways_blacklist().await;
+        if let Some(blacklist) = blacklist {
+            let mut blacklist = blacklist
+                .value
+                .union(&add)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            let to_remove = blacklist
+                .intersection(&remove)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            for key in to_remove {
+                blacklist.remove(&key);
+            }
+            match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+                Ok(mut cache) => {
+                    cache.gateways_blacklist.update(blacklist);
+                    return;
+                }
+                Err(e) => error!("{}", e),
+            }
         }
-        self.inner
-            .write()
-            .await
-            .gateways_blacklist
-            .update(blacklist);
+        error!("Failed to update gateways blacklist");
     }
 
     pub async fn mixnodes(&self) -> Vec<MixNodeBond> {
-        let blacklist = self.mixnodes_blacklist().await.value;
-        self.inner
-            .read()
-            .await
-            .mixnodes
-            .value
-            .iter()
-            .filter(|mix| !blacklist.contains(mix.identity()))
-            .cloned()
-            .collect()
+        let blacklist = self.mixnodes_blacklist().await;
+        let mixnodes = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.mixnodes.clone(),
+            Err(e) => {
+                error!("{}", e);
+                return Vec::new();
+            }
+        };
+
+        if let Some(blacklist) = blacklist {
+            mixnodes
+                .value
+                .iter()
+                .filter(|mix| !blacklist.value.contains(mix.identity()))
+                .cloned()
+                .collect()
+        } else {
+            mixnodes.value
+        }
     }
 
     pub async fn mixnodes_all(&self) -> Vec<MixNodeBond> {
-        self.inner.read().await.mixnodes.value.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.mixnodes.clone().into_inner(),
+            Err(e) => {
+                error!("{}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub async fn gateways(&self) -> Vec<GatewayBond> {
-        let blacklist = self.gateways_blacklist().await.value;
-        self.inner
-            .read()
-            .await
-            .gateways
-            .value
-            .iter()
-            .filter(|gateway| !blacklist.contains(gateway.identity()))
-            .cloned()
-            .collect()
+        let blacklist = self.gateways_blacklist().await;
+        let gateways = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.gateways.clone(),
+            Err(e) => {
+                error!("{}", e);
+                return Vec::new();
+            }
+        };
+
+        if let Some(blacklist) = blacklist {
+            gateways
+                .value
+                .iter()
+                .filter(|mix| !blacklist.value.contains(mix.identity()))
+                .cloned()
+                .collect()
+        } else {
+            gateways.value
+        }
     }
 
     pub async fn gateways_all(&self) -> Vec<GatewayBond> {
-        self.inner.read().await.gateways.value.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.gateways.value.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub async fn rewarded_set(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.read().await.rewarded_set.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.rewarded_set.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(Vec::new())
+            }
+        }
     }
 
     pub async fn active_set(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.read().await.active_set.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.active_set.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(Vec::new())
+            }
+        }
     }
 
     pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {
-        self.inner.read().await.current_reward_params.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.current_reward_params.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(EpochRewardParams::new_empty())
+            }
+        }
     }
 
     pub(crate) async fn current_epoch(&self) -> Cache<Option<Interval>> {
-        self.inner.read().await.current_epoch.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.current_epoch.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(None)
+            }
+        }
     }
 
     pub async fn mixnode_details(
@@ -333,7 +416,7 @@ impl ValidatorCache {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
 
-        let active_set = &self.inner.read().await.active_set.value;
+        let active_set = &self.active_set().await.value;
         if let Some(bond) = active_set
             .iter()
             .find(|mix| mix.mix_node.identity_key == identity)
@@ -341,7 +424,7 @@ impl ValidatorCache {
             return (Some(bond.clone()), MixnodeStatus::Active);
         }
 
-        let rewarded_set = &self.inner.read().await.rewarded_set.value;
+        let rewarded_set = &self.rewarded_set().await.value;
         if let Some(bond) = rewarded_set
             .iter()
             .find(|mix| mix.mix_node.identity_key == identity)
@@ -349,7 +432,7 @@ impl ValidatorCache {
             return (Some(bond.clone()), MixnodeStatus::Standby);
         }
 
-        let all_bonded = &self.inner.read().await.mixnodes.value;
+        let all_bonded = &self.mixnodes().await;
         if let Some(bond) = all_bonded
             .iter()
             .find(|mix| mix.mix_node.identity_key == identity)

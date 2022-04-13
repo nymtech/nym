@@ -11,46 +11,45 @@ import {
   Typography,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { TAccount } from 'src/types';
 
-export const EditAccountModal = ({
-  account,
+export const ImportAccountModal = ({
   show,
   onClose,
-  onEdit,
+  onImport,
 }: {
-  account?: TAccount;
   show: boolean;
   onClose: () => void;
-  onEdit: (account: TAccount) => void;
+  onImport: (mnemonic: string) => void;
 }) => {
-  const [accountName, setAccountName] = useState('');
+  const [mnemonic, setMnemonic] = useState('');
 
   useEffect(() => {
-    setAccountName(account ? account?.name : '');
-  }, [account]);
+    if (!show) setMnemonic('');
+  }, [show]);
 
   return (
     <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Edit account name</Typography>
+          <Typography variant="h6">Import account</Typography>
           <IconButton onClick={onClose}>
             <Close />
           </IconButton>
         </Box>
         <Typography variant="body1" sx={{ color: 'grey.600' }}>
-          New wallet address
+          Provide mnemonic of account you want to import
         </Typography>
       </DialogTitle>
       <DialogContent sx={{ p: 0 }}>
         <Box sx={{ px: 3, mt: 1 }}>
           <TextField
-            label="Account name"
+            placeholder="Paste or type your mnemonic here"
             fullWidth
-            value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
+            value={mnemonic}
+            onChange={(e) => setMnemonic(e.target.value)}
             autoFocus
+            multiline
+            rows={3}
           />
         </Box>
       </DialogContent>
@@ -60,10 +59,10 @@ export const EditAccountModal = ({
           disableElevation
           variant="contained"
           size="large"
-          onClick={() => account && onEdit({ ...account, name: accountName })}
-          disabled={!accountName?.length}
+          onClick={() => onImport(mnemonic)}
+          disabled={!mnemonic.length}
         >
-          Edit
+          Import account
         </Button>
       </DialogActions>
     </Dialog>

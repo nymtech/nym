@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
-import { Add, Close } from '@mui/icons-material';
+import { Add, ArrowDownwardSharp, Close } from '@mui/icons-material';
+import { TAccount } from 'src/types';
 import { AccountItem } from './AccountItem';
-import { TAccount } from './types';
 
 export const AccountsModal = ({
   show,
@@ -10,16 +10,18 @@ export const AccountsModal = ({
   selectedAccount,
   onClose,
   onAccountSelect,
-  onAddAccount,
-  onEditAccount,
+  onAdd,
+  onEdit,
+  onImport,
 }: {
   show: boolean;
   accounts: TAccount[];
   selectedAccount: TAccount['address'];
   onClose: () => void;
   onAccountSelect: (account: TAccount) => void;
-  onAddAccount: () => void;
-  onEditAccount: (acc: TAccount) => void;
+  onAdd: () => void;
+  onEdit: (acc: TAccount) => void;
+  onImport: () => void;
 }) => (
   <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
     <DialogTitle>
@@ -42,21 +44,17 @@ export const AccountsModal = ({
             onAccountSelect({ name, address });
             onClose();
           }}
-          onEdit={() => onEditAccount({ name, address })}
+          onEdit={() => onEdit({ name, address })}
           selected={selectedAccount === address}
           key={address}
         />
       ))}
     </DialogContent>
     <DialogActions sx={{ p: 3 }}>
-      <Button
-        fullWidth
-        disableElevation
-        variant="contained"
-        size="large"
-        startIcon={<Add fontSize="small" />}
-        onClick={onAddAccount}
-      >
+      <Button startIcon={<ArrowDownwardSharp />} onClick={onImport}>
+        Import account
+      </Button>
+      <Button disableElevation variant="contained" startIcon={<Add fontSize="small" />} onClick={onAdd}>
         Add new account
       </Button>
     </DialogActions>

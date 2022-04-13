@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@mui/material';
 import { v4 as uuidv4 } from 'uuid';
+import { TAccount } from 'src/types';
 import { EditAccountModal } from './EditAccountModal';
 import { AddAccountModal } from './AddAccountModal';
 import { AccountColor } from './AccountColor';
 import { AccountsModal } from './AccountsModal';
-import { TAccount, TDialog } from './types';
+import { ImportAccountModal } from './ImportAccountModal';
+
+export type TDialog = 'Accounts' | 'Add' | 'Edit' | 'Import';
 
 export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => {
   const [accounts, setAccounts] = useState(storedAccounts);
@@ -35,13 +38,14 @@ export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => 
         accounts={accounts}
         onAccountSelect={(acc) => setSelectedAccount(acc)}
         selectedAccount={selectedAccount.address}
-        onAddAccount={() => {
+        onAdd={() => {
           setDialogToDisplay('Add');
         }}
-        onEditAccount={(acc) => {
+        onEdit={(acc) => {
           setAccountToEdit(acc);
           setDialogToDisplay('Edit');
         }}
+        onImport={() => setDialogToDisplay('Import')}
       />
       <AddAccountModal
         show={dialogToDisplasy === 'Add'}
@@ -61,6 +65,14 @@ export const Accounts = ({ storedAccounts }: { storedAccounts: TAccount[] }) => 
         }}
         onEdit={(account) => {
           setAccounts((accs) => accs.map((acc) => (acc.address === account.address ? account : acc)));
+          setDialogToDisplay('Accounts');
+        }}
+      />
+      <ImportAccountModal
+        show={dialogToDisplasy === 'Import'}
+        onClose={() => setDialogToDisplay('Accounts')}
+        onImport={(mnemonic) => {
+          setAccounts((accs) => [...accs, { name: 'New Account', address: uuidv4() }]);
           setDialogToDisplay('Accounts');
         }}
       />

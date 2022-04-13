@@ -75,7 +75,6 @@ jobs:
           command: clippy
           args: --workspace --all-targets -- -D warnings
 
-
       # COCONUT stuff
       - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
@@ -88,6 +87,12 @@ jobs:
         with:
           command: test
           args: --workspace --features=coconut
+
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
 
       - name: Run clippy with coconut enabled
         uses: actions-rs/cargo@v1

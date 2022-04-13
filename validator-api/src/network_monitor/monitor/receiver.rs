@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::gateways_reader::{GatewayChannel, GatewayMessages, GatewaysReader};
+use crate::network_monitor::gateways_reader::{GatewayMessages, GatewaysReader};
 use crate::network_monitor::monitor::processor::ReceivedProcessorSender;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
@@ -40,10 +40,12 @@ impl PacketReceiver {
     fn process_gateway_update(&mut self, update: GatewayClientUpdate) {
         match update {
             GatewayClientUpdate::New(id, (message_receiver, ack_receiver)) => {
-                let channel = GatewayChannel::new(id, message_receiver, ack_receiver);
-                self.gateways_reader.insert_channel(channel);
+                self.gateways_reader
+                    .add_recievers(id, message_receiver, ack_receiver);
             }
-            GatewayClientUpdate::Failure(id) => self.gateways_reader.remove_by_key(id),
+            GatewayClientUpdate::Failure(id) => {
+                self.gateways_reader.remove_recievers(&id.to_string());
+            }
         }
     }
 
@@ -62,7 +64,9 @@ impl PacketReceiver {
                 // similarly gateway reader will never return a `None` as it's implemented
                 // as an infinite stream that returns Poll::Pending if it doesn't have anything
                 // to return
-                messages = self.gateways_reader.next() => self.process_gateway_messages(messages.unwrap()),
+                Some((_gateway_id, message)) = self.gateways_reader.stream_map().next() => {
+                        self.process_gateway_messages(message)
+                }
             }
         }
     }

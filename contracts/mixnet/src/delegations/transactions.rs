@@ -4,7 +4,6 @@ use super::storage::{self, PENDING_DELEGATION_EVENTS};
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::support::helpers::generate_storage_key;
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Order,
@@ -192,19 +191,18 @@ pub(crate) fn _try_delegate_to_mixnode(
         });
     }
 
-    let maybe_proxy_storage = generate_storage_key(&delegate, proxy.as_ref());
-    let storage_key = (maybe_proxy_storage, block_height, mix_identity.to_string());
+    let delegation = Delegation::new(
+        delegate.to_owned(),
+        mix_identity.to_string(),
+        amount.clone(),
+        block_height,
+        proxy.clone(),
+    );
 
     storage::PENDING_DELEGATION_EVENTS.save(
         storage,
-        storage_key,
-        &DelegationEvent::Delegate(Delegation::new(
-            delegate.to_owned(),
-            mix_identity.to_string(),
-            amount.clone(),
-            block_height,
-            proxy.clone(),
-        )),
+        delegation.event_storage_key(),
+        &DelegationEvent::Delegate(delegation),
     )?;
 
     Ok(Response::new().add_event(new_pending_delegation_event(
@@ -246,17 +244,9 @@ pub(crate) fn try_reconcile_undelegation(
     pending_undelegate: &PendingUndelegate,
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
-    let maybe_proxy_storage = generate_storage_key(
-        &pending_undelegate.delegate(),
-        pending_undelegate.proxy().as_ref(),
-    );
-    let storage_key = (
-        pending_undelegate.mix_identity(),
-        maybe_proxy_storage.clone(),
-    );
 
     let any_delegations = delegation_map
-        .prefix(storage_key.clone())
+        .prefix(pending_undelegate.storage_key())
         .keys(storage, None, None, cosmwasm_std::Order::Ascending)
         .filter_map(|v| v.ok())
         .next()
@@ -287,7 +277,7 @@ pub(crate) fn try_reconcile_undelegation(
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map
-        .prefix(storage_key)
+        .prefix(pending_undelegate.storage_key())
         .keys(storage, None, None, cosmwasm_std::Order::Ascending)
         .filter_map(|v| v.ok())
         .collect::<Vec<u64>>();
@@ -317,14 +307,15 @@ pub(crate) fn try_reconcile_undelegation(
     }
 
     for h in delegation_heights {
-        let storage_key = (
-            pending_undelegate.mix_identity(),
-            maybe_proxy_storage.clone(),
-            h,
-        );
-        let delegation = delegation_map.load(storage, storage_key.clone())?;
+        let delegation =
+            delegation_map.load(storage, pending_undelegate.delegation_key(h).clone())?;
         total_delegation += delegation.amount.amount;
-        delegation_map.replace(storage, storage_key, None, Some(&delegation))?;
+        delegation_map.replace(
+            storage,
+            pending_undelegate.delegation_key(h),
+            None,
+            Some(&delegation),
+        )?;
     }
 
     let bank_msg = BankMsg::Send {
@@ -386,19 +377,17 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
 ) -> Result<Response, ContractError> {
     let delegate = deps.api.addr_validate(delegate)?;
 
+    let event = PendingUndelegate::new(
+        mix_identity.to_string(),
+        delegate.clone(),
+        proxy.clone(),
+        env.block.height,
+    );
+
     PENDING_DELEGATION_EVENTS.save(
         deps.storage,
-        (
-            delegate.as_bytes().to_vec(),
-            env.block.height,
-            mix_identity.to_string(),
-        ),
-        &DelegationEvent::Undelegate(PendingUndelegate::new(
-            mix_identity.to_string(),
-            delegate.clone(),
-            proxy.clone(),
-            env.block.height,
-        )),
+        event.event_storage_key(),
+        &DelegationEvent::Undelegate(event),
     )?;
 
     Ok(Response::new().add_event(new_pending_undelegation_event(
@@ -738,6 +727,7 @@ mod tests {
                 &deps.api,
                 identity,
                 delegation_owner.to_string(),
+                None,
             )
             .unwrap();
 
@@ -1074,6 +1064,7 @@ mod tests {
                 &deps.api,
                 identity.clone(),
                 delegation_owner.clone().into_string(),
+                None,
             )
             .unwrap();
 
@@ -1143,6 +1134,7 @@ mod tests {
                 &deps.api,
                 identity.clone(),
                 delegation_owner.clone().into_string(),
+                None,
             )
             .unwrap();
 

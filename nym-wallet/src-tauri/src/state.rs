@@ -7,10 +7,27 @@ use validator_client::nymd::SigningNymdClient;
 use validator_client::Client;
 
 use itertools::Itertools;
+use tokio::sync::RwLock;
 use url::Url;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
+
+#[tauri::command]
+pub async fn load_config_from_files(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  state.write().await.load_config_files();
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn save_config_to_files(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  state.read().await.save_config_files()
+}
 
 #[derive(Default)]
 pub struct State {
@@ -30,10 +47,28 @@ impl State {
       .ok_or(BackendError::ClientNotInitialized)
   }
 
+  pub fn client_mut(
+    &mut self,
+    network: Network,
+  ) -> Result<&mut Client<SigningNymdClient>, BackendError> {
+    self
+      .signing_clients
+      .get_mut(&network)
+      .ok_or(BackendError::ClientNotInitialized)
+  }
+
   pub fn current_client(&self) -> Result<&Client<SigningNymdClient>, BackendError> {
     self
       .signing_clients
       .get(&self.current_network)
+      .ok_or(BackendError::ClientNotInitialized)
+  }
+
+  #[allow(unused)]
+  pub fn current_client_mut(&mut self) -> Result<&mut Client<SigningNymdClient>, BackendError> {
+    self
+      .signing_clients
+      .get_mut(&self.current_network)
       .ok_or(BackendError::ClientNotInitialized)
   }
 
@@ -124,32 +159,34 @@ impl State {
     Ok(())
   }
 
-  #[allow(unused)]
   pub fn select_validator_nymd_url(
     &mut self,
     url: &str,
     network: Network,
   ) -> Result<(), BackendError> {
     self.config.select_validator_nymd_url(url.parse()?, network);
+    if let Ok(client) = self.client_mut(network) {
+      client.change_nymd(url.parse()?)?;
+    }
     Ok(())
   }
 
-  #[allow(unused)]
   pub fn select_validator_api_url(
     &mut self,
     url: &str,
     network: Network,
   ) -> Result<(), BackendError> {
     self.config.select_validator_api_url(url.parse()?, network);
+    if let Ok(client) = self.client_mut(network) {
+      client.change_validator_api(url.parse()?);
+    }
     Ok(())
   }
 
-  #[allow(unused)]
   pub fn add_validator_url(&mut self, url: ValidatorUrl, network: Network) {
     self.config.add_validator_url(url, network);
   }
 
-  #[allow(unused)]
   pub fn remove_validator_url(&mut self, url: ValidatorUrl, network: Network) {
     self.config.remove_validator_url(url, network)
   }

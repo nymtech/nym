@@ -40,7 +40,8 @@ const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
 const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(30);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
-const DEFAULT_MIN_RELIABILITY: u8 = 50;
+const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
+const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct Config {
@@ -117,8 +118,8 @@ impl Default for Base {
 #[serde(default)]
 pub struct NetworkMonitor {
     //  Mixnodes and gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
-    min_reliability: u8,
-
+    min_mixnode_reliability: u8, // defaults to 50
+    min_gateway_reliability: u8, // defaults to 20
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
 
@@ -210,7 +211,8 @@ impl NetworkMonitor {
 impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
-            min_reliability: DEFAULT_MIN_RELIABILITY,
+            min_mixnode_reliability: DEFAULT_MIN_MIXNODE_RELIABILITY,
+            min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
             testnet_mode: false,
             all_validator_apis: default_api_endpoints(),
@@ -367,6 +369,16 @@ impl Config {
         self
     }
 
+    pub fn with_min_mixnode_reliability(mut self, min_mixnode_reliability: u8) -> Self {
+        self.network_monitor.min_mixnode_reliability = min_mixnode_reliability;
+        self
+    }
+
+    pub fn with_min_gateway_reliability(mut self, min_gateway_reliability: u8) -> Self {
+        self.network_monitor.min_gateway_reliability = min_gateway_reliability;
+        self
+    }
+
     #[cfg(not(feature = "coconut"))]
     pub fn with_eth_private_key(mut self, eth_private_key: String) -> Self {
         self.network_monitor.eth_private_key = eth_private_key;
@@ -464,10 +476,6 @@ impl Config {
 
     pub fn get_minimum_test_routes(&self) -> usize {
         self.network_monitor.minimum_test_routes
-    }
-
-    pub fn get_min_reliability(&self) -> u8 {
-        self.network_monitor.min_reliability
     }
 
     pub fn get_route_test_packets(&self) -> usize {

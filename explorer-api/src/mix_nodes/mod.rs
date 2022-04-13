@@ -3,7 +3,6 @@
 
 use std::time::Duration;
 
-pub(crate) mod delegations;
 pub(crate) mod http;
 pub(crate) mod location;
 pub(crate) mod models;

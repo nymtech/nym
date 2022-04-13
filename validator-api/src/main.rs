@@ -65,6 +65,9 @@ const ETH_PRIVATE_KEY: &str = "eth_private_key";
 
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
+const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
+const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
+
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
         .map(|raw_validator| {
@@ -225,6 +228,8 @@ fn setup_logging() {
         .filter_module("sled", log::LevelFilter::Warn)
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+        .filter_module("_", log::LevelFilter::Warn)
+        .filter_module("rocket::server", log::LevelFilter::Warn)
         .init();
 }
 
@@ -276,6 +281,24 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
             "Provided monitor threshold is greater than 100!"
         );
         config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
+    }
+
+    if let Some(reliability) = matches
+        .value_of(MIN_MIXNODE_RELIABILITY_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        config = config.with_min_mixnode_reliability(
+            reliability.expect("Provided reliability is not a u8 number!"),
+        )
+    }
+
+    if let Some(reliability) = matches
+        .value_of(MIN_GATEWAY_RELIABILITY_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        config = config.with_min_gateway_reliability(
+            reliability.expect("Provided reliability is not a u8 number!"),
+        )
     }
 
     #[cfg(feature = "coconut")]
@@ -460,14 +483,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
-        let rewarded_set_update_notify = Arc::new(Notify::new());
-
         let nymd_client = signing_nymd_client.expect("We should have a signing client here");
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
-            Some(Arc::clone(&rewarded_set_update_notify)),
         );
 
         // spawn our cacher
@@ -479,13 +499,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         tokio::spawn(async move { uptime_updater.run().await });
 
-        let mut rewarded_set_updater = RewardedSetUpdater::new(
-            nymd_client,
-            rewarded_set_update_notify,
-            validator_cache.clone(),
-            storage,
-        )
-        .await?;
+        let mut rewarded_set_updater =
+            RewardedSetUpdater::new(nymd_client, validator_cache.clone(), storage).await?;
 
         // spawn rewarded set updater
         tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
@@ -495,7 +510,6 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             nymd_client,
             config.get_caching_interval(),
             validator_cache,
-            None,
         );
 
         // spawn our cacher

@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 serde = "1.0"
+mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
 
 [dev-dependencies]
 ts-rs = "6.1.2"

@@ -1025,6 +1025,8 @@ pub mod tests {
         );
         assert_eq!(mix_1_reward_result.reward().int(), 259114u128);
 
+        assert_eq!(mix_1.node_profit(&params).int(), 203558u128);
+
         let mix1_operator_reward = mix_1.operator_reward(&params);
 
         let mix1_delegator1_reward = mix_1.reward_delegation(Uint128::new(8000_000000), &params);
@@ -1034,6 +1036,11 @@ pub mod tests {
         assert_eq!(mix1_operator_reward, 167513);
         assert_eq!(mix1_delegator1_reward, 73280);
         assert_eq!(mix1_delegator2_reward, 18320);
+
+        assert_eq!(
+            mix_1_reward_result.reward().int(),
+            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1
+        );
 
         assert_eq!(
             mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1,
@@ -1076,13 +1083,6 @@ pub mod tests {
                 + mix1_delegator2_reward
                 + 1 // There is a rounding error here it seems
         );
-        // assert_eq!(
-        //     mixnodes_storage::TOTAL_DELEGATION
-        //         .load(&deps.storage, &node_identity)
-        //         .unwrap()
-        //         .u128(),
-        //     pre_reward_delegation + mix1_delegator1_reward + mix1_delegator2_reward
-        // );
 
         assert_eq!(
             storage::REWARD_POOL.load(&deps.storage).unwrap().u128(),

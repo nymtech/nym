@@ -1,6 +1,6 @@
 [package]
 name = "mixnet-contract"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 
@@ -20,9 +20,9 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config"}
 
-cosmwasm-std = "1.0.0-beta3"
-cosmwasm-storage = "1.0.0-beta3"
-cw-storage-plus = "0.12.1"
+cosmwasm-std = "1.0.0-beta8"
+cosmwasm-storage = "1.0.0-beta8"
+cw-storage-plus = "0.13.2"
 
 az = "1.2.0"
 bs58 = "0.4.0"
@@ -30,6 +30,7 @@ schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
 time = { version = "0.3", features = ["macros"] }
+hex = "0.4.3"
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0-beta3"

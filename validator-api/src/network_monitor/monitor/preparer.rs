@@ -25,6 +25,7 @@ type Id = String;
 type Owner = Addr;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) enum InvalidNode {
     Outdated(Id, Owner, Version),
     Malformed(Id, Owner),
@@ -150,10 +151,6 @@ impl PacketPreparer {
         }
     }
 
-    pub fn validator_cache(&mut self) -> &mut ValidatorCache {
-        &mut self.validator_cache
-    }
-
     async fn wrap_test_packet(
         &mut self,
         packet: &TestPacket,
@@ -188,8 +185,8 @@ impl PacketPreparer {
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
         loop {
-            let gateways = self.validator_cache.gateways().await;
-            let mixnodes = self.validator_cache.rewarded_set().await;
+            let gateways = self.validator_cache.gateways_all().await;
+            let mixnodes = self.validator_cache.mixnodes_all().await;
 
             if gateways.len() < minimum_full_routes {
                 info!(
@@ -201,7 +198,7 @@ impl PacketPreparer {
             }
 
             let mut layered_mixes = HashMap::new();
-            for mix in mixnodes.into_inner() {
+            for mix in mixnodes {
                 let layer = mix.layer;
                 let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
                 mixes.push(mix)
@@ -229,7 +226,7 @@ impl PacketPreparer {
     }
 
     async fn all_mixnodes_and_gateways(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
-        info!(target: "Monitor", "Obtaining network topology...");
+        info!("Obtaining network topology...");
 
         let mixnodes = self.validator_cache.mixnodes_all().await;
         let gateways = self.validator_cache.gateways_all().await;
@@ -239,9 +236,6 @@ impl PacketPreparer {
 
     pub(crate) fn try_parse_mix_bond(&self, mix: &MixNodeBond) -> Result<mix::Node, String> {
         let identity = mix.mix_node.identity_key.clone();
-        if !self.check_version_compatibility(&mix.mix_node.version) {
-            return Err(identity);
-        }
         mix.try_into().map_err(|_| identity)
     }
 
@@ -250,9 +244,6 @@ impl PacketPreparer {
         gateway: &GatewayBond,
     ) -> Result<gateway::Node, String> {
         let identity = gateway.gateway.identity_key.clone();
-        if !self.check_version_compatibility(&gateway.gateway.version) {
-            return Err(identity);
-        }
         gateway.try_into().map_err(|_| identity)
     }
 
@@ -270,19 +261,10 @@ impl PacketPreparer {
         // separate mixes into layers for easier selection
         let mut layered_mixes = HashMap::new();
         for mix in mixnodes {
-            // filter out mixes on the blacklist
-            if blacklist.contains(&mix.mix_node.identity_key) {
-                continue;
-            }
             let layer = mix.layer;
             let mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
             mixes.push(mix)
         }
-        // filter out gateways on the blacklist
-        let gateways = gateways
-            .into_iter()
-            .filter(|gateway| !blacklist.contains(&gateway.gateway.identity_key))
-            .collect::<Vec<_>>();
 
         // get all nodes from each layer...
         let l1 = layered_mixes.get(&Layer::One)?;
@@ -297,9 +279,6 @@ impl PacketPreparer {
         let rand_l3 = l3.choose_multiple(&mut rng, n).collect::<Vec<_>>();
         let rand_gateways = gateways.choose_multiple(&mut rng, n).collect::<Vec<_>>();
 
-        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "109.74.196.254".to_string()).collect::<Vec<_>>();
-        // let rand_gateways = gateways.iter().filter(|g| g.gateway.host ==  "185.3.94.33".to_string()).collect::<Vec<_>>();
-
         // the unwrap on `min()` is fine as we know the iterator is not empty
         let most_available = *[
             rand_l1.len(),
@@ -312,9 +291,10 @@ impl PacketPreparer {
         .unwrap();
 
         if most_available == 0 {
-            // it's impossible to generate a single route
+            error!("Cannot construct test routes. No nodes or gateways available");
             None
         } else {
+            trace!("Generating test routes...");
             let mut routes = Vec::new();
             for i in 0..most_available {
                 let node_1 = match self.try_parse_mix_bond(rand_l1[i]) {
@@ -358,12 +338,9 @@ impl PacketPreparer {
                     gateway,
                 ))
             }
+            info!("{:?}", routes);
             Some(routes)
         }
-    }
-
-    fn check_version_compatibility(&self, node_version: &str) -> bool {
-        version_checker::is_minor_version_compatible(node_version, &self.system_version)
     }
 
     fn create_packet_sender(&self, gateway: &gateway::Node) -> Recipient {
@@ -404,14 +381,6 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for mixnode in nodes {
-            if !self.check_version_compatibility(&mixnode.mix_node.version) {
-                invalid_nodes.push(InvalidNode::Outdated(
-                    mixnode.mix_node.identity_key,
-                    mixnode.owner,
-                    mixnode.mix_node.version,
-                ));
-                continue;
-            }
             if let Ok(parsed_node) = (&mixnode).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -431,14 +400,6 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for gateway in nodes {
-            if !self.check_version_compatibility(&gateway.gateway.version) {
-                invalid_nodes.push(InvalidNode::Outdated(
-                    gateway.gateway.identity_key,
-                    gateway.owner,
-                    gateway.gateway.version,
-                ));
-                continue;
-            }
             if let Ok(parsed_node) = (&gateway).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -460,18 +421,17 @@ impl PacketPreparer {
         // (remember that "idle" nodes are still part of that set)
         // we don't care about other nodes, i.e. nodes that are bonded but will not get
         // any reward during the current rewarding interval
-        let (rewarded_set, all_gateways) = self.all_mixnodes_and_gateways().await;
+        let (mixnodes, gateways) = self.all_mixnodes_and_gateways().await;
 
-        let (mixes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(rewarded_set);
-        let (gateways, invalid_gateways) =
-            self.filter_outdated_and_malformed_gateways(all_gateways);
+        let (mixnodes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnodes);
+        let (gateways, invalid_gateways) = self.filter_outdated_and_malformed_gateways(gateways);
 
-        let tested_mixnodes = mixes.iter().map(|node| node.into()).collect::<Vec<_>>();
+        let tested_mixnodes = mixnodes.iter().map(|node| node.into()).collect::<Vec<_>>();
         let tested_gateways = gateways.iter().map(|node| node.into()).collect::<Vec<_>>();
 
         let packets_to_create = (test_routes.len() * self.per_node_test_packets)
             * (tested_mixnodes.len() + tested_gateways.len());
-        info!(target: "TestPreparer", "Need to create {} mix packets", packets_to_create);
+        info!("Need to create {} mix packets", packets_to_create);
 
         let mut all_gateway_packets = HashMap::new();
 
@@ -483,10 +443,10 @@ impl PacketPreparer {
             let gateway_owner = test_route.gateway_owner();
 
             // it's actually going to be a tiny bit more due to gateway testing, but it's a good enough approximation
-            let mut mix_packets = Vec::with_capacity(mixes.len() * self.per_node_test_packets);
+            let mut mix_packets = Vec::with_capacity(mixnodes.len() * self.per_node_test_packets);
 
             // and for each mixnode...
-            for mixnode in &mixes {
+            for mixnode in &mixnodes {
                 let test_packet = TestPacket::from_mixnode(mixnode, test_route.id(), test_nonce);
                 let topology = test_route.substitute_mix(mixnode);
                 // produce n mix packets

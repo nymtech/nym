@@ -78,6 +78,35 @@ impl PendingUndelegate {
     pub fn block_height(&self) -> u64 {
         self.block_height
     }
+
+    pub fn proxy_storage_key(&self) -> Vec<u8> {
+        if let Some(proxy) = &self.proxy {
+            self.delegate()
+                .as_bytes()
+                .iter()
+                .zip(proxy.as_bytes())
+                .map(|(x, y)| x ^ y)
+                .collect()
+        } else {
+            self.delegate().as_bytes().to_vec()
+        }
+    }
+
+    pub fn storage_key(&self) -> (IdentityKey, Vec<u8>) {
+        (self.mix_identity(), self.proxy_storage_key())
+    }
+
+    pub fn delegation_key(&self, block_height: u64) -> (IdentityKey, Vec<u8>, u64) {
+        (self.mix_identity(), self.proxy_storage_key(), block_height)
+    }
+
+    pub fn event_storage_key(&self) -> (Vec<u8>, u64, IdentityKey) {
+        (
+            self.proxy_storage_key(),
+            self.block_height(),
+            self.mix_identity(),
+        )
+    }
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -199,7 +228,7 @@ impl DelegatorRewardParams {
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
         let delegator_reward =
-            (ONE - self.profit_margin) * scaled_delegation_amount / self.sigma * self.node_profit;
+            (ONE - self.profit_margin) * (scaled_delegation_amount / self.sigma) * self.node_profit;
 
         let reward = delegator_reward.max(U128::ZERO);
         if let Some(int_reward) = reward.checked_cast() {
@@ -397,17 +426,17 @@ impl MixNodeBond {
         &self,
         params: &RewardParams,
     ) -> Result<(u64, u64, u64), MixnetContractError> {
-        let total_node_reward = self.reward(params);
+        let total_node_reward = self
+            .reward(params)
+            .reward()
+            .checked_to_num::<u128>()
+            .unwrap_or_default();
         let operator_reward = self.operator_reward(params);
-        // TODO: This overestimates the reward by a lot, it should take a Uint128 and return estiamte for that
-        let delegators_reward = self.reward_delegation(self.total_delegation().amount, params);
+        // Total reward has to be the sum of operator and delegator rewards
+        let delegators_reward = total_node_reward - operator_reward;
 
         Ok((
-            total_node_reward
-                .reward()
-                .checked_to_num::<u128>()
-                .unwrap_or_default()
-                .try_into()?,
+            total_node_reward.try_into()?,
             operator_reward.try_into()?,
             delegators_reward.try_into()?,
         ))

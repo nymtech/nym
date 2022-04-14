@@ -9,8 +9,11 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::PersistentStorage;
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
+#[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;

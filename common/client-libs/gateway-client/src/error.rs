@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::StorageError;
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::error::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use std::io;
 use thiserror::Error;
@@ -22,7 +26,7 @@ pub enum GatewayClientError {
     NetworkError(#[from] WsError),
 
     #[error("There was a credential storage error - {0}")]
-    CredentialStorageError(#[from] credential_storage::error::StorageError),
+    CredentialStorageError(#[from] StorageError),
 
     #[cfg(feature = "coconut")]
     #[error("Coconut error - {0}")]

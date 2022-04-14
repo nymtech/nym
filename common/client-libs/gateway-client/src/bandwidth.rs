@@ -1,8 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::{Storage, StorageError};
 #[cfg(feature = "coconut")]
 use coconut_interface::Base58;
+#[cfg(feature = "coconut")]
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::error::StorageError;
+#[cfg(not(target_arch = "wasm32"))]
 use credential_storage::storage::Storage;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
@@ -152,7 +158,7 @@ where
         let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
-            .map_err(|_| credential_storage::error::StorageError::InconsistentData)?;
+            .map_err(|_| StorageError::InconsistentData)?;
         let voucher_info = bandwidth_credential.voucher_info.clone();
         let serial_number =
             coconut_interface::Attribute::try_from_bs58(bandwidth_credential.serial_number)?;

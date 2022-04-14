@@ -617,6 +617,7 @@ dependencies = [
 name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-std",
  "schemars",
  "serde",
 ]
@@ -904,6 +905,7 @@ dependencies = [
  "clap 3.1.8",
  "coconut-bandwidth-contract-common",
  "coconut-interface",
+ "credential-storage",
  "credentials",
  "crypto",
  "network-defaults",
@@ -915,6 +917,18 @@ dependencies = [
  "tokio",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "credential-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "nymcoconut",
+ "sqlx",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1929,8 +1943,9 @@ dependencies = [
 name = "gateway-client"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "coconut-interface",
- "cosmrs 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "credential-storage",
  "credentials",
  "crypto",
  "fluvio-wasm-timer",
@@ -3034,6 +3049,7 @@ dependencies = [
  "client-core",
  "coconut-interface",
  "config",
+ "credential-storage",
  "credentials",
  "crypto",
  "dirs",
@@ -3173,6 +3189,7 @@ dependencies = [
  "client-core",
  "coconut-interface",
  "config",
+ "credential-storage",
  "credentials",
  "crypto",
  "dirs",
@@ -3213,6 +3230,7 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
+ "credential-storage",
  "credentials",
  "crypto",
  "dirs",

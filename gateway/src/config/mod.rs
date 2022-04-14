@@ -138,7 +138,6 @@ impl Config {
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: String) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
         self
@@ -237,8 +236,7 @@ impl Config {
         self.gateway.validator_nymd_urls.clone()
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_cosmos_mnemonic(&self) -> String {
+    pub fn _get_cosmos_mnemonic(&self) -> String {
         self.gateway.cosmos_mnemonic.clone()
     }
 
@@ -348,8 +346,7 @@ pub struct Gateway {
     #[cfg(not(feature = "coconut"))]
     validator_nymd_urls: Vec<Url>,
 
-    /// Mnemonic of a cosmos wallet used for checking for double spending.
-    #[cfg(not(feature = "coconut"))]
+    /// Mnemonic of a cosmos wallet used in checking for double spending.
     cosmos_mnemonic: String,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
@@ -405,7 +402,6 @@ impl Default for Gateway {
             validator_api_urls: default_api_endpoints(),
             #[cfg(not(feature = "coconut"))]
             validator_nymd_urls: default_nymd_endpoints(),
-            #[cfg(not(feature = "coconut"))]
             cosmos_mnemonic: "".to_string(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),

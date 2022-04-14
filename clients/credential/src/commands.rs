@@ -9,6 +9,8 @@ use std::str::FromStr;
 use url::Url;
 
 use coconut_interface::{Attribute, Base58, BlindSignRequest, Bytable, Parameters};
+use credential_storage::storage::Storage;
+use credential_storage::PersistentStorage;
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
@@ -32,7 +34,7 @@ pub(crate) enum Commands {
 
 #[async_trait]
 pub(crate) trait Execute {
-    async fn execute(&self, db: &mut PickleDb) -> Result<()>;
+    async fn execute(&self, db: &mut PickleDb, shared_storage: PersistentStorage) -> Result<()>;
 }
 
 #[derive(Args, Clone)]
@@ -44,7 +46,7 @@ pub(crate) struct Deposit {
 
 #[async_trait]
 impl Execute for Deposit {
-    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
+    async fn execute(&self, db: &mut PickleDb, _shared_storage: PersistentStorage) -> Result<()> {
         let mut rng = OsRng;
         let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
         let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
@@ -80,7 +82,7 @@ pub(crate) struct ListDeposits {}
 
 #[async_trait]
 impl Execute for ListDeposits {
-    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
+    async fn execute(&self, db: &mut PickleDb, _shared_storage: PersistentStorage) -> Result<()> {
         for kv in db.iter() {
             println!("{:?}", kv.get_value::<State>());
         }
@@ -102,7 +104,7 @@ pub(crate) struct GetCredential {
 
 #[async_trait]
 impl Execute for GetCredential {
-    async fn execute(&self, db: &mut PickleDb) -> Result<()> {
+    async fn execute(&self, db: &mut PickleDb, shared_storage: PersistentStorage) -> Result<()> {
         let mut state = db
             .get::<State>(&self.tx_hash)
             .ok_or(CredentialClientError::NoDeposit)?;
@@ -162,25 +164,20 @@ impl Execute for GetCredential {
 
         let signature =
             obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
+        shared_storage
+            .insert_coconut_credential(
+                state.amount.to_string(),
+                VOUCHER_INFO.to_string(),
+                bandwidth_credential_attributes.get_private_attributes()[0].to_bs58(),
+                bandwidth_credential_attributes.get_private_attributes()[1].to_bs58(),
+                signature.to_bs58(),
+            )
+            .await?;
         state.signature = Some(signature.to_bs58());
         db.set(&self.tx_hash, &state).unwrap();
 
         println!("Signature: {:?}", state.signature);
 
-        Ok(())
-    }
-}
-
-#[derive(Args, Clone)]
-pub(crate) struct SpendCredential {
-    /// Spend one of the acquired credentials
-    #[clap(long)]
-    id: usize,
-}
-
-#[async_trait]
-impl Execute for SpendCredential {
-    async fn execute(&self, _db: &mut PickleDb) -> Result<()> {
         Ok(())
     }
 }

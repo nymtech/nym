@@ -1,0 +1,20 @@
+[package]
+name = "credential-storage"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { version = "0.1.51" }
+nymcoconut = { path = "../nymcoconut" }
+
+log = "0.4"
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
+thiserror = "1.0"
+tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
+
+
+[build-dependencies]
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

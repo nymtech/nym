@@ -4,21 +4,10 @@
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-#[cfg(feature = "coconut")]
-use coconut_interface::{Credential, Parameters};
 use config::NymConfig;
-#[cfg(feature = "coconut")]
-use credentials::coconut::{
-    bandwidth::prepare_for_spending, bandwidth::BandwidthVoucher, bandwidth::TOTAL_ATTRIBUTES,
-    utils::obtain_aggregate_signature,
-};
-#[cfg(feature = "coconut")]
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
-#[cfg(feature = "coconut")]
-use network_defaults::BANDWIDTH_VALUE;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
@@ -27,8 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
-#[cfg(feature = "coconut")]
-use validator_client::nymd::tx::Hash;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
@@ -99,46 +86,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         );
 
     app
-}
-
-// this behaviour should definitely be changed, we shouldn't
-// need to get bandwidth credential for registration
-#[cfg(feature = "coconut")]
-async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
-    let verification_key = obtain_aggregate_verification_key(validators)
-        .await
-        .expect("could not obtain aggregate verification key of validators");
-
-    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-    let mut rng = OsRng;
-    let bandwidth_credential_attributes = BandwidthVoucher::new(
-        &params,
-        BANDWIDTH_VALUE.to_string(),
-        network_defaults::VOUCHER_INFO.to_string(),
-        Hash::new([0; 32]),
-        // workaround for putting a valid value here, without deriving clone for the private
-        // key, until we have actual useful values
-        identity::PrivateKey::from_base58_string(
-            identity::KeyPair::new(&mut rng)
-                .private_key()
-                .to_base58_string(),
-        )
-        .unwrap(),
-        encryption::KeyPair::new(&mut rng).private_key().clone(),
-    );
-
-    let bandwidth_credential =
-        obtain_aggregate_signature(&params, &bandwidth_credential_attributes, validators)
-            .await
-            .expect("could not obtain bandwidth credential");
-
-    prepare_for_spending(
-        raw_identity,
-        &bandwidth_credential,
-        &bandwidth_credential_attributes,
-        &verification_key,
-    )
-    .expect("could not prepare out bandwidth credential for spending")
 }
 
 async fn register_with_gateway(

@@ -1,9 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
+use crate::state::{ADMIN, CONFIG};
+
 use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
@@ -37,12 +39,40 @@ pub(crate) fn deposit_funds(
     Ok(Response::new().add_event(event))
 }
 
+pub(crate) fn release_funds(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    funds: Coin,
+) -> Result<Response, ContractError> {
+    if funds.denom != DENOM {
+        return Err(ContractError::WrongDenom);
+    }
+    let current_balance = deps.querier.query_balance(env.contract.address, DENOM)?;
+    if funds.amount > current_balance.amount {
+        return Err(ContractError::NotEnoughFunds);
+    }
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+
+    let cfg = CONFIG.load(deps.storage)?;
+
+    let return_tokens = BankMsg::Send {
+        to_address: cfg.pool_addr.into(),
+        amount: vec![funds],
+    };
+    let response = Response::new().add_message(return_tokens);
+
+    Ok(response)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::support::tests::helpers;
+    use crate::support::tests::helpers::{MULTISIG_CONTRACT, POOL_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Coin;
+    use cosmwasm_std::{Coin, CosmosMsg};
+    use cw_controllers::AdminError;
 
     #[test]
     fn invalid_deposit() {
@@ -132,5 +162,66 @@ mod tests {
             .find(|attr| attr.key == DEPOSIT_ENCRYPTION_KEY)
             .unwrap();
         assert_eq!(encryption_key_attr.value, encryption_key);
+    }
+
+    #[test]
+    fn invalid_release() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let invalid_admin = "invalid admin";
+        let funds = Coin::new(1, DENOM);
+
+        let err = release_funds(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(invalid_admin, &[]),
+            Coin::new(1, "invalid denom"),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::WrongDenom);
+
+        let err = release_funds(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(invalid_admin, &[]),
+            funds.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::NotEnoughFunds);
+
+        deps.querier
+            .update_balance(env.contract.address.clone(), vec![funds.clone()]);
+        let err = release_funds(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(invalid_admin, &[]),
+            funds.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+    }
+
+    #[test]
+    fn valid_release() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let coin = Coin::new(1, DENOM);
+
+        deps.querier
+            .update_balance(env.contract.address.clone(), vec![coin.clone()]);
+        let res = release_funds(
+            deps.as_mut(),
+            env,
+            mock_info(MULTISIG_CONTRACT, &[]),
+            coin.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            res.messages[0].msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: String::from(POOL_CONTRACT),
+                amount: vec![coin]
+            })
+        );
     }
 }

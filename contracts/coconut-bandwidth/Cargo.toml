@@ -13,9 +13,14 @@ bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../../common/config"}
 
-cosmwasm-std = "1.0.0-beta3"
-cosmwasm-storage = "1.0.0-beta3"
+cosmwasm-std = "1.0.0-beta8"
+cosmwasm-storage = "1.0.0-beta8"
+cw-storage-plus = "0.13.2"
+cw-controllers = "0.13.2"
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
+
+[dev-dependencies]
+cw-multi-test = { version = "0.13.2" }

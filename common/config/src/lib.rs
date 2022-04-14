@@ -4,6 +4,8 @@
 use handlebars::Handlebars;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{fs, io};
 
@@ -64,11 +66,19 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
             None => fs::create_dir_all(self.config_directory()),
         }?;
 
-        fs::write(
-            custom_location
-                .unwrap_or_else(|| self.config_directory().join(Self::config_file_name())),
-            templated_config,
-        )
+        let location = custom_location
+            .unwrap_or_else(|| self.config_directory().join(Self::config_file_name()));
+
+        fs::write(location.clone(), templated_config)?;
+
+        #[cfg(unix)]
+        let mut perms = fs::metadata(location.clone())?.permissions();
+        #[cfg(unix)]
+        perms.set_mode(0o600);
+        #[cfg(unix)]
+        fs::set_permissions(location, perms)?;
+
+        Ok(())
     }
 
     fn load_from_file(id: Option<&str>) -> io::Result<Self> {

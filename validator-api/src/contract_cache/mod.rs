@@ -128,9 +128,13 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_gateways(),
         )?;
 
-        let rewarded_set_identities = self.nymd_client.get_rewarded_set_identities().await?;
-        let (rewarded_set, active_set) =
-            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
+        let (rewarded_set, active_set) = if let Ok(rewarded_set_identities) =
+            self.nymd_client.get_rewarded_set_identities().await
+        {
+            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities)
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
         let current_epoch = self.nymd_client.get_current_epoch().await?;

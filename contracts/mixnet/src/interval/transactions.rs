@@ -43,15 +43,16 @@ pub fn try_write_rewarded_set(
         });
     }
 
-    let last_update = storage::CURRENT_REWARDED_SET_HEIGHT.load(deps.storage)?;
     let block_height = env.block.height;
 
-    if last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS > block_height {
-        return Err(ContractError::TooFrequentRewardedSetUpdate {
-            last_update,
-            minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
-            current_height: block_height,
-        });
+    if let Some(last_update) = storage::CURRENT_REWARDED_SET_HEIGHT.may_load(deps.storage)? {
+        if last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS > block_height {
+            return Err(ContractError::TooFrequentRewardedSetUpdate {
+                last_update,
+                minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
+                current_height: block_height,
+            });
+        }
     }
     let num_nodes = rewarded_set.len();
 

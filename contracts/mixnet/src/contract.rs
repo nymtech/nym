@@ -30,12 +30,10 @@ use crate::rewards::queries::{
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Storage, Uint128,
+    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use cw_storage_plus::PrimaryKey;
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SphinxKey,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -386,87 +384,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    use crate::mixnodes::storage::StoredMixnodeBond;
-    use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Strategy, UniqueIndex};
-    use mixnet_contract_common::{Addr, IdentityKeyRef};
-
-    const MIXNODES_PK_NAMESPACE: &str = "mn";
-    const MIXNODES_PK_CHECKPOINTS: &str = "mn__check";
-    const MIXNODES_PK_CHANGELOG: &str = "mn__change";
-    const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
-    const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
-
-    pub(crate) struct MixnodeBondIndex<'a> {
-        pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
-    }
-
-    impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
-        fn get_indexes(
-            &'_ self,
-        ) -> Box<dyn Iterator<Item = &'_ dyn Index<StoredMixnodeBond>> + '_> {
-            let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.owner];
-            Box::new(v.into_iter())
-        }
-    }
-
-    pub(crate) fn old_mixnodes<'a>(
-    ) -> IndexedSnapshotMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
-        let indexes = MixnodeBondIndex {
-            owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
-        };
-        IndexedSnapshotMap::new(
-            MIXNODES_PK_NAMESPACE,
-            MIXNODES_PK_CHECKPOINTS,
-            MIXNODES_PK_CHANGELOG,
-            Strategy::Never,
-            indexes,
-        )
-    }
-
-    const PAGE_SIZE: usize = 50;
-
-    fn migrate_page(
-        store: &mut dyn Storage,
-        start_after: Option<String>,
-        index: &mut UniqueIndex<'_, SphinxKey, StoredMixnodeBond>,
-    ) -> Option<String> {
-        let start = start_after
-            .as_deref()
-            .map(cw_storage_plus::Bound::exclusive);
-
-        let page: Vec<_> = old_mixnodes()
-            .range(store, start, None, cosmwasm_std::Order::Ascending)
-            .map(|v| v.expect("failed to deserialize stored mixnode"))
-            .collect();
-
-        let last_pk = if page.len() == PAGE_SIZE {
-            Some(page.last().unwrap().0.clone())
-        } else {
-            None
-        };
-
-        for (pk, mix) in page {
-            index
-                .save(store, &pk.joined_key(), &mix)
-                .expect("failed to save new index information");
-        }
-
-        last_pk
-    }
-
-    // attempt to just add indices, see how it works out
-    let mut sphinx_index: UniqueIndex<'_, SphinxKey, StoredMixnodeBond> = UniqueIndex::new(
-        |d| d.mix_node.sphinx_key.clone(),
-        MIXNODES_SPHINX_IDX_NAMESPACE,
-    );
-
-    let mut start_after = None;
-
-    while let Some(new_start) = migrate_page(deps.storage, start_after.clone(), &mut sphinx_index) {
-        start_after = Some(new_start)
-    }
-
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

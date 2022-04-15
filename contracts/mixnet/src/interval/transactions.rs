@@ -27,9 +27,8 @@ pub fn try_write_rewarded_set(
         return Err(ContractError::Unauthorized);
     }
 
-    // sanity check to make sure the sending validator is in sync with the contract state
-    // (i.e. so that we'd known that top k nodes are actually expected to be active)
-    if active_set_size != state.params.mixnode_active_set_size {
+    // We don't want more then we need, less should be fine, as we could have less nodes bonded overall
+    if active_set_size > state.params.mixnode_active_set_size {
         return Err(ContractError::UnexpectedActiveSetSize {
             received: active_set_size,
             expected: state.params.mixnode_active_set_size,

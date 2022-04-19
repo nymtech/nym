@@ -6,11 +6,10 @@ use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 
 mod constants;
+mod dealers;
+mod epoch;
 mod error;
-mod queries;
-mod storage;
 mod support;
-mod transactions;
 
 /// Instantiate the contract.
 ///
@@ -40,7 +39,7 @@ pub fn execute(
             ed25519_key,
             bte_key_with_proof,
             owner_signature,
-        } => transactions::try_add_dealer(
+        } => dealers::transactions::try_add_dealer(
             deps,
             env,
             info,

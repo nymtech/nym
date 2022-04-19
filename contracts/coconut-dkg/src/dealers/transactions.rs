@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{INVALID_ED25519_BLACKLISTING_EXPIRATION, MINIMUM_DEPOSIT};
-use crate::storage::{
-    blacklist_dealer, current_dealers, next_node_index, obtain_blacklisting, past_dealers,
-};
+use crate::dealers::storage as dealers_storage;
 use crate::ContractError;
 use coconut_dkg_common::types::{
     BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
@@ -23,7 +21,7 @@ fn verify_dealer(
     dealer: &Addr,
 ) -> Result<(), ContractError> {
     if let Some((blacklisting, expired)) =
-        obtain_blacklisting(deps.storage, dealer, current_height)?
+        dealers_storage::obtain_blacklisting(deps.storage, dealer, current_height)?
     {
         if !expired {
             return Err(ContractError::BlacklistedDealer {
@@ -32,7 +30,10 @@ fn verify_dealer(
         }
     }
 
-    if current_dealers().may_load(deps.storage, dealer)?.is_some() {
+    if dealers_storage::current_dealers()
+        .may_load(deps.storage, dealer)?
+        .is_some()
+    {
         return Err(ContractError::AlreadyADealer);
     }
 
@@ -122,7 +123,7 @@ pub fn try_add_dealer(
         owner_signature,
         &ed25519_key,
     ) {
-        blacklist_dealer(
+        dealers_storage::blacklist_dealer(
             deps.storage,
             &info.sender,
             BlacklistingReason::Ed25519PossessionVerificationFailure,
@@ -136,14 +137,20 @@ pub fn try_add_dealer(
     let _deposit = validate_dealer_deposit(info.funds)?;
 
     // if it was already a dealer in the past, assign the same node index
-    let node_index =
-        if let Some(prior_details) = past_dealers().may_load(deps.storage, &info.sender)? {
-            // since this dealer is going to become active now, remove it from the past dealers
-            past_dealers().replace(deps.storage, &info.sender, None, Some(&prior_details))?;
-            prior_details.assigned_index
-        } else {
-            next_node_index(deps.storage)?
-        };
+    let node_index = if let Some(prior_details) =
+        dealers_storage::past_dealers().may_load(deps.storage, &info.sender)?
+    {
+        // since this dealer is going to become active now, remove it from the past dealers
+        dealers_storage::past_dealers().replace(
+            deps.storage,
+            &info.sender,
+            None,
+            Some(&prior_details),
+        )?;
+        prior_details.assigned_index
+    } else {
+        dealers_storage::next_node_index(deps.storage)?
+    };
 
     // save the dealer into the storage
     let dealer_details = DealerDetails {
@@ -154,7 +161,7 @@ pub fn try_add_dealer(
         bte_public_key_with_proof: bte_key_with_proof,
         assigned_index: node_index,
     };
-    current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
+    dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
 
     Ok(Response::new().set_data(node_index.to_be_bytes()))
 }

@@ -10,8 +10,10 @@ pub mod helpers {
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
-        let msg = InstantiateMsg {};
         let env = mock_env();
+        let msg = InstantiateMsg {
+            dealing_exchange_beginning_height: env.block.height + 123,
+        };
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env, info, msg).unwrap();
         deps

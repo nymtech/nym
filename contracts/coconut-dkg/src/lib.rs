@@ -90,7 +90,9 @@ mod tests {
     fn initialize_contract() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let msg = InstantiateMsg {};
+        let msg = InstantiateMsg {
+            dealing_exchange_beginning_height: env.block.height + 123,
+        };
         let info = mock_info("creator", &[]);
 
         let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();

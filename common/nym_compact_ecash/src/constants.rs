@@ -1,0 +1,1 @@
+pub const MAX_COIN_VALUE: u64 = 32;

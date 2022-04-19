@@ -9,7 +9,6 @@ use crate::error::{CompactEcashError, Result};
 use crate::utils::{hash_g1, Signature};
 
 const ATTRIBUTES_LEN: usize = 3;
-const MAX_COIN_VALUE: u64 = 32;
 
 pub struct GroupParameters {
     /// Generator of the G1 group
@@ -134,14 +133,14 @@ impl Parameters {
     }
 }
 
-pub fn setup() -> Parameters {
+pub fn setup(L: u64) -> Parameters {
     let grp = GroupParameters::new().unwrap();
     let x = grp.random_scalar();
     let y = grp.random_scalar();
     let skRP = SecretKeyRP { x, y };
     let pkRP = skRP.public_key(&grp);
     let mut signs = HashMap::new();
-    for l in 0..MAX_COIN_VALUE {
+    for l in 0..L {
         let r = grp.random_scalar();
         let h = grp.gen1() * r;
         signs.insert(
@@ -155,7 +154,7 @@ pub fn setup() -> Parameters {
     Parameters {
         grp,
         pkRP,
-        L: MAX_COIN_VALUE,
+        L,
         signs,
     }
 }

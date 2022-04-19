@@ -2935,22 +2935,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-compact-ecash"
-version = "0.1.0"
-dependencies = [
- "bls12_381",
- "bs58",
- "criterion",
- "digest 0.9.0",
- "ff 0.10.1",
- "group 0.10.0",
- "itertools",
- "rand 0.8.5",
- "sha2",
- "thiserror",
-]
-
-[[package]]
 name = "nym-divisible-ecash"
 version = "0.1.0"
 dependencies = [
@@ -3148,6 +3132,22 @@ dependencies = [
  "validator-client",
  "vergen",
  "version-checker",
+]
+
+[[package]]
+name = "nym_compact_ecash"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "bs58",
+ "criterion",
+ "digest 0.9.0",
+ "ff 0.10.1",
+ "group 0.10.0",
+ "itertools",
+ "rand 0.8.5",
+ "sha2",
+ "thiserror",
 ]
 
 [[package]]

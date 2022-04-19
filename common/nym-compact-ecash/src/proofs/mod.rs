@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use bls12_381::{G1Affine, G1Projective, Scalar};
-use digest::Digest;
 use digest::generic_array::typenum::Unsigned;
+use digest::Digest;
 use group::GroupEncoding;
 use sha2::Sha256;
 
@@ -20,10 +20,10 @@ type ChallengeDigest = Sha256;
 
 /// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.
 fn compute_challenge<D, I, B>(iter: I) -> Scalar
-    where
-        D: Digest,
-        I: Iterator<Item=B>,
-        B: AsRef<[u8]>,
+where
+    D: Digest,
+    I: Iterator<Item = B>,
+    B: AsRef<[u8]>,
 {
     let mut h = D::new();
     for point_representation in iter {
@@ -51,8 +51,8 @@ fn produce_response(witness_replacement: &Scalar, challenge: &Scalar, secret: &S
 
 // note: it's caller's responsibility to ensure witnesses.len() = secrets.len()
 fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S]) -> Vec<Scalar>
-    where
-        S: Borrow<Scalar>,
+where
+    S: Borrow<Scalar>,
 {
     debug_assert_eq!(witnesses.len(), secrets.len());
 

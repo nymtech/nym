@@ -5,14 +5,14 @@ use std::convert::TryInto;
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group};
 
-use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{
-    check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective,
+    check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective, Signature, SignerIndex,
 };
+use crate::Attribute;
 
 pub mod aggregation;
 pub mod identify;
@@ -108,7 +108,8 @@ impl Wallet {
 
         // evaluate the pseudorandom functions
         let ss = pseudorandom_fgv(&grparams, self.v(), self.l());
-        let tt = grparams.gen1() * sk_user.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * rr;
+        let tt =
+            grparams.gen1() * sk_user.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * rr;
 
         // compute values mu, o_mu, lambda, o_lambda
         let mu: Scalar = (self.v() + Scalar::from(self.l()) + Scalar::from(1))
@@ -200,10 +201,10 @@ pub fn compute_kappa(
     params.gen2() * blinding_factor
         + verification_key.alpha
         + attributes
-        .iter()
-        .zip(verification_key.beta_g2.iter())
-        .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-        .sum::<G2Projective>()
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>()
 }
 
 pub struct PayInfo {
@@ -265,7 +266,6 @@ impl Payment {
                 "The bilinear check for kappa_l failed".to_string(),
             ));
         }
-
 
         // verify integrity of R
         if !(self.rr == hash_to_scalar(pay_info.info)) {

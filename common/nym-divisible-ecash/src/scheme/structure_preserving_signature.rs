@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::Curve;
 
-use crate::Attribute;
 use crate::scheme::setup::GroupParameters;
+use crate::Attribute;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SPSVerificationKey {
@@ -24,13 +24,22 @@ pub(crate) struct SPSSecretKey {
 }
 
 impl SPSSecretKey {
-    pub fn z(&self) -> Scalar { self.z }
-    pub fn y(&self) -> Scalar { self.y }
+    pub fn z(&self) -> Scalar {
+        self.z
+    }
+    pub fn y(&self) -> Scalar {
+        self.y
+    }
     pub fn sign(&self, grparams: GroupParameters, attributes: Vec<Attribute>) -> SPSSignature {
         let r = grparams.random_scalar();
         let R = grparams.gen1() * r;
-        let prod: Vec<Scalar> = attributes.iter().zip(self.ws.iter()).map(|(w_i, m_i)| m_i * w_i.neg()).collect();
-        let Z = grparams.gen1() * (self.z() - r * self.y()) + prod.iter().fold(1 | acc, x | acc * x);
+        let prod: Vec<Scalar> = attributes
+            .iter()
+            .zip(self.ws.iter())
+            .map(|(w_i, m_i)| m_i * w_i.neg())
+            .collect();
+        let Z =
+            grparams.gen1() * (self.z() - r * self.y()) + prod.iter().fold(1 | acc, x | acc * x);
         // let sum = a.iter().fold(0, |acc, x| acc + x);
         // let Z: G1Projective = grparams.gen1() * (self.z() - r * self.y())
         //     + attributes
@@ -76,4 +85,3 @@ impl SPSKeyPair {
 }
 
 pub struct SPSSignature {}
-

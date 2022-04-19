@@ -28,13 +28,11 @@ impl GroupParameters {
             .map(|i| hash_g1(format!("gamma{}", i)))
             .collect();
 
-
         Ok(GroupParameters {
             g1: G1Affine::generator(),
             g2: G2Affine::generator(),
             gammas,
             _g2_prepared_miller: G2Prepared::from(G2Affine::generator()),
-
         })
     }
 
@@ -77,7 +75,6 @@ impl GroupParameters {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyRP {
     pub(crate) x: Scalar,
@@ -86,7 +83,10 @@ pub struct SecretKeyRP {
 
 impl SecretKeyRP {
     pub fn public_key(&self, params: &GroupParameters) -> PublicKeyRP {
-        PublicKeyRP { alpha: params.gen2() * self.x, beta: params.gen2() * self.y }
+        PublicKeyRP {
+            alpha: params.gen2() * self.x,
+            beta: params.gen2() * self.y,
+        }
     }
 }
 
@@ -108,18 +108,28 @@ pub struct Parameters {
 }
 
 impl Parameters {
-    pub fn grp(&self) -> &GroupParameters { &self.grp }
-    pub fn pkRP(&self) -> &PublicKeyRP { &self.pkRP }
-    pub fn L(&self) -> u64 { self.L }
-    pub fn signs(&self) -> &HashMap<u64, Signature> { &self.signs }
+    pub fn grp(&self) -> &GroupParameters {
+        &self.grp
+    }
+    pub fn pkRP(&self) -> &PublicKeyRP {
+        &self.pkRP
+    }
+    pub fn L(&self) -> u64 {
+        self.L
+    }
+    pub fn signs(&self) -> &HashMap<u64, Signature> {
+        &self.signs
+    }
     pub fn get_sign_by_idx(&self, idx: u64) -> Result<&Signature> {
         match self.signs.get(&idx) {
             Some(val) => return Ok(val),
-            None => return
-                Err(CompactEcashError::RangeProofOutOfBound
-                    ("Cannot find the range proof signature for the given value. \
-                        Check if the requested value is within the bound 0..L".to_string()
-                    ))
+            None => {
+                return Err(CompactEcashError::RangeProofOutOfBound(
+                    "Cannot find the range proof signature for the given value. \
+                        Check if the requested value is within the bound 0..L"
+                        .to_string(),
+                ))
+            }
         }
     }
 }
@@ -134,7 +144,13 @@ pub fn setup() -> Parameters {
     for l in 0..MAX_COIN_VALUE {
         let r = grp.random_scalar();
         let h = grp.gen1() * r;
-        signs.insert(l, Signature { 0: h, 1: h * (x + y * Scalar::from(l)) });
+        signs.insert(
+            l,
+            Signature {
+                0: h,
+                1: h * (x + y * Scalar::from(l)),
+            },
+        );
     }
     Parameters {
         grp,
@@ -143,5 +159,3 @@ pub fn setup() -> Parameters {
         signs,
     }
 }
-
-

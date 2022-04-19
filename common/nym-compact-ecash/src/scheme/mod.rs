@@ -5,14 +5,14 @@ use std::convert::TryInto;
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group};
 
-use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{
-    check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective,
+    check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective, Signature, SignerIndex,
 };
+use crate::Attribute;
 
 pub mod aggregation;
 pub mod identify;
@@ -195,10 +195,10 @@ pub fn compute_kappa(
     params.gen2() * blinding_factor
         + verification_key.alpha
         + attributes
-        .iter()
-        .zip(verification_key.beta_g2.iter())
-        .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-        .sum::<G2Projective>()
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>()
 }
 
 pub struct PayInfo {

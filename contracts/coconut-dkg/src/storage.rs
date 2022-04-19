@@ -78,3 +78,24 @@ pub(crate) fn obtain_blacklisting(
         Ok(None)
     }
 }
+
+pub(crate) fn remove_dealer(
+    store: &mut dyn Storage,
+    dealer: &Addr,
+    current_height: BlockHeight,
+    blacklisting: Option<Blacklisting>,
+) -> StdResult<()> {
+    let mut dealer_data = current_dealers().load(store, dealer)?;
+
+    // optimisation as "normal" `remove` calls `may_load` to get old data (which we already have), followed by `replace`
+    current_dealers().replace(store, dealer, None, Some(&dealer_data))?;
+
+    dealer_data.left_at = Some(current_height);
+    dealer_data.blacklisting = blacklisting;
+
+    if let Some(blacklisting) = blacklisting {
+        BLACKLISTED_DEALERS.save(store, dealer, &blacklisting)?;
+    }
+
+    past_dealers().save(store, dealer, &dealer_data)
+}

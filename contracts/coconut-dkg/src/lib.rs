@@ -3,7 +3,9 @@
 
 use crate::error::ContractError;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use coconut_dkg_common::types::{Epoch, EpochState};
 use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
+use epoch::storage as epoch_storage;
 
 mod constants;
 mod dealers;
@@ -18,11 +20,21 @@ mod support;
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    _deps: DepsMut<'_>,
-    _env: Env,
+    deps: DepsMut<'_>,
+    env: Env,
     _info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    epoch_storage::CURRENT_EPOCH.save(
+        deps.storage,
+        &Epoch {
+            id: 0,
+            state: EpochState::PublicKeySubmission {
+                begun_at: env.block.height,
+                finish_by: msg.dealing_exchange_beginning_height,
+            },
+        },
+    )?;
     Ok(Response::default())
 }
 

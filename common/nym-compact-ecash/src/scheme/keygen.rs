@@ -9,7 +9,7 @@ use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;
-use crate::scheme::setup::Parameters;
+use crate::scheme::setup::GroupParameters;
 use crate::scheme::SignerIndex;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
@@ -69,7 +69,7 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 }
 
 impl SecretKeyAuth {
-    pub fn verification_key(&self, params: &Parameters) -> VerificationKeyAuth {
+    pub fn verification_key(&self, params: &GroupParameters) -> VerificationKeyAuth {
         let g1 = params.gen1();
         let g2 = params.gen2();
         VerificationKeyAuth {
@@ -325,7 +325,7 @@ pub struct SecretKeyUser {
 }
 
 impl SecretKeyUser {
-    pub fn public_key(&self, params: &Parameters) -> PublicKeyUser {
+    pub fn public_key(&self, params: &GroupParameters) -> PublicKeyUser {
         PublicKeyUser {
             pk: params.gen1() * self.sk,
         }
@@ -369,7 +369,7 @@ impl KeyPairUser {
     }
 }
 
-pub fn generate_keypair_user(params: &Parameters) -> KeyPairUser {
+pub fn generate_keypair_user(params: &GroupParameters) -> KeyPairUser {
     let sk_user = SecretKeyUser {
         sk: params.random_scalar(),
     };
@@ -384,7 +384,7 @@ pub fn generate_keypair_user(params: &Parameters) -> KeyPairUser {
 }
 
 pub fn ttp_keygen(
-    params: &Parameters,
+    params: &GroupParameters,
     threshold: u64,
     num_authorities: u64,
 ) -> Result<Vec<KeyPairAuth>> {

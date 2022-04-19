@@ -5,10 +5,10 @@ use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_withdrawal::{
     WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
 };
-use crate::scheme::keygen::ttp_keygen;
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::setup::Parameters;
+use crate::scheme::keygen::ttp_keygen;
 use crate::scheme::PartialWallet;
+use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{check_bilinear_pairing, hash_g1};
 use crate::utils::{BlindedSignature, Signature};
 
@@ -46,7 +46,7 @@ impl RequestInfo {
 }
 
 pub fn withdrawal_request(
-    params: &Parameters,
+    params: &GroupParameters,
     sk_user: &SecretKeyUser,
 ) -> Result<(WithdrawalRequest, RequestInfo)> {
     let v = params.random_scalar();
@@ -57,10 +57,10 @@ pub fn withdrawal_request(
     let com_opening = params.random_scalar();
     let com = params.gen1() * com_opening
         + attributes
-            .iter()
-            .zip(gammas)
-            .map(|(&m, gamma)| gamma * m)
-            .sum::<G1Projective>();
+        .iter()
+        .zip(gammas)
+        .map(|(&m, gamma)| gamma * m)
+        .sum::<G1Projective>();
 
     // Value h in the paper
     let com_hash = hash_g1(com.to_bytes());
@@ -111,7 +111,7 @@ pub fn withdrawal_request(
 }
 
 pub fn issue_wallet(
-    params: &Parameters,
+    params: &GroupParameters,
     sk_auth: SecretKeyAuth,
     pk_user: PublicKeyUser,
     withdrawal_req: &WithdrawalRequest,
@@ -148,7 +148,7 @@ pub fn issue_wallet(
 }
 
 pub fn issue_verify(
-    params: &Parameters,
+    params: &GroupParameters,
     vk_auth: &VerificationKeyAuth,
     sk_user: &SecretKeyUser,
     blind_signature: &BlindedSignature,

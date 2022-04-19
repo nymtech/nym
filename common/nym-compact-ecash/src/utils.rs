@@ -6,15 +6,15 @@ use core::ops::Mul;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Neg;
 
-use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::{
-    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
+    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, multi_miller_loop, Scalar,
 };
+use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use ff::Field;
 use group::{Curve, Group};
 
 use crate::error::{CompactEcashError, Result};
-use crate::scheme::setup::Parameters;
+use crate::scheme::setup::GroupParameters;
 use crate::traits::Bytable;
 
 pub struct Polynomial {
@@ -24,7 +24,7 @@ pub struct Polynomial {
 impl Polynomial {
     // for polynomial of degree n, we generate n+1 values
     // (for example for degree 1, like y = x + 2, we need [2,1])
-    pub fn new_random(params: &Parameters, degree: u64) -> Self {
+    pub fn new_random(params: &GroupParameters, degree: u64) -> Self {
         Polynomial {
             coefficients: params.n_random_scalars((degree + 1) as usize),
         }
@@ -85,9 +85,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-where
-    T: Sum,
-    for<'a> &'a T: Mul<Scalar, Output = T>,
+    where
+        T: Sum,
+        for<'a> &'a T: Mul<Scalar, Output=T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(CompactEcashError::Interpolation(
@@ -242,7 +242,7 @@ impl Signature {
         &self.1
     }
 
-    pub fn randomise(&self, params: &Parameters) -> (Signature, Scalar) {
+    pub fn randomise(&self, params: &GroupParameters) -> (Signature, Scalar) {
         let r = params.random_scalar();
         let r_prime = params.random_scalar();
         let h_prime = self.0 * r_prime;

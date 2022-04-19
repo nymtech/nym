@@ -10,17 +10,18 @@ use crate::scheme::keygen::{
     generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
 use crate::scheme::PayInfo;
-use crate::scheme::setup::Parameters;
+use crate::scheme::setup::{GroupParameters, Parameters, setup};
 use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 use crate::utils::{hash_to_scalar, SignatureShare};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
-    let params = Parameters::new().unwrap();
-    let user_keypair = generate_keypair_user(&params);
+    let params = setup();
+    let grparams = params.grp();
+    let user_keypair = generate_keypair_user(&grparams);
 
-    let (req, req_info) = withdrawal_request(&params, &user_keypair.secret_key()).unwrap();
-    let authorities_keypairs = ttp_keygen(&params, 2, 3).unwrap();
+    let (req, req_info) = withdrawal_request(grparams, &user_keypair.secret_key()).unwrap();
+    let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
 
     let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
         .iter()
@@ -32,7 +33,7 @@ fn main() -> Result<(), CompactEcashError> {
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
         let blind_signature = issue_wallet(
-            &params,
+            &grparams,
             auth_keypair.secret_key(),
             user_keypair.public_key(),
             &req,
@@ -44,12 +45,12 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-        .map(|(w, vk)| issue_verify(&params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
-        &params,
+        &grparams,
         &verification_key,
         &user_keypair.secret_key(),
         &unblinded_wallet_shares,
@@ -79,11 +80,13 @@ fn main() -> Result<(), CompactEcashError> {
         kappa: payment1.kappa.clone(),
         sig: payment1.sig.clone(),
         S: payment1.S.clone(),
-        T: params.gen1() * user_keypair.secret_key().sk + pseudorandom_fgt(&params, aggr_wallet.t(), l2) * R2,
+        T: grparams.gen1() * user_keypair.secret_key().sk + pseudorandom_fgt(&grparams, aggr_wallet.t(), l2) * R2,
         A: payment1.A.clone(),
         C: payment1.C.clone(),
         D: payment1.D.clone(),
         R: R2,
+        kappa_l: payment1.kappa_l.clone(),
+        sig_l: payment1.sig_l.clone(),
         zk_proof: payment1.zk_proof.clone(),
     };
 

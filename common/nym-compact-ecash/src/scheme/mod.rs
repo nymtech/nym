@@ -121,7 +121,7 @@ impl Wallet {
         let o_lambda = ((o_a + o_d) * lambda).neg();
 
         // parse the signature associated with value l
-        let sign_l = params.get_sign_by_idx(self.l());
+        let sign_l = params.get_sign_by_idx(self.l())?;
         // randomise the signature associated with value l
         let (sign_l_prime, sign_l_blinding_factor) = sign_l.randomise(grparams);
         // compute kappa_l

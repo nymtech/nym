@@ -319,7 +319,7 @@ impl SpendProof {
 mod tests {
     use bls12_381::{G1Projective, G2Projective, Scalar};
     use group::Curve;
-    use rand::thread_rng;
+    use rand::{Rng, thread_rng};
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
     use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
@@ -350,6 +350,7 @@ mod tests {
         let v = grparams.random_scalar();
         let t = grparams.random_scalar();
         let attributes = vec![sk, v, t];
+        // the below value must be from range 0 to params.L()
         let l = 5;
         let gamma1 = *grparams.gamma1();
         let g1 = *grparams.gen1();
@@ -387,7 +388,7 @@ mod tests {
         let o_lambda = ((o_a + o_d) * lambda).neg();
 
         // parse the signature associated with value l
-        let sign_l = params.get_sign_by_idx(l);
+        let sign_l = params.get_sign_by_idx(l).unwrap();
         // randomise the signature associated with value l
         let (sign_l_prime, r_l) = sign_l.randomise(grparams);
         // compute kappa_l

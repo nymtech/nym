@@ -5,7 +5,7 @@ use ff::Field;
 use group::{Curve, GroupEncoding};
 use rand::thread_rng;
 
-use crate::error::Result;
+use crate::error::{CompactEcashError, Result};
 use crate::utils::{hash_g1, Signature};
 
 const ATTRIBUTES_LEN: usize = 3;
@@ -112,7 +112,16 @@ impl Parameters {
     pub fn pkRP(&self) -> &PublicKeyRP { &self.pkRP }
     pub fn L(&self) -> u64 { self.L }
     pub fn signs(&self) -> &HashMap<u64, Signature> { &self.signs }
-    pub fn get_sign_by_idx(&self, idx: u64) -> &Signature { self.signs.get(&idx).unwrap() }
+    pub fn get_sign_by_idx(&self, idx: u64) -> Result<&Signature> {
+        match self.signs.get(&idx) {
+            Some(val) => return Ok(val),
+            None => return
+                Err(CompactEcashError::RangeProofOutOfBound
+                    ("Cannot find the range proof signature for the given value. \
+                        Check if the requested value is within the bound 0..L".to_string()
+                    ))
+        }
+    }
 }
 
 pub fn setup() -> Parameters {

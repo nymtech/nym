@@ -128,7 +128,7 @@ impl Parameters {
                     "Cannot find the range proof signature for the given value. \
                         Check if the requested value is within the bound 0..L"
                         .to_string(),
-                ))
+                ));
             }
         }
     }

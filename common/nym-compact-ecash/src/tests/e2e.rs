@@ -1,17 +1,17 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
+use crate::scheme::{PartialWallet, Payment, pseudorandom_fgt};
 use crate::scheme::aggregation::{
     aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets,
 };
 use crate::scheme::identify::identify;
 use crate::scheme::keygen::{
-    generate_keypair_user, ttp_keygen, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
-use crate::scheme::setup::{setup, GroupParameters, Parameters};
-use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 use crate::scheme::PayInfo;
-use crate::scheme::{pseudorandom_fgt, PartialWallet, Payment};
+use crate::scheme::setup::{GroupParameters, Parameters, setup};
+use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 use crate::utils::{hash_to_scalar, SignatureShare};
 
 #[test]
@@ -45,8 +45,8 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-    .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-    .collect();
+        .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
@@ -58,41 +58,41 @@ fn main() -> Result<(), CompactEcashError> {
     )?;
 
     // Let's try to spend some coins
-    let payInfo = PayInfo { info: [6u8; 32] };
+    let pay_info = PayInfo { info: [6u8; 32] };
 
     let (payment, upd_wallet) = aggr_wallet.spend(
         &params,
         &verification_key,
         &user_keypair.secret_key(),
-        &payInfo,
+        &pay_info,
     )?;
 
     assert!(payment
-        .spend_verify(&params, &verification_key, &payInfo)
+        .spend_verify(&params, &verification_key, &pay_info)
         .unwrap());
 
-    // try to spend twice the same payment with different payInfo.
+    // try to spend twice the same payment with different payInfo
     let payment1 = payment.clone();
-    let payInfo2 = PayInfo { info: [9u8; 32] };
-    let R2 = hash_to_scalar(payInfo2.info);
+    let pay_info2 = PayInfo { info: [9u8; 32] };
+    let rr2 = hash_to_scalar(pay_info2.info);
     let l2 = aggr_wallet.l() - 1;
     let payment2 = Payment {
         kappa: payment1.kappa.clone(),
         sig: payment1.sig.clone(),
         ss: payment1.ss.clone(),
         tt: grparams.gen1() * user_keypair.secret_key().sk
-            + pseudorandom_fgt(&grparams, aggr_wallet.t(), l2) * R2,
+            + pseudorandom_fgt(&grparams, aggr_wallet.t(), l2) * rr2,
         aa: payment1.aa.clone(),
         cc: payment1.cc.clone(),
         dd: payment1.dd.clone(),
-        rr: R2,
+        rr: rr2,
         kappa_l: payment1.kappa_l.clone(),
         sig_l: payment1.sig_l.clone(),
         zk_proof: payment1.zk_proof.clone(),
     };
 
-    let identifiedUser = identify(payment1, payment2).unwrap();
-    assert_eq!(user_keypair.public_key().pk, identifiedUser.pk);
+    let identified_user = identify(payment1, payment2).unwrap();
+    assert_eq!(user_keypair.public_key().pk, identified_user.pk);
 
     Ok(())
 }

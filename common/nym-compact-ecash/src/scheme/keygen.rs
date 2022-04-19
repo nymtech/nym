@@ -11,11 +11,11 @@ use crate::error::{CompactEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::GroupParameters;
 use crate::scheme::SignerIndex;
-use crate::utils::Polynomial;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
 };
+use crate::utils::Polynomial;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -242,13 +242,13 @@ impl<'a> Mul<Scalar> for &'a VerificationKeyAuth {
 }
 
 impl<T> Sum<T> for VerificationKeyAuth
-where
-    T: Borrow<VerificationKeyAuth>,
+    where
+        T: Borrow<VerificationKeyAuth>,
 {
     #[inline]
     fn sum<I>(iter: I) -> Self
-    where
-        I: Iterator<Item = T>,
+        where
+            I: Iterator<Item=T>,
     {
         let mut peekable = iter.peekable();
         let head_attributes = match peekable.peek() {

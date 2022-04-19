@@ -21,7 +21,7 @@ pub struct DealerDetails {
     pub assigned_index: NodeIndex,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Blacklisting {
     pub reason: BlacklistingReason,

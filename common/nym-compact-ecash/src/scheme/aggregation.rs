@@ -145,9 +145,9 @@ pub fn aggregate_signatures(
 pub fn aggregate_wallets(
     params: &GroupParameters,
     verification_key: &VerificationKeyAuth,
-    skUser: &SecretKeyUser,
+    sk_user: &SecretKeyUser,
     wallets: &[PartialWallet],
-    reqInfo: &RequestInfo,
+    req_info: &RequestInfo,
 ) -> Result<Wallet> {
     // Aggregate partial wallets
     let signature_shares: Vec<SignatureShare> = wallets
@@ -156,14 +156,14 @@ pub fn aggregate_wallets(
         .map(|(idx, wallet)| SignatureShare::new(*wallet.signature(), (idx + 1) as u64))
         .collect();
 
-    let attributes = vec![skUser.sk, reqInfo.get_v(), reqInfo.get_t()];
+    let attributes = vec![sk_user.sk, req_info.get_v(), req_info.get_t()];
     let aggregated_signature =
         aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
 
     Ok(Wallet {
         sig: aggregated_signature,
-        v: reqInfo.get_v(),
-        t: reqInfo.get_t(),
+        v: req_info.get_v(),
+        t: req_info.get_t(),
         l: Cell::new(0),
     })
 }

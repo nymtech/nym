@@ -136,7 +136,7 @@ impl SpendProof {
         instance: &SpendInstance,
         witness: &SpendWitness,
         verification_key: &VerificationKeyAuth,
-        R: Scalar,
+        rr: Scalar,
     ) -> Self {
         let grparams = params.grp();
         // generate random values to replace each witness
@@ -172,12 +172,12 @@ impl SpendProof {
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
-        let zkcm_A = g1 * r_o_a + gamma1 * r_l;
-        let zkcm_C = g1 * r_o_c + gamma1 * r_v;
-        let zkcm_D = g1 * r_o_d + gamma1 * r_t;
-        let zkcm_S = g1 * r_mu;
+        let zkcm_aa = g1 * r_o_a + gamma1 * r_l;
+        let zkcm_cc = g1 * r_o_c + gamma1 * r_v;
+        let zkcm_dd = g1 * r_o_d + gamma1 * r_t;
+        let zkcm_ss = g1 * r_mu;
         let zkcm_gamma11 = (instance.aa + instance.cc + gamma1) * r_mu + g1 * r_o_mu;
-        let zkcm_T = g1 * r_sk + (g1 * R) * r_lambda;
+        let zkcm_tt = g1 * r_sk + (g1 * rr) * r_lambda;
         let zkcm_gamma12 = (instance.aa + instance.dd + gamma1) * r_lambda + g1 * r_o_lambda;
         let zkcm_kappa_l = grparams.gen2() * r_r_l + params.pkRP().alpha + params.pkRP().beta * r_l;
 
@@ -189,15 +189,15 @@ impl SpendProof {
                 .chain(beta2_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_A.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_aa.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_dd.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_ss.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa_l.to_bytes().as_ref()))
                 .chain(std::iter::once(
                     zkcm_gamma11.to_affine().to_bytes().as_ref(),
                 ))
-                .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_tt.to_bytes().as_ref()))
                 .chain(std::iter::once(
                     zkcm_gamma12.to_affine().to_bytes().as_ref(),
                 )),
@@ -241,7 +241,7 @@ impl SpendProof {
         params: &Parameters,
         instance: &SpendInstance,
         verification_key: &VerificationKeyAuth,
-        R: Scalar,
+        rr: Scalar,
     ) -> bool {
         let grparams = params.grp();
         let g1 = *grparams.gen1();
@@ -263,20 +263,20 @@ impl SpendProof {
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
-        let zkcm_A =
+        let zkcm_aa =
             g1 * self.response_o_a + gamma1 * self.response_l + instance.aa * self.challenge;
-        let zkcm_C = g1 * self.response_o_c
+        let zkcm_cc = g1 * self.response_o_c
             + gamma1 * self.response_attributes[1]
             + instance.cc * self.challenge;
-        let zkcm_D = g1 * self.response_o_d
+        let zkcm_dd = g1 * self.response_o_d
             + gamma1 * self.response_attributes[2]
             + instance.dd * self.challenge;
-        let zkcm_S = g1 * self.response_mu + instance.ss * self.challenge;
+        let zkcm_ss = g1 * self.response_mu + instance.ss * self.challenge;
         let zkcm_gamma11 = (instance.aa + instance.cc + gamma1) * self.response_mu
             + g1 * self.response_o_mu
             + gamma1 * self.challenge;
-        let zkcm_T = g1 * self.response_attributes[0]
-            + (g1 * R) * self.response_lambda
+        let zkcm_tt = g1 * self.response_attributes[0]
+            + (g1 * rr) * self.response_lambda
             + instance.tt * self.challenge;
         let zkcm_gamma12 = (instance.aa + instance.dd + gamma1) * self.response_lambda
             + g1 * self.response_o_lambda
@@ -295,15 +295,15 @@ impl SpendProof {
                 .chain(beta2_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_A.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_C.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_D.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_S.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_aa.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_dd.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_ss.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa_l.to_bytes().as_ref()))
                 .chain(std::iter::once(
                     zkcm_gamma11.to_affine().to_bytes().as_ref(),
                 ))
-                .chain(std::iter::once(zkcm_T.to_bytes().as_ref()))
+                .chain(std::iter::once(zkcm_tt.to_bytes().as_ref()))
                 .chain(std::iter::once(
                     zkcm_gamma12.to_affine().to_bytes().as_ref(),
                 )),

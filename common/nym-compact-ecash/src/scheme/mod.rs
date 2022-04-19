@@ -71,8 +71,8 @@ impl Wallet {
         &self,
         params: &Parameters,
         verification_key: &VerificationKeyAuth,
-        skUser: &SecretKeyUser,
-        payInfo: &PayInfo,
+        sk_user: &SecretKeyUser,
+        pay_info: &PayInfo,
     ) -> Result<(Payment, &Self)> {
         if self.l() > params.L() {
             return Err(CompactEcashError::Spend(
@@ -84,7 +84,7 @@ impl Wallet {
         // randomize signature in the wallet
         let (signature_prime, sign_blinding_factor) = self.signature().randomise(grparams);
         // construct kappa i.e., blinded attributes for show
-        let attributes = vec![skUser.sk, self.v(), self.t()];
+        let attributes = vec![sk_user.sk, self.v(), self.t()];
         // compute kappa
         let kappa = compute_kappa(
             &grparams,
@@ -104,11 +104,11 @@ impl Wallet {
         let dd = grparams.gen1() * o_d + grparams.gamma1() * self.t();
 
         // compute hash of the payment info
-        let rr = hash_to_scalar(payInfo.info);
+        let rr = hash_to_scalar(pay_info.info);
 
         // evaluate the pseudorandom functions
         let ss = pseudorandom_fgv(&grparams, self.v(), self.l());
-        let tt = grparams.gen1() * skUser.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * rr;
+        let tt = grparams.gen1() * sk_user.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * rr;
 
         // compute values mu, o_mu, lambda, o_lambda
         let mu: Scalar = (self.v() + Scalar::from(self.l()) + Scalar::from(1))
@@ -130,7 +130,7 @@ impl Wallet {
             + params.pkRP().beta * Scalar::from(self.l());
 
         // construct the zkp proof
-        let spendInstance = SpendInstance {
+        let spend_instance = SpendInstance {
             kappa,
             aa,
             cc,
@@ -139,7 +139,7 @@ impl Wallet {
             tt,
             kappa_l,
         };
-        let spendWitness = SpendWitness {
+        let spend_witness = SpendWitness {
             attributes,
             r: sign_blinding_factor,
             r_l: sign_l_blinding_factor,
@@ -154,8 +154,8 @@ impl Wallet {
         };
         let zk_proof = SpendProof::construct(
             &params,
-            &spendInstance,
-            &spendWitness,
+            &spend_instance,
+            &spend_witness,
             &verification_key,
             rr,
         );
@@ -164,12 +164,12 @@ impl Wallet {
         let pay = Payment {
             kappa,
             sig: signature_prime,
-            ss: ss,
-            tt: tt,
-            aa: aa,
-            cc: cc,
-            dd: dd,
-            rr: rr,
+            ss,
+            tt,
+            aa,
+            cc,
+            dd,
+            rr,
             kappa_l,
             sig_l: sign_l_prime,
             zk_proof,
@@ -230,7 +230,7 @@ impl Payment {
         &self,
         params: &Parameters,
         verification_key: &VerificationKeyAuth,
-        payinfo: &PayInfo,
+        pay_info: &PayInfo,
     ) -> Result<bool> {
         if bool::from(self.sig.0.is_identity()) {
             return Err(CompactEcashError::Spend(
@@ -249,8 +249,26 @@ impl Payment {
             ));
         }
 
+        if bool::from(self.sig_l.0.is_identity()) {
+            return Err(CompactEcashError::Spend(
+                "The element h of the signature on l equals the identity".to_string(),
+            ));
+        }
+
+        if !check_bilinear_pairing(
+            &self.sig_l.0.to_affine(),
+            &G2Prepared::from(self.kappa_l.to_affine()),
+            &self.sig_l.1.to_affine(),
+            params.grp().prepared_miller_g2(),
+        ) {
+            return Err(CompactEcashError::Spend(
+                "The bilinear check for kappa_l failed".to_string(),
+            ));
+        }
+
+
         // verify integrity of R
-        if !(self.rr == hash_to_scalar(payinfo.info)) {
+        if !(self.rr == hash_to_scalar(pay_info.info)) {
             return Err(CompactEcashError::Spend(
                 "Integrity of R does not hold".to_string(),
             ));

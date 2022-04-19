@@ -6,16 +6,16 @@ use bls12_381::{G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use itertools::Itertools;
 
+use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
-use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::setup::Parameters;
-use crate::scheme::withdrawal::RequestInfo;
 use crate::scheme::{PartialWallet, Wallet};
+use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
+use crate::scheme::setup::GroupParameters;
+use crate::scheme::withdrawal::RequestInfo;
 use crate::utils::{
-    check_bilinear_pairing, perform_lagrangian_interpolation_at_origin, PartialSignature,
+    check_bilinear_pairing, PartialSignature, perform_lagrangian_interpolation_at_origin,
     Signature, SignatureShare, SignerIndex,
 };
-use crate::Attribute;
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;
@@ -27,10 +27,10 @@ pub(crate) trait Aggregatable: Sized {
 }
 
 impl<T> Aggregatable for T
-where
-    T: Sum,
-    for<'a> T: Sum<&'a T>,
-    for<'a> &'a T: Mul<Scalar, Output = T>,
+    where
+        T: Sum,
+        for<'a> T: Sum<&'a T>,
+        for<'a> &'a T: Mul<Scalar, Output=T>,
 {
     fn aggregate(aggregatable: &[T], indices: Option<&[u64]>) -> Result<T> {
         if aggregatable.is_empty() {
@@ -87,7 +87,7 @@ pub fn aggregate_verification_keys(
 }
 
 pub fn aggregate_signature_shares(
-    params: &Parameters,
+    params: &GroupParameters,
     verification_key: &VerificationKeyAuth,
     attributes: &[Attribute],
     shares: &[SignatureShare],
@@ -107,7 +107,7 @@ pub fn aggregate_signature_shares(
 }
 
 pub fn aggregate_signatures(
-    params: &Parameters,
+    params: &GroupParameters,
     verification_key: &VerificationKeyAuth,
     attributes: &[Attribute],
     signatures: &[PartialSignature],
@@ -143,7 +143,7 @@ pub fn aggregate_signatures(
 }
 
 pub fn aggregate_wallets(
-    params: &Parameters,
+    params: &GroupParameters,
     verification_key: &VerificationKeyAuth,
     skUser: &SecretKeyUser,
     wallets: &[PartialWallet],

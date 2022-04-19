@@ -5,9 +5,9 @@ use group::GroupEncoding;
 use itertools::izip;
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
+use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
 use crate::scheme::keygen::PublicKeyUser;
-use crate::scheme::setup::Parameters;
+use crate::scheme::setup::GroupParameters;
 use crate::utils::try_deserialize_g1_projective;
 
 #[derive(Debug)]
@@ -124,7 +124,7 @@ pub struct WithdrawalReqProof {
 
 impl WithdrawalReqProof {
     pub(crate) fn construct(
-        params: &Parameters,
+        params: &GroupParameters,
         instance: &WithdrawalReqInstance,
         witness: &WithdrawalReqWitness,
     ) -> Self {
@@ -136,10 +136,10 @@ impl WithdrawalReqProof {
         // compute zkp commitments for each instance
         let zkcm_com = params.gen1() * r_com_opening
             + r_attributes
-                .iter()
-                .zip(params.gammas().iter())
-                .map(|(rm_i, gamma_i)| gamma_i * rm_i)
-                .sum::<G1Projective>();
+            .iter()
+            .zip(params.gammas().iter())
+            .map(|(rm_i, gamma_i)| gamma_i * rm_i)
+            .sum::<G1Projective>();
 
         let zkcm_pedcom = r_pedcom_openings
             .iter()
@@ -192,26 +192,26 @@ impl WithdrawalReqProof {
         }
     }
 
-    pub(crate) fn verify(&self, params: &Parameters, instance: &WithdrawalReqInstance) -> bool {
+    pub(crate) fn verify(&self, params: &GroupParameters, instance: &WithdrawalReqInstance) -> bool {
         // recompute zk commitments for each instance
         let zkcm_com = instance.com * self.challenge
             + params.gen1() * self.response_opening
             + self
-                .response_attributes
-                .iter()
-                .zip(params.gammas().iter())
-                .map(|(m_i, gamma_i)| gamma_i * m_i)
-                .sum::<G1Projective>();
+            .response_attributes
+            .iter()
+            .zip(params.gammas().iter())
+            .map(|(m_i, gamma_i)| gamma_i * m_i)
+            .sum::<G1Projective>();
 
         let zkcm_pedcom = izip!(
             instance.pc_coms.iter(),
             self.response_openings.iter(),
             self.response_attributes.iter()
         )
-        .map(|(cm_j, resp_o_j, resp_m_j)| {
-            cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j
-        })
-        .collect::<Vec<_>>();
+            .map(|(cm_j, resp_o_j, resp_m_j)| {
+                cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j
+            })
+            .collect::<Vec<_>>();
 
         let zk_commitment_user_sk =
             instance.pk_user.pk * self.challenge + params.gen1() * self.response_attributes[0];
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn withdrawal_request_instance_roundtrip() {
         let mut rng = thread_rng();
-        let params = Parameters::new().unwrap();
+        let params = GroupParameters::new().unwrap();
         let instance = WithdrawalReqInstance {
             com: G1Projective::random(&mut rng),
             h: G1Projective::random(&mut rng),
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn withdrawal_proof_construct_and_verify() {
         let rng = thread_rng();
-        let params = Parameters::new().unwrap();
+        let params = GroupParameters::new().unwrap();
         let sk = params.random_scalar();
         let pk_user = PublicKeyUser {
             pk: params.gen1() * sk,
@@ -288,10 +288,10 @@ mod tests {
         let com_opening = params.random_scalar();
         let com = params.gen1() * com_opening
             + attr
-                .iter()
-                .zip(params.gammas())
-                .map(|(&m, gamma)| gamma * m)
-                .sum::<G1Projective>();
+            .iter()
+            .zip(params.gammas())
+            .map(|(&m, gamma)| gamma * m)
+            .sum::<G1Projective>();
         let h = hash_g1(com.to_bytes());
 
         let pc_openings = params.n_random_scalars(attr.len());

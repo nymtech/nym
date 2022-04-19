@@ -9,7 +9,7 @@ use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::setup::Parameters;
+use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{
     check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective,
 };
@@ -80,33 +80,35 @@ impl Wallet {
             ));
         }
 
+        let grparams = params.grp();
         // randomize signature in the wallet
-        let (signature_prime, sign_blinding_factor) = self.signature().randomise(params);
+        let (signature_prime, sign_blinding_factor) = self.signature().randomise(grparams);
         // construct kappa i.e., blinded attributes for show
         let attributes = vec![skUser.sk, self.v(), self.t()];
+        // compute kappa
         let kappa = compute_kappa(
-            &params,
+            &grparams,
             &verification_key,
             &attributes,
             sign_blinding_factor,
         );
 
         // pick random openings o_a, o_c, o_d
-        let o_a = params.random_scalar();
-        let o_c = params.random_scalar();
-        let o_d = params.random_scalar();
+        let o_a = grparams.random_scalar();
+        let o_c = grparams.random_scalar();
+        let o_d = grparams.random_scalar();
 
         // compute commitments A, C, D
-        let A = params.gen1() * o_a + params.gamma1() * Scalar::from(self.l());
-        let C = params.gen1() * o_c + params.gamma1() * self.v();
-        let D = params.gen1() * o_d + params.gamma1() * self.t();
+        let A = grparams.gen1() * o_a + grparams.gamma1() * Scalar::from(self.l());
+        let C = grparams.gen1() * o_c + grparams.gamma1() * self.v();
+        let D = grparams.gen1() * o_d + grparams.gamma1() * self.t();
 
         // compute hash of the payment info
         let R = hash_to_scalar(payInfo.info);
 
         // evaluate the pseudorandom functions
-        let S = pseudorandom_fgv(&params, self.v(), self.l());
-        let T = params.gen1() * skUser.sk + pseudorandom_fgt(&params, self.t(), self.l()) * R;
+        let S = pseudorandom_fgv(&grparams, self.v(), self.l());
+        let T = grparams.gen1() * skUser.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * R;
 
         // compute values mu, o_mu, lambda, o_lambda
         let mu: Scalar = (self.v() + Scalar::from(self.l()) + Scalar::from(1))
@@ -118,6 +120,15 @@ impl Wallet {
             .unwrap();
         let o_lambda = ((o_a + o_d) * lambda).neg();
 
+        // parse the signature associated with value l
+        let sign_l = params.get_sign_by_idx(self.l());
+        // randomise the signature associated with value l
+        let (sign_l_prime, sign_l_blinding_factor) = sign_l.randomise(grparams);
+        // compute kappa_l
+        let kappa_l = grparams.gen2() * sign_l_blinding_factor
+            + params.pkRP().alpha
+            + params.pkRP().beta * Scalar::from(self.l());
+
         // construct the zkp proof
         let spendInstance = SpendInstance {
             kappa,
@@ -126,10 +137,12 @@ impl Wallet {
             D,
             S,
             T,
+            kappa_l,
         };
         let spendWitness = SpendWitness {
             attributes,
             r: sign_blinding_factor,
+            r_l: sign_l_blinding_factor,
             l: Scalar::from(self.l()),
             o_a,
             o_c,
@@ -152,6 +165,8 @@ impl Wallet {
             C,
             D,
             R,
+            kappa_l,
+            sig_l: sign_l_prime,
             zk_proof,
         };
 
@@ -161,18 +176,18 @@ impl Wallet {
     }
 }
 
-pub fn pseudorandom_fgv(params: &Parameters, v: Scalar, l: u64) -> G1Projective {
+pub fn pseudorandom_fgv(params: &GroupParameters, v: Scalar, l: u64) -> G1Projective {
     let pow = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
     params.gen1() * pow
 }
 
-pub fn pseudorandom_fgt(params: &Parameters, t: Scalar, l: u64) -> G1Projective {
+pub fn pseudorandom_fgt(params: &GroupParameters, t: Scalar, l: u64) -> G1Projective {
     let pow = (t + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
     params.gen1() * pow
 }
 
 pub fn compute_kappa(
-    params: &Parameters,
+    params: &GroupParameters,
     verification_key: &VerificationKeyAuth,
     attributes: &[Attribute],
     blinding_factor: Scalar,
@@ -200,6 +215,8 @@ pub struct Payment {
     pub C: G1Projective,
     pub D: G1Projective,
     pub R: Scalar,
+    pub kappa_l: G2Projective,
+    pub sig_l: Signature,
     pub zk_proof: SpendProof,
 }
 
@@ -220,7 +237,7 @@ impl Payment {
             &self.sig.0.to_affine(),
             &G2Prepared::from(self.kappa.to_affine()),
             &self.sig.1.to_affine(),
-            params.prepared_miller_g2(),
+            params.grp().prepared_miller_g2(),
         ) {
             return Err(CompactEcashError::Spend(
                 "The bilinear check for kappa failed".to_string(),
@@ -244,6 +261,7 @@ impl Payment {
             D: self.D,
             S: self.S,
             T: self.T,
+            kappa_l: self.kappa_l,
         };
 
         if !self

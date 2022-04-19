@@ -9,6 +9,7 @@ pub type EncodedEd25519PublicKey = String;
 pub type EncodedEd25519PublicKeyRef<'a> = &'a str;
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type NodeIndex = u64;
+pub type EpochId = u64;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -91,7 +92,7 @@ impl Display for BlacklistingReason {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Epoch {
-    pub id: u64,
+    pub id: EpochId,
     pub state: EpochState,
 }
 

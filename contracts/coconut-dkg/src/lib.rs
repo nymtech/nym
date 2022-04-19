@@ -1,10 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::epoch::queries::query_current_epoch;
 use crate::error::ContractError;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use coconut_dkg_common::types::{Epoch, EpochState};
-use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
+use cosmwasm_std::{
+    entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+};
 use epoch::storage as epoch_storage;
 
 mod constants;
@@ -63,12 +66,12 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(_deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
-    match msg {
-        _ => (),
-    }
+pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+    let response = match msg {
+        QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?)?,
+    };
 
-    Ok(Default::default())
+    Ok(response)
 }
 
 #[entry_point]

@@ -44,4 +44,7 @@ pub enum ContractError {
 
     #[error("This sender is already a dealer for the epoch")]
     AlreadyADealer,
+
+    #[error("Epoch hasn't been correctly initialised!")]
+    EpochNotInitialised,
 }

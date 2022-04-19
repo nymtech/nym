@@ -5,7 +5,7 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::{Curve, Group, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
+use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective};
@@ -14,11 +14,11 @@ use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective}
 #[cfg_attr(test, derive(PartialEq))]
 pub struct SpendInstance {
     pub kappa: G2Projective,
-    pub A: G1Projective,
-    pub C: G1Projective,
-    pub D: G1Projective,
-    pub S: G1Projective,
-    pub T: G1Projective,
+    pub aa: G1Projective,
+    pub cc: G1Projective,
+    pub dd: G1Projective,
+    pub ss: G1Projective,
+    pub tt: G1Projective,
     pub kappa_l: G2Projective,
 }
 
@@ -41,29 +41,29 @@ impl TryFrom<&[u8]> for SpendInstance {
             &kappa_bytes,
             CompactEcashError::Deserialization("Failed to deserialize kappa".to_string()),
         )?;
-        let A_bytes = bytes[96..144].try_into().unwrap();
-        let A = try_deserialize_g1_projective(
-            &A_bytes,
+        let aa_bytes = bytes[96..144].try_into().unwrap();
+        let aa = try_deserialize_g1_projective(
+            &aa_bytes,
             CompactEcashError::Deserialization("Failed to deserialize A".to_string()),
         )?;
-        let C_bytes = bytes[144..192].try_into().unwrap();
-        let C = try_deserialize_g1_projective(
-            &C_bytes,
+        let cc_bytes = bytes[144..192].try_into().unwrap();
+        let cc = try_deserialize_g1_projective(
+            &cc_bytes,
             CompactEcashError::Deserialization("Failed to deserialize C".to_string()),
         )?;
-        let D_bytes = bytes[192..240].try_into().unwrap();
-        let D = try_deserialize_g1_projective(
-            &D_bytes,
+        let dd_bytes = bytes[192..240].try_into().unwrap();
+        let dd = try_deserialize_g1_projective(
+            &dd_bytes,
             CompactEcashError::Deserialization("Failed to deserialize D".to_string()),
         )?;
-        let S_bytes = bytes[240..288].try_into().unwrap();
-        let S = try_deserialize_g1_projective(
-            &S_bytes,
+        let ss_bytes = bytes[240..288].try_into().unwrap();
+        let ss = try_deserialize_g1_projective(
+            &ss_bytes,
             CompactEcashError::Deserialization("Failed to deserialize S".to_string()),
         )?;
-        let T_bytes = bytes[288..336].try_into().unwrap();
-        let T = try_deserialize_g1_projective(
-            &T_bytes,
+        let tt_bytes = bytes[288..336].try_into().unwrap();
+        let tt = try_deserialize_g1_projective(
+            &tt_bytes,
             CompactEcashError::Deserialization("Failed to deserialize T".to_string()),
         )?;
         let kappa_l_bytes = bytes[336..432].try_into().unwrap();
@@ -74,11 +74,11 @@ impl TryFrom<&[u8]> for SpendInstance {
 
         Ok(SpendInstance {
             kappa,
-            A,
-            C,
-            D,
-            S,
-            T,
+            aa,
+            cc,
+            dd,
+            ss,
+            tt,
             kappa_l,
         })
     }
@@ -88,11 +88,11 @@ impl SpendInstance {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(2 * 96 + 5 * 48);
         bytes.extend_from_slice(self.kappa.to_bytes().as_ref());
-        bytes.extend_from_slice(self.A.to_bytes().as_ref());
-        bytes.extend_from_slice(self.C.to_bytes().as_ref());
-        bytes.extend_from_slice(self.D.to_bytes().as_ref());
-        bytes.extend_from_slice(self.S.to_bytes().as_ref());
-        bytes.extend_from_slice(self.T.to_bytes().as_ref());
+        bytes.extend_from_slice(self.aa.to_bytes().as_ref());
+        bytes.extend_from_slice(self.cc.to_bytes().as_ref());
+        bytes.extend_from_slice(self.dd.to_bytes().as_ref());
+        bytes.extend_from_slice(self.ss.to_bytes().as_ref());
+        bytes.extend_from_slice(self.tt.to_bytes().as_ref());
         bytes.extend_from_slice(self.kappa_l.to_bytes().as_ref());
         bytes
     }
@@ -167,18 +167,18 @@ impl SpendProof {
         let zkcm_kappa = grparams.gen2() * r_r
             + verification_key.alpha
             + r_attributes
-                .iter()
-                .zip(verification_key.beta_g2.iter())
-                .map(|(attr, beta_i)| beta_i * attr)
-                .sum::<G2Projective>();
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(attr, beta_i)| beta_i * attr)
+            .sum::<G2Projective>();
 
         let zkcm_A = g1 * r_o_a + gamma1 * r_l;
         let zkcm_C = g1 * r_o_c + gamma1 * r_v;
         let zkcm_D = g1 * r_o_d + gamma1 * r_t;
         let zkcm_S = g1 * r_mu;
-        let zkcm_gamma11 = (instance.A + instance.C + gamma1) * r_mu + g1 * r_o_mu;
+        let zkcm_gamma11 = (instance.aa + instance.cc + gamma1) * r_mu + g1 * r_o_mu;
         let zkcm_T = g1 * r_sk + (g1 * R) * r_lambda;
-        let zkcm_gamma12 = (instance.A + instance.D + gamma1) * r_lambda + g1 * r_o_lambda;
+        let zkcm_gamma12 = (instance.aa + instance.dd + gamma1) * r_lambda + g1 * r_o_lambda;
         let zkcm_kappa_l = grparams.gen2() * r_r_l + params.pkRP().alpha + params.pkRP().beta * r_l;
 
         // compute the challenge
@@ -257,28 +257,28 @@ impl SpendProof {
             + grparams.gen2() * self.response_r
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + self
-                .response_attributes
-                .iter()
-                .zip(verification_key.beta_g2.iter())
-                .map(|(attr, beta_i)| beta_i * attr)
-                .sum::<G2Projective>();
+            .response_attributes
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(attr, beta_i)| beta_i * attr)
+            .sum::<G2Projective>();
 
         let zkcm_A =
-            g1 * self.response_o_a + gamma1 * self.response_l + instance.A * self.challenge;
+            g1 * self.response_o_a + gamma1 * self.response_l + instance.aa * self.challenge;
         let zkcm_C = g1 * self.response_o_c
             + gamma1 * self.response_attributes[1]
-            + instance.C * self.challenge;
+            + instance.cc * self.challenge;
         let zkcm_D = g1 * self.response_o_d
             + gamma1 * self.response_attributes[2]
-            + instance.D * self.challenge;
-        let zkcm_S = g1 * self.response_mu + instance.S * self.challenge;
-        let zkcm_gamma11 = (instance.A + instance.C + gamma1) * self.response_mu
+            + instance.dd * self.challenge;
+        let zkcm_S = g1 * self.response_mu + instance.ss * self.challenge;
+        let zkcm_gamma11 = (instance.aa + instance.cc + gamma1) * self.response_mu
             + g1 * self.response_o_mu
             + gamma1 * self.challenge;
         let zkcm_T = g1 * self.response_attributes[0]
             + (g1 * R) * self.response_lambda
-            + instance.T * self.challenge;
-        let zkcm_gamma12 = (instance.A + instance.D + gamma1) * self.response_lambda
+            + instance.tt * self.challenge;
+        let zkcm_gamma12 = (instance.aa + instance.dd + gamma1) * self.response_lambda
             + g1 * self.response_o_lambda
             + gamma1 * self.challenge;
 
@@ -317,14 +317,14 @@ impl SpendProof {
 mod tests {
     use bls12_381::{G1Projective, G2Projective, Scalar};
     use group::Curve;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-    use crate::scheme::aggregation::aggregate_verification_keys;
-    use crate::scheme::keygen::{ttp_keygen, PublicKeyUser, VerificationKeyAuth};
-    use crate::scheme::setup::{setup, GroupParameters};
-    use crate::scheme::PayInfo;
     use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
+    use crate::scheme::aggregation::aggregate_verification_keys;
+    use crate::scheme::keygen::{PublicKeyUser, ttp_keygen, VerificationKeyAuth};
+    use crate::scheme::PayInfo;
+    use crate::scheme::setup::{GroupParameters, setup};
     use crate::utils::hash_to_scalar;
 
     #[test]
@@ -357,27 +357,27 @@ mod tests {
         let kappa = grparams.gen2() * r
             + verification_key.alpha
             + attributes
-                .iter()
-                .zip(verification_key.beta_g2.iter())
-                .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-                .sum::<G2Projective>();
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>();
 
         let o_a = grparams.random_scalar();
         let o_c = grparams.random_scalar();
         let o_d = grparams.random_scalar();
 
         // compute commitments A, C, D
-        let A = g1 * o_a + gamma1 * Scalar::from(l);
-        let C = g1 * o_c + gamma1 * v;
-        let D = g1 * o_d + gamma1 * t;
+        let aa = g1 * o_a + gamma1 * Scalar::from(l);
+        let cc = g1 * o_c + gamma1 * v;
+        let dd = g1 * o_d + gamma1 * t;
 
         // compute hash of the payment info
         let payInfo = PayInfo { info: [37u8; 32] };
-        let R = hash_to_scalar(payInfo.info);
+        let rr = hash_to_scalar(payInfo.info);
 
         // evaluate the pseudorandom functions
-        let S = pseudorandom_fgv(&grparams, v, l);
-        let T = g1 * sk + pseudorandom_fgt(&grparams, t, l) * R;
+        let ss = pseudorandom_fgv(&grparams, v, l);
+        let tt = g1 * sk + pseudorandom_fgt(&grparams, t, l) * rr;
 
         // compute values mu, o_mu, lambda, o_lambda
         let mu: Scalar = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
@@ -395,11 +395,11 @@ mod tests {
 
         let instance = SpendInstance {
             kappa,
-            A,
-            C,
-            D,
-            S,
-            T,
+            aa,
+            cc,
+            dd,
+            ss,
+            tt,
             kappa_l,
         };
 
@@ -416,7 +416,7 @@ mod tests {
             o_mu,
             o_lambda,
         };
-        let zk_proof = SpendProof::construct(&params, &instance, &witness, &verification_key, R);
-        assert!(zk_proof.verify(&params, &instance, &verification_key, R))
+        let zk_proof = SpendProof::construct(&params, &instance, &witness, &verification_key, rr);
+        assert!(zk_proof.verify(&params, &instance, &verification_key, rr))
     }
 }

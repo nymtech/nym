@@ -4,6 +4,6 @@ use crate::scheme::Payment;
 
 pub fn identify(pay1: Payment, pay2: Payment) -> Result<PublicKeyUser> {
     // TODO: We should include here the check for S and payInfo
-    let pkUser = (pay2.T * pay1.R - pay1.T * pay2.R) * ((pay1.R - pay2.R).invert().unwrap());
+    let pkUser = (pay2.tt * pay1.rr - pay1.tt * pay2.rr) * ((pay1.rr - pay2.rr).invert().unwrap());
     Ok(PublicKeyUser { pk: pkUser })
 }

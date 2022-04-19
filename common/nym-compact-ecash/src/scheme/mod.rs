@@ -5,14 +5,14 @@ use std::convert::TryInto;
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group};
 
+use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{
-    check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective, Signature, SignerIndex,
+    check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective,
 };
-use crate::Attribute;
 
 pub mod aggregation;
 pub mod identify;
@@ -99,16 +99,16 @@ impl Wallet {
         let o_d = grparams.random_scalar();
 
         // compute commitments A, C, D
-        let A = grparams.gen1() * o_a + grparams.gamma1() * Scalar::from(self.l());
-        let C = grparams.gen1() * o_c + grparams.gamma1() * self.v();
-        let D = grparams.gen1() * o_d + grparams.gamma1() * self.t();
+        let aa = grparams.gen1() * o_a + grparams.gamma1() * Scalar::from(self.l());
+        let cc = grparams.gen1() * o_c + grparams.gamma1() * self.v();
+        let dd = grparams.gen1() * o_d + grparams.gamma1() * self.t();
 
         // compute hash of the payment info
-        let R = hash_to_scalar(payInfo.info);
+        let rr = hash_to_scalar(payInfo.info);
 
         // evaluate the pseudorandom functions
-        let S = pseudorandom_fgv(&grparams, self.v(), self.l());
-        let T = grparams.gen1() * skUser.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * R;
+        let ss = pseudorandom_fgv(&grparams, self.v(), self.l());
+        let tt = grparams.gen1() * skUser.sk + pseudorandom_fgt(&grparams, self.t(), self.l()) * rr;
 
         // compute values mu, o_mu, lambda, o_lambda
         let mu: Scalar = (self.v() + Scalar::from(self.l()) + Scalar::from(1))
@@ -132,11 +132,11 @@ impl Wallet {
         // construct the zkp proof
         let spendInstance = SpendInstance {
             kappa,
-            A,
-            C,
-            D,
-            S,
-            T,
+            aa,
+            cc,
+            dd,
+            ss,
+            tt,
             kappa_l,
         };
         let spendWitness = SpendWitness {
@@ -153,18 +153,18 @@ impl Wallet {
             o_lambda,
         };
         let zk_proof =
-            SpendProof::construct(&params, &spendInstance, &spendWitness, &verification_key, R);
+            SpendProof::construct(&params, &spendInstance, &spendWitness, &verification_key, rr);
 
         // output pay and updated wallet
         let pay = Payment {
             kappa,
             sig: signature_prime,
-            S,
-            T,
-            A,
-            C,
-            D,
-            R,
+            ss: ss,
+            tt: tt,
+            aa: aa,
+            cc: cc,
+            dd: dd,
+            rr: rr,
             kappa_l,
             sig_l: sign_l_prime,
             zk_proof,
@@ -195,10 +195,10 @@ pub fn compute_kappa(
     params.gen2() * blinding_factor
         + verification_key.alpha
         + attributes
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-            .sum::<G2Projective>()
+        .iter()
+        .zip(verification_key.beta_g2.iter())
+        .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+        .sum::<G2Projective>()
 }
 
 pub struct PayInfo {
@@ -209,12 +209,12 @@ pub struct PayInfo {
 pub struct Payment {
     pub kappa: G2Projective,
     pub sig: Signature,
-    pub S: G1Projective,
-    pub T: G1Projective,
-    pub A: G1Projective,
-    pub C: G1Projective,
-    pub D: G1Projective,
-    pub R: Scalar,
+    pub ss: G1Projective,
+    pub tt: G1Projective,
+    pub aa: G1Projective,
+    pub cc: G1Projective,
+    pub dd: G1Projective,
+    pub rr: Scalar,
     pub kappa_l: G2Projective,
     pub sig_l: Signature,
     pub zk_proof: SpendProof,
@@ -245,7 +245,7 @@ impl Payment {
         }
 
         // verify integrity of R
-        if !(self.R == hash_to_scalar(payinfo.info)) {
+        if !(self.rr == hash_to_scalar(payinfo.info)) {
             return Err(CompactEcashError::Spend(
                 "Integrity of R does not hold".to_string(),
             ));
@@ -256,17 +256,17 @@ impl Payment {
         // verify the zk proof
         let instance = SpendInstance {
             kappa: self.kappa,
-            A: self.A,
-            C: self.C,
-            D: self.D,
-            S: self.S,
-            T: self.T,
+            aa: self.aa,
+            cc: self.cc,
+            dd: self.dd,
+            ss: self.ss,
+            tt: self.tt,
             kappa_l: self.kappa_l,
         };
 
         if !self
             .zk_proof
-            .verify(&params, &instance, &verification_key, self.R)
+            .verify(&params, &instance, &verification_key, self.rr)
         {
             return Err(CompactEcashError::Spend(
                 "ZkProof verification failed".to_string(),

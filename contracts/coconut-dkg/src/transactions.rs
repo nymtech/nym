@@ -3,12 +3,11 @@
 
 use crate::constants::{INVALID_ED25519_BLACKLISTING_EXPIRATION, MINIMUM_DEPOSIT};
 use crate::storage::{
-    blacklist_dealer, next_node_index, obtain_blacklisting, BLACKLISTED_DEALERS, CURRENT_DEALERS,
-    PAST_DEALERS,
+    blacklist_dealer, current_dealers, next_node_index, obtain_blacklisting, past_dealers,
 };
 use crate::ContractError;
 use coconut_dkg_common::types::{
-    Blacklisting, BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
+    BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
     EncodedEd25519PublicKey, EncodedEd25519PublicKeyRef,
 };
 use config::defaults::STAKE_DENOM;
@@ -33,7 +32,7 @@ fn verify_dealer(
         }
     }
 
-    if CURRENT_DEALERS.has(deps.storage, dealer) {
+    if current_dealers().may_load(deps.storage, dealer)?.is_some() {
         return Err(ContractError::AlreadyADealer);
     }
 
@@ -138,9 +137,9 @@ pub fn try_add_dealer(
 
     // if it was already a dealer in the past, assign the same node index
     let node_index =
-        if let Some(prior_details) = PAST_DEALERS.may_load(deps.storage, &info.sender)? {
+        if let Some(prior_details) = past_dealers().may_load(deps.storage, &info.sender)? {
             // since this dealer is going to become active now, remove it from the past dealers
-            PAST_DEALERS.remove(deps.storage, &info.sender);
+            past_dealers().replace(deps.storage, &info.sender, None, Some(&prior_details))?;
             prior_details.assigned_index
         } else {
             next_node_index(deps.storage)?
@@ -155,7 +154,7 @@ pub fn try_add_dealer(
         bte_public_key_with_proof: bte_key_with_proof,
         assigned_index: node_index,
     };
-    CURRENT_DEALERS.save(deps.storage, &info.sender, &dealer_details)?;
+    current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
 
     Ok(Response::new().set_data(node_index.to_be_bytes()))
 }

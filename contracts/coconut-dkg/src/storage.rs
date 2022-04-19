@@ -5,20 +5,42 @@ use coconut_dkg_common::types::{
     Blacklisting, BlacklistingReason, BlockHeight, DealerDetails, NodeIndex,
 };
 use cosmwasm_std::{Addr, StdResult, Storage};
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};
+
+const CURRENT_DEALERS_PK: &str = "crd";
+const PAST_DEALERS_PK: &str = "ptd";
+const DEALERS_NODE_INDEX_IDX_NAMESPACE: &str = "dni";
 
 pub(crate) const BLACKLISTED_DEALERS: Map<'_, &'_ Addr, Blacklisting> = Map::new("bld");
-
 pub(crate) const NODE_INDEX_COUNTER: Item<NodeIndex> = Item::new("node_index_counter");
 
-// TODO: this is an interesting question: should dealers be addressed by their addresses
-// or maybe node indices?
-// perhaps this should be UniqueIndex?
-pub(crate) const CURRENT_DEALERS: Map<'_, &'_ Addr, DealerDetails> = Map::new("crd");
-pub(crate) const PAST_DEALERS: Map<'_, &'_ Addr, DealerDetails> = Map::new("ptd");
+pub(crate) struct DealersIndex<'a> {
+    pub(crate) node_index: UniqueIndex<'a, NodeIndex, DealerDetails>,
+}
+
+impl<'a> IndexList<DealerDetails> for DealersIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<DealerDetails>> + '_> {
+        let v: Vec<&dyn Index<DealerDetails>> = vec![&self.node_index];
+        Box::new(v.into_iter())
+    }
+}
+
+pub(crate) fn current_dealers<'a>() -> IndexedMap<'a, &'a Addr, DealerDetails, DealersIndex<'a>> {
+    let indexes = DealersIndex {
+        node_index: UniqueIndex::new(|d| d.assigned_index, DEALERS_NODE_INDEX_IDX_NAMESPACE),
+    };
+    IndexedMap::new(CURRENT_DEALERS_PK, indexes)
+}
+
+pub(crate) fn past_dealers<'a>() -> IndexedMap<'a, &'a Addr, DealerDetails, DealersIndex<'a>> {
+    let indexes = DealersIndex {
+        node_index: UniqueIndex::new(|d| d.assigned_index, DEALERS_NODE_INDEX_IDX_NAMESPACE),
+    };
+    IndexedMap::new(PAST_DEALERS_PK, indexes)
+}
 
 pub(crate) fn next_node_index(store: &mut dyn Storage) -> StdResult<NodeIndex> {
-    // make sure we don't start from 0!
+    // make sure we don't start from 0, otherwise all the crypto breaks (kinda)
     let id: NodeIndex = NODE_INDEX_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     NODE_INDEX_COUNTER.save(store, &id)?;
     Ok(id)

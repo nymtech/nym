@@ -1,5 +1,5 @@
 [package]
-name = "nym-compact-ecash"
+name = "nym_compact_ecash"
 version = "0.1.0"
 authors = ["Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"
@@ -25,3 +25,7 @@ default-features = false
 [dependencies.group]
 version = "0.10"
 default-features = false
+
+[[bench]]
+name = "benchmarks"
+harness = false

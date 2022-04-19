@@ -1,5 +1,6 @@
 use itertools::izip;
 
+use crate::constants::MAX_WALLET_VALUE;
 use crate::error::CompactEcashError;
 use crate::scheme::aggregation::{
     aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets,
@@ -16,7 +17,7 @@ use crate::utils::{hash_to_scalar, SignatureShare};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
-    let params = setup();
+    let params = setup(MAX_WALLET_VALUE);
     let grparams = params.grp();
     let user_keypair = generate_keypair_user(&grparams);
 
@@ -65,6 +66,7 @@ fn main() -> Result<(), CompactEcashError> {
         &verification_key,
         &user_keypair.secret_key(),
         &pay_info,
+        false,
     )?;
 
     assert!(payment

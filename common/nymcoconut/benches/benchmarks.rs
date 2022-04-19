@@ -15,6 +15,18 @@ use rand::seq::SliceRandom;
 use std::ops::Neg;
 use std::time::Duration;
 
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, multi_miller_loop, Scalar};
+use criterion::{Criterion, criterion_group, criterion_main};
+use ff::Field;
+use group::{Curve, Group};
+use rand::seq::SliceRandom;
+
+use nymcoconut::{
+    aggregate_signature_shares, aggregate_verification_keys, Attribute, blind_sign,
+    BlindedSignature, elgamal_keygen, Parameters, prepare_blind_sign, prove_bandwidth_credential,
+    setup, Signature, SignatureShare, ttp_keygen, VerificationKey, verify_credential,
+};
+
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
     let gt1 = bls12_381::pairing(g11, g21);
@@ -31,6 +43,40 @@ fn multi_miller_pairing_affine(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g
     assert!(bool::from(
         miller_loop_result.final_exponentiation().is_identity()
     ))
+}
+
+#[allow(unused)]
+fn bench_pairings(c: &mut Criterion) {
+    let mut rng = rand::thread_rng();
+
+    let g1 = G1Affine::generator();
+    let g2 = G2Affine::generator();
+    let r = Scalar::random(&mut rng);
+    let s = Scalar::random(&mut rng);
+
+    let g11 = (g1 * r).to_affine();
+    let g21 = (g2 * s).to_affine();
+    let g21_prep = G2Prepared::from(g21);
+
+    let g12 = (g1 * s).to_affine();
+    let g22 = (g2 * r).to_affine();
+    let g22_prep = G2Prepared::from(g22);
+
+    c.bench_function("double pairing", |b| {
+        b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
+    });
+
+    c.bench_function("multi miller in affine", |b| {
+        b.iter(|| multi_miller_pairing_affine(&g11, &g21, &g12, &g22))
+    });
+
+    c.bench_function("multi miller with prepared g2", |b| {
+        b.iter(|| multi_miller_pairing_with_prepared(&g11, &g21_prep, &g12, &g22_prep))
+    });
+
+    c.bench_function("multi miller with semi-prepared g2", |b| {
+        b.iter(|| multi_miller_pairing_with_semi_prepared(&g11, &g21, &g12, &g22_prep))
+    });
 }
 
 #[allow(unused)]
@@ -105,7 +151,7 @@ fn unblind_and_aggregate(
         &attributes,
         &unblinded_signature_shares,
     )
-    .unwrap()
+        .unwrap()
 }
 
 struct BenchCase {
@@ -123,40 +169,6 @@ impl BenchCase {
     fn num_attrs(&self) -> u32 {
         self.num_public_attrs + self.num_private_attrs
     }
-}
-
-#[allow(unused)]
-fn bench_pairings(c: &mut Criterion) {
-    let mut rng = rand::thread_rng();
-
-    let g1 = G1Affine::generator();
-    let g2 = G2Affine::generator();
-    let r = Scalar::random(&mut rng);
-    let s = Scalar::random(&mut rng);
-
-    let g11 = (g1 * r).to_affine();
-    let g21 = (g2 * s).to_affine();
-    let g21_prep = G2Prepared::from(g21);
-
-    let g12 = (g1 * s).to_affine();
-    let g22 = (g2 * r).to_affine();
-    let g22_prep = G2Prepared::from(g22);
-
-    c.bench_function("double pairing", |b| {
-        b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
-    });
-
-    c.bench_function("multi miller in affine", |b| {
-        b.iter(|| multi_miller_pairing_affine(&g11, &g21, &g12, &g22))
-    });
-
-    c.bench_function("multi miller with prepared g2", |b| {
-        b.iter(|| multi_miller_pairing_with_prepared(&g11, &g21_prep, &g12, &g22_prep))
-    });
-
-    c.bench_function("multi miller with semi-prepared g2", |b| {
-        b.iter(|| multi_miller_pairing_with_semi_prepared(&g11, &g21, &g12, &g22_prep))
-    });
 }
 
 fn bench_coconut(c: &mut Criterion) {
@@ -217,7 +229,7 @@ fn bench_coconut(c: &mut Criterion) {
                     &blind_sign_request,
                     &public_attributes,
                 )
-                .unwrap()
+                    .unwrap()
             })
         },
     );
@@ -232,7 +244,7 @@ fn bench_coconut(c: &mut Criterion) {
             &blind_sign_request,
             &public_attributes,
         )
-        .unwrap();
+            .unwrap();
         blinded_signatures.push(blinded_signature)
     }
 
@@ -313,7 +325,7 @@ fn bench_coconut(c: &mut Criterion) {
         serial_number,
         binding_number,
     )
-    .unwrap();
+        .unwrap();
 
     // CLIENT BENCHMARK
     group.bench_function(
@@ -332,7 +344,7 @@ fn bench_coconut(c: &mut Criterion) {
                     serial_number,
                     binding_number,
                 )
-                .unwrap()
+                    .unwrap()
             })
         },
     );

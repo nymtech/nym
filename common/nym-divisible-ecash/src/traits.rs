@@ -1,8 +1,8 @@
 use crate::error::DivisibleEcashError;
 
 pub trait Bytable
-    where
-        Self: Sized,
+where
+    Self: Sized,
 {
     fn to_byte_vec(&self) -> Vec<u8>;
 
@@ -10,8 +10,8 @@ pub trait Bytable
 }
 
 pub trait Base58
-    where
-        Self: Bytable,
+where
+    Self: Bytable,
 {
     fn try_from_bs58<S: AsRef<str>>(x: S) -> Result<Self, DivisibleEcashError> {
         Self::try_from_byte_slice(&bs58::decode(x.as_ref()).into_vec().unwrap())

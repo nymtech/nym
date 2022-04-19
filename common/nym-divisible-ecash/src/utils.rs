@@ -6,10 +6,10 @@ use core::ops::Mul;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Neg;
 
-use bls12_381::{
-    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, multi_miller_loop, Scalar,
-};
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
+use bls12_381::{
+    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
+};
 use ff::Field;
 use group::{Curve, Group};
 
@@ -85,9 +85,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-    where
-        T: Sum,
-        for<'a> &'a T: Mul<Scalar, Output=T>,
+where
+    T: Sum,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(DivisibleEcashError::Interpolation(
@@ -221,12 +221,16 @@ impl TryFrom<&[u8]> for Signature {
 
         let sig1 = try_deserialize_g1_projective(
             sig1_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize compressed sig1".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize compressed sig1".to_string(),
+            ),
         )?;
 
         let sig2 = try_deserialize_g1_projective(
             sig2_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize compressed sig2".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize compressed sig2".to_string(),
+            ),
         )?;
 
         Ok(Signature(sig1, sig2))

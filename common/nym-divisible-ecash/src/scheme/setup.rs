@@ -41,7 +41,9 @@ impl GroupParameters {
         &self._g2_prepared_miller
     }
 
-    pub(crate) fn getL(&self) -> u64 { self.L }
+    pub(crate) fn getL(&self) -> u64 {
+        self.L
+    }
 
     pub(crate) fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system
@@ -60,7 +62,6 @@ pub struct Parameters {
     paramsAuth: ParametersAuthority,
 }
 
-
 impl Parameters {
     pub fn new(grp: GroupParameters) -> Parameters {
         let g1 = grp.gen1();
@@ -78,10 +79,16 @@ impl Parameters {
         let sigma = g1 * z;
         let theta = eta * z;
 
-        let sigmasUser: Vec<G1Projective> = (1..=grp.getL()).map(|i| sigma * (y * Scalar::from(i))).collect();
-        let thetasUser: Vec<G1Projective> = (1..=grp.getL()).map(|i| theta * (y * Scalar::from(i))).collect();
+        let sigmasUser: Vec<G1Projective> = (1..=grp.getL())
+            .map(|i| sigma * (y * Scalar::from(i)))
+            .collect();
+        let thetasUser: Vec<G1Projective> = (1..=grp.getL())
+            .map(|i| theta * (y * Scalar::from(i)))
+            .collect();
 
-        let deltasAuth: Vec<G2Projective> = (0..=grp.getL() - 1).map(|i| g2 * (y * Scalar::from(i))).collect();
+        let deltasAuth: Vec<G2Projective> = (0..=grp.getL() - 1)
+            .map(|i| g2 * (y * Scalar::from(i)))
+            .collect();
         let etasUser: Vec<G1Projective> = vec_a.iter().map(|x| g1 * x).collect();
 
         let mut etasAuth: Vec<G2Projective> = Default::default();

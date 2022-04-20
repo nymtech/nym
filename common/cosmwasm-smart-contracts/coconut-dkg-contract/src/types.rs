@@ -96,14 +96,70 @@ pub struct Epoch {
     pub state: EpochState,
 }
 
+impl Epoch {
+    pub fn next_state(
+        &self,
+        current_time: Option<BlockHeight>,
+        end_time: Option<BlockHeight>,
+    ) -> Option<Self> {
+        let state = match self.state {
+            EpochState::PublicKeySubmission { finish_by, .. } => EpochState::DealingExchange {
+                begun_at: finish_by,
+                finish_by: end_time?,
+            },
+            EpochState::DealingExchange { finish_by, .. } => EpochState::ComplaintSubmission {
+                begun_at: finish_by,
+                finish_by: end_time?,
+            },
+            EpochState::ComplaintSubmission { finish_by, .. } => EpochState::ComplaintVoting {
+                begun_at: finish_by,
+                finish_by: end_time?,
+            },
+            EpochState::ComplaintVoting { finish_by, .. } => {
+                EpochState::VerificationKeySubmission {
+                    begun_at: finish_by,
+                    finish_by: end_time?,
+                }
+            }
+            EpochState::VerificationKeySubmission { finish_by, .. } => {
+                EpochState::VerificationKeyMismatchSubmission {
+                    begun_at: finish_by,
+                    finish_by: end_time?,
+                }
+            }
+            EpochState::VerificationKeyMismatchSubmission { finish_by, .. } => {
+                EpochState::VerificationKeyMismatchVoting {
+                    begun_at: finish_by,
+                    finish_by: end_time?,
+                }
+            }
+            EpochState::VerificationKeyMismatchVoting { finish_by, .. } => EpochState::InProgress {
+                begun_at: finish_by,
+                finish_by: end_time,
+            },
+            EpochState::InProgress { .. } => EpochState::PublicKeySubmission {
+                begun_at: current_time?,
+                finish_by: end_time?,
+            },
+        };
+
+        Some(Epoch { id: self.id, state })
+    }
+}
+
+// currently (it is still extremely likely to change, we might be able to get rid of verification key-related complaints),
+// the epoch can be in the following states (in order):
+// 1. PublicKeySubmission -> potential dealers are submitting their BTE and ed25519 public keys to participate in dealing exchange
+// 2. DealingExchange -> the actual (off-chain) dealing exchange is happening
+// 3. ComplaintSubmission -> receivers submitting evidence of other dealers sending malformed data
+// 4. ComplaintVoting -> (if any complaints were submitted) receivers voting on the validity of the evidence provided
+// 5. VerificationKeySubmission -> receivers submitting their partial (and master) verification keys
+// 6. VerificationKeyMismatchSubmission -> receivers / watchers raising issue that the submitted VK are mismatched with their local derivations
+// 7. VerificationKeyMismatchVoting -> (if any complaints were submitted) receivers voting on received mismatches
+// 8. InProgress -> all receivers have all their secrets derived and all is good
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum EpochState {
-    InProgress {
-        begun_at: BlockHeight,
-        // not entirely sure about that one yet. we'll see how it works out when we get to epoch transition
-        finish_by: Option<BlockHeight>,
-    },
     PublicKeySubmission {
         begun_at: BlockHeight,
         finish_by: BlockHeight,
@@ -131,5 +187,10 @@ pub enum EpochState {
     VerificationKeyMismatchVoting {
         begun_at: BlockHeight,
         finish_by: BlockHeight,
+    },
+    InProgress {
+        begun_at: BlockHeight,
+        // not entirely sure about that one yet. we'll see how it works out when we get to epoch transition
+        finish_by: Option<BlockHeight>,
     },
 }

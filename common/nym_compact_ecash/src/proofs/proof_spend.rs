@@ -319,7 +319,7 @@ mod tests {
     use group::Curve;
     use rand::{Rng, thread_rng};
 
-    use crate::constants::MAX_COIN_VALUE;
+    use crate::constants::MAX_WALLET_VALUE;
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
     use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
     use crate::scheme::aggregation::aggregate_verification_keys;
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     fn spend_proof_construct_and_verify() {
         let rng = thread_rng();
-        let params = setup(MAX_COIN_VALUE);
+        let params = setup(MAX_WALLET_VALUE);
         let grparams = params.grp();
         let sk = grparams.random_scalar();
         let pk_user = PublicKeyUser {

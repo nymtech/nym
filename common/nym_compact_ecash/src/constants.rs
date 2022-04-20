@@ -1,1 +1,1 @@
-pub const MAX_COIN_VALUE: u64 = 32;
+pub const MAX_WALLET_VALUE: u64 = 32;

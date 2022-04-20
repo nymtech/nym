@@ -125,40 +125,48 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let (req, req_info) = withdrawal_request(grparams, &user_keypair.secret_key()).unwrap();
 
     // CLIENT BENCHMARK: Prepare a single withdrawal request, i.e.,
-    // a data needed to ask for a withdrawal of a wallet
-    // group.bench_function(
-    //     &format!(
-    //         "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
-    //         case.num_authorities,
-    //         case.L,
-    //         case.threshold_p,
-    //     ),
-    //     |b| {
-    //         b.iter(|| withdrawal_request(grparams, &user_keypair.secret_key()).unwrap())
-    //     },
-    // );
+    a
+    data
+    needed
+    to
+    ask
+    for a withdrawal
+    of
+    a
+    wallet
+    group.bench_function(
+        &format!(
+            "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
+            case.num_authorities,
+            case.L,
+            case.threshold_p,
+        ),
+        |b| {
+            b.iter(|| withdrawal_request(grparams, &user_keypair.secret_key()).unwrap())
+        },
+    );
 
 
     // ISSUING AUTHRORITY BENCHMARK: Benchmark the issue_wallet function
     // called by an authority to issue a blind signature on a partial wallet
     let mut rng = rand::thread_rng();
     let keypair = authorities_keypairs.choose(&mut rng).unwrap();
-    // group.bench_function(
-    //     &format!(
-    //         "[Issuing Authority] issue_partial_wallet_with_L_{}",
-    //         case.L,
-    //     ),
-    //     |b| {
-    //         b.iter(|| {
-    //             issue_wallet(
-    //                 &grparams,
-    //                 keypair.secret_key(),
-    //                 user_keypair.public_key(),
-    //                 &req,
-    //             )
-    //         })
-    //     },
-    // );
+    group.bench_function(
+        &format!(
+            "[Issuing Authority] issue_partial_wallet_with_L_{}",
+            case.L,
+        ),
+        |b| {
+            b.iter(|| {
+                issue_wallet(
+                    &grparams,
+                    keypair.secret_key(),
+                    user_keypair.public_key(),
+                    &req,
+                )
+            })
+        },
+    );
 
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
@@ -174,17 +182,17 @@ fn bench_compact_ecash(c: &mut Criterion) {
     // CLIENT BENCHMARK: verify the issued partial wallet
     let w = wallet_blinded_signatures.get(0).clone().unwrap();
     let vk = verification_keys_auth.get(0).clone().unwrap();
-    // group.bench_function(
-    //     &format!(
-    //         "[Client] issue_verify_of_a_partial_wallet_with_L_{}",
-    //         case.L,
-    //     ),
-    //     |b| {
-    //         b.iter(|| {
-    //             issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info)
-    //         })
-    //     },
-    // );
+    group.bench_function(
+        &format!(
+            "[Client] issue_verify_of_a_partial_wallet_with_L_{}",
+            case.L,
+        ),
+        |b| {
+            b.iter(|| {
+                issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info)
+            })
+        },
+    );
 
     let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
         wallet_blinded_signatures.iter(),
@@ -193,25 +201,25 @@ fn bench_compact_ecash(c: &mut Criterion) {
         .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
 
-    // // CLIENT BENCHMARK: aggregating all partial wallets
-    // group.bench_function(
-    //     &format!(
-    //         "[Client] aggregate_wallets_with_L_{}_threshold_{}",
-    //         case.L,
-    //         case.threshold_p,
-    //     ),
-    //     |b| {
-    //         b.iter(|| {
-    //             aggregate_wallets(
-    //                 &grparams,
-    //                 &verification_key,
-    //                 &user_keypair.secret_key(),
-    //                 &unblinded_wallet_shares,
-    //                 &req_info,
-    //             ).unwrap()
-    //         })
-    //     },
-    // );
+    // CLIENT BENCHMARK: aggregating all partial wallets
+    group.bench_function(
+        &format!(
+            "[Client] aggregate_wallets_with_L_{}_threshold_{}",
+            case.L,
+            case.threshold_p,
+        ),
+        |b| {
+            b.iter(|| {
+                aggregate_wallets(
+                    &grparams,
+                    &verification_key,
+                    &user_keypair.secret_key(),
+                    &unblinded_wallet_shares,
+                    &req_info,
+                ).unwrap()
+            })
+        },
+    );
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(

@@ -177,6 +177,11 @@ impl Wallet {
             zk_proof,
         };
 
+        // The number of samples collected by the benchmark process is way higher than the
+        // MAX_WALLET_VALUE we ever consider. Thus, we would execute the spending too many times
+        // and the initial condition at the top of this function will crush. Thus, we need a
+        // benchmark flag to signal that we don't want to increase the spending couter but only
+        // care about the function performance. 
         if !bench_flag {
             self.up();
         }

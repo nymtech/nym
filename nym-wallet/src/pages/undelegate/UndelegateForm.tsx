@@ -52,14 +52,23 @@ export const UndelegateForm = ({
   });
 
   const onSubmit = async (data: TFormData) => {
+    const delegation = (delegations || []).find((d) => d.node_identity === data.identity);
+
+    if (!delegation) {
+      onError(`Could not undelegate from ${data.identity} as not found in list of delegations for this account`);
+      return;
+    }
+
     let res;
     try {
-      res = await undelegate({
-        type: data.nodeType,
-        identity: data.identity,
-      });
-
-      if (!res) {
+      if ((delegation.proxy || '').trim().length === 0) {
+        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
+        res = await undelegate({
+          type: data.nodeType,
+          identity: data.identity,
+        });
+      } else {
+        // the delegation is with locked tokens, so use the vesting contract
         res = await vestingUnelegateFromMixnode(data.identity);
       }
 

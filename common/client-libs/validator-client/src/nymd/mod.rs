@@ -226,7 +226,10 @@ impl<C> NymdClient<C> {
         self.client.get_sequence(self.address()).await
     }
 
-    pub async fn account_details(&self, address: &AccountId) -> Result<Option<Account>, NymdError>
+    pub async fn get_account_details(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<Account>, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {

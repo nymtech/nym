@@ -21,6 +21,6 @@ pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hh
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://rpc.nyx.nodes.guru/",
-        Some("https://api.nyx.nodes.guru/"),
+        Some("https://validator.nymtech.net/api"),
     )]
 }

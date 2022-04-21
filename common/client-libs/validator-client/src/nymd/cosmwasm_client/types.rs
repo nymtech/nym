@@ -252,6 +252,7 @@ impl TryFrom<ProtoPermanentLockedAccount> for PermanentLockedAccount {
     }
 }
 
+#[derive(Debug)]
 pub enum Account {
     Base(BaseAccount),
     Module(ModuleAccount),

@@ -153,6 +153,10 @@ impl Client<SigningNymdClient> {
         )?;
         Ok(())
     }
+
+    pub fn set_nymd_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.nymd.set_simulated_gas_multiplier(multiplier)
+    }
 }
 
 #[cfg(feature = "nymd-client")]

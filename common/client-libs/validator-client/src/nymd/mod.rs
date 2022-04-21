@@ -171,6 +171,10 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
+    pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.simulated_gas_multiplier = multiplier;
+    }
+
     pub fn address(&self) -> &AccountId
     where
         C: SigningCosmWasmClient,

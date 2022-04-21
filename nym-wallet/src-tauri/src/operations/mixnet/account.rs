@@ -1,5 +1,5 @@
 use crate::coin::{Coin, Denom};
-use crate::config::Config;
+use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::network_config;
@@ -297,7 +297,7 @@ fn create_clients(
     log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
     log::info!("Connecting to: api_url: {api_url} for {network}");
 
-    let client = validator_client::Client::new_signing(
+    let mut client = validator_client::Client::new_signing(
       validator_client::Config::new(
         network.into(),
         nymd_url,
@@ -308,6 +308,7 @@ fn create_clients(
       ),
       mnemonic.clone(),
     )?;
+    client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
     clients.push(client);
   }
   Ok(clients)

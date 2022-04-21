@@ -13,6 +13,8 @@ pub mod client;
 pub mod error;
 pub mod packet_router;
 pub mod socket_state;
+#[cfg(feature = "wasm")]
+mod wasm_storage;
 
 /// Helper method for reading from websocket stream. Helps to flatten the structure.
 pub(crate) fn cleanup_socket_message(

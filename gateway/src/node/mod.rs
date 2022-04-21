@@ -276,7 +276,7 @@ where
         let erc20_bridge = ERC20Bridge::new(
             self.config.get_eth_endpoint(),
             self.config.get_validator_nymd_endpoints(),
-            self.config.get_cosmos_mnemonic(),
+            self.config._get_cosmos_mnemonic(),
         );
 
         let mix_forwarding_channel = self.start_packet_forwarder();

@@ -2,6 +2,9 @@ name: Publish Nym binaries
 on:
   release:
     types: [created]
+    
+env:
+  NETWORK: mainnet    
 
 jobs:
   publish-nym:

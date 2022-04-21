@@ -29,7 +29,8 @@ use url::Url;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::{client::QueryClient, InternalSignRequest};
+use coconut::InternalSignRequest;
+use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -55,10 +56,7 @@ const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
 const KEYPAIR_ARG: &str = "keypair";
 
 #[cfg(feature = "coconut")]
-const SIGNED_DEPOSITS_ARG: &str = "signed-deposits";
-
-#[cfg(feature = "coconut")]
-const COCONUT_ONLY_FLAG: &str = "coconut-only";
+const COCONUT_ENABLED: &str = "enable-coconut";
 
 #[cfg(not(feature = "coconut"))]
 const ETH_ENDPOINT: &str = "eth_endpoint";
@@ -113,10 +111,6 @@ fn long_version() -> String {
 }
 
 fn parse_args<'a>() -> ArgMatches<'a> {
-    #[cfg(feature = "coconut")]
-    let monitor_reqs = &[];
-    #[cfg(not(feature = "coconut"))]
-    let monitor_reqs = &[ETH_ENDPOINT, ETH_PRIVATE_KEY];
     let build_details = long_version();
     let base_app = App::new("Nym Validator API")
         .version(crate_version!())
@@ -127,14 +121,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
                 .short("m")
-                .requires_all(monitor_reqs)
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
                 .short("r")
-                .requires(MONITORING_ENABLED)
+                .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
         )
         .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
@@ -151,7 +144,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .long(MNEMONIC_ARG)
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
-                 .requires(REWARDING_ENABLED),
         )
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
@@ -170,7 +162,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
-                .requires(REWARDING_ENABLED)
         )
         .arg(
             Arg::with_name(TESTNET_MODE_ARG_NAME)
@@ -179,21 +170,19 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         );
 
     #[cfg(feature = "coconut")]
-        let base_app = base_app.arg(
-        Arg::with_name(KEYPAIR_ARG)
-            .help("Path to the secret key file")
-            .takes_value(true)
-            .long(KEYPAIR_ARG),
-    ).arg(
-        Arg::with_name(SIGNED_DEPOSITS_ARG)
-            .help("Path to the directory used to store the already signed deposit transactions. This prevents the validator for double signing for the same deposit")
-            .takes_value(true)
-            .long(SIGNED_DEPOSITS_ARG),
-    ).arg(
-        Arg::with_name(COCONUT_ONLY_FLAG)
-            .help("Flag to indicate whether validator api should only be used for credential issuance with no blockchain connection")
-            .long(COCONUT_ONLY_FLAG),
-    );
+    let base_app = base_app
+        .arg(
+            Arg::with_name(KEYPAIR_ARG)
+                .help("Path to the secret key file")
+                .takes_value(true)
+                .long(KEYPAIR_ARG),
+        )
+        .arg(
+            Arg::with_name(COCONUT_ENABLED)
+                .help("Flag to indicate whether coconut signer authority is enabled on this API")
+                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG])
+                .long(COCONUT_ENABLED),
+        );
 
     #[cfg(not(feature = "coconut"))]
         let base_app = base_app.arg(
@@ -251,6 +240,11 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
 
     if matches.is_present(REWARDING_ENABLED) {
         config = config.with_rewarding_enabled(true)
+    }
+
+    #[cfg(feature = "coconut")]
+    if matches.is_present(COCONUT_ENABLED) {
+        config = config.with_coconut_signer_enabled(true)
     }
 
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
@@ -397,7 +391,11 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
     (interval_length.as_secs() / test_delay.as_secs()) as usize
 }
 
-async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Rocket<Ignite>> {
+async fn setup_rocket(
+    config: &Config,
+    liftoff_notify: Arc<Notify>,
+    _nymd_client: Option<Client<SigningNymdClient>>,
+) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket = rocket::build()
         .attach(setup_cors()?)
@@ -413,11 +411,15 @@ async fn setup_rocket(config: &Config, liftoff_notify: Arc<Notify>) -> Result<Ro
     };
 
     #[cfg(feature = "coconut")]
-    let rocket = rocket.attach(InternalSignRequest::stage(
-        QueryClient::new()?,
-        config.keypair(),
-        storage.clone().unwrap(),
-    ));
+    let rocket = if config.get_coconut_signer_enabled() {
+        rocket.attach(InternalSignRequest::stage(
+            _nymd_client.expect("Should have a signing client here"),
+            config.keypair(),
+            storage.clone().unwrap(),
+        ))
+    } else {
+        rocket
+    };
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
@@ -459,25 +461,21 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         return Ok(());
     }
 
-    #[cfg(feature = "coconut")]
-    if matches.is_present(COCONUT_ONLY_FLAG) {
-        // this simplifies everything - we just want to run coconut things
-        return rocket::build()
-            .attach(setup_cors()?)
-            .attach(InternalSignRequest::stage(
-                QueryClient::new()?,
-                config.keypair(),
-                ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?,
-            ))
-            .launch()
-            .await
-            .map_err(|err| err.into());
-    }
+    let signing_nymd_client = if matches.is_present(MNEMONIC_ARG) {
+        Some(Client::new_signing(&config))
+    } else {
+        None
+    };
 
     let liftoff_notify = Arc::new(Notify::new());
 
     // let's build our rocket!
-    let rocket = setup_rocket(&config, Arc::clone(&liftoff_notify)).await?;
+    let rocket = setup_rocket(
+        &config,
+        Arc::clone(&liftoff_notify),
+        signing_nymd_client.clone(),
+    )
+    .await?;
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
@@ -485,7 +483,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
-        let nymd_client = Client::new_signing(&config);
+        let nymd_client = signing_nymd_client.expect("We should have a signing client here");
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client.clone(),
             config.get_caching_interval(),

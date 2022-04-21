@@ -279,23 +279,6 @@ impl RewardedSetUpdater {
         self.validator_cache
             .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
             .await;
-
-        info!(
-            "Blacklisted mixnodes: {}",
-            self.validator_cache
-                .mixnodes_blacklist()
-                .await
-                .into_inner()
-                .len()
-        );
-        info!(
-            "Blacklisted gateways: {}",
-            self.validator_cache
-                .gateways_blacklist()
-                .await
-                .into_inner()
-                .len()
-        );
         Ok(())
     }
 

@@ -3,8 +3,8 @@
 
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
-    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, SequenceResponse, UploadResult,
+    Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
+    InstantiateResult, MigrateResult, SequenceResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
@@ -224,6 +224,16 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
     {
         self.client.get_sequence(self.address()).await
+    }
+
+    pub async fn get_account_details(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<Account>, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.client.get_account(address).await
     }
 
     pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>

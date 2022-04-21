@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-validator-api"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -57,6 +57,7 @@ validator-client = { path="../common/client-libs/validator-client", features = [
 version-checker = { path="../common/version-checker" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials", optional = true }
+credential-storage = { path = "../common/credential-storage" }
 # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 console-subscriber = { version = "0.1.1", optional = true}
 cfg-if = "1.0"

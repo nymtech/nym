@@ -8,9 +8,7 @@ use crate::nymd::cosmwasm_client::types::{
 };
 use crate::nymd::error::NymdError;
 use async_trait::async_trait;
-use cosmrs::proto::cosmos::auth::v1beta1::{
-    BaseAccount, QueryAccountRequest, QueryAccountResponse,
-};
+use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
 use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
     QueryTotalSupplyRequest, QueryTotalSupplyResponse,
@@ -83,21 +81,16 @@ pub trait CosmWasmClient: rpc::Client {
             .make_abci_query::<_, QueryAccountResponse>(path, req)
             .await?;
 
-        let base_account = res
-            .account
-            .map(|account| BaseAccount::decode(account.value.as_ref()))
-            .transpose()?;
-
-        base_account
-            .map(|base_account| base_account.try_into())
-            .transpose()
+        res.account.map(TryFrom::try_from).transpose()
     }
 
     async fn get_sequence(&self, address: &AccountId) -> Result<SequenceResponse, NymdError> {
-        let base_account = self
+        let account = self
             .get_account(address)
             .await?
             .ok_or_else(|| NymdError::NonExistentAccountError(address.clone()))?;
+        let base_account = account.try_get_base_account()?;
+
         Ok(SequenceResponse {
             account_number: base_account.account_number,
             sequence: base_account.sequence,

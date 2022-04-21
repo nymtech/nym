@@ -12,7 +12,6 @@ export * from './network';
 export * from './operation';
 export * from './originalvestingresponse';
 export * from './rewardedsetnodestatus';
-export * from './rewardestimationresponse';
 export * from './stakesaturationresponse';
 export * from './stateparams';
 export * from './tauritxresult';

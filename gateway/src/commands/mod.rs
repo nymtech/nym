@@ -19,9 +19,6 @@ pub(crate) mod upgrade;
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
 const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
-// A dummy mnemonic
-#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-const DEFAULT_MNEMONIC: &str = "typical regret aware used tennis noise resource crisp defy join donate orient army item immense clean emerge globe gift chronic loan flat enter egg";
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -50,6 +47,7 @@ pub(crate) struct OverrideConfig {
     datastore: Option<String>,
     announce_host: Option<String>,
     validator_apis: Option<String>,
+    mnemonic: Option<String>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     testnet_mode: bool,
@@ -59,9 +57,6 @@ pub(crate) struct OverrideConfig {
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     validators: Option<String>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    mnemonic: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -121,10 +116,13 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_custom_persistent_store(datastore_path);
     }
 
+    if let Some(cosmos_mnemonic) = args.mnemonic {
+        config = config.with_cosmos_mnemonic(cosmos_mnemonic);
+    }
+
     #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
     {
         config = config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
-        config = config.with_cosmos_mnemonic(String::from(DEFAULT_MNEMONIC));
         config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
     }
 
@@ -140,10 +138,6 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
         if let Some(raw_validators) = args.validators {
             config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
-        }
-
-        if let Some(cosmos_mnemonic) = args.mnemonic {
-            config = config.with_cosmos_mnemonic(String::from(cosmos_mnemonic));
         }
 
         if let Some(eth_endpoint) = args.eth_endpoint {

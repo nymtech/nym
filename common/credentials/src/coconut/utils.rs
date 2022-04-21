@@ -11,7 +11,7 @@ use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use url::Url;
 
-use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES};
+use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use crate::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
@@ -175,7 +175,8 @@ pub async fn obtain_aggregate_signature(
 // TODO: better type flow
 pub fn prepare_credential_for_spending(
     params: &Parameters,
-    public_attributes: Vec<Vec<u8>>,
+    voucher_value: u64,
+    voucher_info: String,
     serial_number: Attribute,
     binding_number: Attribute,
     signature: &Signature,
@@ -190,9 +191,10 @@ pub fn prepare_credential_for_spending(
     )?;
 
     Ok(Credential::new(
-        (public_attributes.len() + PRIVATE_ATTRIBUTES as usize) as u32,
+        PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
         theta,
-        public_attributes,
+        voucher_value.to_string(),
+        voucher_info,
         signature,
     ))
 }

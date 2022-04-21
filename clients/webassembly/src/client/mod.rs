@@ -109,12 +109,6 @@ impl NymClient {
     pub async fn initial_setup(self) -> Self {
         let testnet_mode = self.testnet_mode;
 
-        #[cfg(feature = "coconut")]
-        let bandwidth_controller = Some(gateway_client::bandwidth::BandwidthController::new(
-            vec![self.validator_server.clone()],
-            *self.identity.public_key(),
-        ));
-        #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = None;
 
         let mut client = self.get_and_update_topology().await;

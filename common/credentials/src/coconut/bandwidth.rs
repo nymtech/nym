@@ -11,7 +11,6 @@ use coconut_interface::{
     PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
 use crypto::asymmetric::{encryption, identity};
-use network_defaults::BANDWIDTH_VALUE;
 
 use cosmrs::tx::Hash;
 
@@ -159,29 +158,27 @@ impl BandwidthVoucher {
 
     pub fn sign(&self, request: &BlindSignRequest) -> identity::Signature {
         let mut message = request.to_bytes();
-        message.extend_from_slice(self.tx_hash.as_bytes());
+        message.extend_from_slice(self.tx_hash.to_string().as_bytes());
         self.signing_key.sign(&message)
     }
 }
 
 pub fn prepare_for_spending(
-    raw_identity: &[u8],
+    voucher_value: u64,
+    voucher_info: String,
+    serial_number: PrivateAttribute,
+    binding_number: PrivateAttribute,
     signature: &Signature,
-    attributes: &BandwidthVoucher,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let public_attributes = vec![
-        raw_identity.to_vec(),
-        BANDWIDTH_VALUE.to_be_bytes().to_vec(),
-    ];
-
     let params = Parameters::new(TOTAL_ATTRIBUTES)?;
 
     prepare_credential_for_spending(
         &params,
-        public_attributes,
-        attributes.serial_number,
-        attributes.binding_number,
+        voucher_value,
+        voucher_info,
+        serial_number,
+        binding_number,
         signature,
         verification_key,
     )

@@ -108,6 +108,15 @@ pub enum NymdError {
 
     #[error("Abci query failed with code {0} - {1}")]
     AbciError(u32, abci::Log),
+
+    #[error("Unsupported account type: {type_url}")]
+    UnsupportedAccountType { type_url: String },
+
+    #[error("{coin_representation} is not a valid Cosmos Coin")]
+    MalformedCoin { coin_representation: String },
+
+    #[error("This account does not have BaseAccount information available to it")]
+    NoBaseAccountInformationAvailable,
 }
 
 impl NymdError {

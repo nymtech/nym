@@ -119,7 +119,7 @@ pub(crate) fn query_mixnode_delegation(
     proxy: Option<String>,
 ) -> Result<Vec<Delegation>, ContractError> {
     let validated_delegator = api.addr_validate(&delegator)?;
-    let proxy = proxy.map(|p| api.addr_validate(&p).expect("Invalid proxy address"));
+    let proxy = proxy.map(|p| api.addr_validate(&p)).transpose()?;
     let storage_key = (
         mix_identity.clone(),
         mixnet_contract_common::delegation::generate_storage_key(

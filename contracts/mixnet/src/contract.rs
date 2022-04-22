@@ -364,10 +364,12 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::QueryDelegatorReward {
             address,
             mix_identity,
+            proxy,
         } => to_binary(&crate::rewards::queries::query_delegator_reward(
             deps,
             address,
             mix_identity,
+            proxy,
         )?),
         QueryMsg::GetPendingDelegationEvents {
             owner_address,

@@ -14,7 +14,8 @@ pub(crate) const REWARD_POOL: Item<'_, Uint128> = Item::new("pool");
 // TODO: Do we need a migration for this?
 pub(crate) const REWARDING_STATUS: Map<'_, (u32, IdentityKey), RewardingStatus> = Map::new("rm");
 
-pub(crate) const DELEGATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> =
+// This has to be a byte vector due to proxy delegastions and rewarding
+pub(crate) const DELEGATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Vec<u8>, IdentityKey), BlockHeight> =
     Map::new("drc");
 pub(crate) const OPERATOR_REWARD_CLAIMED_HEIGHT: Map<'_, (Address, IdentityKey), BlockHeight> =
     Map::new("orc");

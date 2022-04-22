@@ -46,13 +46,19 @@ pub fn query_delegator_reward(
     deps: Deps,
     owner: String,
     mix_identity: IdentityKey,
+    proxy: Option<String>,
 ) -> Result<Uint128, ContractError> {
-    let owner_address = deps.api.addr_validate(&owner)?;
-    super::transactions::calculate_delegator_reward(
-        deps.storage,
-        owner_address.as_str(),
-        &mix_identity,
-    )
+    let proxy = proxy.map(|p| {
+        deps.api
+            .addr_validate(&p)
+            .map_err(|_| ContractError::InvalidAddress(p))
+            .expect("proxy address is invalid")
+    });
+    let key = mixnet_contract_common::delegation::generate_storage_key(
+        &deps.api.addr_validate(&owner)?,
+        proxy.as_ref(),
+    );
+    super::transactions::calculate_delegator_reward(deps.storage, key, &mix_identity)
 }
 
 #[cfg(test)]

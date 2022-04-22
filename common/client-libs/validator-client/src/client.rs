@@ -278,13 +278,14 @@ impl<C> Client<C> {
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,
+        proxy_address: Option<String>,
     ) -> Result<Vec<DelegationEvent>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
         Ok(self
             .nymd
-            .get_pending_delegation_events(owner_address)
+            .get_pending_delegation_events(owner_address, proxy_address)
             .await?)
     }
 

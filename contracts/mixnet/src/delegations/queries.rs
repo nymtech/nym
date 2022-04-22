@@ -9,16 +9,25 @@ use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    Delegation, IdentityKey, PagedDelegatorDelegationsResponse, PagedMixDelegationsResponse,
+    delegation, Delegation, IdentityKey, PagedDelegatorDelegationsResponse,
+    PagedMixDelegationsResponse,
 };
 
 pub(crate) fn query_pending_delegation_events(
-    storage: &dyn Storage,
+    deps: Deps<'_>,
     owner_address: String,
+    proxy_address: Option<String>,
 ) -> Result<Vec<DelegationEvent>, ContractError> {
+    let validated_owner = deps.api.addr_validate(&owner_address)?;
+    let validated_proxy = proxy_address
+        .map(|proxy| deps.api.addr_validate(&proxy))
+        .transpose()?;
+
+    let key_prefix = delegation::generate_storage_key(&validated_owner, validated_proxy.as_ref());
+
     Ok(storage::PENDING_DELEGATION_EVENTS
-        .sub_prefix(owner_address.as_bytes().to_vec())
-        .range(storage, None, None, Order::Ascending)
+        .sub_prefix(key_prefix)
+        .range(deps.storage, None, None, Order::Ascending)
         .filter_map(|r| r.ok())
         .map(|(_key, delegation_event)| delegation_event)
         .collect::<Vec<DelegationEvent>>())

@@ -345,11 +345,15 @@ impl<C> NymdClient<C> {
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,
+        proxy_address: Option<String>,
     ) -> Result<Vec<DelegationEvent>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetPendingDelegationEvents { owner_address };
+        let request = QueryMsg::GetPendingDelegationEvents {
+            owner_address,
+            proxy_address,
+        };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

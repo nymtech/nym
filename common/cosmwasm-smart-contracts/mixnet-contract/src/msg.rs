@@ -174,6 +174,7 @@ pub enum QueryMsg {
     },
     GetPendingDelegationEvents {
         owner_address: String,
+        proxy_address: Option<String>,
     },
 }
 

@@ -43,16 +43,6 @@ pub fn try_write_rewarded_set(
     }
 
     let block_height = env.block.height;
-
-    if let Some(last_update) = storage::CURRENT_REWARDED_SET_HEIGHT.may_load(deps.storage)? {
-        if last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS > block_height {
-            return Err(ContractError::TooFrequentRewardedSetUpdate {
-                last_update,
-                minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
-                current_height: block_height,
-            });
-        }
-    }
     let num_nodes = rewarded_set.len();
 
     storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
@@ -184,21 +174,6 @@ mod tests {
 
         // cannot be performed too soon after a previous update
         env.block.height = last_update + 1;
-        assert_eq!(
-            Err(ContractError::TooFrequentRewardedSetUpdate {
-                last_update,
-                minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
-                current_height: last_update + 1,
-            }),
-            try_write_rewarded_set(
-                deps.as_mut(),
-                env.clone(),
-                authorised_sender.clone(),
-                full_rewarded_set.clone(),
-                current_state.params.mixnode_active_set_size
-            )
-        );
-
         // after successful rewarded set write, all internal storage structures are updated appropriately
         env.block.height = last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS;
         let expected_response = Response::new().add_event(new_change_rewarded_set_event(

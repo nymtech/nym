@@ -2,7 +2,12 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material';
 import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
-import { getCurrentEpoch, getPendingDelegations, getReverseMixDelegations } from '../../requests';
+import {
+  getCurrentEpoch,
+  getPendingDelegations,
+  getPendingVestingDelegations,
+  getReverseMixDelegations,
+} from '../../requests';
 import { Epoch, PendingUndelegate, TPagedDelegations } from '../../types';
 import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
@@ -21,7 +26,8 @@ export const Undelegate = () => {
   const refresh = async () => {
     const mixnodeDelegations = await getReverseMixDelegations();
     const pendingEvents = await getPendingDelegations();
-    const pendingUndelegationEvents = pendingEvents
+    const pendingVestingEvents = await getPendingVestingDelegations();
+    const pendingUndelegationEvents = [...pendingEvents, ...pendingVestingEvents]
       .filter((evt): evt is { Undelegate: PendingUndelegate } => 'Undelegate' in evt)
       .map((e) => ({ ...e.Undelegate }));
     const epoch = await getCurrentEpoch();

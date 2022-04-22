@@ -336,7 +336,7 @@ pub(crate) fn try_reconcile_undelegation(
         None
     };
 
-    let bank_msg = mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+    mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
         storage,
         &pending_undelegate.mix_identity(),
         |total_node_delegation| {

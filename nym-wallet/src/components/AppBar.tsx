@@ -1,12 +1,15 @@
 import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { Logout } from '@mui/icons-material';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import { ClientContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { Node as NodeIcon } from '../svg-icons/node';
+import { config } from '../../config';
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings } = useContext(ClientContext);
+  const { showSettings, logOut, handleShowSettings, handleShowTerminal } = useContext(ClientContext);
+  const { IS_DEV_MODE } = config;
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
@@ -16,6 +19,13 @@ export const AppBar = () => {
             <NetworkSelector />
           </Grid>
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
+            {IS_DEV_MODE && (
+              <Grid item>
+                <IconButton size="small" onClick={handleShowTerminal} sx={{ color: 'nym.background.dark' }}>
+                  <TerminalIcon fontSize="small" />
+                </IconButton>
+              </Grid>
+            )}
             <Grid item>
               <IconButton
                 onClick={handleShowSettings}

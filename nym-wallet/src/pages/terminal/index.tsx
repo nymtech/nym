@@ -6,7 +6,12 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import { ClientContext } from '../../context/main';
 import { NymCard } from '../../components';
-import { getCurrentEpoch, getPendingDelegations, getReverseMixDelegations } from '../../requests';
+import {
+  getCurrentEpoch,
+  getPendingDelegations,
+  getPendingVestingDelegations,
+  getReverseMixDelegations,
+} from '../../requests';
 import { useGetBalance } from '../../hooks/useGetBalance';
 
 const TerminalSection: React.FC<{
@@ -32,11 +37,12 @@ const TerminalSection: React.FC<{
 };
 
 export const Terminal: React.FC = () => {
-  const { userBalance, clientDetails, showTerminal, handleShowTerminal } = useContext(ClientContext);
+  const { network, userBalance, clientDetails, showTerminal, handleShowTerminal } = useContext(ClientContext);
   const { balance, vestingAccountInfo, currentVestingPeriod, originalVesting, fetchBalance, fetchTokenAllocation } =
     useGetBalance(clientDetails?.client_address);
   const [mixnodeDelegations, setMixnodeDelegations] = useState<any>();
   const [pendingEvents, setPendingEvents] = useState<any>();
+  const [pendingVestingEvents, setPendingVestingEvents] = useState<any>();
   const [epoch, setEpoch] = useState<any>();
   const [isBusy, setIsBusy] = useState<boolean>();
   const [error, setError] = useState<any>();
@@ -46,6 +52,7 @@ export const Terminal: React.FC = () => {
     try {
       await fn();
     } catch (e) {
+      console.error(e);
       setError(e);
     }
   };
@@ -60,6 +67,10 @@ export const Terminal: React.FC = () => {
     setStatus('Getting pending delegations...');
     await withErrorCatch(async () => {
       setPendingEvents(await getPendingDelegations());
+    });
+    setStatus('Getting pending vesting delegations...');
+    await withErrorCatch(async () => {
+      setPendingEvents(await getPendingVestingDelegations());
     });
     setStatus('Getting current epoch...');
     await withErrorCatch(async () => {
@@ -79,7 +90,7 @@ export const Terminal: React.FC = () => {
 
   React.useEffect(() => {
     refresh();
-  }, []);
+  }, [network]);
 
   if (!showTerminal) {
     return null;
@@ -96,10 +107,12 @@ export const Terminal: React.FC = () => {
           </Box>
         }
       >
+        <h2>State Viewer</h2>
+
         {error && <Alert color="error">{error}</Alert>}
 
         {status ? (
-          <Alert color="info" sx={{ mb: 2 }}>
+          <Alert color="info" icon={<RefreshIcon />} sx={{ mb: 2 }}>
             <strong>{status}</strong>
           </Alert>
         ) : (
@@ -156,6 +169,10 @@ export const Terminal: React.FC = () => {
 
         <TerminalSection heading="Pending Delegation Events">
           <pre>{JSON.stringify(pendingEvents, null, 2)}</pre>
+        </TerminalSection>
+
+        <TerminalSection heading="Pending Vesting Delegation Events">
+          <pre>{JSON.stringify(pendingVestingEvents, null, 2)}</pre>
         </TerminalSection>
 
         <TerminalSection heading="Epoch">

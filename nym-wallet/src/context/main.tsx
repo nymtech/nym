@@ -29,6 +29,7 @@ type TClientContext = {
   userBalance: TUseuserBalance;
   showAdmin: boolean;
   showSettings: boolean;
+  showTerminal: boolean;
   network?: Network;
   currency?: TCurrency;
   isLoading: boolean;
@@ -39,6 +40,7 @@ type TClientContext = {
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
+  handleShowTerminal: () => void;
   logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
@@ -53,6 +55,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -128,6 +131,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
   const memoizedValue = useMemo(
@@ -140,6 +144,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       userBalance,
       showAdmin,
       showSettings,
+      showTerminal,
       network,
       currency,
       setIsLoading,
@@ -149,10 +154,23 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       getBondDetails,
       handleShowSettings,
       handleShowAdmin,
+      handleShowTerminal,
       logIn,
       logOut,
     }),
-    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
+    [
+      mode,
+      isLoading,
+      error,
+      clientDetails,
+      mixnodeDetails,
+      userBalance,
+      showAdmin,
+      showSettings,
+      showTerminal,
+      network,
+      currency,
+    ],
   );
 
   return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;

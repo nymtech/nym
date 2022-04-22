@@ -11,6 +11,7 @@ import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
 import { SignInProvider } from './pages/sign-in/context';
+import { Terminal } from './pages/terminal';
 
 const App = () => {
   const { clientDetails } = useContext(ClientContext);
@@ -30,6 +31,7 @@ const App = () => {
       <ApplicationLayout>
         <Settings />
         <Admin />
+        <Terminal />
         <AppRoutes />
       </ApplicationLayout>
     </NymWalletTheme>

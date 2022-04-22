@@ -199,26 +199,27 @@ pub fn _try_compound_delegator_reward(
     proxy: Option<Addr>,
 ) -> Result<Uint128, ContractError> {
     let reward = calculate_delegator_reward(storage, owner_address, mix_identity)?;
-    if _try_delegate_to_mixnode(
-        storage,
-        api,
-        block_height,
-        mix_identity,
-        owner_address,
-        Coin {
-            amount: reward,
-            denom: DENOM.to_string(),
-        },
-        proxy,
-    )
-    .is_ok()
+    if reward != Uint128::zero()
+        && _try_delegate_to_mixnode(
+            storage,
+            api,
+            block_height,
+            mix_identity,
+            owner_address,
+            Coin {
+                amount: reward,
+                denom: DENOM.to_string(),
+            },
+            proxy,
+        )
+        .is_ok()
     {
         // Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
         if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
             bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
             mixnodes().save(storage, mix_identity, &bond, block_height)?;
         }
-    };
+    }
 
     DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
         storage,

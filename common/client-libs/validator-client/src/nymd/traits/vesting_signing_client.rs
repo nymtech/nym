@@ -256,7 +256,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 self.vesting_contract_address()?,
                 &req,
                 fee,
-                "VestingContract::DeledateToMixnode",
+                "VestingContract::DelegateToMixnode",
                 vec![],
             )
             .await

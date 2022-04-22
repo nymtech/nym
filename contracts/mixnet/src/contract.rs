@@ -369,9 +369,14 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             address,
             mix_identity,
         )?),
-        QueryMsg::GetPendingDelegationEvents { owner_address } => to_binary(
-            &query_pending_delegation_events(deps.storage, owner_address)?,
-        ),
+        QueryMsg::GetPendingDelegationEvents {
+            owner_address,
+            proxy_address,
+        } => to_binary(&query_pending_delegation_events(
+            deps,
+            owner_address,
+            proxy_address,
+        )?),
         QueryMsg::GetAllDelegationKeys {} => to_binary(
             &crate::delegations::queries::query_all_delegation_keys(deps.storage)?,
         ),

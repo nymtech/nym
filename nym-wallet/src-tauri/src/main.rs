@@ -89,6 +89,7 @@ fn main() {
       vesting::bond::vesting_unbond_mixnode,
       vesting::bond::vesting_update_mixnode,
       vesting::bond::withdraw_vested_coins,
+      vesting::delegate::get_pending_vesting_delegation_events,
       vesting::delegate::vesting_delegate_to_mixnode,
       vesting::delegate::vesting_undelegate_from_mixnode,
       vesting::queries::delegated_free,

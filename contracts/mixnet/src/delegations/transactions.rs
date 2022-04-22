@@ -272,7 +272,7 @@ pub(crate) fn try_reconcile_undelegation(
         storage,
         pending_undelegate.delegate().as_str(),
         &pending_undelegate.mix_identity(),
-        None,
+        pending_undelegate.proxy(),
     )?;
 
     // Might want to introduce paging here

@@ -46,6 +46,10 @@ pub(crate) fn _try_reconcile_all_delegation_events(
     for (key, delegation_event) in pending_delegation_events {
         match delegation_event {
             DelegationEvent::Delegate(delegation) => {
+                // if for some reason the delegation is zero, don't do anything since it should be a no-op anyway
+                if delegation.amount.amount == Uint128::zero() {
+                    continue;
+                }
                 let event = try_reconcile_delegation(storage, delegation)?;
                 response = response.add_event(event);
             }
@@ -318,16 +322,21 @@ pub(crate) fn try_reconcile_undelegation(
         )?;
     }
 
-    let bank_msg = BankMsg::Send {
-        to_address: pending_undelegate
-            .proxy()
-            .as_ref()
-            .unwrap_or(&pending_undelegate.delegate())
-            .to_string(),
-        amount: coins(total_delegation.u128(), DENOM),
+    // don't add a bank message if it would have resulted in attempting to send 0 tokens
+    let bank_msg = if total_delegation != Uint128::zero() {
+        Some(BankMsg::Send {
+            to_address: pending_undelegate
+                .proxy()
+                .as_ref()
+                .unwrap_or(&pending_undelegate.delegate())
+                .to_string(),
+            amount: coins(total_delegation.u128(), DENOM),
+        })
+    } else {
+        None
     };
 
-    mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+    let bank_msg = mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
         storage,
         &pending_undelegate.mix_identity(),
         |total_node_delegation| {
@@ -362,7 +371,7 @@ pub(crate) fn try_reconcile_undelegation(
     );
 
     Ok(ReconcileUndelegateResponse {
-        bank_msg: Some(bank_msg),
+        bank_msg,
         wasm_msg,
         event,
     })

@@ -8,12 +8,13 @@ use crate::node_status_api::models::{
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
 use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
+use mixnet_contract_common::Interval;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 use super::models::Uptime;
@@ -233,4 +234,55 @@ pub(crate) async fn get_mixnode_inclusion_probability(
     } else {
         Json(None)
     }
+}
+
+async fn average_mixnode_uptime(
+    identity: &str,
+    current_epoch: Option<Interval>,
+    storage: &State<ValidatorApiStorage>,
+) -> Result<Uptime, ErrorResponse> {
+    Ok(if let Some(epoch) = current_epoch {
+        storage
+            .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
+            .await
+            .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?
+    } else {
+        Uptime::default()
+    })
+}
+
+#[get("/mixnode/<identity>/avg_uptime")]
+pub(crate) async fn get_mixnode_avg_uptime(
+    cache: &State<ValidatorCache>,
+    storage: &State<ValidatorApiStorage>,
+    identity: String,
+) -> Result<Json<UptimeResponse>, ErrorResponse> {
+    let current_epoch = cache.current_epoch().await.into_inner();
+    let uptime = average_mixnode_uptime(&identity, current_epoch, storage).await?;
+
+    Ok(Json(UptimeResponse {
+        identity,
+        avg_uptime: uptime.u8(),
+    }))
+}
+
+#[get("/mixnodes/avg_uptime")]
+pub(crate) async fn get_mixnode_avg_uptimes(
+    cache: &State<ValidatorCache>,
+    storage: &State<ValidatorApiStorage>,
+) -> Result<Json<Vec<UptimeResponse>>, ErrorResponse> {
+    let mixnodes = cache.mixnodes().await;
+    let current_epoch = cache.current_epoch().await.into_inner();
+
+    let mut response = Vec::new();
+    for mixnode in mixnodes {
+        let uptime = average_mixnode_uptime(mixnode.identity(), current_epoch, storage).await?;
+
+        response.push(UptimeResponse {
+            identity: mixnode.identity().to_string(),
+            avg_uptime: uptime.u8(),
+        })
+    }
+
+    Ok(Json(response))
 }

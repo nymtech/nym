@@ -62,6 +62,12 @@ pub struct RewardEstimationResponse {
     pub as_at: i64,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UptimeResponse {
+    pub identity: String,
+    pub avg_uptime: u8,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(

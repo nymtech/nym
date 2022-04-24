@@ -7,7 +7,7 @@ use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 
 #[cfg(feature = "nymd-client")]
@@ -579,6 +579,12 @@ impl<C> Client<C> {
         }
 
         Ok(delegations)
+    }
+
+    pub async fn get_mixnode_avg_uptimes(
+        &self,
+    ) -> Result<Vec<UptimeResponse>, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnode_avg_uptimes().await?)
     }
 
     pub async fn blind_sign(

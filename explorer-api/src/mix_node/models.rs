@@ -27,6 +27,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub owner: Addr,
     pub layer: Layer,
     pub mix_node: MixNode,
+    pub avg_uptime: Option<u8>,
 }
 
 pub(crate) struct MixNodeCache {

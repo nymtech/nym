@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -247,6 +247,36 @@ impl Client {
                 routes::MIXNODE,
                 identity,
                 routes::INCLUSION_CHANCE,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_avg_uptime(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<UptimeResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODE,
+                identity,
+                routes::AVG_UPTIME,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_avg_uptimes(&self) -> Result<Vec<UptimeResponse>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODES,
+                routes::AVG_UPTIME,
             ],
             NO_PARAMS,
         )

@@ -29,6 +29,8 @@ pub(crate) fn stage_full() -> AdHoc {
                 routes::get_mixnode_reward_estimation,
                 routes::get_mixnode_stake_saturation,
                 routes::get_mixnode_inclusion_probability,
+                routes::get_mixnode_avg_uptime,
+                routes::get_mixnode_avg_uptimes,
             ],
         )
     })

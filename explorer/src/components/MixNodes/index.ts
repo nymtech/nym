@@ -12,7 +12,7 @@ export type MixnodeRowType = {
   host: string;
   layer: string;
   profit_percentage: string;
-  avg_uptime?: number;  //Todo the question mark, when the back will be connected
+  avg_uptime: number;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {

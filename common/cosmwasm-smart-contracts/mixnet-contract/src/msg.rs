@@ -15,6 +15,9 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    UpdateRewardingValidatorAddress {
+        address: String,
+    },
     InitEpoch {},
     ReconcileDelegations {},
     CheckpointMixnodes {},
@@ -101,6 +104,9 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetRewardingValidatorAddress {},
+    GetAllDelegationKeys {},
+    DebugGetAllDelegationValues {},
     GetContractVersion {},
     GetMixNodes {
         limit: Option<u32>,
@@ -137,6 +143,7 @@ pub enum QueryMsg {
     GetDelegationDetails {
         mix_identity: IdentityKey,
         delegator: String,
+        proxy: Option<String>,
     },
     LayerDistribution {},
     GetRewardPool {},
@@ -167,6 +174,7 @@ pub enum QueryMsg {
     },
     GetPendingDelegationEvents {
         owner_address: String,
+        proxy_address: Option<String>,
     },
 }
 

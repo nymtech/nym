@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "0.12.1"
+version = "1.0.0-rc.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 rust-version = "1.56"
@@ -27,6 +27,7 @@ url = "2.2"
 client-core = { path = "../client-core" }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 credentials = { path = "../../common/credentials", optional = true }
+credential-storage = { path = "../../common/credential-storage" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
@@ -37,12 +38,12 @@ socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
 pemstore = { path = "../../common/pemstore" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../../common/version-checker" }
 network-defaults = { path = "../../common/network-defaults" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut"]
+coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]
 eth = []
 
 [build-dependencies]

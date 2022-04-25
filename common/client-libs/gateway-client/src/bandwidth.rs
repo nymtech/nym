@@ -1,33 +1,35 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::{Storage, StorageError};
 #[cfg(feature = "coconut")]
-use cosmrs::tx::Hash;
+use coconut_interface::Base58;
+#[cfg(feature = "coconut")]
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::error::StorageError;
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::storage::Storage;
 #[cfg(feature = "coconut")]
 use credentials::coconut::{
-    bandwidth::{prepare_for_spending, BandwidthVoucher, TOTAL_ATTRIBUTES},
-    utils::{obtain_aggregate_signature, obtain_aggregate_verification_key},
+    bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
 };
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
-#[cfg(feature = "coconut")]
-use crypto::asymmetric::encryption;
+#[cfg(not(feature = "coconut"))]
 use crypto::asymmetric::identity;
-use network_defaults::BANDWIDTH_VALUE;
 #[cfg(not(feature = "coconut"))]
 use network_defaults::{
-    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, ETH_BURN_FUNCTION_NAME,
-    ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME, ETH_ERC20_CONTRACT_ADDRESS,
-    ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
+    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE,
+    ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME,
+    ETH_ERC20_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
 };
 #[cfg(not(feature = "coconut"))]
 use pemstore::traits::PemStorableKeyPair;
+#[cfg(not(feature = "coconut"))]
 use rand::rngs::OsRng;
 #[cfg(not(feature = "coconut"))]
 use secp256k1::SecretKey;
-#[cfg(not(feature = "coconut"))]
-use std::io::{Read, Write};
-#[cfg(not(feature = "coconut"))]
 use std::str::FromStr;
 #[cfg(not(feature = "coconut"))]
 use web3::{
@@ -68,35 +70,35 @@ pub fn eth_erc20_contract(web3: Web3<Http>) -> Contract<Http> {
 }
 
 #[derive(Clone)]
-pub struct BandwidthController {
+pub struct BandwidthController<St: Storage> {
+    storage: St,
     #[cfg(feature = "coconut")]
     validator_endpoints: Vec<url::Url>,
-    #[cfg(feature = "coconut")]
-    identity: identity::PublicKey,
     #[cfg(not(feature = "coconut"))]
     contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
     erc20_contract: Contract<Http>,
     #[cfg(not(feature = "coconut"))]
     eth_private_key: SecretKey,
-    #[cfg(not(feature = "coconut"))]
-    backup_bandwidth_token_keys_dir: std::path::PathBuf,
 }
 
-impl BandwidthController {
+impl<St> BandwidthController<St>
+where
+    St: Storage + Clone + 'static,
+{
     #[cfg(feature = "coconut")]
-    pub fn new(validator_endpoints: Vec<url::Url>, identity: identity::PublicKey) -> Self {
+    pub fn new(storage: St, validator_endpoints: Vec<url::Url>) -> Self {
         BandwidthController {
+            storage,
             validator_endpoints,
-            identity,
         }
     }
 
     #[cfg(not(feature = "coconut"))]
     pub fn new(
+        storage: St,
         eth_endpoint: String,
         eth_private_key: String,
-        backup_bandwidth_token_keys_dir: std::path::PathBuf,
     ) -> Result<Self, GatewayClientError> {
         // Fail early, on invalid url
         let transport =
@@ -109,60 +111,42 @@ impl BandwidthController {
             .map_err(|_| GatewayClientError::InvalidEthereumPrivateKey)?;
 
         Ok(BandwidthController {
+            storage,
             contract,
             erc20_contract,
             eth_private_key,
-            backup_bandwidth_token_keys_dir,
         })
     }
 
     #[cfg(not(feature = "coconut"))]
-    fn backup_keypair(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
-        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
-        let file_path = self
-            .backup_bandwidth_token_keys_dir
-            .join(keypair.public_key().to_base58_string());
-        let mut file = std::fs::File::create(file_path)?;
-        file.write_all(&keypair.private_key().to_bytes())?;
+    async fn backup_keypair(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
+        self.storage
+            .insert_erc20_credential(
+                keypair.public_key().to_base58_string(),
+                keypair.private_key().to_base58_string(),
+            )
+            .await?;
 
         Ok(())
     }
 
     #[cfg(not(feature = "coconut"))]
-    fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
-        std::fs::create_dir_all(&self.backup_bandwidth_token_keys_dir)?;
-        let file = std::fs::read_dir(&self.backup_bandwidth_token_keys_dir)?
-            .find(|entry| {
-                entry
-                    .as_ref()
-                    .map(|entry| entry.path().is_file())
-                    .unwrap_or(false)
-            })
-            .unwrap_or_else(|| Err(std::io::Error::from(std::io::ErrorKind::NotFound)))?;
-        let file_path = file.path();
-        let pub_key = file_path
-            .file_name()
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?
-            .to_str()
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?;
-        let mut priv_key = vec![];
-        std::fs::File::open(file_path.clone())?.read_to_end(&mut priv_key)?;
-        Ok(identity::KeyPair::from_keys(
-            identity::PrivateKey::from_bytes(&priv_key).unwrap(),
-            identity::PublicKey::from_base58_string(pub_key).unwrap(),
-        ))
+    async fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
+        let data = self.storage.get_next_erc20_credential().await?;
+        let public_key = identity::PublicKey::from_base58_string(data.public_key).unwrap();
+        let private_key = identity::PrivateKey::from_base58_string(data.private_key).unwrap();
+
+        Ok(identity::KeyPair::from_keys(private_key, public_key))
     }
 
     #[cfg(not(feature = "coconut"))]
-    fn mark_keypair_as_spent(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
-        let mut spent_dir = self.backup_bandwidth_token_keys_dir.clone();
-        spent_dir.push("spent");
-        std::fs::create_dir_all(&spent_dir)?;
-        let file_path_old = self
-            .backup_bandwidth_token_keys_dir
-            .join(keypair.public_key().to_base58_string());
-        let file_path_new = spent_dir.join(keypair.public_key().to_base58_string());
-        std::fs::rename(file_path_old, file_path_new)?;
+    async fn mark_keypair_as_spent(
+        &self,
+        keypair: &identity::KeyPair,
+    ) -> Result<(), GatewayClientError> {
+        self.storage
+            .consume_erc20_credential(keypair.public_key().to_base58_string())
+            .await?;
 
         Ok(())
     }
@@ -172,39 +156,24 @@ impl BandwidthController {
         &self,
     ) -> Result<coconut_interface::Credential, GatewayClientError> {
         let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
-        let params = coconut_interface::Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-
-        let mut rng = OsRng;
-        // TODO: Decide what is the value and additional info associated with the bandwidth voucher
-        let bandwidth_credential_attributes = BandwidthVoucher::new(
-            &params,
-            BANDWIDTH_VALUE.to_string(),
-            network_defaults::VOUCHER_INFO.to_string(),
-            Hash::new([0; 32]),
-            // workaround for putting a valid value here, without deriving clone for the private
-            // key, until we have actual useful values
-            identity::PrivateKey::from_base58_string(
-                identity::KeyPair::new(&mut rng)
-                    .private_key()
-                    .to_base58_string(),
-            )
-            .unwrap(),
-            encryption::KeyPair::new(&mut rng).private_key().clone(),
-        );
-
-        let bandwidth_credential = obtain_aggregate_signature(
-            &params,
-            &bandwidth_credential_attributes,
-            &self.validator_endpoints,
-        )
-        .await?;
-        // the above would presumably be loaded from a file
+        let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
+        let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
+            .map_err(|_| StorageError::InconsistentData)?;
+        let voucher_info = bandwidth_credential.voucher_info.clone();
+        let serial_number =
+            coconut_interface::Attribute::try_from_bs58(bandwidth_credential.serial_number)?;
+        let binding_number =
+            coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
+        let signature =
+            coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
         Ok(prepare_for_spending(
-            &self.identity.to_bytes(),
-            &bandwidth_credential,
-            &bandwidth_credential_attributes,
+            voucher_value,
+            voucher_info,
+            serial_number,
+            binding_number,
+            &signature,
             &verification_key,
         )?)
     }
@@ -215,12 +184,12 @@ impl BandwidthController {
         gateway_identity: identity::PublicKey,
         gateway_owner: String,
     ) -> Result<TokenCredential, GatewayClientError> {
-        let kp = match self.restore_keypair() {
+        let kp = match self.restore_keypair().await {
             Ok(kp) => kp,
             Err(_) => {
                 let mut rng = OsRng;
                 let kp = identity::KeyPair::new(&mut rng);
-                self.backup_keypair(&kp)?;
+                self.backup_keypair(&kp).await?;
                 kp
             }
         };
@@ -230,7 +199,7 @@ impl BandwidthController {
         self.buy_token_credential(verification_key, signed_verification_key, gateway_owner)
             .await?;
 
-        self.mark_keypair_as_spent(&kp)?;
+        self.mark_keypair_as_spent(&kp).await?;
 
         let message: Vec<u8> = verification_key
             .to_bytes()

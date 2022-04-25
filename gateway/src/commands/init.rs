@@ -43,6 +43,10 @@ pub struct Init {
     #[clap(long)]
     validator_apis: Option<String>,
 
+    /// Cosmos wallet mnemonic needed for double spending protection
+    #[clap(long)]
+    mnemonic: String,
+
     /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
@@ -57,11 +61,6 @@ pub struct Init {
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     validators: Option<String>,
-
-    /// Cosmos wallet mnemonic
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    mnemonic: String,
 }
 
 impl From<Init> for OverrideConfig {
@@ -74,6 +73,7 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
             validator_apis: init_config.validator_apis,
+            mnemonic: Some(init_config.mnemonic),
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             testnet_mode: init_config.testnet_mode,
@@ -83,9 +83,6 @@ impl From<Init> for OverrideConfig {
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             validators: init_config.validators,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            mnemonic: Some(init_config.mnemonic),
         }
     }
 }
@@ -166,6 +163,7 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
+            mnemonic: "a b c".to_string(),
         };
 
         let config = Config::new(&args.id);

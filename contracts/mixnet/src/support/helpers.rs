@@ -40,19 +40,6 @@ pub(crate) fn epoch_reward_params(
     Ok(epoch_reward_params)
 }
 
-pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
-    if let Some(proxy) = &proxy {
-        address
-            .as_bytes()
-            .iter()
-            .zip(proxy.as_bytes())
-            .map(|(x, y)| x ^ y)
-            .collect()
-    } else {
-        address.as_bytes().to_vec()
-    }
-}
-
 // check if the target address has already bonded a mixnode or gateway,
 // in either case, return an appropriate error
 pub(crate) fn ensure_no_existing_bond(

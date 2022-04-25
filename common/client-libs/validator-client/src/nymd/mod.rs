@@ -3,8 +3,8 @@
 
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
-    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, SequenceResponse, UploadResult,
+    Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
+    InstantiateResult, MigrateResult, SequenceResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
@@ -171,6 +171,10 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
+    pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.simulated_gas_multiplier = multiplier;
+    }
+
     pub fn address(&self) -> &AccountId
     where
         C: SigningCosmWasmClient,
@@ -224,6 +228,16 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
     {
         self.client.get_sequence(self.address()).await
+    }
+
+    pub async fn get_account_details(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<Account>, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.client.get_account(address).await
     }
 
     pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
@@ -331,11 +345,15 @@ impl<C> NymdClient<C> {
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,
+        proxy_address: Option<String>,
     ) -> Result<Vec<DelegationEvent>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetPendingDelegationEvents { owner_address };
+        let request = QueryMsg::GetPendingDelegationEvents {
+            owner_address,
+            proxy_address,
+        };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -599,6 +617,7 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: IdentityKey,
         delegator: &AccountId,
+        proxy: Option<String>,
     ) -> Result<Delegation, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -606,6 +625,7 @@ impl<C> NymdClient<C> {
         let request = QueryMsg::GetDelegationDetails {
             mix_identity,
             delegator: delegator.to_string(),
+            proxy,
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)

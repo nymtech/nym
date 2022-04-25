@@ -3,7 +3,9 @@
 
 use crate::nymd::error::NymdError;
 use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
+use cosmrs::proto::cosmos::base::v1beta1::Coin as ProtoCoin;
 use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::Coin;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;
@@ -64,4 +66,15 @@ pub(crate) fn next_page_key(pagination_info: Option<PageResponse>) -> Option<Vec
     }
 
     None
+}
+
+pub(crate) fn parse_proto_coin_vec(value: Vec<ProtoCoin>) -> Result<Vec<Coin>, NymdError> {
+    value
+        .into_iter()
+        .map(|proto_coin| {
+            Coin::try_from(&proto_coin).map_err(|_| NymdError::MalformedCoin {
+                coin_representation: format!("{:?}", proto_coin),
+            })
+        })
+        .collect()
 }

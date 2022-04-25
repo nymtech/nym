@@ -15,7 +15,7 @@ pub async fn get_pending_delegation_events(
 ) -> Result<Vec<DelegationEvent>, BackendError> {
   Ok(
     nymd_client!(state)
-      .get_pending_delegation_events(nymd_client!(state).address().to_string())
+      .get_pending_delegation_events(nymd_client!(state).address().to_string(), None)
       .await?
       .into_iter()
       .map(|delegation_event| delegation_event.into())

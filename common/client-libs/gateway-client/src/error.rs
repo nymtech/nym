@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::StorageError;
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::error::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use std::io;
 use thiserror::Error;
@@ -21,14 +25,17 @@ pub enum GatewayClientError {
     #[error("There was a network error - {0}")]
     NetworkError(#[from] WsError),
 
+    #[error("There was a credential storage error - {0}")]
+    CredentialStorageError(#[from] StorageError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Coconut error - {0}")]
+    CoconutError(#[from] coconut_interface::CoconutError),
+
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]
     NetworkErrorWasm(JsValue),
-
-    #[cfg(not(feature = "coconut"))]
-    #[error("Keypair IO error - {0}")]
-    IOError(#[from] std::io::Error),
 
     #[cfg(not(feature = "coconut"))]
     #[error("Could not burn ERC20 token in Ethereum smart contract - {0}")]
@@ -68,6 +75,9 @@ pub enum GatewayClientError {
 
     #[error("Client does not have enough bandwidth: estimated {0}, remaining: {1}")]
     NotEnoughBandwidth(i64, i64),
+
+    #[error("There are no more bandwidth credentials acquired. Please buy some more if you want to use the mixnet")]
+    NoMoreBandwidthCredentials,
 
     #[error("Received an unexpected response")]
     UnexpectedResponse,

@@ -16,7 +16,7 @@ export const Receive = () => {
             You can receive tokens by providing this address to the sender
           </Alert>
           <Box>
-            <ClientAddress withCopy />
+            <ClientAddress withCopy showEntireAddress />
           </Box>
           {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
         </Stack>

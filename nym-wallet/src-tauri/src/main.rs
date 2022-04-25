@@ -14,6 +14,7 @@ mod config;
 mod error;
 mod menu;
 mod network;
+mod network_config;
 mod operations;
 mod platform_constants;
 mod state;
@@ -35,19 +36,15 @@ fn main() {
     .manage(Arc::new(RwLock::new(State::default())))
     .invoke_handler(tauri::generate_handler![
       mixnet::account::connect_with_mnemonic,
-      mixnet::account::validate_mnemonic,
       mixnet::account::create_new_account,
       mixnet::account::create_new_mnemonic,
       mixnet::account::create_password,
       mixnet::account::does_password_file_exist,
       mixnet::account::get_balance,
-      mixnet::account::get_validator_nymd_urls,
-      mixnet::account::get_validator_api_urls,
       mixnet::account::logout,
       mixnet::account::remove_password,
       mixnet::account::sign_in_with_password,
       mixnet::account::switch_network,
-      mixnet::account::update_validator_urls,
       mixnet::account::validate_mnemonic,
       mixnet::admin::get_contract_settings,
       mixnet::admin::update_contract_settings,
@@ -61,11 +58,20 @@ fn main() {
       mixnet::bond::update_mixnode,
       mixnet::delegate::delegate_to_mixnode,
       mixnet::delegate::get_delegator_rewards,
+      mixnet::delegate::get_pending_delegation_events,
       mixnet::delegate::get_reverse_mix_delegations_paged,
       mixnet::delegate::undelegate_from_mixnode,
-      mixnet::delegate::get_pending_delegation_events,
       mixnet::epoch::get_current_epoch,
       mixnet::send::send,
+      network_config::add_validator,
+      network_config::get_validator_api_urls,
+      network_config::get_validator_nymd_urls,
+      network_config::remove_validator,
+      network_config::select_validator_api_url,
+      network_config::select_validator_nymd_url,
+      network_config::update_validator_urls,
+      state::load_config_from_files,
+      state::save_config_to_files,
       utils::major_to_minor,
       utils::minor_to_major,
       utils::outdated_get_approximate_fee,
@@ -81,8 +87,9 @@ fn main() {
       vesting::bond::vesting_bond_mixnode,
       vesting::bond::vesting_unbond_gateway,
       vesting::bond::vesting_unbond_mixnode,
-      vesting::bond::withdraw_vested_coins,
       vesting::bond::vesting_update_mixnode,
+      vesting::bond::withdraw_vested_coins,
+      vesting::delegate::get_pending_vesting_delegation_events,
       vesting::delegate::vesting_delegate_to_mixnode,
       vesting::delegate::vesting_undelegate_from_mixnode,
       vesting::queries::delegated_free,

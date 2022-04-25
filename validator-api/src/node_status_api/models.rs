@@ -25,6 +25,15 @@ impl Uptime {
         Uptime(0)
     }
 
+    pub fn new(uptime: f32) -> Self {
+        if uptime > 100f32 {
+            error!("Got uptime {}, max is 100, returning 0", uptime);
+            Uptime(0)
+        } else {
+            Uptime(uptime as u8)
+        }
+    }
+
     pub fn from_ratio(numerator: usize, denominator: usize) -> Result<Self, InvalidUptime> {
         if denominator == 0 {
             return Ok(Self::zero());

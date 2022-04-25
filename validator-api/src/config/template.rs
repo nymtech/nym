@@ -19,10 +19,6 @@ mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 ##### network monitor config options #####
 
 [network_monitor]
-
-# Mixnodes and gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
-min_reliability = {{ network_monitor.min_reliability }}
-
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
@@ -62,10 +58,7 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 
-# Path to directory containing public/private keys used for bandwidth token purchase.
-# Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
-# The public key is the name of the file, while the private key is the content.
-backup_bandwidth_token_keys_dir = '{{ network_monitor.backup_bandwidth_token_keys_dir }}'
+credentials_database_path = '{{ network_monitor.credentials_database_path }}'
 
 # Ethereum private key.
 eth_private_key = '{{ network_monitor.eth_private_key }}'

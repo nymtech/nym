@@ -18,9 +18,10 @@ use crate::interval::queries::{
 use crate::interval::transactions::{init_epoch, try_init_epoch};
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
-    query_contract_settings_params, query_contract_version,
+    query_contract_settings_params, query_contract_version, query_rewarding_validator_address,
 };
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
@@ -32,7 +33,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -96,6 +97,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+            try_update_rewarding_validator_address(deps, info, address)
+        }
         ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
         ExecuteMsg::BondMixnode {
             mix_node,
@@ -276,6 +280,9 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
+        QueryMsg::GetRewardingValidatorAddress {} => {
+            to_binary(&query_rewarding_validator_address(deps)?)
+        }
         QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
         QueryMsg::GetMixNodes { start_after, limit } => {
             to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
@@ -312,11 +319,13 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetDelegationDetails {
             mix_identity,
             delegator,
+            proxy,
         } => to_binary(&query_mixnode_delegation(
             deps.storage,
             deps.api,
             mix_identity,
             delegator,
+            proxy,
         )?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
@@ -360,69 +369,27 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             address,
             mix_identity,
         )?),
-        QueryMsg::GetPendingDelegationEvents { owner_address } => to_binary(
-            &query_pending_delegation_events(deps.storage, owner_address)?,
+        QueryMsg::GetPendingDelegationEvents {
+            owner_address,
+            proxy_address,
+        } => to_binary(&query_pending_delegation_events(
+            deps,
+            owner_address,
+            proxy_address,
+        )?),
+        QueryMsg::GetAllDelegationKeys {} => to_binary(
+            &crate::delegations::queries::query_all_delegation_keys(deps.storage)?,
+        ),
+        QueryMsg::DebugGetAllDelegationValues {} => to_binary(
+            &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
         ),
     };
 
     Ok(query_res?)
 }
 
-// MIGRATE OLD DELEGATION STORAGE
-// applied on QAnet
-#[allow(dead_code)]
-fn migrate_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
-    use crate::delegations::storage::{
-        DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
-        DELEGATION_PK_NAMESPACE,
-    };
-    use cosmwasm_std::Order;
-    use cw_storage_plus::{IndexedMap, MultiIndex};
-
-    type PrimaryKey = Vec<u8>;
-
-    fn old_delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
-        let indexes = DelegationIndex {
-            owner: MultiIndex::new(
-                |d| d.owner.clone(),
-                DELEGATION_PK_NAMESPACE,
-                DELEGATION_OWNER_IDX_NAMESPACE,
-            ),
-            mixnode: MultiIndex::new(
-                |d| d.node_identity.clone(),
-                DELEGATION_PK_NAMESPACE,
-                DELEGATION_MIXNODE_IDX_NAMESPACE,
-            ),
-        };
-
-        IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
-    }
-
-    let old_delegations = old_delegations()
-        .range(deps.storage, None, None, Order::Ascending)
-        .filter_map(|r| r.ok())
-        .map(|(_key, delegation)| delegation)
-        .collect::<Vec<Delegation>>();
-
-    for delegation in old_delegations {
-        crate::delegations::storage::delegations().save(
-            deps.storage,
-            (
-                delegation.node_identity(),
-                delegation.owner().as_bytes().to_vec(),
-                delegation.block_height(),
-            ),
-            &delegation,
-        )?;
-    }
-    Ok(())
-}
-
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    // TODO: Uncomment mainnet
-    // migrate_delegations(deps)?;
-
     Ok(Default::default())
 }
 

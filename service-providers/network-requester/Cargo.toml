@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "0.12.0"
+version = "1.0.0-rc.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 

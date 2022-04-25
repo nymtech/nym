@@ -7,6 +7,7 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
 use config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
+use credential_storage::PersistentStorage;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -97,7 +98,7 @@ struct FreshGatewayClientData {
     // for coconut bandwidth credentials we currently have no double spending protection, just to
     // get things running we're re-using the same credential for all gateways all the time.
     // THIS IS VERY BAD!!
-    bandwidth_controller: BandwidthController,
+    bandwidth_controller: BandwidthController<PersistentStorage>,
     testnet_mode: bool,
 }
 
@@ -157,7 +158,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        bandwidth_controller: BandwidthController,
+        bandwidth_controller: BandwidthController<PersistentStorage>,
         testnet_mode: bool,
     ) -> Self {
         PacketSender {
@@ -232,14 +233,13 @@ impl PacketSender {
     ) -> Result<(), GatewayClientError> {
         let gateway_id = client.gateway_identity().to_base58_string();
         info!(
-            target: "MessageSender",
             "Got {} packets to send to gateway {}",
             mix_packets.len(),
             gateway_id
         );
 
         if mix_packets.len() <= max_sending_rate {
-            debug!(target: "MessageSender","Everything is going to get sent as one.");
+            debug!("Everything is going to get sent as one.");
             client.batch_send_mix_packets(mix_packets).await?;
         } else {
             let packets_per_time_chunk =
@@ -248,7 +248,6 @@ impl PacketSender {
             let total_expected_time =
                 Duration::from_secs_f64(mix_packets.len() as f64 / max_sending_rate as f64);
             info!(
-                target: "MessageSender",
                 "With our rate of {} packets/s it should take around {:?} to send it all to {} ...",
                 max_sending_rate, total_expected_time, gateway_id
             );
@@ -268,7 +267,7 @@ impl PacketSender {
             // this way we won't have to do reallocations in here as they're unavoidable when
             // splitting a vector into multiple vectors
             while let Some(retained) = split_off_vec(&mut mix_packets, packets_per_time_chunk) {
-                trace!(target: "MessageSender","Sending {} packets...", mix_packets.len());
+                trace!("Sending {} packets...", mix_packets.len());
 
                 if mix_packets.len() == 1 {
                     client.send_mix_packet(mix_packets.pop().unwrap()).await?;
@@ -280,7 +279,7 @@ impl PacketSender {
 
                 mix_packets = retained;
             }
-            debug!(target: "MessageSender", "Done sending");
+            debug!("Done sending");
         }
 
         Ok(())

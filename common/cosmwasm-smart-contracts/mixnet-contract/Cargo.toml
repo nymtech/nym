@@ -7,7 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cosmwasm-std = "1.0.0-beta3"
+cosmwasm-std = "1.0.0-beta8"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"

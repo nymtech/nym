@@ -74,7 +74,7 @@ impl PartiallyDelegated {
             // This would also require NOT discarding any text responses here.
 
             // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
-            Message::Text(text) => debug!(
+            Message::Text(text) => trace!(
                 "received a text message - probably a response to some previous query! - {}",
                 text
             ),

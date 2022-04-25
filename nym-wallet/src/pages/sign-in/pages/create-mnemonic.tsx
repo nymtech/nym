@@ -11,7 +11,9 @@ export const CreateMnemonic = () => {
   const history = useHistory();
 
   useEffect(() => {
-    generateMnemonic();
+    if (mnemonicWords.length === 0) {
+      generateMnemonic();
+    }
   }, []);
 
   const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
@@ -23,8 +25,9 @@ export const CreateMnemonic = () => {
       </Typography>
 
       <Alert variant="outlined" severity="warning" sx={{ textAlign: 'center' }}>
-        <Typography>Below is your 24 word mnemonic, please store the mnemonic in a safe place.</Typography>
-        <Typography>This is the only way to access your wallet!</Typography>
+        <Typography>
+          Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the future.
+        </Typography>
       </Alert>
 
       <WordTiles mnemonicWords={mnemonicWords} showIndex />

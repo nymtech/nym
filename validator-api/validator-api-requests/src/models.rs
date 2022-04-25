@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use mixnet_contract_common::reward_params::RewardParams;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -52,22 +53,12 @@ pub struct MixnodeStatusResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/rewardestimationresponse.ts"
-    )
-)]
 pub struct RewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,
     pub estimated_delegators_reward: u64,
 
-    pub current_interval_start: i64,
-    pub current_interval_end: i64,
-    pub current_interval_uptime: u8,
+    pub reward_params: RewardParams,
     pub as_at: i64,
 }
 

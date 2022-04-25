@@ -1,6 +1,6 @@
 [package]
 name = "bandwidth-claim"
-version = "0.1.0"
+version = "1.0.0-rc.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,8 +14,8 @@ config = { path = "../../common/config"}
 [dependencies]
 bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 
-cosmwasm-std = "1.0.0-beta3"
-cosmwasm-storage = "1.0.0-beta3"
+cosmwasm-std = "1.0.0-beta8"
+cosmwasm-storage = "1.0.0-beta8"
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

@@ -1,6 +1,6 @@
 [package]
 name = "vesting-contract"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Drazen Urch <durch@users.noreply.github.com>"]
 edition = "2021"
 
@@ -18,8 +18,8 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 config = { path = "../../common/config" }
 
-cosmwasm-std = { version = "1.0.0-beta4"}
-cw-storage-plus = { version = "0.12.1", features = ["iterator"] }
+cosmwasm-std = { version = "1.0.0-beta8"}
+cw-storage-plus = { version = "0.13.1", features = ["iterator"] }
 
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }

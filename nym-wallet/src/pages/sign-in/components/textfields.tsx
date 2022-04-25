@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Link, Stack, TextField } from '@mui/material';
+import { Box, IconButton, Stack, TextField } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Error } from './error';
 
@@ -37,10 +37,9 @@ export const PasswordInput: React.FC<{
   password: string;
   error?: string;
   label: string;
-  showForgottenPassword?: boolean;
   autoFocus?: boolean;
   onUpdatePassword: (password: string) => void;
-}> = ({ password, label, error, showForgottenPassword, autoFocus, onUpdatePassword }) => {
+}> = ({ password, label, error, autoFocus, onUpdatePassword }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -61,18 +60,6 @@ export const PasswordInput: React.FC<{
             ),
           }}
         />
-        {/* currently unused */}
-        {showForgottenPassword && (
-          <Link
-            underline="none"
-            variant="body2"
-            component="div"
-            sx={{ mt: 1, textAlign: 'right', color: 'info.main', cursor: 'pointer' }}
-            href="/forgotten-password"
-          >
-            Forgotten password?
-          </Link>
-        )}
       </Box>
       {error && <Error message={error} />}
     </Stack>

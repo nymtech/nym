@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-validator-api"
-version = "0.12.0"
+version = "1.0.0-rc.2"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -31,6 +31,7 @@ rocket = { version = "0.5.0-rc.1", features = ["json"] }
 serde = "1.0"
 serde_json = "1.0"
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tokio-stream = "0.1.8"
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 url = "2.2"
 thiserror = "1"
@@ -56,6 +57,7 @@ validator-client = { path="../common/client-libs/validator-client", features = [
 version-checker = { path="../common/version-checker" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials", optional = true }
+credential-storage = { path = "../common/credential-storage" }
 # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 console-subscriber = { version = "0.1.1", optional = true}
 cfg-if = "1.0"

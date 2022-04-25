@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::StdError;
+use cw_controllers::AdminError;
 use thiserror::Error;
 
 use config::defaults::DENOM;
@@ -23,4 +24,10 @@ pub enum ContractError {
 
     #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom,
+
+    #[error("There aren't enough funds in the contract")]
+    NotEnoughFunds,
+
+    #[error("{0}")]
+    Admin(#[from] AdminError),
 }

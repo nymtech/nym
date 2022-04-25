@@ -10,4 +10,10 @@ pub enum CoconutInterfaceError {
 
     #[error("Could not decode base 58 string - {0}")]
     MalformedString(#[from] bs58::decode::Error),
+
+    #[error("Not enough public attributes were specified")]
+    NotEnoughPublicAttributes,
+
+    #[error("Could not recover bandwidth value")]
+    InvalidBandwidth,
 }

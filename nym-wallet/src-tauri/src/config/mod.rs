@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::network_config;
 use crate::platform_constants::{CONFIG_DIR_NAME, CONFIG_FILENAME};
 use crate::{error::BackendError, network::Network as WalletNetwork};
 use config::defaults::all::Network;
@@ -17,6 +18,10 @@ use url::Url;
 
 pub const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
   "https://nymtech.net/.wellknown/wallet/validators.json";
+
+const CURRENT_GLOBAL_CONFIG_VERSION: u32 = 1;
+const CURRENT_NETWORK_CONFIG_VERSION: u32 = 1;
+pub(crate) const CUSTOM_SIMULATED_GAS_MULTIPLIER: f32 = 1.4;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
@@ -36,25 +41,23 @@ struct Base {
   networks: SupportedNetworks,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct GlobalConfig {
+  version: Option<u32>,
   // TODO: there are no global settings (yet)
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct NetworkConfig {
+  version: Option<u32>,
+
   // User selected urls
   selected_nymd_url: Option<Url>,
   selected_api_url: Option<Url>,
 
-  // Additional user provided validators
+  // Additional user provided validators.
+  // It is an option for the purpuse of file serialization.
   validator_urls: Option<Vec<ValidatorUrl>>,
-}
-
-impl NetworkConfig {
-  fn validators(&self) -> impl Iterator<Item = &ValidatorUrl> {
-    self.validator_urls.iter().flat_map(|v| v.iter())
-  }
 }
 
 impl Default for Base {
@@ -63,6 +66,31 @@ impl Default for Base {
     Base {
       networks: SupportedNetworks::new(networks),
     }
+  }
+}
+
+impl Default for GlobalConfig {
+  fn default() -> Self {
+    Self {
+      version: Some(CURRENT_GLOBAL_CONFIG_VERSION),
+    }
+  }
+}
+
+impl Default for NetworkConfig {
+  fn default() -> Self {
+    Self {
+      version: Some(CURRENT_NETWORK_CONFIG_VERSION),
+      selected_nymd_url: None,
+      selected_api_url: None,
+      validator_urls: None,
+    }
+  }
+}
+
+impl NetworkConfig {
+  fn validators(&self) -> impl Iterator<Item = &ValidatorUrl> {
+    self.validator_urls.iter().flat_map(|v| v.iter())
   }
 }
 
@@ -259,11 +287,11 @@ impl Config {
   }
 
   pub fn add_validator_url(&mut self, url: ValidatorUrl, network: WalletNetwork) {
-    if let Some(net) = self.networks.get_mut(&network.as_key()) {
-      if let Some(ref mut urls) = net.validator_urls {
+    if let Some(network_config) = self.networks.get_mut(&network.as_key()) {
+      if let Some(ref mut urls) = network_config.validator_urls {
         urls.push(url);
       } else {
-        net.validator_urls = Some(vec![url]);
+        network_config.validator_urls = Some(vec![url]);
       }
     } else {
       self.networks.insert(
@@ -276,9 +304,13 @@ impl Config {
     }
   }
 
-  #[allow(unused)]
-  pub fn remove_validator_url(&mut self, _url: ValidatorUrl, _network: WalletNetwork) {
-    todo!();
+  pub fn remove_validator_url(&mut self, url: ValidatorUrl, network: WalletNetwork) {
+    if let Some(network_config) = self.networks.get_mut(&network.as_key()) {
+      if let Some(ref mut urls) = network_config.validator_urls {
+        // Removes duplicates too if there are any
+        urls.retain(|existing_url| existing_url != &url);
+      }
+    }
   }
 }
 
@@ -302,6 +334,20 @@ impl TryFrom<ValidatorDetails> for ValidatorUrl {
   type Error = BackendError;
 
   fn try_from(validator: ValidatorDetails) -> Result<Self, Self::Error> {
+    Ok(ValidatorUrl {
+      nymd_url: validator.nymd_url.parse()?,
+      api_url: match &validator.api_url {
+        Some(url) => Some(url.parse()?),
+        None => None,
+      },
+    })
+  }
+}
+
+impl TryFrom<network_config::Validator> for ValidatorUrl {
+  type Error = BackendError;
+
+  fn try_from(validator: network_config::Validator) -> Result<Self, Self::Error> {
     Ok(ValidatorUrl {
       nymd_url: validator.nymd_url.parse()?,
       api_url: match &validator.api_url {
@@ -389,6 +435,7 @@ mod tests {
           api_url: Some("https://baz/api".parse().unwrap()),
         },
       ]),
+      ..NetworkConfig::default()
     };
 
     Config {
@@ -406,7 +453,8 @@ mod tests {
     let netconfig = &config.networks[&WalletNetwork::MAINNET.as_key()];
     assert_eq!(
       toml::to_string_pretty(netconfig).unwrap(),
-      r#"selected_api_url = 'https://my_api_url.com/'
+      r#"version = 1
+selected_api_url = 'https://my_api_url.com/'
 
 [[validator_urls]]
 nymd_url = 'https://foo/'

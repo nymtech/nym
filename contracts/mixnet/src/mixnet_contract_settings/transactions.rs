@@ -3,11 +3,29 @@
 
 use super::storage;
 use crate::error::ContractError;
+use cosmwasm_std::Addr;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
 use mixnet_contract_common::events::new_settings_update_event;
 use mixnet_contract_common::ContractStateParams;
+
+pub fn try_update_rewarding_validator_address(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    address: String,
+) -> Result<Response, ContractError> {
+    let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
+
+    if info.sender != state.owner {
+        return Err(ContractError::Unauthorized);
+    }
+
+    state.rewarding_validator_address = Addr::unchecked(address);
+    storage::CONTRACT_STATE.save(deps.storage, &state)?;
+
+    Ok(Response::default())
+}
 
 pub(crate) fn try_update_contract_settings(
     deps: DepsMut<'_>,
@@ -48,11 +66,44 @@ pub mod tests {
     use super::*;
     use crate::contract::{INITIAL_GATEWAY_PLEDGE, INITIAL_MIXNODE_PLEDGE};
     use crate::error::ContractError;
+    use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Response;
     use mixnet_contract_common::ContractStateParams;
+
+    #[test]
+    fn update_contract_rewarding_validtor_address() {
+        let mut deps = test_helpers::init_contract();
+
+        let info = mock_info("not-the-creator", &[]);
+        let res = try_update_rewarding_validator_address(
+            deps.as_mut(),
+            info,
+            "not-the-creator".to_string(),
+        );
+        assert_eq!(res, Err(ContractError::Unauthorized));
+
+        let info = mock_info("creator", &[]);
+        let res = try_update_rewarding_validator_address(
+            deps.as_mut(),
+            info,
+            "new-good-address".to_string(),
+        );
+        assert_eq!(res, Ok(Response::default()));
+
+        let state = storage::CONTRACT_STATE.load(&deps.storage).unwrap();
+        assert_eq!(
+            state.rewarding_validator_address,
+            Addr::unchecked("new-good-address")
+        );
+
+        assert_eq!(
+            state.rewarding_validator_address,
+            query_rewarding_validator_address(deps.as_ref()).unwrap()
+        );
+    }
 
     #[test]
     fn updating_contract_settings() {

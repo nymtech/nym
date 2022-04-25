@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use credential_storage::PersistentStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
@@ -73,14 +74,16 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         #[cfg(feature = "coconut")]
         let bandwidth_controller = BandwidthController::new(
+            credential_storage::initialise_storage(self.config.get_credentials_database_path())
+                .await,
             self.config.get_all_validator_api_endpoints(),
-            *identity_keypair.public_key(),
         );
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
+            credential_storage::initialise_storage(self.config.get_credentials_database_path())
+                .await,
             self.config.get_network_monitor_eth_endpoint(),
             self.config.get_network_monitor_eth_private_key(),
-            self.config.get_backup_bandwidth_token_keys_dir(),
         )
         .expect("Could not create bandwidth controller");
 
@@ -157,7 +160,7 @@ fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
-    bandwidth_controller: BandwidthController,
+    bandwidth_controller: BandwidthController<PersistentStorage>,
     testnet_mode: bool,
 ) -> PacketSender {
     PacketSender::new(

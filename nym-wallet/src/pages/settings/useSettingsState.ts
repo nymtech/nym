@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { ClientContext } from '../../context/main';
 import {
-  getMixnodeRewardEstimation,
+//  getMixnodeRewardEstimation,
   getMixnodeStakeSaturation,
   getMixnodeStatus,
   minorToMajor,
@@ -33,14 +33,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     }
   };
 
-  const getRewardEstimation = async (mixnodeKey: string) => {
-    const newRewardEstimation = await getMixnodeRewardEstimation(mixnodeKey);
-    if (newRewardEstimation) {
-      const toMajor = await minorToMajor(newRewardEstimation.estimated_total_node_reward.toString());
-      setRewardEstimation(parseInt(toMajor.amount, Number(10)));
-    }
-  };
-
   const getMixnodeInclusionProbability = async (mixnodeKey: string) => {
     const probability = await getInclusionProbability(mixnodeKey);
     if (probability) {
@@ -64,7 +56,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
       (async () => {
         await getStatus(mixnodeDetails?.mix_node.identity_key);
         await getStakeSaturation(mixnodeDetails?.mix_node.identity_key);
-        await getRewardEstimation(mixnodeDetails?.mix_node.identity_key);
         await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key);
       })();
     } else {

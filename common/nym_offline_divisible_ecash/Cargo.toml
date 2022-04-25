@@ -1,5 +1,5 @@
 [package]
-name = "nym-divisible-ecash"
+name = "nym_offline_divisible_ecash"
 version = "0.1.0"
 authors = ["Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"

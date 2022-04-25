@@ -4,7 +4,7 @@ use rand::thread_rng;
 
 use crate::constants::L;
 use crate::error::Result;
-use crate::scheme::structure_preserving_signature::{SPSKeyPair, SPSSecretKey, SPSSignature, SPSVerificationKey};
+use crate::scheme::structure_preserving_signature::{SPSKeyPair, SPSSignature, SPSVerificationKey};
 use crate::utils::hash_g1;
 
 #[derive(Debug, Clone)]
@@ -51,11 +51,18 @@ impl GroupParameters {
 
 #[derive(Debug, Clone)]
 pub struct Parameters {
+    grp: GroupParameters,
     paramsUser: ParametersUser,
     paramsAuth: ParametersAuthority,
 }
 
 impl Parameters {
+    pub(crate) fn get_grp(&self) -> GroupParameters { self.grp.clone() }
+
+    pub(crate) fn get_paramsUser(&self) -> &ParametersUser { &self.paramsUser }
+
+    pub(crate) fn get_paramsAuth(&self) -> &ParametersAuthority { &self.paramsAuth }
+
     pub fn new(grp: GroupParameters) -> Parameters {
         let g1 = grp.gen1();
         let g2 = grp.gen2();
@@ -121,6 +128,7 @@ impl Parameters {
         };
 
         return Parameters {
+            grp,
             paramsUser,
             paramsAuth,
         };

@@ -85,16 +85,16 @@ impl SPSKeyPair {
         let ws = grparams.n_random_scalars(a);
         let y = grparams.random_scalar();
         let z = grparams.random_scalar();
-        let Us: Vec<G1Projective> = us.iter().map(|u| grparams.gen1() * u).collect();
-        let Y = grparams.gen2() * y;
-        let Ws: Vec<G2Projective> = ws.iter().map(|w| grparams.gen2() * w).collect();
+        let uus: Vec<G1Projective> = us.iter().map(|u| grparams.gen1() * u).collect();
+        let yy = grparams.gen2() * y;
+        let wws: Vec<G2Projective> = ws.iter().map(|w| grparams.gen2() * w).collect();
         let zz = grparams.gen2() * z;
 
         let sps_vk = SPSVerificationKey {
             grparams: grparams.clone(),
-            uus: Us,
-            wws: Ws,
-            yy: Y,
+            uus,
+            wws,
+            yy,
             zz,
         };
         let sps_sk = SPSSecretKey {

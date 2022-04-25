@@ -30,8 +30,15 @@
     "use-clipboard-copy": "^0.2.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.15.0",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
+    "@storybook/addon-actions": "^6.4.19",
+    "@storybook/addon-essentials": "^6.4.19",
+    "@storybook/addon-interactions": "^6.4.19",
+    "@storybook/addon-links": "^6.4.19",
+    "@storybook/react": "^6.4.19",
+    "@storybook/testing-library": "^0.0.9",
     "@svgr/webpack": "^6.1.1",
     "@testing-library/jest-dom": "^5.14.1",
     "@testing-library/react": "^12.0.0",
@@ -95,10 +102,13 @@
     "build:serve": "npx serve dist",
     "test": "jest",
     "test:watch": "jest --watch",
-    "tsc": "tsc",
-    "tsc:watch": "tsc --watch",
+    "tsc": "tsc --noEmit true",
+    "tsc:watch": "tsc --watch --noEmit true",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "prestorybook": "yarn --cwd .. build",
+    "storybook": "start-storybook -p 6006",
+    "storybook:build": "build-storybook"
   },
   "browserslist": {
     "production": [

@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
+use validator_client::models::SelectionChance;
 
 #[derive(Clone, Debug, Serialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -122,12 +123,12 @@ pub(crate) struct NodeStats {
     packets_explicitly_dropped_since_last_update: u64,
 }
 
-#[derive(Serialize, Clone, Copy, Deserialize, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct EconomicDynamicsStats {
     pub(crate) stake_saturation: f32,
 
-    pub(crate) active_set_inclusion_probability: f32,
-    pub(crate) reserve_set_inclusion_probability: f32,
+    pub(crate) active_set_inclusion_probability: SelectionChance,
+    pub(crate) reserve_set_inclusion_probability: SelectionChance,
 
     pub(crate) estimated_total_node_reward: u64,
     pub(crate) estimated_operator_reward: u64,

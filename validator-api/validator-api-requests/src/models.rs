@@ -109,11 +109,11 @@ impl From<f64> for SelectionChance {
 impl fmt::Display for SelectionChance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SelectionChance::VeryHigh => write!(f, "Very High"),
+            SelectionChance::VeryHigh => write!(f, "VeryHigh"),
             SelectionChance::High => write!(f, "High"),
             SelectionChance::Moderate => write!(f, "Moderate"),
             SelectionChance::Low => write!(f, "Low"),
-            SelectionChance::VeryLow => write!(f, "Very Low"),
+            SelectionChance::VeryLow => write!(f, "VeryLow"),
         }
     }
 }

@@ -6470,6 +6470,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "nym-divisible-ecash"
 version = "0.1.0"
 dependencies = [
@@ -6564,6 +6565,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> b76eab236 (Update the structure preserving signature to work in the setup function as well)
 name = "nym-gateway"
 version = "1.1.32"
 dependencies = [
@@ -7695,7 +7698,157 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "nymvisor"
+=======
+name = "nym_offline_divisible_ecash"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "bs58",
+ "criterion",
+ "digest 0.9.0",
+ "ff 0.10.1",
+ "group 0.10.0",
+ "itertools",
+ "rand 0.8.5",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "nym_online_divisible_ecash"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "bs58",
+ "criterion",
+ "digest 0.9.0",
+ "ff 0.10.1",
+ "group 0.10.0",
+ "itertools",
+ "rand 0.8.5",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "nymcoconut"
+version = "0.5.0"
+dependencies = [
+ "bincode",
+ "bls12_381",
+ "bs58",
+ "criterion",
+ "digest 0.9.0",
+ "doc-comment",
+ "ff 0.10.1",
+ "getrandom 0.2.5",
+ "group 0.10.0",
+ "itertools",
+ "rand 0.8.5",
+ "serde",
+ "serde_derive",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "nymsphinx"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "mixnet-contract-common",
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-anonymous-replies",
+ "nymsphinx-chunking",
+ "nymsphinx-cover",
+ "nymsphinx-forwarding",
+ "nymsphinx-framing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "rand_distr",
+ "tokio",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-acknowledgements"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "pemstore",
+ "rand 0.7.3",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-addressing"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "serde",
+]
+
+[[package]]
+name = "nymsphinx-anonymous-replies"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "crypto",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "serde",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-chunking"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+]
+
+[[package]]
+name = "nymsphinx-cover"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-chunking",
+ "nymsphinx-forwarding",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-forwarding"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+]
+
+[[package]]
+name = "nymsphinx-framing"
+>>>>>>> b76eab236 (Update the structure preserving signature to work in the setup function as well)
 version = "0.1.0"
 dependencies = [
  "anyhow",

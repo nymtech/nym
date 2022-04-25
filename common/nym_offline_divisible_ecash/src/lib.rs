@@ -7,5 +7,6 @@ mod scheme;
 mod tests;
 mod traits;
 mod utils;
+mod constants;
 
 pub type Attribute = Scalar;

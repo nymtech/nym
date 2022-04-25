@@ -158,4 +158,7 @@ pub enum ContractError {
 
     #[error("Epoch not initialized yet!")]
     EpochNotInitialized,
+
+    #[error("Invalid address: {0}")]
+    InvalidAddress(String),
 }

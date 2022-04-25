@@ -230,22 +230,6 @@ export const PageMixnodes: React.FC = () => {
         </MuiLink>
       ),
     },{
-      field: 'delegators_number',
-      headerName: 'Delegators',
-      renderHeader: () => <CustomColumnHeading headingTitle="Delegators" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 130,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {params.value}
-        </MuiLink>
-      ),
-    },{
       field: 'avg_uptime',
       headerName: 'Avg. Uptime',
       renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,

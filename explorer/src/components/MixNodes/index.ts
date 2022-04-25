@@ -12,8 +12,7 @@ export type MixnodeRowType = {
   host: string;
   layer: string;
   profit_percentage: string;
-  delegators_number?: number;
-  avg_uptime?: number;
+  avg_uptime?: number;  //Todo the question mark, when the back will be connected
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -37,7 +36,6 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
     profit_percentage: `${profit_percentage}%`,
-    delegators_number: undefined,
     avg_uptime: undefined
   };
 }

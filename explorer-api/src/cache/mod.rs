@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
-const DEFAULT_CACHE_VALIDITY: Duration = Duration::from_secs(60 * 30);
+const DEFAULT_CACHE_VALIDITY: Duration = Duration::from_secs(60);
 
 #[derive(Clone)]
 pub(crate) struct Cache<T: Clone> {

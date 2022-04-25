@@ -7,7 +7,6 @@ use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::{
     query_mixnode_delegations_paged, query_pending_delegation_events,
 };
-use crate::delegations::storage::delegations;
 use crate::error::ContractError;
 use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
@@ -33,7 +32,6 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -393,35 +391,8 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // if there exists any delegation of 0 value, remove it
-    let zero_delegations = delegations()
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| v.amount.amount == Uint128::zero())
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation in &zero_delegations {
-        delegations().remove(deps.storage, delegation.clone())?;
-    }
-
-    // similarly, if there exists any event that is scheduled to insert/remove delegation with 0 value, purge it
-    let delegate_events_to_purge = crate::delegations::storage::PENDING_DELEGATION_EVENTS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| match v {
-            DelegationEvent::Delegate(d) => d.amount.amount == Uint128::zero(),
-            _ => false,
-        })
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation_event in delegate_events_to_purge {
-        crate::delegations::storage::PENDING_DELEGATION_EVENTS
-            .remove(deps.storage, delegation_event);
-    }
-
     Ok(Default::default())
 }
 

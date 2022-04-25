@@ -12,12 +12,15 @@ const tooltipBackGroundColor = '#A0AED1';
 
 const formatCellValues = (val: RowsType, field: string, theme: Theme) => {
     if (val.visualProgressValue) {
+        const percentageColor = val.visualProgressValue > 100 ? 'warning' : 'inherit';
+        const percentageToDisplay = val.visualProgressValue > 100 ? 100 : val.visualProgressValue;
+
         return (
             <Box sx={{ display: 'flex', alignItems: 'center' }} id='field' >
-                <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }}>
+                <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px', color: 'secondary' }}>
                     {val.value}
                 </Typography>
-                <LinearProgress variant="determinate" value={val.visualProgressValue} color='inherit' sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.nym.networkExplorer.nav.text }} />
+                <LinearProgress variant="determinate" value={percentageToDisplay} color={percentageColor} sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.nym.networkExplorer.nav.text }} />
             </Box>
         )
     }
@@ -44,6 +47,7 @@ export const DelegatorsInfoTable: React.FC<{
             color: theme.palette.nym.networkExplorer.nav.hover,
         },
     });
+    console.log('theme', theme);
 
     return (
         <TableContainer component={Paper}>
@@ -89,11 +93,11 @@ export const DelegatorsInfoTable: React.FC<{
                                     variant="body"
                                     sx={{
                                         ...cellStyles,
-                                        color: theme.palette.nym.wallet.fee,
                                         padding: 2,
                                         width: 200,
                                         fontSize: 12,
                                         fontWeight: 600,
+                                        color: eachRow[columnsData[index].field]?.visualProgressValue > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
                                     }}
                                     data-testid={`${_.title.replace(/ /g, '-')}-value`}
                                 >

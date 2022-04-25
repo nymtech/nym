@@ -53,7 +53,6 @@ type DataGridProps = {
 export const UniversalDataGrid: React.FC<DataGridProps> = ({ rows, columns, loading, pagination, pageSize }) => {
   if (loading) return <LinearProgress />;
   if (!loading)
-
     return (
       <DataGrid
         pagination={pagination}

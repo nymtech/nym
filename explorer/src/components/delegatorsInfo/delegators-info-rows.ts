@@ -11,7 +11,6 @@ export const delegatorsInfoRows: any = () => {
     const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || 0;
     const profitMargin = mixNode?.data?.mix_node.profit_margin_percent || 0;
 
-
     return ({
     id: 1,
     estimated_total_reward: {
@@ -22,16 +21,16 @@ export const delegatorsInfoRows: any = () => {
     },
     active_set_probability: {
         value: `${(activeSetProbability * 100).toFixed(2)} %`,
-        visualProgressValue: activeSetProbability,
+        visualProgressValue: activeSetProbability * 100,
     },
     stake_saturation: {
         value: `${(stakeSaturation * 100).toFixed(2)} %`,
-        visualProgressValue: stakeSaturation,
+        visualProgressValue: stakeSaturation * 100,
     },
     profit_margin: {
         value: `${profitMargin} %`,
     },
     avg_uptime: {
-        value: economicDynamicsStats?.data?.current_interval_uptime,
+        value: `${economicDynamicsStats?.data?.current_interval_uptime} %`,
     }
 })}

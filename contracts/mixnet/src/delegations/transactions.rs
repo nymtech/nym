@@ -201,6 +201,17 @@ pub(crate) fn _try_delegate_to_mixnode(
         proxy.clone(),
     );
 
+    if storage::PENDING_DELEGATION_EVENTS
+        .may_load(storage, delegation.event_storage_key())?
+        .is_some()
+    {
+        return Err(ContractError::DelegationEventAlreadyPending {
+            block_height,
+            identity: mix_identity.to_string(),
+            kind: "delgation".to_string(),
+        });
+    }
+
     storage::PENDING_DELEGATION_EVENTS.save(
         storage,
         delegation.event_storage_key(),
@@ -386,6 +397,17 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
         proxy.clone(),
         env.block.height,
     );
+
+    if storage::PENDING_DELEGATION_EVENTS
+        .may_load(deps.storage, event.event_storage_key())?
+        .is_some()
+    {
+        return Err(ContractError::DelegationEventAlreadyPending {
+            block_height: event.block_height(),
+            identity: mix_identity,
+            kind: "undelgation".to_string(),
+        });
+    }
 
     PENDING_DELEGATION_EVENTS.save(
         deps.storage,

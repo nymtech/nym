@@ -161,4 +161,11 @@ pub enum ContractError {
 
     #[error("Invalid address: {0}")]
     InvalidAddress(String),
+
+    #[error("Pending {kind} event  already exists at block {block_height} for mixnode {identity}")]
+    DelegationEventAlreadyPending {
+        block_height: u64,
+        identity: String,
+        kind: String, // delegation | undelegation
+    },
 }

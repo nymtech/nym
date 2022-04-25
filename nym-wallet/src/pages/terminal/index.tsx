@@ -36,8 +36,8 @@ const TerminalSection: React.FC<{
   );
 };
 
-export const Terminal: React.FC = () => {
-  const { network, userBalance, clientDetails, showTerminal, handleShowTerminal } = useContext(ClientContext);
+const TerminalInner: React.FC = () => {
+  const { network, userBalance, clientDetails, handleShowTerminal, appEnv } = useContext(ClientContext);
   const { balance, vestingAccountInfo, currentVestingPeriod, originalVesting, fetchBalance, fetchTokenAllocation } =
     useGetBalance(clientDetails?.client_address);
   const [mixnodeDelegations, setMixnodeDelegations] = useState<any>();
@@ -92,10 +92,6 @@ export const Terminal: React.FC = () => {
     refresh();
   }, [network]);
 
-  if (!showTerminal) {
-    return null;
-  }
-
   return (
     <Dialog open onClose={handleShowTerminal} maxWidth="md" fullWidth>
       <NymCard
@@ -120,6 +116,10 @@ export const Terminal: React.FC = () => {
             <strong>Data loading complete</strong>
           </Alert>
         )}
+
+        <TerminalSection heading="App Environment">
+          <pre>{JSON.stringify(appEnv, null, 2)}</pre>
+        </TerminalSection>
 
         <TerminalSection heading="Client Details">
           <pre>{JSON.stringify(clientDetails, null, 2)}</pre>
@@ -181,4 +181,15 @@ export const Terminal: React.FC = () => {
       </NymCard>
     </Dialog>
   );
+};
+
+export const Terminal: React.FC = () => {
+  const { showTerminal } = useContext(ClientContext);
+
+  // this is a guard component, that only mounts the terminal component when shown
+  if (!showTerminal) {
+    return null;
+  }
+
+  return <TerminalInner />;
 };

@@ -2,14 +2,18 @@ import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { TLoginType } from 'src/pages/sign-in/types';
-import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
+import { Account, AppEnv, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
-import { config } from '../../config';
-import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
+import {
+  getMixnodeBondDetails,
+  selectNetwork,
+  signInWithMnemonic,
+  signInWithPassword,
+  signOut,
+  getEnv,
+} from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
-
-export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
@@ -24,6 +28,7 @@ export const urls = (networkName?: Network) =>
 
 type TClientContext = {
   mode: 'light' | 'dark';
+  appEnv?: AppEnv;
   clientDetails?: Account;
   mixnodeDetails?: TMixnodeBondDetails | null;
   userBalance: TUseuserBalance;
@@ -33,6 +38,7 @@ type TClientContext = {
   network?: Network;
   currency?: TCurrency;
   isLoading: boolean;
+  isAdminAddress: boolean;
   error?: string;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
@@ -49,6 +55,7 @@ type TClientContext = {
 export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
+  const [appEnv, setAppEnv] = useState<AppEnv>();
   const [clientDetails, setClientDetails] = useState<Account>();
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
   const [network, setNetwork] = useState<Network | undefined>();
@@ -85,6 +92,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       Console.error(e as string);
     }
   };
+
+  useEffect(() => {
+    getEnv().then(setAppEnv);
+  }, []);
 
   useEffect(() => {
     const refreshAccount = async () => {
@@ -137,6 +148,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const memoizedValue = useMemo(
     () => ({
       mode,
+      appEnv,
+      isAdminAddress: Boolean(appEnv?.ADMIN_ADDRESS && clientDetails?.client_address === appEnv.ADMIN_ADDRESS),
       isLoading,
       error,
       clientDetails,
@@ -160,6 +173,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }),
     [
       mode,
+      appEnv,
       isLoading,
       error,
       clientDetails,

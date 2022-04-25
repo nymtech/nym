@@ -1,7 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material';
 import { ArrowDropDown, CheckSharp } from '@mui/icons-material';
-import { ClientContext, IS_DEV_MODE } from '../context/main';
+import { ClientContext } from '../context/main';
+import { config } from '../../config';
 import { Network } from '../types';
 
 const networks: { networkName: Network; name: string }[] = [
@@ -58,7 +59,7 @@ export const NetworkSelector = () => {
         <List>
           <ListSubheader>Network selection</ListSubheader>
           {networks
-            .filter(({ networkName }) => !(!IS_DEV_MODE && networkName === 'QA'))
+            .filter(({ networkName }) => !(!config.IS_DEV_MODE && networkName === 'QA'))
             .map(({ name, networkName }) => (
               <NetworkItem
                 key={networkName}

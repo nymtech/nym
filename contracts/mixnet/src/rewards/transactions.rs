@@ -201,13 +201,36 @@ pub fn _try_compound_delegator_reward(
     mix_identity: &str,
     proxy: Option<Addr>,
 ) -> Result<Uint128, ContractError> {
+    let delegation_map = crate::delegations::storage::delegations();
+
     let key = mixnet_contract_common::delegation::generate_storage_key(
         &api.addr_validate(owner_address)?,
         proxy.as_ref(),
     );
     let reward = calculate_delegator_reward(storage, key.clone(), mix_identity)?;
-    if reward != Uint128::zero()
-        && _try_delegate_to_mixnode(
+    let mut compounded_delegation = reward;
+
+    // Might want to introduce paging here
+    let delegation_heights = delegation_map
+        .prefix((mix_identity.to_string(), key.clone()))
+        .keys(storage, None, None, cosmwasm_std::Order::Ascending)
+        .filter_map(|v| v.ok())
+        .collect::<Vec<u64>>();
+
+    for h in delegation_heights {
+        let delegation =
+            delegation_map.load(storage, (mix_identity.to_string(), key.clone(), h))?;
+        compounded_delegation += delegation.amount.amount;
+        delegation_map.replace(
+            storage,
+            (mix_identity.to_string(), key.clone(), h),
+            None,
+            Some(&delegation),
+        )?;
+    }
+
+    if compounded_delegation != Uint128::zero() {
+        _try_delegate_to_mixnode(
             storage,
             api,
             block_height,
@@ -218,10 +241,11 @@ pub fn _try_compound_delegator_reward(
                 denom: DENOM.to_string(),
             },
             proxy,
-        )
-        .is_ok()
+        )?;
+    }
+
     {
-        // Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
+        //TODO: Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
         if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
             bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
             mixnodes().save(storage, mix_identity, &bond, block_height)?;

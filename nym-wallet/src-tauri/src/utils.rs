@@ -10,6 +10,30 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[allow(non_snake_case)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/appEnv.ts"))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct AppEnv {
+  pub ADMIN_ADDRESS: Option<String>,
+  pub SHOW_TERMINAL: Option<String>,
+}
+
+fn get_env_as_option(key: &str) -> Option<String> {
+  match ::std::env::var(key) {
+    Ok(res) => Some(res),
+    Err(_e) => None,
+  }
+}
+
+#[tauri::command]
+pub fn get_env() -> AppEnv {
+  AppEnv {
+    ADMIN_ADDRESS: get_env_as_option("ADMIN_ADDRESS"),
+    SHOW_TERMINAL: get_env_as_option("SHOW_TERMINAL"),
+  }
+}
+
 #[tauri::command]
 pub fn major_to_minor(amount: &str) -> Coin {
   let coin = Coin::new(amount, &Denom::Major);

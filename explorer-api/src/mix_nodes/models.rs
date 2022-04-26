@@ -205,10 +205,7 @@ impl ThreadsafeMixNodesCache {
         guard.valid_until = SystemTime::now() + CACHE_ENTRY_TTL;
     }
 
-    pub(crate) async fn update_health_cache(
-        &self,
-        all_uptimes: Vec<UptimeResponse>,
-    ) {
+    pub(crate) async fn update_health_cache(&self, all_uptimes: Vec<UptimeResponse>) {
         let mut mixnode_health = self.mixnode_health.write().await;
         for uptime in all_uptimes {
             let health = MixNodeHealth {
@@ -216,6 +213,5 @@ impl ThreadsafeMixNodesCache {
             };
             mixnode_health.set(&uptime.identity, health);
         }
-
     }
 }

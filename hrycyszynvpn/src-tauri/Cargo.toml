@@ -2,13 +2,13 @@
 name = "hrycyszynvpn"
 version = "1.0.0"
 description = "Hrycyszyn VPN"
-authors = ["you"]
+authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
 default-run = "hrycyszynvpn"
 edition = "2021"
 build = "src/build.rs"
-rust-version = "1.56"
+rust-version = "1.58"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,7 +17,7 @@ tauri-build = { version = "=1.0.0-rc.2", features = [] }
 
 tauri-codegen = "=1.0.0-rc.1"
 tauri-macros = "=1.0.0-rc.1"
-core-graphics = "=0.22.2"
+#core-graphics = "=0.22.2"
 
 [dependencies]
 serde_json = "1.0"
@@ -38,7 +38,7 @@ argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
 zeroize = "1.4.3"
 
-cosmrs = { version = "0.4.1", features = ["rpc", "bip32", "cosmwasm"] }
+cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
 
 #nym-client = { path = "../../clients/native" }
@@ -58,16 +58,8 @@ cosmwasm-std = "1.0.0-beta3"
 
 
 [dev-dependencies]
-ts-rs = "5.1"
+ts-rs = "6.1.2"
 tempfile = "3.3.0"
-
-#[dev-dependencies.mixnet-contract-common]
-#path = "../../common/cosmwasm-smart-contracts/mixnet-contract"
-#features = ["ts-rs"]
-#
-#[dev-dependencies.validator-client]
-#path = "../../common/client-libs/validator-client"
-#features = ["typescript-types"]
 
 [features]
 default = ["custom-protocol"]

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import LinearProgress, { LinearProgressProps } from '@mui/material/LinearProgress';
 import { useTheme } from '@mui/material/styles';
+import { Box } from '@mui/system';
 
 const parseToNumber = (value: number | undefined | string) =>
   typeof value === 'string' ? parseInt(value || '', 10) : value || 0;
@@ -18,12 +19,14 @@ export const EconomicsProgress: React.FC<
   const percentageColor = valueNumber > (threshold || 100) ? 'warning' : 'inherit';
   const percentageToDisplay = Math.min(valueNumber, thresholdNumber);
   return (
-    <LinearProgress
-      variant="determinate"
-      color={percentageColor}
-      value={percentageToDisplay}
-      sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.nym.networkExplorer.nav.text }}
-      {...props}
-    />
+    <Box sx={{ color: valueNumber > (threshold || 100) ? theme.palette.warning.main : theme.palette.nym.wallet.fee }}>
+      <LinearProgress
+        {...props}
+        variant="determinate"
+        color={percentageColor}
+        value={percentageToDisplay}
+        sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.text.primary }}
+      />
+    </Box>
   );
 };

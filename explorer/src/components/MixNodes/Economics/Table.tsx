@@ -20,15 +20,34 @@ import { InfoSVG } from '../../../icons/InfoSVG';
 import { UniversalTableProps } from '../../DetailTable';
 
 const tooltipBackGroundColor = '#A0AED1';
+const threshold = 100;
 
-const formatCellValues = (value: RowsType, field: string) => (
-  <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
-    <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field}>
-      {value.value}
-    </Typography>
-    {value.percentaje && <EconomicsProgress threshold={100} value={value.percentaje} />}
-  </Box>
-);
+const formatCellValues = (value: RowsType, field: string) => {
+  if (value.percentaje) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
+        <Typography
+          sx={{
+            mr: 1,
+            fontWeight: '600',
+            fontSize: '12px',
+          }}
+          id={field}
+        >
+          {value.value}
+        </Typography>
+        <EconomicsProgress threshold={threshold} value={value.percentaje} />
+      </Box>
+    );
+  }
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
+      <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field}>
+        {value.value}
+      </Typography>
+    </Box>
+  );
+};
 
 export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRowWithIndex>> = ({
   tableName,
@@ -98,8 +117,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRow
                       width: 200,
                       fontSize: 12,
                       fontWeight: 600,
-                      color:
-                        value?.visualProgressValue > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
+                      color: value?.percentaje > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
                     }}
                     data-testid={`${_.title.replace(/ /g, '-')}-value`}
                   >

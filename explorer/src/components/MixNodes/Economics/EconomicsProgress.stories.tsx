@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ComponentMeta } from '@storybook/react';
+import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { EconomicsProgress } from './EconomicsProgress';
 
 export default {
@@ -7,7 +7,25 @@ export default {
   component: EconomicsProgress,
 } as ComponentMeta<typeof EconomicsProgress>;
 
-export const Empty = () => <EconomicsProgress />;
-export const OverThreshold = () => <EconomicsProgress threshold={100} value={120} />;
-export const UnderThreshold = () => <EconomicsProgress threshold={100} value={80} />;
-export const OnThreshold = () => <EconomicsProgress threshold={100} value={100} />;
+const Template: ComponentStory<typeof EconomicsProgress> = (args) => <EconomicsProgress {...args} />;
+
+export const Empty = Template.bind({});
+Empty.args = {};
+
+export const OverThreshold = Template.bind({});
+OverThreshold.args = {
+  threshold: 100,
+  value: 120,
+};
+
+export const UnderThreshold = Template.bind({});
+UnderThreshold.args = {
+  threshold: 100,
+  value: 80,
+};
+
+export const OnThreshold = Template.bind({});
+OnThreshold.args = {
+  threshold: 100,
+  value: 100,
+};

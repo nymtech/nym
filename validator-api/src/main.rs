@@ -34,6 +34,7 @@ use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
+mod dkg;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;

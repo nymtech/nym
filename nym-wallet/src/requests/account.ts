@@ -30,3 +30,13 @@ export const isPasswordCreated = async (): Promise<boolean> => {
   const res: boolean = await invoke('does_password_file_exist');
   return res;
 };
+
+export const createNewAccount = async (mnemonic: string): Promise<Account> => {
+  const res: Account = await invoke('create_new_account', { mnemonic });
+  return res;
+};
+
+export const listAccounts = async (password: string) => {
+  const res: Account[] = await invoke('list_accounts_for_password', { password });
+  return res;
+};

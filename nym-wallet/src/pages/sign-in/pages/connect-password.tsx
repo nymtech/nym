@@ -2,10 +2,10 @@ import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { SignInContext } from 'src/context';
+import { createPassword } from 'src/requests';
 import { Subtitle, Title, PasswordStrength } from '../components';
 import { PasswordInput } from '../components/textfields';
-import { SignInContext } from '../context';
-import { createPassword } from '../../../requests';
 
 export const ConnectPassword = () => {
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');

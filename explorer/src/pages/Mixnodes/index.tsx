@@ -86,7 +86,7 @@ export const PageMixnodes: React.FC = () => {
       field: 'owner',
       headerName: 'Owner',
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      width: 150,
+      width: 200,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -131,7 +131,7 @@ export const PageMixnodes: React.FC = () => {
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       type: 'number',
       headerClassName: 'MuiDataGrid-header-override',
-      width: 150,
+      width: 200,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -242,7 +242,7 @@ export const PageMixnodes: React.FC = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
         >
-          {params.value}
+          {`${params.value} %`}
         </MuiLink>
       ),
     },

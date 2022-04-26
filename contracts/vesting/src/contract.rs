@@ -46,6 +46,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
+            try_compound_delegator_reward(mix_identity, info, deps)
+        }
+        ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
         ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
         } => try_update_mixnode_config(profit_margin_percent, info, deps),
@@ -234,6 +238,14 @@ pub fn try_track_unbond_gateway(
     Ok(Response::new().add_event(new_track_gateway_unbond_event()))
 }
 
+pub fn try_compound_operator_reward(
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_compound_operator_reward(deps.storage)
+}
+
 pub fn try_bond_mixnode(
     mix_node: MixNode,
     owner_signature: String,
@@ -291,6 +303,15 @@ fn try_delegate_to_mixnode(
     let amount = validate_funds(&[amount])?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
+}
+
+fn try_compound_delegator_reward(
+    mix_identity: IdentityKey,
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_compound_delegator_reward(mix_identity, deps.storage)
 }
 
 fn try_undelegate_from_mixnode(

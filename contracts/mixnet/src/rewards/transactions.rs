@@ -1,7 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage::{self, epoch_reward_params_for_id, DELEGATOR_REWARD_CLAIMED_HEIGHT};
+use super::storage::{
+    self, epoch_reward_params_for_id, DELEGATOR_REWARD_CLAIMED_HEIGHT,
+    OPERATOR_REWARD_CLAIMED_HEIGHT,
+};
 use crate::constants;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
@@ -80,9 +83,9 @@ pub fn _try_compound_operator_reward(
         block_height,
     )?;
 
-    DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
+    OPERATOR_REWARD_CLAIMED_HEIGHT.save(
         storage,
-        (bond.identity().to_string(), owner.to_string()),
+        (owner.to_string(), bond.identity().to_string()),
         &block_height,
     )?;
 
@@ -198,31 +201,60 @@ pub fn _try_compound_delegator_reward(
     mix_identity: &str,
     proxy: Option<Addr>,
 ) -> Result<Uint128, ContractError> {
-    let reward = calculate_delegator_reward(storage, owner_address, mix_identity)?;
-    if _try_delegate_to_mixnode(
-        storage,
-        api,
-        block_height,
-        mix_identity,
-        owner_address,
-        Coin {
-            amount: reward,
-            denom: DENOM.to_string(),
-        },
-        proxy,
-    )
-    .is_ok()
+    let delegation_map = crate::delegations::storage::delegations();
+
+    let key = mixnet_contract_common::delegation::generate_storage_key(
+        &api.addr_validate(owner_address)?,
+        proxy.as_ref(),
+    );
+    let reward = calculate_delegator_reward(storage, key.clone(), mix_identity)?;
+    let mut compounded_delegation = reward;
+
+    // Might want to introduce paging here
+    let delegation_heights = delegation_map
+        .prefix((mix_identity.to_string(), key.clone()))
+        .keys(storage, None, None, cosmwasm_std::Order::Ascending)
+        .filter_map(|v| v.ok())
+        .collect::<Vec<u64>>();
+
+    for h in delegation_heights {
+        let delegation =
+            delegation_map.load(storage, (mix_identity.to_string(), key.clone(), h))?;
+        compounded_delegation += delegation.amount.amount;
+        delegation_map.replace(
+            storage,
+            (mix_identity.to_string(), key.clone(), h),
+            None,
+            Some(&delegation),
+        )?;
+    }
+
+    if compounded_delegation != Uint128::zero() {
+        _try_delegate_to_mixnode(
+            storage,
+            api,
+            block_height,
+            mix_identity,
+            owner_address,
+            Coin {
+                amount: reward,
+                denom: DENOM.to_string(),
+            },
+            proxy,
+        )?;
+    }
+
     {
-        // Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
+        //TODO: Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
         if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
             bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
             mixnodes().save(storage, mix_identity, &bond, block_height)?;
         }
-    };
+    }
 
     DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
         storage,
-        (mix_identity.to_string(), owner_address.to_string()),
+        (key, mix_identity.to_string()),
         &block_height,
     )?;
 
@@ -234,20 +266,17 @@ pub fn _try_compound_delegator_reward(
 // + last_reward_claimed height is correctly used
 pub fn calculate_delegator_reward(
     storage: &dyn Storage,
-    owner_address: &str,
+    key: Vec<u8>,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
     let last_claimed_height = storage::DELEGATOR_REWARD_CLAIMED_HEIGHT
-        .load(
-            storage,
-            (owner_address.to_string(), mix_identity.to_string()),
-        )
+        .load(storage, (key.clone(), mix_identity.to_string()))
         .unwrap_or(0);
 
     // Get delegations newer then last_claimed_height, it would be nice to also fold this into the iteration bellow but it should be ok for now, as
     // I doubt folks refresh their delegations often
     let delegations = delegations_storage::delegations()
-        .prefix((mix_identity.to_string(), owner_address.as_bytes().to_vec()))
+        .prefix((mix_identity.to_string(), key))
         .range(storage, None, None, Order::Descending)
         .filter_map(|record| record.ok())
         .filter(|(height, _)| last_claimed_height <= *height)
@@ -866,11 +895,8 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(
-            &mut deps.storage,
-            &deps.api,
-        )
-        .unwrap();
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+            .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
@@ -985,11 +1011,8 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(
-            &mut deps.storage,
-            &deps.api,
-        )
-        .unwrap();
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+            .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;

@@ -2,14 +2,18 @@ import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { TLoginType } from 'src/pages/sign-in/types';
-import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
+import { Account, AppEnv, Network, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
-import { config } from '../../config';
-import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
+import {
+  getMixnodeBondDetails,
+  selectNetwork,
+  signInWithMnemonic,
+  signInWithPassword,
+  signOut,
+  getEnv,
+} from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
-
-export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
@@ -24,14 +28,17 @@ export const urls = (networkName?: Network) =>
 
 type TClientContext = {
   mode: 'light' | 'dark';
+  appEnv?: AppEnv;
   clientDetails?: Account;
   mixnodeDetails?: TMixnodeBondDetails | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
   showSettings: boolean;
+  showTerminal: boolean;
   network?: Network;
   currency?: TCurrency;
   isLoading: boolean;
+  isAdminAddress: boolean;
   error?: string;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
@@ -39,6 +46,7 @@ type TClientContext = {
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
+  handleShowTerminal: () => void;
   logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
@@ -47,12 +55,14 @@ type TClientContext = {
 export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
+  const [appEnv, setAppEnv] = useState<AppEnv>();
   const [clientDetails, setClientDetails] = useState<Account>();
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
   const [network, setNetwork] = useState<Network | undefined>();
   const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -82,6 +92,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       Console.error(e as string);
     }
   };
+
+  useEffect(() => {
+    getEnv().then(setAppEnv);
+  }, []);
 
   useEffect(() => {
     const refreshAccount = async () => {
@@ -128,11 +142,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
   const memoizedValue = useMemo(
     () => ({
       mode,
+      appEnv,
+      isAdminAddress: Boolean(appEnv?.ADMIN_ADDRESS && clientDetails?.client_address === appEnv.ADMIN_ADDRESS),
       isLoading,
       error,
       clientDetails,
@@ -140,6 +157,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       userBalance,
       showAdmin,
       showSettings,
+      showTerminal,
       network,
       currency,
       setIsLoading,
@@ -149,10 +167,24 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       getBondDetails,
       handleShowSettings,
       handleShowAdmin,
+      handleShowTerminal,
       logIn,
       logOut,
     }),
-    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
+    [
+      mode,
+      appEnv,
+      isLoading,
+      error,
+      clientDetails,
+      mixnodeDetails,
+      userBalance,
+      showAdmin,
+      showSettings,
+      showTerminal,
+      network,
+      currency,
+    ],
   );
 
   return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;

@@ -171,6 +171,10 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
+    pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.simulated_gas_multiplier = multiplier;
+    }
+
     pub fn address(&self) -> &AccountId
     where
         C: SigningCosmWasmClient,
@@ -325,6 +329,7 @@ impl<C> NymdClient<C> {
         &self,
         address: String,
         mix_identity: IdentityKey,
+        proxy: Option<String>,
     ) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -332,6 +337,7 @@ impl<C> NymdClient<C> {
         let request = QueryMsg::QueryDelegatorReward {
             address,
             mix_identity,
+            proxy,
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
@@ -341,11 +347,15 @@ impl<C> NymdClient<C> {
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,
+        proxy_address: Option<String>,
     ) -> Result<Vec<DelegationEvent>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetPendingDelegationEvents { owner_address };
+        let request = QueryMsg::GetPendingDelegationEvents {
+            owner_address,
+            proxy_address,
+        };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await

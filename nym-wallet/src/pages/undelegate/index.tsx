@@ -2,7 +2,12 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, CircularProgress } from '@mui/material';
 import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
-import { getCurrentEpoch, getPendingDelegations, getReverseMixDelegations } from '../../requests';
+import {
+  getCurrentEpoch,
+  getPendingDelegations,
+  getPendingVestingDelegations,
+  getReverseMixDelegations,
+} from '../../requests';
 import { Epoch, PendingUndelegate, TPagedDelegations } from '../../types';
 import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
@@ -18,24 +23,29 @@ export const Undelegate = () => {
 
   const { clientDetails } = useContext(ClientContext);
 
+  const refresh = async () => {
+    const mixnodeDelegations = await getReverseMixDelegations();
+    const pendingEvents = await getPendingDelegations();
+    const pendingVestingEvents = await getPendingVestingDelegations();
+    const pendingUndelegationEvents = [...pendingEvents, ...pendingVestingEvents]
+      .filter((evt): evt is { Undelegate: PendingUndelegate } => 'Undelegate' in evt)
+      .map((e) => ({ ...e.Undelegate }));
+    const epoch = await getCurrentEpoch();
+
+    setCurrentEndEpoch(epoch.end);
+    setPendingUndelegations(pendingUndelegationEvents);
+    setPagesDelegations({
+      ...mixnodeDelegations,
+      delegations: removeObjectDuplicates(mixnodeDelegations.delegations, 'node_identity'),
+    });
+  };
+
   const initialize = async () => {
     setStatus(EnumRequestStatus.initial);
     setIsLoading(true);
 
     try {
-      const mixnodeDelegations = await getReverseMixDelegations();
-      const pendingEvents = await getPendingDelegations();
-      const pendingUndelegationEvents = pendingEvents
-        .filter((evt): evt is { Undelegate: PendingUndelegate } => 'Undelegate' in evt)
-        .map((e) => ({ ...e.Undelegate }));
-      const epoch = await getCurrentEpoch();
-
-      setCurrentEndEpoch(epoch.end);
-      setPendingUndelegations(pendingUndelegationEvents);
-      setPagesDelegations({
-        ...mixnodeDelegations,
-        delegations: removeObjectDuplicates(mixnodeDelegations.delegations, 'node_identity'),
-      });
+      await refresh();
     } catch (e) {
       setStatus(EnumRequestStatus.error);
       setMessage(e as string);
@@ -71,10 +81,12 @@ export const Undelegate = () => {
               onError={(m) => {
                 setMessage(m);
                 setStatus(EnumRequestStatus.error);
+                refresh();
               }}
               onSuccess={(m) => {
                 setMessage(m);
                 setStatus(EnumRequestStatus.success);
+                refresh();
               }}
             />
           )}

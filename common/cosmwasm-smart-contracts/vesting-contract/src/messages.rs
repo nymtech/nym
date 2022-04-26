@@ -49,6 +49,10 @@ impl VestingSpecification {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    CompoundDelegatorReward {
+        mix_identity: String,
+    },
+    CompoundOperatorReward {},
     UpdateMixnodeConfig {
         profit_margin_percent: u8,
     },

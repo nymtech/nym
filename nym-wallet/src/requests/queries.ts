@@ -6,7 +6,6 @@ import {
   InclusionProbabilityResponse,
   MixnodeStatusResponse,
   Operation,
- // RewardEstimationResponse,
   StakeSaturationResponse,
   TMixnodeBondDetails,
   TPagedDelegations,
@@ -25,6 +24,11 @@ export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations>
 
 export const getPendingDelegations = async (): Promise<DelegationEvent[]> => {
   const res: DelegationEvent[] = await invoke('get_pending_delegation_events');
+  return res;
+};
+
+export const getPendingVestingDelegations = async (): Promise<DelegationEvent[]> => {
+  const res: DelegationEvent[] = await invoke('get_pending_vesting_delegation_events');
   return res;
 };
 

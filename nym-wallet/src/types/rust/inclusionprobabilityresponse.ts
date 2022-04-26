@@ -1,4 +1,3 @@
-export interface InclusionProbabilityResponse {
-  in_active: number;
-  in_reserve: number;
-}
+import type { SelectionChance } from "./selectionchance";
+
+export interface InclusionProbabilityResponse { in_active: SelectionChance, in_reserve: SelectionChance, }

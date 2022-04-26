@@ -21,7 +21,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         sx={{
           background: '#121726',
           overflow: 'auto',
-          py: 4,
+          py: 3,
           px: 5,
         }}
         display="flex"

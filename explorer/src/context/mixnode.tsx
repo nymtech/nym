@@ -73,13 +73,12 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
     'Failed to fetch mixnode description',
   );
 
-  const [economicDynamicsStats, fetchEconomicDynamicsStats, clearEconomicDynamicsStats] = useApiState<MixNodeEconomicDynamicsStatsResponse>(
-    mixNodeIdentityKey,
-    Api.fetchMixnodeEconomicDynamicsStatsById,
-    'Failed to fetch mixnode dynamics stats by id',
-  );
-
-  
+  const [economicDynamicsStats, fetchEconomicDynamicsStats, clearEconomicDynamicsStats] =
+    useApiState<MixNodeEconomicDynamicsStatsResponse>(
+      mixNodeIdentityKey,
+      Api.fetchMixnodeEconomicDynamicsStatsById,
+      'Failed to fetch mixnode dynamics stats by id',
+    );
 
   const [uptimeStory, fetchUptimeHistory, clearUptimeHistory] = useApiState<UptimeStoryResponse>(
     mixNodeIdentityKey,
@@ -104,7 +103,14 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
         return;
       }
       setMixnodeRow(mixNodeResponseItemToMixnodeRowType(value.data));
-      Promise.all([fetchDelegations(), fetchStatus(), fetchStats(), fetchDescription(), fetchEconomicDynamicsStats(), fetchUptimeHistory()]);
+      Promise.all([
+        fetchDelegations(),
+        fetchStatus(),
+        fetchStats(),
+        fetchDescription(),
+        fetchEconomicDynamicsStats(),
+        fetchUptimeHistory(),
+      ]);
     });
   }, [mixNodeIdentityKey]);
 

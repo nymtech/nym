@@ -15,10 +15,10 @@ export type ColumnsType = {
   tooltipInfo?: string;
 };
 
-export interface UniversalTableProps {
+export interface UniversalTableProps<T = any> {
   tableName: string;
   columnsData: ColumnsType[];
-  rows: any[];
+  rows: T[];
 }
 
 function formatCellValues(val: string | number, field: string) {

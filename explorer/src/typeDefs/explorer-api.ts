@@ -213,4 +213,4 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   estimated_operator_reward: number;
   estimated_delegators_reward: number;
   current_interval_uptime: number;
-}
+};

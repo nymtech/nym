@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { ComponentMeta } from '@storybook/react';
-import { DelegatorsInfoTable } from './delegators-info-table';
-import { delegatorsInfoColumns } from './delegators-info-columns';
-import { delegatorsInfoRows } from './delegators-info-rows';
+import { DelegatorsInfoTable } from './Table';
+import { delegatorsInfoColumns } from './Columns';
 import { DelegatorsInfoRowWithIndex } from './types';
 
 export default {
@@ -15,10 +14,10 @@ export const Default = () => {
     id: 1,
     active_set_probability: {
       value: '50 %',
-      visualProgressValue: 50,
+      percentaje: 50,
     },
     avg_uptime: {
-      value: 65,
+      value: '65 %',
     },
     estimated_operator_reward: {
       value: '80000.123456 NYM',
@@ -31,7 +30,7 @@ export const Default = () => {
     },
     stake_saturation: {
       value: '120 %',
-      visualProgressValue: 120,
+      percentaje: 120,
     },
   };
   return <DelegatorsInfoTable columnsData={delegatorsInfoColumns} tableName="storybook" rows={[row]} />;

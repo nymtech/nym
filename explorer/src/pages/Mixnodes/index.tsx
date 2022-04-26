@@ -213,7 +213,8 @@ export const PageMixnodes: React.FC = () => {
           {params.value}
         </MuiLink>
       ),
-    },{
+    },
+    {
       field: 'profit_percentage',
       headerName: 'Profit Margin',
       renderHeader: () => <CustomColumnHeading headingTitle="Profit Margin" />,
@@ -229,7 +230,8 @@ export const PageMixnodes: React.FC = () => {
           {params.value}
         </MuiLink>
       ),
-    },{
+    },
+    {
       field: 'avg_uptime',
       headerName: 'Avg. Uptime',
       renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,

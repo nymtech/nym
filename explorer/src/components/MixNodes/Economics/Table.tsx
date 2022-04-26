@@ -11,45 +11,30 @@ import {
   Typography,
 } from '@mui/material';
 import { Box } from '@mui/system';
-import { styled, Theme, useTheme } from '@mui/material/styles';
+import { styled, useTheme } from '@mui/material/styles';
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
-import LinearProgress from '@mui/material/LinearProgress';
-import { cellStyles } from '../Universal-DataGrid';
-import { InfoSVG } from '../../icons/InfoSVG';
-import { DelegatorsInfoRowWithIndex, RowsType } from './types';
-import { ColumnsType, UniversalTableProps } from '../DetailTable';
+import { RowsType, DelegatorsInfoRowWithIndex } from './types';
+import { EconomicsProgress } from './EconomicsProgress';
+import { cellStyles } from '../../Universal-DataGrid';
+import { InfoSVG } from '../../../icons/InfoSVG';
+import { UniversalTableProps } from '../../DetailTable';
 
 const tooltipBackGroundColor = '#A0AED1';
 
-const formatCellValues = (val: RowsType, field: string, theme: Theme) => {
-  if (val.visualProgressValue) {
-    const percentageColor = val.visualProgressValue > 100 ? 'warning' : 'inherit';
-    const percentageToDisplay = val.visualProgressValue > 100 ? 100 : val.visualProgressValue;
-
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
-        <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px', color: 'secondary' }}>{val.value}</Typography>
-        <LinearProgress
-          variant="determinate"
-          value={percentageToDisplay}
-          color={percentageColor}
-          sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.nym.networkExplorer.nav.text }}
-        />
-      </Box>
-    );
-  }
-  return (
+const formatCellValues = (value: RowsType, field: string) => (
+  <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
     <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field}>
-      {val.value}
+      {value.value}
     </Typography>
-  );
-};
+    {value.percentaje && <EconomicsProgress threshold={100} value={value.percentaje} />}
+  </Box>
+);
 
-export const DelegatorsInfoTable: React.FC<{
-  tableName: string;
-  columnsData: ColumnsType[];
-  rows: DelegatorsInfoRowWithIndex[];
-}> = ({ tableName, columnsData, rows }: UniversalTableProps) => {
+export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRowWithIndex>> = ({
+  tableName,
+  columnsData,
+  rows,
+}) => {
   const theme = useTheme();
 
   const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -98,28 +83,30 @@ export const DelegatorsInfoTable: React.FC<{
         <TableBody>
           {rows.map((eachRow) => (
             <TableRow key={eachRow.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-              {columnsData?.map((_, index) => (
-                <TableCell
-                  key={_.title}
-                  component="th"
-                  scope="row"
-                  variant="body"
-                  sx={{
-                    ...cellStyles,
-                    padding: 2,
-                    width: 200,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color:
-                      eachRow[columnsData[index].field]?.visualProgressValue > 100
-                        ? theme.palette.warning.main
-                        : theme.palette.nym.wallet.fee,
-                  }}
-                  data-testid={`${_.title.replace(/ /g, '-')}-value`}
-                >
-                  {formatCellValues(eachRow[columnsData[index].field], columnsData[index].field, theme)}
-                </TableCell>
-              ))}
+              {columnsData?.map((_, index: number) => {
+                const { field } = columnsData[index];
+                const value = (eachRow as any)[field];
+                return (
+                  <TableCell
+                    key={_.title}
+                    component="th"
+                    scope="row"
+                    variant="body"
+                    sx={{
+                      ...cellStyles,
+                      padding: 2,
+                      width: 200,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color:
+                        value?.visualProgressValue > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
+                    }}
+                    data-testid={`${_.title.replace(/ /g, '-')}-value`}
+                  >
+                    {formatCellValues(value, columnsData[index].field)}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>

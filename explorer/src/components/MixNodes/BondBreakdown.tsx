@@ -161,16 +161,22 @@ export const BondBreakdownTable: React.FC = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{
-                  fontWeight: 600,
-                  background: theme.palette.background.paper,
-                }} align="left">
+                <TableCell
+                  sx={{
+                    fontWeight: 600,
+                    background: theme.palette.background.paper,
+                  }}
+                  align="left"
+                >
                   Delegators
                 </TableCell>
-                <TableCell sx={{
-                  fontWeight: 600,
-                  background: theme.palette.background.paper,
-                }} align="left">
+                <TableCell
+                  sx={{
+                    fontWeight: 600,
+                    background: theme.palette.background.paper,
+                  }}
+                  align="left"
+                >
                   Stake
                 </TableCell>
                 <TableCell

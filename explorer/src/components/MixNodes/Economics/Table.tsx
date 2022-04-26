@@ -23,7 +23,7 @@ const tooltipBackGroundColor = '#A0AED1';
 const threshold = 100;
 
 const formatCellValues = (value: RowsType, field: string) => {
-  if (value.percentaje) {
+  if (value.displayEconProgress && Number.isInteger(value?.value)) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
         <Typography
@@ -34,9 +34,9 @@ const formatCellValues = (value: RowsType, field: string) => {
           }}
           id={field}
         >
-          {value.value}
+          {`${value?.value?.toFixed(2)} %`}
         </Typography>
-        <EconomicsProgress threshold={threshold} value={value.percentaje} />
+        <EconomicsProgress threshold={threshold} value={value?.value} />
       </Box>
     );
   }

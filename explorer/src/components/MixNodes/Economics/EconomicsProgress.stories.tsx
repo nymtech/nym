@@ -3,7 +3,7 @@ import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { EconomicsProgress } from './EconomicsProgress';
 
 export default {
-  title: 'Mix Node Detail/Economics/Progress',
+  title: 'Mix Node Detail/Economics/ProgressBar',
   component: EconomicsProgress,
 } as ComponentMeta<typeof EconomicsProgress>;
 

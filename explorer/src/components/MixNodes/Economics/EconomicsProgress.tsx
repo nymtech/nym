@@ -19,13 +19,18 @@ export const EconomicsProgress: React.FC<
   const percentageColor = valueNumber > (threshold || 100) ? 'warning' : 'inherit';
   const percentageToDisplay = Math.min(valueNumber, thresholdNumber);
   return (
-    <Box sx={{ color: valueNumber > (threshold || 100) ? theme.palette.warning.main : theme.palette.nym.wallet.fee }}>
+    <Box
+      sx={{
+        width: 6 / 10,
+        color: valueNumber > (threshold || 100) ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
+      }}
+    >
       <LinearProgress
         {...props}
         variant="determinate"
         color={percentageColor}
         value={percentageToDisplay}
-        sx={{ width: '100px', borderRadius: '5px', backgroundColor: theme.palette.text.primary }}
+        sx={{ width: '100%', borderRadius: '5px', backgroundColor: theme.palette.text.primary }}
       />
     </Box>
   );

@@ -1,6 +1,6 @@
 export type RowsType = {
-  percentaje?: number;
-  value?: string;
+  displayEconProgress?: boolean;
+  value?: string | number;
 };
 
 export interface DelegatorsInfoRow {

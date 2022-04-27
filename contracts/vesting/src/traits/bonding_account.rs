@@ -3,6 +3,11 @@ use cosmwasm_std::{Coin, Env, Response, Storage};
 use mixnet_contract_common::{Gateway, MixNode};
 
 pub trait MixnodeBondingAccount {
+    fn try_compound_operator_reward(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Response, ContractError>;
+
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,

@@ -220,16 +220,8 @@ pub(crate) async fn get_mixnode_inclusion_probability(
         // (rewarded_set_size - active_set_size) * prob_one_draw * (1. - prob_active_set);
 
         Json(Some(InclusionProbabilityResponse {
-            in_active: if prob_active_set > 1. {
-                1.
-            } else {
-                prob_active_set
-            } as f32,
-            in_reserve: if prob_reserve_set > 1. {
-                1.
-            } else {
-                prob_reserve_set
-            } as f32,
+            in_active: prob_active_set.into(),
+            in_reserve: prob_reserve_set.into(),
         }))
     } else {
         Json(None)

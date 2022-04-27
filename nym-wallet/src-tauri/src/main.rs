@@ -77,6 +77,7 @@ fn main() {
       utils::outdated_get_approximate_fee,
       utils::owns_gateway,
       utils::owns_mixnode,
+      utils::get_env,
       validator_api::status::gateway_core_node_status,
       validator_api::status::mixnode_core_node_status,
       validator_api::status::mixnode_inclusion_probability,

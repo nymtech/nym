@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use mixnet_contract_common::reward_params::RewardParams;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -82,7 +83,48 @@ pub struct StakeSaturationResponse {
     pub as_at: i64,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(
+    test,
+    ts(
+        export,
+        export_to = "../../nym-wallet/src/types/rust/selectionchance.ts"
+    )
+)]
+pub enum SelectionChance {
+    VeryHigh,
+    High,
+    Moderate,
+    Low,
+    VeryLow,
+}
+
+impl From<f64> for SelectionChance {
+    fn from(p: f64) -> SelectionChance {
+        match p {
+            p if p >= 1. => SelectionChance::VeryHigh,
+            p if p > 0.9 => SelectionChance::High,
+            p if p > 0.7 => SelectionChance::Moderate,
+            p if p > 0.5 => SelectionChance::Low,
+            _ => SelectionChance::VeryLow,
+        }
+    }
+}
+
+impl fmt::Display for SelectionChance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SelectionChance::VeryHigh => write!(f, "VeryHigh"),
+            SelectionChance::High => write!(f, "High"),
+            SelectionChance::Moderate => write!(f, "Moderate"),
+            SelectionChance::Low => write!(f, "Low"),
+            SelectionChance::VeryLow => write!(f, "VeryLow"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,
@@ -92,15 +134,15 @@ pub struct StakeSaturationResponse {
     )
 )]
 pub struct InclusionProbabilityResponse {
-    pub in_active: f32,
-    pub in_reserve: f32,
+    pub in_active: SelectionChance,
+    pub in_reserve: SelectionChance,
 }
 
 impl fmt::Display for InclusionProbabilityResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "in_active: {:.5}, in_reserve: {:.5}",
+            "in_active: {}, in_reserve: {}",
             self.in_active, self.in_reserve
         )
     }

@@ -267,13 +267,14 @@ impl<C> Client<C> {
         &self,
         address: String,
         mix_identity: IdentityKey,
+        proxy: Option<String>,
     ) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
         Ok(self
             .nymd
-            .get_delegator_rewards(address, mix_identity)
+            .get_delegator_rewards(address, mix_identity, proxy)
             .await?
             .u128())
     }

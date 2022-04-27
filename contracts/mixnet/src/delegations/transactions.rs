@@ -305,15 +305,7 @@ pub(crate) fn try_reconcile_undelegation(
         });
     }
 
-    let mut total_delegation = Uint128::zero();
-
-    if crate::mixnodes::storage::mixnodes()
-        .may_load(storage, &pending_undelegate.mix_identity())?
-        .is_none()
-    {
-        // Since the mixnode is no longer bonded the reward did not compound and we need to manually add it to the total
-        total_delegation = reward;
-    }
+    let mut total_delegation = reward;
 
     for h in delegation_heights {
         let delegation =

@@ -388,7 +388,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            disabled_credentials_mode: false,
+            disabled_credentials_mode: true,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,

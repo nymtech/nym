@@ -9,7 +9,7 @@ pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
-pub(crate) const DISABLED_CREDENTIALS_MODE_ARG_NAME: &str = "testnet-mode";
+pub(crate) const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 #[cfg(not(feature = "coconut"))]
 pub(crate) const ETH_ENDPOINT_ARG_NAME: &str = "eth_endpoint";
 #[cfg(not(feature = "coconut"))]
@@ -68,8 +68,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> C
             .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
     }
 
-    if !cfg!(feature = "eth") || matches.is_present(DISABLED_CREDENTIALS_MODE_ARG_NAME) {
-        config.get_base_mut().with_disabled_credentials(true)
+    if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
+        config.get_base_mut().with_disabled_credentials(false)
     }
 
     config

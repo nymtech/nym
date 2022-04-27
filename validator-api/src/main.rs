@@ -50,7 +50,7 @@ const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 const API_VALIDATORS_ARG: &str = "api-validators";
-const DISABLED_CREDENTIALS_MODE_ARG_NAME: &str = "disabled-credentials-mode";
+const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 
 #[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
@@ -164,9 +164,9 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
         )
         .arg(
-            Arg::with_name(DISABLED_CREDENTIALS_MODE_ARG_NAME)
-                .long(DISABLED_CREDENTIALS_MODE_ARG_NAME)
-                .help("Set this validator api to work in a disabled credentials mode that would attempt to use gateway without bandwidth credential requirement")
+            Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
+                .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
+                .help("Set this validator api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
         );
 
     #[cfg(feature = "coconut")]
@@ -320,8 +320,8 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
         config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 
-    if matches.is_present(DISABLED_CREDENTIALS_MODE_ARG_NAME) {
-        config = config.with_disabled_credentials_mode(true)
+    if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
+        config = config.with_disabled_credentials_mode(false)
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {

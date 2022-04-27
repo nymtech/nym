@@ -50,7 +50,7 @@ pub(crate) struct OverrideConfig {
     mnemonic: Option<String>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    disabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     eth_endpoint: Option<String>,
@@ -134,7 +134,9 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     {
-        config = config.with_disabled_credentials_mode(args.disabled_credentials_mode);
+        if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
+            config = config.with_disabled_credentials_mode(enabled_credentials_mode);
+        }
 
         if let Some(raw_validators) = args.validators {
             config = config.with_custom_validator_nymd(parse_validators(&raw_validators));

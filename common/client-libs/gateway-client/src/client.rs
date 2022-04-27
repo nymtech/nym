@@ -83,7 +83,7 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
-            disabled_credentials_mode: false,
+            disabled_credentials_mode: true,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
@@ -134,7 +134,7 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
-            disabled_credentials_mode: false,
+            disabled_credentials_mode: true,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,

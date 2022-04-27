@@ -5,6 +5,22 @@ use crate::dkg::error::DkgError;
 use bytes::{BufMut, BytesMut};
 use crypto::asymmetric::identity;
 use dkg::Dealing;
+use std::io;
+
+pub enum OffchainDkgMessage {
+    NewDealing {
+        id: u64,
+        message: NewDealingMessage,
+    },
+    RemoteDealingRequest {
+        id: u64,
+        message: RemoteDealingRequestMessage,
+    },
+    RemoteDealingResponse {
+        id: u64,
+        message: RemoteDealingResponseMessage,
+    },
+}
 
 pub struct NewDealingMessage {
     epoch_id: u32,
@@ -26,21 +42,6 @@ pub enum RemoteDealingResponseMessage {
         dealer_signature: identity::Signature,
     },
     Unavailable,
-}
-
-pub enum OffchainDkgMessage {
-    NewDealing {
-        id: u64,
-        message: NewDealingMessage,
-    },
-    RemoteDealingRequest {
-        id: u64,
-        message: RemoteDealingRequestMessage,
-    },
-    RemoteDealingResponse {
-        id: u64,
-        message: RemoteDealingResponseMessage,
-    },
 }
 
 impl OffchainDkgMessage {
@@ -110,6 +111,7 @@ impl FramedOffchainDkgMessage {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) struct Header {
     pub(crate) message_type: OffchainDkgMessageType,
     pub(crate) payload_length: u64,
@@ -130,6 +132,38 @@ impl Header {
     }
 
     pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
-        todo!()
+        if bytes.len() != Self::LEN {
+            return Err(DkgError::Networking(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "OffchainDkgMessageType::Header: got {} bytes, expected: {}",
+                    bytes.len(),
+                    Self::LEN
+                ),
+            )));
+        }
+        Ok(Header {
+            message_type: OffchainDkgMessageType::try_from(bytes[0])?,
+            payload_length: u64::from_be_bytes(bytes[1..9].try_into().unwrap()),
+            protocol_version: u32::from_be_bytes(bytes[9..].try_into().unwrap()),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dkg::networking::PROTOCOL_VERSION;
+
+    #[test]
+    fn header_deserialization() {
+        let valid_header = Header {
+            message_type: OffchainDkgMessageType::NewDealing,
+            payload_length: 1234,
+            protocol_version: PROTOCOL_VERSION,
+        };
+
+        let bytes = valid_header.to_bytes();
+        assert_eq!(valid_header, Header::try_from_bytes(&bytes).unwrap())
     }
 }

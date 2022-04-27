@@ -1,11 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { ClientContext } from '../../context/main';
-import {
-  //  getMixnodeRewardEstimation,
-  getMixnodeStakeSaturation,
-  getMixnodeStatus,
-  getInclusionProbability,
-} from '../../requests';
+import { getMixnodeStakeSaturation, getMixnodeStatus, getInclusionProbability } from '../../requests';
 import { MixnodeStatus, InclusionProbabilityResponse } from '../../types';
 
 export const useSettingsState = (shouldUpdate: boolean) => {

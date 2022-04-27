@@ -5,7 +5,7 @@ use crate::client::config::{Config, SocketType};
 use clap::ArgMatches;
 use url::Url;
 
-pub(crate) const TESTNET_MODE_ARG_NAME: &str = "testnet-mode";
+pub(crate) const DISABLED_CREDENTIALS_MODE_ARG_NAME: &str = "testnet-mode";
 #[cfg(not(feature = "coconut"))]
 pub(crate) const ETH_ENDPOINT_ARG_NAME: &str = "eth_endpoint";
 #[cfg(not(feature = "coconut"))]
@@ -72,8 +72,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> C
             .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
     }
 
-    if !cfg!(feature = "eth") || matches.is_present(TESTNET_MODE_ARG_NAME) {
-        config.get_base_mut().with_testnet_mode(true)
+    if !cfg!(feature = "eth") || matches.is_present(DISABLED_CREDENTIALS_MODE_ARG_NAME) {
+        config.get_base_mut().with_disabled_credentials(true)
     }
 
     config

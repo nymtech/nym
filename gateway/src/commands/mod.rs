@@ -50,7 +50,7 @@ pub(crate) struct OverrideConfig {
     mnemonic: Option<String>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     eth_endpoint: Option<String>,
@@ -126,15 +126,15 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
     }
 
-    // We set the testnet mode flag if we either compile without 'eth', or if there is a flag we
+    // We set the disabled credentials mode flag if we either compile without 'eth', or if there is a flag we
     // can read from, which is when we build with 'eth' (and without 'coconut').
     if cfg!(not(feature = "eth")) {
-        config = config.with_testnet_mode(true);
+        config = config.with_disabled_credentials_mode(true);
     }
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     {
-        config = config.with_testnet_mode(args.testnet_mode);
+        config = config.with_disabled_credentials_mode(args.disabled_credentials_mode);
 
         if let Some(raw_validators) = args.validators {
             config = config.with_custom_validator_nymd(parse_validators(&raw_validators));

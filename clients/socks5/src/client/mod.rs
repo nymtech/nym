@@ -187,8 +187,8 @@ impl NymClient {
             Some(bandwidth_controller),
         );
 
-        if self.config.get_base().get_testnet_mode() {
-            gateway_client.set_testnet_mode(true)
+        if self.config.get_base().get_disabled_credentials_mode() {
+            gateway_client.set_disabled_credentials_mode(true)
         }
         gateway_client
             .authenticate_and_start()

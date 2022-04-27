@@ -41,7 +41,7 @@ checksum = "f771a5d1f5503f7f4279a30f3643d3421ba149848b89ecaaec0ea2acf04a5ac4"
 
 [[package]]
 name = "bandwidth-claim"
-version = "1.0.0-rc.2"
+version = "1.0.0"
 dependencies = [
  "bandwidth-claim-contract",
  "config",

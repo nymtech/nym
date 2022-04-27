@@ -33,10 +33,38 @@ const row: DelegatorsInfoRowWithIndex = {
   },
 };
 
+const emptyRow: DelegatorsInfoRowWithIndex = {
+  id: 1,
+  active_set_probability: {
+    value: '0 %',
+    progressBarValue: 0,
+  },
+  avg_uptime: {
+    value: '0 %',
+  },
+  estimated_operator_reward: {
+    value: '0 NYM',
+  },
+  estimated_total_reward: {
+    value: '0 NYM',
+  },
+  profit_margin: {
+    value: '0 %',
+  },
+  stake_saturation: {
+    value: '0 %',
+    progressBarValue: 0,
+  },
+};
+
 const Template: ComponentStory<typeof DelegatorsInfoTable> = (args) => <DelegatorsInfoTable {...args} />;
 
 export const Empty = Template.bind({});
-Empty.args = {};
+Empty.args = {
+  rows: [emptyRow],
+  columnsData: delegatorsInfoColumns,
+  tableName: 'storybook',
+};
 
 export const Default = Template.bind({});
 Default.args = {

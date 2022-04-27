@@ -25,7 +25,7 @@ const threshold = 100;
 
 const formatCellValues = (value: RowsType, field: string, theme: Theme) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  if (value.progressBarValue) {
+  if (value.progressBarValue || value.progressBarValue === 0) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }} id="field">
         <Typography
@@ -102,7 +102,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRow
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((eachRow) => (
+          {rows?.map((eachRow) => (
             <TableRow key={eachRow.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];

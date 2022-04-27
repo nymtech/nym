@@ -25,7 +25,7 @@ const threshold = 100;
 
 const formatCellValues = (value: RowsType, field: string, theme: Theme) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  if (value.progressBarValue || value.progressBarValue === 0) {
+  if (value.progressBarValue) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }} id="field">
         <Typography

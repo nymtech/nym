@@ -5,33 +5,36 @@ import { DelegatorsInfoRowWithIndex } from './types';
 export const delegatorsInfoRows = (): DelegatorsInfoRowWithIndex => {
   const { economicDynamicsStats, mixNode } = useMixnodeContext();
 
-  const estimatedNodeRewards = economicDynamicsStats?.data?.estimated_total_node_reward || 0;
-  const estimatedOperatorRewards = economicDynamicsStats?.data?.estimated_operator_reward || 0;
-  const activeSetProbability = economicDynamicsStats?.data?.active_set_inclusion_probability || 0;
-  const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || 0;
-  const profitMargin = mixNode?.data?.mix_node.profit_margin_percent || 0;
+  const estimatedNodeRewards =
+    currencyToString((economicDynamicsStats?.data?.estimated_total_node_reward || '').toString()) || '-';
+  const estimatedOperatorRewards =
+    currencyToString((economicDynamicsStats?.data?.estimated_operator_reward || '').toString()) || '-';
+  const activeSetProbability = economicDynamicsStats?.data?.active_set_inclusion_probability || '-';
+  const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || '-';
+  const profitMargin = mixNode?.data?.mix_node.profit_margin_percent || '-';
+  const avgUptime = economicDynamicsStats?.data?.current_interval_uptime;
 
   return {
     id: 1,
     estimated_total_reward: {
-      value: currencyToString(estimatedNodeRewards.toString()),
+      value: estimatedNodeRewards,
     },
     estimated_operator_reward: {
-      value: currencyToString(estimatedOperatorRewards.toString()),
+      value: estimatedOperatorRewards,
     },
     active_set_probability: {
-      progressBarValue: activeSetProbability * 100,
-      value: `${(activeSetProbability * 100).toFixed(2)} %`,
+      progressBarValue: typeof activeSetProbability === 'number' ? activeSetProbability * 100 : 0,
+      value: typeof activeSetProbability === 'number' ? `${(activeSetProbability * 100).toFixed(2)} %` : '-',
     },
     stake_saturation: {
-      progressBarValue: stakeSaturation * 100,
-      value: `${(stakeSaturation * 100).toFixed(2)} %`,
+      progressBarValue: typeof stakeSaturation === 'number' ? stakeSaturation * 100 : 0,
+      value: typeof stakeSaturation === 'number' ? `${(stakeSaturation * 100).toFixed(2)} %` : '-',
     },
     profit_margin: {
-      value: `${profitMargin} %`,
+      value: profitMargin ? `${profitMargin} %` : '-',
     },
     avg_uptime: {
-      value: `${economicDynamicsStats?.data?.current_interval_uptime} %`,
+      value: avgUptime ? `${avgUptime} %` : '-',
     },
   };
 };

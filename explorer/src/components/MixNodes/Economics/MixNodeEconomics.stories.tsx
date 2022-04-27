@@ -36,23 +36,23 @@ const row: DelegatorsInfoRowWithIndex = {
 const emptyRow: DelegatorsInfoRowWithIndex = {
   id: 1,
   active_set_probability: {
-    value: '0 %',
+    value: '-',
     progressBarValue: 0,
   },
   avg_uptime: {
-    value: '0 %',
+    value: '-',
   },
   estimated_operator_reward: {
-    value: '0 NYM',
+    value: '-',
   },
   estimated_total_reward: {
-    value: '0 NYM',
+    value: '-',
   },
   profit_margin: {
-    value: '0 %',
+    value: '-',
   },
   stake_saturation: {
-    value: '0 %',
+    value: '-',
     progressBarValue: 0,
   },
 };

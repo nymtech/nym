@@ -4,8 +4,9 @@ use cosmwasm_std::Uint128;
 use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize)]
 pub struct NodeEpochRewards {
     params: NodeRewardParams,
     result: StoredNodeRewardResult,
@@ -25,11 +26,11 @@ impl NodeEpochRewards {
         self.epoch_id
     }
 
-    pub fn sigma(&self) -> Uint128 {
+    pub fn sigma(&self) -> String {
         self.result.sigma()
     }
 
-    pub fn lambda(&self) -> Uint128 {
+    pub fn lambda(&self) -> String {
         self.result.lambda()
     }
 
@@ -58,8 +59,8 @@ impl NodeEpochRewards {
         let reward = self.node_profit();
         let operator_base_reward = reward.min(self.operator_cost());
         let operator_reward = (profit_margin
-            + (ONE - profit_margin) * U128::from_num(self.lambda().u128())
-                / U128::from_num(self.sigma().u128()))
+            + (ONE - profit_margin) * U128::from_str(&self.lambda()).expect("failed to parse U128 from str, we've made it a string so this is quite strange")
+                / U128::from_str(&self.sigma()).expect("failed to parse U128 from str, we've made it a string so this is quite strange"))
             * reward;
 
         let reward = (operator_reward + operator_base_reward).max(U128::from_num(0u128));
@@ -83,7 +84,9 @@ impl NodeEpochRewards {
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
         let delegator_reward = (ONE - profit_margin) * scaled_delegation_amount
-            / U128::from_num(self.sigma().u128())
+            / U128::from_str(&self.sigma()).expect(
+                "failed to parse U128 from str, we've made it a string so this is quite strange",
+            )
             * self.node_profit();
 
         let reward = delegator_reward.max(U128::ZERO);

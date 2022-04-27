@@ -114,7 +114,7 @@ pub fn calculate_operator_reward(
                 if let Some(bond) =
                     mixnodes().may_load_at_height(storage, bond.identity().as_str(), height)?
                 {
-                    if let Some(epoch_rewards) = bond.epoch_rewards {
+                    if let Some(ref epoch_rewards) = bond.epoch_rewards {
                         let epoch_reward_params =
                             epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
                         // Compound rewards from previous heights
@@ -289,6 +289,7 @@ pub fn calculate_delegator_reward(
         .prefix(mix_identity)
         .keys(storage, None, None, Order::Ascending)
         .filter_map(|height| height.ok())
+        // Get all checkpoints greater then last claimed delegation height
         .filter(|height| last_claimed_height <= *height)
         .fold(
             Ok(Uint128::zero()),
@@ -296,7 +297,7 @@ pub fn calculate_delegator_reward(
                 let accumulated_reward = acc?;
                 let delegation_at_height = delegations
                     .iter()
-                    .filter(|d| height <= d.block_height)
+                    .filter(|d| d.block_height <= height)
                     .fold(Uint128::zero(), |total, delegation| {
                         total + delegation.amount.amount
                     });
@@ -304,7 +305,7 @@ pub fn calculate_delegator_reward(
                     if let Some(bond) =
                         mixnodes().may_load_at_height(storage, mix_identity, height)?
                     {
-                        if let Some(epoch_rewards) = bond.epoch_rewards {
+                        if let Some(ref epoch_rewards) = bond.epoch_rewards {
                             // Compound rewards from previous heights
                             let epoch_reward_params =
                                 epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
@@ -415,7 +416,7 @@ pub(crate) fn try_reward_mixnode(
 
     stored_bond.epoch_rewards = Some(NodeEpochRewards::new(
         node_reward_params,
-        stored_node_result,
+        stored_node_result.clone(),
         epoch.id(),
     ));
 
@@ -472,7 +473,7 @@ pub mod tests {
     use az::CheckedCast;
     use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coin, coins, Addr, Timestamp, Uint128};
+    use cosmwasm_std::{coin, coins, Addr, StdError, Timestamp, Uint128};
     use mixnet_contract_common::events::{
         must_find_attribute, BOND_TOO_FRESH_VALUE, NO_REWARD_REASON_KEY,
         OPERATOR_REWARDING_EVENT_TYPE,
@@ -808,9 +809,13 @@ pub mod tests {
     }
 
     #[test]
-    fn test_reward_additivity() {
+    fn test_reward_additivity_and_snapshots() {
         use crate::constants::INTERVAL_REWARD_PERCENT;
         use crate::contract::INITIAL_REWARD_POOL;
+        use crate::mixnodes::transactions::try_add_mixnode;
+        use rand::thread_rng;
+
+        let mixnodes = crate::mixnodes::storage::mixnodes();
 
         type U128 = fixed::types::U75F53;
 
@@ -820,14 +825,81 @@ pub mod tests {
             .load(deps.as_ref().storage)
             .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
+
+        let info = mock_info(rewarding_validator_address.as_str(), &[]);
+
+        crate::mixnodes::transactions::try_checkpoint_mixnodes(
+            &mut deps.storage,
+            env.block.height,
+            info.clone(),
+        )
+        .unwrap();
+        let checkpoints = mixnodes
+            .changelog()
+            .keys(&deps.storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .collect::<Vec<(IdentityKey, u64)>>();
+        assert_eq!(0, checkpoints.len());
+
         let period_reward_pool = (INITIAL_REWARD_POOL / 100 / EPOCHS_IN_INTERVAL as u128)
             * INTERVAL_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 6_944_444_444);
         let circulating_supply = storage::circulating_supply(&deps.storage).unwrap().u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
 
-        let node_owner: Addr = Addr::unchecked("alice");
-        let node_identity = test_helpers::add_mixnode(
+        let sender = Addr::unchecked("alice");
+        let stake = coins(10_000_000_000, DENOM);
+
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let owner_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
+
+        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng());
+
+        let info = mock_info(sender.as_str(), &stake);
+
+        let node_identity_1 = keypair.public_key().to_base58_string();
+
+        env.block.height;
+
+        try_add_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            MixNode {
+                identity_key: node_identity_1.clone(),
+                sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            },
+            owner_signature,
+        )
+        .unwrap();
+
+        // tick
+
+        env.block.height += 1;
+
+        let info = mock_info(rewarding_validator_address.as_str(), &[]);
+        crate::mixnodes::transactions::try_checkpoint_mixnodes(
+            &mut deps.storage,
+            env.block.height,
+            info.clone(),
+        )
+        .unwrap();
+        mixnodes
+            .assert_checkpointed(&deps.storage, env.block.height)
+            .unwrap();
+        let checkpoints = mixnodes
+            .changelog()
+            .keys(&deps.storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .collect::<Vec<(IdentityKey, u64)>>();
+        assert_eq!(checkpoints.len(), 1);
+
+        let node_owner: Addr = Addr::unchecked("johnny");
+        let node_identity_2 = test_helpers::add_mixnode(
             node_owner.as_str(),
             coins(10_000_000_000, DENOM),
             deps.as_mut(),
@@ -837,7 +909,7 @@ pub mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
-            node_identity.clone(),
+            node_identity_1.clone(),
         )
         .unwrap();
 
@@ -845,16 +917,9 @@ pub mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
-            node_identity.clone(),
+            node_identity_1.clone(),
         )
         .unwrap();
-
-        let node_owner: Addr = Addr::unchecked("bob");
-        let node_identity_2 = test_helpers::add_mixnode(
-            node_owner.as_str(),
-            coins(10_000_000_000, DENOM),
-            deps.as_mut(),
-        );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
@@ -901,7 +966,7 @@ pub mod tests {
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
-        let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity)
+        let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity_1)
             .unwrap()
             .unwrap();
         let mix_1_uptime = 100;
@@ -941,6 +1006,181 @@ pub mod tests {
         assert_eq!(params3.performance(), U128::from_num(0.75f32));
 
         let mix_1_reward_result = mix_1.reward(&params);
+
+        let info = mock_info(rewarding_validator_address.as_str(), &[]);
+        crate::mixnodes::transactions::try_checkpoint_mixnodes(
+            &mut deps.storage,
+            env.block.height,
+            info.clone(),
+        )
+        .unwrap();
+        mixnodes
+            .assert_checkpointed(&deps.storage, env.block.height)
+            .unwrap();
+
+        try_reward_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            node_identity_1.clone(),
+            node_reward_params,
+        )
+        .unwrap();
+
+        let mix_after_reward = mixnodes.may_load(&deps.storage, &node_identity_1).unwrap();
+        // println!("{:?}", mix_after_reward);
+
+        let checkpoints = mixnodes
+            .changelog()
+            .prefix(&node_identity_1)
+            .keys(&deps.storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .collect::<Vec<u64>>();
+        assert_eq!(checkpoints.len(), 2);
+
+        env.block.height += 10000;
+        env.block.time = env.block.time.plus_seconds(3601);
+
+        try_advance_epoch(
+            env.clone(),
+            &mut deps.storage,
+            rewarding_validator_address.to_string(),
+        )
+        .unwrap();
+
+        // After two snapshots we should see an increase in delegation
+        try_delegate_to_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
+            node_identity_1.clone(),
+        )
+        .unwrap();
+
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+            .unwrap();
+
+        let info = mock_info(rewarding_validator_address.as_str(), &[]);
+        crate::mixnodes::transactions::try_checkpoint_mixnodes(
+            &mut deps.storage,
+            env.block.height,
+            info.clone(),
+        )
+        .unwrap();
+        mixnodes
+            .assert_checkpointed(&deps.storage, env.block.height)
+            .unwrap();
+
+        try_reward_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            node_identity_1.clone(),
+            node_reward_params,
+        )
+        .unwrap();
+        let mix_after_reward_2 = mixnodes.may_load(&deps.storage, &node_identity_1).unwrap();
+
+        assert_ne!(mix_after_reward, mix_after_reward_2);
+
+        let checkpoints = mixnodes
+            .changelog()
+            .prefix(&node_identity_1)
+            .keys(&deps.storage, None, None, Order::Ascending)
+            .collect::<Vec<Result<u64, StdError>>>();
+        assert_eq!(checkpoints.len(), 3);
+
+        env.block.height += 10000;
+        env.block.time = env.block.time.plus_seconds(3601);
+
+        try_advance_epoch(
+            env.clone(),
+            &mut deps.storage,
+            rewarding_validator_address.to_string(),
+        )
+        .unwrap();
+
+        let info = mock_info(rewarding_validator_address.as_str(), &[]);
+        crate::mixnodes::transactions::try_checkpoint_mixnodes(
+            &mut deps.storage,
+            env.block.height,
+            info.clone(),
+        )
+        .unwrap();
+        mixnodes
+            .assert_checkpointed(&deps.storage, env.block.height)
+            .unwrap();
+
+        try_reward_mixnode(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            node_identity_1.clone(),
+            node_reward_params,
+        )
+        .unwrap();
+
+        let checkpoints = mixnodes
+            .changelog()
+            .prefix(&node_identity_1)
+            .keys(&deps.storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .collect::<Vec<u64>>();
+        assert_eq!(checkpoints.len(), 4);
+
+        let delegation_map = crate::delegations::storage::delegations();
+        let key = "alice_d1".as_bytes().to_vec();
+
+        let last_claimed_height = storage::DELEGATOR_REWARD_CLAIMED_HEIGHT
+            .load(&deps.storage, (key.clone(), node_identity_1.to_string()))
+            .unwrap_or(0);
+
+        assert_eq!(last_claimed_height, 0);
+
+        let viable_delegations = delegation_map
+            .prefix((node_identity_1.to_string(), key.clone()))
+            .range(&deps.storage, None, None, Order::Descending)
+            .filter_map(|record| record.ok())
+            .filter(|(height, _)| last_claimed_height <= *height)
+            .map(|(_, delegation)| delegation)
+            .collect::<Vec<Delegation>>();
+
+        assert_eq!(viable_delegations.len(), 2);
+
+        let viable_heights = mixnodes
+            .changelog()
+            .prefix(&node_identity_1)
+            .keys(&deps.storage, None, None, Order::Ascending)
+            .filter_map(|height| height.ok())
+            .filter(|height| last_claimed_height <= *height)
+            .collect::<Vec<u64>>();
+
+        // Should be equal to the number of checkpoints
+        assert_eq!(viable_heights.len(), 4);
+
+        for (i, h) in viable_heights.into_iter().enumerate() {
+            let delegation_at_height = viable_delegations
+                .iter()
+                .filter(|d| d.block_height <= h)
+                .fold(Uint128::zero(), |total, delegation| {
+                    total + delegation.amount.amount
+                });
+            if i < 2 {
+                assert_eq!(delegation_at_height, Uint128::new(8000000000));
+            } else {
+                assert_eq!(delegation_at_height, Uint128::new(16000000000));
+            }
+        }
+
+        let alice_reward =
+            calculate_delegator_reward(&deps.storage, key, &node_identity_1).unwrap();
+        assert_eq!(alice_reward, Uint128::new(304552));
+
+        let mix = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
+
+        let operator_reward =
+            calculate_operator_reward(&deps.storage, &Addr::unchecked("alice"), &mix).unwrap();
+        assert_eq!(operator_reward, Uint128::new(190345));
 
         assert_eq!(
             mix_1_reward_result.sigma(),

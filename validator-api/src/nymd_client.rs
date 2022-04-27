@@ -321,11 +321,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let mut msgs = reward_msgs;
+        // First we create the checkpoint, all subsequent changes to a node will be made to the checkpoint
+        let mut msgs = vec![(ExecuteMsg::CheckpointMixnodes {}, vec![])];
+        msgs.extend(reward_msgs);
 
         let epoch_msgs = vec![
             (ExecuteMsg::ReconcileDelegations {}, vec![]),
-            (ExecuteMsg::CheckpointMixnodes {}, vec![]),
             (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
             (
                 ExecuteMsg::WriteRewardedSet {

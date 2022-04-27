@@ -247,11 +247,11 @@ impl DelegatorRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
-    lambda: Uint128,
-    sigma: Uint128,
+    lambda: String,
+    sigma: String,
 }
 
 impl StoredNodeRewardResult {
@@ -259,12 +259,12 @@ impl StoredNodeRewardResult {
         self.reward
     }
 
-    pub fn lambda(&self) -> Uint128 {
-        self.lambda
+    pub fn lambda(&self) -> String {
+        self.lambda.clone()
     }
 
-    pub fn sigma(&self) -> Uint128 {
-        self.sigma
+    pub fn sigma(&self) -> String {
+        self.sigma.clone()
     }
 }
 
@@ -279,18 +279,8 @@ impl TryFrom<NodeRewardResult> for StoredNodeRewardResult {
                     .checked_cast()
                     .ok_or(MixnetContractError::CastError)?,
             ),
-            lambda: Uint128::new(
-                node_reward_result
-                    .lambda()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
-            sigma: Uint128::new(
-                node_reward_result
-                    .sigma()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
+            lambda: node_reward_result.lambda().to_string(),
+            sigma: node_reward_result.sigma().to_string(),
         })
     }
 }

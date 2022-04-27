@@ -177,6 +177,7 @@ pub enum QueryMsg {
         owner_address: String,
         proxy_address: Option<String>,
     },
+    DebugGetAllPendingDelegationEvents {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

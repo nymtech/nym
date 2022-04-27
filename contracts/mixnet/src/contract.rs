@@ -387,6 +387,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::DebugGetAllDelegationValues {} => to_binary(
             &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
         ),
+        QueryMsg::DebugGetAllPendingDelegationEvents {} => {
+            to_binary(&crate::delegations::queries::debug_get_all_pending_delegation_events(deps)?)
+        }
     };
 
     Ok(query_res?)

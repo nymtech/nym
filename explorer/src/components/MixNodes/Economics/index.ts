@@ -1,3 +1,3 @@
 export { DelegatorsInfoTable } from './Table';
-export { delegatorsInfoColumns } from './Columns';
-export { delegatorsInfoRows } from './Rows';
+export { EconomicsInfoColumns } from './Columns';
+export { EconomicsInfoRows } from './Rows';

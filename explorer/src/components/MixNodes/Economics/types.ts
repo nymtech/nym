@@ -1,15 +1,15 @@
-export type RowsType = {
+export type EconomicsRowsType = {
   progressBarValue?: number;
   value?: string;
 };
 
-export interface DelegatorsInfoRow {
-  estimated_total_reward: RowsType;
-  estimated_operator_reward: RowsType;
-  active_set_probability: RowsType;
-  stake_saturation: RowsType;
-  profit_margin: RowsType;
-  avg_uptime: RowsType;
+export interface EconomicsInfoRow {
+  estimated_total_reward: EconomicsRowsType;
+  estimated_operator_reward: EconomicsRowsType;
+  active_set_probability: EconomicsRowsType;
+  stake_saturation: EconomicsRowsType;
+  profit_margin: EconomicsRowsType;
+  avg_uptime: EconomicsRowsType;
 }
 
-export type DelegatorsInfoRowWithIndex = DelegatorsInfoRow & { id: number };
+export type EconomicsInfoRowWithIndex = EconomicsInfoRow & { id: number };

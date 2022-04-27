@@ -1,6 +1,6 @@
 import { ColumnsType } from '../../DetailTable';
 
-export const delegatorsInfoColumns: ColumnsType[] = [
+export const EconomicsInfoColumns: ColumnsType[] = [
   {
     field: 'estimated_total_reward',
     title: 'Estimated Total Reward',

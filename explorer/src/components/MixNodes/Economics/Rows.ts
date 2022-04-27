@@ -1,8 +1,8 @@
 import { currencyToString } from '../../../utils/currency';
 import { useMixnodeContext } from '../../../context/mixnode';
-import { DelegatorsInfoRowWithIndex } from './types';
+import { EconomicsInfoRowWithIndex } from './types';
 
-export const delegatorsInfoRows = (): DelegatorsInfoRowWithIndex => {
+export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
   const { economicDynamicsStats, mixNode } = useMixnodeContext();
 
   const estimatedNodeRewards =

@@ -14,7 +14,7 @@ import {
 import { Box } from '@mui/system';
 import { styled, useTheme, Theme } from '@mui/material/styles';
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
-import { RowsType, DelegatorsInfoRowWithIndex } from './types';
+import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
 import { cellStyles } from '../../Universal-DataGrid';
 import { InfoSVG } from '../../../icons/InfoSVG';
@@ -23,7 +23,7 @@ import { UniversalTableProps } from '../../DetailTable';
 const tooltipBackGroundColor = '#A0AED1';
 const threshold = 100;
 
-const formatCellValues = (value: RowsType, field: string, theme: Theme) => {
+const formatCellValues = (value: EconomicsRowsType, field: string, theme: Theme) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   if (value.progressBarValue) {
     return (
@@ -51,7 +51,7 @@ const formatCellValues = (value: RowsType, field: string, theme: Theme) => {
   );
 };
 
-export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRowWithIndex>> = ({
+export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowWithIndex>> = ({
   tableName,
   columnsData,
   rows,
@@ -106,7 +106,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRow
             <TableRow key={eachRow.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];
-                const value: RowsType = (eachRow as any)[field];
+                const value: EconomicsRowsType = (eachRow as any)[field];
                 const progressBarValue = value?.progressBarValue || 0;
                 return (
                   <TableCell

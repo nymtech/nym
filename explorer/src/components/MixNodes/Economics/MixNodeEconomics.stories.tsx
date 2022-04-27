@@ -1,15 +1,15 @@
 import * as React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { DelegatorsInfoTable } from './Table';
-import { delegatorsInfoColumns } from './Columns';
-import { DelegatorsInfoRowWithIndex } from './types';
+import { EconomicsInfoColumns } from './Columns';
+import { EconomicsInfoRowWithIndex } from './types';
 
 export default {
-  title: 'Mix Node Detail/Economics/Table',
+  title: 'Mix Node Detail/Economics',
   component: DelegatorsInfoTable,
 } as ComponentMeta<typeof DelegatorsInfoTable>;
 
-const row: DelegatorsInfoRowWithIndex = {
+const row: EconomicsInfoRowWithIndex = {
   id: 1,
   active_set_probability: {
     value: '50 %',
@@ -33,7 +33,7 @@ const row: DelegatorsInfoRowWithIndex = {
   },
 };
 
-const emptyRow: DelegatorsInfoRowWithIndex = {
+const emptyRow: EconomicsInfoRowWithIndex = {
   id: 1,
   active_set_probability: {
     value: '-',
@@ -62,13 +62,13 @@ const Template: ComponentStory<typeof DelegatorsInfoTable> = (args) => <Delegato
 export const Empty = Template.bind({});
 Empty.args = {
   rows: [emptyRow],
-  columnsData: delegatorsInfoColumns,
+  columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };
 
 export const Default = Template.bind({});
 Default.args = {
   rows: [row],
-  columnsData: delegatorsInfoColumns,
+  columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };

@@ -18,6 +18,7 @@ export const EconomicsProgress: React.FC<
   const thresholdNumber: number = parseToNumber(threshold);
   const percentageColor = valueNumber > (threshold || 100) ? 'warning' : 'inherit';
   const percentageToDisplay = Math.min(valueNumber, thresholdNumber);
+
   return (
     <Box
       sx={{
@@ -30,7 +31,7 @@ export const EconomicsProgress: React.FC<
         variant="determinate"
         color={percentageColor}
         value={percentageToDisplay}
-        sx={{ width: '100%', borderRadius: '5px', backgroundColor: theme.palette.text.primary }}
+        sx={{ width: '100%', borderRadius: '5px', backgroundColor: theme.palette.common.white }}
       />
     </Box>
   );

@@ -1,13 +1,13 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { Box, Button, FormControl, LinearProgress, Stack } from '@mui/material';
 import { useHistory } from 'react-router-dom';
+import { Box, Button, FormControl, Stack } from '@mui/material';
 import { isPasswordCreated } from 'src/requests';
 import { MnemonicInput, Subtitle } from '../components';
 import { ClientContext } from '../../../context/main';
 
 export const SignInMnemonic = () => {
   const [mnemonic, setMnemonic] = useState('');
-  const { setError, logIn, error, isLoading } = useContext(ClientContext);
+  const { setError, logIn, error } = useContext(ClientContext);
   const [passwordExists, setPasswordExists] = useState(true);
   const history = useHistory();
 
@@ -24,13 +24,6 @@ export const SignInMnemonic = () => {
   useEffect(() => {
     checkForPassword();
   }, []);
-
-  if (isLoading)
-    return (
-      <Box width="25%">
-        <LinearProgress variant="indeterminate" />
-      </Box>
-    );
 
   return (
     <Stack spacing={2} alignItems="center" minWidth="50%">

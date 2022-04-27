@@ -11,21 +11,22 @@ import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
 import { SignInProvider } from './context';
+import { LoadingPage } from './components/LoadingPage';
 
 const App = () => {
-  const { clientDetails } = useContext(ClientContext);
+  const { clientDetails, isLoading } = useContext(ClientContext);
 
   useEffect(() => {
     maximizeWindow();
   }, []);
 
-  return !clientDetails ? (
-    <WelcomeTheme>
-      <SignInProvider>
-        <SignInRoutes />
-      </SignInProvider>
-    </WelcomeTheme>
-  ) : (
+  if (!clientDetails)
+    return (
+      <WelcomeTheme>
+        <SignInProvider>{!isLoading ? <SignInRoutes /> : <LoadingPage />}</SignInProvider>
+      </WelcomeTheme>
+    );
+  return (
     <NymWalletTheme>
       <ApplicationLayout>
         <Settings />

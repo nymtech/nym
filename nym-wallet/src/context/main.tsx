@@ -42,6 +42,7 @@ type TClientContext = {
   logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
+  onAccountChange: (mnemonic: string) => void;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -60,6 +61,15 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const userBalance = useGetBalance(clientDetails?.client_address);
   const history = useHistory();
   const { enqueueSnackbar } = useSnackbar();
+
+  const clearState = () => {
+    userBalance.clearAll();
+    setClientDetails(undefined);
+    setNetwork(undefined);
+    setError(undefined);
+    setIsLoading(false);
+    setMixnodeDetails(undefined);
+  };
 
   const loadAccount = async (n: Network) => {
     try {
@@ -116,14 +126,16 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   };
 
   const logOut = async () => {
-    userBalance.clearAll();
-    setClientDetails(undefined);
-    setNetwork(undefined);
-    setError(undefined);
-    setIsLoading(false);
-    setMixnodeDetails(undefined);
+    clearState();
     await signOut();
     enqueueSnackbar('Successfully logged out', { variant: 'success' });
+  };
+
+  const onAccountChange = async (value: string) => {
+    clearState();
+    await signOut();
+    await logIn({ type: 'mnemonic', value });
+    enqueueSnackbar('Account switch success', { variant: 'success' });
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
@@ -151,6 +163,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       handleShowAdmin,
       logIn,
       logOut,
+      onAccountChange,
     }),
     [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
   );

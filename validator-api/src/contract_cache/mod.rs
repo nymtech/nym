@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd_client::Client;
-use rocket_okapi::openapi_get_routes;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use config::defaults::VALIDATOR_API_VERSION;
@@ -10,6 +9,7 @@ use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
+use rocket_okapi::openapi_get_routes;
 
 use rocket::fairing::AdHoc;
 use serde::Serialize;
@@ -180,7 +180,7 @@ impl<C> ValidatorCacheRefresher<C> {
 }
 
 impl ValidatorCache {
-    pub fn new() -> Self {
+    fn new() -> Self {
         ValidatorCache {
             initialised: Arc::new(AtomicBool::new(false)),
             inner: Arc::new(RwLock::new(ValidatorCacheInner::new())),
@@ -189,13 +189,10 @@ impl ValidatorCache {
 
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
-            rocket
-                .manage(Self::new())
-                .mount(
+            rocket.manage(Self::new()).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
                 openapi_get_routes![
-                //routes![
                     routes::get_mixnodes,
                     routes::get_gateways,
                     routes::get_active_set,

@@ -67,43 +67,39 @@ pub struct Interval {
     length: Duration,
 }
 
-//impl JsonSchema for Interval {
-//    fn schema_name() -> String {
-//        "Interval".to_owned()
-//    }
-//
-//    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-//        let mut schema_object = SchemaObject {
-//            instance_type: Some(InstanceType::Object.into()),
-//            ..SchemaObject::default()
-//        };
-//
-//        let object_validation = schema_object.object();
-//        object_validation
-//            .properties
-//            .insert("id".to_owned(), gen.subschema_for::<u32>());
-//        object_validation
-//            .required
-//            .insert("id".to_owned());
-//
-//        // WIP(JON): missing member
-//        //object_validation
-//        //    .properties
-//        //    .insert("start".to_owned(), gen.subschema_for::<OffsetDateTime>());
-//        //object_validation
-//        //    .required
-//        //    .insert("start".to_owned());
-//
-//        object_validation
-//            .properties
-//            .insert("length".to_owned(), gen.subschema_for::<Duration>());
-//        object_validation
-//            .required
-//            .insert("length".to_owned());
-//
-//        Schema::Object(schema_object)
-//    }
-//}
+impl JsonSchema for Interval {
+    fn schema_name() -> String {
+        "Interval".to_owned()
+    }
+
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        let mut schema_object = SchemaObject {
+            instance_type: Some(InstanceType::Object.into()),
+            ..SchemaObject::default()
+        };
+
+        let object_validation = schema_object.object();
+        object_validation
+            .properties
+            .insert("id".to_owned(), gen.subschema_for::<u32>());
+        object_validation.required.insert("id".to_owned());
+
+        // WIP(JON): missing JsonSchema impl for PrimitiveDateTime
+        //object_validation
+        //    .properties
+        //    .insert("start".to_owned(), gen.subschema_for::<PrimitiveDateTime>());
+        //object_validation
+        //    .required
+        //    .insert("start".to_owned());
+
+        object_validation
+            .properties
+            .insert("length".to_owned(), gen.subschema_for::<Duration>());
+        object_validation.required.insert("length".to_owned());
+
+        Schema::Object(schema_object)
+    }
+}
 
 impl Interval {
     /// Initialize epoch in the contract with default values.

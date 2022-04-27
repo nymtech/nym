@@ -55,8 +55,7 @@ pub async fn get_epoch_reward_params(cache: &State<ValidatorCache>) -> Json<Epoc
     Json(cache.epoch_reward_params().await.value)
 }
 
-// WIP(JON)
-#[openapi(tag = "contract-cache", skip)]
+#[openapi(tag = "contract-cache")]
 #[get("/epoch/current")]
 pub async fn get_current_epoch(cache: &State<ValidatorCache>) -> Json<Option<Interval>> {
     Json(cache.current_epoch().await.value)

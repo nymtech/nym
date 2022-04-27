@@ -9,9 +9,9 @@ use rocket::response::{self, Responder, Response};
 use rocket::Request;
 use rocket_okapi::gen::OpenApiGenerator;
 use rocket_okapi::response::OpenApiResponderInner;
-use schemars::JsonSchema;
 use schemars::gen::SchemaGenerator;
-use schemars::schema::{Schema, InstanceType};
+use schemars::schema::{InstanceType, Schema};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
@@ -269,19 +269,16 @@ impl JsonSchema for ErrorResponse {
         object_validation
             .properties
             .insert("status".to_owned(), gen.subschema_for::<u16>());
-        object_validation
-            .required
-            .insert("status".to_owned());
+        object_validation.required.insert("status".to_owned());
 
         Schema::Object(schema_object)
     }
 }
 
-
 impl OpenApiResponderInner for ErrorResponse {
     fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
         let responses = Responses::default();
-        // WIP(JON)
+        // WIP(JON): handle responses correctly
         Ok(responses)
     }
 }

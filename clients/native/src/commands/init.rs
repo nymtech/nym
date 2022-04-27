@@ -24,7 +24,7 @@ use crate::commands::override_config;
 #[cfg(feature = "eth")]
 #[cfg(not(feature = "coconut"))]
 use crate::commands::{
-    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, DISABLED_CREDENTIALS_MODE_ARG_NAME,
+    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ENABLED_CREDENTIALS_MODE_ARG_NAME,
     ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
 };
 
@@ -66,8 +66,8 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     #[cfg(not(feature = "coconut"))]
         let app = app
         .arg(
-            Arg::with_name(DISABLED_CREDENTIALS_MODE_ARG_NAME)
-                .long(DISABLED_CREDENTIALS_MODE_ARG_NAME)
+            Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
+                .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .help("Set this client to work in a disabled credentials mode that would attempt to use gateway without bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
                 .conflicts_with_all(&[ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME])
         )
@@ -75,13 +75,13 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long(ETH_ENDPOINT_ARG_NAME)
             .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .default_value_if(DISABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
+            .default_value_if(ENABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
             .required(true))
         .arg(Arg::with_name(ETH_PRIVATE_KEY_ARG_NAME)
             .long(ETH_PRIVATE_KEY_ARG_NAME)
             .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .default_value_if(DISABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
+            .default_value_if(ENABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
             .required(true)
         );
 

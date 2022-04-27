@@ -200,7 +200,7 @@ impl Default for NetworkMonitor {
             min_mixnode_reliability: DEFAULT_MIN_MIXNODE_RELIABILITY,
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
-            disabled_credentials_mode: false,
+            disabled_credentials_mode: true,
             all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,

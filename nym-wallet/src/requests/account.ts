@@ -31,9 +31,16 @@ export const isPasswordCreated = async (): Promise<boolean> => {
   return res;
 };
 
-export const createNewAccount = async (mnemonic: string): Promise<Account> => {
-  const res: Account = await invoke('create_new_account', { mnemonic });
-  return res;
+export const addAccount = async ({
+  mnemonic,
+  password,
+  accountName,
+}: {
+  mnemonic: string;
+  password: string;
+  accountName: string;
+}): Promise<void> => {
+  await invoke('add_account_for_password', { mnemonic, password, innerId: accountName });
 };
 
 export const listAccounts = async (password: string) => {

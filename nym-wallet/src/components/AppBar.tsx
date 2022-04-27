@@ -4,6 +4,7 @@ import { Logout } from '@mui/icons-material';
 import { ClientContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { Node as NodeIcon } from '../svg-icons/node';
+import { AccountsContainer } from './Accounts/AccountContainer';
 
 export const AppBar = () => {
   const { showSettings, logOut, handleShowSettings } = useContext(ClientContext);
@@ -12,8 +13,13 @@ export const AppBar = () => {
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
       <Toolbar disableGutters>
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
-          <Grid item>
-            <NetworkSelector />
+          <Grid item container alignItems="center" spacing={1}>
+            <Grid item>
+              <AccountsContainer />
+            </Grid>
+            <Grid item>
+              <NetworkSelector />
+            </Grid>
           </Grid>
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>

@@ -135,7 +135,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     clearState();
     await signOut();
     await logIn({ type: 'mnemonic', value });
-    enqueueSnackbar('Account switch success', { variant: 'success' });
+    enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);

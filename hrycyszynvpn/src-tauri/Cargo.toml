@@ -41,7 +41,7 @@ zeroize = "1.4.3"
 cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
 cosmwasm-std = "1.0.0-beta3"
 
-#nym-client = { path = "../../clients/native" }
+nym-client = { path = "../../clients/native" }
 #client-core = { path = "../../clients/client-core" }
 #nym-socks5-client = { path = "../../clients/socks5" }
 #nym-network-requester = { path = "../../service-providers/network-requester"}

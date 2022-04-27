@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,
@@ -26,7 +26,7 @@ impl MixnodeStatus {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,
@@ -40,7 +40,7 @@ pub struct CoreNodeStatusResponse {
     pub count: i32,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,
@@ -53,7 +53,7 @@ pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct RewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,
@@ -63,7 +63,7 @@ pub struct RewardEstimationResponse {
     pub as_at: i64,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,
@@ -118,7 +118,7 @@ impl fmt::Display for SelectionChance {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,

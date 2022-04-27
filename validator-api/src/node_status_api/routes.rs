@@ -11,6 +11,7 @@ use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use rocket_okapi::openapi;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
@@ -18,6 +19,7 @@ use validator_api_requests::models::{
 
 use super::models::Uptime;
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/report")]
 pub(crate) async fn mixnode_report(
     storage: &State<ValidatorApiStorage>,
@@ -30,6 +32,7 @@ pub(crate) async fn mixnode_report(
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/gateway/<identity>/report")]
 pub(crate) async fn gateway_report(
     storage: &State<ValidatorApiStorage>,
@@ -42,6 +45,7 @@ pub(crate) async fn gateway_report(
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/history")]
 pub(crate) async fn mixnode_uptime_history(
     storage: &State<ValidatorApiStorage>,
@@ -54,6 +58,7 @@ pub(crate) async fn mixnode_uptime_history(
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/gateway/<identity>/history")]
 pub(crate) async fn gateway_uptime_history(
     storage: &State<ValidatorApiStorage>,
@@ -66,6 +71,7 @@ pub(crate) async fn gateway_uptime_history(
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/core-status-count?<since>")]
 pub(crate) async fn mixnode_core_status_count(
     storage: &State<ValidatorApiStorage>,
@@ -83,6 +89,7 @@ pub(crate) async fn mixnode_core_status_count(
     })
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/gateway/<identity>/core-status-count?<since>")]
 pub(crate) async fn gateway_core_status_count(
     storage: &State<ValidatorApiStorage>,
@@ -100,6 +107,7 @@ pub(crate) async fn gateway_core_status_count(
     })
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/status")]
 pub(crate) async fn get_mixnode_status(
     cache: &State<ValidatorCache>,
@@ -110,6 +118,7 @@ pub(crate) async fn get_mixnode_status(
     })
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<ValidatorCache>,
@@ -165,6 +174,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
     }
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
     cache: &State<ValidatorCache>,
@@ -193,6 +203,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
     }
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<ValidatorCache>,

@@ -43,6 +43,9 @@ getset = "0.1.1"
 rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
+okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
+rocket_okapi = { version = "0.8.0-rc.1", features = ["swagger"] }
+schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }

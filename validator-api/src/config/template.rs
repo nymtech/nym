@@ -22,9 +22,9 @@ mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
-# Indicates whether this validator api is running in a testnet mode, thus attempting
+# Indicates whether this validator api is running in a disabled credentials mode, thus attempting
 # to claim bandwidth without presenting bandwidth credentials.
-testnet_mode = {{ network_monitor.testnet_mode }}
+disabled_credentials_mode = {{ network_monitor.disabled_credentials_mode }}
 
 # Specifies list of all validators on the network issuing coconut credentials.
 # A special care must be taken to ensure they are in correct order.

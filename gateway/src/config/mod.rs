@@ -122,8 +122,8 @@ impl Config {
         self
     }
 
-    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
-        self.gateway.testnet_mode = testnet_mode;
+    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
+        self.gateway.disabled_credentials_mode = disabled_credentials_mode;
         self
     }
 
@@ -202,8 +202,8 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
-    pub fn get_testnet_mode(&self) -> bool {
-        self.gateway.testnet_mode
+    pub fn get_disabled_credentials_mode(&self) -> bool {
+        self.gateway.disabled_credentials_mode
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -298,10 +298,10 @@ pub struct Gateway {
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
 
-    /// Indicates whether this gateway is running in a testnet mode, thus allowing clients
+    /// Indicates whether this gateway is running in a disabled credentials mode, thus allowing clients
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(default = "bind_all_address")]
@@ -388,7 +388,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            testnet_mode: false,
+            disabled_credentials_mode: false,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,

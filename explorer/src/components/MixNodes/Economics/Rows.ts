@@ -20,12 +20,12 @@ export const delegatorsInfoRows = (): DelegatorsInfoRowWithIndex => {
       value: currencyToString(estimatedOperatorRewards.toString()),
     },
     active_set_probability: {
-      value: activeSetProbability * 100,
-      displayEconProgress: true,
+      progressBarValue: activeSetProbability * 100,
+      value: `${(activeSetProbability * 100).toFixed(2)} %`,
     },
     stake_saturation: {
-      value: stakeSaturation * 100,
-      displayEconProgress: true,
+      progressBarValue: stakeSaturation * 100,
+      value: `${(stakeSaturation * 100).toFixed(2)} %`,
     },
     profit_margin: {
       value: `${profitMargin} %`,

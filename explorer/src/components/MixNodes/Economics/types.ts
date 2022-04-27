@@ -1,6 +1,6 @@
 export type RowsType = {
-  displayEconProgress?: boolean;
-  value?: string | number;
+  progressBarValue?: number;
+  value?: string;
 };
 
 export interface DelegatorsInfoRow {

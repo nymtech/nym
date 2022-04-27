@@ -12,8 +12,8 @@ export default {
 const row: DelegatorsInfoRowWithIndex = {
   id: 1,
   active_set_probability: {
-    value: 50,
-    displayEconProgress: true,
+    value: '50 %',
+    progressBarValue: 50,
   },
   avg_uptime: {
     value: '65 %',
@@ -28,8 +28,8 @@ const row: DelegatorsInfoRowWithIndex = {
     value: '10 %',
   },
   stake_saturation: {
-    value: 120,
-    displayEconProgress: true,
+    value: '120 %',
+    progressBarValue: 120,
   },
 };
 

@@ -9,9 +9,10 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import { Box } from '@mui/system';
-import { styled, useTheme } from '@mui/material/styles';
+import { styled, useTheme, Theme } from '@mui/material/styles';
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
 import { RowsType, DelegatorsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
@@ -22,10 +23,11 @@ import { UniversalTableProps } from '../../DetailTable';
 const tooltipBackGroundColor = '#A0AED1';
 const threshold = 100;
 
-const formatCellValues = (value: RowsType, field: string) => {
-  if (value.displayEconProgress && Number.isInteger(value?.value)) {
+const formatCellValues = (value: RowsType, field: string, theme: Theme) => {
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  if (value.progressBarValue) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
+      <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }} id="field">
         <Typography
           sx={{
             mr: 1,
@@ -34,9 +36,9 @@ const formatCellValues = (value: RowsType, field: string) => {
           }}
           id={field}
         >
-          {`${value?.value?.toFixed(2)} %`}
+          {value?.value}
         </Typography>
-        <EconomicsProgress threshold={threshold} value={value?.value} />
+        <EconomicsProgress threshold={threshold} value={value.progressBarValue} />
       </Box>
     );
   }
@@ -104,7 +106,8 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRow
             <TableRow key={eachRow.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];
-                const value = (eachRow as any)[field];
+                const value: RowsType = (eachRow as any)[field];
+                const progressBarValue = value?.progressBarValue || 0;
                 return (
                   <TableCell
                     key={_.title}
@@ -117,11 +120,11 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<DelegatorsInfoRow
                       width: 200,
                       fontSize: 12,
                       fontWeight: 600,
-                      color: value?.percentaje > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
+                      color: progressBarValue > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
                     }}
                     data-testid={`${_.title.replace(/ /g, '-')}-value`}
                   >
-                    {formatCellValues(value, columnsData[index].field)}
+                    {formatCellValues(value, columnsData[index].field, theme)}
                   </TableCell>
                 );
               })}

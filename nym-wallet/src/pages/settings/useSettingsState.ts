@@ -1,10 +1,9 @@
 import { useContext, useEffect, useState } from 'react';
 import { ClientContext } from '../../context/main';
 import {
-//  getMixnodeRewardEstimation,
+  //  getMixnodeRewardEstimation,
   getMixnodeStakeSaturation,
   getMixnodeStatus,
-  minorToMajor,
   getInclusionProbability,
 } from '../../requests';
 import { MixnodeStatus, InclusionProbabilityResponse } from '../../types';

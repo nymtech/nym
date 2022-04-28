@@ -3,7 +3,7 @@ use crate::config::Config;
 use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::nymd_client;
-use crate::state::State;
+use crate::state::{DecryptedAccount, State};
 use crate::wallet_storage::account_data::StoredLogin;
 use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
@@ -14,7 +14,7 @@ use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -49,6 +49,14 @@ impl Account {
 pub struct CreatedAccount {
   account: Account,
   mnemonic: String,
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AccountEntry {
+  id: String,
+  address: String,
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -432,6 +440,37 @@ pub async fn sign_in_with_password(
         .clone()
     }
   };
+
+  // Keep track of all accounts
+  // WIP(JON): simplify
+  let all_accounts: HashMap<_, _> = match stored_account {
+    StoredLogin::Mnemonic(ref account) => [(
+      id.to_string(),
+      DecryptedAccount {
+        id: id.to_string(),
+        mnemonic: account.mnemonic().clone(),
+      },
+    )]
+    .into_iter()
+    .collect(),
+    StoredLogin::Multiple(ref accounts) => accounts
+      .get_accounts()
+      .map(|account| {
+        (
+          account.id.to_string(),
+          DecryptedAccount {
+            id: account.id.to_string(),
+            mnemonic: account.account.mnemonic().clone(),
+          },
+        )
+      })
+      .collect(),
+  };
+  {
+    let mut w_state = state.write().await;
+    w_state.set_all_accounts(all_accounts);
+  }
+
   _connect_with_mnemonic(mnemonic, state).await
 }
 
@@ -469,6 +508,23 @@ pub fn remove_account_for_password(password: &str, inner_id: &str) -> Result<(),
 }
 
 #[tauri::command]
+pub async fn list_accounts(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Vec<AccountEntry>, BackendError> {
+  let state = state.read().await;
+  let all_accounts = state.get_all_accounts();
+  let a = all_accounts
+    .values()
+    .map(|account| AccountEntry {
+      id: account.id.clone(),
+      address: "placeholder".to_string(),
+    })
+    .collect();
+  Ok(a)
+}
+
+// WIP(JON): consider changing return type
+#[tauri::command]
 pub fn list_accounts_for_password(password: &str) -> Result<Vec<String>, BackendError> {
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
@@ -482,4 +538,21 @@ pub fn list_accounts_for_password(password: &str) -> Result<Vec<String>, Backend
       .collect::<Vec<_>>(),
   };
   Ok(ids)
+}
+
+#[tauri::command]
+pub async fn sign_in_decrypted_account(
+  account_id: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  let account = {
+    let state = state.read().await;
+    state
+      .get_all_accounts()
+      .get(account_id)
+      .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+      .clone()
+  };
+  let mnemonic = account.mnemonic;
+  _connect_with_mnemonic(mnemonic, state).await
 }

@@ -153,6 +153,7 @@ fn append_account_to_wallet_login_information_at_file(
 
   let mut decrypted_login = stored_wallet.decrypt_login(&id, password)?;
 
+  // WIP(JON): redo this since we now can clone the mnemonic
   // Since we can't clone the mnemonic, we have to perform a little dance were we add the mnemonic
   // to the inner enum payload, while also converting by swapping if necessary.
   if let StoredLogin::Multiple(ref mut accounts) = decrypted_login {

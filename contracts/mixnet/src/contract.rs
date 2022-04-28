@@ -26,6 +26,7 @@ use crate::mixnet_contract_settings::transactions::try_update_rewarding_validato
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status,
 };
@@ -34,6 +35,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
+use cw_storage_plus::{IndexList, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
@@ -439,6 +441,115 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // deal_with_zero_delegations(deps)?;
 
+    // we dont need detailed last state, we need just fields to exist for index creation, so owner and sphinx key
+    let old_mix1 = StoredMixnodeBond {
+        pledge_amount: Default::default(),
+        owner: Addr::unchecked("nymt1fj6n3zgn52vchg6fsn0c2g9zc8a4rw4znhn4nk"),
+        layer: mixnet_contract_common::Layer::Gateway,
+        block_height: 0,
+        mix_node: mixnet_contract_common::MixNode {
+            host: "".to_string(),
+            mix_port: 0,
+            verloc_port: 0,
+            http_api_port: 0,
+            sphinx_key: "B4r2gZ5TxLPLhGnygiXEiud7SEqmyceoWBVokMNHztGU".to_string(),
+            identity_key: "2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc".to_string(),
+            version: "".to_string(),
+            profit_margin_percent: 0,
+        },
+        proxy: None,
+        accumulated_rewards: None,
+        epoch_rewards: None,
+    };
+
+    crate::mixnodes::storage::mixnodes().replace(
+        deps.storage,
+        "2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc",
+        None,
+        Some(&old_mix1),
+        1894296,
+    );
+    // we dont need detailed last state, we need just fields to exist for index creation, so owner and sphinx key
+
+    let old_mix2 = StoredMixnodeBond {
+        pledge_amount: Default::default(),
+        owner: Addr::unchecked("nymt1xgysz3xtc33ag5agfpg7hdvrw5nqh5c9ajgc0y"),
+        layer: mixnet_contract_common::Layer::Gateway,
+        block_height: 0,
+        mix_node: mixnet_contract_common::MixNode {
+            host: "".to_string(),
+            mix_port: 0,
+            verloc_port: 0,
+            http_api_port: 0,
+            sphinx_key: "HZ5yWfc56qmhJ82Z15n8QyV6qLG3Bs3Up1D1HdYDvfUf".to_string(),
+            identity_key: "74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3".to_string(),
+            version: "".to_string(),
+            profit_margin_percent: 0,
+        },
+        proxy: None,
+        accumulated_rewards: None,
+        epoch_rewards: None,
+    };
+
+    crate::mixnodes::storage::mixnodes().replace(
+        deps.storage,
+        "74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3",
+        None,
+        Some(&old_mix2),
+        1894296,
+    );
+
+    let old_mix3 = StoredMixnodeBond {
+        pledge_amount: Default::default(),
+        owner: Addr::unchecked("nymt1nq9pajwj0wxrjxxzzdcw52xlurhc5l950de22t"),
+        layer: mixnet_contract_common::Layer::Gateway,
+        block_height: 0,
+        mix_node: mixnet_contract_common::MixNode {
+            host: "".to_string(),
+            mix_port: 0,
+            verloc_port: 0,
+            http_api_port: 0,
+            sphinx_key: "AB7TaD8anJP55LzzpjUPDrrpzkVmzkMWkhqQMDYeMajN".to_string(),
+            identity_key: "AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE".to_string(),
+            version: "".to_string(),
+            profit_margin_percent: 0,
+        },
+        proxy: None,
+        accumulated_rewards: None,
+        epoch_rewards: None,
+    };
+
+    crate::mixnodes::storage::mixnodes().replace(
+        deps.storage,
+        "AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE",
+        None,
+        Some(&old_mix3),
+        1894296,
+    );
+
+    /*
+    [
+    ("2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc", 1894296),
+    ("2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc", 1895010),
+    ("74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3", 1894296),
+    ("74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3", 1895010),
+    ("AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE", 1894296),
+    ("AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE", 1895010)
+    ]
+             */
+
+    // for (key, checkpoint_height) in &mixnode_checpoints {
+    //     let first = crate::mixnodes::storage::mixnodes()
+    //         .prefix(key)
+    //         .range_raw(
+    //             deps.storage,
+    //             Some(start),
+    //             None,
+    //             cosmwasm_std::Order::Ascending,
+    //         )
+    //         .next();
+    // }
+
     let mixnode_checpoints = crate::mixnodes::storage::mixnodes()
         .changelog()
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
@@ -446,7 +557,7 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
 
     debug_with_visibility(
         deps.api,
-        format!("all checkpoints: {:?}", mixnode_checpoints),
+        format!("all checkpoints after migration: {:#?}", mixnode_checpoints),
     );
 
     // let checkpoints = mixnodes

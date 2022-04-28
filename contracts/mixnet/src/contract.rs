@@ -437,7 +437,10 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    deal_with_zero_delegations(deps)?;
+    // deal_with_zero_delegations(deps)?;
+
+    let mixnodes = crate::mixnodes::storage::mixnodes();
+    mixnodes.remove_checkpoint(deps.storage, 1894296).unwrap();
 
     Ok(Default::default())
 }

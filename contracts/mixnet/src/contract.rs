@@ -31,7 +31,8 @@ use crate::rewards::queries::{
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
+    entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    Uint128,
 };
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
@@ -65,6 +66,10 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
     }
+}
+
+pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
+    api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 }
 
 /// Instantiate the contract.

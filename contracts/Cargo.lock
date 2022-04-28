@@ -1013,7 +1013,6 @@ dependencies = [
  "cw-storage-plus",
  "fixed",
  "hex",
- "log",
  "mixnet-contract-common",
  "rand",
  "rand_chacha",

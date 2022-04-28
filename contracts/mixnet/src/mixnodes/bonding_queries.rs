@@ -1,12 +1,20 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage;
+use super::storage::{self, StoredMixnodeBond};
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
     IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse,
 };
+
+pub fn query_mixnode_at_height(
+    deps: Deps<'_>,
+    mix_identity: String,
+    height: u64,
+) -> StdResult<Option<StoredMixnodeBond>> {
+    storage::mixnodes().may_load_at_height(deps.storage, &mix_identity, height)
+}
 
 pub fn query_checkpoints_for_mixnode(
     deps: Deps<'_>,

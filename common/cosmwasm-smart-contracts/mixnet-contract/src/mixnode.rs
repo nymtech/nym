@@ -250,7 +250,11 @@ impl DelegatorRewardParams {
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
+
+    #[serde(skip)]
     lambda: String,
+
+    #[serde(skip)]
     sigma: String,
 }
 

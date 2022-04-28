@@ -276,6 +276,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync,

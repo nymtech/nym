@@ -36,7 +36,7 @@ const formatCellValues = (value: EconomicsRowsType, field: string, theme: Theme)
           }}
           id={field}
         >
-          {value?.value}
+          {value.value}
         </Typography>
         <EconomicsProgress threshold={threshold} value={value.progressBarValue} />
       </Box>

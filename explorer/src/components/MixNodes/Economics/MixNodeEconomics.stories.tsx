@@ -11,23 +11,22 @@ export default {
 
 const row: EconomicsInfoRowWithIndex = {
   id: 1,
-  active_set_probability: {
-    value: '50 %',
-    progressBarValue: 50,
+  selectionChance: {
+    value: 'High',
   },
-  avg_uptime: {
+  avgUptime: {
     value: '65 %',
   },
-  estimated_operator_reward: {
+  estimatedOperatorReward: {
     value: '80000.123456 NYM',
   },
-  estimated_total_reward: {
+  estimatedTotalReward: {
     value: '80000.123456 NYM',
   },
-  profit_margin: {
+  profitMargin: {
     value: '10 %',
   },
-  stake_saturation: {
+  stakeSaturation: {
     value: '120 %',
     progressBarValue: 120,
   },
@@ -35,23 +34,23 @@ const row: EconomicsInfoRowWithIndex = {
 
 const emptyRow: EconomicsInfoRowWithIndex = {
   id: 1,
-  active_set_probability: {
+  selectionChance: {
     value: '-',
     progressBarValue: 0,
   },
-  avg_uptime: {
+  avgUptime: {
     value: '-',
   },
-  estimated_operator_reward: {
+  estimatedOperatorReward: {
     value: '-',
   },
-  estimated_total_reward: {
+  estimatedTotalReward: {
     value: '-',
   },
-  profit_margin: {
+  profitMargin: {
     value: '-',
   },
-  stake_saturation: {
+  stakeSaturation: {
     value: '-',
     progressBarValue: 0,
   },
@@ -72,3 +71,4 @@ Default.args = {
   columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };
+

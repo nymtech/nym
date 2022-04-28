@@ -509,10 +509,14 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
         ),
     );
 
-    let raw_value = deps
-        .storage
-        .get(&storage_key)
-        .expect("you messed up storage key");
+    let raw_value = match deps.storage.get(&storage_key) {
+        None => {
+            debug_with_visibility(deps.api, "we messed up");
+            unreachable!("foo")
+        }
+        Some(val) => val,
+    };
+
     let raw_string = String::from_utf8_lossy(&raw_value);
 
     debug_with_visibility(deps.api, format!("raw storage: {}", raw_string));

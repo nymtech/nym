@@ -439,7 +439,22 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // deal_with_zero_delegations(deps)?;
 
-    // let mixnodes = crate::mixnodes::storage::mixnodes();
+    let mixnode_checpoints = crate::mixnodes::storage::mixnodes()
+        .changelog()
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    debug_with_visibility(
+        deps.api,
+        format!("all checkpoints: {:?}", mixnode_checpoints),
+    );
+
+    // let checkpoints = mixnodes
+    //     .changelog()
+    //     .keys(&deps.storage, None, None, Order::Ascending)
+    //     .filter_map(|x| x.ok())
+    //     .collect::<Vec<(IdentityKey, u64)>>();
+
     // mixnodes.remove_checkpoint(deps.storage, 1894296).unwrap();
 
     Ok(Default::default())

@@ -1,6 +1,6 @@
 export type EconomicsRowsType = {
   progressBarValue?: number;
-  value?: string;
+  value: string;
 };
 
 export interface EconomicsInfoRow {

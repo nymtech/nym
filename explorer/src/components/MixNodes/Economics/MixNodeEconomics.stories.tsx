@@ -27,8 +27,36 @@ const row: EconomicsInfoRowWithIndex = {
     value: '10 %',
   },
   stakeSaturation: {
-    value: '120 %',
-    progressBarValue: 120,
+    value: '80 %',
+    progressBarValue: 80,
+  },
+};
+
+const rowVeryHighProbabilitySelection: EconomicsInfoRowWithIndex = {
+  ...row,
+  selectionChance: {
+    value: 'Moderate',
+  },
+};
+
+const rowModerateProbabilitySelection: EconomicsInfoRowWithIndex = {
+  ...row,
+  selectionChance: {
+    value: 'VeryHigh',
+  },
+};
+
+const rowLowProbabilitySelection: EconomicsInfoRowWithIndex = {
+  ...row,
+  selectionChance: {
+    value: 'Low',
+  },
+};
+
+const rowVeryLowProbabilitySelection: EconomicsInfoRowWithIndex = {
+  ...row,
+  selectionChance: {
+    value: 'VeryLow',
   },
 };
 
@@ -65,10 +93,37 @@ Empty.args = {
   tableName: 'storybook',
 };
 
-export const Default = Template.bind({});
-Default.args = {
+export const selectionChanceVeryHigh = Template.bind({});
+selectionChanceVeryHigh.args = {
+  rows: [rowVeryHighProbabilitySelection],
+  columnsData: EconomicsInfoColumns,
+  tableName: 'storybook',
+};
+
+export const selectionChanceHigh = Template.bind({});
+selectionChanceHigh.args = {
   rows: [row],
   columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };
 
+export const selectionChanceModerate = Template.bind({});
+selectionChanceModerate.args = {
+  rows: [rowModerateProbabilitySelection],
+  columnsData: EconomicsInfoColumns,
+  tableName: 'storybook',
+};
+
+export const selectionChanceLow = Template.bind({});
+selectionChanceLow.args = {
+  rows: [rowLowProbabilitySelection],
+  columnsData: EconomicsInfoColumns,
+  tableName: 'storybook',
+};
+
+export const selectionChanceVeryLow = Template.bind({});
+selectionChanceVeryLow.args = {
+  rows: [rowVeryLowProbabilitySelection],
+  columnsData: EconomicsInfoColumns,
+  tableName: 'storybook',
+};

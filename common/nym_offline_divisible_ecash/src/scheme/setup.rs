@@ -57,8 +57,8 @@ pub struct Parameters {
 }
 
 impl Parameters {
-    pub(crate) fn get_grp(&self) -> GroupParameters { self.grp.clone() }
-
+    pub(crate) fn get_grp(&self) -> &GroupParameters { &self.grp }
+    
     pub(crate) fn get_paramsUser(&self) -> &ParametersUser { &self.paramsUser }
 
     pub(crate) fn get_paramsAuth(&self) -> &ParametersAuthority { &self.paramsAuth }
@@ -92,7 +92,7 @@ impl Parameters {
         let etasUser: Vec<G1Projective> = vec_a.iter().map(|x| g1 * x).collect();
 
         let mut etasAuth: Vec<G2Projective> = Default::default();
-        for l in 1..=L {
+        for l in 1..=L + 1 {
             for k in 0..=l - 1 {
                 etasAuth.push(g2 * (vec_a[l as usize].neg() * (y * Scalar::from(k))));
             }
@@ -109,10 +109,7 @@ impl Parameters {
 
         // Compute signature for each pair sigma, theta
         let paramsUser = ParametersUser {
-            g1: *g1,
-            g2: *g2,
-            gamma1,
-            gamma2,
+            gammas: vec![gamma1, gamma2],
             eta,
             omega,
             etas: etasUser,
@@ -137,12 +134,7 @@ impl Parameters {
 
 #[derive(Debug, Clone)]
 pub struct ParametersUser {
-    /// Generator of the G1 group
-    g1: G1Affine,
-    /// Generator of the G2 group
-    g2: G2Affine,
-    gamma1: G1Projective,
-    gamma2: G1Projective,
+    gammas: Vec<G1Projective>,
     eta: G1Projective,
     omega: G1Projective,
     etas: Vec<G1Projective>,
@@ -152,8 +144,32 @@ pub struct ParametersUser {
     sps_pk: SPSVerificationKey,
 }
 
+impl ParametersUser {
+    pub(crate) fn get_gammas(&self) -> &Vec<G1Projective> { &self.gammas }
+
+    pub(crate) fn get_eta(&self) -> &G1Projective { &self.eta }
+
+    pub(crate) fn get_omega(&self) -> &G1Projective { &self.omega }
+
+    pub(crate) fn get_etas(&self) -> &[G1Projective] { &self.etas }
+
+    pub(crate) fn get_sigmas(&self) -> &[G1Projective] { &self.sigmas }
+
+    pub(crate) fn get_thetas(&self) -> &[G1Projective] { &self.thetas }
+
+    pub(crate) fn get_sps_signs(&self) -> &[SPSSignature] { &self.sps_signatures }
+
+    pub(crate) fn get_sps_pk(&self) -> &SPSVerificationKey { &self.sps_pk }
+}
+
 #[derive(Debug, Clone)]
 pub struct ParametersAuthority {
     deltas: Vec<G2Projective>,
     etas: Vec<G2Projective>,
+}
+
+impl ParametersAuthority {
+    pub(crate) fn get_deltas(&self) -> &[G2Projective] { &self.deltas }
+
+    pub(crate) fn get_etas(&self) -> &[G2Projective] { &self.etas }
 }

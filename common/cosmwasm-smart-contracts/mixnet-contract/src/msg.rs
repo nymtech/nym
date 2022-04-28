@@ -177,6 +177,9 @@ pub enum QueryMsg {
         owner_address: String,
         proxy_address: Option<String>,
     },
+    GetCheckpointsForMixnode {
+        mix_identity: IdentityKey,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

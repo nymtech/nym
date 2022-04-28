@@ -8,6 +8,18 @@ use mixnet_contract_common::{
     IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse,
 };
 
+pub fn query_checkpoints_for_mixnode(
+    deps: Deps<'_>,
+    mix_identity: IdentityKey,
+) -> StdResult<Vec<u64>> {
+    Ok(storage::mixnodes()
+        .changelog()
+        .prefix(&mix_identity)
+        .keys(deps.storage, None, None, Order::Ascending)
+        .filter_map(|x| x.ok())
+        .collect())
+}
+
 pub fn query_mixnodes_paged(
     deps: Deps<'_>,
     start_after: Option<IdentityKey>,

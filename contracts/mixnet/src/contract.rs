@@ -24,7 +24,7 @@ use crate::mixnet_contract_settings::queries::{
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::query_mixnodes_paged;
+use crate::mixnodes::bonding_queries::{query_checkpoints_for_mixnode, query_mixnodes_paged};
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status,
@@ -387,6 +387,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::DebugGetAllDelegationValues {} => to_binary(
             &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
         ),
+        QueryMsg::GetCheckpointsForMixnode { mix_identity } => {
+            to_binary(&query_checkpoints_for_mixnode(deps, mix_identity)?)
+        }
     };
 
     Ok(query_res?)

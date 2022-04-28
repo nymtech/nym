@@ -233,7 +233,7 @@ pub fn _try_compound_delegator_reward(
             mix_identity,
             owner_address,
             Coin {
-                amount: reward,
+                amount: compounded_delegation,
                 denom: DENOM.to_string(),
             },
             proxy,
@@ -241,7 +241,6 @@ pub fn _try_compound_delegator_reward(
     }
 
     {
-        //TODO: Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
         if let Some(mut bond) = mixnodes().may_load(deps.storage, mix_identity)? {
             bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
             mixnodes().save(deps.storage, mix_identity, &bond, block_height)?;
@@ -1174,13 +1173,43 @@ pub mod tests {
         }
 
         let alice_reward =
-            calculate_delegator_reward(&deps.storage, key, &node_identity_1).unwrap();
+            calculate_delegator_reward(&deps.storage, key.clone(), &node_identity_1).unwrap();
         assert_eq!(alice_reward, Uint128::new(304552));
 
-        let mix = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
+        let mix_0 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
+
+        _try_compound_delegator_reward(
+            env.block.height,
+            deps.as_mut(),
+            "alice_d1",
+            &node_identity_1,
+            None,
+        )
+        .unwrap();
+
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+            .unwrap();
+
+        let delegations = crate::delegations::storage::delegations()
+            .prefix((node_identity_1.to_string(), key.clone()))
+            .range(&deps.storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .map(|(_, delegation)| delegation)
+            .collect::<Vec<Delegation>>();
+        assert_eq!(delegations.len(), 1);
+
+        let delegation = delegations.first().unwrap();
+        assert_eq!(delegation.amount.amount, Uint128::new(16000000000 + 304552));
+
+        let mix_1 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
+
+        assert_eq!(
+            mix_0.accumulated_rewards(),
+            mix_1.accumulated_rewards() + alice_reward
+        );
 
         let operator_reward =
-            calculate_operator_reward(&deps.storage, &Addr::unchecked("alice"), &mix).unwrap();
+            calculate_operator_reward(&deps.storage, &Addr::unchecked("alice"), &mix_1).unwrap();
         assert_eq!(operator_reward, Uint128::new(190345));
 
         assert_eq!(

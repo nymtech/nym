@@ -304,6 +304,20 @@ pub(crate) fn try_reconcile_undelegation(
 
     let mut total_delegation = reward;
 
+    {
+        if let Some(mut bond) = crate::mixnodes::storage::mixnodes()
+            .may_load(storage, &pending_undelegate.mix_identity())?
+        {
+            bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
+            crate::mixnodes::storage::mixnodes().save(
+                storage,
+                &pending_undelegate.mix_identity(),
+                &bond,
+                pending_undelegate.block_height(),
+            )?;
+        }
+    }
+
     for h in delegation_heights {
         let delegation =
             delegation_map.load(storage, pending_undelegate.delegation_key(h).clone())?;

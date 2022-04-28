@@ -309,11 +309,14 @@ pub fn calculate_delegator_reward(
                             // Compound rewards from previous heights
                             let epoch_reward_params =
                                 epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
-                            let reward_at_height = epoch_rewards.delegation_reward(
+                            let reward_at_height = match epoch_rewards.delegation_reward(
                                 delegation_at_height + accumulated_reward,
                                 bond.profit_margin(),
                                 epoch_reward_params,
-                            )?;
+                            ) {
+                                Ok(reward) => reward,
+                                Err(_err) => Uint128::zero(),
+                            };
                             return Ok(accumulated_reward + reward_at_height);
                         }
                     }

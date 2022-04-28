@@ -395,8 +395,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-#[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
     // if there exists any delegation of 0 value, remove it
     let zero_delegations = delegations()
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
@@ -424,6 +423,13 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
         crate::delegations::storage::PENDING_DELEGATION_EVENTS
             .remove(deps.storage, delegation_event);
     }
+
+    Ok(())
+}
+
+#[entry_point]
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    deal_with_zero_delegations(deps)?;
 
     Ok(Default::default())
 }

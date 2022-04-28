@@ -35,6 +35,7 @@ pub fn try_reconcile_all_delegation_events(
 pub(crate) fn _try_reconcile_all_delegation_events(
     storage: &mut dyn Storage,
 ) -> Result<Response, ContractError> {
+    println!("Reconciling all delegations");
     let pending_delegation_events = PENDING_DELEGATION_EVENTS
         .range(storage, None, None, Order::Ascending)
         .filter_map(|r| r.ok())
@@ -53,6 +54,7 @@ pub(crate) fn _try_reconcile_all_delegation_events(
                 response = response.add_event(event);
             }
             DelegationEvent::Undelegate(pending_undelegate) => {
+                println!("Undelegating {:?}", pending_undelegate);
                 let undelegate_response = try_reconcile_undelegation(storage, &pending_undelegate)?;
                 response = response.add_event(undelegate_response.event);
                 if let Some(msg) = undelegate_response.bank_msg {
@@ -283,6 +285,8 @@ pub(crate) fn try_reconcile_undelegation(
         pending_undelegate.proxy_storage_key(),
         &pending_undelegate.mix_identity(),
     )?;
+
+    println!("reward: {:?}", reward);
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map

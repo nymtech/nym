@@ -327,8 +327,10 @@ pub fn calculate_delegator_reward(
                         debug_with_visibility(api, format!("detailed error: {:?}", err))
                     }
 
-                    if let Some(bond) =
-                        mixnodes().may_load_at_height(storage, mix_identity, height)?
+                    if let Some(bond) = mixnodes()
+                        .may_load_at_height(storage, mix_identity, height)
+                        .ok()
+                        .flatten()
                     {
                         debug_with_visibility(api, "loaded mixnode at height");
                         if let Some(ref epoch_rewards) = bond.epoch_rewards {

@@ -320,9 +320,17 @@ pub fn calculate_delegator_reward(
                         api,
                         format!("Attempting to load mixnode at height: {:?}", height),
                     );
+
+                    let separate_load =
+                        mixnodes().may_load_at_height(storage, mix_identity, height);
+                    if let Err(err) = separate_load {
+                        debug_with_visibility(api, format!("detailed error: {:?}", err))
+                    }
+
                     if let Some(bond) =
                         mixnodes().may_load_at_height(storage, mix_identity, height)?
                     {
+                        debug_with_visibility(api, "loaded mixnode at height");
                         if let Some(ref epoch_rewards) = bond.epoch_rewards {
                             // Compound rewards from previous heights
                             let epoch_reward_params =
@@ -337,6 +345,8 @@ pub fn calculate_delegator_reward(
                             };
                             return Ok(accumulated_reward + reward_at_height);
                         }
+                    } else {
+                        debug_with_visibility(api, "failed to load bond at height");
                     }
                 };
                 debug_with_visibility(api, "Done!");

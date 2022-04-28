@@ -9,6 +9,7 @@ use rocket::response::{self, Responder, Response};
 use rocket::Request;
 use rocket_okapi::gen::OpenApiGenerator;
 use rocket_okapi::response::OpenApiResponderInner;
+use rocket_okapi::util::ensure_status_code_exists;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
@@ -277,8 +278,8 @@ impl JsonSchema for ErrorResponse {
 
 impl OpenApiResponderInner for ErrorResponse {
     fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
-        let responses = Responses::default();
-        // WIP(JON): handle responses correctly
+        let mut responses = Responses::default();
+        ensure_status_code_exists(&mut responses, 404);
         Ok(responses)
     }
 }

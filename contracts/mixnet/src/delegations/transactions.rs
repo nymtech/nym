@@ -284,8 +284,11 @@ pub(crate) fn try_reconcile_undelegation(
         });
     }
 
+    debug_with_visibility(api, "Calculating rewards");
+
     let reward = crate::rewards::transactions::calculate_delegator_reward(
         storage,
+        api,
         pending_undelegate.proxy_storage_key(),
         &pending_undelegate.mix_identity(),
     )?;

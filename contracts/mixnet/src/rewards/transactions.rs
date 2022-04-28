@@ -6,6 +6,7 @@ use super::storage::{
     OPERATOR_REWARD_CLAIMED_HEIGHT,
 };
 use crate::constants;
+use crate::contract::debug_with_visibility;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
@@ -207,7 +208,7 @@ pub fn _try_compound_delegator_reward(
         &api.addr_validate(owner_address)?,
         proxy.as_ref(),
     );
-    let reward = calculate_delegator_reward(storage, key.clone(), mix_identity)?;
+    let reward = calculate_delegator_reward(storage, api, key.clone(), mix_identity)?;
     let mut compounded_delegation = reward;
 
     // Might want to introduce paging here
@@ -266,12 +267,18 @@ pub fn _try_compound_delegator_reward(
 // + last_reward_claimed height is correctly used
 pub fn calculate_delegator_reward(
     storage: &dyn Storage,
+    api: &dyn Api,
     key: Vec<u8>,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
     let last_claimed_height = storage::DELEGATOR_REWARD_CLAIMED_HEIGHT
         .load(storage, (key.clone(), mix_identity.to_string()))
         .unwrap_or(0);
+
+    debug_with_visibility(
+        api,
+        format!("last_claimed_height: {:?}", last_claimed_height),
+    );
 
     // Get delegations newer then last_claimed_height, it would be nice to also fold this into the iteration bellow but it should be ok for now, as
     // I doubt folks refresh their delegations often
@@ -301,7 +308,18 @@ pub fn calculate_delegator_reward(
                     .fold(Uint128::zero(), |total, delegation| {
                         total + delegation.amount.amount
                     });
+                debug_with_visibility(
+                    api,
+                    format!(
+                        "height, delegation_at_heght: {:?}, {:?}",
+                        height, delegation_at_height
+                    ),
+                );
                 if delegation_at_height != Uint128::zero() {
+                    debug_with_visibility(
+                        api,
+                        format!("Attempting to load mixnode at height: {:?}", height),
+                    );
                     if let Some(bond) =
                         mixnodes().may_load_at_height(storage, mix_identity, height)?
                     {
@@ -321,6 +339,7 @@ pub fn calculate_delegator_reward(
                         }
                     }
                 };
+                debug_with_visibility(api, "Done!");
                 Ok(accumulated_reward)
             },
         )?;

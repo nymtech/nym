@@ -69,7 +69,10 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
 }
 
 pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
-    api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
+    api.debug(&*format!(
+        "\n\n\n==================\n{}\n==================\n\n\n",
+        msg.into()
+    ));
 }
 
 /// Instantiate the contract.

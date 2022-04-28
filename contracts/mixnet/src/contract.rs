@@ -26,16 +26,13 @@ use crate::mixnet_contract_settings::transactions::try_update_rewarding_validato
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::query_mixnodes_paged;
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Uint128,
+    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
 };
-use cw_storage_plus::{IndexList, Key, Path, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
@@ -68,13 +65,6 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
         },
     }
-}
-
-pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
-    api.debug(&*format!(
-        "\n\n\n==================\n{}\n==================\n\n\n",
-        msg.into()
-    ));
 }
 
 /// Instantiate the contract.
@@ -397,9 +387,6 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::DebugGetAllDelegationValues {} => to_binary(
             &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
         ),
-        QueryMsg::DebugGetAllPendingDelegationEvents {} => {
-            to_binary(&crate::delegations::queries::debug_get_all_pending_delegation_events(deps)?)
-        }
     };
 
     Ok(query_res?)
@@ -439,145 +426,7 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    let mixnode_checkpoints = crate::mixnodes::storage::mixnodes()
-        .changelog()
-        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect::<Result<Vec<_>, _>>()
-        .expect("all checkpoints failure");
-
-    for (k, checkpoint_height) in mixnode_checkpoints {
-        if let Err(err) =
-            crate::mixnodes::storage::mixnodes().remove_checkpoint(deps.storage, checkpoint_height)
-        {
-            debug_with_visibility(deps.api, format!("remove of checkpoint failed - {:?}", err))
-        }
-    }
-
-    // // deal_with_zero_delegations(deps)?;
-    // pub(crate) fn encode_length(namespace: &[u8]) -> [u8; 2] {
-    //     if namespace.len() > 0xFFFF {
-    //         panic!("only supports namespaces up to length 0xFFFF")
-    //     }
-    //     let length_bytes = (namespace.len() as u32).to_be_bytes();
-    //     [length_bytes[2], length_bytes[3]]
-    // }
-    //
-    // pub(crate) fn nested_namespaces_with_key(
-    //     top_names: &[&[u8]],
-    //     sub_names: &[Key],
-    //     key: &[u8],
-    // ) -> Vec<u8> {
-    //     let mut size = key.len();
-    //     for &namespace in top_names {
-    //         size += namespace.len() + 2;
-    //     }
-    //     for namespace in sub_names {
-    //         size += namespace.as_ref().len() + 2;
-    //     }
-    //
-    //     let mut out = Vec::with_capacity(size);
-    //     for &namespace in top_names {
-    //         out.extend_from_slice(&encode_length(namespace));
-    //         out.extend_from_slice(namespace);
-    //     }
-    //     for namespace in sub_names {
-    //         out.extend_from_slice(&encode_length(namespace.as_ref()));
-    //         out.extend_from_slice(namespace.as_ref());
-    //     }
-    //     out.extend_from_slice(key);
-    //     out
-    // }
-    //
-    // let namespace = b"mm";
-    // let k = "2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc";
-    // let key = k.key();
-    // let keys = key.iter().map(Key::as_ref).collect::<Vec<_>>();
-    //
-    // let l = keys.len();
-    // // FIXME: make this more efficient
-    // let storage_key = nested_namespaces_with_key(
-    //     &[namespace],
-    //     &keys[0..l - 1]
-    //         .iter()
-    //         .map(|k| Key::Ref(k))
-    //         .collect::<Vec<Key>>(),
-    //     keys[l - 1],
-    // );
-    //
-    // let id_bytes = bs58::decode("2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc")
-    //     .into_vec()
-    //     .unwrap();
-    //
-    // debug_with_visibility(
-    //     deps.api,
-    //     format!("encoded {} as base64: {}", k, base64::encode(id_bytes)),
-    // );
-    //
-    // debug_with_visibility(
-    //     deps.api,
-    //     format!(
-    //         "about read from raw storage with key {:?} ({}) bs64: {}",
-    //         &storage_key,
-    //         String::from_utf8_lossy(&storage_key),
-    //         base64::encode(&storage_key)
-    //     ),
-    // );
-    //
-    // let raw_value = match deps.storage.get(&storage_key) {
-    //     None => {
-    //         debug_with_visibility(deps.api, "we messed up");
-    //         unreachable!("foo")
-    //     }
-    //     Some(val) => val,
-    // };
-    //
-    // let raw_string = String::from_utf8_lossy(&raw_value);
-    //
-    // debug_with_visibility(deps.api, format!("raw storage: {}", raw_string));
-    //
-    // // we dont need detailed last state, we need just fields to exist for index creation, so owner and sphinx key
-    // crate::mixnodes::storage::mixnodes().load()
-    // /*
-    // [
-    // ("2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc", 1894296),
-    // ("2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc", 1895010),
-    // ("74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3", 1894296),
-    // ("74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3", 1895010),
-    // ("AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE", 1894296),
-    // ("AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE", 1895010)
-    // ]
-    //          */
-    //
-    // // for (key, checkpoint_height) in &mixnode_checpoints {
-    // //     let first = crate::mixnodes::storage::mixnodes()
-    // //         .prefix(key)
-    // //         .range_raw(
-    // //             deps.storage,
-    // //             Some(start),
-    // //             None,
-    // //             cosmwasm_std::Order::Ascending,
-    // //         )
-    // //         .next();
-    // // }
-    //
-    // let mixnode_checpoints = crate::mixnodes::storage::mixnodes()
-    //     .changelog()
-    //     .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-    //     .collect::<Result<Vec<_>, _>>()
-    //     .expect("all checkpoints failure");
-    //
-    // debug_with_visibility(
-    //     deps.api,
-    //     format!("all checkpoints after migration: {:#?}", mixnode_checpoints),
-    // );
-    //
-    // // let checkpoints = mixnodes
-    // //     .changelog()
-    // //     .keys(&deps.storage, None, None, Order::Ascending)
-    // //     .filter_map(|x| x.ok())
-    // //     .collect::<Vec<(IdentityKey, u64)>>();
-    //
-    // // mixnodes.remove_checkpoint(deps.storage, 1894296).unwrap();
+    deal_with_zero_delegations(deps)?;
 
     Ok(Default::default())
 }

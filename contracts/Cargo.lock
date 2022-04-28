@@ -1004,7 +1004,6 @@ name = "mixnet-contract"
 version = "1.0.0"
 dependencies = [
  "az",
- "base64",
  "bs58",
  "config",
  "cosmwasm-schema",

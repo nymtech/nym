@@ -32,12 +32,6 @@ thiserror = { version = "1.0.23" }
 time = { version = "0.3", features = ["macros"] }
 hex = "0.4.3"
 
-
-base64 = "0.13.0"
-
-
-
-
 [dev-dependencies]
 cosmwasm-schema = "1.0.0-beta3"
 fixed = "1.1"

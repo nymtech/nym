@@ -6,7 +6,6 @@ use super::storage::{
     OPERATOR_REWARD_CLAIMED_HEIGHT,
 };
 use crate::constants;
-use crate::contract::debug_with_visibility;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
@@ -15,7 +14,7 @@ use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
 use mixnet_contract_common::events::{
     new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
@@ -151,8 +150,7 @@ pub fn try_compound_delegator_reward_on_behalf(
     let owner = deps.api.addr_validate(&owner)?;
     let reward = _try_compound_delegator_reward(
         env.block.height,
-        deps.api,
-        deps.storage,
+        deps,
         owner.as_str(),
         &mix_identity,
         Some(proxy.clone()),
@@ -177,8 +175,7 @@ pub fn try_compound_delegator_reward(
     let owner = deps.api.addr_validate(info.sender.as_str())?;
     let reward = _try_compound_delegator_reward(
         env.block.height,
-        deps.api,
-        deps.storage,
+        deps,
         owner.as_str(),
         &mix_identity,
         None,
@@ -196,8 +193,7 @@ pub fn try_compound_delegator_reward(
 
 pub fn _try_compound_delegator_reward(
     block_height: u64,
-    api: &dyn Api,
-    storage: &mut dyn Storage,
+    mut deps: DepsMut<'_>,
     owner_address: &str,
     mix_identity: &str,
     proxy: Option<Addr>,
@@ -205,25 +201,25 @@ pub fn _try_compound_delegator_reward(
     let delegation_map = crate::delegations::storage::delegations();
 
     let key = mixnet_contract_common::delegation::generate_storage_key(
-        &api.addr_validate(owner_address)?,
+        &deps.api.addr_validate(owner_address)?,
         proxy.as_ref(),
     );
-    let reward = calculate_delegator_reward(storage, api, key.clone(), mix_identity)?;
+    let reward = calculate_delegator_reward(deps.storage, key.clone(), mix_identity)?;
     let mut compounded_delegation = reward;
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map
         .prefix((mix_identity.to_string(), key.clone()))
-        .keys(storage, None, None, cosmwasm_std::Order::Ascending)
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .filter_map(|v| v.ok())
         .collect::<Vec<u64>>();
 
     for h in delegation_heights {
         let delegation =
-            delegation_map.load(storage, (mix_identity.to_string(), key.clone(), h))?;
+            delegation_map.load(deps.storage, (mix_identity.to_string(), key.clone(), h))?;
         compounded_delegation += delegation.amount.amount;
         delegation_map.replace(
-            storage,
+            deps.storage,
             (mix_identity.to_string(), key.clone(), h),
             None,
             Some(&delegation),
@@ -232,8 +228,7 @@ pub fn _try_compound_delegator_reward(
 
     if compounded_delegation != Uint128::zero() {
         _try_delegate_to_mixnode(
-            storage,
-            api,
+            deps.branch(),
             block_height,
             mix_identity,
             owner_address,
@@ -247,14 +242,14 @@ pub fn _try_compound_delegator_reward(
 
     {
         //TODO: Node exists all is well, life goes on, if it does not exist we'll just return the reward to the caller as there is nothing to do on the bond
-        if let Some(mut bond) = mixnodes().may_load(storage, mix_identity)? {
+        if let Some(mut bond) = mixnodes().may_load(deps.storage, mix_identity)? {
             bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
-            mixnodes().save(storage, mix_identity, &bond, block_height)?;
+            mixnodes().save(deps.storage, mix_identity, &bond, block_height)?;
         }
     }
 
     DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
-        storage,
+        deps.storage,
         (key, mix_identity.to_string()),
         &block_height,
     )?;
@@ -267,18 +262,12 @@ pub fn _try_compound_delegator_reward(
 // + last_reward_claimed height is correctly used
 pub fn calculate_delegator_reward(
     storage: &dyn Storage,
-    api: &dyn Api,
     key: Vec<u8>,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
     let last_claimed_height = storage::DELEGATOR_REWARD_CLAIMED_HEIGHT
         .load(storage, (key.clone(), mix_identity.to_string()))
         .unwrap_or(0);
-
-    debug_with_visibility(
-        api,
-        format!("last_claimed_height: {:?}", last_claimed_height),
-    );
 
     // Get delegations newer then last_claimed_height, it would be nice to also fold this into the iteration bellow but it should be ok for now, as
     // I doubt folks refresh their delegations often
@@ -308,31 +297,12 @@ pub fn calculate_delegator_reward(
                     .fold(Uint128::zero(), |total, delegation| {
                         total + delegation.amount.amount
                     });
-                debug_with_visibility(
-                    api,
-                    format!(
-                        "height, delegation_at_heght: {:?}, {:?}",
-                        height, delegation_at_height
-                    ),
-                );
                 if delegation_at_height != Uint128::zero() {
-                    debug_with_visibility(
-                        api,
-                        format!("Attempting to load mixnode at height: {:?}", height),
-                    );
-
-                    let separate_load =
-                        mixnodes().may_load_at_height(storage, mix_identity, height);
-                    if let Err(err) = separate_load {
-                        debug_with_visibility(api, format!("detailed error: {:?}", err))
-                    }
-
                     if let Some(bond) = mixnodes()
                         .may_load_at_height(storage, mix_identity, height)
                         .ok()
                         .flatten()
                     {
-                        debug_with_visibility(api, "loaded mixnode at height");
                         if let Some(ref epoch_rewards) = bond.epoch_rewards {
                             // Compound rewards from previous heights
                             let epoch_reward_params =
@@ -347,11 +317,8 @@ pub fn calculate_delegator_reward(
                             };
                             return Ok(accumulated_reward + reward_at_height);
                         }
-                    } else {
-                        debug_with_visibility(api, "failed to load bond at height");
                     }
                 };
-                debug_with_visibility(api, "Done!");
                 Ok(accumulated_reward)
             },
         )?;

@@ -33,16 +33,6 @@ pub(crate) fn query_pending_delegation_events(
         .collect::<Vec<DelegationEvent>>())
 }
 
-pub(crate) fn debug_get_all_pending_delegation_events(
-    deps: Deps<'_>,
-) -> Result<Vec<DelegationEvent>, ContractError> {
-    Ok(storage::PENDING_DELEGATION_EVENTS
-        .range(deps.storage, None, None, Order::Ascending)
-        .filter_map(|r| r.ok())
-        .map(|(_key, delegation_event)| delegation_event)
-        .collect::<Vec<DelegationEvent>>())
-}
-
 pub(crate) fn query_delegator_delegations_paged(
     deps: Deps<'_>,
     delegation_owner: String,

@@ -247,15 +247,17 @@ impl DelegatorRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
 
-    #[serde(skip)]
-    lambda: String,
+    #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
+    lambda: U128,
 
-    #[serde(skip)]
-    sigma: String,
+    #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
+    sigma: U128,
 }
 
 impl StoredNodeRewardResult {
@@ -263,12 +265,12 @@ impl StoredNodeRewardResult {
         self.reward
     }
 
-    pub fn lambda(&self) -> String {
-        self.lambda.clone()
+    pub fn lambda(&self) -> U128 {
+        self.lambda
     }
 
-    pub fn sigma(&self) -> String {
-        self.sigma.clone()
+    pub fn sigma(&self) -> U128 {
+        self.sigma
     }
 }
 
@@ -283,8 +285,8 @@ impl TryFrom<NodeRewardResult> for StoredNodeRewardResult {
                     .checked_cast()
                     .ok_or(MixnetContractError::CastError)?,
             ),
-            lambda: node_reward_result.lambda().to_string(),
-            sigma: node_reward_result.sigma().to_string(),
+            lambda: node_reward_result.lambda(),
+            sigma: node_reward_result.sigma(),
         })
     }
 }

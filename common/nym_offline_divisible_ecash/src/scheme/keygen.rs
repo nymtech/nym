@@ -365,7 +365,7 @@ impl KeyPairUser {
 
 
 pub fn ttp_keygen_authorities(
-    params: Parameters,
+    params: &Parameters,
     threshold: u64,
     num_authorities: u64) -> Result<Vec<KeyPairAuth>> {
     if threshold == 0 {
@@ -381,10 +381,11 @@ pub fn ttp_keygen_authorities(
             ));
     }
 
+    let grp = params.get_grp();
     // generate polynomials
-    let v = Polynomial::new_random(&params.get_grp(), threshold - 1);
+    let v = Polynomial::new_random(&grp, threshold - 1);
     let ws = (0..2)
-        .map(|_| Polynomial::new_random(&params.get_grp(), threshold - 1))
+        .map(|_| Polynomial::new_random(&grp, threshold - 1))
         .collect::<Vec<_>>();
     let polynomial_indices = (1..=num_authorities).collect::<Vec<_>>();
 
@@ -404,7 +405,7 @@ pub fn ttp_keygen_authorities(
     let keypairs = secret_keys
         .zip(polynomial_indices.iter())
         .map(|(secret_key, index)| {
-            let verification_key = secret_key.verification_key(&params.get_grp());
+            let verification_key = secret_key.verification_key(&grp);
             KeyPairAuth {
                 secret_key,
                 verification_key,
@@ -416,7 +417,7 @@ pub fn ttp_keygen_authorities(
     Ok(keypairs)
 }
 
-pub fn ttp_keygen_users(params: Parameters) -> KeyPairUser {
+pub fn ttp_keygen_users(params: &Parameters) -> KeyPairUser {
     let grp = params.get_grp();
     let sk_user = SecretKeyUser { sk: grp.random_scalar() };
     let pk_user = PublicKeyUser { pk: grp.gen1() * sk_user.sk };

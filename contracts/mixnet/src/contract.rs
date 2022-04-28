@@ -490,6 +490,25 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
         keys[l - 1],
     );
 
+    let id_bytes = bs58::decode("2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc")
+        .into_vec()
+        .unwrap();
+
+    debug_with_visibility(
+        deps.api,
+        format!("encoded {} as base64: {}", k, base64::encode(id_bytes)),
+    );
+
+    debug_with_visibility(
+        deps.api,
+        format!(
+            "about read from raw storage with key {:?} ({}) bs64: {}",
+            &storage_key,
+            String::from_utf8_lossy(&storage_key),
+            base64::encode(&storage_key)
+        ),
+    );
+
     let raw_value = deps
         .storage
         .get(&storage_key)
@@ -526,7 +545,8 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
     let mixnode_checpoints = crate::mixnodes::storage::mixnodes()
         .changelog()
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>()
+        .expect("all checkpoints failure");
 
     debug_with_visibility(
         deps.api,

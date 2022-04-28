@@ -3,47 +3,29 @@
 
 // TODO: if it becomes too cumbersome, perhaps consider a more streamlined solution like tarpc
 
-use crate::dkg::networking::codec::DkgCodec;
-use futures::StreamExt;
+use crate::dkg::networking::handler::ConnectionHandler;
+use crate::dkg::state::DkgState;
 use std::fmt::Display;
 use std::net::SocketAddr;
 use std::process;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
-use tokio_util::codec::Framed;
 
 // note that we do not expect persistent connections between dealers, they should only really
 // exist for the duration of a single message exchange
 pub(crate) struct Listener<A> {
     address: A,
+    dkg_state: DkgState,
 }
 
 impl<A> Listener<A> {
-    pub(crate) fn new(address: A) -> Self {
-        Listener { address }
+    pub(crate) fn new(address: A, dkg_state: DkgState) -> Self {
+        Listener { address, dkg_state }
     }
 
     fn on_connect(&self, conn: TcpStream, remote: SocketAddr) {
-        // TODO: here be a check to see if the connection originates from a known dealer
-        tokio::spawn(async move {
-            debug!("Starting connection handler for {}", remote);
-            let mut framed_conn = Framed::new(conn, DkgCodec);
-            while let Some(framed_dkg_request) = framed_conn.next().await {
-                match framed_dkg_request {
-                    Ok(framed_dkg_request) => {
-                        todo!("handle packet")
-                    }
-                    Err(err) => {
-                        warn!(
-                        "The socket connection got corrupted with error: {:?}. Closing the socket",
-                        err
-                    );
-                        break;
-                    }
-                }
-            }
-
-            debug!("Closing connection from {}", remote);
-        });
+        tokio::spawn(
+            ConnectionHandler::new(self.dkg_state.clone(), conn, remote).handle_connection(),
+        );
     }
 
     async fn run(&mut self)

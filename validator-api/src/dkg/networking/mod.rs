@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) mod codec;
+mod handler;
 mod listener;
 pub(crate) mod message;
 

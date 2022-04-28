@@ -9,6 +9,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 const MAX_ALLOWED_MESSAGE_LEN: usize = 2 * 1024 * 1024;
 
+#[derive(Debug)]
 pub struct DkgCodec;
 
 impl Encoder<OffchainDkgMessage> for DkgCodec {

@@ -20,6 +20,10 @@ pub enum OffchainDkgMessage {
         id: u64,
         message: RemoteDealingResponseMessage,
     },
+    ErrorResponse {
+        id: u64,
+        message: ErrorResponseMessage,
+    },
 }
 
 pub struct NewDealingMessage {
@@ -42,6 +46,16 @@ pub enum RemoteDealingResponseMessage {
         dealer_signature: identity::Signature,
     },
     Unavailable,
+}
+
+pub struct ErrorResponseMessage {
+    reason: ErrorReason,
+    additional_info: Option<String>,
+}
+
+pub enum ErrorReason {
+    UnknownDealer,
+    Timeout,
 }
 
 impl OffchainDkgMessage {
@@ -98,7 +112,7 @@ struct FramedOffchainDkgMessage {
 
 impl FramedOffchainDkgMessage {
     fn into_bytes(mut self) -> Vec<u8> {
-        let mut header_bytes = self.header.to_bytes();
+        let mut header_bytes = self.header.into_bytes();
         let mut out = Vec::with_capacity(header_bytes.len() + self.payload.len());
 
         out.append(&mut header_bytes);
@@ -121,7 +135,7 @@ pub(crate) struct Header {
 impl Header {
     pub(crate) const LEN: usize = 13;
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+    pub(crate) fn into_bytes(self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::LEN);
         out.push(self.message_type as u8);
         out.extend_from_slice(&self.payload_length.to_be_bytes());
@@ -163,7 +177,7 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
         };
 
-        let bytes = valid_header.to_bytes();
+        let bytes = valid_header.into_bytes();
         assert_eq!(valid_header, Header::try_from_bytes(&bytes).unwrap())
     }
 }

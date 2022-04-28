@@ -17,7 +17,7 @@ use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,

@@ -78,7 +78,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
               <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, flex }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {tooltipInfo && (
-                    <Box sx={{ mr: 0.5, display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <CustomTooltip
                         title={tooltipInfo}
                         id={field}
@@ -90,7 +90,15 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
                         }}
                         arrow
                       >
-                        <IconButton disableFocusRipple disableRipple>
+                        <IconButton
+                          sx={{
+                            padding: 0,
+                            py: 1,
+                            pr: 1,
+                          }}
+                          disableFocusRipple
+                          disableRipple
+                        >
                           <InfoSVG />
                         </IconButton>
                       </CustomTooltip>

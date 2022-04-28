@@ -9,11 +9,11 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
     currencyToString((economicDynamicsStats?.data?.estimated_total_node_reward || '').toString()) || '-';
   const estimatedOperatorRewards =
     currencyToString((economicDynamicsStats?.data?.estimated_operator_reward || '').toString()) || '-';
-  const activeSetProbability = economicDynamicsStats?.data?.active_set_inclusion_probability || 0;
+  // const activeSetProbability = economicDynamicsStats?.data?.active_set_inclusion_probability || 0;
   const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || '-';
   const profitMargin = mixNode?.data?.mix_node.profit_margin_percent || '-';
   const avgUptime = economicDynamicsStats?.data?.current_interval_uptime;
-  const selectionChance = 'High';
+  const selectionChance = 'VeryHigh';
 
   return {
     id: 1,
@@ -25,7 +25,6 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
     },
     selectionChance: {
       value: selectionChance,
-      progressBarValue: activeSetProbability,
     },
     stakeSaturation: {
       progressBarValue: typeof stakeSaturation === 'number' ? stakeSaturation * 100 : 0,

@@ -13,7 +13,6 @@ const row: EconomicsInfoRowWithIndex = {
   id: 1,
   selectionChance: {
     value: 'High',
-    progressBarValue: 80,
   },
   avgUptime: {
     value: '65 %',
@@ -37,7 +36,6 @@ const rowVeryHighProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
     value: 'VeryHigh',
-    progressBarValue: 100,
   },
 };
 
@@ -45,7 +43,6 @@ const rowModerateProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
     value: 'Moderate',
-    progressBarValue: 50,
   },
 };
 
@@ -53,7 +50,6 @@ const rowLowProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
     value: 'Low',
-    progressBarValue: 10,
   },
 };
 
@@ -61,7 +57,6 @@ const rowVeryLowProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
     value: 'VeryLow',
-    progressBarValue: 0.1,
   },
 };
 

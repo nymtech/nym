@@ -24,13 +24,14 @@ const tooltipBackGroundColor = '#A0AED1';
 const threshold = 100;
 
 const formatCellValues = (value: EconomicsRowsType, field: string, theme: Theme) => {
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
   if (value.progressBarValue) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }} id="field">
+      <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isTablet ? 'column' : 'row' }} id="field">
         <Typography
           sx={{
-            mr: 1,
+            mr: isTablet ? 0 : 1,
+            mb: isTablet ? 1 : 0,
             fontWeight: '600',
             fontSize: '12px',
           }}

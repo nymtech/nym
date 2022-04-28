@@ -35,7 +35,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
-use cw_storage_plus::{IndexList, PrimaryKey};
+use cw_storage_plus::{IndexList, Key, Path, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
@@ -440,92 +440,65 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     // deal_with_zero_delegations(deps)?;
+    pub(crate) fn encode_length(namespace: &[u8]) -> [u8; 2] {
+        if namespace.len() > 0xFFFF {
+            panic!("only supports namespaces up to length 0xFFFF")
+        }
+        let length_bytes = (namespace.len() as u32).to_be_bytes();
+        [length_bytes[2], length_bytes[3]]
+    }
+
+    pub(crate) fn nested_namespaces_with_key(
+        top_names: &[&[u8]],
+        sub_names: &[Key],
+        key: &[u8],
+    ) -> Vec<u8> {
+        let mut size = key.len();
+        for &namespace in top_names {
+            size += namespace.len() + 2;
+        }
+        for namespace in sub_names {
+            size += namespace.as_ref().len() + 2;
+        }
+
+        let mut out = Vec::with_capacity(size);
+        for &namespace in top_names {
+            out.extend_from_slice(&encode_length(namespace));
+            out.extend_from_slice(namespace);
+        }
+        for namespace in sub_names {
+            out.extend_from_slice(&encode_length(namespace.as_ref()));
+            out.extend_from_slice(namespace.as_ref());
+        }
+        out.extend_from_slice(key);
+        out
+    }
+
+    let namespace = b"mm";
+    let k = "2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc";
+    let key = k.key();
+    let keys = key.iter().map(Key::as_ref).collect::<Vec<_>>();
+
+    let l = keys.len();
+    // FIXME: make this more efficient
+    let storage_key = nested_namespaces_with_key(
+        &[namespace],
+        &keys[0..l - 1]
+            .iter()
+            .map(|k| Key::Ref(k))
+            .collect::<Vec<Key>>(),
+        keys[l - 1],
+    );
+
+    let raw_value = deps
+        .storage
+        .get(&storage_key)
+        .expect("you messed up storage key");
+    let raw_string = String::from_utf8_lossy(&raw_value);
+
+    debug_with_visibility(deps.api, format!("raw storage: {}", raw_string));
 
     // we dont need detailed last state, we need just fields to exist for index creation, so owner and sphinx key
-    let old_mix1 = StoredMixnodeBond {
-        pledge_amount: Default::default(),
-        owner: Addr::unchecked("nymt1fj6n3zgn52vchg6fsn0c2g9zc8a4rw4znhn4nk"),
-        layer: mixnet_contract_common::Layer::Gateway,
-        block_height: 0,
-        mix_node: mixnet_contract_common::MixNode {
-            host: "".to_string(),
-            mix_port: 0,
-            verloc_port: 0,
-            http_api_port: 0,
-            sphinx_key: "B4r2gZ5TxLPLhGnygiXEiud7SEqmyceoWBVokMNHztGU".to_string(),
-            identity_key: "2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc".to_string(),
-            version: "".to_string(),
-            profit_margin_percent: 0,
-        },
-        proxy: None,
-        accumulated_rewards: None,
-        epoch_rewards: None,
-    };
-
-    crate::mixnodes::storage::mixnodes().replace(
-        deps.storage,
-        "2r4aMWsNsHpRnk6pfVmXQuwjzdv7qQc97jT9t1mNkjAc",
-        None,
-        Some(&old_mix1),
-        1894296,
-    );
-    // we dont need detailed last state, we need just fields to exist for index creation, so owner and sphinx key
-
-    let old_mix2 = StoredMixnodeBond {
-        pledge_amount: Default::default(),
-        owner: Addr::unchecked("nymt1xgysz3xtc33ag5agfpg7hdvrw5nqh5c9ajgc0y"),
-        layer: mixnet_contract_common::Layer::Gateway,
-        block_height: 0,
-        mix_node: mixnet_contract_common::MixNode {
-            host: "".to_string(),
-            mix_port: 0,
-            verloc_port: 0,
-            http_api_port: 0,
-            sphinx_key: "HZ5yWfc56qmhJ82Z15n8QyV6qLG3Bs3Up1D1HdYDvfUf".to_string(),
-            identity_key: "74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3".to_string(),
-            version: "".to_string(),
-            profit_margin_percent: 0,
-        },
-        proxy: None,
-        accumulated_rewards: None,
-        epoch_rewards: None,
-    };
-
-    crate::mixnodes::storage::mixnodes().replace(
-        deps.storage,
-        "74M4e37jwdr5FYX3G7zE9RcHeqMrbLYqraMFGGHzAry3",
-        None,
-        Some(&old_mix2),
-        1894296,
-    );
-
-    let old_mix3 = StoredMixnodeBond {
-        pledge_amount: Default::default(),
-        owner: Addr::unchecked("nymt1nq9pajwj0wxrjxxzzdcw52xlurhc5l950de22t"),
-        layer: mixnet_contract_common::Layer::Gateway,
-        block_height: 0,
-        mix_node: mixnet_contract_common::MixNode {
-            host: "".to_string(),
-            mix_port: 0,
-            verloc_port: 0,
-            http_api_port: 0,
-            sphinx_key: "AB7TaD8anJP55LzzpjUPDrrpzkVmzkMWkhqQMDYeMajN".to_string(),
-            identity_key: "AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE".to_string(),
-            version: "".to_string(),
-            profit_margin_percent: 0,
-        },
-        proxy: None,
-        accumulated_rewards: None,
-        epoch_rewards: None,
-    };
-
-    crate::mixnodes::storage::mixnodes().replace(
-        deps.storage,
-        "AGs9CwBhbjUC9ygLPpz2Sthfkn77dBkRDZxns8DzpPQE",
-        None,
-        Some(&old_mix3),
-        1894296,
-    );
 
     /*
     [

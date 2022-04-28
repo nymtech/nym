@@ -417,7 +417,7 @@ pub(crate) fn try_reward_mixnode(
 
     stored_bond.epoch_rewards = Some(NodeEpochRewards::new(
         node_reward_params,
-        stored_node_result.clone(),
+        stored_node_result,
         epoch.id(),
     ));
 

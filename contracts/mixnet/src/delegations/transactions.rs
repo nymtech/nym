@@ -359,7 +359,11 @@ pub(crate) fn try_reconcile_undelegation(
                     //         total_delegation
                     //     ),
                     // );
-                    panic!()
+                    return Err(ContractError::TotalDelegationSubOverflow {
+                        mix_identity: pending_undelegate.mix_identity(),
+                        total_node_delegation: total_node_delegation.unwrap().u128(),
+                        to_subtract: total_delegation.u128(),
+                    });
                 }
             };
             // debug_with_visibility(api, format!("Remaining total delegation: {}", remaining));

@@ -77,7 +77,8 @@ mod tests {
         assert_eq!(created_account_test_by_staking, created_account);
         assert_eq!(
             created_account.load_balance(&deps.storage).unwrap(),
-            Uint128::new(1_000_000_000_000)
+            // One was liquidated
+            Uint128::new(999_999_000_000)
         );
         // Try create the same account again
         let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());

@@ -32,13 +32,11 @@
       "shortDescription": "Browse the internet privately using the Nym Mixnet",
       "longDescription": "",
       "deb": {
-        "depends": [],
-        "useBootstrapper": false
+        "depends": []
       },
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "",
-        "useBootstrapper": false,
         "exceptionDomain": "",
         "signingIdentity": "Developer ID Application: Nym Technologies SA (VW5DZLFHM5)",
         "entitlements": null

@@ -27,6 +27,9 @@ mod window;
 fn main() {
   println!("Starting up...");
 
+  // as per breaking change description here: https://github.com/tauri-apps/tauri/blob/feac1d193c6d618e49916ad0707201f43d5cdd36/tooling/bundler/CHANGELOG.md
+  fix_path_env::fix();
+
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::new())))
     .invoke_handler(tauri::generate_handler![

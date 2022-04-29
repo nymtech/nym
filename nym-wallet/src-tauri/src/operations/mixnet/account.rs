@@ -14,13 +14,14 @@ use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 use url::Url;
+use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
 
 use validator_client::{nymd::SigningNymdClient, Client};
 
@@ -53,7 +54,7 @@ pub struct CreatedAccount {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AccountEntry {
   id: String,
   address: String,
@@ -471,6 +472,11 @@ pub async fn sign_in_with_password(
     w_state.set_all_accounts(all_accounts);
   }
 
+  let all_accounts = list_accounts(state.clone()).await?;
+  for account in all_accounts {
+    dbg!(&account);
+  }
+
   _connect_with_mnemonic(mnemonic, state).await
 }
 
@@ -507,20 +513,35 @@ pub fn remove_account_for_password(password: &str, inner_id: &str) -> Result<(),
   wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)
 }
 
+fn derive_address(
+  mnemonic: bip39::Mnemonic,
+  prefix: &str,
+) -> Result<cosmrs::AccountId, BackendError> {
+  let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
+  let accounts = wallet.try_derive_accounts()?;
+  Ok(accounts[0].address().clone())
+}
+
 #[tauri::command]
 pub async fn list_accounts(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<AccountEntry>, BackendError> {
   let state = state.read().await;
-  let all_accounts = state.get_all_accounts();
-  let a = all_accounts
+  let network: Network = state.current_network().into();
+  let prefix = network.bech32_prefix();
+
+  let all_accounts = state
+    .get_all_accounts()
     .values()
     .map(|account| AccountEntry {
       id: account.id.clone(),
-      address: "placeholder".to_string(),
+      address: derive_address(account.mnemonic.clone(), prefix)
+        .unwrap()
+        .to_string(),
     })
     .collect();
-  Ok(a)
+
+  Ok(all_accounts)
 }
 
 // WIP(JON): consider changing return type

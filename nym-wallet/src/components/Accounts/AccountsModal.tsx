@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
 import { Add, ArrowDownwardSharp, Close } from '@mui/icons-material';
-import { TAccount } from 'src/types';
+import { AccountEntry } from 'src/types';
 import { AccountItem } from './AccountItem';
 
 export const AccountsModal = ({
@@ -15,8 +15,8 @@ export const AccountsModal = ({
   onImport,
 }: {
   show: boolean;
-  accounts: TAccount[];
-  selectedAccount: TAccount['address'];
+  accounts: AccountEntry[];
+  selectedAccount: AccountEntry['id'];
   onClose: () => void;
   onAccountSelect: (accountName: string) => void;
   onAdd: () => void;
@@ -36,16 +36,16 @@ export const AccountsModal = ({
       </Typography>
     </DialogTitle>
     <DialogContent sx={{ padding: 0 }}>
-      {accounts.map(({ name, address }) => (
+      {accounts.map(({ id, address }) => (
         <AccountItem
-          name={name}
+          name={id}
           address={address}
           onSelect={() => {
-            onAccountSelect(name);
+            onAccountSelect(id);
             onClose();
           }}
-          onEdit={() => onEdit(name)}
-          selected={selectedAccount === address}
+          onEdit={() => onEdit(id)}
+          isSelected={selectedAccount === id}
           key={address}
         />
       ))}

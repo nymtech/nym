@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { TAccount } from 'src/types';
+import { AccountEntry } from 'src/types';
 
 export const EditAccountModal = ({
   account,
@@ -19,15 +19,15 @@ export const EditAccountModal = ({
   onClose,
   onEdit,
 }: {
-  account?: TAccount;
+  account?: AccountEntry;
   show: boolean;
   onClose: () => void;
-  onEdit: (account: TAccount) => void;
+  onEdit: (account: AccountEntry) => void;
 }) => {
   const [accountName, setAccountName] = useState('');
 
   useEffect(() => {
-    setAccountName(account ? account?.name : '');
+    setAccountName(account ? account?.id : '');
   }, [account]);
 
   return (
@@ -60,7 +60,7 @@ export const EditAccountModal = ({
           disableElevation
           variant="contained"
           size="large"
-          onClick={() => account && onEdit({ ...account, name: accountName })}
+          onClick={() => account && onEdit({ ...account, id: accountName })}
           disabled={!accountName?.length}
         >
           Edit

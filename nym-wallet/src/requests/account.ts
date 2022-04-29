@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api';
+import { AccountEntry } from 'src/types/rust/accountentry';
 import { Account } from '../types';
 
 export const createMnemonic = async (): Promise<string> => invoke('create_new_mnemonic');
@@ -43,7 +44,7 @@ export const addAccount = async ({
   await invoke('add_account_for_password', { mnemonic, password, innerId: accountName });
 };
 
-export const listAccounts = async (password: string) => {
-  const res: Account[] = await invoke('list_accounts_for_password', { password });
+export const listAccounts = async () => {
+  const res: AccountEntry[] = await invoke('list_accounts');
   return res;
 };

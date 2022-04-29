@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -14,8 +14,9 @@ import {
 } from '@mui/material';
 import { Check, Close, ContentCopySharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
+import { createMnemonic } from 'src/requests';
 
-const createAccountSteps = ['Save and copy mnemonic for your new account', 'Name your new account'];
+const createAccountSteps = ['Save and copy mnemonic for your new account', 'Name your new account', 'Confirm password'];
 
 const passwordCreationSteps = [
   'Log out',
@@ -49,7 +50,7 @@ const NoPassword = ({ onClose }: { onClose: () => void }) => (
   </Box>
 );
 
-const MnemonicStep = ({ mnemonic, onSave }: { mnemonic: string; onSave: () => void }) => {
+const MnemonicStep = ({ mnemonic, onNext }: { mnemonic: string; onNext: () => void }) => {
   const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
   return (
     <Box sx={{ mt: 1 }}>
@@ -80,7 +81,7 @@ const MnemonicStep = ({ mnemonic, onSave }: { mnemonic: string; onSave: () => vo
         </Stack>
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
-        <Button disabled={!copied} fullWidth disableElevation variant="contained" size="large" onClick={onSave}>
+        <Button disabled={!copied} fullWidth disableElevation variant="contained" size="large" onClick={onNext}>
           I saved my mnemonic
         </Button>
       </DialogActions>
@@ -88,7 +89,7 @@ const MnemonicStep = ({ mnemonic, onSave }: { mnemonic: string; onSave: () => vo
   );
 };
 
-const NameAccount = ({ onAdd }: { onAdd: (value: string) => void }) => {
+const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
   const [value, setValue] = useState('');
   return (
     <Box sx={{ mt: 1 }}>
@@ -102,9 +103,32 @@ const NameAccount = ({ onAdd }: { onAdd: (value: string) => void }) => {
           disableElevation
           variant="contained"
           size="large"
-          onClick={() => onAdd(value)}
+          onClick={() => onNext(value)}
         >
-          Add
+          Next
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void }) => {
+  const [value, setValue] = useState('');
+  return (
+    <Box sx={{ mt: 1 }}>
+      <DialogContent>
+        <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button
+          disabled={!value.length}
+          fullWidth
+          disableElevation
+          variant="contained"
+          size="large"
+          onClick={() => onConfirm(value)}
+        >
+          Add account
         </Button>
       </DialogActions>
     </Box>
@@ -120,9 +144,26 @@ export const AddAccountModal = ({
   show: boolean;
   withoutPassword?: boolean;
   onClose: () => void;
-  onAdd: (accountName: string) => void;
+  onAdd: (data: { accountName: string; mnemonic: string; password: string }) => void;
 }) => {
   const [step, setStep] = useState(0);
+  const [data, setData] = useState<{ mnemonic?: string; accountName?: string }>({
+    mnemonic: undefined,
+    accountName: undefined,
+  });
+
+  const generateMnemonic = async () => {
+    const mnemon = await createMnemonic();
+    setData((d) => ({ ...d, mnemonic: mnemon }));
+  };
+
+  useEffect(() => {
+    if (show) generateMnemonic();
+    else {
+      setData({ mnemonic: undefined, accountName: undefined });
+      setStep(0);
+    }
+  }, [show]);
 
   return (
     <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
@@ -142,17 +183,30 @@ export const AddAccountModal = ({
       </DialogTitle>
       {withoutPassword && <NoPassword onClose={onClose} />}
       {!withoutPassword &&
+        data.mnemonic &&
         (() => {
           switch (step) {
             case 0:
+              return <MnemonicStep mnemonic={data.mnemonic} onNext={() => setStep((s) => s + 1)} />;
+            case 1:
               return (
-                <MnemonicStep
-                  mnemonic="lonely employ curtain skull gas swim pizza injury tail birth inmate apart giraffe behave caution hammer echo action best symptom skull toast beyond casino"
-                  onSave={() => setStep((s) => s + 1)}
+                <NameAccount
+                  onNext={(accountName) => {
+                    setData((d) => ({ ...d, accountName }));
+                    setStep((s) => s + 1);
+                  }}
                 />
               );
-            case 1:
-              return <NameAccount onAdd={onAdd} />;
+            case 2:
+              return (
+                <ConfirmPassword
+                  onConfirm={(password) => {
+                    if (data.accountName && data.mnemonic) {
+                      onAdd({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                    }
+                  }}
+                />
+              );
             default:
               return null;
           }

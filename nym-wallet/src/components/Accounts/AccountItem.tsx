@@ -16,17 +16,17 @@ import { ShowMnemonic } from './ShowMnemonic';
 export const AccountItem = ({
   name,
   address,
-  selected,
+  isSelected,
   onSelect,
   onEdit,
 }: {
   name: string;
   address: string;
-  selected: boolean;
+  isSelected: boolean;
   onSelect: () => void;
   onEdit: () => void;
 }) => (
-  <ListItem disablePadding disableGutters sx={selected ? { bgcolor: 'rgba(33, 208, 115, 0.1)' } : {}}>
+  <ListItem disablePadding disableGutters sx={isSelected ? { bgcolor: 'rgba(33, 208, 115, 0.1)' } : {}}>
     <ListItemButton disableRipple onClick={onSelect}>
       <ListItemAvatar sx={{ minWidth: 0, mr: 2 }}>
         <AccountAvatar name={name} address={address} />

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Button } from '@mui/material';
 import { v4 as uuidv4 } from 'uuid';
-import { TAccount } from 'src/types';
-import { createMnemonic } from 'src/requests';
+import { AccountEntry } from 'src/types';
 import { EditAccountModal } from './EditAccountModal';
 import { AddAccountModal } from './AddAccountModal';
 import { AccountsModal } from './AccountsModal';
@@ -22,13 +21,13 @@ export const Accounts = ({
   setSelectedAccount,
   setDialogToDisplay,
 }: {
-  accounts?: TAccount[];
-  selectedAccount: TAccount;
-  accountToEdit?: TAccount;
+  accounts?: AccountEntry[];
+  selectedAccount: AccountEntry;
+  accountToEdit?: AccountEntry;
   dialogToDisplay?: TDialog;
-  addAccount: (acc: TAccount) => void;
-  editAccount: (acc: TAccount) => void;
-  importAccount: (acc: TAccount) => void;
+  addAccount: (acc: { accountName: string; mnemonic: string; password: string }) => Promise<void>;
+  editAccount: (acc: AccountEntry) => void;
+  importAccount: (acc: AccountEntry & { mnemonic: string }) => void;
   setAccountToEdit: (accountName: string) => void;
   setSelectedAccount: (accountName: string) => void;
   setDialogToDisplay: (dialog: TDialog | undefined) => void;
@@ -36,19 +35,19 @@ export const Accounts = ({
   accounts ? (
     <>
       <Button
-        startIcon={<AccountAvatar address={selectedAccount.address} name={selectedAccount.name} />}
+        startIcon={<AccountAvatar address={selectedAccount.address} name={selectedAccount.id} />}
         sx={{ color: 'nym.text.dark' }}
         onClick={() => setDialogToDisplay('Accounts')}
         disableRipple
       >
-        {selectedAccount.name}
+        {selectedAccount.id}
       </Button>
       <AccountsModal
         show={dialogToDisplay === 'Accounts'}
         onClose={() => setDialogToDisplay(undefined)}
         accounts={accounts}
         onAccountSelect={(accountName) => setSelectedAccount(accountName)}
-        selectedAccount={selectedAccount.address}
+        selectedAccount={selectedAccount.id}
         onAdd={() => {
           setDialogToDisplay('Add');
         }}
@@ -63,9 +62,8 @@ export const Accounts = ({
         onClose={() => {
           setDialogToDisplay('Accounts');
         }}
-        onAdd={async (name) => {
-          const mnemonic = await createMnemonic();
-          addAccount({ name, address: uuidv4(), mnemonic });
+        onAdd={async (data) => {
+          addAccount(data);
           setDialogToDisplay('Accounts');
         }}
       />
@@ -84,7 +82,7 @@ export const Accounts = ({
         show={dialogToDisplay === 'Import'}
         onClose={() => setDialogToDisplay('Accounts')}
         onImport={(mnemonic) => {
-          importAccount({ name: 'New Account', address: uuidv4(), mnemonic });
+          importAccount({ id: 'New Account', address: uuidv4(), mnemonic });
           setDialogToDisplay('Accounts');
         }}
       />

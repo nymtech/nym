@@ -347,7 +347,7 @@ fn try_create_periodic_vesting_account(
     let vesting_spec = vesting_spec.unwrap_or_default();
 
     let coin = validate_funds(&info.funds)?;
-    let mut amount = coin.amount.u128();
+    let full_amount = coin.amount.u128();
 
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
@@ -370,12 +370,13 @@ fn try_create_periodic_vesting_account(
         amount: vec![Coin::new(AMOUNT_TO_LIQUIDATE, DENOM)],
     };
 
-    amount = match amount.checked_sub(AMOUNT_TO_LIQUIDATE) {
+    // we give the recipient 1 nym in its liquid form so that they can pay transaction fees before vesting occurs
+    let vesting_amount = match full_amount.checked_sub(AMOUNT_TO_LIQUIDATE) {
         Some(amount) => amount,
         None => {
             return Err(ContractError::MinVestingFunds {
-                sent: amount,
-                need: amount + AMOUNT_TO_LIQUIDATE,
+                sent: full_amount,
+                need: full_amount + AMOUNT_TO_LIQUIDATE,
             });
         }
     };
@@ -385,7 +386,7 @@ fn try_create_periodic_vesting_account(
     Account::new(
         owner_address.clone(),
         staking_address.clone(),
-        Coin::new(amount, DENOM),
+        Coin::new(vesting_amount, DENOM),
         start_time,
         periods,
         deps.storage,

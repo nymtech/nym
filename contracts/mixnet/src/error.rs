@@ -173,5 +173,5 @@ pub enum ContractError {
         mix_identity: String,
         total_node_delegation: u128,
         to_subtract: u128,
-    }
+    },
 }

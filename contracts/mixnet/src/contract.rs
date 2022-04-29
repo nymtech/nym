@@ -33,7 +33,8 @@ use crate::rewards::queries::{
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128, Api
+    entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    Uint128,
 };
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{

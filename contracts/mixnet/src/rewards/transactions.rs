@@ -456,7 +456,7 @@ pub(crate) fn try_reward_mixnode(
 pub mod tests {
     use super::*;
     use crate::constants::EPOCHS_IN_INTERVAL;
-    use crate::delegations::transactions::try_delegate_to_mixnode;
+    use crate::delegations::transactions::{try_delegate_to_mixnode, _try_remove_delegation_from_mixnode};
     use crate::error::ContractError;
     use crate::interval::storage::{
         current_epoch_reward_params, save_epoch, save_epoch_reward_params,
@@ -1201,7 +1201,12 @@ pub mod tests {
         let delegation = delegations.first().unwrap();
         assert_eq!(delegation.amount.amount, Uint128::new(16000000000 + 304552));
 
-        let mix_1 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
+        let mix_1 = mixnodes.load(&deps.storage, &node_identity_1.clone()).unwrap();
+
+        _try_remove_delegation_from_mixnode(deps.as_mut(), env, node_identity_1, "alice_d1", None).unwrap();
+
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+        .unwrap();
 
         assert_eq!(
             mix_0.accumulated_rewards(),

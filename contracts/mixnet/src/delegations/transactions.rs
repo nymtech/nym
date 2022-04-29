@@ -1,13 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use super::storage::{self, PENDING_DELEGATION_EVENTS};
+use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Order, Response,
-    Storage, Uint128, WasmMsg,
+    Storage, Uint128, WasmMsg, Api
 };
 use mixnet_contract_common::events::{
     new_error_event, new_pending_delegation_event, new_pending_undelegation_event,
@@ -28,12 +29,13 @@ pub fn try_reconcile_all_delegation_events(
         return Err(ContractError::Unauthorized);
     }
 
-    _try_reconcile_all_delegation_events(deps.storage)
+    _try_reconcile_all_delegation_events(deps.storage, deps.api)
 }
 
 // TODO: Error handling?
 pub(crate) fn _try_reconcile_all_delegation_events(
     storage: &mut dyn Storage,
+    api: &dyn Api
 ) -> Result<Response, ContractError> {
     let pending_delegation_events = PENDING_DELEGATION_EVENTS
         .range(storage, None, None, Order::Ascending)
@@ -53,7 +55,7 @@ pub(crate) fn _try_reconcile_all_delegation_events(
                 response = response.add_event(event);
             }
             DelegationEvent::Undelegate(pending_undelegate) => {
-                let undelegate_response = try_reconcile_undelegation(storage, &pending_undelegate)?;
+                let undelegate_response = try_reconcile_undelegation(storage, api, &pending_undelegate)?;
                 response = response.add_event(undelegate_response.event);
                 if let Some(msg) = undelegate_response.bank_msg {
                     response = response.add_message(msg);
@@ -250,9 +252,12 @@ pub struct ReconcileUndelegateResponse {
 
 pub(crate) fn try_reconcile_undelegation(
     storage: &mut dyn Storage,
+    api: &dyn Api,
     pending_undelegate: &PendingUndelegate,
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
+
+    debug_with_visibility(api, "Reconciling undelegations");
 
     let any_delegations = delegation_map
         .prefix(pending_undelegate.storage_key())
@@ -281,6 +286,8 @@ pub(crate) fn try_reconcile_undelegation(
         &pending_undelegate.mix_identity(),
     )?;
 
+    debug_with_visibility(api, format!("Delegator reward: {}", reward));
+
     // Might want to introduce paging here
     let delegation_heights = delegation_map
         .prefix(pending_undelegate.storage_key())
@@ -304,11 +311,16 @@ pub(crate) fn try_reconcile_undelegation(
 
     let mut total_delegation = reward;
 
+    debug_with_visibility(api, "Reducing accumulated rewards");
+
     {
         if let Some(mut bond) = crate::mixnodes::storage::mixnodes()
             .may_load(storage, &pending_undelegate.mix_identity())?
         {
-            bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
+            let remaining = bond.accumulated_rewards().saturating_sub(reward);
+            debug_with_visibility(api, format!("Remaining accumulated rewards: {}", remaining));
+            bond.accumulated_rewards = Some(remaining);
+
             crate::mixnodes::storage::mixnodes().save(
                 storage,
                 &pending_undelegate.mix_identity(),
@@ -377,6 +389,8 @@ pub(crate) fn try_reconcile_undelegation(
         &pending_undelegate.mix_identity(),
         total_delegation,
     );
+
+    debug_with_visibility(api, "Done");
 
     Ok(ReconcileUndelegateResponse {
         bank_msg,

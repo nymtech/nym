@@ -33,7 +33,7 @@ use crate::rewards::queries::{
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
+    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128, Api
 };
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
@@ -55,6 +55,10 @@ pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
 pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
     time::macros::datetime!(2022-01-01 12:00 UTC);
+
+pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
+    api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
+}
 
 fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {

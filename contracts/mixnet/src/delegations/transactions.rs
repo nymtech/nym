@@ -309,7 +309,7 @@ pub(crate) fn try_reconcile_undelegation(
         });
     }
 
-    let mut total_delegation = reward;
+    let mut total_delegation = Uint128::zero();
 
     debug_with_visibility(api, "Reducing accumulated rewards");
 
@@ -342,34 +342,42 @@ pub(crate) fn try_reconcile_undelegation(
         )?;
     }
 
-    // don't add a bank message if it would have resulted in attempting to send 0 tokens
-    let bank_msg = if total_delegation != Uint128::zero() {
-        Some(BankMsg::Send {
-            to_address: pending_undelegate
-                .proxy()
-                .as_ref()
-                .unwrap_or(&pending_undelegate.delegate())
-                .to_string(),
-            amount: coins(total_delegation.u128(), DENOM),
-        })
-    } else {
-        None
-    };
-
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
         storage,
         &pending_undelegate.mix_identity(),
         |total_node_delegation| {
+            debug_with_visibility(api, "Setting total delegation");
+            let remaining = match total_node_delegation
+            .unwrap()
+            .checked_sub(total_delegation) {
+                Ok(remaining) => remaining,
+                Err(_) => {
+                    debug_with_visibility(api, format!("Overflowed delegation subsctraction, {} - {}", total_node_delegation.unwrap(), total_delegation));
+                    panic!()
+                }
+            };
+            debug_with_visibility(api, format!("Remaining total delegation: {}", remaining));
             // the first unwrap is fine because the delegation information MUST exist, otherwise we would
             // have never gotten here in the first place
             // the second unwrap is also fine because we should NEVER underflow here,
             // if we do, it means we have some serious error in our logic
-            Ok(total_node_delegation
-                .unwrap()
-                .checked_sub(total_delegation)
-                .unwrap())
+            Ok(remaining)
         },
     )?;
+
+        // don't add a bank message if it would have resulted in attempting to send 0 tokens
+        let bank_msg = if total_delegation != Uint128::zero() {
+            Some(BankMsg::Send {
+                to_address: pending_undelegate
+                    .proxy()
+                    .as_ref()
+                    .unwrap_or(&pending_undelegate.delegate())
+                    .to_string(),
+                amount: coins(total_delegation.u128(), DENOM),
+            })
+        } else {
+            None
+        };
 
     let mut wasm_msg = None;
 

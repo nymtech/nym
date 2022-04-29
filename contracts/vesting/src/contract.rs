@@ -20,6 +20,8 @@ use vesting_contract_common::messages::{
 };
 use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
 
+const AMOUNT_TO_LIQUIDATE: u128 = 1_000_000;
+
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut<'_>,
@@ -342,8 +344,6 @@ fn try_create_periodic_vesting_account(
         ));
     }
 
-    let amount_to_liquidate = 1_000_000;
-
     let vesting_spec = vesting_spec.unwrap_or_default();
 
     let coin = validate_funds(&info.funds)?;
@@ -367,15 +367,15 @@ fn try_create_periodic_vesting_account(
 
     let send_tokens_owner = BankMsg::Send {
         to_address: owner_address.as_str().to_string(),
-        amount: vec![Coin::new(amount_to_liquidate, DENOM)],
+        amount: vec![Coin::new(AMOUNT_TO_LIQUIDATE, DENOM)],
     };
 
-    amount = match amount.checked_sub(amount_to_liquidate) {
+    amount = match amount.checked_sub(AMOUNT_TO_LIQUIDATE) {
         Some(amount) => amount,
         None => {
             return Err(ContractError::MinVestingFunds {
                 sent: amount,
-                need: amount + 1_000_000,
+                need: amount + AMOUNT_TO_LIQUIDATE,
             });
         }
     };

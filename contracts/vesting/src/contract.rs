@@ -20,8 +20,6 @@ use vesting_contract_common::messages::{
 };
 use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
 
-const AMOUNT_TO_LIQUIDATE: u128 = 1_000_000;
-
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut<'_>,
@@ -347,7 +345,6 @@ fn try_create_periodic_vesting_account(
     let vesting_spec = vesting_spec.unwrap_or_default();
 
     let coin = validate_funds(&info.funds)?;
-    let full_amount = coin.amount.u128();
 
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
@@ -363,30 +360,12 @@ fn try_create_periodic_vesting_account(
 
     let start_time = Timestamp::from_seconds(start_time);
 
-    let mut response = Response::new();
-
-    let send_tokens_owner = BankMsg::Send {
-        to_address: owner_address.as_str().to_string(),
-        amount: vec![Coin::new(AMOUNT_TO_LIQUIDATE, DENOM)],
-    };
-
-    // we give the recipient 1 nym in its liquid form so that they can pay transaction fees before vesting occurs
-    let vesting_amount = match full_amount.checked_sub(AMOUNT_TO_LIQUIDATE) {
-        Some(amount) => amount,
-        None => {
-            return Err(ContractError::MinVestingFunds {
-                sent: full_amount,
-                need: full_amount + AMOUNT_TO_LIQUIDATE,
-            });
-        }
-    };
-
-    response = response.add_message(send_tokens_owner);
+    let response = Response::new();
 
     Account::new(
         owner_address.clone(),
         staking_address.clone(),
-        Coin::new(vesting_amount, DENOM),
+        coin.clone(),
         start_time,
         periods,
         deps.storage,

@@ -342,12 +342,9 @@ fn try_create_periodic_vesting_account(
         ));
     }
 
-    let amount_to_liquidate = 1_000_000;
-
     let vesting_spec = vesting_spec.unwrap_or_default();
 
     let coin = validate_funds(&info.funds)?;
-    let mut amount = coin.amount.u128();
 
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
@@ -363,29 +360,12 @@ fn try_create_periodic_vesting_account(
 
     let start_time = Timestamp::from_seconds(start_time);
 
-    let mut response = Response::new();
-
-    let send_tokens_owner = BankMsg::Send {
-        to_address: owner_address.as_str().to_string(),
-        amount: vec![Coin::new(amount_to_liquidate, DENOM)],
-    };
-
-    amount = match amount.checked_sub(amount_to_liquidate) {
-        Some(amount) => amount,
-        None => {
-            return Err(ContractError::MinVestingFunds {
-                sent: amount,
-                need: amount + 1_000_000,
-            });
-        }
-    };
-
-    response = response.add_message(send_tokens_owner);
+    let response = Response::new();
 
     Account::new(
         owner_address.clone(),
         staking_address.clone(),
-        Coin::new(amount, DENOM),
+        coin.clone(),
         start_time,
         periods,
         deps.storage,

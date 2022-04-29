@@ -13,7 +13,8 @@ export const CopyToClipboard: React.FC<{
 }> = ({ value, tooltip, onCopy, sx }) => {
   const copy = useClipboard();
   const [showConfirmation, setShowConfirmation] = React.useState<boolean>(false);
-  const handleCopy = () => {
+  const handleCopy = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.stopPropagation();
     setShowConfirmation(true);
     copy.copy(value);
     if (onCopy) {

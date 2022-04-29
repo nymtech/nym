@@ -25,11 +25,11 @@ impl NodeEpochRewards {
         self.epoch_id
     }
 
-    pub fn sigma(&self) -> Uint128 {
+    pub fn sigma(&self) -> U128 {
         self.result.sigma()
     }
 
-    pub fn lambda(&self) -> Uint128 {
+    pub fn lambda(&self) -> U128 {
         self.result.lambda()
     }
 
@@ -57,10 +57,8 @@ impl NodeEpochRewards {
     pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {
         let reward = self.node_profit();
         let operator_base_reward = reward.min(self.operator_cost());
-        let operator_reward = (profit_margin
-            + (ONE - profit_margin) * U128::from_num(self.lambda().u128())
-                / U128::from_num(self.sigma().u128()))
-            * reward;
+        let operator_reward =
+            (profit_margin + (ONE - profit_margin) * self.lambda() / self.sigma()) * reward;
 
         let reward = (operator_reward + operator_base_reward).max(U128::from_num(0u128));
 
@@ -82,9 +80,8 @@ impl NodeEpochRewards {
         let circulating_supply = U128::from_num(epoch_reward_params.circulating_supply());
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
-        let delegator_reward = (ONE - profit_margin) * scaled_delegation_amount
-            / U128::from_num(self.sigma().u128())
-            * self.node_profit();
+        let delegator_reward =
+            (ONE - profit_margin) * scaled_delegation_amount / self.sigma() * self.node_profit();
 
         let reward = delegator_reward.max(U128::ZERO);
         if let Some(int_reward) = reward.checked_cast() {

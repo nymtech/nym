@@ -24,14 +24,17 @@ use crate::mixnet_contract_settings::queries::{
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::query_mixnodes_paged;
+use crate::mixnodes::bonding_queries::{
+    query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
+};
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128,
+    entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    Uint128,
 };
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
@@ -53,6 +56,10 @@ pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 
 pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
     time::macros::datetime!(2022-01-01 12:00 UTC);
+
+pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
+    api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
+}
 
 fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
     ContractState {
@@ -387,13 +394,19 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::DebugGetAllDelegationValues {} => to_binary(
             &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
         ),
+        QueryMsg::GetCheckpointsForMixnode { mix_identity } => {
+            to_binary(&query_checkpoints_for_mixnode(deps, mix_identity)?)
+        }
+        QueryMsg::GetMixnodeAtHeight {
+            mix_identity,
+            height,
+        } => to_binary(&query_mixnode_at_height(deps, mix_identity, height)?),
     };
 
     Ok(query_res?)
 }
 
-#[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
     // if there exists any delegation of 0 value, remove it
     let zero_delegations = delegations()
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
@@ -421,6 +434,13 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
         crate::delegations::storage::PENDING_DELEGATION_EVENTS
             .remove(deps.storage, delegation_event);
     }
+
+    Ok(())
+}
+
+#[entry_point]
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    deal_with_zero_delegations(deps)?;
 
     Ok(Default::default())
 }

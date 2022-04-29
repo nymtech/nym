@@ -521,23 +521,6 @@ pub async fn list_accounts(
   Ok(all_accounts)
 }
 
-// WIP(JON): consider changing return type
-#[tauri::command]
-pub fn list_accounts_for_password(password: &str) -> Result<Vec<String>, BackendError> {
-  // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
-  let password = wallet_storage::UserPassword::new(password.to_string());
-  let login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  let ids = match login {
-    StoredLogin::Mnemonic(_) => vec![id.to_string()],
-    StoredLogin::Multiple(ref accounts) => accounts
-      .get_accounts()
-      .map(|account| account.id.to_string())
-      .collect::<Vec<_>>(),
-  };
-  Ok(ids)
-}
-
 #[tauri::command]
 pub async fn sign_in_decrypted_account(
   account_id: &str,

@@ -17,7 +17,7 @@ const Template: ComponentStory<typeof EditAccountModal> = (args) => (
 
 export const Default = Template.bind({});
 Default.args = {
-  account: { name: 'Account 1', address: uuid() },
+  account: { name: 'Account 1', address: uuid(), mnemonic: 'abc123' },
   show: true,
   onClose: () => {},
 };

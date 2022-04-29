@@ -1,7 +1,17 @@
 import React from 'react';
-import { IconButton, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import {
+  Box,
+  IconButton,
+  ListItem,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+} from '@mui/material';
 import { Edit } from '@mui/icons-material';
 import { AccountAvatar } from './AccountAvatar';
+import { ShowMnemonic } from './ShowMnemonic';
 
 export const AccountItem = ({
   name,
@@ -21,7 +31,15 @@ export const AccountItem = ({
       <ListItemAvatar sx={{ minWidth: 0, mr: 2 }}>
         <AccountAvatar name={name} address={address} />
       </ListItemAvatar>
-      <ListItemText primary={name} secondary={address} />
+      <ListItemText
+        primary={name}
+        secondary={
+          <Box>
+            <Typography variant="body2">{address}</Typography>
+            <ShowMnemonic accountName={name} />
+          </Box>
+        }
+      />
       <ListItemIcon>
         <IconButton
           onClick={(e) => {

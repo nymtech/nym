@@ -2,7 +2,8 @@ import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { TLoginType } from 'src/pages/sign-in/types';
-import { Account, Network, TCurrency, TMixnodeBondDetails } from '../types';
+import { accounts } from 'src/components/Accounts/mocks';
+import { Account, Network, TAccount, TCurrency, TMixnodeBondDetails } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
 import { getMixnodeBondDetails, selectNetwork, signInWithMnemonic, signInWithPassword, signOut } from '../requests';
@@ -22,9 +23,15 @@ export const urls = (networkName?: Network) =>
         networkExplorer: `https://${networkName}-explorer.nymtech.net`,
       };
 
+const getAccounts = (): Promise<TAccount[]> =>
+  new Promise((res) => {
+    setTimeout(() => res(accounts), 3000);
+  });
+
 type TClientContext = {
   mode: 'light' | 'dark';
   clientDetails?: Account;
+  storedAccounts?: TAccount[];
   mixnodeDetails?: TMixnodeBondDetails | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
@@ -49,6 +56,7 @@ export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
+  const [storedAccounts, setStoredAccounts] = useState<TAccount[]>();
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
   const [network, setNetwork] = useState<Network | undefined>();
   const [currency, setCurrency] = useState<TCurrency>();
@@ -104,6 +112,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     refreshAccount();
   }, [network]);
 
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      const accs = await getAccounts();
+      setStoredAccounts(accs);
+    };
+    fetchAccounts();
+  }, []);
+
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {
       setError(`A ${type} must be provided`);
@@ -148,6 +164,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       isLoading,
       error,
       clientDetails,
+      storedAccounts,
       mixnodeDetails,
       userBalance,
       showAdmin,

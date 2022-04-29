@@ -18,9 +18,9 @@ export const AccountsModal = ({
   accounts: TAccount[];
   selectedAccount: TAccount['address'];
   onClose: () => void;
-  onAccountSelect: (account: TAccount) => void;
+  onAccountSelect: (accountName: string) => void;
   onAdd: () => void;
-  onEdit: (acc: TAccount) => void;
+  onEdit: (accoutnName: string) => void;
   onImport: () => void;
 }) => (
   <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
@@ -41,10 +41,10 @@ export const AccountsModal = ({
           name={name}
           address={address}
           onSelect={() => {
-            onAccountSelect({ name, address });
+            onAccountSelect(name);
             onClose();
           }}
-          onEdit={() => onEdit({ name, address })}
+          onEdit={() => onEdit(name)}
           selected={selectedAccount === address}
           key={address}
         />

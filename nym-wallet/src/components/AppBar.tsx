@@ -7,16 +7,18 @@ import { Node as NodeIcon } from '../svg-icons/node';
 import { AccountsContainer } from './Accounts/AccountContainer';
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings } = useContext(ClientContext);
+  const { showSettings, storedAccounts, logOut, handleShowSettings } = useContext(ClientContext);
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
       <Toolbar disableGutters>
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
           <Grid item container alignItems="center" spacing={1}>
-            <Grid item>
-              <AccountsContainer />
-            </Grid>
+            {storedAccounts && (
+              <Grid item>
+                <AccountsContainer storedAccounts={storedAccounts} />
+              </Grid>
+            )}
             <Grid item>
               <NetworkSelector />
             </Grid>

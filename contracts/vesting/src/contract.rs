@@ -334,6 +334,7 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
+
     let account_exists = account_from_address(owner_address, deps.storage, deps.api).is_ok();
     if account_exists {
         return Err(ContractError::AccountAlreadyExists(
@@ -341,9 +342,13 @@ fn try_create_periodic_vesting_account(
         ));
     }
 
+    let amount_to_liquidate = 1_000_000;
+
     let vesting_spec = vesting_spec.unwrap_or_default();
 
     let coin = validate_funds(&info.funds)?;
+    let mut amount = coin.amount.u128();
+
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
         Some(deps.api.addr_validate(&staking_address)?)
@@ -357,32 +362,34 @@ fn try_create_periodic_vesting_account(
     let periods = populate_vesting_periods(start_time, vesting_spec);
 
     let start_time = Timestamp::from_seconds(start_time);
-    Account::new(
-        owner_address.clone(),
-        staking_address.clone(),
-        coin.clone(),
-        start_time,
-        periods,
-        deps.storage,
-    )?;
 
     let mut response = Response::new();
 
     let send_tokens_owner = BankMsg::Send {
         to_address: owner_address.as_str().to_string(),
-        amount: vec![Coin::new(1_000_000, DENOM)],
+        amount: vec![Coin::new(amount_to_liquidate, DENOM)],
+    };
+
+    amount = match amount.checked_sub(amount_to_liquidate) {
+        Some(amount) => amount,
+        None => {
+            return Err(ContractError::MinVestingFunds {
+                sent: amount,
+                need: amount + 1_000_000,
+            });
+        }
     };
 
     response = response.add_message(send_tokens_owner);
 
-    if let Some(staking_address) = staking_address.as_ref() {
-        let send_tokens_staking = BankMsg::Send {
-            to_address: staking_address.clone().as_str().to_string(),
-            amount: vec![Coin::new(1_000_000, DENOM)],
-        };
-
-        response = response.add_message(send_tokens_staking);
-    }
+    Account::new(
+        owner_address.clone(),
+        staking_address.clone(),
+        Coin::new(amount, DENOM),
+        start_time,
+        periods,
+        deps.storage,
+    )?;
 
     Ok(response.add_event(new_periodic_vesting_account_event(
         &owner_address,

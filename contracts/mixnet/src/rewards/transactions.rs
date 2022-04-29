@@ -960,7 +960,7 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage, &deps.api)
             .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);
@@ -1057,7 +1057,7 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage, &deps.api)
             .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_str(), &[]);
@@ -1187,7 +1187,7 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage, &deps.api)
             .unwrap();
 
         let delegations = crate::delegations::storage::delegations()
@@ -1205,7 +1205,7 @@ pub mod tests {
 
         _try_remove_delegation_from_mixnode(deps.as_mut(), env, node_identity_1, "alice_d1", None).unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage, &deps.api)
         .unwrap();
 
         assert_eq!(
@@ -1286,7 +1286,7 @@ pub mod tests {
         )
         .unwrap();
 
-        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage)
+        crate::delegations::transactions::_try_reconcile_all_delegation_events(&mut deps.storage, &deps.api)
             .unwrap();
 
         let info = mock_info(rewarding_validator_address.as_ref(), &[]);

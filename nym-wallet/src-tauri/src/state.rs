@@ -21,7 +21,7 @@ pub struct State {
 
   // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
   // switch accounts on-the-fly
-  all_accounts: HashMap<String, DecryptedAccount>,
+  all_accounts: HashMap<String, WalletAccount>,
 
   /// Validators that have been fetched dynamically, probably during startup.
   fetched_validators: OptionalValidators,
@@ -68,12 +68,12 @@ impl State {
     self.current_network
   }
 
-  pub(crate) fn set_all_accounts(&mut self, all_accounts: HashMap<String, DecryptedAccount>) {
+  pub(crate) fn set_all_accounts(&mut self, all_accounts: HashMap<String, WalletAccount>) {
     self.all_accounts.clear();
     self.all_accounts.extend(all_accounts)
   }
 
-  pub(crate) fn get_all_accounts(&self) -> &HashMap<String, DecryptedAccount> {
+  pub(crate) fn get_all_accounts(&self) -> &HashMap<String, WalletAccount> {
     &self.all_accounts
   }
 
@@ -174,28 +174,6 @@ macro_rules! client {
   ($state:ident) => {
     $state.read().await.current_client()?
   };
-}
-
-// Keep track of mnemonics on the backend, so we can switch accounts
-#[derive(Clone)]
-pub(crate) struct DecryptedAccount {
-  pub id: String,
-  pub mnemonic: bip39::Mnemonic,
-}
-
-impl DecryptedAccount {
-  pub fn new(id: String, mnemonic: bip39::Mnemonic) -> Self {
-    Self { id, mnemonic }
-  }
-}
-
-impl From<&WalletAccount> for DecryptedAccount {
-  fn from(wallet_account: &WalletAccount) -> Self {
-    Self {
-      id: wallet_account.id.to_string(),
-      mnemonic: wallet_account.account.mnemonic().clone(),
-    }
-  }
 }
 
 #[macro_export]

@@ -3,8 +3,8 @@ use crate::config::Config;
 use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::nymd_client;
-use crate::state::{DecryptedAccount, State};
-use crate::wallet_storage::account_data::StoredLogin;
+use crate::state::State;
+use crate::wallet_storage::account_data::{StoredLogin, WalletAccount};
 use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
@@ -442,27 +442,16 @@ pub async fn sign_in_with_password(
     }
   };
 
-  // Keep track of all accounts for that id
-  let all_accounts: HashMap<_, _> = match stored_account {
-    StoredLogin::Mnemonic(ref account) => [(
-      id.to_string(),
-      DecryptedAccount::new(id.to_string(), account.mnemonic().clone()),
-    )]
-    .into_iter()
-    .collect(),
-    StoredLogin::Multiple(ref accounts) => accounts
-      .get_accounts()
-      .map(|account| (account.id.to_string(), account.into()))
-      .collect(),
-  };
   {
+    // Keep track of all accounts for that id
+    let all_accounts: HashMap<String, WalletAccount> = stored_account
+      .into_multiple_accounts(id)
+      .into_accounts()
+      .map(|a| (a.id.to_string(), a))
+      .collect();
+
     let mut w_state = state.write().await;
     w_state.set_all_accounts(all_accounts);
-  }
-
-  let all_accounts = list_accounts(state.clone()).await?;
-  for account in all_accounts {
-    dbg!(&account);
   }
 
   _connect_with_mnemonic(mnemonic, state).await
@@ -522,8 +511,8 @@ pub async fn list_accounts(
     .get_all_accounts()
     .values()
     .map(|account| AccountEntry {
-      id: account.id.clone(),
-      address: derive_address(account.mnemonic.clone(), prefix)
+      id: account.id.to_string(),
+      address: derive_address(account.account.mnemonic().clone(), prefix)
         .unwrap()
         .to_string(),
     })
@@ -554,14 +543,15 @@ pub async fn sign_in_decrypted_account(
   account_id: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
-  let account = {
+  let mnemonic = {
     let state = state.read().await;
     state
       .get_all_accounts()
       .get(account_id)
       .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+      .account
+      .mnemonic()
       .clone()
   };
-  let mnemonic = account.mnemonic;
   _connect_with_mnemonic(mnemonic, state).await
 }

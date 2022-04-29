@@ -151,26 +151,15 @@ fn append_account_to_wallet_login_information_at_file(
     result => result?,
   };
 
-  let mut decrypted_login = stored_wallet.decrypt_login(&id, password)?;
+  let decrypted_login = stored_wallet.decrypt_login(&id, password)?;
 
-  // WIP(JON): redo this since we now can clone the mnemonic
-  // Since we can't clone the mnemonic, we have to perform a little dance were we add the mnemonic
-  // to the inner enum payload, while also converting by swapping if necessary.
-  if let StoredLogin::Multiple(ref mut accounts) = decrypted_login {
-    accounts.add(inner_id, mnemonic, hd_path)?;
-  } else if let StoredLogin::Mnemonic(ref mut account) = decrypted_login {
-    // Move out the account by swapping, since we can't clone.
-    let account = std::mem::replace(account, account.generate_new());
-    // Convert the enum variant
-    let mut accounts = account.into_multiple(id.clone());
-    accounts.add(inner_id, mnemonic, hd_path)?;
-    // Overwrite the stored login with the new enum variant
-    decrypted_login = StoredLogin::Multiple(accounts);
-  }
+  // Add accounts to the inner structure
+  let mut accounts = decrypted_login.unwrap_into_multiple_accounts(id.clone());
+  accounts.add(inner_id, mnemonic, hd_path)?;
 
   let encrypted_accounts = EncryptedLogin {
     id,
-    account: encrypt_struct(&decrypted_login, password)?,
+    account: encrypt_struct(&StoredLogin::Multiple(accounts), password)?,
   };
 
   stored_wallet.replace_encrypted_login(encrypted_accounts)?;

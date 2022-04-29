@@ -160,7 +160,7 @@ impl StoredLogin {
     }
   }
 
-  pub(crate) fn into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
+  pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
     match self {
       StoredLogin::Mnemonic(ref account) => account.clone().into_multiple(id),
       StoredLogin::Multiple(ref accounts) => accounts.clone(),
@@ -177,17 +177,11 @@ pub(crate) struct MnemonicAccount {
 }
 
 impl MnemonicAccount {
-  pub(crate) fn generate_new(&self) -> MnemonicAccount {
-    MnemonicAccount {
-      mnemonic: bip39::Mnemonic::generate(self.mnemonic().word_count()).unwrap(),
-      hd_path: self.hd_path().clone(),
-    }
-  }
-
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     &self.mnemonic
   }
 
+  #[cfg(test)]
   pub(crate) fn hd_path(&self) -> &DerivationPath {
     &self.hd_path
   }

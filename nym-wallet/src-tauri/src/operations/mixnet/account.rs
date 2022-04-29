@@ -445,7 +445,7 @@ pub async fn sign_in_with_password(
   {
     // Keep track of all accounts for that id
     let all_accounts: HashMap<String, WalletAccount> = stored_account
-      .into_multiple_accounts(id)
+      .unwrap_into_multiple_accounts(id)
       .into_accounts()
       .map(|a| (a.id.to_string(), a))
       .collect();

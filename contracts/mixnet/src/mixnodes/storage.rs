@@ -55,7 +55,7 @@ pub(crate) fn mixnodes<'a>(
         MIXNODES_PK_NAMESPACE,
         MIXNODES_PK_CHECKPOINTS,
         MIXNODES_PK_CHANGELOG,
-        Strategy::Never,
+        Strategy::Selected,
         indexes,
     )
 }

@@ -13,4 +13,9 @@ pub enum MixnetContractError {
     },
     #[error("Error casting from U128")]
     CastError,
+    #[error("{source}")]
+    StdErr {
+        #[from]
+        source: cosmwasm_std::StdError,
+    },
 }

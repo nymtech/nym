@@ -168,4 +168,10 @@ pub enum ContractError {
         identity: String,
         kind: String, // delegation | undelegation
     },
+    #[error("Attempted to subsctract more then the total delegation, this MUST never happen! mix: {mix_identity}, total_node_delegation {total_node_delegation}, to_subtract {to_subtract}")]
+    TotalDelegationSubOverflow {
+        mix_identity: String,
+        total_node_delegation: u128,
+        to_subtract: u128,
+    },
 }

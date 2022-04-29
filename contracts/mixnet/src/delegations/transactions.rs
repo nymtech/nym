@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use super::storage::{self, PENDING_DELEGATION_EVENTS};
+// use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
@@ -28,12 +29,13 @@ pub fn try_reconcile_all_delegation_events(
         return Err(ContractError::Unauthorized);
     }
 
-    _try_reconcile_all_delegation_events(deps.storage)
+    _try_reconcile_all_delegation_events(deps.storage, deps.api)
 }
 
 // TODO: Error handling?
 pub(crate) fn _try_reconcile_all_delegation_events(
     storage: &mut dyn Storage,
+    api: &dyn Api,
 ) -> Result<Response, ContractError> {
     let pending_delegation_events = PENDING_DELEGATION_EVENTS
         .range(storage, None, None, Order::Ascending)
@@ -53,7 +55,8 @@ pub(crate) fn _try_reconcile_all_delegation_events(
                 response = response.add_event(event);
             }
             DelegationEvent::Undelegate(pending_undelegate) => {
-                let undelegate_response = try_reconcile_undelegation(storage, &pending_undelegate)?;
+                let undelegate_response =
+                    try_reconcile_undelegation(storage, api, &pending_undelegate)?;
                 response = response.add_event(undelegate_response.event);
                 if let Some(msg) = undelegate_response.bank_msg {
                     response = response.add_message(msg);
@@ -101,8 +104,7 @@ pub(crate) fn try_delegate_to_mixnode(
     let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(
-        deps.storage,
-        deps.api,
+        deps,
         env.block.height,
         &mix_identity,
         info.sender.as_str(),
@@ -122,8 +124,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(
-        deps.storage,
-        deps.api,
+        deps,
         env.block.height,
         &mix_identity,
         &delegate,
@@ -173,19 +174,18 @@ pub(crate) fn try_reconcile_delegation(
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
-    storage: &mut dyn Storage,
-    api: &dyn Api,
+    deps: DepsMut<'_>,
     block_height: u64,
     mix_identity: &str,
     delegate: &str,
     amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
-    let delegate = api.addr_validate(delegate)?;
+    let delegate = deps.api.addr_validate(delegate)?;
 
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
-        .may_load(storage, mix_identity)?
+        .may_load(deps.storage, mix_identity)?
         .is_none()
     {
         return Err(ContractError::MixNodeBondNotFound {
@@ -202,7 +202,7 @@ pub(crate) fn _try_delegate_to_mixnode(
     );
 
     if storage::PENDING_DELEGATION_EVENTS
-        .may_load(storage, delegation.event_storage_key())?
+        .may_load(deps.storage, delegation.event_storage_key())?
         .is_some()
     {
         return Err(ContractError::DelegationEventAlreadyPending {
@@ -213,7 +213,7 @@ pub(crate) fn _try_delegate_to_mixnode(
     }
 
     storage::PENDING_DELEGATION_EVENTS.save(
-        storage,
+        deps.storage,
         delegation.event_storage_key(),
         &DelegationEvent::Delegate(delegation),
     )?;
@@ -253,9 +253,12 @@ pub struct ReconcileUndelegateResponse {
 
 pub(crate) fn try_reconcile_undelegation(
     storage: &mut dyn Storage,
+    _api: &dyn Api,
     pending_undelegate: &PendingUndelegate,
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
+
+    // debug_with_visibility(api, "Reconciling undelegations");
 
     let any_delegations = delegation_map
         .prefix(pending_undelegate.storage_key())
@@ -284,6 +287,8 @@ pub(crate) fn try_reconcile_undelegation(
         &pending_undelegate.mix_identity(),
     )?;
 
+    // debug_with_visibility(api, format!("Delegator reward: {}", reward));
+
     // Might want to introduce paging here
     let delegation_heights = delegation_map
         .prefix(pending_undelegate.storage_key())
@@ -305,7 +310,26 @@ pub(crate) fn try_reconcile_undelegation(
         });
     }
 
-    let mut total_delegation = reward;
+    let mut total_delegation = Uint128::zero();
+
+    // debug_with_visibility(api, "Reducing accumulated rewards");
+
+    {
+        if let Some(mut bond) = crate::mixnodes::storage::mixnodes()
+            .may_load(storage, &pending_undelegate.mix_identity())?
+        {
+            let remaining = bond.accumulated_rewards().saturating_sub(reward);
+            // debug_with_visibility(api, format!("Remaining accumulated rewards: {}", remaining));
+            bond.accumulated_rewards = Some(remaining);
+
+            crate::mixnodes::storage::mixnodes().save(
+                storage,
+                &pending_undelegate.mix_identity(),
+                &bond,
+                pending_undelegate.block_height(),
+            )?;
+        }
+    }
 
     for h in delegation_heights {
         let delegation =
@@ -319,6 +343,40 @@ pub(crate) fn try_reconcile_undelegation(
         )?;
     }
 
+    mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+        storage,
+        &pending_undelegate.mix_identity(),
+        |total_node_delegation| {
+            // debug_with_visibility(api, "Setting total delegation");
+            let remaining = match total_node_delegation.unwrap().checked_sub(total_delegation) {
+                Ok(remaining) => remaining,
+                Err(_) => {
+                    // debug_with_visibility(
+                    //     api,
+                    //     format!(
+                    //         "Overflowed delegation subsctraction, {} - {}",
+                    //         total_node_delegation.unwrap(),
+                    //         total_delegation
+                    //     ),
+                    // );
+                    return Err(ContractError::TotalDelegationSubOverflow {
+                        mix_identity: pending_undelegate.mix_identity(),
+                        total_node_delegation: total_node_delegation.unwrap().u128(),
+                        to_subtract: total_delegation.u128(),
+                    });
+                }
+            };
+            // debug_with_visibility(api, format!("Remaining total delegation: {}", remaining));
+            // the first unwrap is fine because the delegation information MUST exist, otherwise we would
+            // have never gotten here in the first place
+            // the second unwrap is also fine because we should NEVER underflow here,
+            // if we do, it means we have some serious error in our logic
+            Ok(remaining)
+        },
+    )?;
+
+    let total_funds = total_delegation + reward;
+
     // don't add a bank message if it would have resulted in attempting to send 0 tokens
     let bank_msg = if total_delegation != Uint128::zero() {
         Some(BankMsg::Send {
@@ -327,26 +385,11 @@ pub(crate) fn try_reconcile_undelegation(
                 .as_ref()
                 .unwrap_or(&pending_undelegate.delegate())
                 .to_string(),
-            amount: coins(total_delegation.u128(), DENOM),
+            amount: coins(total_funds.u128(), DENOM),
         })
     } else {
         None
     };
-
-    mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
-        storage,
-        &pending_undelegate.mix_identity(),
-        |total_node_delegation| {
-            // the first unwrap is fine because the delegation information MUST exist, otherwise we would
-            // have never gotten here in the first place
-            // the second unwrap is also fine because we should NEVER underflow here,
-            // if we do, it means we have some serious error in our logic
-            Ok(total_node_delegation
-                .unwrap()
-                .checked_sub(total_delegation)
-                .unwrap())
-        },
-    )?;
 
     let mut wasm_msg = None;
 
@@ -354,7 +397,7 @@ pub(crate) fn try_reconcile_undelegation(
         let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
             owner: pending_undelegate.delegate().as_str().to_string(),
             mix_identity: pending_undelegate.mix_identity(),
-            amount: Coin::new(total_delegation.u128(), DENOM),
+            amount: Coin::new(total_funds.u128(), DENOM),
         });
 
         wasm_msg = Some(wasm_execute(proxy, &msg, vec![one_ucoin()])?);
@@ -364,8 +407,10 @@ pub(crate) fn try_reconcile_undelegation(
         &pending_undelegate.delegate(),
         &pending_undelegate.proxy(),
         &pending_undelegate.mix_identity(),
-        total_delegation,
+        total_funds,
     );
+
+    // debug_with_visibility(api, "Done");
 
     Ok(ReconcileUndelegateResponse {
         bank_msg,
@@ -519,7 +564,7 @@ mod tests {
             )
             .is_ok());
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let expected = Delegation::new(
                 delegation_owner.clone(),
@@ -598,7 +643,7 @@ mod tests {
             )
             .is_ok());
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let expected = Delegation::new(
                 delegation_owner.clone(),
@@ -661,7 +706,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             // let expected = Delegation::new(
             //     delegation_owner.clone(),
@@ -716,7 +761,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert_eq!(
                 initial_height,
@@ -737,7 +782,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let delegations = crate::delegations::queries::query_mixnode_delegation(
                 &deps.storage,
@@ -782,7 +827,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert_eq!(
                 initial_height,
@@ -803,7 +848,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert_eq!(
                 initial_height,
@@ -891,7 +936,7 @@ mod tests {
             )
             .is_ok());
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let expected1 = Delegation::new(
                 delegation_owner.clone(),
@@ -956,7 +1001,7 @@ mod tests {
                 identity.clone(),
             )
             .is_ok());
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             // node's "total_delegation" is sum of both
             assert_eq!(
@@ -986,7 +1031,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
 
@@ -1074,7 +1119,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let _delegation = query_mixnode_delegation(
                 &deps.storage,
@@ -1144,7 +1189,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             let delegation = query_mixnode_delegation(
                 &deps.storage,
@@ -1179,7 +1224,7 @@ mod tests {
                 )
             );
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert!(test_helpers::read_delegation(
                 &deps.storage,
@@ -1212,7 +1257,7 @@ mod tests {
             )
             .is_ok());
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -1222,7 +1267,7 @@ mod tests {
             )
             .is_ok());
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
             // sender1 undelegates
             try_remove_delegation_from_mixnode(
@@ -1233,7 +1278,7 @@ mod tests {
             )
             .unwrap();
 
-            _try_reconcile_all_delegation_events(&mut deps.storage).unwrap();
+            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
             // but total delegation should still equal to what sender2 sent
             // node's "total_delegation" is sum of both
             assert_eq!(

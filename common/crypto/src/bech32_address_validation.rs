@@ -69,9 +69,10 @@ mod tests {
         #[test]
         fn wrong_prefix_fails() {
             assert_eq!(
-                Err(Bech32Error::WrongPrefix(
-                    "your bech32 address prefix should be nymt, not punk".to_string()
-                )),
+                Err(Bech32Error::WrongPrefix(format!(
+                    "your bech32 address prefix should be {}, not punk",
+                    DEFAULT_NETWORK.bech32_prefix()
+                ))),
                 validate_bech32_prefix("punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0")
             )
         }
@@ -80,7 +81,9 @@ mod tests {
         fn correct_prefix_works() {
             assert_eq!(
                 Ok(()),
-                validate_bech32_prefix("nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9")
+                validate_bech32_prefix(
+                    "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g"
+                )
             )
         }
     }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { accounts } from './mocks';
+import { CopyToClipboard } from '@nymproject/react';
 
 const fetchMnemonic = (accountName: string): Promise<string> =>
   new Promise((res) => {
@@ -27,7 +28,7 @@ export const ShowMnemonic = ({ accountName }: { accountName: string }) => {
     <Box>
       <Typography
         variant="body2"
-        sx={{ textDecoration: 'underline' }}
+        sx={{ textDecoration: 'underline', mb: 0.5 }}
         onClick={(e) => {
           e.stopPropagation();
           setShowMnemonic((show) => (!show ? accountName : undefined));
@@ -35,7 +36,12 @@ export const ShowMnemonic = ({ accountName }: { accountName: string }) => {
       >
         {`${showMnemonic ? 'Hide' : 'Show'} mnemonic`}
       </Typography>
-      {mnemonic && <Typography variant="caption">{mnemonic}</Typography>}
+      {mnemonic && (
+        <Box display="flex" alignItems="end">
+          <Typography variant="caption">{mnemonic}</Typography>
+          <CopyToClipboard sx={{ width: 18 }} value={mnemonic} />
+        </Box>
+      )}
     </Box>
   );
 };

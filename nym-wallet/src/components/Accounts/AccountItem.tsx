@@ -36,7 +36,9 @@ export const AccountItem = ({
         secondary={
           <Box>
             <Typography variant="body2">{address}</Typography>
-            <ShowMnemonic accountName={name} />
+            <Box sx={{ mt: 0.5 }}>
+              <ShowMnemonic accountName={name} />
+            </Box>
           </Box>
         }
       />

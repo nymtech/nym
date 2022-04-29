@@ -442,29 +442,17 @@ pub async fn sign_in_with_password(
     }
   };
 
-  // Keep track of all accounts
-  // WIP(JON): simplify
+  // Keep track of all accounts for that id
   let all_accounts: HashMap<_, _> = match stored_account {
     StoredLogin::Mnemonic(ref account) => [(
       id.to_string(),
-      DecryptedAccount {
-        id: id.to_string(),
-        mnemonic: account.mnemonic().clone(),
-      },
+      DecryptedAccount::new(id.to_string(), account.mnemonic().clone()),
     )]
     .into_iter()
     .collect(),
     StoredLogin::Multiple(ref accounts) => accounts
       .get_accounts()
-      .map(|account| {
-        (
-          account.id.to_string(),
-          DecryptedAccount {
-            id: account.id.to_string(),
-            mnemonic: account.account.mnemonic().clone(),
-          },
-        )
-      })
+      .map(|account| (account.id.to_string(), account.into()))
       .collect(),
   };
   {

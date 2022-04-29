@@ -1,8 +1,8 @@
 use crate::config::{Config, OptionalValidators, ValidatorUrl};
 use crate::error::BackendError;
 use crate::network::Network;
+use crate::wallet_storage::account_data::WalletAccount;
 
-use bip39::Mnemonic;
 use strum::IntoEnumIterator;
 use validator_client::nymd::SigningNymdClient;
 use validator_client::Client;
@@ -180,8 +180,22 @@ macro_rules! client {
 #[derive(Clone)]
 pub(crate) struct DecryptedAccount {
   pub id: String,
-  pub mnemonic: Mnemonic,
-  // address: String
+  pub mnemonic: bip39::Mnemonic,
+}
+
+impl DecryptedAccount {
+  pub fn new(id: String, mnemonic: bip39::Mnemonic) -> Self {
+    Self { id, mnemonic }
+  }
+}
+
+impl From<&WalletAccount> for DecryptedAccount {
+  fn from(wallet_account: &WalletAccount) -> Self {
+    Self {
+      id: wallet_account.id.to_string(),
+      mnemonic: wallet_account.account.mnemonic().clone(),
+    }
+  }
 }
 
 #[macro_export]

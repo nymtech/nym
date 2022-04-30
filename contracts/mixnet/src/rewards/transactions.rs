@@ -6,6 +6,7 @@ use super::storage::{
     OPERATOR_REWARD_CLAIMED_HEIGHT,
 };
 use crate::constants;
+use crate::contract::debug_with_visibility;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
@@ -14,7 +15,7 @@ use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
+use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
 use mixnet_contract_common::events::{
     new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
@@ -35,8 +36,13 @@ pub fn try_compound_operator_reward_on_behalf(
     let proxy = deps.api.addr_validate(info.sender.as_str())?;
     let owner = deps.api.addr_validate(&owner)?;
 
-    let reward =
-        _try_compound_operator_reward(deps.storage, env.block.height, &owner, Some(proxy))?;
+    let reward = _try_compound_operator_reward(
+        deps.storage,
+        deps.api,
+        env.block.height,
+        &owner,
+        Some(proxy),
+    )?;
 
     Ok(Response::new().add_event(new_compound_operator_reward_event(&owner, reward)))
 }
@@ -47,13 +53,15 @@ pub fn try_compound_operator_reward(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(info.sender.as_str())?;
-    let reward = _try_compound_operator_reward(deps.storage, env.block.height, &owner, None)?;
+    let reward =
+        _try_compound_operator_reward(deps.storage, deps.api, env.block.height, &owner, None)?;
 
     Ok(Response::new().add_event(new_compound_operator_reward_event(&owner, reward)))
 }
 
 pub fn _try_compound_operator_reward(
     storage: &mut dyn Storage,
+    api: &dyn Api,
     block_height: u64,
     owner: &Addr,
     proxy: Option<Addr>,
@@ -72,7 +80,7 @@ pub fn _try_compound_operator_reward(
     }
 
     let mut updated_bond = bond.clone();
-    let reward = calculate_operator_reward(storage, owner, &bond)?;
+    let reward = calculate_operator_reward(storage, api, owner, &bond)?;
     updated_bond.accumulated_rewards = Some(updated_bond.accumulated_rewards() - reward);
     updated_bond.pledge_amount.amount += reward;
     mixnodes().replace(
@@ -94,6 +102,7 @@ pub fn _try_compound_operator_reward(
 
 pub fn calculate_operator_reward(
     storage: &dyn Storage,
+    api: &dyn Api,
     owner: &Addr,
     bond: &StoredMixnodeBond,
 ) -> Result<Uint128, ContractError> {
@@ -111,19 +120,22 @@ pub fn calculate_operator_reward(
             Ok(Uint128::zero()),
             |acc, height| -> Result<Uint128, ContractError> {
                 let accumulated_reward = acc?;
-                if let Some(bond) =
-                    mixnodes().may_load_at_height(storage, bond.identity().as_str(), height)?
+                if let Some(bond) = mixnodes()
+                    .may_load_at_height(storage, bond.identity().as_str(), height)
+                    .ok()
+                    .flatten()
                 {
                     if let Some(ref epoch_rewards) = bond.epoch_rewards {
-                        let epoch_reward_params =
-                            epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
                         // Compound rewards from previous heights
-                        let reward_at_height = epoch_rewards.delegation_reward(
-                            bond.pledge_amount().amount + accumulated_reward,
-                            bond.profit_margin(),
-                            epoch_reward_params,
-                        )?;
-                        return Ok(accumulated_reward + reward_at_height);
+                        match epoch_rewards.operator_reward(bond.profit_margin()) {
+                            Ok(reward) => return Ok(accumulated_reward + reward),
+                            Err(err) => {
+                                debug_with_visibility(
+                                    api,
+                                    format!("Failed to calculate operator reward: {:?}", err),
+                                );
+                            }
+                        };
                     }
                 };
                 Ok(accumulated_reward)
@@ -204,7 +216,7 @@ pub fn _try_compound_delegator_reward(
         &deps.api.addr_validate(owner_address)?,
         proxy.as_ref(),
     );
-    let reward = calculate_delegator_reward(deps.storage, key.clone(), mix_identity)?;
+    let reward = calculate_delegator_reward(deps.storage, deps.api, key.clone(), mix_identity)?;
     let mut compounded_delegation = reward;
 
     // Might want to introduce paging here
@@ -261,6 +273,7 @@ pub fn _try_compound_delegator_reward(
 // + last_reward_claimed height is correctly used
 pub fn calculate_delegator_reward(
     storage: &dyn Storage,
+    api: &dyn Api,
     key: Vec<u8>,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
@@ -296,7 +309,15 @@ pub fn calculate_delegator_reward(
                     .fold(Uint128::zero(), |total, delegation| {
                         total + delegation.amount.amount
                     });
+                // debug_with_visibility(
+                //     api,
+                //     format!("delegation at height {} - {}", height, delegation_at_height),
+                // );
                 if delegation_at_height != Uint128::zero() {
+                    // debug_with_visibility(
+                    //     api,
+                    //     format!("Loading bond {} at height {}", mix_identity, height),
+                    // );
                     if let Some(bond) = mixnodes()
                         .may_load_at_height(storage, mix_identity, height)
                         .ok()
@@ -304,17 +325,40 @@ pub fn calculate_delegator_reward(
                     {
                         if let Some(ref epoch_rewards) = bond.epoch_rewards {
                             // Compound rewards from previous heights
-                            let epoch_reward_params =
-                                epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
-                            let reward_at_height = match epoch_rewards.delegation_reward(
-                                delegation_at_height + accumulated_reward,
-                                bond.profit_margin(),
-                                epoch_reward_params,
-                            ) {
-                                Ok(reward) => reward,
-                                Err(_err) => Uint128::zero(),
-                            };
-                            return Ok(accumulated_reward + reward_at_height);
+                            match epoch_reward_params_for_id(storage, epoch_rewards.epoch_id()) {
+                                Ok(params) => {
+                                    let reward_at_height = match epoch_rewards.delegation_reward(
+                                        delegation_at_height + accumulated_reward,
+                                        bond.profit_margin(),
+                                        params,
+                                    ) {
+                                        Ok(reward) => {
+                                            // debug_with_visibility(
+                                            //     api,
+                                            //     format!("Reward at height {} - {}", height, reward),
+                                            // );
+                                            reward
+                                        }
+                                        Err(err) => {
+                                            debug_with_visibility(
+                                                api,
+                                                format!(
+                                                    "Error calculating reward at {} - {}",
+                                                    height, err
+                                                ),
+                                            );
+                                            Uint128::zero()
+                                        }
+                                    };
+                                    return Ok(accumulated_reward + reward_at_height);
+                                }
+                                Err(_err) => {
+                                    debug_with_visibility(
+                                        api,
+                                        format!("No epoch reward params for epoch {}", height),
+                                    );
+                                }
+                            }
                         }
                     }
                 };
@@ -1181,7 +1225,8 @@ pub mod tests {
         }
 
         let alice_reward =
-            calculate_delegator_reward(&deps.storage, key.clone(), &node_identity_1).unwrap();
+            calculate_delegator_reward(&deps.storage, &deps.api, key.clone(), &node_identity_1)
+                .unwrap();
         assert_eq!(alice_reward, Uint128::new(304552));
 
         let mix_0 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
@@ -1231,8 +1276,9 @@ pub mod tests {
         );
 
         let operator_reward =
-            calculate_operator_reward(&deps.storage, &Addr::unchecked("alice"), &mix_1).unwrap();
-        assert_eq!(operator_reward, Uint128::new(190345));
+            calculate_operator_reward(&deps.storage, &deps.api, &Addr::unchecked("alice"), &mix_1)
+                .unwrap();
+        assert_eq!(operator_reward, Uint128::new(352532));
 
         assert_eq!(
             mix_1_reward_result.sigma(),

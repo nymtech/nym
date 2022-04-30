@@ -111,8 +111,10 @@ pub fn calculate_operator_reward(
             Ok(Uint128::zero()),
             |acc, height| -> Result<Uint128, ContractError> {
                 let accumulated_reward = acc?;
-                if let Some(bond) =
-                    mixnodes().may_load_at_height(storage, bond.identity().as_str(), height)?
+                if let Some(bond) = mixnodes()
+                    .may_load_at_height(storage, bond.identity().as_str(), height)
+                    .ok()
+                    .flatten()
                 {
                     if let Some(ref epoch_rewards) = bond.epoch_rewards {
                         let epoch_reward_params =

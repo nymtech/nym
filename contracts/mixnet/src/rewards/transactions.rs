@@ -6,6 +6,7 @@ use super::storage::{
     OPERATOR_REWARD_CLAIMED_HEIGHT,
 };
 use crate::constants;
+use crate::contract::debug_with_visibility;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
@@ -14,7 +15,7 @@ use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
+use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
 use mixnet_contract_common::events::{
     new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
@@ -156,6 +157,7 @@ pub fn try_compound_delegator_reward_on_behalf(
         owner.as_str(),
         &mix_identity,
         Some(proxy.clone()),
+        deps.api,
     )?;
 
     Ok(
@@ -181,6 +183,7 @@ pub fn try_compound_delegator_reward(
         owner.as_str(),
         &mix_identity,
         None,
+        deps.api,
     )?;
 
     Ok(
@@ -199,6 +202,7 @@ pub fn _try_compound_delegator_reward(
     owner_address: &str,
     mix_identity: &str,
     proxy: Option<Addr>,
+    api: &dyn Api,
 ) -> Result<Uint128, ContractError> {
     let delegation_map = crate::delegations::storage::delegations();
 
@@ -206,7 +210,7 @@ pub fn _try_compound_delegator_reward(
         &deps.api.addr_validate(owner_address)?,
         proxy.as_ref(),
     );
-    let reward = calculate_delegator_reward(deps.storage, key.clone(), mix_identity)?;
+    let reward = calculate_delegator_reward(deps.storage, api, key.clone(), mix_identity)?;
     let mut compounded_delegation = reward;
 
     // Might want to introduce paging here
@@ -263,6 +267,7 @@ pub fn _try_compound_delegator_reward(
 // + last_reward_claimed height is correctly used
 pub fn calculate_delegator_reward(
     storage: &dyn Storage,
+    api: &dyn Api,
     key: Vec<u8>,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
@@ -298,7 +303,12 @@ pub fn calculate_delegator_reward(
                     .fold(Uint128::zero(), |total, delegation| {
                         total + delegation.amount.amount
                     });
+                debug_with_visibility(
+                    api,
+                    format!("delegation at height {} - {}", height, delegation_at_height),
+                );
                 if delegation_at_height != Uint128::zero() {
+                    debug_with_visibility(api, format!("Loading bond {} at height {}", mix_identity, height));
                     if let Some(bond) = mixnodes()
                         .may_load_at_height(storage, mix_identity, height)
                         .ok()
@@ -1183,7 +1193,8 @@ pub mod tests {
         }
 
         let alice_reward =
-            calculate_delegator_reward(&deps.storage, key.clone(), &node_identity_1).unwrap();
+            calculate_delegator_reward(&deps.storage, &deps.api, key.clone(), &node_identity_1)
+                .unwrap();
         assert_eq!(alice_reward, Uint128::new(304552));
 
         let mix_0 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
@@ -1194,6 +1205,7 @@ pub mod tests {
             "alice_d1",
             &node_identity_1,
             None,
+            &deps.api,
         )
         .unwrap();
 

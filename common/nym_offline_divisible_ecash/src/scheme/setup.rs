@@ -58,7 +58,7 @@ pub struct Parameters {
 
 impl Parameters {
     pub(crate) fn get_grp(&self) -> &GroupParameters { &self.grp }
-    
+
     pub(crate) fn get_paramsUser(&self) -> &ParametersUser { &self.paramsUser }
 
     pub(crate) fn get_paramsAuth(&self) -> &ParametersAuthority { &self.paramsAuth }
@@ -153,11 +153,19 @@ impl ParametersUser {
 
     pub(crate) fn get_etas(&self) -> &[G1Projective] { &self.etas }
 
+    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G1Projective { self.etas.get(idx).unwrap() }
+
     pub(crate) fn get_sigmas(&self) -> &[G1Projective] { &self.sigmas }
+
+    pub(crate) fn get_ith_sigma(&self, idx: usize) -> &G1Projective { self.sigmas.get(idx).unwrap() }
 
     pub(crate) fn get_thetas(&self) -> &[G1Projective] { &self.thetas }
 
+    pub(crate) fn get_ith_theta(&self, idx: usize) -> &G1Projective { self.thetas.get(idx).unwrap() }
+
     pub(crate) fn get_sps_signs(&self) -> &[SPSSignature] { &self.sps_signatures }
+
+    pub(crate) fn get_ith_sps_sign(&self, idx: usize) -> &SPSSignature { &self.sps_signatures.get(idx).unwrap() }
 
     pub(crate) fn get_sps_pk(&self) -> &SPSVerificationKey { &self.sps_pk }
 }

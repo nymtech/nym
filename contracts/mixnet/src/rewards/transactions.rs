@@ -157,7 +157,6 @@ pub fn try_compound_delegator_reward_on_behalf(
         owner.as_str(),
         &mix_identity,
         Some(proxy.clone()),
-        deps.api,
     )?;
 
     Ok(
@@ -183,7 +182,6 @@ pub fn try_compound_delegator_reward(
         owner.as_str(),
         &mix_identity,
         None,
-        deps.api,
     )?;
 
     Ok(
@@ -202,7 +200,6 @@ pub fn _try_compound_delegator_reward(
     owner_address: &str,
     mix_identity: &str,
     proxy: Option<Addr>,
-    api: &dyn Api,
 ) -> Result<Uint128, ContractError> {
     let delegation_map = crate::delegations::storage::delegations();
 
@@ -210,7 +207,7 @@ pub fn _try_compound_delegator_reward(
         &deps.api.addr_validate(owner_address)?,
         proxy.as_ref(),
     );
-    let reward = calculate_delegator_reward(deps.storage, api, key.clone(), mix_identity)?;
+    let reward = calculate_delegator_reward(deps.storage, deps.api, key.clone(), mix_identity)?;
     let mut compounded_delegation = reward;
 
     // Might want to introduce paging here
@@ -1205,7 +1202,6 @@ pub mod tests {
             "alice_d1",
             &node_identity_1,
             None,
-            &deps.api,
         )
         .unwrap();
 

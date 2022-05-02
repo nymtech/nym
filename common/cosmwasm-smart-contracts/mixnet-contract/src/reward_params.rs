@@ -209,6 +209,11 @@ impl RewardParams {
         let denom = self.active_set_work_factor() * U128::from_num(self.rewarded_set_size())
             - (self.active_set_work_factor() - ONE) * U128::from_num(self.idle_nodes().u128());
 
+        if denom == 0 {
+            return U128::ZERO;
+        }
+
+        // Div by zero checked above
         if self.in_active_set() {
             // work_active = factor / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
             self.active_set_work_factor() / denom * self.rewarded_set_size()

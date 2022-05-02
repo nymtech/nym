@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use super::storage::{self, PENDING_DELEGATION_EVENTS};
-use crate::contract::debug_with_visibility;
+// use crate::contract::debug_with_visibility;
 // use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -45,7 +45,7 @@ pub(crate) fn _try_reconcile_all_delegation_events(
 
     let mut response = Response::new();
 
-    debug_with_visibility(api, "Reconciling delegation events");
+    // debug_with_visibility(api, "Reconciling delegation events");
 
     for (key, delegation_event) in pending_delegation_events {
         match delegation_event {
@@ -261,7 +261,7 @@ pub(crate) fn try_reconcile_undelegation(
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
 
-    debug_with_visibility(api, "Reconciling undelegations");
+    // debug_with_visibility(api, "Reconciling undelegations");
 
     let any_delegations = delegation_map
         .prefix(pending_undelegate.storage_key())
@@ -291,7 +291,7 @@ pub(crate) fn try_reconcile_undelegation(
         &pending_undelegate.mix_identity(),
     )?;
 
-    debug_with_visibility(api, format!("Delegator reward: {}", reward));
+    // debug_with_visibility(api, format!("Delegator reward: {}", reward));
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map
@@ -316,7 +316,7 @@ pub(crate) fn try_reconcile_undelegation(
 
     let mut total_delegation = Uint128::zero();
 
-    debug_with_visibility(api, "Reducing accumulated rewards");
+    // debug_with_visibility(api, "Reducing accumulated rewards");
 
     {
         if let Some(mut bond) = crate::mixnodes::storage::mixnodes()
@@ -370,7 +370,7 @@ pub(crate) fn try_reconcile_undelegation(
                     });
                 }
             };
-            debug_with_visibility(api, format!("Remaining total delegation: {}", remaining));
+            // debug_with_visibility(api, format!("Remaining total delegation: {}", remaining));
             // the first unwrap is fine because the delegation information MUST exist, otherwise we would
             // have never gotten here in the first place
             // the second unwrap is also fine because we should NEVER underflow here,

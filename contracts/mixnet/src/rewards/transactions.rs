@@ -309,15 +309,15 @@ pub fn calculate_delegator_reward(
                     .fold(Uint128::zero(), |total, delegation| {
                         total + delegation.amount.amount
                     });
-                debug_with_visibility(
-                    api,
-                    format!("delegation at height {} - {}", height, delegation_at_height),
-                );
+                // debug_with_visibility(
+                //     api,
+                //     format!("delegation at height {} - {}", height, delegation_at_height),
+                // );
                 if delegation_at_height != Uint128::zero() {
-                    debug_with_visibility(
-                        api,
-                        format!("Loading bond {} at height {}", mix_identity, height),
-                    );
+                    // debug_with_visibility(
+                    //     api,
+                    //     format!("Loading bond {} at height {}", mix_identity, height),
+                    // );
                     if let Some(bond) = mixnodes()
                         .may_load_at_height(storage, mix_identity, height)
                         .ok()
@@ -333,10 +333,10 @@ pub fn calculate_delegator_reward(
                                         params,
                                     ) {
                                         Ok(reward) => {
-                                            debug_with_visibility(
-                                                api,
-                                                format!("Reward at height {} - {}", height, reward),
-                                            );
+                                            // debug_with_visibility(
+                                            //     api,
+                                            //     format!("Reward at height {} - {}", height, reward),
+                                            // );
                                             reward
                                         }
                                         Err(err) => {
@@ -1276,7 +1276,8 @@ pub mod tests {
         );
 
         let operator_reward =
-            calculate_operator_reward(&deps.storage, &deps.api, &Addr::unchecked("alice"), &mix_1).unwrap();
+            calculate_operator_reward(&deps.storage, &deps.api, &Addr::unchecked("alice"), &mix_1)
+                .unwrap();
         assert_eq!(operator_reward, Uint128::new(352532));
 
         assert_eq!(

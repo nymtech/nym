@@ -305,7 +305,10 @@ pub fn calculate_delegator_reward(
                     format!("delegation at height {} - {}", height, delegation_at_height),
                 );
                 if delegation_at_height != Uint128::zero() {
-                    debug_with_visibility(api, format!("Loading bond {} at height {}", mix_identity, height));
+                    debug_with_visibility(
+                        api,
+                        format!("Loading bond {} at height {}", mix_identity, height),
+                    );
                     if let Some(bond) = mixnodes()
                         .may_load_at_height(storage, mix_identity, height)
                         .ok()
@@ -313,17 +316,40 @@ pub fn calculate_delegator_reward(
                     {
                         if let Some(ref epoch_rewards) = bond.epoch_rewards {
                             // Compound rewards from previous heights
-                            let epoch_reward_params =
-                                epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
-                            let reward_at_height = match epoch_rewards.delegation_reward(
-                                delegation_at_height + accumulated_reward,
-                                bond.profit_margin(),
-                                epoch_reward_params,
-                            ) {
-                                Ok(reward) => reward,
-                                Err(_err) => Uint128::zero(),
-                            };
-                            return Ok(accumulated_reward + reward_at_height);
+                            match epoch_reward_params_for_id(storage, epoch_rewards.epoch_id()) {
+                                Ok(params) => {
+                                    let reward_at_height = match epoch_rewards.delegation_reward(
+                                        delegation_at_height + accumulated_reward,
+                                        bond.profit_margin(),
+                                        params,
+                                    ) {
+                                        Ok(reward) => {
+                                            debug_with_visibility(
+                                                api,
+                                                format!("Reward at height {} - {}", height, reward),
+                                            );
+                                            reward
+                                        }
+                                        Err(err) => {
+                                            debug_with_visibility(
+                                                api,
+                                                format!(
+                                                    "Error calculating reward at {} - {}",
+                                                    height, err
+                                                ),
+                                            );
+                                            Uint128::zero()
+                                        }
+                                    };
+                                    return Ok(accumulated_reward + reward_at_height);
+                                }
+                                Err(_err) => {
+                                    debug_with_visibility(
+                                        api,
+                                        format!("No epoch reward params for epoch {}", height),
+                                    );
+                                }
+                            }
                         }
                     }
                 };

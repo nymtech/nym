@@ -18,4 +18,6 @@ pub enum MixnetContractError {
         #[from]
         source: cosmwasm_std::StdError,
     },
+    #[error("Division by zero at {}", line!())]
+    DivisionByZero,
 }

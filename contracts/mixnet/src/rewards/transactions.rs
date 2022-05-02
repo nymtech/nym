@@ -36,8 +36,13 @@ pub fn try_compound_operator_reward_on_behalf(
     let proxy = deps.api.addr_validate(info.sender.as_str())?;
     let owner = deps.api.addr_validate(&owner)?;
 
-    let reward =
-        _try_compound_operator_reward(deps.storage, env.block.height, &owner, Some(proxy))?;
+    let reward = _try_compound_operator_reward(
+        deps.storage,
+        deps.api,
+        env.block.height,
+        &owner,
+        Some(proxy),
+    )?;
 
     Ok(Response::new().add_event(new_compound_operator_reward_event(&owner, reward)))
 }
@@ -48,13 +53,15 @@ pub fn try_compound_operator_reward(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(info.sender.as_str())?;
-    let reward = _try_compound_operator_reward(deps.storage, env.block.height, &owner, None)?;
+    let reward =
+        _try_compound_operator_reward(deps.storage, deps.api, env.block.height, &owner, None)?;
 
     Ok(Response::new().add_event(new_compound_operator_reward_event(&owner, reward)))
 }
 
 pub fn _try_compound_operator_reward(
     storage: &mut dyn Storage,
+    api: &dyn Api,
     block_height: u64,
     owner: &Addr,
     proxy: Option<Addr>,
@@ -73,7 +80,7 @@ pub fn _try_compound_operator_reward(
     }
 
     let mut updated_bond = bond.clone();
-    let reward = calculate_operator_reward(storage, owner, &bond)?;
+    let reward = calculate_operator_reward(storage, api, owner, &bond)?;
     updated_bond.accumulated_rewards = Some(updated_bond.accumulated_rewards() - reward);
     updated_bond.pledge_amount.amount += reward;
     mixnodes().replace(
@@ -95,6 +102,7 @@ pub fn _try_compound_operator_reward(
 
 pub fn calculate_operator_reward(
     storage: &dyn Storage,
+    api: &dyn Api,
     owner: &Addr,
     bond: &StoredMixnodeBond,
 ) -> Result<Uint128, ContractError> {
@@ -118,15 +126,16 @@ pub fn calculate_operator_reward(
                     .flatten()
                 {
                     if let Some(ref epoch_rewards) = bond.epoch_rewards {
-                        let epoch_reward_params =
-                            epoch_reward_params_for_id(storage, epoch_rewards.epoch_id())?;
                         // Compound rewards from previous heights
-                        let reward_at_height = epoch_rewards.delegation_reward(
-                            bond.pledge_amount().amount + accumulated_reward,
-                            bond.profit_margin(),
-                            epoch_reward_params,
-                        )?;
-                        return Ok(accumulated_reward + reward_at_height);
+                        match epoch_rewards.operator_reward(bond.profit_margin()) {
+                            Ok(reward) => return Ok(accumulated_reward + reward),
+                            Err(err) => {
+                                debug_with_visibility(
+                                    api,
+                                    format!("Failed to calculate operator reward: {:?}", err),
+                                );
+                            }
+                        };
                     }
                 };
                 Ok(accumulated_reward)
@@ -1267,8 +1276,8 @@ pub mod tests {
         );
 
         let operator_reward =
-            calculate_operator_reward(&deps.storage, &Addr::unchecked("alice"), &mix_1).unwrap();
-        assert_eq!(operator_reward, Uint128::new(190345));
+            calculate_operator_reward(&deps.storage, &deps.api, &Addr::unchecked("alice"), &mix_1).unwrap();
+        assert_eq!(operator_reward, Uint128::new(352532));
 
         assert_eq!(
             mix_1_reward_result.sigma(),

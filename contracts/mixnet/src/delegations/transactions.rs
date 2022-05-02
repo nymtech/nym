@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::storage::{self, PENDING_DELEGATION_EVENTS};
 // use crate::contract::debug_with_visibility;
+// use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
@@ -43,6 +44,8 @@ pub(crate) fn _try_reconcile_all_delegation_events(
         .collect::<Vec<((Vec<u8>, u64, String), DelegationEvent)>>();
 
     let mut response = Response::new();
+
+    // debug_with_visibility(api, "Reconciling delegation events");
 
     for (key, delegation_event) in pending_delegation_events {
         match delegation_event {
@@ -253,7 +256,7 @@ pub struct ReconcileUndelegateResponse {
 
 pub(crate) fn try_reconcile_undelegation(
     storage: &mut dyn Storage,
-    _api: &dyn Api,
+    api: &dyn Api,
     pending_undelegate: &PendingUndelegate,
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
@@ -283,6 +286,7 @@ pub(crate) fn try_reconcile_undelegation(
 
     let reward = crate::rewards::transactions::calculate_delegator_reward(
         storage,
+        api,
         pending_undelegate.proxy_storage_key(),
         &pending_undelegate.mix_identity(),
     )?;

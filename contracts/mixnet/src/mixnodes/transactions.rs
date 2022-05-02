@@ -191,6 +191,7 @@ pub(crate) fn _try_remove_mixnode(
 
     crate::rewards::transactions::_try_compound_operator_reward(
         deps.storage,
+        deps.api,
         env.block.height,
         &owner,
         None,

@@ -150,7 +150,8 @@ impl InternalSignRequest {
                 routes![
                     post_blind_sign,
                     get_verification_key,
-                    post_partial_bandwidth_credential
+                    post_partial_bandwidth_credential,
+                    verify_bandwidth_credential
                 ],
             )
         })
@@ -232,5 +233,9 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    Ok(Json(VerifyCredentialResponse::new()))
+    let verification_result = verify_credential_body
+        .0
+        .credential()
+        .verify(&state.key_pair.verification_key());
+    Ok(Json(VerifyCredentialResponse::new(verification_result)))
 }

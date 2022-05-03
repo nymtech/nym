@@ -61,6 +61,7 @@ impl Credential {
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters)]
 pub struct VerifyCredentialBody {
+    #[getset(get = "pub")]
     credential: Credential,
 }
 
@@ -71,11 +72,15 @@ impl VerifyCredentialBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct VerifyCredentialResponse {}
+pub struct VerifyCredentialResponse {
+    verification_result: bool,
+}
 
 impl VerifyCredentialResponse {
-    pub fn new() -> Self {
-        VerifyCredentialResponse {}
+    pub fn new(verification_result: bool) -> Self {
+        VerifyCredentialResponse {
+            verification_result,
+        }
     }
 }
 

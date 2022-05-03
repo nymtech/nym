@@ -941,12 +941,14 @@ pub mod tests {
         )
         .is_ok());
 
+        env.block.time = env.block.time.plus_seconds(MIN_PM_UPDATE_INTERVAL - 1);
+
         // fails if too soon after bonding
         assert!(
             try_update_mixnode_config(deps.as_mut(), env.clone(), info_alice.clone(), 20).is_err()
         );
 
-        env.block.time = env.block.time.plus_seconds(MIN_PM_UPDATE_INTERVAL + 1);
+        env.block.time = env.block.time.plus_seconds(2);
 
         // succeds after some time
         assert!(try_update_mixnode_config(deps.as_mut(), env, info_alice, 20).is_ok());

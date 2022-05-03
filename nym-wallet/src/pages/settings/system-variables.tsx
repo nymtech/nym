@@ -1,9 +1,10 @@
 /* eslint-disable no-nested-ternary */
 import React, { useContext, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { PercentOutlined } from '@mui/icons-material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { useForm } from 'react-hook-form';
+import { SelectionChance } from 'src/types/rust/selectionchance';
 import { validationSchema } from './validationSchema';
 import { Fee, InfoTooltip } from '../../components';
 import { InclusionProbabilityResponse } from '../../types';
@@ -27,6 +28,26 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
       </Box>
     </Grid>
   </Grid>
+);
+
+const colorMap: { [key in SelectionChance]: string } = {
+  VeryLow: 'error.main',
+  Low: 'error.main',
+  Moderate: 'warning.main',
+  High: 'success.main',
+  VeryHigh: 'success.main',
+};
+
+const textMap: { [key in SelectionChance]: string } = {
+  VeryLow: 'Very low',
+  Low: 'Low',
+  Moderate: 'Moderate',
+  High: 'High',
+  VeryHigh: 'Very high',
+};
+
+const InclusionProbability = ({ probability }: { probability: SelectionChance }) => (
+  <Typography sx={{ color: colorMap[probability] }}>{textMap[probability]}</Typography>
 );
 
 const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => (
@@ -115,12 +136,12 @@ export const SystemVariables = ({
           <DataField
             title="Estimated chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<PercentIndicator value={inclusionProbability.in_active} />}
+            Indicator={<InclusionProbability probability={inclusionProbability.in_active} />}
           />
           <DataField
             title="Estimated chance of being in the standby set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<PercentIndicator value={inclusionProbability.in_reserve} />}
+            Indicator={<InclusionProbability probability={inclusionProbability.in_reserve} />}
           />
 
           <DataField

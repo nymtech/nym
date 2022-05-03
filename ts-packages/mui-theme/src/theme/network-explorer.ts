@@ -90,9 +90,9 @@ export const networkExplorerPalette = (variant: NymPaletteVariant): NetworkExplo
       },
     },
     selectionChance: { 
-      overModerate: variant.mixnodes.status.active,
-      moderate: variant.mixnodes.status.active,
-      underModerate: variant.mixnodes.status.active,
+      overModerate: variant.selectionChance.overModerate,
+      moderate: variant.selectionChance.moderate,
+      underModerate: variant.selectionChance.underModerate,
     }
   },
 });

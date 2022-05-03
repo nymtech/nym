@@ -125,8 +125,8 @@ export class Api {
 
   static fetchMixnodeEconomicDynamicsStatsById = async (id: string): Promise<MixNodeEconomicDynamicsStatsResponse> => {
     const resp = await (await fetch(`${MIXNODE_API}/${id}/economic-dynamics-stats`)).json();
-    resp.active_set_inclusion_probability = 'High';
-    resp.reserve_set_inclusion_probability = 'High';
+    resp.active_set_inclusion_probability = 'Low';
+    resp.reserve_set_inclusion_probability = 'Low';
     return resp as MixNodeEconomicDynamicsStatsResponse;
   };
 

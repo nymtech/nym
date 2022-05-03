@@ -111,8 +111,8 @@ export const darkMode: NymPaletteVariant = {
   },
   selectionChance: {
     overModerate: '#20D073',
-    moderate: '#ffbf00',
-    underModerate: '#20D073',
+    moderate: '#EBA53D',
+    underModerate: '#DA465B',
   },
 };
 

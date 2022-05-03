@@ -84,13 +84,12 @@ impl JsonSchema for Interval {
             .insert("id".to_owned(), gen.subschema_for::<u32>());
         object_validation.required.insert("id".to_owned());
 
-        // WIP(JON): missing JsonSchema impl for PrimitiveDateTime
-        //object_validation
-        //    .properties
-        //    .insert("start".to_owned(), gen.subschema_for::<PrimitiveDateTime>());
-        //object_validation
-        //    .required
-        //    .insert("start".to_owned());
+        // PrimitiveDateTime does not implement JsonSchema. However it has a custom
+        // serialization to string, so we just specify the schema to be String.
+        object_validation
+            .properties
+            .insert("start".to_owned(), gen.subschema_for::<String>());
+        object_validation.required.insert("start".to_owned());
 
         object_validation
             .properties

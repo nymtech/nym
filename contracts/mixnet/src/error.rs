@@ -174,4 +174,9 @@ pub enum ContractError {
         total_node_delegation: u128,
         to_subtract: u128,
     },
+    #[error("Profit margin can be updated only once during a rolling 30 day interval, last update was at {last_update_time} and current block time is {current_block_time}")]
+    UpdatePMTooSoon {
+        last_update_time: u64,
+        current_block_time: u64,
+    },
 }

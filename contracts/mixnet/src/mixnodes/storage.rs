@@ -19,12 +19,17 @@ const MIXNODES_PK_CHANGELOG: &str = "mn__change";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
 
+const LAST_PM_UPDATE_NAMESPACE: &str = "lpm";
+
 // paged retrieval limits for all queries and transactions
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 pub(crate) const TOTAL_DELEGATION: Map<'_, IdentityKeyRef<'_>, Uint128> =
     Map::new(TOTAL_DELEGATION_NAMESPACE);
+
+pub(crate) const LAST_PM_UPDATE_TIME: Map<'_, IdentityKeyRef<'_>, u64> =
+    Map::new(LAST_PM_UPDATE_NAMESPACE);
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,

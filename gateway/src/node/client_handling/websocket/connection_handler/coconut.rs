@@ -17,6 +17,10 @@ impl CoconutVerifier {
         }
     }
 
+    pub fn api_client(&self) -> &ApiClient {
+        &self.api_client
+    }
+
     pub fn aggregated_verification_key(&self) -> &VerificationKey {
         &self.aggregated_verification_key
     }

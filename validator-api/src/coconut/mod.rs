@@ -14,7 +14,7 @@ use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    KeyPair, Parameters, VerificationKeyResponse,
+    KeyPair, Parameters, VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
@@ -225,4 +225,12 @@ pub async fn get_verification_key(
     Ok(Json(VerificationKeyResponse::new(
         state.key_pair.verification_key(),
     )))
+}
+
+#[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
+pub async fn verify_bandwidth_credential(
+    verify_credential_body: Json<VerifyCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyCredentialResponse>> {
+    Ok(Json(VerifyCredentialResponse::new()))
 }

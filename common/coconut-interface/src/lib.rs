@@ -63,38 +63,26 @@ impl Credential {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Getters, CopyGetters)]
+#[derive(Serialize, Deserialize, Getters, CopyGetters)]
 pub struct VerifyCredentialBody {
-    #[getset(get = "pub")]
-    n_params: u32,
-    #[getset(get = "pub")]
-    theta: Theta,
-    public_attributes: Vec<String>,
+    credential: Credential,
 }
 
 impl VerifyCredentialBody {
-    pub fn new(
-        n_params: u32,
-        theta: &Theta,
-        public_attributes: &[Attribute],
-    ) -> VerifyCredentialBody {
-        VerifyCredentialBody {
-            n_params,
-            theta: theta.clone(),
-            public_attributes: public_attributes
-                .iter()
-                .map(|attr| attr.to_bs58())
-                .collect(),
-        }
-    }
-
-    pub fn public_attributes(&self) -> Vec<Attribute> {
-        self.public_attributes
-            .iter()
-            .map(|x| Attribute::try_from_bs58(x).unwrap())
-            .collect()
+    pub fn new(credential: Credential) -> VerifyCredentialBody {
+        VerifyCredentialBody { credential }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerifyCredentialResponse {}
+
+impl VerifyCredentialResponse {
+    pub fn new() -> Self {
+        VerifyCredentialResponse {}
+    }
+}
+
 //  All strings are base58 encoded representations of structs
 #[derive(Clone, Serialize, Deserialize, Debug, Getters, CopyGetters)]
 pub struct BlindSignRequestBody {

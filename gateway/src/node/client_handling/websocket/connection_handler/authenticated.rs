@@ -218,6 +218,16 @@ where
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
 
+        self.inner
+            .coconut_verifier
+            .as_ref()
+            .api_client()
+            .verify_bandwidth_credential(&coconut_interface::VerifyCredentialBody::new(
+                credential.clone(),
+            ))
+            .await
+            .unwrap();
+
         let bandwidth = Bandwidth::try_from(credential)?;
         let bandwidth_value = bandwidth.value();
 

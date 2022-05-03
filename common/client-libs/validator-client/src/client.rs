@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+use coconut_interface::{
+    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
+};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 
@@ -714,5 +717,15 @@ impl ApiClient {
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorClientError> {
         Ok(self.validator_api.get_coconut_verification_key().await?)
+    }
+
+    pub async fn verify_bandwidth_credential(
+        &self,
+        request_body: &VerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .verify_bandwidth_credential(request_body)
+            .await?)
     }
 }

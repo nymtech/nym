@@ -20,7 +20,7 @@ use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::settings::UrlObject;
-use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
+use rocket_okapi::swagger_ui::SwaggerUIConfig;
 use std::process;
 use std::sync::Arc;
 use std::time::Duration;
@@ -400,7 +400,6 @@ async fn setup_rocket(
 ) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket = rocket::build()
-        .mount("/swagger", make_swagger_ui(&get_docs()))
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage());
@@ -439,6 +438,7 @@ async fn setup_rocket(
     }
 }
 
+#[allow(unused)]
 pub(crate) fn get_docs() -> SwaggerUIConfig {
     SwaggerUIConfig {
         urls: vec![

@@ -157,7 +157,7 @@ mod tests {
         let args = Init {
             id: "foo-id".to_string(),
             host: "foo-host".to_string(),
-            wallet_address: "nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9".to_string(),
+            wallet_address: "n1z9egw0knv47nmur0p8vk4rcx59h9gg4zjx9ede".to_string(),
             mix_port: Some(42),
             clients_port: Some(43),
             announce_host: Some("foo-announce-host".to_string()),

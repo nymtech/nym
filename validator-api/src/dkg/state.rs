@@ -42,12 +42,15 @@ struct DkgStateInner {
 
 impl DkgState {
     // some save/load action here
-
     pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> bool {
         let dealers = &self.inner.lock().await.current_epoch_dealers;
         dealers
             .values()
             .any(|dealer| dealer.remote_address == remote)
+    }
+
+    pub(crate) async fn current_epoch(&self) -> Epoch {
+        self.inner.lock().await.current_epoch
     }
 
     pub(crate) async fn get_verified_dealing(
@@ -61,8 +64,4 @@ impl DkgState {
             .get(&dealer.to_bytes())
             .cloned()
     }
-}
-
-impl DkgStateInner {
-    //
 }

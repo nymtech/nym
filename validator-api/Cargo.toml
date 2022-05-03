@@ -44,15 +44,17 @@ rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
 # required for DKG, perhaps will get locked behind feature flag
+bincode = "1.3.3"
 bytes = "1.1.0"
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg-contract" }
 dkg = { path = "../common/crypto/dkg" }
+serde_bytes = { version = "0.11.6" }
 tokio-util = { version = "0.6", features = ["codec"] }
 
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../common/config" }
-crypto = { path="../common/crypto" }
+crypto = { path="../common/crypto", features = ["asymmetric", "serde"] }
 gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nymsphinx = { path="../common/nymsphinx" }

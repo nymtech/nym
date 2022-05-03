@@ -16,8 +16,7 @@ impl Encoder<OffchainDkgMessage> for DkgCodec {
     type Error = DkgError;
 
     fn encode(&mut self, item: OffchainDkgMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        item.encode(dst);
-        Ok(())
+        item.encode(dst)
     }
 }
 
@@ -54,9 +53,6 @@ impl Decoder for DkgCodec {
         let payload = src[Header::LEN..Header::LEN + header.payload_length as usize].to_vec();
         src.advance(Header::LEN + header.payload_length as usize);
 
-        Ok(Some(OffchainDkgMessage::try_from_bytes(
-            payload,
-            header.message_type,
-        )?))
+        Ok(Some(OffchainDkgMessage::try_from_bytes(payload)?))
     }
 }

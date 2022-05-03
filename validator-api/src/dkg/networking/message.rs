@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dkg::error::DkgError;
+use crate::dkg::networking::PROTOCOL_VERSION;
 use bytes::{BufMut, BytesMut};
 use crypto::asymmetric::identity;
 use dkg::Dealing;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::io;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum OffchainDkgMessage {
     NewDealing {
         id: u64,
@@ -26,82 +30,109 @@ pub enum OffchainDkgMessage {
     },
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NewDealingMessage {
-    epoch_id: u32,
+    pub epoch_id: u32,
     // we keep the dealing in its serialized state as that's what is being signed (and hashed)
     // so that it's easier to verify
-    dealing_bytes: Vec<u8>,
-    dealer_signature: identity::Signature,
+    pub dealing_bytes: Vec<u8>,
+    pub dealer_signature: identity::Signature,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RemoteDealingRequestMessage {
-    epoch_id: u32,
-    dealer: identity::PublicKey,
+    pub epoch_id: u32,
+    pub dealer: identity::PublicKey,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum RemoteDealingResponseMessage {
     Available {
         epoch_id: u32,
+        #[serde(with = "dealing_bytes")]
         dealing: Box<Dealing>,
         dealer_signature: identity::Signature,
     },
     Unavailable,
 }
 
-pub struct ErrorResponseMessage {
-    reason: ErrorReason,
-    additional_info: Option<String>,
+mod dealing_bytes {
+    use dkg::Dealing;
+    use serde::de::Error as SerdeError;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
+
+    pub fn serialize<S: Serializer>(val: &Dealing, serializer: S) -> Result<S::Ok, S::Error> {
+        SerdeBytes::new(&val.to_bytes()).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Box<Dealing>, D::Error> {
+        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
+        let dealing = Dealing::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)?;
+        Ok(Box::new(dealing))
+    }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponseMessage {
+    pub reason: ErrorReason,
+    pub additional_info: Option<String>,
+}
+
+impl ErrorResponseMessage {
+    pub fn new(reason: ErrorReason, additional_info: Option<String>) -> Self {
+        ErrorResponseMessage {
+            reason,
+            additional_info,
+        }
+    }
+}
+
+impl Display for ErrorResponseMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ErrorReason {
+    InvalidEpoch,
     UnknownDealer,
+    InvalidRequest,
     Timeout,
 }
 
+impl Display for ErrorReason {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
 impl OffchainDkgMessage {
-    fn frame(self) -> FramedOffchainDkgMessage {
-        todo!()
+    pub(crate) fn try_from_bytes(bytes: Vec<u8>) -> Result<Self, DkgError> {
+        Ok(bincode::deserialize(&bytes)?)
     }
 
-    pub(crate) fn encode(self, dst: &mut BytesMut) {
-        dst.put(self.frame().into_bytes().as_ref());
+    pub(crate) fn try_to_bytes(&self) -> Result<Vec<u8>, DkgError> {
+        Ok(bincode::serialize(&self)?)
     }
 
-    pub(crate) fn try_from_bytes(
-        bytes: Vec<u8>,
-        expected_type: OffchainDkgMessageType,
-    ) -> Result<Self, DkgError> {
-        todo!()
+    fn frame(self) -> Result<FramedOffchainDkgMessage, DkgError> {
+        let payload = self.try_to_bytes()?;
+        Ok(FramedOffchainDkgMessage {
+            header: Header {
+                payload_length: payload.len() as u64,
+                protocol_version: PROTOCOL_VERSION,
+            },
+            payload,
+        })
     }
-}
 
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum OffchainDkgMessageType {
-    NewDealing = 0,
-    RemoteDealingRequest = 1,
-
-    RemoteDealingResponse = 128,
-    ErrorResponse = 255,
-}
-
-pub struct InvalidDkgMessageType(u8);
-
-impl TryFrom<u8> for OffchainDkgMessageType {
-    type Error = InvalidDkgMessageType;
-
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
-        match value {
-            _ if value == (OffchainDkgMessageType::NewDealing as u8) => Ok(Self::NewDealing),
-            _ if value == (OffchainDkgMessageType::RemoteDealingRequest as u8) => {
-                Ok(Self::RemoteDealingRequest)
-            }
-            _ if value == (OffchainDkgMessageType::RemoteDealingResponse as u8) => {
-                Ok(Self::RemoteDealingResponse)
-            }
-            _ if value == (OffchainDkgMessageType::ErrorResponse as u8) => Ok(Self::ErrorResponse),
-            t => Err(InvalidDkgMessageType(t)),
-        }
+    pub(crate) fn encode(self, dst: &mut BytesMut) -> Result<(), DkgError> {
+        dst.put(self.frame()?.into_bytes().as_ref());
+        Ok(())
     }
 }
 
@@ -127,17 +158,15 @@ impl FramedOffchainDkgMessage {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) struct Header {
-    pub(crate) message_type: OffchainDkgMessageType,
     pub(crate) payload_length: u64,
     pub(crate) protocol_version: u32,
 }
 
 impl Header {
-    pub(crate) const LEN: usize = 13;
+    pub(crate) const LEN: usize = 12;
 
     pub(crate) fn into_bytes(self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::LEN);
-        out.push(self.message_type as u8);
         out.extend_from_slice(&self.payload_length.to_be_bytes());
         out.extend_from_slice(&self.protocol_version.to_be_bytes());
 
@@ -157,9 +186,8 @@ impl Header {
             )));
         }
         Ok(Header {
-            message_type: OffchainDkgMessageType::try_from(bytes[0])?,
-            payload_length: u64::from_be_bytes(bytes[1..9].try_into().unwrap()),
-            protocol_version: u32::from_be_bytes(bytes[9..].try_into().unwrap()),
+            payload_length: u64::from_be_bytes(bytes[..8].try_into().unwrap()),
+            protocol_version: u32::from_be_bytes(bytes[8..].try_into().unwrap()),
         })
     }
 }
@@ -172,7 +200,6 @@ mod tests {
     #[test]
     fn header_deserialization() {
         let valid_header = Header {
-            message_type: OffchainDkgMessageType::NewDealing,
             payload_length: 1234,
             protocol_version: PROTOCOL_VERSION,
         };

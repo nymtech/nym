@@ -9,7 +9,7 @@ pub type EncodedEd25519PublicKey = String;
 pub type EncodedEd25519PublicKeyRef<'a> = &'a str;
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type NodeIndex = u64;
-pub type EpochId = u64;
+pub type EpochId = u32;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -89,7 +89,7 @@ impl Display for BlacklistingReason {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Epoch {
     pub id: EpochId,
@@ -157,7 +157,7 @@ impl Epoch {
 // 6. VerificationKeyMismatchSubmission -> receivers / watchers raising issue that the submitted VK are mismatched with their local derivations
 // 7. VerificationKeyMismatchVoting -> (if any complaints were submitted) receivers voting on received mismatches
 // 8. InProgress -> all receivers have all their secrets derived and all is good
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum EpochState {
     PublicKeySubmission {

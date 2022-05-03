@@ -1,43 +1,116 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::dkg::events::DispatcherSender;
 use crate::dkg::networking::codec::DkgCodec;
-use crate::dkg::networking::message::{ErrorReason, OffchainDkgMessage};
+use crate::dkg::networking::message::{
+    ErrorReason, NewDealingMessage, OffchainDkgMessage, RemoteDealingRequestMessage,
+};
 use crate::dkg::state::DkgState;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tokio_util::codec::Framed;
 
-const DEFAULT_MAX_CONNECTION_DURATION: Duration = Duration::new(2 * 60, 0);
+const DEFAULT_MAX_CONNECTION_DURATION: Duration = Duration::new(2 * 60 * 60, 0);
 
 #[derive(Debug)]
 pub(crate) struct ConnectionHandler {
     // connection cannot exist for more than this time
     max_connection_duration: Duration,
+    dispatcher_sender: DispatcherSender,
     dkg_state: DkgState,
     conn: Framed<TcpStream, DkgCodec>,
     remote: SocketAddr,
 }
 
 impl ConnectionHandler {
-    pub(crate) fn new(dkg_state: DkgState, conn: TcpStream, remote: SocketAddr) -> Self {
+    pub(crate) fn new(
+        dispatcher_sender: DispatcherSender,
+        dkg_state: DkgState,
+        conn: TcpStream,
+        remote: SocketAddr,
+    ) -> Self {
         ConnectionHandler {
             max_connection_duration: DEFAULT_MAX_CONNECTION_DURATION,
+            dispatcher_sender,
             dkg_state,
             remote,
             conn: Framed::new(conn, DkgCodec),
         }
     }
 
+    async fn send_response(&mut self, response_message: OffchainDkgMessage) {
+        self.conn.send(response_message).await;
+    }
+
     async fn send_error_response<S: Into<String>>(
-        &mut self,
+        &self,
         error: ErrorReason,
         additional_info: Option<S>,
     ) {
         //
+    }
+
+    async fn handle_new_dealing(&self, id: u64, message: NewDealingMessage) {
+        todo!()
+    }
+
+    async fn handle_remote_dealing_request(
+        &mut self,
+        id: u64,
+        message: RemoteDealingRequestMessage,
+    ) {
+        // TODO: when somebody is reviewing this code, what's your opinion on accessing the DkgState here
+        // vs keeping it slightly more consistent and dispatching an event to request the value from
+        // something managing it instead?
+
+        // personal note: once more parts are developed, I might change it myself before it even gets to the PR state
+
+        let current_epoch = self.dkg_state.current_epoch().await;
+        if current_epoch.id != message.epoch_id {
+            return self
+                .send_error_response(
+                    ErrorReason::InvalidEpoch,
+                    Some(format!(
+                        "current epoch is {} and not {}",
+                        current_epoch.id, message.epoch_id
+                    )),
+                )
+                .await;
+        }
+
+        let dealing = self.dkg_state.get_verified_dealing(message.dealer).await;
+
+        self.send_response(todo!()).await;
+        todo!()
+    }
+
+    async fn handle_request(&mut self, request: OffchainDkgMessage) {
+        match request {
+            OffchainDkgMessage::NewDealing { id, message } => {
+                self.handle_new_dealing(id, message).await
+            }
+            OffchainDkgMessage::RemoteDealingRequest { id, message } => {
+                self.handle_remote_dealing_request(id, message).await
+            }
+            OffchainDkgMessage::RemoteDealingResponse { .. } => {
+                self.send_error_response(
+                    ErrorReason::InvalidRequest,
+                    Some("RemoteDealingResponse is not a valid request type"),
+                )
+                .await
+            }
+            OffchainDkgMessage::ErrorResponse { .. } => {
+                self.send_error_response(
+                    ErrorReason::InvalidRequest,
+                    Some("ErrorResponse is not a valid request type"),
+                )
+                .await
+            }
+        }
     }
 
     async fn _handle_connection(&mut self) {
@@ -90,15 +163,6 @@ impl ConnectionHandler {
                 )),
             )
             .await;
-        }
-    }
-
-    async fn handle_request(&self, request: OffchainDkgMessage) {
-        match request {
-            OffchainDkgMessage::NewDealing { .. } => {}
-            OffchainDkgMessage::RemoteDealingRequest { .. } => {}
-            OffchainDkgMessage::RemoteDealingResponse { .. } => {}
-            OffchainDkgMessage::ErrorResponse { .. } => {}
         }
     }
 }

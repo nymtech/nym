@@ -24,7 +24,7 @@ impl<A> Listener<A> {
 
     fn on_connect(&self, conn: TcpStream, remote: SocketAddr) {
         tokio::spawn(
-            ConnectionHandler::new(self.dkg_state.clone(), conn, remote).handle_connection(),
+            async move { todo!() }, // ConnectionHandler::new(self.dkg_state.clone(), conn, remote).handle_connection(),
         );
     }
 

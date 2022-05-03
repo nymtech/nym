@@ -5,3 +5,5 @@ mod contract_watcher;
 pub(crate) mod error;
 pub(crate) mod networking;
 pub(crate) mod state;
+mod dealing_processing;
+pub(crate) mod events;

@@ -3243,6 +3243,7 @@ dependencies = [
  "mixnet-contract-common",
  "nymcoconut",
  "nymsphinx",
+ "okapi",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3250,7 +3251,9 @@ dependencies = [
  "reqwest",
  "rocket",
  "rocket_cors",
+ "rocket_okapi",
  "rocket_sync_db_pools",
+ "schemars",
  "serde",
  "serde_json",
  "sqlx",
@@ -6169,6 +6172,7 @@ name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
  "mixnet-contract-common",
+ "schemars",
  "serde",
  "ts-rs",
 ]

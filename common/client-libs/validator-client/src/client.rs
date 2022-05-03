@@ -6,12 +6,12 @@ use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, Verifica
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 
+#[cfg(feature = "nymd-client")]
+use validator_api_requests::models::UptimeResponse;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
-#[cfg(feature = "nymd-client")]
-use validator_api_requests::models::UptimeResponse;
 
 #[cfg(feature = "nymd-client")]
 use network_defaults::DEFAULT_NETWORK;

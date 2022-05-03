@@ -195,6 +195,5 @@ pub fn prepare_credential_for_spending(
         theta,
         voucher_value.to_string(),
         voucher_info,
-        signature,
     ))
 }

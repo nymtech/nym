@@ -18,8 +18,6 @@ pub struct Credential {
     #[getset(get = "pub")]
     theta: Theta,
     public_attributes: Vec<Vec<u8>>,
-    #[getset(get = "pub")]
-    signature: Signature,
 }
 impl Credential {
     pub fn new(
@@ -27,14 +25,12 @@ impl Credential {
         theta: Theta,
         voucher_value: String,
         voucher_info: String,
-        signature: &Signature,
     ) -> Credential {
         let public_attributes = vec![voucher_value.into_bytes(), voucher_info.into_bytes()];
         Credential {
             n_params,
             theta,
             public_attributes,
-            signature: *signature,
         }
     }
 

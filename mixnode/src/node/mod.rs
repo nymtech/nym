@@ -244,14 +244,18 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    // TODO: ask DH whether this function still makes sense in ^0.10
-    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+    fn random_api_client(&self) -> validator_client::ApiClient {
         let endpoints = self.config.get_validator_api_endpoints();
         let validator_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
-        let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
+        validator_client::ApiClient::new(validator_api.clone())
+    }
+
+    // TODO: ask DH whether this function still makes sense in ^0.10
+    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+        let validator_client = self.random_api_client();
         let existing_nodes = match validator_client.get_cached_mixnodes().await {
             Ok(nodes) => nodes,
             Err(err) => {

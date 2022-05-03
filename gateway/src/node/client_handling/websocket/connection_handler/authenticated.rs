@@ -208,7 +208,13 @@ where
             iv,
         )?;
 
-        if !credential.verify(&self.inner.aggregated_verification_key) {
+        if !credential.verify(
+            &self
+                .inner
+                .coconut_verifier
+                .as_ref()
+                .aggregated_verification_key(),
+        ) {
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
 

@@ -18,10 +18,10 @@ use std::process;
 use std::sync::Arc;
 
 use crate::config::persistence::pathfinder::GatewayPathfinder;
+#[cfg(feature = "coconut")]
+use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 #[cfg(not(feature = "coconut"))]
 use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
-#[cfg(feature = "coconut")]
-use coconut_interface::VerificationKey;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
 
@@ -175,7 +175,7 @@ where
         &self,
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
-        #[cfg(feature = "coconut")] verification_key: VerificationKey,
+        #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
         #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
     ) {
         info!("Starting client [web]socket listener...");
@@ -190,7 +190,7 @@ where
             Arc::clone(&self.identity_keypair),
             self.config.get_disabled_credentials_mode(),
             #[cfg(feature = "coconut")]
-            verification_key,
+            coconut_verifier,
             #[cfg(not(feature = "coconut"))]
             erc20_bridge,
         )
@@ -227,13 +227,18 @@ where
         );
     }
 
-    // TODO: ask DH whether this function still makes sense in ^0.10
-    async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
+    fn random_api_client(&self) -> validator_client::ApiClient {
         let endpoints = self.config.get_validator_api_endpoints();
         let validator_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
-        let validator_client = validator_client::ApiClient::new(validator_api.clone());
+
+        validator_client::ApiClient::new(validator_api.clone())
+    }
+
+    // TODO: ask DH whether this function still makes sense in ^0.10
+    async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
+        let validator_client = self.random_api_client();
 
         let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,
@@ -271,6 +276,9 @@ where
             obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
+        #[cfg(feature = "coconut")]
+        let coconut_verifier =
+            CoconutVerifier::new(self.random_api_client(), validators_verification_key);
 
         #[cfg(not(feature = "coconut"))]
         let erc20_bridge = ERC20Bridge::new(
@@ -291,7 +299,7 @@ where
             mix_forwarding_channel,
             active_clients_store,
             #[cfg(feature = "coconut")]
-            validators_verification_key,
+            Arc::new(coconut_verifier),
             #[cfg(not(feature = "coconut"))]
             erc20_bridge,
         );

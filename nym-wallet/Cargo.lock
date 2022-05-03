@@ -2401,6 +2401,7 @@ checksum = "282a6247722caba404c065016bbfa522806e51714c34f5dfc3e4a3a46fcb4223"
 dependencies = [
  "autocfg 1.1.0",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]
@@ -4088,6 +4089,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6b5a3c80cea1ab61f4260238409510e814e38b4b563c06044edf91e7dc070e3"
 dependencies = [
  "dyn-clone",
+ "indexmap",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -5388,6 +5390,7 @@ name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
  "mixnet-contract-common",
+ "schemars",
  "serde",
 ]
 

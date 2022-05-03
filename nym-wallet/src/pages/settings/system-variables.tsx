@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import React, { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { PercentOutlined } from '@mui/icons-material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { SelectionChance } from 'src/types/rust/selectionchance';
@@ -78,7 +78,7 @@ export const SystemVariables = ({
   inclusionProbability: InclusionProbabilityResponse;
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
-  const { currency, mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(ClientContext);
   const { ownership } = useCheckOwnership();
 
   const {
@@ -126,11 +126,7 @@ export const SystemVariables = ({
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
-            Indicator={
-              <Typography sx={{ color: (theme) => theme.palette.nym.fee, fontWeight: '600' }}>
-                {rewardEstimation} {currency?.major}
-              </Typography>
-            }
+            Indicator={<Chip label="Coming soon" />}
           />
 
           <DataField

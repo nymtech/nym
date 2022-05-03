@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { useSnackbar } from 'notistack';
 import { ClientContext } from '../../context/main';
 import { getMixnodeStakeSaturation, getMixnodeStatus, getInclusionProbability } from '../../requests';
 import { MixnodeStatus, InclusionProbabilityResponse } from '../../types';
@@ -13,6 +14,8 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   });
 
   const { mixnodeDetails } = useContext(ClientContext);
+
+  const { enqueueSnackbar } = useSnackbar();
 
   const getStatus = async (mixnodeKey: string) => {
     const newStatus = await getMixnodeStatus(mixnodeKey);
@@ -46,9 +49,13 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   useEffect(() => {
     if (shouldUpdate && mixnodeDetails?.mix_node.identity_key) {
       (async () => {
-        await getStatus(mixnodeDetails?.mix_node.identity_key);
-        await getStakeSaturation(mixnodeDetails?.mix_node.identity_key);
-        await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key);
+        try {
+          await getStatus(mixnodeDetails?.mix_node.identity_key);
+          await getStakeSaturation(mixnodeDetails?.mix_node.identity_key);
+          await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key);
+        } catch (e) {
+          enqueueSnackbar(e as string, { variant: 'error', preventDuplicate: true });
+        }
       })();
     } else {
       reset();

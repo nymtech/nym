@@ -21,7 +21,7 @@ use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 use url::Url;
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
 
 use validator_client::{nymd::SigningNymdClient, Client};
 
@@ -470,6 +470,7 @@ pub fn add_account_for_password(
   password: &str,
   inner_id: &str,
 ) -> Result<(), BackendError> {
+  log::info!("Adding account for the current password: {inner_id}");
   let mnemonic = Mnemonic::from_str(mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   // Currently we only support a single, default, id in the wallet
@@ -483,6 +484,7 @@ pub fn add_account_for_password(
 
 #[tauri::command]
 pub fn remove_account_for_password(password: &str, inner_id: &str) -> Result<(), BackendError> {
+  log::info!("Removing account: {inner_id}");
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
@@ -494,9 +496,12 @@ fn derive_address(
   mnemonic: bip39::Mnemonic,
   prefix: &str,
 ) -> Result<cosmrs::AccountId, BackendError> {
-  let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
-  let accounts = wallet.try_derive_accounts()?;
-  Ok(accounts[0].address().clone())
+  DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?
+    .try_derive_accounts()?
+    .first()
+    .map(AccountData::address)
+    .cloned()
+    .ok_or(BackendError::FailedToDeriveAddress)
 }
 
 #[tauri::command]
@@ -526,6 +531,7 @@ pub async fn sign_in_decrypted_account(
   account_id: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Account, BackendError> {
+  log::info!("Signing in to already decrypted account: {account_id}");
   let mnemonic = {
     let state = state.read().await;
     state

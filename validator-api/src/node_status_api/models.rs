@@ -266,7 +266,7 @@ impl JsonSchema for ErrorResponse {
             .required
             .insert("error_message".to_owned());
 
-        // WIP(JON): is this valid? Using the inner type u16 explicitly
+        // Status does not implement JsonSchema so we just explicitly specify the inner type.
         object_validation
             .properties
             .insert("status".to_owned(), gen.subschema_for::<u16>());

@@ -23,6 +23,30 @@ import { UniversalTableProps } from '../../DetailTable';
 const tooltipBackGroundColor = '#A0AED1';
 const threshold = 100;
 
+const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
+  const progressBarValue = value?.progressBarValue || 0;
+  const fieldValue = value.value;
+
+  if (progressBarValue > 100) {
+    return theme.palette.warning.main;
+  }
+  if (field === 'selectionChance') {
+    switch (fieldValue) {
+      case 'High':
+      case 'VeryHigh':
+        return theme.palette.nym.networkExplorer.selectionChance.overModerate;
+      case 'Moderate':
+        return theme.palette.nym.networkExplorer.selectionChance.moderate;
+      case 'Low':
+      case 'VeryLow':
+        return theme.palette.nym.networkExplorer.selectionChance.underModerate;
+      default:
+        return theme.palette.nym.wallet.fee;
+    }
+  }
+  return theme.palette.nym.wallet.fee;
+};
+
 const formatCellValues = (value: EconomicsRowsType, field: string, theme: Theme) => {
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
   if (value.progressBarValue) {
@@ -116,7 +140,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];
                 const value: EconomicsRowsType = (eachRow as any)[field];
-                const progressBarValue = value?.progressBarValue || 0;
+
                 return (
                   <TableCell
                     key={_.title}
@@ -129,7 +153,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
                       width: 200,
                       fontSize: 12,
                       fontWeight: 600,
-                      color: progressBarValue > 100 ? theme.palette.warning.main : theme.palette.nym.wallet.fee,
+                      color: textColour(value, field, theme),
                     }}
                     data-testid={`${_.title.replace(/ /g, '-')}-value`}
                   >

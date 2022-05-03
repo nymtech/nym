@@ -46,6 +46,11 @@ export interface NymPaletteVariant {
       standby: string;
     };
   };
+  selectionChance: {
+    overModerate: string;
+    moderate: string;
+    underModerate: string;
+  },
 }
 
 // -------------------------------------------------------------------------------------------------------------------
@@ -104,6 +109,11 @@ export const darkMode: NymPaletteVariant = {
       standby: '#5FD7EF',
     },
   },
+  selectionChance: {
+    overModerate: '#20D073',
+    moderate: '#ffbf00',
+    underModerate: '#20D073',
+  },
 };
 
 /**
@@ -131,6 +141,11 @@ export const lightMode: NymPaletteVariant = {
       active: '#1CBB67',
       standby: '#55C1D7',
     },
+  },
+  selectionChance: {
+    overModerate: '#20D073',
+    moderate: '#EBA53D',
+    underModerate: '#DA465B',
   },
 };
 

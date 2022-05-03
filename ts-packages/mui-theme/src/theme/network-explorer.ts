@@ -40,6 +40,11 @@ export interface NetworkExplorerPalette {
         inactive: string;
       };
     };
+    selectionChance: { 
+      overModerate: string;
+      moderate: string;
+      underModerate: string;
+    }
   };
 }
 
@@ -84,6 +89,11 @@ export const networkExplorerPalette = (variant: NymPaletteVariant): NetworkExplo
         inactive: variant.text.main,
       },
     },
+    selectionChance: { 
+      overModerate: variant.mixnodes.status.active,
+      moderate: variant.mixnodes.status.active,
+      underModerate: variant.mixnodes.status.active,
+    }
   },
 });
 

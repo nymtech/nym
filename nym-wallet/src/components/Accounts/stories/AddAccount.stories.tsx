@@ -15,16 +15,9 @@ const Template: ComponentStory<typeof AddAccountModal> = (args) => (
 );
 
 export const Default = Template.bind({});
-Default.args = {
-  show: true,
-  onClose: () => {},
-  onAdd: () => {},
-};
+Default.args = {};
 
 export const WithoutPassword = Template.bind({});
 WithoutPassword.args = {
-  show: true,
   withoutPassword: true,
-  onClose: () => {},
-  onAdd: () => {},
 };

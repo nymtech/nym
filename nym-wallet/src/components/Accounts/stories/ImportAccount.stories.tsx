@@ -8,9 +8,9 @@ export default {
   component: ImportAccountModal,
 } as ComponentMeta<typeof ImportAccountModal>;
 
-const Template: ComponentStory<typeof ImportAccountModal> = (args) => (
+const Template: ComponentStory<typeof ImportAccountModal> = () => (
   <Box display="flex" alignContent="center">
-    <ImportAccountModal {...args} />
+    <ImportAccountModal />
   </Box>
 );
 

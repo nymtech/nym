@@ -9,9 +9,9 @@ export default {
   component: EditAccountModal,
 } as ComponentMeta<typeof EditAccountModal>;
 
-const Template: ComponentStory<typeof EditAccountModal> = (args) => (
+const Template: ComponentStory<typeof EditAccountModal> = () => (
   <Box display="flex" alignContent="center">
-    <EditAccountModal {...args} />
+    <EditAccountModal />
   </Box>
 );
 

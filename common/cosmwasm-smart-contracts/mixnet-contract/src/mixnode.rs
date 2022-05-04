@@ -222,11 +222,17 @@ impl DelegatorRewardParams {
     }
 
     pub fn determine_delegation_reward(&self, delegation_amount: Uint128) -> u128 {
+        if self.sigma == 0 {
+            return 0;
+        }
+
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
         let circulating_supply = U128::from_num(self.reward_params.circulating_supply());
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
+
+        // Div by zero checked above
         let delegator_reward =
             (ONE - self.profit_margin) * (scaled_delegation_amount / self.sigma) * self.node_profit;
 
@@ -250,8 +256,14 @@ impl DelegatorRewardParams {
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
-    lambda: Uint128,
-    sigma: Uint128,
+
+    #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
+    lambda: U128,
+
+    #[schemars(with = "String")]
+    #[serde(with = "fixed_U128_as_string")]
+    sigma: U128,
 }
 
 impl StoredNodeRewardResult {
@@ -259,11 +271,11 @@ impl StoredNodeRewardResult {
         self.reward
     }
 
-    pub fn lambda(&self) -> Uint128 {
+    pub fn lambda(&self) -> U128 {
         self.lambda
     }
 
-    pub fn sigma(&self) -> Uint128 {
+    pub fn sigma(&self) -> U128 {
         self.sigma
     }
 }
@@ -279,18 +291,8 @@ impl TryFrom<NodeRewardResult> for StoredNodeRewardResult {
                     .checked_cast()
                     .ok_or(MixnetContractError::CastError)?,
             ),
-            lambda: Uint128::new(
-                node_reward_result
-                    .lambda()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
-            sigma: Uint128::new(
-                node_reward_result
-                    .sigma()
-                    .checked_cast()
-                    .ok_or(MixnetContractError::CastError)?,
-            ),
+            lambda: node_reward_result.lambda(),
+            sigma: node_reward_result.sigma(),
         })
     }
 }
@@ -469,12 +471,16 @@ impl MixNodeBond {
 
     pub fn operator_reward(&self, params: &RewardParams) -> u128 {
         let reward = self.reward(params);
+        if reward.sigma == 0 {
+            return 0;
+        }
         let profit = if reward.reward < params.node.operator_cost() {
             U128::from_num(0u128)
         } else {
             reward.reward - params.node.operator_cost()
         };
         let operator_base_reward = reward.reward.min(params.node.operator_cost());
+        // Div by zero checked above
         let operator_reward = (self.profit_margin()
             + (ONE - self.profit_margin()) * reward.lambda / reward.sigma)
             * profit;

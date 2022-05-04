@@ -9,6 +9,7 @@ use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
+use rocket_okapi::openapi_get_routes;
 
 use rocket::fairing::AdHoc;
 use serde::Serialize;
@@ -191,7 +192,7 @@ impl ValidatorCache {
             rocket.manage(Self::new()).mount(
                 // this format! is so ugly...
                 format!("/{}", VALIDATOR_API_VERSION),
-                routes![
+                openapi_get_routes![
                     routes::get_mixnodes,
                     routes::get_gateways,
                     routes::get_active_set,

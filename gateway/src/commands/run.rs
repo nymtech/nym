@@ -47,10 +47,10 @@ pub struct Run {
     #[clap(long)]
     mnemonic: Option<String>,
 
-    /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
+    /// Set this gateway to work in a disabled credentials mode that would allow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -76,7 +76,7 @@ impl From<Run> for OverrideConfig {
             mnemonic: run_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            testnet_mode: run_config.testnet_mode,
+            disabled_credentials_mode: run_config.disabled_credentials_mode,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: run_config.eth_endpoint,

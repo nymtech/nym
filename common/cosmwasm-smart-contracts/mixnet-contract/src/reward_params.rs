@@ -25,11 +25,11 @@ impl NodeEpochRewards {
         self.epoch_id
     }
 
-    pub fn sigma(&self) -> Uint128 {
+    pub fn sigma(&self) -> U128 {
         self.result.sigma()
     }
 
-    pub fn lambda(&self) -> Uint128 {
+    pub fn lambda(&self) -> U128 {
         self.result.lambda()
     }
 
@@ -57,10 +57,12 @@ impl NodeEpochRewards {
     pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {
         let reward = self.node_profit();
         let operator_base_reward = reward.min(self.operator_cost());
-        let operator_reward = (profit_margin
-            + (ONE - profit_margin) * U128::from_num(self.lambda().u128())
-                / U128::from_num(self.sigma().u128()))
-            * reward;
+        let div_by_zero_check = if let Some(value) = self.lambda().checked_div(self.sigma()) {
+            value
+        } else {
+            return Err(MixnetContractError::DivisionByZero);
+        };
+        let operator_reward = (profit_margin + (ONE - profit_margin) * div_by_zero_check) * reward;
 
         let reward = (operator_reward + operator_base_reward).max(U128::from_num(0u128));
 
@@ -82,9 +84,15 @@ impl NodeEpochRewards {
         let circulating_supply = U128::from_num(epoch_reward_params.circulating_supply());
 
         let scaled_delegation_amount = delegation_amount / circulating_supply;
-        let delegator_reward = (ONE - profit_margin) * scaled_delegation_amount
-            / U128::from_num(self.sigma().u128())
-            * self.node_profit();
+
+        let check_div_by_zero =
+            if let Some(value) = scaled_delegation_amount.checked_div(self.sigma()) {
+                value
+            } else {
+                return Err(MixnetContractError::DivisionByZero);
+            };
+
+        let delegator_reward = (ONE - profit_margin) * check_div_by_zero * self.node_profit();
 
         let reward = delegator_reward.max(U128::ZERO);
         if let Some(int_reward) = reward.checked_cast() {
@@ -201,6 +209,11 @@ impl RewardParams {
         let denom = self.active_set_work_factor() * U128::from_num(self.rewarded_set_size())
             - (self.active_set_work_factor() - ONE) * U128::from_num(self.idle_nodes().u128());
 
+        if denom == 0 {
+            return U128::ZERO;
+        }
+
+        // Div by zero checked above
         if self.in_active_set() {
             // work_active = factor / (factor * self.network.k[month] - (factor - 1) * idle_nodes)
             self.active_set_work_factor() / denom * self.rewarded_set_size()

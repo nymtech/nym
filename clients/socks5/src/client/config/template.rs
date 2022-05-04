@@ -19,9 +19,9 @@ version = '{{ client.version }}'
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 
-# Indicates whether this client is running in a testnet mode, thus attempting
+# Indicates whether this client is running in a disabled credentials mode, thus attempting
 # to claim bandwidth without presenting bandwidth credentials.
-testnet_mode = {{ client.testnet_mode }}
+disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
 validator_api_urls = [

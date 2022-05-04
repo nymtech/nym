@@ -197,38 +197,45 @@ impl DirectSecp256k1HdWalletBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use network_defaults::DEFAULT_NETWORK;
+    use network_defaults::all::Network::*;
 
     #[test]
     fn generating_account_addresses() {
-        let (addr1, addr2, addr3) = match DEFAULT_NETWORK.bech32_prefix() {
-            "punk" => (
-                "punk1jw6mp7d5xqc7w6xm79lha27glmd0vdt32a3fj2",
-                "punk1h5hgn94nsq4kh99rjj794hr5h5q6yfm22mcqqn",
-                "punk17n9flp6jflljg6fp05dsy07wcprf2uuujse962",
-            ),
-            "nymt" => (
-                "nymt1jw6mp7d5xqc7w6xm79lha27glmd0vdt339me94",
-                "nymt1h5hgn94nsq4kh99rjj794hr5h5q6yfm23rjshv",
-                "nymt17n9flp6jflljg6fp05dsy07wcprf2uuufgn4d4",
-            ),
-            _ => panic!("Test needs to be updated with new bech32 prefix"),
-        };
         // test vectors produced from our js wallet
-        let mnemonic_address = vec![
-            ("crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove", addr1),
-            ("acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel", addr2),
-            ("step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball", addr3)
+        let mnemonics = vec![
+            "crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove",
+            "acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel",
+            "step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball"
+        ];
+        let prefixes = vec![
+            MAINNET.bech32_prefix(),
+            SANDBOX.bech32_prefix(),
+            QA.bech32_prefix(),
         ];
 
-        for (mnemonic, address) in mnemonic_address.into_iter() {
-            let prefix = DEFAULT_NETWORK.bech32_prefix();
-            let wallet =
-                DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse().unwrap()).unwrap();
-            assert_eq!(
-                wallet.try_derive_accounts().unwrap()[0].address,
-                address.parse().unwrap()
-            )
+        for prefix in prefixes {
+            let addrs = match prefix {
+                "nymt" => vec![
+                    "nymt1jw6mp7d5xqc7w6xm79lha27glmd0vdt339me94",
+                    "nymt1h5hgn94nsq4kh99rjj794hr5h5q6yfm23rjshv",
+                    "nymt17n9flp6jflljg6fp05dsy07wcprf2uuufgn4d4",
+                ],
+                "n" => vec![
+                    "n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf",
+                    "n1h5hgn94nsq4kh99rjj794hr5h5q6yfm2lr52es",
+                    "n17n9flp6jflljg6fp05dsy07wcprf2uuu8g40rf",
+                ],
+                _ => panic!("Test needs to be updated with new bech32 prefix"),
+            };
+            for (idx, mnemonic) in mnemonics.iter().enumerate() {
+                let wallet =
+                    DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse().unwrap())
+                        .unwrap();
+                assert_eq!(
+                    wallet.try_derive_accounts().unwrap()[0].address,
+                    addrs[idx].parse().unwrap()
+                )
+            }
         }
     }
 }

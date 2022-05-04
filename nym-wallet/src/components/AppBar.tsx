@@ -1,24 +1,25 @@
 import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { Logout } from '@mui/icons-material';
+import { AccountsProvider } from 'src/context/accounts';
 import { ClientContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { Node as NodeIcon } from '../svg-icons/node';
-import { AccountsContainer } from './Accounts/AccountContainer';
+import { Accounts } from './Accounts/Accounts';
 
 export const AppBar = () => {
-  const { showSettings, storedAccounts, logOut, handleShowSettings } = useContext(ClientContext);
+  const { showSettings, logOut, handleShowSettings } = useContext(ClientContext);
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
       <Toolbar disableGutters>
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
           <Grid item container alignItems="center" spacing={1}>
-            {storedAccounts && (
-              <Grid item>
-                <AccountsContainer storedAccounts={storedAccounts} />
-              </Grid>
-            )}
+            <Grid item>
+              <AccountsProvider>
+                <Accounts />
+              </AccountsProvider>
+            </Grid>
             <Grid item>
               <NetworkSelector />
             </Grid>

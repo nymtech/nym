@@ -83,7 +83,6 @@ export interface MixNodeResponseItem {
     two_letter_iso_country_code: string;
   };
   mix_node: MixNode;
-  avg_uptime: number;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];

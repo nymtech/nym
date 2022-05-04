@@ -12,7 +12,6 @@ export type MixnodeRowType = {
   host: string;
   layer: string;
   profit_percentage: string;
-  avg_uptime: number;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -36,6 +35,5 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,
-    avg_uptime: item?.avg_uptime,
   };
 }

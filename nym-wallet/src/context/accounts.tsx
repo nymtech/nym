@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from 'src/types';
 import { addAccount as addAccountRequest } from 'src/requests';
+import { useSnackbar } from 'notistack';
 import { ClientContext } from './main';
 
 type TAccounts = {
@@ -27,6 +28,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
   const [dialogToDisplay, setDialogToDisplay] = useState<TAccountsDialog>();
 
   const { onAccountChange, storedAccounts } = useContext(ClientContext);
+  const { enqueueSnackbar } = useSnackbar();
 
   const handleAddAccount = async ({
     accountName,
@@ -44,7 +46,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
         password,
       });
     } catch (e) {
-      console.log('Error adding account');
+      enqueueSnackbar('Error adding account', { variant: 'error' });
     }
   };
   const handleEditAccount = (account: AccountEntry) =>
@@ -61,7 +63,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
       const match = accounts?.find((acc) => acc.id === accountName);
       setSelectedAccount(match);
     } catch (e) {
-      console.log('Error swtiching account');
+      enqueueSnackbar('Error swtiching account', { variant: 'error' });
     }
   };
 

@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -115,6 +116,8 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
 
 const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void }) => {
   const [value, setValue] = useState('');
+  const { isLoading } = useContext(AccountsContext);
+
   return (
     <Box sx={{ mt: 1 }}>
       <DialogContent>
@@ -122,12 +125,13 @@ const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void 
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button
-          disabled={!value.length}
+          disabled={!value.length || isLoading}
           fullWidth
           disableElevation
           variant="contained"
           size="large"
           onClick={() => onConfirm(value)}
+          endIcon={isLoading && <CircularProgress size={20} />}
         >
           Add account
         </Button>

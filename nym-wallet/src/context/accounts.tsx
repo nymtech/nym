@@ -9,6 +9,7 @@ type TAccounts = {
   selectedAccount?: AccountEntry;
   accountToEdit?: AccountEntry;
   dialogToDisplay?: TAccountsDialog;
+  isLoading: boolean;
   handleAddAccount: (data: { accountName: string; mnemonic: string; password: string }) => void;
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
   handleSelectAccount: (accountId: string) => void;
@@ -22,11 +23,11 @@ export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Import';
 export const AccountsContext = createContext({} as TAccounts);
 
 export const AccountsProvider: React.FC = ({ children }) => {
-  const [accounts, setAccounts] = useState<AccountEntry[]>();
+  const [accounts, setAccounts] = useState<AccountEntry[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<AccountEntry>();
   const [accountToEdit, setAccountToEdit] = useState<AccountEntry>();
   const [dialogToDisplay, setDialogToDisplay] = useState<TAccountsDialog>();
-
+  const [isLoading, setIsLoading] = useState(false);
   const { onAccountChange, storedAccounts } = useContext(ClientContext);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -39,14 +40,20 @@ export const AccountsProvider: React.FC = ({ children }) => {
     mnemonic: string;
     password: string;
   }) => {
+    setIsLoading(true);
     try {
-      await addAccountRequest({
+      const newAccount = await addAccountRequest({
         accountName,
         mnemonic,
         password,
       });
+      setAccounts((accs) => [...accs, newAccount]);
+      enqueueSnackbar('New account created', { variant: 'success' });
+      setDialogToDisplay('Accounts');
     } catch (e) {
-      enqueueSnackbar('Error adding account', { variant: 'error' });
+      enqueueSnackbar(`Error adding account: ${e}`, { variant: 'error' });
+    } finally {
+      setIsLoading(false);
     }
   };
   const handleEditAccount = (account: AccountEntry) =>
@@ -63,7 +70,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
       const match = accounts?.find((acc) => acc.id === accountName);
       setSelectedAccount(match);
     } catch (e) {
-      enqueueSnackbar('Error swtiching account', { variant: 'error' });
+      console.log('boom!');
     }
   };
 
@@ -86,13 +93,14 @@ export const AccountsProvider: React.FC = ({ children }) => {
           accountToEdit,
           dialogToDisplay,
           setDialogToDisplay,
+          isLoading,
           handleAddAccount,
           handleEditAccount,
           handleAccountToEdit,
           handleSelectAccount,
           handleImportAccount,
         }),
-        [accounts, selectedAccount, accountToEdit, dialogToDisplay],
+        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading],
       )}
     >
       {children}

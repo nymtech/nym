@@ -2,32 +2,35 @@ import { invoke } from '@tauri-apps/api';
 import { AccountEntry } from 'src/types/rust/accountentry';
 import { Account } from '../types';
 
-export const createMnemonic = async (): Promise<string> => invoke('create_new_mnemonic');
+export const createMnemonic = async () => {
+  const res: string = await invoke('create_new_mnemonic');
+  return res;
+};
 
-export const createPassword = async ({ mnemonic, password }: { mnemonic: string; password: string }): Promise<void> => {
+export const createPassword = async ({ mnemonic, password }: { mnemonic: string; password: string }) => {
   await invoke('create_password', { mnemonic, password });
 };
 
-export const signInWithMnemonic = async (mnemonic: string): Promise<Account> => {
+export const signInWithMnemonic = async (mnemonic: string) => {
   const res: Account = await invoke('connect_with_mnemonic', { mnemonic });
   return res;
 };
 
-export const signInWithPassword = async (password: string): Promise<Account> => {
+export const signInWithPassword = async (password: string) => {
   const res: Account = await invoke('sign_in_with_password', { password });
   return res;
 };
 
-export const validateMnemonic = async (mnemonic: string): Promise<boolean> => {
+export const validateMnemonic = async (mnemonic: string) => {
   const res: boolean = await invoke('validate_mnemonic', { mnemonic });
   return res;
 };
 
-export const signOut = async (): Promise<void> => {
+export const signOut = async () => {
   await invoke('logout');
 };
 
-export const isPasswordCreated = async (): Promise<boolean> => {
+export const isPasswordCreated = async () => {
   const res: boolean = await invoke('does_password_file_exist');
   return res;
 };
@@ -40,8 +43,9 @@ export const addAccount = async ({
   mnemonic: string;
   password: string;
   accountName: string;
-}): Promise<void> => {
-  await invoke('add_account_for_password', { mnemonic, password, innerId: accountName });
+}) => {
+  const res: AccountEntry = await invoke('add_account_for_password', { mnemonic, password, innerId: accountName });
+  return res;
 };
 
 export const removeAccount = async ({ password, accountName }: { password: string; accountName: string }) => {

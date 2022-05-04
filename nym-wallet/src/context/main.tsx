@@ -153,10 +153,15 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const onAccountChange = async (accountId: string) => {
     if (network) {
       setIsLoading(true);
-      await switchAccount(accountId);
-      await loadAccount(network);
-      setIsLoading(false);
-      enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
+      try {
+        await switchAccount(accountId);
+        await loadAccount(network);
+        enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
+      } catch (e) {
+        enqueueSnackbar(`Error swtiching account: ${e}`, { variant: 'error' });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 

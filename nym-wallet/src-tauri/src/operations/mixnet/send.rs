@@ -5,9 +5,8 @@ use crate::state::State;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
-use tendermint_rpc::endpoint::broadcast::tx_commit::Response;
 use tokio::sync::RwLock;
-use validator_client::nymd::{AccountId, CosmosCoin};
+use validator_client::nymd::{AccountId, CosmosCoin, TxResponse};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/tauritxresult.ts"))]
@@ -34,13 +33,13 @@ pub struct TransactionDetails {
 }
 
 impl TauriTxResult {
-  fn new(t: Response, details: TransactionDetails) -> TauriTxResult {
+  fn new(t: TxResponse, details: TransactionDetails) -> TauriTxResult {
     TauriTxResult {
       block_height: t.height.value(),
-      code: t.check_tx.code.value(),
+      code: t.tx_result.code.value(),
       details,
-      gas_used: t.check_tx.gas_used.value(),
-      gas_wanted: t.check_tx.gas_wanted.value(),
+      gas_used: t.tx_result.gas_used.value(),
+      gas_wanted: t.tx_result.gas_wanted.value(),
       tx_hash: t.hash.to_string(),
     }
   }

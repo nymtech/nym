@@ -19,6 +19,11 @@ import { createMnemonic } from 'src/requests';
 import { AccountsContext } from 'src/context';
 
 const createAccountSteps = ['Save and copy mnemonic for your new account', 'Name your new account', 'Confirm password'];
+const importAccountSteps = [
+  'Provide mnemonic of account you want to import',
+  'Name your new account',
+  'Confirm password',
+];
 
 const passwordCreationSteps = [
   'Log out',
@@ -91,6 +96,36 @@ const MnemonicStep = ({ mnemonic, onNext }: { mnemonic: string; onNext: () => vo
   );
 };
 
+const ImportMnemonic = ({
+  value,
+  onChange,
+  onNext,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
+}) => (
+  <Box sx={{ mt: 1 }}>
+    <DialogContent>
+      <Stack spacing={2} alignItems="center">
+        <TextField multiline rows={3} value={value} onChange={(e) => onChange(e.target.value)} fullWidth />
+      </Stack>
+    </DialogContent>
+    <DialogActions sx={{ p: 3, pt: 0 }}>
+      <Button
+        disabled={value.length === 0}
+        fullWidth
+        disableElevation
+        variant="contained"
+        size="large"
+        onClick={onNext}
+      >
+        Next
+      </Button>
+    </DialogActions>
+  </Box>
+);
+
 const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
   const [value, setValue] = useState('');
   return (
@@ -142,9 +177,9 @@ const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void 
 
 export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean }) => {
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<{ mnemonic?: string; accountName?: string }>({
-    mnemonic: undefined,
-    accountName: undefined,
+  const [data, setData] = useState({
+    mnemonic: '',
+    accountName: '',
   });
 
   const { dialogToDisplay, setDialogToDisplay, handleAddAccount } = useContext(AccountsContext);
@@ -156,19 +191,25 @@ export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean
 
   const handleClose = () => {
     setDialogToDisplay('Accounts');
-    setData({ mnemonic: undefined, accountName: undefined });
+    setData({ mnemonic: '', accountName: '' });
     setStep(0);
   };
 
   useEffect(() => {
-    if (dialogToDisplay === 'Accounts') generateMnemonic();
+    if (dialogToDisplay === 'Add') generateMnemonic();
+    else setData({ mnemonic: '', accountName: '' });
   }, [dialogToDisplay]);
 
   return (
-    <Dialog open={dialogToDisplay === 'Add'} onClose={handleClose} fullWidth hideBackdrop>
+    <Dialog
+      open={dialogToDisplay === 'Add' || dialogToDisplay === 'Import'}
+      onClose={handleClose}
+      fullWidth
+      hideBackdrop
+    >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Add new account</Typography>
+          <Typography variant="h6">{`${dialogToDisplay} new account`}</Typography>
           <IconButton onClick={handleClose}>
             <Close />
           </IconButton>
@@ -178,15 +219,24 @@ export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean
             {`Step ${step + 1}/${createAccountSteps.length}`}
           </Typography>
         )}
-        <Typography sx={{ mt: 2 }}>{createAccountSteps[step]}</Typography>
+        <Typography sx={{ mt: 2 }}>
+          {dialogToDisplay === 'Add' ? createAccountSteps[step] : importAccountSteps[step]}
+        </Typography>
       </DialogTitle>
       {withoutPassword && <NoPassword onClose={handleClose} />}
       {!withoutPassword &&
-        data.mnemonic &&
         (() => {
           switch (step) {
             case 0:
-              return <MnemonicStep mnemonic={data.mnemonic} onNext={() => setStep((s) => s + 1)} />;
+              return dialogToDisplay === 'Add' ? (
+                <MnemonicStep mnemonic={data.mnemonic} onNext={() => setStep((s) => s + 1)} />
+              ) : (
+                <ImportMnemonic
+                  value={data.mnemonic}
+                  onChange={(value) => setData((d) => ({ ...d, mnemonic: value }))}
+                  onNext={() => setStep((s) => s + 1)}
+                />
+              );
             case 1:
               return (
                 <NameAccount

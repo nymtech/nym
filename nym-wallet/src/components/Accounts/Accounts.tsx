@@ -4,7 +4,6 @@ import { AccountsContext } from 'src/context';
 import { EditAccountModal } from './EditAccountModal';
 import { AddAccountModal } from './AddAccountModal';
 import { AccountsModal } from './AccountsModal';
-import { ImportAccountModal } from './ImportAccountModal';
 import { AccountAvatar } from './AccountAvatar';
 
 export const Accounts = () => {
@@ -23,7 +22,6 @@ export const Accounts = () => {
       <AccountsModal />
       <AddAccountModal />
       <EditAccountModal />
-      <ImportAccountModal />
     </>
   ) : null;
 };

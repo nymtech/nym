@@ -1,7 +1,6 @@
 import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { TLoginType } from 'src/pages/sign-in/types';
 import { Account, Network, TCurrency, TMixnodeBondDetails, AccountEntry } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import { config } from '../../config';
@@ -30,6 +29,8 @@ export const urls = (networkName?: Network) =>
         networkExplorer: `https://${networkName}-explorer.nymtech.net`,
       };
 
+type TLoginType = 'mnemonic' | 'password';
+
 type TClientContext = {
   mode: 'light' | 'dark';
   clientDetails?: Account;
@@ -42,13 +43,14 @@ type TClientContext = {
   currency?: TCurrency;
   isLoading: boolean;
   error?: string;
+  loginType?: TLoginType;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
-  logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
+  logIn: (opts: { type: TLoginType; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
   onAccountChange: (accountId: string) => void;
@@ -65,6 +67,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
+  const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -108,14 +111,15 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
+  const refreshAccount = async (_network: Network) => {
+    await loadAccount(_network);
+    if (loginType === 'password') {
+      await loadStoredAccounts();
+    }
+  };
+
   useEffect(() => {
-    const refreshAccount = async () => {
-      if (network) {
-        await loadAccount(network);
-        await loadStoredAccounts();
-      }
-    };
-    refreshAccount();
+    if (network) refreshAccount(network);
   }, [network]);
 
   useEffect(() => {
@@ -131,9 +135,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setIsLoading(true);
       if (type === 'mnemonic') {
         await signInWithMnemonic(value);
+        setLoginType('mnemonic');
       } else {
         await signInWithPassword(value);
-        await loadStoredAccounts();
+        setLoginType('password');
       }
       setNetwork('MAINNET');
       history.push('/balance');
@@ -182,6 +187,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       showSettings,
       network,
       currency,
+      loginType,
       setIsLoading,
       setError,
       signInWithPassword,
@@ -194,6 +200,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       onAccountChange,
     }),
     [
+      loginType,
       mode,
       isLoading,
       error,

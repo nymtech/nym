@@ -65,13 +65,9 @@ export const AccountsProvider: React.FC = ({ children }) => {
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async (accountName: string) => {
-    try {
-      await onAccountChange(accountName);
-      const match = accounts?.find((acc) => acc.id === accountName);
-      setSelectedAccount(match);
-    } catch (e) {
-      console.log('boom!');
-    }
+    await onAccountChange(accountName);
+    const match = accounts?.find((acc) => acc.id === accountName);
+    setSelectedAccount(match);
   };
 
   useEffect(() => {

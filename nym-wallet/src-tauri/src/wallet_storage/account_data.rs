@@ -159,10 +159,17 @@ impl StoredLogin {
       StoredLogin::Multiple(accounts) => Some(accounts),
     }
   }
+
+  pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
+    match self {
+      StoredLogin::Mnemonic(ref account) => account.clone().into_multiple(id),
+      StoredLogin::Multiple(ref accounts) => accounts.clone(),
+    }
+  }
 }
 
 /// An account backed by a unique mnemonic.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MnemonicAccount {
   mnemonic: bip39::Mnemonic,
   #[serde(with = "display_hd_path")]
@@ -170,17 +177,11 @@ pub(crate) struct MnemonicAccount {
 }
 
 impl MnemonicAccount {
-  pub(crate) fn generate_new(&self) -> MnemonicAccount {
-    MnemonicAccount {
-      mnemonic: bip39::Mnemonic::generate(self.mnemonic().word_count()).unwrap(),
-      hd_path: self.hd_path().clone(),
-    }
-  }
-
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     &self.mnemonic
   }
 
+  #[cfg(test)]
   pub(crate) fn hd_path(&self) -> &DerivationPath {
     &self.hd_path
   }
@@ -215,7 +216,7 @@ impl Drop for MnemonicAccount {
 }
 
 /// Multiple stored accounts, each entry having an id and a data field.
-#[derive(Serialize, Deserialize, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 pub(crate) struct MultipleAccounts {
   accounts: Vec<WalletAccount>,
 }
@@ -233,6 +234,10 @@ impl MultipleAccounts {
 
   pub(crate) fn get_account(&self, id: &AccountId) -> Option<&WalletAccount> {
     self.accounts.iter().find(|account| &account.id == id)
+  }
+
+  pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
+    self.accounts.into_iter()
   }
 
   #[allow(unused)]
@@ -274,7 +279,7 @@ impl From<Vec<WalletAccount>> for MultipleAccounts {
 }
 
 /// An entry in the list of stored accounts
-#[derive(Serialize, Deserialize, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 pub(crate) struct WalletAccount {
   pub id: AccountId,
   pub account: AccountData,
@@ -293,7 +298,7 @@ impl WalletAccount {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 #[serde(untagged)]
 #[zeroize(drop)]
 pub(crate) enum AccountData {

@@ -1,8 +1,8 @@
 use crate::config::{Config, OptionalValidators, ValidatorUrl};
 use crate::error::BackendError;
 use crate::network::Network;
+use crate::wallet_storage::account_data::WalletAccount;
 
-use bip39::Mnemonic;
 use strum::IntoEnumIterator;
 use validator_client::nymd::SigningNymdClient;
 use validator_client::Client;
@@ -21,7 +21,7 @@ pub struct State {
 
   // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
   // switch accounts on-the-fly
-  all_accounts: HashMap<String, DecryptedAccount>,
+  all_accounts: HashMap<String, WalletAccount>,
 
   /// Validators that have been fetched dynamically, probably during startup.
   fetched_validators: OptionalValidators,
@@ -68,12 +68,12 @@ impl State {
     self.current_network
   }
 
-  pub(crate) fn set_all_accounts(&mut self, all_accounts: HashMap<String, DecryptedAccount>) {
+  pub(crate) fn set_all_accounts(&mut self, all_accounts: HashMap<String, WalletAccount>) {
     self.all_accounts.clear();
     self.all_accounts.extend(all_accounts)
   }
 
-  pub(crate) fn get_all_accounts(&self) -> &HashMap<String, DecryptedAccount> {
+  pub(crate) fn get_all_accounts(&self) -> &HashMap<String, WalletAccount> {
     &self.all_accounts
   }
 
@@ -174,14 +174,6 @@ macro_rules! client {
   ($state:ident) => {
     $state.read().await.current_client()?
   };
-}
-
-// Keep track of mnemonics on the backend, so we can switch accounts
-#[derive(Clone)]
-pub(crate) struct DecryptedAccount {
-  pub id: String,
-  pub mnemonic: Mnemonic,
-  // address: String
 }
 
 #[macro_export]

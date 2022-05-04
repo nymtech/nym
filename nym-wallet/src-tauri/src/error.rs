@@ -98,7 +98,7 @@ pub enum BackendError {
   #[error("Unexpted mnemonic account found")]
   WalletUnexpectedMnemonicAccount,
   #[error("Failed to derive address from mnemonic")]
-    FailedToDeriveAddress,
+  FailedToDeriveAddress,
 }
 
 impl Serialize for BackendError {

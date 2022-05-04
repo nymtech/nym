@@ -4,7 +4,7 @@ use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::nymd_client;
 use crate::state::State;
-use crate::wallet_storage::account_data::{StoredLogin, WalletAccount};
+use crate::wallet_storage::account_data::StoredLogin;
 use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
@@ -444,10 +444,9 @@ pub async fn sign_in_with_password(
 
   {
     // Keep track of all accounts for that id
-    let all_accounts: HashMap<String, WalletAccount> = stored_account
+    let all_accounts: Vec<_> = stored_account
       .unwrap_into_multiple_accounts(id)
       .into_accounts()
-      .map(|a| (a.id.to_string(), a))
       .collect();
 
     let mut w_state = state.write().await;
@@ -514,7 +513,6 @@ pub async fn list_accounts(
 
   let all_accounts = state
     .get_all_accounts()
-    .values()
     .map(|account| AccountEntry {
       id: account.id.to_string(),
       address: derive_address(account.account.mnemonic().clone(), prefix)
@@ -558,13 +556,12 @@ pub async fn sign_in_decrypted_account(
   log::info!("Signing in to already decrypted account: {account_id}");
   let mnemonic = {
     let state = state.read().await;
-    state
+    let account = &state
       .get_all_accounts()
-      .get(account_id)
+      .find(|a| a.id.as_ref() == account_id)
       .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
-      .account
-      .mnemonic()
-      .clone()
+      .account;
+    account.mnemonic().clone()
   };
   _connect_with_mnemonic(mnemonic, state).await
 }

@@ -464,11 +464,12 @@ pub fn remove_password() -> Result<(), BackendError> {
 }
 
 #[tauri::command]
-pub fn add_account_for_password(
+pub async fn add_account_for_password(
   mnemonic: &str,
   password: &str,
   inner_id: &str,
-) -> Result<(), BackendError> {
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<AccountEntry, BackendError> {
   log::info!("Adding account for the current password: {inner_id}");
   let mnemonic = Mnemonic::from_str(mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
@@ -476,9 +477,24 @@ pub fn add_account_for_password(
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
   let password = wallet_storage::UserPassword::new(password.to_string());
+
+  // Creating the returned account entry could fail, so do it before attempting to store to wallet
+  let state = state.read().await;
+  let network: Network = state.current_network().into();
+  let address = derive_address(mnemonic.clone(), network.bech32_prefix())?.to_string();
+
   wallet_storage::append_account_to_wallet_login_information(
-    mnemonic, hd_path, id, inner_id, &password,
-  )
+    mnemonic,
+    hd_path,
+    id,
+    inner_id.clone(),
+    &password,
+  )?;
+
+  Ok(AccountEntry {
+    id: inner_id.to_string(),
+    address,
+  })
 }
 
 #[tauri::command]

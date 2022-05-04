@@ -21,7 +21,7 @@ pub struct State {
 
   // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
   // switch accounts on-the-fly
-  all_accounts: HashMap<String, WalletAccount>,
+  all_accounts: Vec<WalletAccount>,
 
   /// Validators that have been fetched dynamically, probably during startup.
   fetched_validators: OptionalValidators,
@@ -68,13 +68,12 @@ impl State {
     self.current_network
   }
 
-  pub(crate) fn set_all_accounts(&mut self, all_accounts: HashMap<String, WalletAccount>) {
-    self.all_accounts.clear();
-    self.all_accounts.extend(all_accounts)
+  pub(crate) fn set_all_accounts(&mut self, all_accounts: Vec<WalletAccount>) {
+    self.all_accounts = all_accounts
   }
 
-  pub(crate) fn get_all_accounts(&self) -> &HashMap<String, WalletAccount> {
-    &self.all_accounts
+  pub(crate) fn get_all_accounts(&self) -> impl Iterator<Item = &WalletAccount> {
+    self.all_accounts.iter()
   }
 
   pub fn logout(&mut self) {

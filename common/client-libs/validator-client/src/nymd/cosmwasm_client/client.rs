@@ -30,12 +30,26 @@ use cosmwasm_std::Coin as CosmWasmCoin;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
+use std::time::Duration;
 
 #[async_trait]
-impl CosmWasmClient for HttpClient {}
+impl CosmWasmClient for HttpClient {
+    fn broadcast_polling_rate(&self) -> Duration {
+        Duration::from_secs(5)
+    }
+
+    fn broadcast_timeout(&self) -> Duration {
+        Duration::from_secs(60)
+    }
+}
 
 #[async_trait]
 pub trait CosmWasmClient: rpc::Client {
+    // this should probably get redesigned, but I'm leaving those like that temporarily to fix
+    // the underlying issue more quickly
+    fn broadcast_polling_rate(&self) -> Duration;
+    fn broadcast_timeout(&self) -> Duration;
+
     // helper method to remove duplicate code involved in making abci requests with protobuf messages
     // TODO: perhaps it should have an additional argument to determine whether the response should
     // require proof?
@@ -251,6 +265,43 @@ pub trait CosmWasmClient: rpc::Client {
         tx: Transaction,
     ) -> Result<broadcast::tx_commit::Response, NymdError> {
         Ok(rpc::Client::broadcast_tx_commit(self, tx).await?)
+    }
+
+    async fn broadcast_tx(&self, tx: Transaction) -> Result<TxResponse, NymdError> {
+        let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
+
+        if broadcasted.code.is_err() {
+            let code_val = broadcasted.code.value();
+            return Err(NymdError::BroadcastTxErrorDeliverTx {
+                hash: broadcasted.hash,
+                height: None,
+                code: code_val,
+                raw_log: broadcasted.log.to_string(),
+            });
+        }
+
+        let tx_hash = broadcasted.hash;
+
+        let start = tokio::time::Instant::now();
+        loop {
+            println!("polling");
+            log::debug!(
+                "Polling for result of including {} in a block...",
+                broadcasted.hash
+            );
+            if tokio::time::Instant::now().duration_since(start) >= self.broadcast_timeout() {
+                return Err(NymdError::BroadcastTimeout {
+                    hash: tx_hash,
+                    timeout: self.broadcast_timeout(),
+                });
+            }
+
+            if let Ok(poll_res) = self.get_tx(tx_hash).await {
+                return Ok(poll_res);
+            }
+
+            tokio::time::sleep(self.broadcast_polling_rate()).await;
+        }
     }
 
     async fn get_codes(&self) -> Result<Vec<Code>, NymdError> {

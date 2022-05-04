@@ -8,7 +8,6 @@ use crate::nymd::cosmwasm_client::types::{
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmwasm_std::{Coin, Uint128};
@@ -640,7 +639,7 @@ impl<C> NymdClient<C> {
         recipient: &AccountId,
         amount: Vec<CosmosCoin>,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -655,7 +654,7 @@ impl<C> NymdClient<C> {
         &self,
         msgs: Vec<(AccountId, Vec<CosmosCoin>)>,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {

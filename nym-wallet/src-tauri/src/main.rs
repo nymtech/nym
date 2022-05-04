@@ -47,6 +47,7 @@ fn main() {
       mixnet::account::logout,
       mixnet::account::remove_account_for_password,
       mixnet::account::remove_password,
+      mixnet::account::show_mnemonic_for_account_in_password,
       mixnet::account::sign_in_decrypted_account,
       mixnet::account::sign_in_with_password,
       mixnet::account::switch_network,

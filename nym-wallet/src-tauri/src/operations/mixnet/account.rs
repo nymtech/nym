@@ -527,6 +527,30 @@ pub async fn list_accounts(
 }
 
 #[tauri::command]
+pub fn show_mnemonic_for_account_in_password(
+  account_id: String,
+  password: String,
+) -> Result<String, BackendError> {
+  log::info!("Getting mnemonic for: {account_id}");
+  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let account_id = wallet_storage::AccountId::new(account_id);
+  let password = wallet_storage::UserPassword::new(password);
+  let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+
+  let mnemonic = match stored_account {
+    StoredLogin::Mnemonic(_) => return Err(BackendError::WalletUnexpectedMnemonicAccount),
+    StoredLogin::Multiple(ref accounts) => accounts
+      .get_account(&account_id)
+      .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+      .account
+      .mnemonic()
+      .clone(),
+  };
+
+  Ok(mnemonic.to_string())
+}
+
+#[tauri::command]
 pub async fn sign_in_decrypted_account(
   account_id: &str,
   state: tauri::State<'_, Arc<RwLock<State>>>,

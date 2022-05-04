@@ -35,7 +35,7 @@ use std::time::Duration;
 #[async_trait]
 impl CosmWasmClient for HttpClient {
     fn broadcast_polling_rate(&self) -> Duration {
-        Duration::from_secs(5)
+        Duration::from_secs(4)
     }
 
     fn broadcast_timeout(&self) -> Duration {
@@ -284,7 +284,6 @@ pub trait CosmWasmClient: rpc::Client {
 
         let start = tokio::time::Instant::now();
         loop {
-            println!("polling");
             log::debug!(
                 "Polling for result of including {} in a block...",
                 broadcasted.hash

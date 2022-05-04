@@ -36,7 +36,7 @@ const DUMMY_SECP256K1_SIGNATURE: &[u8] = &[
     91,
 ];
 
-const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(5);
+const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[async_trait]

@@ -54,7 +54,7 @@ pub mod wallet;
 
 #[derive(Debug)]
 pub struct NymdClient<C> {
-    pub client: C,
+    client: C,
     mixnet_contract_address: Option<AccountId>,
     vesting_contract_address: Option<AccountId>,
     erc20_bridge_contract_address: Option<AccountId>,

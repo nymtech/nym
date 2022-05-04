@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
+
+### Changed
+
+- all: the default behaviour of validator client is changed to use `broadcast_sync` and poll for transaction inclusion instead of using `broadcast_commit` to deal with timeouts ([#1246])
+
 ## [v1.0.1](https://github.com/nymtech/nym/tree/v1.0.1) (2022-05-04)
 
 ### Added
@@ -18,7 +24,6 @@
 
 [#1238]: https://github.com/nymtech/nym/pull/1238
 [#1246]: https://github.com/nymtech/nym/pull/1246
-
 
 ## [v1.0.0](https://github.com/nymtech/nym/tree/v1.0.0) (2022-05-03)
 

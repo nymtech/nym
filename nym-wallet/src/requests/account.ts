@@ -13,13 +13,13 @@ export const signInWithMnemonic = async (mnemonic: string): Promise<Account> => 
   return res;
 };
 
-export const validateMnemonic = async (mnemonic: string): Promise<boolean> => {
-  const res: boolean = await invoke('validate_mnemonic', { mnemonic });
+export const signInWithPassword = async (password: string): Promise<Account> => {
+  const res: Account = await invoke('sign_in_with_password', { password });
   return res;
 };
 
-export const signInWithPassword = async (password: string): Promise<Account> => {
-  const res: Account = await invoke('sign_in_with_password', { password });
+export const validateMnemonic = async (mnemonic: string): Promise<boolean> => {
+  const res: boolean = await invoke('validate_mnemonic', { mnemonic });
   return res;
 };
 
@@ -44,7 +44,20 @@ export const addAccount = async ({
   await invoke('add_account_for_password', { mnemonic, password, innerId: accountName });
 };
 
+export const removeAccount = async ({ password, accountName }: { password: string; accountName: string }) => {
+  await invoke('remove_account_for_password', { password, innerId: accountName });
+};
+
 export const listAccounts = async () => {
   const res: AccountEntry[] = await invoke('list_accounts');
   return res;
+};
+
+export const showMnemonicForAccount = async ({ password, accountName }: { password: string; accountName: string }) => {
+  const res: string = await invoke('show_mnemonic_for_account_in_password', { password, innerId: accountName });
+  return res;
+};
+
+export const switchAccount = async (accountId: string) => {
+  await invoke('sign_in_decrypted_account', { accountId });
 };

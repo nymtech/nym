@@ -12,6 +12,7 @@ import {
   signInWithMnemonic,
   signInWithPassword,
   signOut,
+  switchAccount,
 } from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
@@ -50,7 +51,7 @@ type TClientContext = {
   logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
-  onAccountChange: (mnemonic: string) => void;
+  onAccountChange: (accountId: string) => void;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -92,6 +93,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
+  const loadStoredAccounts = async () => {
+    const accounts = await listAccounts();
+    setStoredAccounts(accounts);
+  };
+
   const getBondDetails = async () => {
     setMixnodeDetails(undefined);
     try {
@@ -111,11 +117,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     refreshAccount();
   }, [network]);
 
-  const loadAccounts = async () => {
-    const accs = await listAccounts();
-    setStoredAccounts(accs);
-  };
-
   useEffect(() => {
     if (!clientDetails) clearState();
   }, [clientDetails]);
@@ -131,7 +132,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
         await signInWithMnemonic(value);
       } else {
         await signInWithPassword(value);
-        await loadAccounts();
+        await loadStoredAccounts();
       }
       setNetwork('MAINNET');
       history.push('/balance');
@@ -148,11 +149,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     enqueueSnackbar('Successfully logged out', { variant: 'success' });
   };
 
-  const onAccountChange = async (value: string) => {
-    clearState();
-    await signOut();
-    await logIn({ type: 'mnemonic', value });
-    enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
+  const onAccountChange = async (accountId: string) => {
+    if (network) {
+      setIsLoading(true);
+      await switchAccount(accountId);
+      await loadAccount(network);
+      setIsLoading(false);
+      enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
+    }
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
@@ -183,7 +187,19 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       logOut,
       onAccountChange,
     }),
-    [mode, isLoading, error, clientDetails, mixnodeDetails, userBalance, showAdmin, showSettings, network, currency],
+    [
+      mode,
+      isLoading,
+      error,
+      clientDetails,
+      mixnodeDetails,
+      userBalance,
+      showAdmin,
+      showSettings,
+      network,
+      currency,
+      storedAccounts,
+    ],
   );
 
   return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;

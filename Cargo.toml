@@ -9,6 +9,9 @@ overflow-checks = true
 [profile.dev]
 panic = "abort"
 
+[profile.test]
+opt-level = 2
+
 [workspace]
 
 resolver = "2"

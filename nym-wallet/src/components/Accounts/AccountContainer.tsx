@@ -15,6 +15,10 @@ export const AccountsContainer = ({ storedAccounts }: { storedAccounts: AccountE
     if (selected) setSelectedAccount(selected);
   }, [accounts, storedAccounts]);
 
+  useEffect(() => {
+    setAccounts(storedAccounts);
+  }, [storedAccounts]);
+
   const addAccount = async ({
     accountName,
     mnemonic,

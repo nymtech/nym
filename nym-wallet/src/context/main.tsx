@@ -73,7 +73,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const clearState = () => {
     userBalance.clearAll();
-    setClientDetails(undefined);
+    setStoredAccounts(undefined);
     setNetwork(undefined);
     setError(undefined);
     setIsLoading(false);
@@ -106,20 +106,19 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     const refreshAccount = async () => {
       if (network) {
         await loadAccount(network);
-        await getBondDetails();
-        await userBalance.fetchBalance();
       }
     };
     refreshAccount();
   }, [network]);
 
+  const loadAccounts = async () => {
+    const accs = await listAccounts();
+    setStoredAccounts(accs);
+  };
+
   useEffect(() => {
-    const fetchAccounts = async () => {
-      const accs = await listAccounts();
-      setStoredAccounts(accs);
-    };
-    fetchAccounts();
-  }, []);
+    if (!clientDetails) clearState();
+  }, [clientDetails]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {
@@ -132,6 +131,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
         await signInWithMnemonic(value);
       } else {
         await signInWithPassword(value);
+        await loadAccounts();
       }
       setNetwork('MAINNET');
       history.push('/balance');
@@ -143,8 +143,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   };
 
   const logOut = async () => {
-    clearState();
     await signOut();
+    setClientDetails(undefined);
     enqueueSnackbar('Successfully logged out', { variant: 'success' });
   };
 

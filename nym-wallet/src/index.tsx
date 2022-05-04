@@ -20,13 +20,11 @@ const App = () => {
     maximizeWindow();
   }, []);
 
-  if (!clientDetails)
-    return (
-      <WelcomeTheme>
-        <SignInProvider>{!isLoading ? <SignInRoutes /> : <LoadingPage />}</SignInProvider>
-      </WelcomeTheme>
-    );
-  return (
+  return !clientDetails ? (
+    <WelcomeTheme>
+      <SignInProvider>{!isLoading ? <SignInRoutes /> : <LoadingPage />}</SignInProvider>
+    </WelcomeTheme>
+  ) : (
     <NymWalletTheme>
       <ApplicationLayout>
         <Settings />

@@ -22,7 +22,7 @@ export const Accounts = ({
   setDialogToDisplay,
 }: {
   accounts?: AccountEntry[];
-  selectedAccount: AccountEntry;
+  selectedAccount?: AccountEntry;
   accountToEdit?: AccountEntry;
   dialogToDisplay?: TDialog;
   addAccount: (acc: { accountName: string; mnemonic: string; password: string }) => Promise<void>;
@@ -32,7 +32,7 @@ export const Accounts = ({
   setSelectedAccount: (accountName: string) => void;
   setDialogToDisplay: (dialog: TDialog | undefined) => void;
 }) =>
-  accounts ? (
+  accounts && selectedAccount ? (
     <>
       <Button
         startIcon={<AccountAvatar address={selectedAccount.address} name={selectedAccount.id} />}

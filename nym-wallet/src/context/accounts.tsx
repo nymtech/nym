@@ -37,11 +37,15 @@ export const AccountsProvider: React.FC = ({ children }) => {
     mnemonic: string;
     password: string;
   }) => {
-    await addAccountRequest({
-      accountName,
-      mnemonic,
-      password,
-    });
+    try {
+      await addAccountRequest({
+        accountName,
+        mnemonic,
+        password,
+      });
+    } catch (e) {
+      console.log('Error adding account');
+    }
   };
   const handleEditAccount = (account: AccountEntry) =>
     setAccounts((accs) => accs?.map((acc) => (acc.address === account.address ? account : acc)));
@@ -52,20 +56,21 @@ export const AccountsProvider: React.FC = ({ children }) => {
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async (accountName: string) => {
-    const match = accounts?.find((acc) => acc.id === accountName);
-    if (match) {
-      try {
-        await onAccountChange(match.id);
-        setSelectedAccount(match);
-      } catch (e) {
-        console.log('Error swtiching account');
-      }
+    try {
+      await onAccountChange(accountName);
+      const match = accounts?.find((acc) => acc.id === accountName);
+      setSelectedAccount(match);
+    } catch (e) {
+      console.log('Error swtiching account');
     }
   };
 
   useEffect(() => {
     if (storedAccounts) {
       setAccounts(storedAccounts);
+    }
+
+    if (storedAccounts && !selectedAccount) {
       setSelectedAccount(storedAccounts[0]);
     }
   }, [storedAccounts]);

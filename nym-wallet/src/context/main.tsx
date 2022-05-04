@@ -112,6 +112,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     const refreshAccount = async () => {
       if (network) {
         await loadAccount(network);
+        await loadStoredAccounts();
       }
     };
     refreshAccount();

@@ -1,7 +1,6 @@
 import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { Logout } from '@mui/icons-material';
-import { AccountsProvider } from 'src/context/accounts';
 import { ClientContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { Node as NodeIcon } from '../svg-icons/node';
@@ -16,9 +15,7 @@ export const AppBar = () => {
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
           <Grid item container alignItems="center" spacing={1}>
             <Grid item>
-              <AccountsProvider>
-                <Accounts />
-              </AccountsProvider>
+              <Accounts />
             </Grid>
             <Grid item>
               <NetworkSelector />

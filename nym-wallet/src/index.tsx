@@ -10,7 +10,7 @@ import { Admin, Settings } from './pages';
 import { ErrorFallback } from './components';
 import { NymWalletTheme, WelcomeTheme } from './theme';
 import { maximizeWindow } from './utils';
-import { SignInProvider } from './context';
+import { AccountsProvider, SignInProvider } from './context';
 import { LoadingPage } from './components/LoadingPage';
 
 const App = () => {
@@ -26,11 +26,17 @@ const App = () => {
     </WelcomeTheme>
   ) : (
     <NymWalletTheme>
-      <ApplicationLayout>
-        <Settings />
-        <Admin />
-        <AppRoutes />
-      </ApplicationLayout>
+      <AccountsProvider>
+        {isLoading ? (
+          <LoadingPage />
+        ) : (
+          <ApplicationLayout>
+            <Settings />
+            <Admin />
+            <AppRoutes />
+          </ApplicationLayout>
+        )}
+      </AccountsProvider>
     </NymWalletTheme>
   );
 };

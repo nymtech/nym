@@ -23,7 +23,7 @@ export const LoadingPage = () => (
       }}
     >
       <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
-        <NymWordmark width={75} />
+        <NymWordmark width={75} fill="white" />
         <Box width="25%">
           <LinearProgress variant="indeterminate" color="primary" />
         </Box>

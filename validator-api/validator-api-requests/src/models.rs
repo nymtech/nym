@@ -63,7 +63,7 @@ pub struct RewardEstimationResponse {
     pub as_at: i64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
     pub identity: String,
     pub avg_uptime: u8,

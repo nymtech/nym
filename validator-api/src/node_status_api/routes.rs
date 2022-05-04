@@ -254,6 +254,7 @@ async fn average_mixnode_uptime(
     })
 }
 
+#[openapi(tag = "mixnode")]
 #[get("/mixnode/<identity>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<ValidatorCache>,
@@ -269,7 +270,8 @@ pub(crate) async fn get_mixnode_avg_uptime(
     }))
 }
 
-#[get("/mixnodes/avg_uptime")]
+#[openapi(tag = "mixnode")]
+#[get("/mixnodes/avg_uptimes")]
 pub(crate) async fn get_mixnode_avg_uptimes(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,

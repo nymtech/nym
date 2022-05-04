@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Account, AccountEntry, TAccountsDialog } from 'src/types';
+import { AccountEntry } from 'src/types';
 import { addAccount as addAccountRequest } from 'src/requests';
 import { ClientContext } from './main';
 
@@ -15,6 +15,8 @@ type TAccounts = {
   handleEditAccount: (account: AccountEntry) => void;
   handleImportAccount: (account: AccountEntry) => void;
 };
+
+export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Import';
 
 export const AccountsContext = createContext({} as TAccounts);
 

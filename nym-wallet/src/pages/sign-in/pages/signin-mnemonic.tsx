@@ -1,9 +1,9 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
+import { ClientContext } from 'src/context';
 import { isPasswordCreated } from 'src/requests';
 import { MnemonicInput, Subtitle } from '../components';
-import { ClientContext } from 'src/context';
 
 export const SignInMnemonic = () => {
   const [mnemonic, setMnemonic] = useState('');

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -15,6 +15,7 @@ import {
 import { Check, Close, ContentCopySharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic } from 'src/requests';
+import { AccountsContext } from 'src/context';
 
 const createAccountSteps = ['Save and copy mnemonic for your new account', 'Name your new account', 'Confirm password'];
 
@@ -135,42 +136,36 @@ const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void 
   );
 };
 
-export const AddAccountModal = ({
-  show,
-  withoutPassword,
-  onClose,
-  onAdd,
-}: {
-  show: boolean;
-  withoutPassword?: boolean;
-  onClose: () => void;
-  onAdd: (data: { accountName: string; mnemonic: string; password: string }) => void;
-}) => {
+export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean }) => {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<{ mnemonic?: string; accountName?: string }>({
     mnemonic: undefined,
     accountName: undefined,
   });
 
+  const { dialogToDisplay, setDialogToDisplay, handleAddAccount } = useContext(AccountsContext);
+
   const generateMnemonic = async () => {
     const mnemon = await createMnemonic();
     setData((d) => ({ ...d, mnemonic: mnemon }));
   };
 
+  const handleClose = () => {
+    setDialogToDisplay('Accounts');
+    setData({ mnemonic: undefined, accountName: undefined });
+    setStep(0);
+  };
+
   useEffect(() => {
-    if (show) generateMnemonic();
-    else {
-      setData({ mnemonic: undefined, accountName: undefined });
-      setStep(0);
-    }
-  }, [show]);
+    if (dialogToDisplay === 'Accounts') generateMnemonic();
+  }, [dialogToDisplay]);
 
   return (
-    <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Add'} onClose={handleClose} fullWidth hideBackdrop>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Add new account</Typography>
-          <IconButton onClick={onClose}>
+          <IconButton onClick={handleClose}>
             <Close />
           </IconButton>
         </Box>
@@ -181,7 +176,7 @@ export const AddAccountModal = ({
         )}
         <Typography sx={{ mt: 2 }}>{createAccountSteps[step]}</Typography>
       </DialogTitle>
-      {withoutPassword && <NoPassword onClose={onClose} />}
+      {withoutPassword && <NoPassword onClose={handleClose} />}
       {!withoutPassword &&
         data.mnemonic &&
         (() => {
@@ -202,7 +197,7 @@ export const AddAccountModal = ({
                 <ConfirmPassword
                   onConfirm={(password) => {
                     if (data.accountName && data.mnemonic) {
-                      onAdd({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                      handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
                     }
                   }}
                 />

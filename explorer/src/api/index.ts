@@ -123,12 +123,8 @@ export class Api {
   static fetchMixnodeDescriptionById = async (id: string): Promise<MixNodeDescriptionResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/description`)).json();
 
-  static fetchMixnodeEconomicDynamicsStatsById = async (id: string): Promise<MixNodeEconomicDynamicsStatsResponse> => {
-    const resp = await (await fetch(`${MIXNODE_API}/${id}/economic-dynamics-stats`)).json();
-    resp.active_set_inclusion_probability = 'Low';
-    resp.reserve_set_inclusion_probability = 'Low';
-    return resp as MixNodeEconomicDynamicsStatsResponse;
-  };
+  static fetchMixnodeEconomicDynamicsStatsById = async (id: string): Promise<MixNodeEconomicDynamicsStatsResponse> =>
+    (await fetch(`${MIXNODE_API}/${id}/economic-dynamics-stats`)).json();
 
   static fetchStatusById = async (id: string): Promise<StatusResponse> => (await fetch(`${MIXNODE_PING}/${id}`)).json();
 

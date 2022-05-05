@@ -27,4 +27,4 @@
 # 2. In the Issue's Description field, add your release summary content 
 # 3. Set the Issue Label `release-summary` and add it to the GitHub Milestone `v1.0.0`
 # 4. Close the Issue and execute `github-changelog-generator`
-github_changelog_generator -u nymtech -p nym --exclude-tags 0.1.0 --token "$CHANGELOG_GITHUB_TOKEN"
+github_changelog_generator -u nymtech -p nym --exclude-tags 0.1.0,nym-wallet-v1.0.0-windows --token "$CHANGELOG_GITHUB_TOKEN"

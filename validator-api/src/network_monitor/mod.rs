@@ -93,7 +93,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&identity_keypair),
             self.config.get_gateway_sending_rate(),
             bandwidth_controller,
-            self.config.get_testnet_mode(),
+            self.config.get_disabled_credentials_mode(),
         );
 
         let received_processor = new_received_processor(
@@ -161,7 +161,7 @@ fn new_packet_sender(
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
     bandwidth_controller: BandwidthController<PersistentStorage>,
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 ) -> PacketSender {
     PacketSender::new(
         gateways_status_updater,
@@ -171,7 +171,7 @@ fn new_packet_sender(
         config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
         bandwidth_controller,
-        testnet_mode,
+        disabled_credentials_mode,
     )
 }
 

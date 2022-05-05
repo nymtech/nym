@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use rocket::fairing::AdHoc;
+use rocket_okapi::openapi_get_routes;
 use std::time::Duration;
 
 pub(crate) mod local_guard;
@@ -18,7 +19,7 @@ pub(crate) fn stage_full() -> AdHoc {
     AdHoc::on_ignite("Node Status API Stage", |rocket| async {
         rocket.mount(
             "/v1/status",
-            routes![
+            openapi_get_routes![
                 routes::mixnode_report,
                 routes::gateway_report,
                 routes::mixnode_uptime_history,
@@ -29,6 +30,8 @@ pub(crate) fn stage_full() -> AdHoc {
                 routes::get_mixnode_reward_estimation,
                 routes::get_mixnode_stake_saturation,
                 routes::get_mixnode_inclusion_probability,
+                routes::get_mixnode_avg_uptime,
+                routes::get_mixnode_avg_uptimes,
             ],
         )
     })
@@ -40,7 +43,7 @@ pub(crate) fn stage_minimal() -> AdHoc {
     AdHoc::on_ignite("Node Status API Stage", |rocket| async {
         rocket.mount(
             "/v1/status",
-            routes![
+            openapi_get_routes![
                 routes::get_mixnode_status,
                 routes::get_mixnode_stake_saturation,
                 routes::get_mixnode_inclusion_probability,

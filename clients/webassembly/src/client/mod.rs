@@ -26,7 +26,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 #[wasm_bindgen]
 pub struct NymClient {
     validator_server: Url,
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -72,7 +72,7 @@ impl NymClient {
 
             on_message: None,
             on_gateway_connect: None,
-            testnet_mode: true,
+            disabled_credentials_mode: true,
         }
     }
 
@@ -85,9 +85,12 @@ impl NymClient {
         self.on_gateway_connect = Some(on_connect)
     }
 
-    pub fn set_testnet_mode(&mut self, testnet_mode: bool) {
-        console_log!("Setting testnet mode to {}", testnet_mode);
-        self.testnet_mode = testnet_mode;
+    pub fn set_disabled_credentials_mode(&mut self, disabled_credentials_mode: bool) {
+        console_log!(
+            "Setting disabled credentials mode to {}",
+            disabled_credentials_mode
+        );
+        self.disabled_credentials_mode = disabled_credentials_mode;
     }
 
     fn self_recipient(&self) -> Recipient {
@@ -107,7 +110,7 @@ impl NymClient {
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
-        let testnet_mode = self.testnet_mode;
+        let disabled_credentials_mode = self.disabled_credentials_mode;
 
         let bandwidth_controller = None;
 
@@ -129,8 +132,8 @@ impl NymClient {
             bandwidth_controller,
         );
 
-        if testnet_mode {
-            gateway_client.set_testnet_mode(true)
+        if disabled_credentials_mode {
+            gateway_client.set_disabled_credentials_mode(true)
         }
 
         gateway_client

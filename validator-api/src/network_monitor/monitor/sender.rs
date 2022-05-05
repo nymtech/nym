@@ -99,7 +99,7 @@ struct FreshGatewayClientData {
     // get things running we're re-using the same credential for all gateways all the time.
     // THIS IS VERY BAD!!
     bandwidth_controller: BandwidthController<PersistentStorage>,
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 }
 
 impl FreshGatewayClientData {
@@ -159,7 +159,7 @@ impl PacketSender {
         max_concurrent_clients: usize,
         max_sending_rate: usize,
         bandwidth_controller: BandwidthController<PersistentStorage>,
-        testnet_mode: bool,
+        disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
             active_gateway_clients: ActiveGatewayClients::new(),
@@ -168,7 +168,7 @@ impl PacketSender {
                 local_identity,
                 gateway_response_timeout,
                 bandwidth_controller,
-                testnet_mode,
+                disabled_credentials_mode,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -216,8 +216,8 @@ impl PacketSender {
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
         );
 
-        if fresh_gateway_client_data.testnet_mode {
-            gateway_client.set_testnet_mode(true)
+        if fresh_gateway_client_data.disabled_credentials_mode {
+            gateway_client.set_disabled_credentials_mode(true)
         }
 
         (

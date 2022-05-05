@@ -123,10 +123,10 @@ pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
 
-    /// Indicates whether this validator api is running in a testnet mode, thus attempting
+    /// Indicates whether this validator api is running in a disabled credentials mode, thus attempting
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     /// Specifies list of all validators on the network issuing coconut credentials.
     /// A special care must be taken to ensure they are in correct order.
@@ -200,7 +200,7 @@ impl Default for NetworkMonitor {
             min_mixnode_reliability: DEFAULT_MIN_MIXNODE_RELIABILITY,
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
-            testnet_mode: false,
+            disabled_credentials_mode: true,
             all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
@@ -305,8 +305,8 @@ impl Config {
         self
     }
 
-    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
-        self.network_monitor.testnet_mode = testnet_mode;
+    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
+        self.network_monitor.disabled_credentials_mode = disabled_credentials_mode;
         self
     }
 
@@ -383,8 +383,8 @@ impl Config {
         self.coconut_signer.enabled
     }
 
-    pub fn get_testnet_mode(&self) -> bool {
-        self.network_monitor.testnet_mode
+    pub fn get_disabled_credentials_mode(&self) -> bool {
+        self.network_monitor.disabled_credentials_mode
     }
 
     pub fn get_credentials_database_path(&self) -> PathBuf {

@@ -1,9 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// approximately 1 week (assuming 5s per block)
-// i.e. approximately quarter of the interval (there are 3600 * 60 * 7 = 604800 seconds in a week, i.e. ~604800 / 5 = 120960 blocks)
-pub const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 120960;
+// approximately 1 epoch (assuming 5s per block)
+pub const MINIMUM_BLOCK_AGE_FOR_REWARDING: u64 = 720;
 
 pub const INTERVAL_REWARD_PERCENT: u8 = 2; // Used to calculate interval reward pool
 pub const SYBIL_RESISTANCE_PERCENT: u8 = 30;

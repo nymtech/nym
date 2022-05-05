@@ -39,7 +39,7 @@ pub fn query_operator_reward(deps: Deps, owner: String) -> Result<Uint128, Contr
         }
     };
 
-    super::transactions::calculate_operator_reward(deps.storage, &owner_address, &bond)
+    super::transactions::calculate_operator_reward(deps.storage, deps.api, &owner_address, &bond)
 }
 
 pub fn query_delegator_reward(
@@ -58,7 +58,7 @@ pub fn query_delegator_reward(
         &deps.api.addr_validate(&owner)?,
         proxy.as_ref(),
     );
-    super::transactions::calculate_delegator_reward(deps.storage, key, &mix_identity)
+    super::transactions::calculate_delegator_reward(deps.storage, deps.api, key, &mix_identity)
 }
 
 #[cfg(test)]

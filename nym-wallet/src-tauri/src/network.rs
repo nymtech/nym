@@ -37,7 +37,7 @@ impl Network {
 
 impl Default for Network {
   fn default() -> Self {
-    Network::SANDBOX
+    Network::MAINNET
   }
 }
 

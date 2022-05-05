@@ -22,7 +22,7 @@ use crate::node::client_handling::websocket::connection_handler::eth_events::ERC
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     #[cfg(feature = "coconut")]
     aggregated_verification_key: VerificationKey,
@@ -35,14 +35,14 @@ impl Listener {
     pub(crate) fn new(
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
-        testnet_mode: bool,
+        disabled_credentials_mode: bool,
         #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
         #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
     ) -> Self {
         Listener {
             address,
             local_identity,
-            testnet_mode,
+            disabled_credentials_mode,
             #[cfg(feature = "coconut")]
             aggregated_verification_key,
             #[cfg(not(feature = "coconut"))]
@@ -78,7 +78,7 @@ impl Listener {
                     let handle = FreshHandler::new(
                         OsRng,
                         socket,
-                        self.testnet_mode,
+                        self.disabled_credentials_mode,
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         storage.clone(),

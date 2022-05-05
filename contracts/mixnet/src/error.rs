@@ -168,4 +168,15 @@ pub enum ContractError {
         identity: String,
         kind: String, // delegation | undelegation
     },
+    #[error("Attempted to subsctract more then the total delegation, this MUST never happen! mix: {mix_identity}, total_node_delegation {total_node_delegation}, to_subtract {to_subtract}")]
+    TotalDelegationSubOverflow {
+        mix_identity: String,
+        total_node_delegation: u128,
+        to_subtract: u128,
+    },
+    #[error("Profit margin can be updated only once during a rolling 30 day interval, last update was at {last_update_time} and current block time is {current_block_time}")]
+    UpdatePMTooSoon {
+        last_update_time: u64,
+        current_block_time: u64,
+    },
 }

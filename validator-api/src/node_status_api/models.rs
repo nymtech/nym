@@ -3,9 +3,16 @@
 
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
+use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
 use rocket::Request;
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::response::OpenApiResponderInner;
+use rocket_okapi::util::ensure_status_code_exists;
+use schemars::gen::SchemaGenerator;
+use schemars::schema::{InstanceType, Schema};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
@@ -17,7 +24,7 @@ use time::OffsetDateTime;
 pub struct InvalidUptime;
 
 // value in range 0-100
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, JsonSchema)]
 pub struct Uptime(u8);
 
 impl Uptime {
@@ -97,7 +104,7 @@ impl TryFrom<i64> for Uptime {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeStatusReport {
     pub(crate) identity: String,
     pub(crate) owner: String,
@@ -134,7 +141,7 @@ impl MixnodeStatusReport {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayStatusReport {
     pub(crate) identity: String,
     pub(crate) owner: String,
@@ -171,7 +178,7 @@ impl GatewayStatusReport {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeUptimeHistory {
     pub(crate) identity: String,
     pub(crate) owner: String,
@@ -189,7 +196,7 @@ impl MixnodeUptimeHistory {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayUptimeHistory {
     pub(crate) identity: String,
     pub(crate) owner: String,
@@ -207,7 +214,7 @@ impl GatewayUptimeHistory {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct HistoricalUptime {
     // ISO 8601 date string
     // I think this is more than enough, we don't need the uber precision of timezone offsets, etc
@@ -237,6 +244,43 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
             .sized_body(self.error_message.len(), Cursor::new(self.error_message))
             .status(self.status)
             .ok()
+    }
+}
+
+impl JsonSchema for ErrorResponse {
+    fn schema_name() -> String {
+        "ErrorResponse".to_owned()
+    }
+
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        let mut schema_object = SchemaObject {
+            instance_type: Some(InstanceType::Object.into()),
+            ..SchemaObject::default()
+        };
+
+        let object_validation = schema_object.object();
+        object_validation
+            .properties
+            .insert("error_message".to_owned(), gen.subschema_for::<String>());
+        object_validation
+            .required
+            .insert("error_message".to_owned());
+
+        // Status does not implement JsonSchema so we just explicitly specify the inner type.
+        object_validation
+            .properties
+            .insert("status".to_owned(), gen.subschema_for::<u16>());
+        object_validation.required.insert("status".to_owned());
+
+        Schema::Object(schema_object)
+    }
+}
+
+impl OpenApiResponderInner for ErrorResponse {
+    fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
+        let mut responses = Responses::default();
+        ensure_status_code_exists(&mut responses, 404);
+        Ok(responses)
     }
 }
 

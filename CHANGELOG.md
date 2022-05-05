@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- validator-api: add Swagger to document the REST API ([#1249]).
+
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 
 ### Changed

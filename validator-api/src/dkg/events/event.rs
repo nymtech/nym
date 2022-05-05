@@ -8,3 +8,12 @@ pub(crate) enum Event {
     NewDealing(NewDealingMessage),
     NewDealingRequest(RemoteDealingRequestMessage),
 }
+
+impl Event {
+    pub(crate) fn name(&self) -> String {
+        match self {
+            Event::NewDealing(..) => "NewDealing".to_string(),
+            Event::NewDealingRequest(..) => "NewDealingRequest".to_string(),
+        }
+    }
+}

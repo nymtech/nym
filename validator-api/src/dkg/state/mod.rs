@@ -10,6 +10,10 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+mod accessor;
+
+pub(crate) use accessor::StateAccessor;
+
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
 
 // TODO: some TryFrom impl to convert from encoded contract data
@@ -27,6 +31,33 @@ pub(crate) struct DkgState {
     inner: Arc<Mutex<DkgStateInner>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReceivedDealing {
+    epoch_id: u32,
+    #[serde(with = "dealing_bytes")]
+    dealing: Box<Dealing>,
+    signature: identity::Signature,
+}
+
+mod dealing_bytes {
+    use dkg::Dealing;
+    use serde::de::Error as SerdeError;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
+
+    pub fn serialize<S: Serializer>(val: &Dealing, serializer: S) -> Result<S::Ok, S::Error> {
+        SerdeBytes::new(&val.to_bytes()).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Box<Dealing>, D::Error> {
+        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
+        let dealing = Dealing::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)?;
+        Ok(Box::new(dealing))
+    }
+}
+
 #[derive(Debug)]
 struct DkgStateInner {
     bte_decryption_key: bte::DecryptionKey,
@@ -36,12 +67,15 @@ struct DkgStateInner {
 
     expected_epoch_dealing_digests: HashMap<IdentityBytes, [u8; 32]>,
     current_epoch_dealers: HashMap<IdentityBytes, Dealer>,
-    verified_epoch_dealings: HashMap<IdentityBytes, Dealing>,
-    unconfirmed_dealings: HashMap<IdentityBytes, Dealing>,
+    verified_epoch_dealings: HashMap<IdentityBytes, ReceivedDealing>,
+    unconfirmed_dealings: HashMap<IdentityBytes, ReceivedDealing>,
 }
 
 impl DkgState {
     // some save/load action here
+    pub(crate) async fn save(&self) {
+        todo!()
+    }
 
     pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> (bool, Epoch) {
         let guard = self.inner.lock().await;
@@ -63,7 +97,7 @@ impl DkgState {
     pub(crate) async fn get_verified_dealing(
         &self,
         dealer: identity::PublicKey,
-    ) -> Option<Dealing> {
+    ) -> Option<ReceivedDealing> {
         self.inner
             .lock()
             .await

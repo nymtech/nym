@@ -266,7 +266,7 @@ impl PemStorableKey for PrivateKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Signature(ed25519_dalek::Signature);
 
 impl Signature {

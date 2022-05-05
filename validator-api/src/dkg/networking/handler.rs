@@ -1,12 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dkg::events::DispatcherSender;
+use crate::dkg::events::Event;
 use crate::dkg::networking::codec::DkgCodec;
 use crate::dkg::networking::message::{
     ErrorResponseMessage, NewDealingMessage, OffchainDkgMessage, RemoteDealingRequestMessage,
 };
-use crate::dkg::state::DkgState;
+use crate::dkg::state::StateAccessor;
 use futures::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -20,23 +20,16 @@ const DEFAULT_MAX_CONNECTION_DURATION: Duration = Duration::from_secs(2 * 60 * 6
 pub(crate) struct ConnectionHandler {
     // connection cannot exist for more than this time
     max_connection_duration: Duration,
-    dispatcher_sender: DispatcherSender,
-    dkg_state: DkgState,
+    state_accessor: StateAccessor,
     conn: Framed<TcpStream, DkgCodec>,
     remote: SocketAddr,
 }
 
 impl ConnectionHandler {
-    pub(crate) fn new(
-        dispatcher_sender: DispatcherSender,
-        dkg_state: DkgState,
-        conn: TcpStream,
-        remote: SocketAddr,
-    ) -> Self {
+    pub(crate) fn new(state_accessor: StateAccessor, conn: TcpStream, remote: SocketAddr) -> Self {
         ConnectionHandler {
             max_connection_duration: DEFAULT_MAX_CONNECTION_DURATION,
-            dispatcher_sender,
-            dkg_state,
+            state_accessor,
             remote,
             conn: Framed::new(conn, DkgCodec),
         }
@@ -52,7 +45,10 @@ impl ConnectionHandler {
     }
 
     async fn handle_new_dealing(&self, id: u64, message: NewDealingMessage) {
-        todo!()
+        // we'll probably need to wait for a response or something, so this is rather temporary
+        self.state_accessor
+            .push_event(Event::NewDealing(message))
+            .await
     }
 
     async fn handle_remote_dealing_request(
@@ -60,13 +56,7 @@ impl ConnectionHandler {
         id: u64,
         message: RemoteDealingRequestMessage,
     ) {
-        // TODO: when somebody is reviewing this code, what's your opinion on accessing the DkgState here
-        // vs keeping it slightly more consistent and dispatching an event to request the value from
-        // something managing it instead?
-
-        // personal note: once more parts are developed, I might change it myself before it even gets to the PR state
-
-        let current_epoch = self.dkg_state.current_epoch().await;
+        let current_epoch = self.state_accessor.current_epoch().await;
         if current_epoch.id != message.epoch_id {
             return self
                 .send_error_response(
@@ -79,10 +69,13 @@ impl ConnectionHandler {
                 .await;
         }
 
-        let dealing = self.dkg_state.get_verified_dealing(message.dealer).await;
+        let dealing = self
+            .state_accessor
+            .get_verified_dealing(message.dealer)
+            .await;
 
-        self.send_response(todo!()).await;
-        todo!()
+        self.send_response(OffchainDkgMessage::new_remote_dealing_response(id, dealing))
+            .await;
     }
 
     async fn handle_request(&mut self, request: OffchainDkgMessage) {
@@ -117,7 +110,10 @@ impl ConnectionHandler {
     async fn _handle_connection(&mut self) {
         debug!("Starting connection handler for {}", self.remote);
 
-        let (is_dealer, epoch) = self.dkg_state.is_dealers_remote_address(self.remote).await;
+        let (is_dealer, epoch) = self
+            .state_accessor
+            .is_dealers_remote_address(self.remote)
+            .await;
         if !is_dealer {
             warn!(
                 "Received a request from an unknown dealer - {}",

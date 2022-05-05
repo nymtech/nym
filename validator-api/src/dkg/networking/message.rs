@@ -3,11 +3,10 @@
 
 use crate::dkg::error::DkgError;
 use crate::dkg::networking::PROTOCOL_VERSION;
+use crate::dkg::state::ReceivedDealing;
 use bytes::{BufMut, BytesMut};
 use crypto::asymmetric::identity;
-use dkg::Dealing;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use std::io;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -50,32 +49,8 @@ pub struct RemoteDealingRequestMessage {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum RemoteDealingResponseMessage {
-    Available {
-        epoch_id: u32,
-        #[serde(with = "dealing_bytes")]
-        dealing: Box<Dealing>,
-        dealer_signature: identity::Signature,
-    },
+    Available { dealing: ReceivedDealing },
     Unavailable,
-}
-
-mod dealing_bytes {
-    use dkg::Dealing;
-    use serde::de::Error as SerdeError;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
-
-    pub fn serialize<S: Serializer>(val: &Dealing, serializer: S) -> Result<S::Ok, S::Error> {
-        SerdeBytes::new(&val.to_bytes()).serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Box<Dealing>, D::Error> {
-        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        let dealing = Dealing::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)?;
-        Ok(Box::new(dealing))
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Error)]
@@ -102,6 +77,18 @@ impl OffchainDkgMessage {
         message: ErrorResponseMessage,
     ) -> OffchainDkgMessage {
         OffchainDkgMessage::ErrorResponse { id, message }
+    }
+
+    pub(crate) fn new_remote_dealing_response(
+        id: u64,
+        dealing: Option<ReceivedDealing>,
+    ) -> OffchainDkgMessage {
+        let message = match dealing {
+            Some(dealing) => RemoteDealingResponseMessage::Available { dealing },
+            None => RemoteDealingResponseMessage::Unavailable,
+        };
+
+        OffchainDkgMessage::RemoteDealingResponse { id, message }
     }
 
     pub(crate) fn try_from_bytes(bytes: Vec<u8>) -> Result<Self, DkgError> {

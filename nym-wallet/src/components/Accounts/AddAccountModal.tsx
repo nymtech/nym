@@ -126,7 +126,7 @@ const ImportMnemonic = ({
   </Box>
 );
 
-const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
+const NameAccount = ({ onPrev, onNext }: { onPrev: () => void; onNext: (value: string) => void }) => {
   const [value, setValue] = useState('');
   return (
     <Box sx={{ mt: 1 }}>
@@ -134,6 +134,9 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
         <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button fullWidth size="large" onClick={onPrev}>
+          Back
+        </Button>
         <Button
           disabled={!value.length}
           fullWidth
@@ -149,7 +152,7 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
   );
 };
 
-const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void }) => {
+const ConfirmPassword = ({ onPrev, onConfirm }: { onPrev: () => void; onConfirm: (password: string) => void }) => {
   const [value, setValue] = useState('');
   const { isLoading } = useContext(AccountsContext);
 
@@ -159,6 +162,9 @@ const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void 
         <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button fullWidth size="large" onClick={onPrev}>
+          Back
+        </Button>
         <Button
           disabled={!value.length || isLoading}
           fullWidth
@@ -240,6 +246,7 @@ export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean
             case 1:
               return (
                 <NameAccount
+                  onPrev={() => setStep((s) => s - 1)}
                   onNext={(accountName) => {
                     setData((d) => ({ ...d, accountName }));
                     setStep((s) => s + 1);
@@ -249,6 +256,7 @@ export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean
             case 2:
               return (
                 <ConfirmPassword
+                  onPrev={() => setStep((s) => s - 1)}
                   onConfirm={(password) => {
                     if (data.accountName && data.mnemonic) {
                       handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });

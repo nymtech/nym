@@ -4,7 +4,7 @@
 use crate::dkg::events::DispatcherSender;
 use crate::dkg::networking::codec::DkgCodec;
 use crate::dkg::networking::message::{
-    ErrorReason, NewDealingMessage, OffchainDkgMessage, RemoteDealingRequestMessage,
+    ErrorResponseMessage, NewDealingMessage, OffchainDkgMessage, RemoteDealingRequestMessage,
 };
 use crate::dkg::state::DkgState;
 use futures::{SinkExt, StreamExt};
@@ -14,7 +14,7 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tokio_util::codec::Framed;
 
-const DEFAULT_MAX_CONNECTION_DURATION: Duration = Duration::new(2 * 60 * 60, 0);
+const DEFAULT_MAX_CONNECTION_DURATION: Duration = Duration::from_secs(2 * 60 * 60);
 
 #[derive(Debug)]
 pub(crate) struct ConnectionHandler {
@@ -46,12 +46,9 @@ impl ConnectionHandler {
         self.conn.send(response_message).await;
     }
 
-    async fn send_error_response<S: Into<String>>(
-        &self,
-        error: ErrorReason,
-        additional_info: Option<S>,
-    ) {
-        //
+    async fn send_error_response(&mut self, id: Option<u64>, error: ErrorResponseMessage) {
+        self.send_response(OffchainDkgMessage::new_error_response(id, error))
+            .await
     }
 
     async fn handle_new_dealing(&self, id: u64, message: NewDealingMessage) {
@@ -73,11 +70,11 @@ impl ConnectionHandler {
         if current_epoch.id != message.epoch_id {
             return self
                 .send_error_response(
-                    ErrorReason::InvalidEpoch,
-                    Some(format!(
-                        "current epoch is {} and not {}",
-                        current_epoch.id, message.epoch_id
-                    )),
+                    Some(id),
+                    ErrorResponseMessage::InvalidEpoch {
+                        current: current_epoch.id,
+                        requested: message.epoch_id,
+                    },
                 )
                 .await;
         }
@@ -96,17 +93,21 @@ impl ConnectionHandler {
             OffchainDkgMessage::RemoteDealingRequest { id, message } => {
                 self.handle_remote_dealing_request(id, message).await
             }
-            OffchainDkgMessage::RemoteDealingResponse { .. } => {
+            OffchainDkgMessage::RemoteDealingResponse { id, .. } => {
                 self.send_error_response(
-                    ErrorReason::InvalidRequest,
-                    Some("RemoteDealingResponse is not a valid request type"),
+                    Some(id),
+                    ErrorResponseMessage::InvalidRequest {
+                        typ: "RemoteDealingResponse".into(),
+                    },
                 )
                 .await
             }
-            OffchainDkgMessage::ErrorResponse { .. } => {
+            OffchainDkgMessage::ErrorResponse { id, .. } => {
                 self.send_error_response(
-                    ErrorReason::InvalidRequest,
-                    Some("ErrorResponse is not a valid request type"),
+                    id,
+                    ErrorResponseMessage::InvalidRequest {
+                        typ: "ErrorResponse".into(),
+                    },
                 )
                 .await
             }
@@ -116,14 +117,20 @@ impl ConnectionHandler {
     async fn _handle_connection(&mut self) {
         debug!("Starting connection handler for {}", self.remote);
 
-        if !self.dkg_state.is_dealers_remote_address(self.remote).await {
-            let msg = format!(
-                "{} is not a socket address of any known dealer. Closing the connection.",
+        let (is_dealer, epoch) = self.dkg_state.is_dealers_remote_address(self.remote).await;
+        if !is_dealer {
+            warn!(
+                "Received a request from an unknown dealer - {}",
                 self.remote
             );
-            warn!("{}", msg);
-            self.send_error_response(ErrorReason::UnknownDealer, Some(msg))
-                .await;
+            self.send_error_response(
+                None,
+                ErrorResponseMessage::UnknownDealer {
+                    sender_address: self.remote,
+                    epoch_id: epoch.id,
+                },
+            )
+            .await;
             return;
         }
 
@@ -156,11 +163,10 @@ impl ConnectionHandler {
                 remote
             );
             self.send_error_response(
-                ErrorReason::Timeout,
-                Some(format!(
-                    "could not resolve connection within {:?}",
-                    self.max_connection_duration
-                )),
+                None,
+                ErrorResponseMessage::Timeout {
+                    timeout: self.max_connection_duration,
+                },
             )
             .await;
         }

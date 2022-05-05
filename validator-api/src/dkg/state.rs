@@ -42,11 +42,18 @@ struct DkgStateInner {
 
 impl DkgState {
     // some save/load action here
-    pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> bool {
-        let dealers = &self.inner.lock().await.current_epoch_dealers;
-        dealers
-            .values()
-            .any(|dealer| dealer.remote_address == remote)
+
+    pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> (bool, Epoch) {
+        let guard = self.inner.lock().await;
+        let epoch = guard.current_epoch;
+        let dealers = &guard.current_epoch_dealers;
+
+        (
+            dealers
+                .values()
+                .any(|dealer| dealer.remote_address == remote),
+            epoch,
+        )
     }
 
     pub(crate) async fn current_epoch(&self) -> Epoch {

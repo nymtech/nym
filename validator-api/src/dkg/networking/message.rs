@@ -9,6 +9,9 @@ use dkg::Dealing;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::io;
+use std::net::SocketAddr;
+use std::time::Duration;
+use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum OffchainDkgMessage {
@@ -25,7 +28,7 @@ pub enum OffchainDkgMessage {
         message: RemoteDealingResponseMessage,
     },
     ErrorResponse {
-        id: u64,
+        id: Option<u64>,
         message: ErrorResponseMessage,
     },
 }
@@ -75,42 +78,32 @@ mod dealing_bytes {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ErrorResponseMessage {
-    pub reason: ErrorReason,
-    pub additional_info: Option<String>,
-}
+#[derive(Debug, Serialize, Deserialize, Error)]
+pub enum ErrorResponseMessage {
+    #[error("Received request for epoch: {requested}, while the current epoch is {current}")]
+    InvalidEpoch { current: u32, requested: u32 },
 
-impl ErrorResponseMessage {
-    pub fn new(reason: ErrorReason, additional_info: Option<String>) -> Self {
-        ErrorResponseMessage {
-            reason,
-            additional_info,
-        }
-    }
-}
+    #[error("This sender is not a known dealer for this DKG epoch. Epoch: {epoch_id}, sender: {sender_address}")]
+    UnknownDealer {
+        sender_address: SocketAddr,
+        epoch_id: u32,
+    },
 
-impl Display for ErrorResponseMessage {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
+    #[error("{typ} is not a valid request type")]
+    InvalidRequest { typ: String },
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum ErrorReason {
-    InvalidEpoch,
-    UnknownDealer,
-    InvalidRequest,
-    Timeout,
-}
-
-impl Display for ErrorReason {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
+    #[error("This request failed to get resolved within {} seconds", .timeout.as_secs())]
+    Timeout { timeout: Duration },
 }
 
 impl OffchainDkgMessage {
+    pub(crate) fn new_error_response(
+        id: Option<u64>,
+        message: ErrorResponseMessage,
+    ) -> OffchainDkgMessage {
+        OffchainDkgMessage::ErrorResponse { id, message }
+    }
+
     pub(crate) fn try_from_bytes(bytes: Vec<u8>) -> Result<Self, DkgError> {
         Ok(bincode::deserialize(&bytes)?)
     }
@@ -149,10 +142,6 @@ impl FramedOffchainDkgMessage {
         out.append(&mut header_bytes);
         out.append(&mut self.payload);
         out
-    }
-
-    fn try_from_bytes(bytes: &[u8]) -> Result<Self, ()> {
-        todo!()
     }
 }
 

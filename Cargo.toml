@@ -10,7 +10,8 @@ overflow-checks = true
 panic = "abort"
 
 [profile.test]
-opt-level = 2
+# equivalent of running in `--release` (but since we're in test profile we're keeping overflow checks and all of those by default)
+opt-level = 3
 
 [workspace]
 

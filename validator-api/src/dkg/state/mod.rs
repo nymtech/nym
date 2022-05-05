@@ -18,10 +18,10 @@ type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
 
 // TODO: some TryFrom impl to convert from encoded contract data
 // note: each dealer is also a receiver which simplifies some logic significantly
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Dealer {
     node_index: NodeIndex,
-    bte_public_key: bte::PublicKey,
+    bte_public_key: bte::PublicKeyWithProof,
     identity: identity::PublicKey,
     remote_address: SocketAddr,
 }
@@ -34,31 +34,11 @@ pub(crate) struct DkgState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReceivedDealing {
     epoch_id: u32,
-    #[serde(with = "dealing_bytes")]
     dealing: Box<Dealing>,
     signature: identity::Signature,
 }
 
-mod dealing_bytes {
-    use dkg::Dealing;
-    use serde::de::Error as SerdeError;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
-
-    pub fn serialize<S: Serializer>(val: &Dealing, serializer: S) -> Result<S::Ok, S::Error> {
-        SerdeBytes::new(&val.to_bytes()).serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Box<Dealing>, D::Error> {
-        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        let dealing = Dealing::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)?;
-        Ok(Box::new(dealing))
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct DkgStateInner {
     bte_decryption_key: bte::DecryptionKey,
     signing_key: identity::PublicKey,

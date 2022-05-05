@@ -4,12 +4,14 @@
 use crate::nymd_client::Client;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use config::defaults::VALIDATOR_API_VERSION;
 use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
-use rocket_okapi::openapi_get_routes;
+use okapi::openapi3::OpenApi;
+use rocket::Route;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 
 use rocket::fairing::AdHoc;
 use serde::Serialize;
@@ -179,6 +181,19 @@ impl<C> ValidatorCacheRefresher<C> {
     }
 }
 
+pub(crate) fn validator_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![
+        settings: routes::get_mixnodes,
+        routes::get_gateways,
+        routes::get_active_set,
+        routes::get_rewarded_set,
+        routes::get_blacklisted_mixnodes,
+        routes::get_blacklisted_gateways,
+        routes::get_epoch_reward_params,
+        routes::get_current_epoch
+    ]
+}
+
 impl ValidatorCache {
     fn new() -> Self {
         ValidatorCache {
@@ -189,20 +204,7 @@ impl ValidatorCache {
 
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
-            rocket.manage(Self::new()).mount(
-                // this format! is so ugly...
-                format!("/{}", VALIDATOR_API_VERSION),
-                openapi_get_routes![
-                    routes::get_mixnodes,
-                    routes::get_gateways,
-                    routes::get_active_set,
-                    routes::get_rewarded_set,
-                    routes::get_blacklisted_mixnodes,
-                    routes::get_blacklisted_gateways,
-                    routes::get_epoch_reward_params,
-                    routes::get_current_epoch
-                ],
-            )
+            rocket.manage(Self::new())
         })
     }
 

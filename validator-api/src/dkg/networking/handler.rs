@@ -36,7 +36,9 @@ impl ConnectionHandler {
     }
 
     async fn send_response(&mut self, response_message: OffchainDkgMessage) {
-        self.conn.send(response_message).await;
+        if let Err(err) = self.conn.send(response_message).await {
+            warn!("Failed to send response back to {} - {}", self.remote, err)
+        }
     }
 
     async fn send_error_response(&mut self, id: Option<u64>, error: ErrorResponseMessage) {
@@ -44,8 +46,7 @@ impl ConnectionHandler {
             .await
     }
 
-    async fn handle_new_dealing(&self, id: u64, message: NewDealingMessage) {
-        // we'll probably need to wait for a response or something, so this is rather temporary
+    async fn handle_new_dealing(&self, _id: u64, message: NewDealingMessage) {
         self.state_accessor
             .push_event(Event::NewDealing(message))
             .await
@@ -132,9 +133,7 @@ impl ConnectionHandler {
 
         while let Some(framed_dkg_request) = self.conn.next().await {
             match framed_dkg_request {
-                Ok(framed_dkg_request) => {
-                    todo!("handle packet")
-                }
+                Ok(framed_dkg_request) => self.handle_request(framed_dkg_request).await,
                 Err(err) => {
                     warn!(
                         "The socket connection got corrupted with error: {:?}. Closing the socket",

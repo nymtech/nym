@@ -21,7 +21,7 @@ pub(crate) struct StoredWallet {
 
 impl StoredWallet {
   #[allow(unused)]
-  pub fn version(&self) -> u32 {
+  pub fn verion(&self) -> u32 {
     self.version
   }
 
@@ -46,7 +46,7 @@ impl StoredWallet {
 
   #[allow(unused)]
   pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
-    self.accounts.get(index)
+           self.accounts.get(index)
   }
 
   fn encrypted_account(

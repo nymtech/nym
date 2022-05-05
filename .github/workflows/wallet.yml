@@ -1,4 +1,4 @@
-name: Wallet rust
+name: Nym Wallet (rust)
 
 on:
   push:

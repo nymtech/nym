@@ -36,6 +36,7 @@ impl Processor {
 
         // since we have no graceful shutdowns, seeing this error means something bad has happened
         // as all senders got dropped
-        error!("")
+        error!("Dealing Processor has stopped receiving events! The process is in an undefined state. Shutting down...");
+        std::process::exit(1);
     }
 }

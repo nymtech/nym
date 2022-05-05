@@ -19,7 +19,7 @@ pub(crate) struct StateAccessor {
 impl StateAccessor {
     pub(crate) async fn push_event(&self, event: Event) {
         if let Err(err) = self.dispatcher_sender.unbounded_send(event) {
-            log::error!("Our event dispatcher failed to receive {} event - it has presumably crashed. Shutting down the API after saving DKG state", err.into_inner().name());
+            log::error!("Our event dispatcher failed to receive {} event - it has presumably crashed. Shutting down the API after saving DKG state", err.into_inner());
             self.dkg_state.save().await;
             std::process::exit(1);
         }

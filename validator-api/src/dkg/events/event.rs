@@ -3,21 +3,23 @@
 
 use crate::dkg::networking::message::{NewDealingMessage, RemoteDealingRequestMessage};
 use crate::dkg::smart_contract::watcher;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub(crate) enum Event {
     NewDealing(NewDealingMessage),
-    NewDealingRequest(RemoteDealingRequestMessage),
     DkgContractChange(watcher::Event),
 }
 
-impl Event {
-    pub(crate) fn name(&self) -> String {
+impl Display for Event {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::NewDealing(..) => "NewDealing".to_string(),
-            Event::NewDealingRequest(..) => "NewDealingRequest".to_string(),
-
-            Event::DkgContractChange(..) => "DkgContractChange".to_string(),
+            Event::NewDealing(new_dealing_message) => {
+                write!(f, "NewDealingEvent ({})", new_dealing_message)
+            }
+            Event::DkgContractChange(contract_watcher_event) => {
+                write!(f, "DkgContractChangeEvent ({})", contract_watcher_event)
+            }
         }
     }
 }

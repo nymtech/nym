@@ -7,6 +7,7 @@ use crate::dkg::state::ReceivedDealing;
 use bytes::{BufMut, BytesMut};
 use crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::io;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -39,6 +40,17 @@ pub struct NewDealingMessage {
     // so that it's easier to verify
     pub dealing_bytes: Vec<u8>,
     pub dealer_signature: identity::Signature,
+}
+
+impl Display for NewDealingMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "NewDealingMessage for epoch {} with length {}",
+            self.epoch_id,
+            self.dealing_bytes.len()
+        )
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

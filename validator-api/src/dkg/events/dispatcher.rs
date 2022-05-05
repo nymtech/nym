@@ -7,6 +7,7 @@ use crate::dkg::main_loop::ContractEventsSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::error;
+use std::fmt::Display;
 
 pub(crate) type DispatcherSender = mpsc::UnboundedSender<Event>;
 pub(crate) type DispatcherReceiver = mpsc::UnboundedReceiver<Event>;
@@ -19,13 +20,23 @@ pub(crate) struct Dispatcher {
 }
 
 impl Dispatcher {
+    // we require `T` to be explicitly `Display` for the purposes of providing better error messages
+    // before crashing
+    fn forward_event<T: Display>(&self, channel: &mpsc::UnboundedSender<T>, event_item: T) {
+        if let Err(err) = channel.unbounded_send(event_item) {
+            log::error!("Our event dispatcher failed to forward {} event - the receiver has presumably crashed. Shutting down the API...", err.into_inner());
+            std::process::exit(1);
+        }
+    }
+
     fn handle_event(&self, event: Event) {
         match event {
-            Event::NewDealing(new_dealing_request) => self
-                .dealing_processor
-                .unbounded_send(new_dealing_request)
-                .expect("failed to forward new dealing message"),
-            _ => todo!(),
+            Event::NewDealing(new_dealing_request) => {
+                self.forward_event(&self.dealing_processor, new_dealing_request)
+            }
+            Event::DkgContractChange(watcher_event) => {
+                self.forward_event(&self.contract_event_sender, watcher_event)
+            }
         }
     }
 
@@ -36,6 +47,7 @@ impl Dispatcher {
 
         // since we have no graceful shutdowns, seeing this error means something bad has happened
         // as all senders got dropped
-        error!("")
+        error!("Event Dispatcher has stopped receiving events! The process is in an undefined state. Shutting down...");
+        std::process::exit(1);
     }
 }

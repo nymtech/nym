@@ -12,7 +12,21 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
   const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || '-';
   const profitMargin = mixNode?.data?.mix_node.profit_margin_percent || '-';
   const avgUptime = economicDynamicsStats?.data?.current_interval_uptime;
-  const selectionChance = economicDynamicsStats?.data?.active_set_inclusion_probability || '-';
+  const selectionChance = () => {
+    const inclusionProbability = economicDynamicsStats?.data?.active_set_inclusion_probability;
+    switch (inclusionProbability) {
+      case 'High':
+      case 'Moderate':
+      case 'Low':
+        return inclusionProbability;
+      case 'VeryHigh':
+        return 'Very High';
+      case 'VeryLow':
+        return 'Very Low';
+      default:
+        return '-';
+    }
+  };
 
   return {
     id: 1,
@@ -23,7 +37,7 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
       value: estimatedOperatorRewards,
     },
     selectionChance: {
-      value: selectionChance,
+      value: selectionChance(),
     },
     stakeSaturation: {
       progressBarValue: typeof stakeSaturation === 'number' ? stakeSaturation * 100 : 0,

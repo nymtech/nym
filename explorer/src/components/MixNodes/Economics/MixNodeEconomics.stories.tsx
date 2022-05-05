@@ -35,7 +35,7 @@ const row: EconomicsInfoRowWithIndex = {
 const rowVeryHighProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
-    value: 'VeryHigh',
+    value: 'Very High',
   },
 };
 
@@ -56,7 +56,7 @@ const rowLowProbabilitySelection: EconomicsInfoRowWithIndex = {
 const rowVeryLowProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
-    value: 'VeryLow',
+    value: 'Very Low',
   },
 };
 

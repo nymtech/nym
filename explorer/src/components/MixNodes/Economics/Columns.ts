@@ -36,11 +36,14 @@ export const EconomicsInfoColumns: ColumnsType[] = [
     title: 'Profit Margin',
     flex: 1,
     headerAlign: 'left',
+    tooltipInfo:
+      'Percentage of the delegates rewards that the operator takes as fee before rewards are distributed to the delegates.',
   },
   {
     field: 'avgUptime',
     title: 'Avg. Uptime',
     flex: 1,
     headerAlign: 'left',
+    tooltipInfo: 'Node’s average uptime in the last 24h.',
   },
 ];

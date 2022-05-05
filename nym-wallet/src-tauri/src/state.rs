@@ -259,7 +259,7 @@ mod tests {
       state.get_api_urls(Network::MAINNET).collect::<Vec<_>>(),
       vec![
         "http://nymd_url.com/api".parse().unwrap(),
-        "https://api.nyx.nodes.guru".parse().unwrap(),
+        "https://validator.nymtech.net/api".parse().unwrap(),
       ],
     );
     assert_eq!(

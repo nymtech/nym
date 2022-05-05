@@ -17,7 +17,7 @@ use tokio_util::codec::Framed;
 const DEFAULT_MAX_CONNECTION_DURATION: Duration = Duration::from_secs(2 * 60 * 60);
 
 #[derive(Debug)]
-pub(crate) struct ConnectionHandler {
+pub struct ConnectionHandler {
     // connection cannot exist for more than this time
     max_connection_duration: Duration,
     state_accessor: StateAccessor,
@@ -147,7 +147,7 @@ impl ConnectionHandler {
         debug!("Closing connection from {}", self.remote);
     }
 
-    pub(crate) async fn handle_connection(mut self) {
+    pub async fn handle_connection(mut self) {
         let remote = self.remote;
         if timeout(self.max_connection_duration, self._handle_connection())
             .await

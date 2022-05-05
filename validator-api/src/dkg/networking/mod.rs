@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) mod codec;
-mod handler;
-mod listener;
 pub(crate) mod message;
+mod receiver;
+mod sender;
 
 pub(crate) const PROTOCOL_VERSION: u32 = 1;

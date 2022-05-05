@@ -3,6 +3,7 @@
 
 use crate::dkg::dealing_processing::DealingSender;
 use crate::dkg::events::Event;
+use crate::dkg::main_loop::ContractEventsSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::error;
@@ -14,6 +15,7 @@ pub(crate) struct Dispatcher {
     event_receiver: DispatcherReceiver,
 
     dealing_processor: DealingSender,
+    contract_event_sender: ContractEventsSender,
 }
 
 impl Dispatcher {

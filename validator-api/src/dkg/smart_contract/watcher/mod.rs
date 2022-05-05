@@ -4,9 +4,12 @@
 use crate::dkg::error::DkgError;
 use crate::Client;
 use log::warn;
-use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use tokio::time::interval;
+
+mod event;
+
+pub(crate) use event::Event;
 
 pub(crate) struct Watcher<C> {
     client: Client<C>,

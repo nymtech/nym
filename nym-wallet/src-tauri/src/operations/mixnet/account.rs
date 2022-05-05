@@ -479,17 +479,23 @@ pub async fn add_account_for_password(
   let password = wallet_storage::UserPassword::new(password.to_string());
 
   // Creating the returned account entry could fail, so do it before attempting to store to wallet
-  let state = state.read().await;
-  let network: Network = state.current_network().into();
-  let address = derive_address(mnemonic.clone(), network.bech32_prefix())?.to_string();
+  let address = {
+    let state = state.read().await;
+    let network: Network = state.current_network().into();
+    derive_address(mnemonic.clone(), network.bech32_prefix())?.to_string()
+  };
 
   wallet_storage::append_account_to_wallet_login_information(
     mnemonic,
     hd_path,
-    id,
+    id.clone(),
     inner_id.clone(),
     &password,
   )?;
+
+  // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
+  // incrementally
+  reset_state_with_all_accounts_from_file(&id, &password, state).await?;
 
   Ok(AccountEntry {
     id: inner_id.to_string(),
@@ -497,14 +503,36 @@ pub async fn add_account_for_password(
   })
 }
 
+async fn reset_state_with_all_accounts_from_file(
+  id: &wallet_storage::AccountId,
+  password: &wallet_storage::UserPassword,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
+  let stored_account = wallet_storage::load_existing_wallet_login_information(id, password)?;
+  let all_accounts: Vec<_> = stored_account
+    .unwrap_into_multiple_accounts(id.clone())
+    .into_accounts()
+    .collect();
+
+  let mut w_state = state.write().await;
+  w_state.set_all_accounts(all_accounts);
+  Ok(())
+}
+
 #[tauri::command]
-pub fn remove_account_for_password(password: &str, inner_id: &str) -> Result<(), BackendError> {
+pub async fn remove_account_for_password(
+  password: &str,
+  inner_id: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<(), BackendError> {
   log::info!("Removing account: {inner_id}");
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
   let password = wallet_storage::UserPassword::new(password.to_string());
-  wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)
+  wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)?;
+
+  reset_state_with_all_accounts_from_file(&id, &password, state).await
 }
 
 fn derive_address(

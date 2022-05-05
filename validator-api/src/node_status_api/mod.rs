@@ -45,4 +45,3 @@ pub(crate) fn node_status_routes(
         ]
     }
 }
-

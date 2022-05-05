@@ -9,6 +9,9 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
 use rand_core::RngCore;
+use serde::de::Error as SerdeError;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 use zeroize::Zeroize;
 
 #[derive(Debug, Zeroize)]
@@ -410,6 +413,25 @@ impl PublicKeyWithProof {
     }
 }
 
+impl Serialize for PublicKeyWithProof {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        SerdeBytes::new(&self.to_bytes()).serialize(serializer)
+    }
+}
+
+impl<'d> Deserialize<'d> for PublicKeyWithProof {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
+        PublicKeyWithProof::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
+    }
+}
+
 #[derive(Debug, Zeroize)]
 #[zeroize(drop)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -639,6 +661,25 @@ impl DecryptionKey {
         }
 
         Ok(DecryptionKey { nodes })
+    }
+}
+
+impl Serialize for DecryptionKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        SerdeBytes::new(&self.to_bytes()).serialize(serializer)
+    }
+}
+
+impl<'d> Deserialize<'d> for DecryptionKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
+        DecryptionKey::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }
 

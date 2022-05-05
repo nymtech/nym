@@ -14,6 +14,9 @@ use crate::interpolation::{
 use crate::{NodeIndex, Share, Threshold};
 use bls12_381::{G2Projective, Scalar};
 use rand_core::RngCore;
+use serde::de::Error as SerdeError;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
@@ -242,6 +245,25 @@ impl Dealing {
             proof_of_chunking,
             proof_of_sharing,
         })
+    }
+}
+
+impl Serialize for Dealing {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        SerdeBytes::new(&self.to_bytes()).serialize(serializer)
+    }
+}
+
+impl<'d> Deserialize<'d> for Dealing {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
+        Dealing::try_from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }
 

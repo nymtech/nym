@@ -102,25 +102,25 @@ jobs:
           args: --workspace --all-targets --features=coconut -- -D warnings
 
       # nym-wallet (the rust part)
-      - name: Build all binaries
+      - name: Build all binaries (nym-wallet)
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --manifest-path nym-wallet --workspace
 
-      - name: Run all tests
+      - name: Run all tests (nym-wallet)
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --manifest-path nym-wallet --workspace
 
-      - name: Check formatting
+      - name: Check formatting (nym-wallet)
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --manifest-path nym-wallet --all -- --check
 
-      - name: Run clippy
+      - name: Run clippy (nym-wallet)
         uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:

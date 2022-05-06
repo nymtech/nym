@@ -7,8 +7,13 @@
 - validator-api: add Swagger to document the REST API ([#1249]).
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 
+### Fixed
+
+- mixnet-contract: removed `expect` in `query_delegator_reward` and queries containing invalid proxy address should now return a more human-readable error ([#1257])
+
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
+[#1257]: https://github.com/nymtech/nym/pull/1257
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

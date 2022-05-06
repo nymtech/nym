@@ -14,10 +14,10 @@ import {
 import { Box } from '@mui/system';
 import { styled, useTheme, Theme } from '@mui/material/styles';
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
 import { cellStyles } from '../../Universal-DataGrid';
-import { InfoSVG } from '../../../icons/InfoSVG';
 import { UniversalTableProps } from '../../DetailTable';
 
 const tooltipBackGroundColor = '#A0AED1';
@@ -123,7 +123,12 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
                           disableFocusRipple
                           disableRipple
                         >
-                          <InfoSVG />
+                          <InfoOutlinedIcon
+                            sx={{
+                              height: '18px',
+                              width: '18px',
+                            }}
+                          />
                         </IconButton>
                       </CustomTooltip>
                     </Box>

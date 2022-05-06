@@ -9,7 +9,7 @@ use url::Url;
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse
+    StakeSaturationResponse, UptimeResponse,
 };
 
 #[cfg(feature = "nymd-client")]

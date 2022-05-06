@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub(crate) use crate::wallet_storage::account_data::{StoredLogin, WalletAccount};
 pub(crate) use crate::wallet_storage::password::{AccountId, UserPassword};
 
 use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
-use crate::wallet_storage::account_data::StoredLogin;
 use crate::wallet_storage::encryption::encrypt_struct;
 use cosmrs::bip32::DerivationPath;
 use std::fs::{self, create_dir_all, OpenOptions};
@@ -58,7 +58,7 @@ pub(crate) fn load_existing_wallet_login_information(
   load_existing_wallet_login_information_at_file(filepath, id, password)
 }
 
-fn load_existing_wallet_login_information_at_file(
+pub(crate) fn load_existing_wallet_login_information_at_file(
   filepath: PathBuf,
   id: &AccountId,
   password: &UserPassword,
@@ -283,7 +283,7 @@ fn remove_account_from_wallet_login_at_file(
 
 #[cfg(test)]
 mod tests {
-  use crate::wallet_storage::account_data::WalletAccount;
+  use crate::wallet_storage::WalletAccount;
 
   use super::*;
   use config::defaults::COSMOS_DERIVATION_PATH;

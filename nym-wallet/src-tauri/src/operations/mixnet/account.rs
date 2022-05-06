@@ -4,8 +4,7 @@ use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::nymd_client;
 use crate::state::State;
-use crate::wallet_storage::account_data::StoredLogin;
-use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};
+use crate::wallet_storage::{self, StoredLogin, DEFAULT_WALLET_ACCOUNT_ID};
 
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
@@ -428,6 +427,20 @@ pub async fn sign_in_with_password(
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  let (mnemonic, all_accounts) = extract_mnemonic_and_all_accounts(stored_account, id)?;
+
+  {
+    let mut w_state = state.write().await;
+    w_state.set_all_accounts(all_accounts);
+  }
+
+  _connect_with_mnemonic(mnemonic, state).await
+}
+
+fn extract_mnemonic_and_all_accounts(
+  stored_account: StoredLogin,
+  id: wallet_storage::AccountId,
+) -> Result<(Mnemonic, Vec<wallet_storage::WalletAccount>), BackendError> {
   let mnemonic = match stored_account {
     StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
     StoredLogin::Multiple(ref accounts) => {
@@ -442,18 +455,13 @@ pub async fn sign_in_with_password(
     }
   };
 
-  {
-    // Keep track of all accounts for that id
-    let all_accounts: Vec<_> = stored_account
-      .unwrap_into_multiple_accounts(id)
-      .into_accounts()
-      .collect();
+  // Keep track of all accounts for that id
+  let all_accounts: Vec<_> = stored_account
+    .unwrap_into_multiple_accounts(id)
+    .into_accounts()
+    .collect();
 
-    let mut w_state = state.write().await;
-    w_state.set_all_accounts(all_accounts);
-  }
-
-  _connect_with_mnemonic(mnemonic, state).await
+  Ok((mnemonic, all_accounts))
 }
 
 #[tauri::command]
@@ -608,4 +616,42 @@ pub async fn sign_in_decrypted_account(
     account.mnemonic().clone()
   };
   _connect_with_mnemonic(mnemonic, state).await
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  use std::path::PathBuf;
+
+  use crate::wallet_storage;
+
+  // This decryptes a stored wallet file using the same procedure as when signing in. Most tests
+  // related to the encryped wallet storage is in `wallet_storage`.
+  #[test]
+  fn decrypt_stored_wallet_for_sign_in() {
+    const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet.json";
+    let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+    let id = wallet_storage::AccountId::new("first".to_string());
+    let password = wallet_storage::UserPassword::new("password".to_string());
+    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+
+    let stored_account =
+      wallet_storage::load_existing_wallet_login_information_at_file(wallet_file, &id, &password)
+        .unwrap();
+    let (mnemonic, all_accounts) =
+      extract_mnemonic_and_all_accounts(stored_account, id.clone()).unwrap();
+
+    let expected_mnemonic = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
+    assert_eq!(mnemonic, expected_mnemonic);
+
+    assert_eq!(
+      all_accounts,
+      vec![wallet_storage::WalletAccount::new_mnemonic_backed_account(
+        id,
+        expected_mnemonic,
+        hd_path,
+      )]
+    );
+  }
 }

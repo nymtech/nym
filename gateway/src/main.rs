@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_version, Parser};
+use network_defaults::DEFAULT_NETWORK;
 use once_cell::sync::OnceCell;
 
 mod commands;
@@ -63,6 +64,7 @@ fn long_version() -> String {
 {:<20}{}
 {:<20}{}
 {:<20}{}
+{:<20}{}
 "#,
         "Build Timestamp:",
         env!("VERGEN_BUILD_TIMESTAMP"),
@@ -80,6 +82,8 @@ fn long_version() -> String {
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
         env!("VERGEN_CARGO_PROFILE"),
+        "Network:",
+        DEFAULT_NETWORK
     )
 }
 

@@ -4,6 +4,7 @@ extern crate rocket;
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use ::config::defaults::DEFAULT_NETWORK;
 use clap::{crate_version, Parser};
 use lazy_static::lazy_static;
 
@@ -65,6 +66,7 @@ fn long_version() -> String {
 {:<20}{}
 {:<20}{}
 {:<20}{}
+{:<20}{}
 "#,
         "Build Timestamp:",
         env!("VERGEN_BUILD_TIMESTAMP"),
@@ -82,6 +84,8 @@ fn long_version() -> String {
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
         env!("VERGEN_CARGO_PROFILE"),
+        "Network:",
+        DEFAULT_NETWORK
     )
 }
 

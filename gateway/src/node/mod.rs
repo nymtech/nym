@@ -236,6 +236,14 @@ where
         validator_client::ApiClient::new(validator_api.clone())
     }
 
+    fn all_api_clients(&self) -> Vec<validator_client::ApiClient> {
+        self.config
+            .get_validator_api_endpoints()
+            .into_iter()
+            .map(|url| validator_client::ApiClient::new(url))
+            .collect()
+    }
+
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
         let validator_client = self.random_api_client();
@@ -278,7 +286,7 @@ where
                 .expect("failed to contact validators to obtain their verification keys");
         #[cfg(feature = "coconut")]
         let coconut_verifier =
-            CoconutVerifier::new(self.random_api_client(), validators_verification_key);
+            CoconutVerifier::new(self.all_api_clients(), validators_verification_key);
 
         #[cfg(not(feature = "coconut"))]
         let erc20_bridge = ERC20Bridge::new(

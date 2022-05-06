@@ -73,7 +73,7 @@ impl VerifyCredentialBody {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VerifyCredentialResponse {
-    verification_result: bool,
+    pub verification_result: bool,
 }
 
 impl VerifyCredentialResponse {

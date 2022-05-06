@@ -5,20 +5,20 @@ use coconut_interface::VerificationKey;
 use validator_client::ApiClient;
 
 pub struct CoconutVerifier {
-    api_client: ApiClient,
+    api_clients: Vec<ApiClient>,
     aggregated_verification_key: VerificationKey,
 }
 
 impl CoconutVerifier {
-    pub fn new(api_client: ApiClient, aggregated_verification_key: VerificationKey) -> Self {
+    pub fn new(api_clients: Vec<ApiClient>, aggregated_verification_key: VerificationKey) -> Self {
         CoconutVerifier {
-            api_client,
+            api_clients,
             aggregated_verification_key,
         }
     }
 
-    pub fn api_client(&self) -> &ApiClient {
-        &self.api_client
+    pub fn api_clients(&self) -> &Vec<ApiClient> {
+        &self.api_clients
     }
 
     pub fn aggregated_verification_key(&self) -> &VerificationKey {

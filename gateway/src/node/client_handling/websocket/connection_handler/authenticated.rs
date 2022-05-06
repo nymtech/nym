@@ -67,6 +67,10 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Provided coconut bandwidth credential did not have expected structure - {0}")]
     CoconutBandwidthCredentialError(#[from] credentials::error::Error),
+
+    #[cfg(feature = "coconut")]
+    #[error("Validator API error")]
+    APIError(#[from] validator_client::ValidatorClientError),
 }
 
 impl RequestHandlingError {
@@ -218,15 +222,17 @@ where
             return Err(RequestHandlingError::InvalidBandwidthCredential);
         }
 
-        self.inner
-            .coconut_verifier
-            .as_ref()
-            .api_client()
-            .verify_bandwidth_credential(&coconut_interface::VerifyCredentialBody::new(
-                credential.clone(),
-            ))
-            .await
-            .unwrap();
+        let req = coconut_interface::VerifyCredentialBody::new(credential.clone());
+        let mut aggregated_verification = true;
+        for client in self.inner.coconut_verifier.api_clients() {
+            let api_verification = client
+                .verify_bandwidth_credential(&req)
+                .await?
+                .verification_result;
+            println!("Verification result {}", api_verification);
+            aggregated_verification &= api_verification;
+        }
+        println!("result {}", aggregated_verification);
 
         let bandwidth = Bandwidth::try_from(credential)?;
         let bandwidth_value = bandwidth.value();

@@ -106,26 +106,26 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path nym-wallet --workspace
+          args: --manifest-path nym-wallet/Cargo.toml --workspace
 
       - name: Run nym-wallet tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path nym-wallet --workspace
+          args: --manifest-path nym-wallet/Cargo.toml --workspace
 
       - name: Check nym-wallet formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path nym-wallet --all -- --check
+          args: --manifest-path nym-wallet/Cargo.toml --all -- --check
 
       - name: Run clippy for nym-wallet
         uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --manifest-path nym-wallet --workspace --all-targets -- -D warnings
+          args: --manifest-path nym-wallet/Cargo.toml --workspace --all-targets -- -D warnings
 
   notification:
     needs: build

@@ -249,7 +249,7 @@ fn remove_account_from_wallet_login_at_file(
       return Err(BackendError::WalletUnexpectedMnemonicAccount);
     }
     StoredLogin::Multiple(ref mut accounts) => {
-      accounts.remove(inner_id);
+      accounts.remove(inner_id)?;
       accounts.is_empty()
     }
   };
@@ -259,7 +259,7 @@ fn remove_account_from_wallet_login_at_file(
       .remove_encrypted_login(id)
       .ok_or(BackendError::NoSuchIdInWallet)?;
   } else {
-    // Replace the encrypted login with the prune one.
+    // Replace the encrypted login with the pruned one.
     let encrypted_accounts = EncryptedLogin {
       id: id.clone(),
       account: encrypt_struct(&decrypted_login, password)?,
@@ -873,12 +873,10 @@ mod tests {
 
     remove_account_from_wallet_login_at_file(wallet_file.clone(), &id1, &id2, &password).unwrap();
 
-    // Delete the same again fails
-    // WIP(JON)
-    //assert!(matches!(
-    remove_account_from_wallet_login_at_file(wallet_file, &id1, &id2, &password).unwrap();
-    //Err(BackendError::NoSuchIdInWallet),
-    //));
+    assert!(matches!(
+      remove_account_from_wallet_login_at_file(wallet_file, &id1, &id2, &password),
+      Err(BackendError::NoSuchIdInWalletLoginEntry),
+    ));
   }
 
   #[test]

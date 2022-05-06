@@ -267,8 +267,12 @@ impl MultipleAccounts {
     }
   }
 
-  pub(crate) fn remove(&mut self, id: &AccountId) {
+  pub(crate) fn remove(&mut self, id: &AccountId) -> Result<(), BackendError> {
+    if self.get_account(id).is_none() {
+        return Err(BackendError::NoSuchIdInWalletLoginEntry);
+    }
     self.accounts.retain(|accounts| &accounts.id != id);
+    Ok(())
   }
 }
 

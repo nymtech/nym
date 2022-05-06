@@ -68,6 +68,7 @@ pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
                     threshold,
                     epoch,
                     &receivers,
+                    None,
                 )
             })
         })
@@ -89,6 +90,7 @@ pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criteri
         threshold,
         epoch,
         &receivers,
+        None,
     );
 
     let first_key = dks.get_mut(0).unwrap();
@@ -99,7 +101,7 @@ pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criteri
         |b| {
             b.iter(|| {
                 assert!(dealing
-                    .verify(&params, epoch, threshold, &receivers)
+                    .verify(&params, epoch, threshold, &receivers, None)
                     .is_ok());
                 black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, epoch, None).unwrap());
             })
@@ -128,6 +130,7 @@ pub fn creating_dealing_for_20_parties(c: &mut Criterion) {
                         threshold,
                         epoch,
                         &receivers,
+                        None,
                     )
                 })
             })
@@ -150,6 +153,7 @@ pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criter
         threshold,
         epoch,
         &receivers,
+        None,
     );
 
     let first_key = dks.get_mut(0).unwrap();
@@ -160,7 +164,7 @@ pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criter
         |b| {
             b.iter(|| {
                 assert!(dealing
-                    .verify(&params, epoch, threshold, &receivers)
+                    .verify(&params, epoch, threshold, &receivers, None)
                     .is_ok());
                 black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, epoch, None).unwrap());
             })
@@ -189,6 +193,7 @@ pub fn creating_dealing_for_100_parties(c: &mut Criterion) {
                         threshold,
                         epoch,
                         &receivers,
+                        None,
                     )
                 })
             })
@@ -211,6 +216,7 @@ pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Crite
         threshold,
         epoch,
         &receivers,
+        None,
     );
 
     let first_key = dks.get_mut(0).unwrap();
@@ -221,7 +227,7 @@ pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Crite
         |b| {
             b.iter(|| {
                 assert!(dealing
-                    .verify(&params, epoch, threshold, &receivers)
+                    .verify(&params, epoch, threshold, &receivers, None)
                     .is_ok());
                 black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, epoch, None).unwrap());
             })

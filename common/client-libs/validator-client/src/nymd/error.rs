@@ -5,6 +5,7 @@ use crate::nymd::cosmwasm_client::types::ContractCodeId;
 use cosmrs::tendermint::{abci, block};
 use cosmrs::{bip32, tx, AccountId};
 use std::io;
+use std::time::Duration;
 use thiserror::Error;
 
 pub use cosmrs::rpc::error::{
@@ -81,21 +82,21 @@ pub enum NymdError {
     MalformedLogString,
 
     #[error(
-    "Error when broadcasting tx {hash} at height {height}. Error occurred during CheckTx phase. Code: {code}; Raw log: {raw_log}"
+    "Error when broadcasting tx {hash} at height {height:?}. Error occurred during CheckTx phase. Code: {code}; Raw log: {raw_log}"
     )]
     BroadcastTxErrorCheckTx {
         hash: tx::Hash,
-        height: block::Height,
+        height: Option<block::Height>,
         code: u32,
         raw_log: String,
     },
 
     #[error(
-    "Error when broadcasting tx {hash} at height {height}. Error occurred during DeliverTx phase. Code: {code}; Raw log: {raw_log}"
+    "Error when broadcasting tx {hash} at height {height:?}. Error occurred during DeliverTx phase. Code: {code}; Raw log: {raw_log}"
     )]
     BroadcastTxErrorDeliverTx {
         hash: tx::Hash,
-        height: block::Height,
+        height: Option<block::Height>,
         code: u32,
         raw_log: String,
     },
@@ -117,6 +118,9 @@ pub enum NymdError {
 
     #[error("This account does not have BaseAccount information available to it")]
     NoBaseAccountInformationAvailable,
+
+    #[error("Transaction with ID {hash} has been submitted but not yet found on the chain. You might want to check for it later. There was a total wait of {} seconds", .timeout.as_secs())]
+    BroadcastTimeout { hash: tx::Hash, timeout: Duration },
 }
 
 impl NymdError {

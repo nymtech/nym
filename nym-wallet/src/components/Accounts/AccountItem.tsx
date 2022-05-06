@@ -12,10 +12,10 @@ import {
 import { Edit } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
 import { AccountAvatar } from './AccountAvatar';
-import { ShowMnemonic } from './ShowMnemonic';
 
 export const AccountItem = ({ name, address }: { name: string; address: string }) => {
-  const { selectedAccount, handleSelectAccount, handleAccountToEdit } = useContext(AccountsContext);
+  const { selectedAccount, handleSelectAccount, handleAccountToEdit, setDialogToDisplay, setAccountMnemonic } =
+    useContext(AccountsContext);
   return (
     <ListItem
       disablePadding
@@ -32,7 +32,18 @@ export const AccountItem = ({ name, address }: { name: string; address: string }
             <Box>
               <Typography variant="body2">{address}</Typography>
               <Box sx={{ mt: 0.5 }}>
-                <ShowMnemonic accountName={name} />
+                <Typography
+                  variant="body2"
+                  component="span"
+                  sx={{ textDecoration: 'underline', mb: 0.5, '&:hover': { color: 'primary.main' } }}
+                  onClick={(e: React.MouseEvent<HTMLElement>) => {
+                    e.stopPropagation();
+                    setDialogToDisplay('Mnemonic');
+                    setAccountMnemonic((accountMnemonic) => ({ ...accountMnemonic, accountName: name }));
+                  }}
+                >
+                  Show mnemonic
+                </Typography>
               </Box>
             </Box>
           }

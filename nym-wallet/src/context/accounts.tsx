@@ -1,6 +1,6 @@
 import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from 'src/types';
-import { addAccount as addAccountRequest } from 'src/requests';
+import { addAccount as addAccountRequest, showMnemonicForAccount } from 'src/requests';
 import { useSnackbar } from 'notistack';
 import { ClientContext } from './main';
 
@@ -11,16 +11,20 @@ type TAccounts = {
   dialogToDisplay?: TAccountsDialog;
   isLoading: boolean;
   error?: string;
+  accountMnemonic: TAccountMnemonic;
   setError: Dispatch<SetStateAction<string | undefined>>;
+  setAccountMnemonic: Dispatch<SetStateAction<TAccountMnemonic>>;
   handleAddAccount: (data: { accountName: string; mnemonic: string; password: string }) => void;
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
   handleSelectAccount: (accountId: string) => void;
   handleAccountToEdit: (accountId: string) => void;
   handleEditAccount: (account: AccountEntry) => void;
   handleImportAccount: (account: AccountEntry) => void;
+  handleGetAcccountMnemonic: (data: { password: string; accountName: string }) => void;
 };
 
-export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Import';
+export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Import' | 'Mnemonic';
+export type TAccountMnemonic = { value?: string; accountName?: string };
 
 export const AccountsContext = createContext({} as TAccounts);
 
@@ -29,6 +33,10 @@ export const AccountsProvider: React.FC = ({ children }) => {
   const [selectedAccount, setSelectedAccount] = useState<AccountEntry>();
   const [accountToEdit, setAccountToEdit] = useState<AccountEntry>();
   const [dialogToDisplay, setDialogToDisplay] = useState<TAccountsDialog>();
+  const [accountMnemonic, setAccountMnemonic] = useState<TAccountMnemonic>({
+    value: undefined,
+    accountName: undefined,
+  });
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const { onAccountChange, storedAccounts } = useContext(ClientContext);
@@ -73,6 +81,18 @@ export const AccountsProvider: React.FC = ({ children }) => {
     setSelectedAccount(match);
   };
 
+  const handleGetAcccountMnemonic = async ({ password, accountName }: { password: string; accountName: string }) => {
+    try {
+      setIsLoading(true);
+      const mnemonic = await showMnemonicForAccount({ password, accountName });
+      setAccountMnemonic({ value: mnemonic, accountName });
+    } catch (e) {
+      setError(e as string);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (storedAccounts) {
       setAccounts(storedAccounts);
@@ -93,15 +113,18 @@ export const AccountsProvider: React.FC = ({ children }) => {
           selectedAccount,
           accountToEdit,
           dialogToDisplay,
+          accountMnemonic,
           setDialogToDisplay,
+          setAccountMnemonic,
           isLoading,
           handleAddAccount,
           handleEditAccount,
           handleAccountToEdit,
           handleSelectAccount,
           handleImportAccount,
+          handleGetAcccountMnemonic,
         }),
-        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error],
+        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error, accountMnemonic],
       )}
     >
       {children}

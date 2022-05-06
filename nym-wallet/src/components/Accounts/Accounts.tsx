@@ -5,6 +5,7 @@ import { EditAccountModal } from './EditAccountModal';
 import { AddAccountModal } from './AddAccountModal';
 import { AccountsModal } from './AccountsModal';
 import { AccountAvatar } from './AccountAvatar';
+import { MnemonicModal } from './MnemonicModal';
 
 export const Accounts = () => {
   const { accounts, selectedAccount, setDialogToDisplay } = useContext(AccountsContext);
@@ -22,6 +23,7 @@ export const Accounts = () => {
       <AccountsModal />
       <AddAccountModal />
       <EditAccountModal />
+      <MnemonicModal />
     </>
   ) : null;
 };

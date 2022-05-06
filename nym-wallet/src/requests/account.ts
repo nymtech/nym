@@ -58,7 +58,7 @@ export const listAccounts = async () => {
 };
 
 export const showMnemonicForAccount = async ({ password, accountName }: { password: string; accountName: string }) => {
-  const res: string = await invoke('show_mnemonic_for_account_in_password', { password, innerId: accountName });
+  const res: string = await invoke('show_mnemonic_for_account_in_password', { password, accountId: accountName });
   return res;
 };
 

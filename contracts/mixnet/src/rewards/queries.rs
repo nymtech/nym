@@ -48,12 +48,15 @@ pub fn query_delegator_reward(
     mix_identity: IdentityKey,
     proxy: Option<String>,
 ) -> Result<Uint128, ContractError> {
-    let proxy = proxy.map(|p| {
-        deps.api
-            .addr_validate(&p)
-            .map_err(|_| ContractError::InvalidAddress(p))
-            .expect("proxy address is invalid")
-    });
+    let proxy = match proxy {
+        Some(proxy) => Some(
+            deps.api
+                .addr_validate(&proxy)
+                .map_err(|_| ContractError::InvalidAddress(proxy))?,
+        ),
+        None => None,
+    };
+
     let key = mixnet_contract_common::delegation::generate_storage_key(
         &deps.api.addr_validate(&owner)?,
         proxy.as_ref(),

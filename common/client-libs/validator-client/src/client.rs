@@ -12,8 +12,6 @@ use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
-#[cfg(feature = "nymd-client")]
-use validator_api_requests::models::UptimeResponse;
 
 #[cfg(feature = "nymd-client")]
 use network_defaults::DEFAULT_NETWORK;

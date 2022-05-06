@@ -255,7 +255,7 @@ pub fn _try_compound_delegator_reward(
 
     {
         if let Some(mut bond) = mixnodes().may_load(deps.storage, mix_identity)? {
-            bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
+            bond.accumulated_rewards = Some(bond.accumulated_rewards().saturating_sub(reward));
             mixnodes().save(deps.storage, mix_identity, &bond, block_height)?;
         }
     }

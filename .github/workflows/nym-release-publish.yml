@@ -44,3 +44,4 @@ jobs:
             target/release/nym-mixnode
             target/release/nym-socks5-client
             target/release/nym-validator-api
+            target/release/nym-network-requester

@@ -33,12 +33,12 @@ const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
   if (field === 'selectionChance') {
     switch (fieldValue) {
       case 'High':
-      case 'VeryHigh':
+      case 'Very High':
         return theme.palette.nym.networkExplorer.selectionChance.overModerate;
       case 'Moderate':
         return theme.palette.nym.networkExplorer.selectionChance.moderate;
       case 'Low':
-      case 'VeryLow':
+      case 'Very Low':
         return theme.palette.nym.networkExplorer.selectionChance.underModerate;
       default:
         return theme.palette.nym.wallet.fee;

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from 'src/types';
 import { addAccount as addAccountRequest } from 'src/requests';
 import { useSnackbar } from 'notistack';
@@ -10,6 +10,8 @@ type TAccounts = {
   accountToEdit?: AccountEntry;
   dialogToDisplay?: TAccountsDialog;
   isLoading: boolean;
+  error?: string;
+  setError: Dispatch<SetStateAction<string | undefined>>;
   handleAddAccount: (data: { accountName: string; mnemonic: string; password: string }) => void;
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
   handleSelectAccount: (accountId: string) => void;
@@ -27,6 +29,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
   const [selectedAccount, setSelectedAccount] = useState<AccountEntry>();
   const [accountToEdit, setAccountToEdit] = useState<AccountEntry>();
   const [dialogToDisplay, setDialogToDisplay] = useState<TAccountsDialog>();
+  const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const { onAccountChange, storedAccounts } = useContext(ClientContext);
   const { enqueueSnackbar } = useSnackbar();
@@ -51,7 +54,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
       enqueueSnackbar('New account created', { variant: 'success' });
       setDialogToDisplay('Accounts');
     } catch (e) {
-      enqueueSnackbar(`Error adding account: ${e}`, { variant: 'error' });
+      setError(`Error adding account: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -84,6 +87,8 @@ export const AccountsProvider: React.FC = ({ children }) => {
     <AccountsContext.Provider
       value={useMemo(
         () => ({
+          error,
+          setError,
           accounts,
           selectedAccount,
           accountToEdit,
@@ -96,7 +101,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
           handleSelectAccount,
           handleImportAccount,
         }),
-        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading],
+        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error],
       )}
     >
       {children}

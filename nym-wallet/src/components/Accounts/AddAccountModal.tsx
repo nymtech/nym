@@ -18,11 +18,15 @@ import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic } from 'src/requests';
 import { AccountsContext } from 'src/context';
 
-const createAccountSteps = ['Save and copy mnemonic for your new account', 'Name your new account', 'Confirm password'];
+const createAccountSteps = [
+  'Copy and save mnemonic for your new account',
+  'Name your new account',
+  'Confirm the password used to login to your wallet',
+];
 const importAccountSteps = [
   'Provide mnemonic of account you want to import',
   'Name your new account',
-  'Confirm password',
+  'Confirm the password used to login to your wallet',
 ];
 
 const passwordCreationSteps = [
@@ -108,7 +112,14 @@ const ImportMnemonic = ({
   <Box sx={{ mt: 1 }}>
     <DialogContent>
       <Stack spacing={2} alignItems="center">
-        <TextField multiline rows={3} value={value} onChange={(e) => onChange(e.target.value)} fullWidth />
+        <TextField
+          multiline
+          rows={3}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          fullWidth
+          type="password"
+        />
       </Stack>
     </DialogContent>
     <DialogActions sx={{ p: 3, pt: 0 }}>
@@ -154,15 +165,27 @@ const NameAccount = ({ onPrev, onNext }: { onPrev: () => void; onNext: (value: s
 
 const ConfirmPassword = ({ onPrev, onConfirm }: { onPrev: () => void; onConfirm: (password: string) => void }) => {
   const [value, setValue] = useState('');
-  const { isLoading } = useContext(AccountsContext);
+  const { isLoading, error, setError } = useContext(AccountsContext);
 
   return (
     <Box sx={{ mt: 1 }}>
       <DialogContent>
-        <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
+        {error && (
+          <Typography variant="body1" sx={{ color: 'error.main', mb: 2 }}>
+            {error}
+          </Typography>
+        )}
+        <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth type="password" />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
-        <Button fullWidth size="large" onClick={onPrev}>
+        <Button
+          fullWidth
+          size="large"
+          onClick={() => {
+            setError(undefined);
+            onPrev();
+          }}
+        >
           Back
         </Button>
         <Button
@@ -181,14 +204,14 @@ const ConfirmPassword = ({ onPrev, onConfirm }: { onPrev: () => void; onConfirm:
   );
 };
 
-export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean }) => {
+export const AddAccountModal = () => {
   const [step, setStep] = useState(0);
   const [data, setData] = useState({
     mnemonic: '',
     accountName: '',
   });
 
-  const { dialogToDisplay, setDialogToDisplay, handleAddAccount } = useContext(AccountsContext);
+  const { dialogToDisplay, setDialogToDisplay, handleAddAccount, setError } = useContext(AccountsContext);
 
   const generateMnemonic = async () => {
     const mnemon = await createMnemonic();
@@ -199,6 +222,7 @@ export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean
     setDialogToDisplay('Accounts');
     setData({ mnemonic: '', accountName: '' });
     setStep(0);
+    setError(undefined);
   };
 
   useEffect(() => {
@@ -213,61 +237,54 @@ export const AddAccountModal = ({ withoutPassword }: { withoutPassword?: boolean
       fullWidth
       hideBackdrop
     >
-      <DialogTitle>
+      <DialogTitle sx={{ pb: 0 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">{`${dialogToDisplay} new account`}</Typography>
           <IconButton onClick={handleClose}>
             <Close />
           </IconButton>
         </Box>
-        {!withoutPassword && (
-          <Typography variant="body1" sx={{ color: 'grey.600' }}>
-            {`Step ${step + 1}/${createAccountSteps.length}`}
-          </Typography>
-        )}
         <Typography sx={{ mt: 2 }}>
           {dialogToDisplay === 'Add' ? createAccountSteps[step] : importAccountSteps[step]}
         </Typography>
       </DialogTitle>
-      {withoutPassword && <NoPassword onClose={handleClose} />}
-      {!withoutPassword &&
-        (() => {
-          switch (step) {
-            case 0:
-              return dialogToDisplay === 'Add' ? (
-                <MnemonicStep mnemonic={data.mnemonic} onNext={() => setStep((s) => s + 1)} />
-              ) : (
-                <ImportMnemonic
-                  value={data.mnemonic}
-                  onChange={(value) => setData((d) => ({ ...d, mnemonic: value }))}
-                  onNext={() => setStep((s) => s + 1)}
-                />
-              );
-            case 1:
-              return (
-                <NameAccount
-                  onPrev={() => setStep((s) => s - 1)}
-                  onNext={(accountName) => {
-                    setData((d) => ({ ...d, accountName }));
-                    setStep((s) => s + 1);
-                  }}
-                />
-              );
-            case 2:
-              return (
-                <ConfirmPassword
-                  onPrev={() => setStep((s) => s - 1)}
-                  onConfirm={(password) => {
-                    if (data.accountName && data.mnemonic) {
-                      handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
-                    }
-                  }}
-                />
-              );
-            default:
-              return null;
-          }
-        })()}
+      {(() => {
+        switch (step) {
+          case 0:
+            return dialogToDisplay === 'Add' ? (
+              <MnemonicStep mnemonic={data.mnemonic} onNext={() => setStep((s) => s + 1)} />
+            ) : (
+              <ImportMnemonic
+                value={data.mnemonic}
+                onChange={(value) => setData((d) => ({ ...d, mnemonic: value }))}
+                onNext={() => setStep((s) => s + 1)}
+              />
+            );
+          case 1:
+            return (
+              <NameAccount
+                onPrev={() => setStep((s) => s - 1)}
+                onNext={(accountName) => {
+                  setData((d) => ({ ...d, accountName }));
+                  setStep((s) => s + 1);
+                }}
+              />
+            );
+          case 2:
+            return (
+              <ConfirmPassword
+                onPrev={() => setStep((s) => s - 1)}
+                onConfirm={(password) => {
+                  if (data.accountName && data.mnemonic) {
+                    handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                  }
+                }}
+              />
+            );
+          default:
+            return null;
+        }
+      })()}
     </Dialog>
   );
 };

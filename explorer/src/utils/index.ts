@@ -36,3 +36,12 @@ export function countryDataToGridRow(countriesData: CountryData[]): CountryDataR
   const sorted = formatted.sort((a, b) => (a.nodes < b.nodes ? 1 : -1));
   return sorted;
 }
+
+export const splice = (start: number, deleteCount: number, address?: string): string => {
+  if (address) {
+    const array = address.split('');
+    array.splice(start, deleteCount, '...');
+    return array.join('');
+  }
+  return '';
+};

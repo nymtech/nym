@@ -81,7 +81,8 @@ pub fn _try_compound_operator_reward(
 
     let mut updated_bond = bond.clone();
     let reward = calculate_operator_reward(storage, api, owner, &bond)?;
-    updated_bond.accumulated_rewards = Some(updated_bond.accumulated_rewards() - reward);
+    updated_bond.accumulated_rewards =
+        Some(updated_bond.accumulated_rewards().saturating_sub(reward));
     updated_bond.pledge_amount.amount += reward;
     mixnodes().replace(
         storage,

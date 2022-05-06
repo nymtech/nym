@@ -236,6 +236,7 @@ where
         validator_client::ApiClient::new(validator_api.clone())
     }
 
+    #[cfg(feature = "coconut")]
     fn all_api_clients(&self) -> Vec<validator_client::ApiClient> {
         self.config
             .get_validator_api_endpoints()

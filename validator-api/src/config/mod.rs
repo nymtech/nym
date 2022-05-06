@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::{default_api_endpoints, DEFAULT_NETWORK};
+use config::defaults::DEFAULT_NETWORK;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -129,11 +129,6 @@ pub struct NetworkMonitor {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
-    /// Specifies list of all validators on the network issuing coconut credentials.
-    /// A special care must be taken to ensure they are in correct order.
-    /// The list must also contain THIS validator that is running the test
-    all_validator_apis: Vec<Url>,
-
     /// Specifies the interval at which the network monitor sends the test packets.
     #[serde(with = "humantime_serde")]
     run_interval: Duration,
@@ -204,7 +199,6 @@ impl Default for NetworkMonitor {
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
             disabled_credentials_mode: true,
-            all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
@@ -284,7 +278,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[cfg(feature = "coconut")]
 pub struct CoconutSigner {
@@ -293,6 +287,22 @@ pub struct CoconutSigner {
 
     /// Path to the signing keypair
     keypair_path: PathBuf,
+
+    /// Specifies list of all validators on the network issuing coconut credentials.
+    /// A special care must be taken to ensure they are in correct order.
+    /// The list must also contain THIS validator that is running the test
+    all_validator_apis: Vec<Url>,
+}
+
+#[cfg(feature = "coconut")]
+impl Default for CoconutSigner {
+    fn default() -> Self {
+        CoconutSigner {
+            enabled: false,
+            keypair_path: PathBuf::default(),
+            all_validator_apis: config::defaults::default_api_endpoints(),
+        }
+    }
 }
 
 impl Config {
@@ -356,8 +366,9 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
     pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.network_monitor.all_validator_apis = validator_api_urls;
+        self.coconut_signer.all_validator_apis = validator_api_urls;
         self
     }
 
@@ -492,7 +503,7 @@ impl Config {
     // fix dead code warnings as this method is only ever used with coconut feature
     #[cfg(feature = "coconut")]
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
-        self.network_monitor.all_validator_apis.clone()
+        self.coconut_signer.all_validator_apis.clone()
     }
 
     // TODO: Remove if still unused

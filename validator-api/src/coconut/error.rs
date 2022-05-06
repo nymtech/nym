@@ -65,6 +65,9 @@ pub enum CoconutError {
 
     #[error("Storage error - {0}")]
     StorageError(#[from] ValidatorApiStorageError),
+
+    #[error("Credentials error - {0}")]
+    CredentialsError(#[from] credentials::error::Error),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

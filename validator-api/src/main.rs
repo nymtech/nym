@@ -28,7 +28,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
 use tokio::sync::Notify;
-use url::Url;
 // use validator_client::nymd::SigningNymdClient;
 // use validator_client::ValidatorClientError;
 
@@ -58,12 +57,12 @@ const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
-const API_VALIDATORS_ARG: &str = "api-validators";
 const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 
 #[cfg(feature = "coconut")]
+const API_VALIDATORS_ARG: &str = "api-validators";
+#[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
-
 #[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
 
@@ -77,7 +76,8 @@ const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
 const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
 
-fn parse_validators(raw: &str) -> Vec<Url> {
+#[cfg(feature = "coconut")]
+fn parse_validators(raw: &str) -> Vec<url::Url> {
     raw.split(',')
         .map(|raw_validator| {
             raw_validator
@@ -170,12 +170,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .short("w")
         )
         .arg(
-            Arg::with_name(API_VALIDATORS_ARG)
-                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
-                .long(API_VALIDATORS_ARG)
-                .takes_value(true)
-        )
-        .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
@@ -196,9 +190,15 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(KEYPAIR_ARG),
         )
         .arg(
+            Arg::with_name(API_VALIDATORS_ARG)
+                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
+                .long(API_VALIDATORS_ARG)
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG])
+                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG, API_VALIDATORS_ARG])
                 .long(COCONUT_ENABLED),
         );
 
@@ -246,8 +246,6 @@ fn setup_logging() {
         .filter_module("sled", log::LevelFilter::Warn)
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .filter_module("_", log::LevelFilter::Warn)
-        .filter_module("rocket::server", log::LevelFilter::Warn)
         .init();
 }
 
@@ -273,6 +271,7 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
         config = config.with_coconut_signer_enabled(true)
     }
 
+    #[cfg(feature = "coconut")]
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
     }
@@ -455,6 +454,7 @@ async fn setup_rocket(
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
             keypair,
+            config.get_all_validator_api_endpoints(),
             storage.clone().unwrap(),
         ))
     } else {

@@ -87,7 +87,12 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(&nymd_db);
 
-    let rocket = rocket::build().attach(InternalSignRequest::stage(nymd_client, key_pair, storage));
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nymd_client,
+        key_pair,
+        vec![],
+        storage,
+    ));
 
     let client = Client::tracked(rocket)
         .await
@@ -169,6 +174,7 @@ async fn signed_before() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
+        vec![],
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -387,6 +393,7 @@ async fn blind_sign_correct() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
+        vec![],
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -459,6 +466,7 @@ async fn signature_test() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
+        vec![],
         storage.clone(),
     ));
     let client = Client::tracked(rocket)

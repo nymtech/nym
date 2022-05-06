@@ -32,15 +32,6 @@ enabled = {{ network_monitor.enabled }}
 # to claim bandwidth without presenting bandwidth credentials.
 disabled_credentials_mode = {{ network_monitor.disabled_credentials_mode }}
 
-# Specifies list of all validators on the network issuing coconut credentials.
-# A special care must be taken to ensure they are in correct order.
-# The list must also contain THIS validator that is running the test
-all_validator_apis = [
-    {{#each network_monitor.all_validator_apis }}
-        '{{this}}',
-    {{/each}}
-]
-
 # Specifies the interval at which the network monitor sends the test packets.
 run_interval = '{{ network_monitor.run_interval }}'
 
@@ -110,6 +101,15 @@ enabled = {{ coconut_signer.enabled }}
 
 # Path to the signing keypair
 keypair_path = '{{ coconut_signer.keypair_path }}'
+
+# Specifies list of all validators on the network issuing coconut credentials.
+# A special care must be taken to ensure they are in correct order.
+# The list must also contain THIS validator that is running the test
+all_validator_apis = [
+    {{#each coconut_signer.all_validator_apis }}
+        '{{this}}',
+    {{/each}}
+]
 
 "#
 }

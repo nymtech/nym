@@ -14,15 +14,18 @@ use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    KeyPair, Parameters, VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    KeyPair, Parameters, VerificationKey, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
+use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
 use rand_07::rngs::OsRng;
@@ -31,17 +34,23 @@ use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use url::Url;
 
 pub struct State {
     client: Arc<RwLock<dyn LocalClient + Send + Sync>>,
     key_pair: KeyPair,
+    validator_apis: Vec<Url>,
     storage: ValidatorApiStorage,
     rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
-    pub(crate) fn new<C>(client: C, key_pair: KeyPair, storage: ValidatorApiStorage) -> Self
+    pub(crate) fn new<C>(
+        client: C,
+        key_pair: KeyPair,
+        validator_apis: Vec<Url>,
+        storage: ValidatorApiStorage,
+    ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
     {
@@ -50,6 +59,7 @@ impl State {
         Self {
             client,
             key_pair,
+            validator_apis,
             storage,
             rng,
         }
@@ -109,6 +119,10 @@ impl State {
             Ok(response)
         }
     }
+
+    pub async fn verification_key(&self) -> Result<VerificationKey> {
+        Ok(obtain_aggregate_verification_key(&self.validator_apis).await?)
+    }
 }
 
 #[derive(Getters, CopyGetters, Debug)]
@@ -135,11 +149,16 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage<C>(client: C, key_pair: KeyPair, storage: ValidatorApiStorage) -> AdHoc
+    pub fn stage<C>(
+        client: C,
+        key_pair: KeyPair,
+        validator_apis: Vec<Url>,
+        storage: ValidatorApiStorage,
+    ) -> AdHoc
     where
         C: LocalClient + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, storage);
+        let state = State::new(client, key_pair, validator_apis, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -233,9 +252,10 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
+    let verification_key = state.verification_key().await?;
     let verification_result = verify_credential_body
         .0
         .credential()
-        .verify(&state.key_pair.verification_key());
+        .verify(&verification_key);
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
 }

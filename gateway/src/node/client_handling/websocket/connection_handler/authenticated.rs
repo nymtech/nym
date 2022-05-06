@@ -42,8 +42,8 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
     UnsupportedBandwidthValue(u64),
 
-    #[error("Provided bandwidth credential did not verify correctly")]
-    InvalidBandwidthCredential,
+    #[error("Provided bandwidth credential did not verify correctly on {0}")]
+    InvalidBandwidthCredential(String),
 
     #[error("This gateway is not running in the disabled credentials mode")]
     NotInDisabledCredentialsMode,
@@ -219,20 +219,24 @@ where
                 .as_ref()
                 .aggregated_verification_key(),
         ) {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("gateway"),
+            ));
         }
 
         let req = coconut_interface::VerifyCredentialBody::new(credential.clone());
-        let mut aggregated_verification = true;
         for client in self.inner.coconut_verifier.api_clients() {
-            let api_verification = client
+            if !client
                 .verify_bandwidth_credential(&req)
                 .await?
-                .verification_result;
-            println!("Verification result {}", api_verification);
-            aggregated_verification &= api_verification;
+                .verification_result
+            {
+                return Err(RequestHandlingError::InvalidBandwidthCredential(format!(
+                    "validator {}",
+                    client.validator_api.current_url()
+                )));
+            }
         }
-        println!("result {}", aggregated_verification);
 
         let bandwidth = Bandwidth::try_from(credential)?;
         let bandwidth_value = bandwidth.value();
@@ -276,11 +280,15 @@ where
             .inner
             .check_local_identity(&credential.gateway_identity())
         {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("gateway"),
+            ));
         }
 
         if !credential.verify_signature() {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("gateway"),
+            ));
         }
         debug!("Verifying Ethereum for token burn...");
         let gateway_owner = self

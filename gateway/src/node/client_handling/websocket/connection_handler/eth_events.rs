@@ -95,7 +95,9 @@ impl ERC20Bridge {
             }
         }
 
-        Err(RequestHandlingError::InvalidBandwidthCredential)
+        Err(RequestHandlingError::InvalidBandwidthCredential(
+            String::from("gateway"),
+        ))
     }
 
     pub(crate) async fn verify_gateway_owner(
@@ -103,17 +105,18 @@ impl ERC20Bridge {
         gateway_owner: String,
         gateway_identity: &PublicKey,
     ) -> Result<(), RequestHandlingError> {
-        let owner_address = AccountId::from_str(&gateway_owner)
-            .map_err(|_| RequestHandlingError::InvalidBandwidthCredential)?;
-        let gateway_bond = self
-            .nymd_client
-            .owns_gateway(&owner_address)
-            .await?
-            .ok_or(RequestHandlingError::InvalidBandwidthCredential)?;
+        let owner_address = AccountId::from_str(&gateway_owner).map_err(|_| {
+            RequestHandlingError::InvalidBandwidthCredential(String::from("gateway"))
+        })?;
+        let gateway_bond = self.nymd_client.owns_gateway(&owner_address).await?.ok_or(
+            RequestHandlingError::InvalidBandwidthCredential(String::from("gateway")),
+        )?;
         if gateway_bond.gateway.identity_key == gateway_identity.to_base58_string() {
             Ok(())
         } else {
-            Err(RequestHandlingError::InvalidBandwidthCredential)
+            Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("gateway"),
+            ))
         }
     }
 

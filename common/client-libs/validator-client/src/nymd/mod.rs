@@ -58,6 +58,8 @@ pub struct NymdClient<C> {
     mixnet_contract_address: Option<AccountId>,
     vesting_contract_address: Option<AccountId>,
     erc20_bridge_contract_address: Option<AccountId>,
+    #[cfg(feature = "dkg")]
+    coconut_dkg_contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
     custom_gas_limits: HashMap<Operation, Gas>,
     simulated_gas_multiplier: f32,
@@ -78,6 +80,8 @@ impl NymdClient<QueryNymdClient> {
             mixnet_contract_address,
             vesting_contract_address,
             erc20_bridge_contract_address,
+            #[cfg(feature = "dkg")]
+            coconut_dkg_contract_address: None,
             client_address: None,
             custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -112,6 +116,8 @@ impl NymdClient<SigningNymdClient> {
             mixnet_contract_address,
             vesting_contract_address,
             erc20_bridge_contract_address,
+            #[cfg(feature = "dkg")]
+            coconut_dkg_contract_address: None,
             client_address: Some(client_address),
             custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -145,6 +151,8 @@ impl NymdClient<SigningNymdClient> {
             mixnet_contract_address,
             vesting_contract_address,
             erc20_bridge_contract_address,
+            #[cfg(feature = "dkg")]
+            coconut_dkg_contract_address: None,
             client_address: Some(client_address),
             custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -167,6 +175,21 @@ impl<C> NymdClient<C> {
 
     pub fn erc20_bridge_contract_address(&self) -> Result<&AccountId, NymdError> {
         self.erc20_bridge_contract_address
+            .as_ref()
+            .ok_or(NymdError::NoContractAddressAvailable)
+    }
+
+    #[cfg(feature = "dkg")]
+    pub fn set_coconut_dkg_contract_address(
+        &mut self,
+        coconut_dkg_contract_address: Option<AccountId>,
+    ) {
+        self.coconut_dkg_contract_address = coconut_dkg_contract_address;
+    }
+
+    #[cfg(feature = "dkg")]
+    pub fn coconut_dkg_contract_address(&self) -> Result<&AccountId, NymdError> {
+        self.coconut_dkg_contract_address
             .as_ref()
             .ok_or(NymdError::NoContractAddressAvailable)
     }

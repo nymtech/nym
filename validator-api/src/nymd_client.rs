@@ -5,6 +5,7 @@ use crate::config::Config;
 use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
+use coconut_dkg_common::types::Epoch as DkgEpoch;
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
@@ -16,6 +17,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
+use validator_client::nymd::error::NymdError;
+use validator_client::nymd::traits::DkgClient;
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
     CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
@@ -403,6 +406,13 @@ impl<C> Client<C> {
                 }
             }
         }
+    }
+
+    async fn get_dkg_epoch(&self) -> Result<DkgEpoch, NymdError>
+    where
+        C: SigningCosmWasmClient + Send + Sync,
+    {
+        self.0.read().await.nymd.get_current_dkg_epoch().await
     }
 }
 

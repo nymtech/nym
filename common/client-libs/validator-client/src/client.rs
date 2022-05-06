@@ -42,6 +42,8 @@ pub struct Config {
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
     erc20_bridge_contract_address: Option<cosmrs::AccountId>,
+    #[cfg(feature = "dkg")]
+    coconut_dkg_contract_address: Option<cosmrs::AccountId>,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -65,6 +67,8 @@ impl Config {
             mixnet_contract_address,
             vesting_contract_address,
             erc20_bridge_contract_address,
+            #[cfg(feature = "dkg")]
+            coconut_dkg_contract_address: None,
             api_url,
             mixnode_page_limit: None,
             gateway_page_limit: None,
@@ -92,6 +96,15 @@ impl Config {
         self.rewarded_set_page_limit = limit;
         self
     }
+
+    #[cfg(feature = "dkg")]
+    pub fn with_coconut_dkg_contract(
+        mut self,
+        coconut_dkg_contract_address: Option<cosmrs::AccountId>,
+    ) -> Config {
+        self.coconut_dkg_contract_address = coconut_dkg_contract_address;
+        self
+    }
 }
 
 #[cfg(feature = "nymd-client")]
@@ -100,6 +113,8 @@ pub struct Client<C> {
     mixnet_contract_address: Option<cosmrs::AccountId>,
     vesting_contract_address: Option<cosmrs::AccountId>,
     erc20_bridge_contract_address: Option<cosmrs::AccountId>,
+    #[cfg(feature = "dkg")]
+    coconut_dkg_contract_address: Option<cosmrs::AccountId>,
     mnemonic: Option<bip39::Mnemonic>,
 
     mixnode_page_limit: Option<u32>,
@@ -134,6 +149,8 @@ impl Client<SigningNymdClient> {
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
             erc20_bridge_contract_address: config.erc20_bridge_contract_address,
+            #[cfg(feature = "dkg")]
+            coconut_dkg_contract_address: config.coconut_dkg_contract_address,
             mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -192,6 +209,8 @@ impl Client<QueryNymdClient> {
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
             erc20_bridge_contract_address: config.erc20_bridge_contract_address,
+            #[cfg(feature = "dkg")]
+            coconut_dkg_contract_address: config.coconut_dkg_contract_address,
             mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -217,6 +236,16 @@ impl Client<QueryNymdClient> {
 impl<C> Client<C> {
     pub fn change_validator_api(&mut self, new_endpoint: Url) {
         self.validator_api.change_url(new_endpoint)
+    }
+
+    #[cfg(feature = "dkg")]
+    pub fn set_coconut_dkg_contract(
+        &mut self,
+        coconut_dkg_contract_address: Option<cosmrs::AccountId>,
+    ) {
+        self.nymd
+            .set_coconut_dkg_contract_address(coconut_dkg_contract_address.clone());
+        self.coconut_dkg_contract_address = coconut_dkg_contract_address;
     }
 
     // use case: somebody initialised client without a contract in order to upload and initialise one

@@ -12,6 +12,7 @@ base64 = "0.13"
 colored = "2.0"
 mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
+coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg-contract", optional = true }
 vesting-contract = { path = "../../../contracts/vesting" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -54,3 +55,4 @@ nymd-client = [
     "itertools",
     "cosmwasm-std",
 ]
+dkg = ["nymd-client", "coconut-dkg-common"]

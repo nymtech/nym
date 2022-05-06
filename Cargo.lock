@@ -6203,6 +6203,7 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "coconut-dkg-common",
  "coconut-interface",
  "colored",
  "config",

@@ -10,6 +10,7 @@ use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
+use ::config::defaults::DEFAULT_NETWORK;
 use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
@@ -94,6 +95,7 @@ fn long_version() -> String {
 {:<20}{}
 {:<20}{}
 {:<20}{}
+{:<20}{}
 "#,
         "Build Timestamp:",
         env!("VERGEN_BUILD_TIMESTAMP"),
@@ -111,6 +113,8 @@ fn long_version() -> String {
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
         env!("VERGEN_CARGO_PROFILE"),
+        "Network:",
+        DEFAULT_NETWORK
     )
 }
 

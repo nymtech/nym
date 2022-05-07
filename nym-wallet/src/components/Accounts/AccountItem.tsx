@@ -7,15 +7,18 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { Edit } from '@mui/icons-material';
+import { useClipboard } from 'use-clipboard-copy';
 import { AccountsContext } from 'src/context';
 import { AccountAvatar } from './AccountAvatar';
 
 export const AccountItem = ({ name, address }: { name: string; address: string }) => {
   const { selectedAccount, handleSelectAccount, handleAccountToEdit, setDialogToDisplay, setAccountMnemonic } =
     useContext(AccountsContext);
+  const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   return (
     <ListItem
       disablePadding
@@ -30,7 +33,19 @@ export const AccountItem = ({ name, address }: { name: string; address: string }
           primary={name}
           secondary={
             <Box>
-              <Typography variant="body2">{address}</Typography>
+              <Tooltip title={copied ? 'Copied!' : `Click to copy address ${address}`}>
+                <Typography
+                  component="span"
+                  variant="body2"
+                  onClick={(e: React.MouseEvent<HTMLElement>) => {
+                    e.stopPropagation();
+                    copy(address);
+                  }}
+                  sx={{ '&:hover': { color: 'grey.900' } }}
+                >
+                  {address}
+                </Typography>
+              </Tooltip>
               <Box sx={{ mt: 0.5 }}>
                 <Typography
                   variant="body2"

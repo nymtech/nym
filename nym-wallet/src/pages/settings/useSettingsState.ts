@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import {
   getMixnodeRewardEstimation,
   getMixnodeStakeSaturation,
@@ -18,7 +18,7 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     in_reserve: 0,
   });
 
-  const { mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(AppContext);
 
   const getStatus = async (mixnodeKey: string) => {
     const newStatus = await getMixnodeStatus(mixnodeKey);

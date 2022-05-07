@@ -16,7 +16,7 @@ import {
 import { InfoOutlined, Refresh } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { Fee, InfoTooltip, NymCard, Title } from '../../components';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { withdrawVestedCoins } from '../../requests';
 import { Period } from '../../types';
 import { VestingTimeline } from './components/vesting-timeline';
@@ -38,7 +38,7 @@ const vestingPeriod = (current?: Period, original?: number) => {
 };
 
 const VestingSchedule = () => {
-  const { userBalance, currency } = useContext(ClientContext);
+  const { userBalance, currency } = useContext(AppContext);
   const [vestedPercentage, setVestedPercentage] = useState(0);
 
   const calculatePercentage = () => {
@@ -93,7 +93,7 @@ const VestingSchedule = () => {
 };
 
 const TokenTransfer = () => {
-  const { userBalance, currency } = useContext(ClientContext);
+  const { userBalance, currency } = useContext(AppContext);
   const icon = useCallback(
     () => (
       <Box sx={{ display: 'flex', mr: 1 }}>
@@ -123,7 +123,7 @@ const TokenTransfer = () => {
 export const VestingCard = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { userBalance } = useContext(ClientContext);
+  const { userBalance } = useContext(AppContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const refreshBalances = async () => {

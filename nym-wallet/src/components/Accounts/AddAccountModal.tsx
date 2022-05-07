@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
@@ -13,7 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Check, Close, ContentCopySharp } from '@mui/icons-material';
+import { ArrowBackSharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic } from 'src/requests';
 import { AccountsContext } from 'src/context';
@@ -83,7 +82,7 @@ const ImportMnemonic = ({
   </Box>
 );
 
-const NameAccount = ({ onPrev, onNext }: { onPrev: () => void; onNext: (value: string) => void }) => {
+const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
   const [value, setValue] = useState('');
   return (
     <Box sx={{ mt: 1 }}>
@@ -91,9 +90,6 @@ const NameAccount = ({ onPrev, onNext }: { onPrev: () => void; onNext: (value: s
         <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
-        <Button fullWidth size="large" onClick={onPrev}>
-          Back
-        </Button>
         <Button
           disabled={!value.length}
           fullWidth
@@ -109,9 +105,9 @@ const NameAccount = ({ onPrev, onNext }: { onPrev: () => void; onNext: (value: s
   );
 };
 
-const ConfirmPassword = ({ onPrev, onConfirm }: { onPrev: () => void; onConfirm: (password: string) => void }) => {
+const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void }) => {
   const [value, setValue] = useState('');
-  const { isLoading, error, setError } = useContext(AccountsContext);
+  const { isLoading, error } = useContext(AccountsContext);
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -124,16 +120,6 @@ const ConfirmPassword = ({ onPrev, onConfirm }: { onPrev: () => void; onConfirm:
         <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth type="password" />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
-        <Button
-          fullWidth
-          size="large"
-          onClick={() => {
-            setError(undefined);
-            onPrev();
-          }}
-        >
-          Back
-        </Button>
         <Button
           disabled={!value.length || isLoading}
           fullWidth
@@ -173,8 +159,11 @@ export const AddAccountModal = () => {
 
   useEffect(() => {
     if (dialogToDisplay === 'Add') generateMnemonic();
-    else setData({ mnemonic: '', accountName: '' });
   }, [dialogToDisplay]);
+
+  useEffect(() => {
+    setError(undefined);
+  }, [step]);
 
   return (
     <Dialog
@@ -186,8 +175,8 @@ export const AddAccountModal = () => {
       <DialogTitle sx={{ pb: 0 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">{`${dialogToDisplay} new account`}</Typography>
-          <IconButton onClick={handleClose}>
-            <Close />
+          <IconButton onClick={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}>
+            <ArrowBackSharp />
           </IconButton>
         </Box>
         <Typography sx={{ mt: 2 }}>
@@ -209,7 +198,6 @@ export const AddAccountModal = () => {
           case 1:
             return (
               <NameAccount
-                onPrev={() => setStep((s) => s - 1)}
                 onNext={(accountName) => {
                   setData((d) => ({ ...d, accountName }));
                   setStep((s) => s + 1);
@@ -219,7 +207,6 @@ export const AddAccountModal = () => {
           case 2:
             return (
               <ConfirmPassword
-                onPrev={() => setStep((s) => s - 1)}
                 onConfirm={(password) => {
                   if (data.accountName && data.mnemonic) {
                     handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });

@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
-import { ClientContext } from 'src/context';
+import { AppContext } from 'src/context';
 import { isPasswordCreated } from 'src/requests';
 import { MnemonicInput, Subtitle } from '../components';
 
@@ -9,7 +9,7 @@ export const SignInMnemonic = () => {
   const [mnemonic, setMnemonic] = useState('');
   const [passwordExists, setPasswordExists] = useState(true);
 
-  const { setError, logIn, error } = useContext(ClientContext);
+  const { setError, logIn, error } = useContext(AppContext);
   const history = useHistory();
 
   const checkForPassword = async () => {

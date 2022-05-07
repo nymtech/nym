@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo';
-import { Balance, Coin, OriginalVestingResponse, Period } from '../types';
+import { Balance, Coin, Network, OriginalVestingResponse, Period } from '../types';
 import {
   getVestingCoins,
   getVestedCoins,
@@ -92,9 +92,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     } catch (err) {
       setError(err as string);
     } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
+      setIsLoading(false);
     }
   }, []);
 

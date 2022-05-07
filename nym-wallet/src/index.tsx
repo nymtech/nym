@@ -1,63 +1,39 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
-import { AppRoutes, SignInRoutes } from './routes';
-import { ClientContext, ClientContextProvider } from './context/main';
-import { ApplicationLayout } from './layouts';
-import { Admin, Settings } from './pages';
+import { Routes } from './routes';
+import { AppProvider } from './context/main';
 import { ErrorFallback } from './components';
-import { NymWalletTheme, WelcomeTheme } from './theme';
+import { NymWalletTheme } from './theme';
 import { maximizeWindow } from './utils';
-import { AccountsProvider, SignInProvider } from './context';
-import { LoadingPage } from './components/LoadingPage';
 
 const App = () => {
-  const { clientDetails, isLoading } = useContext(ClientContext);
-
   useEffect(() => {
     maximizeWindow();
   }, []);
 
-  return !clientDetails ? (
-    <WelcomeTheme>
-      <SignInProvider>{!isLoading ? <SignInRoutes /> : <LoadingPage />}</SignInProvider>
-    </WelcomeTheme>
-  ) : (
-    <NymWalletTheme>
-      <AccountsProvider>
-        {isLoading ? (
-          <LoadingPage />
-        ) : (
-          <ApplicationLayout>
-            <Settings />
-            <Admin />
-            <AppRoutes />
-          </ApplicationLayout>
-        )}
-      </AccountsProvider>
-    </NymWalletTheme>
+  return (
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <Router>
+        <SnackbarProvider
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+        >
+          <AppProvider>
+            <NymWalletTheme>
+              <Routes />
+            </NymWalletTheme>
+          </AppProvider>
+        </SnackbarProvider>
+      </Router>
+    </ErrorBoundary>
   );
 };
 
-const AppWrapper = () => (
-  <ErrorBoundary FallbackComponent={ErrorFallback}>
-    <Router>
-      <SnackbarProvider
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-      >
-        <ClientContextProvider>
-          <App />
-        </ClientContextProvider>
-      </SnackbarProvider>
-    </Router>
-  </ErrorBoundary>
-);
-
 const root = document.getElementById('root');
 
-ReactDOM.render(<AppWrapper />, root);
+ReactDOM.render(<App />, root);

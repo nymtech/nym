@@ -2,7 +2,7 @@ import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, 
 import { AccountEntry } from 'src/types';
 import { addAccount as addAccountRequest, showMnemonicForAccount } from 'src/requests';
 import { useSnackbar } from 'notistack';
-import { ClientContext } from './main';
+import { AppContext } from './main';
 
 type TAccounts = {
   accounts?: AccountEntry[];
@@ -39,7 +39,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
   });
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
-  const { onAccountChange, storedAccounts } = useContext(ClientContext);
+  const { onAccountChange, storedAccounts } = useContext(AppContext);
   const { enqueueSnackbar } = useSnackbar();
 
   const handleAddAccount = async ({
@@ -76,9 +76,11 @@ export const AccountsProvider: React.FC = ({ children }) => {
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async (accountName: string) => {
-    await onAccountChange(accountName);
-    const match = accounts?.find((acc) => acc.id === accountName);
-    setSelectedAccount(match);
+    if (accountName !== selectedAccount?.id) {
+      await onAccountChange(accountName);
+      const match = accounts?.find((acc) => acc.id === accountName);
+      setSelectedAccount(match);
+    }
   };
 
   const handleGetAcccountMnemonic = async ({ password, accountName }: { password: string; accountName: string }) => {

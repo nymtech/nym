@@ -19,7 +19,7 @@ export const ExistingAccount = () => {
           Sign in with password
         </Button>
         <Box display="flex" justifyContent="space-between">
-          <Button color="inherit" onClick={() => history.push('/welcome')}>
+          <Button color="inherit" onClick={() => history.push('/')}>
             Back
           </Button>
           <Button color="info" onClick={() => history.push('/sign-in-mnemonic')}>

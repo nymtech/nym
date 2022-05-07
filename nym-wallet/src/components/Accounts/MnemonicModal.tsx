@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { ArrowBackSharp } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
 import { useClipboard } from 'use-clipboard-copy';
 import { Mnemonic } from '../Mnemonic';
@@ -45,7 +45,7 @@ export const MnemonicModal = () => {
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Display mnemonic</Typography>
           <IconButton onClick={handleClose}>
-            <Close />
+            <ArrowBackSharp />
           </IconButton>
         </Box>
         <Typography variant="body1" sx={{ color: 'grey.600' }}>

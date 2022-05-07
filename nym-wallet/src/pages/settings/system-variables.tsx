@@ -9,7 +9,7 @@ import { Fee, InfoTooltip } from '../../components';
 import { InclusionProbabilityResponse } from '../../types';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnode, vestingUpdateMixnode } from '../../requests';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { Console } from '../../utils/console';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
@@ -57,7 +57,7 @@ export const SystemVariables = ({
   inclusionProbability: InclusionProbabilityResponse;
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
-  const { currency, mixnodeDetails } = useContext(ClientContext);
+  const { currency, mixnodeDetails } = useContext(AppContext);
   const { ownership } = useCheckOwnership();
 
   const {

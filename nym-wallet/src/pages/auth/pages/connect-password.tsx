@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { SignInContext } from 'src/context';
+import { AuthContext } from 'src/context/auth';
 import { createPassword } from 'src/requests';
 import { Subtitle, Title, PasswordStrength } from '../components';
 import { PasswordInput } from '../components/textfields';
@@ -12,7 +12,7 @@ export const ConnectPassword = () => {
   const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { mnemonic, password, setPassword, resetState } = useContext(SignInContext);
+  const { mnemonic, password, setPassword, resetState } = useContext(AuthContext);
   const history = useHistory();
 
   const { enqueueSnackbar } = useSnackbar();

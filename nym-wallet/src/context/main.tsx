@@ -31,7 +31,7 @@ export const urls = (networkName?: Network) =>
 
 type TLoginType = 'mnemonic' | 'password';
 
-type TClientContext = {
+type TAppContext = {
   mode: 'light' | 'dark';
   clientDetails?: Account;
   storedAccounts?: AccountEntry[];
@@ -56,9 +56,9 @@ type TClientContext = {
   onAccountChange: (accountId: string) => void;
 };
 
-export const ClientContext = createContext({} as TClientContext);
+export const AppContext = createContext({} as TAppContext);
 
-export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
+export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
@@ -119,12 +119,15 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   };
 
   useEffect(() => {
-    if (network) refreshAccount(network);
-  }, [network]);
+    if (!clientDetails) {
+      clearState();
+      history.push('/');
+    }
+  }, [clientDetails]);
 
   useEffect(() => {
-    if (!clientDetails) clearState();
-  }, [clientDetails]);
+    if (network) refreshAccount(network);
+  }, [network]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {
@@ -215,5 +218,5 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     ],
   );
 
-  return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;
+  return <AppContext.Provider value={memoizedValue}>{children}</AppContext.Provider>;
 };

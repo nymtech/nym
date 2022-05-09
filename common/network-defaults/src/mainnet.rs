@@ -19,7 +19,8 @@ pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
-    vec![ValidatorDetails::new(
+    vec![ValidatorDetails::new_with_name(
+        "Nodes.Guru",
         "https://rpc.nyx.nodes.guru/",
         Some("https://validator.nymtech.net/api"),
     )]

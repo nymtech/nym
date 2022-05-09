@@ -327,6 +327,7 @@ where
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ValidatorUrl {
   pub nymd_url: Url,
+  pub nymd_name: Option<String>,
   pub api_url: Option<Url>,
 }
 
@@ -336,6 +337,7 @@ impl TryFrom<ValidatorDetails> for ValidatorUrl {
   fn try_from(validator: ValidatorDetails) -> Result<Self, Self::Error> {
     Ok(ValidatorUrl {
       nymd_url: validator.nymd_url.parse()?,
+      nymd_name: validator.nymd_name,
       api_url: match &validator.api_url {
         Some(url) => Some(url.parse()?),
         None => None,
@@ -350,6 +352,7 @@ impl TryFrom<network_config::Validator> for ValidatorUrl {
   fn try_from(validator: network_config::Validator) -> Result<Self, Self::Error> {
     Ok(ValidatorUrl {
       nymd_url: validator.nymd_url.parse()?,
+      nymd_name: validator.nymd_name,
       api_url: match &validator.api_url {
         Some(url) => Some(url.parse()?),
         None => None,
@@ -361,11 +364,21 @@ impl TryFrom<network_config::Validator> for ValidatorUrl {
 impl fmt::Display for ValidatorUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let s1 = format!("nymd_url: {}", self.nymd_url);
+    let name = self
+      .nymd_name
+      .as_ref()
+      .map(|name| format!(" ({})", name));
     let s2 = self
       .api_url
       .as_ref()
       .map(|url| format!(", api_url: {}", url));
-    write!(f, "    {}{},", s1, s2.unwrap_or_default())
+    write!(
+      f,
+      "    {}{}{},",
+      s1,
+      name.unwrap_or_default(),
+      s2.unwrap_or_default()
+    )
   }
 }
 
@@ -424,14 +437,17 @@ mod tests {
       validator_urls: Some(vec![
         ValidatorUrl {
           nymd_url: "https://foo".parse().unwrap(),
+          nymd_name: Some("FooName".to_string()),
           api_url: None,
         },
         ValidatorUrl {
           nymd_url: "https://bar".parse().unwrap(),
+          nymd_name: None,
           api_url: Some("https://bar/api".parse().unwrap()),
         },
         ValidatorUrl {
           nymd_url: "https://baz".parse().unwrap(),
+          nymd_name: None,
           api_url: Some("https://baz/api".parse().unwrap()),
         },
       ]),
@@ -458,6 +474,7 @@ selected_api_url = 'https://my_api_url.com/'
 
 [[validator_urls]]
 nymd_url = 'https://foo/'
+nymd_name = 'FooName'
 
 [[validator_urls]]
 nymd_url = 'https://bar/'
@@ -469,6 +486,39 @@ api_url = 'https://baz/api'
 "#
     );
   }
+
+  #[test]
+  fn serialize_to_json() {
+    let config = test_config();
+    let netconfig = &config.networks[&WalletNetwork::MAINNET.as_key()];
+    println!("{}", serde_json::to_string_pretty(netconfig).unwrap());
+    assert_eq!(
+      serde_json::to_string_pretty(netconfig).unwrap(),
+      r#"{
+  "version": 1,
+  "selected_nymd_url": null,
+  "selected_api_url": "https://my_api_url.com/",
+  "validator_urls": [
+    {
+      "nymd_url": "https://foo/",
+      "nymd_name": "FooName",
+      "api_url": null
+    },
+    {
+      "nymd_url": "https://bar/",
+      "nymd_name": null,
+      "api_url": "https://bar/api"
+    },
+    {
+      "nymd_url": "https://baz/",
+      "nymd_name": null,
+      "api_url": "https://baz/api"
+    }
+  ]
+}"#
+    );
+  }
+
   #[test]
   fn serialize_and_deserialize_to_toml() {
     let config = test_config();

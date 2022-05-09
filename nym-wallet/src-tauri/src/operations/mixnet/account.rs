@@ -2,7 +2,7 @@ use crate::coin::{Coin, Denom};
 use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
-use crate::network_config;
+use crate::network_config::{self, get_validator_nymd_urls};
 use crate::nymd_client;
 use crate::state::State;
 use crate::wallet_storage::{self, DEFAULT_WALLET_ACCOUNT_ID};

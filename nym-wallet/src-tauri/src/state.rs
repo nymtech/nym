@@ -1,6 +1,6 @@
-use crate::config::{Config, OptionalValidators, ValidatorUrl};
 use crate::error::BackendError;
 use crate::network::Network;
+use crate::{config, network_config};
 
 use strum::IntoEnumIterator;
 use validator_client::nymd::SigningNymdClient;
@@ -31,12 +31,15 @@ pub async fn save_config_to_files(
 
 #[derive(Default)]
 pub struct State {
-  config: Config,
+  config: config::Config,
   signing_clients: HashMap<Network, Client<SigningNymdClient>>,
   current_network: Network,
 
   /// Validators that have been fetched dynamically, probably during startup.
-  fetched_validators: OptionalValidators,
+  fetched_validators: config::OptionalValidators,
+
+  /// We fetch (and cache) some metadata, such as names, when available
+  validator_metadata: HashMap<Url, ValidatorMetadata>,
 }
 
 impl State {
@@ -72,13 +75,13 @@ impl State {
       .ok_or(BackendError::ClientNotInitialized)
   }
 
-  pub fn config(&self) -> &Config {
+  pub fn config(&self) -> &config::Config {
     &self.config
   }
 
   /// Load configuration from files. If unsuccessful we just log it and move on.
   pub fn load_config_files(&mut self) {
-    self.config = Config::load_from_files();
+    self.config = config::Config::load_from_files();
   }
 
   #[allow(unused)]
@@ -106,37 +109,91 @@ impl State {
   /// 1. from the configuration file
   /// 2. provided remotely
   /// 3. hardcoded fallback
-  pub fn get_validators(&self, network: Network) -> impl Iterator<Item = ValidatorUrl> + '_ {
+  /// The format is the config backend format, which is flat due to serialization preference.
+  pub fn get_validators(
+    &self,
+    network: Network,
+  ) -> impl Iterator<Item = config::ValidatorUrl> + '_ {
     let validators_in_config = self.config.get_configured_validators(network);
     let fetched_validators = self.fetched_validators.validators(network).cloned();
     let default_validators = self.config.get_base_validators(network);
 
-    validators_in_config
+    let validators = validators_in_config
       .chain(fetched_validators)
       .chain(default_validators)
-      .unique()
+      .unique();
+
+    validators.map(|v| {
+      // Annotate with dynamic metadata
+      let metadata = self.validator_metadata.get(&v.nymd_url);
+      let name = v
+        .nymd_name
+        .or_else(|| metadata.and_then(|m| m.name.clone()));
+      config::ValidatorUrl {
+        nymd_url: v.nymd_url,
+        nymd_name: name,
+        api_url: v.api_url,
+      }
+    })
   }
 
-  pub fn get_nymd_urls(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
+  pub fn get_nymd_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
     self.get_validators(network).into_iter().map(|v| v.nymd_url)
   }
 
-  pub fn get_api_urls(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
+  pub fn get_api_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
     self
       .get_validators(network)
       .into_iter()
       .filter_map(|v| v.api_url)
   }
 
+  /// Get the list of validator nymd urls in the network config format, suitable for passing on to
+  /// the UI
+  pub fn get_nymd_urls(
+    &self,
+    network: Network,
+  ) -> impl Iterator<Item = network_config::ValidatorUrl> + '_ {
+    self
+      .get_validators(network)
+      .into_iter()
+      .map(|v| network_config::ValidatorUrl {
+        url: v.nymd_url.to_string(),
+        name: v.nymd_name,
+      })
+  }
+
+  /// Get the list of validator-api urls in the network config format, suitable for passing on to
+  /// the UI
+  pub fn get_api_urls(
+    &self,
+    network: Network,
+  ) -> impl Iterator<Item = network_config::ValidatorUrl> + '_ {
+    self.get_validators(network).into_iter().filter_map(|v| {
+      v.api_url.map(|u| network_config::ValidatorUrl {
+        url: u.to_string(),
+        name: None,
+      })
+    })
+  }
+
   pub fn get_all_nymd_urls(&self) -> HashMap<Network, Vec<Url>> {
     Network::iter()
-      .flat_map(|network| self.get_nymd_urls(network).map(move |url| (network, url)))
+      .flat_map(|network| {
+        self
+          .get_nymd_urls_only(network)
+          .map(move |url| (network, url))
+      })
       .into_group_map()
   }
 
   pub fn get_all_api_urls(&self) -> HashMap<Network, Vec<Url>> {
     Network::iter()
-      .flat_map(|network| self.get_api_urls(network).map(move |url| (network, url)))
+      .flat_map(|network| {
+        self
+          .get_api_urls_only(network)
+          .map(move |url| (network, url))
+      })
       .into_group_map()
   }
 
@@ -154,8 +211,12 @@ impl State {
       .get(crate::config::REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
       .send()
       .await?;
+
     self.fetched_validators = serde_json::from_str(&response.text().await?)?;
     log::debug!("Received validator urls: \n{}", self.fetched_validators);
+
+    self.refresh_validator_status().await?;
+
     Ok(())
   }
 
@@ -183,13 +244,63 @@ impl State {
     Ok(())
   }
 
-  pub fn add_validator_url(&mut self, url: ValidatorUrl, network: Network) {
+  pub fn add_validator_url(&mut self, url: config::ValidatorUrl, network: Network) {
     self.config.add_validator_url(url, network);
   }
 
-  pub fn remove_validator_url(&mut self, url: ValidatorUrl, network: Network) {
+  pub fn remove_validator_url(&mut self, url: config::ValidatorUrl, network: Network) {
     self.config.remove_validator_url(url, network)
   }
+
+  pub async fn refresh_validator_status(&mut self) -> Result<(), BackendError> {
+    log::debug!("Refreshing validator status");
+
+    // All urls for all networks
+    let nymd_urls = self
+      .get_all_nymd_urls()
+      .into_iter()
+      .flat_map(|(_, urls)| urls.into_iter());
+
+    let client = reqwest::Client::builder()
+      .timeout(Duration::from_secs(3))
+      .build()?;
+
+    let responses = futures::future::join_all(nymd_urls.into_iter().map(|url| {
+      let client = &client;
+      let status_url = url.join("status").unwrap_or_else(|_| url.clone());
+      async move {
+        let resp = client.get(status_url).send().await?;
+        resp.text().await.map(|text| (url, text))
+      }
+    }))
+    .await;
+
+    // Update the stored metadata
+    for r in responses.into_iter().flatten() {
+      let v: serde_json::Value = serde_json::from_str(&r.1)?;
+      let moniker = &v["result"]["node_info"]["moniker"];
+      log::debug!("Fetched name for: {}: {}", r.0, moniker);
+
+      // Insert into metadata map
+      if let Some(ref mut m) = self.validator_metadata.get_mut(&r.0) {
+        m.name = Some(moniker.to_string());
+      } else {
+        self.validator_metadata.insert(
+          r.0,
+          ValidatorMetadata {
+            name: Some(moniker.to_string()),
+          },
+        );
+      }
+    }
+
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct ValidatorMetadata {
+  pub name: Option<String>,
 }
 
 #[macro_export]
@@ -223,31 +334,36 @@ mod tests {
     let _api_urls = state.get_api_urls(Network::MAINNET).collect::<Vec<_>>();
 
     state.add_validator_url(
-      ValidatorUrl {
+      config::ValidatorUrl {
         nymd_url: "http://nymd_url.com".parse().unwrap(),
+        nymd_name: Some("NymdUrl".to_string()),
         api_url: Some("http://nymd_url.com/api".parse().unwrap()),
       },
       Network::MAINNET,
     );
 
     state.add_validator_url(
-      ValidatorUrl {
+      config::ValidatorUrl {
         nymd_url: "http://foo.com".parse().unwrap(),
+        nymd_name: None,
         api_url: None,
       },
       Network::MAINNET,
     );
 
     state.add_validator_url(
-      ValidatorUrl {
+      config::ValidatorUrl {
         nymd_url: "http://bar.com".parse().unwrap(),
+        nymd_name: None,
         api_url: None,
       },
       Network::MAINNET,
     );
 
     assert_eq!(
-      state.get_nymd_urls(Network::MAINNET).collect::<Vec<_>>(),
+      state
+        .get_nymd_urls_only(Network::MAINNET)
+        .collect::<Vec<_>>(),
       vec![
         "http://nymd_url.com/".parse().unwrap(),
         "http://foo.com".parse().unwrap(),
@@ -256,7 +372,9 @@ mod tests {
       ],
     );
     assert_eq!(
-      state.get_api_urls(Network::MAINNET).collect::<Vec<_>>(),
+      state
+        .get_api_urls_only(Network::MAINNET)
+        .collect::<Vec<_>>(),
       vec![
         "http://nymd_url.com/api".parse().unwrap(),
         "https://validator.nymtech.net/api".parse().unwrap(),

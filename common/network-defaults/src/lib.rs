@@ -112,7 +112,6 @@ impl ValidatorDetails {
         }
     }
 
-
     pub fn nymd_url(&self) -> Url {
         self.nymd_url
             .parse()

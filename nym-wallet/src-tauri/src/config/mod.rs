@@ -364,10 +364,7 @@ impl TryFrom<network_config::Validator> for ValidatorUrl {
 impl fmt::Display for ValidatorUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let s1 = format!("nymd_url: {}", self.nymd_url);
-    let name = self
-      .nymd_name
-      .as_ref()
-      .map(|name| format!(" ({})", name));
+    let name = self.nymd_name.as_ref().map(|name| format!(" ({})", name));
     let s2 = self
       .api_url
       .as_ref()

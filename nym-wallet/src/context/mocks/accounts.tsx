@@ -17,15 +17,7 @@ export const MockAccountsProvider: React.FC = ({ children }) => {
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddAccount = async ({
-    accountName,
-    mnemonic,
-    password,
-  }: {
-    accountName: string;
-    mnemonic: string;
-    password: string;
-  }) => {
+  const handleAddAccount = async ({ accountName }: { accountName: string; mnemonic: string; password: string }) => {
     setIsLoading(true);
     try {
       setAccounts((accs) => [...accs, { address: 'abc123', id: accountName }]);
@@ -51,7 +43,7 @@ export const MockAccountsProvider: React.FC = ({ children }) => {
     }
   };
 
-  const handleGetAcccountMnemonic = async ({ password, accountName }: { password: string; accountName: string }) => {
+  const handleGetAcccountMnemonic = async ({ accountName }: { password: string; accountName: string }) => {
     try {
       setIsLoading(true);
       const mnemonic = 'test mnemonic';

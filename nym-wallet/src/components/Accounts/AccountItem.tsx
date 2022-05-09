@@ -1,23 +1,11 @@
 import React, { useContext } from 'react';
-import {
-  Box,
-  IconButton,
-  ListItem,
-  ListItemAvatar,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import { Edit } from '@mui/icons-material';
+import { Box, ListItem, ListItemAvatar, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
 import { useClipboard } from 'use-clipboard-copy';
 import { AccountsContext } from 'src/context';
 import { AccountAvatar } from './AccountAvatar';
 
 export const AccountItem = ({ name, address }: { name: string; address: string }) => {
-  const { selectedAccount, handleSelectAccount, handleAccountToEdit, setDialogToDisplay, setAccountMnemonic } =
-    useContext(AccountsContext);
+  const { selectedAccount, handleSelectAccount, setDialogToDisplay, setAccountMnemonic } = useContext(AccountsContext);
   const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   return (
     <ListItem

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { VestingAccountInfo } from 'src/types/rust/vestingaccountinfo';
-import { Balance, Coin, Network, OriginalVestingResponse, Period } from '../types';
+import { Balance, Coin, OriginalVestingResponse, Period } from '../types';
 import {
   getVestingCoins,
   getVestedCoins,

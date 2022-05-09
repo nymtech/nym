@@ -63,7 +63,8 @@ export const AccountItem = ({ name, address }: { name: string; address: string }
             </Box>
           }
         />
-        <ListItemIcon>
+        {/* edit and remove accounts todo */}
+        {/* <ListItemIcon>
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
@@ -72,7 +73,7 @@ export const AccountItem = ({ name, address }: { name: string; address: string }
           >
             <Edit />
           </IconButton>
-        </ListItemIcon>
+        </ListItemIcon> */}
       </ListItemButton>
     </ListItem>
   );

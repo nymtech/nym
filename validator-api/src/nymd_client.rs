@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
+use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::traits::DkgClient;
 use validator_client::nymd::{
@@ -407,13 +408,6 @@ impl<C> Client<C> {
             }
         }
     }
-
-    async fn get_dkg_epoch(&self) -> Result<DkgEpoch, NymdError>
-    where
-        C: SigningCosmWasmClient + Send + Sync,
-    {
-        self.0.read().await.nymd.get_current_dkg_epoch().await
-    }
 }
 
 #[async_trait]
@@ -430,5 +424,29 @@ where
             .parse::<validator_client::nymd::tx::Hash>()
             .map_err(|_| crate::coconut::error::CoconutError::TxHashParseError)?;
         Ok(self.0.read().await.nymd.get_tx(tx_hash).await?)
+    }
+}
+
+// dkg-related impl block
+impl<C> Client<C>
+where
+    C: SigningCosmWasmClient + Sync + Send,
+{
+    async fn get_dkg_epoch(&self) -> Result<DkgEpoch, NymdError> {
+        self.0.read().await.nymd.get_current_dkg_epoch().await
+    }
+
+    async fn submit_dealing_commitment(
+        &self,
+        epoch_id: u32,
+        dealing_digest: [u8; 32],
+        receivers: u32,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.0
+            .write()
+            .await
+            .nymd
+            .submit_dealing_commitment(epoch_id, dealing_digest, receivers, None)
+            .await
     }
 }

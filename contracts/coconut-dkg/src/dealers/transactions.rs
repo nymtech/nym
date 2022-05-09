@@ -165,3 +165,14 @@ pub fn try_add_dealer(
 
     Ok(Response::new().set_data(node_index.to_be_bytes()))
 }
+
+pub fn try_commit_dealing(
+    mut deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    epoch_id: u32,
+    dealing_digest: [u8; 32],
+    receivers: u32,
+) -> Result<Response, ContractError> {
+    todo!()
+}

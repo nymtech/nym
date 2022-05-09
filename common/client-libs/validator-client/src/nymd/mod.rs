@@ -179,21 +179,6 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
-    #[cfg(feature = "dkg")]
-    pub fn set_coconut_dkg_contract_address(
-        &mut self,
-        coconut_dkg_contract_address: Option<AccountId>,
-    ) {
-        self.coconut_dkg_contract_address = coconut_dkg_contract_address;
-    }
-
-    #[cfg(feature = "dkg")]
-    pub fn coconut_dkg_contract_address(&self) -> Result<&AccountId, NymdError> {
-        self.coconut_dkg_contract_address
-            .as_ref()
-            .ok_or(NymdError::NoContractAddressAvailable)
-    }
-
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.simulated_gas_multiplier = multiplier;
     }
@@ -1346,6 +1331,51 @@ impl<C> NymdClient<C> {
             )
             .await
     }
+}
+
+// dkg-related impl block
+#[cfg(feature = "dkg")]
+impl<C> NymdClient<C> {
+    pub fn set_coconut_dkg_contract_address(
+        &mut self,
+        coconut_dkg_contract_address: Option<AccountId>,
+    ) {
+        self.coconut_dkg_contract_address = coconut_dkg_contract_address;
+    }
+
+    pub fn coconut_dkg_contract_address(&self) -> Result<&AccountId, NymdError> {
+        self.coconut_dkg_contract_address
+            .as_ref()
+            .ok_or(NymdError::NoContractAddressAvailable)
+    }
+
+    // pub async fn submit_dealing_commitment(
+    //     &self,
+    //     epoch_id: u32,
+    //     dealing_digest: [u8; 32],
+    //     receivers: u32,
+    // ) -> Result<ExecuteResult, NymdError>
+    // where
+    //     C: DkgClient,
+    // {
+    //     let fee = self.operation_fee(Operation::CommitDkgDealing);
+    //
+    //     let req = coconut_dkg_common::msg::ExecuteMsg::CommitDealing {
+    //         epoch_id,
+    //         dealing_digest,
+    //         receivers,
+    //     };
+    //     self.client
+    //         .execute(
+    //             self.address(),
+    //             self.coconut_dkg_contract_address()?,
+    //             &req,
+    //             fee,
+    //             "dealing commitment",
+    //             Vec::new(),
+    //         )
+    //         .await
+    // }
 }
 
 fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {

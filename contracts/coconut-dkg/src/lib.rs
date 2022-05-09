@@ -62,6 +62,18 @@ pub fn execute(
             bte_key_with_proof,
             owner_signature,
         ),
+        ExecuteMsg::CommitDealing {
+            epoch_id,
+            dealing_digest,
+            receivers,
+        } => dealers::transactions::try_commit_dealing(
+            deps,
+            env,
+            info,
+            epoch_id,
+            dealing_digest,
+            receivers,
+        ),
     }
 }
 

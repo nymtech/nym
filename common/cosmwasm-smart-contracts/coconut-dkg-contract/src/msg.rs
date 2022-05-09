@@ -19,6 +19,13 @@ pub enum ExecuteMsg {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
         owner_signature: String,
     },
+    CommitDealing {
+        epoch_id: u32,
+        dealing_digest: [u8; 32],
+        // todo: or maybe list them explicitly, produce digest, etc?
+        receivers: u32,
+        // need to think if anything else is required
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

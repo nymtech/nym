@@ -53,6 +53,9 @@ pub enum Operation {
     UpdateMixnetAddress,
     CheckpointMixnodes,
     ReconcileDelegations,
+
+    #[cfg(feature = "dkg")]
+    CommitDkgDealing,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -97,6 +100,9 @@ impl fmt::Display for Operation {
             Operation::CheckpointMixnodes => f.write_str("CheckpointMixnodes"),
             Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
             Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
+
+            #[cfg(feature = "dkg")]
+            Operation::CommitDkgDealing => f.write_str("CommitDkgDealing"),
         }
     }
 }
@@ -104,6 +110,7 @@ impl fmt::Display for Operation {
 impl Operation {
     // TODO: some value tweaking
     pub fn default_gas_limit(&self) -> Gas {
+        let default_limit = 175_000u64.into();
         match self {
             Operation::Upload => 3_000_000u64.into(),
             Operation::Init => 500_000u64.into(),
@@ -111,36 +118,14 @@ impl Operation {
             Operation::ChangeAdmin => 80_000u64.into(),
             Operation::Send => 80_000u64.into(),
 
-            Operation::BondMixnode => 175_000u64.into(),
             Operation::BondMixnodeOnBehalf => 200_000u64.into(),
-            Operation::UnbondMixnode => 175_000u64.into(),
-            Operation::UnbondMixnodeOnBehalf => 175_000u64.into(),
-            Operation::UpdateMixnodeConfig => 175_000u64.into(),
-            Operation::DelegateToMixnode => 175_000u64.into(),
-            Operation::DelegateToMixnodeOnBehalf => 175_000u64.into(),
-            Operation::UndelegateFromMixnode => 175_000u64.into(),
-            Operation::UndelegateFromMixnodeOnBehalf => 175_000u64.into(),
-
-            Operation::BondGateway => 175_000u64.into(),
             Operation::BondGatewayOnBehalf => 200_000u64.into(),
-            Operation::UnbondGateway => 175_000u64.into(),
             Operation::UnbondGatewayOnBehalf => 200_000u64.into(),
-
-            Operation::UpdateContractSettings => 175_000u64.into(),
-            Operation::BeginMixnodeRewarding => 175_000u64.into(),
-            Operation::FinishMixnodeRewarding => 175_000u64.into(),
-            Operation::TrackUnbondGateway => 175_000u64.into(),
-            Operation::TrackUnbondMixnode => 175_000u64.into(),
-            Operation::WithdrawVestedCoins => 175_000u64.into(),
-            Operation::TrackUndelegation => 175_000u64.into(),
-            Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
-            Operation::AdvanceCurrentInterval => 175_000u64.into(),
-            Operation::WriteRewardedSet => 175_000u64.into(),
-            Operation::ClearRewardedSet => 175_000u64.into(),
             Operation::UpdateMixnetAddress => 80_000u64.into(),
-            Operation::CheckpointMixnodes => 175_000u64.into(),
             Operation::ReconcileDelegations => 500_000u64.into(),
-            Operation::AdvanceCurrentEpoch => 175_000u64.into(),
+
+            // all operations not explicitly listed default to `175_000`
+            _ => default_limit,
         }
     }
 

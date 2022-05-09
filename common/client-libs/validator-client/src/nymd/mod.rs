@@ -60,6 +60,7 @@ pub struct NymdClient<C> {
     vesting_contract_address: AccountId,
     bandwidth_claim_contract_address: AccountId,
     coconut_bandwidth_contract_address: AccountId,
+    multisig_contract_address: AccountId,
     client_address: Option<Vec<AccountId>>,
     custom_gas_limits: HashMap<Operation, Gas>,
     simulated_gas_multiplier: f32,
@@ -80,6 +81,10 @@ impl<C> NymdClient<C> {
     }
     pub fn with_coconut_bandwidth_contract_address(mut self, address: AccountId) -> Self {
         self.coconut_bandwidth_contract_address = address;
+        self
+    }
+    pub fn with_multisig_contract_address(mut self, address: AccountId) -> Self {
+        self.multisig_contract_address = address;
         self
     }
 }
@@ -110,6 +115,7 @@ impl NymdClient<QueryNymdClient> {
                 .coconut_bandwidth_contract_address()
                 .parse()
                 .unwrap(),
+            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 }
@@ -154,6 +160,7 @@ impl NymdClient<SigningNymdClient> {
                 .coconut_bandwidth_contract_address()
                 .parse()
                 .unwrap(),
+            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 
@@ -197,6 +204,7 @@ impl NymdClient<SigningNymdClient> {
                 .coconut_bandwidth_contract_address()
                 .parse()
                 .unwrap(),
+            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 }

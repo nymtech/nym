@@ -49,6 +49,7 @@ pub struct DefaultNetworkDetails<'a> {
     vesting_contract_address: &'a str,
     bandwidth_claim_contract_address: &'a str,
     coconut_bandwidth_contract_address: &'a str,
+    multisig_contract_address: &'a str,
     rewarding_validator_address: &'a str,
     validators: Vec<ValidatorDetails>,
 }
@@ -61,6 +62,7 @@ static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
         vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
         bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
         coconut_bandwidth_contract_address: mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+        multisig_contract_address: mainnet::MULTISIG_CONTRACT_ADDRESS,
         rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
         validators: mainnet::validators(),
     });
@@ -73,6 +75,7 @@ static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
         vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
         bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
         coconut_bandwidth_contract_address: sandbox::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+        multisig_contract_address: sandbox::MULTISIG_CONTRACT_ADDRESS,
         rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
         validators: sandbox::validators(),
     });
@@ -84,6 +87,7 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
     vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
     bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
     coconut_bandwidth_contract_address: qa::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+    multisig_contract_address: qa::MULTISIG_CONTRACT_ADDRESS,
     rewarding_validator_address: qa::REWARDING_VALIDATOR_ADDRESS,
     validators: qa::validators(),
 });

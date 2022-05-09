@@ -660,6 +660,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -5401,6 +5410,7 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "coconut-bandwidth-contract-common",
  "coconut-interface",
  "colored",
  "config",

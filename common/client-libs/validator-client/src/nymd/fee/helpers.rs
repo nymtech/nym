@@ -53,6 +53,8 @@ pub enum Operation {
     UpdateMixnetAddress,
     CheckpointMixnodes,
     ReconcileDelegations,
+
+    BandwidthDeposit,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -97,6 +99,7 @@ impl fmt::Display for Operation {
             Operation::CheckpointMixnodes => f.write_str("CheckpointMixnodes"),
             Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
             Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
+            Operation::BandwidthDeposit => f.write_str("BandwidthDeposit"),
         }
     }
 }
@@ -141,6 +144,8 @@ impl Operation {
             Operation::CheckpointMixnodes => 175_000u64.into(),
             Operation::ReconcileDelegations => 500_000u64.into(),
             Operation::AdvanceCurrentEpoch => 175_000u64.into(),
+
+            Operation::BandwidthDeposit => 175_000u64.into(),
         }
     }
 

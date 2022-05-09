@@ -213,8 +213,7 @@ where
         )?;
 
         if !credential.verify(
-            &self
-                .inner
+            self.inner
                 .coconut_verifier
                 .as_ref()
                 .aggregated_verification_key(),

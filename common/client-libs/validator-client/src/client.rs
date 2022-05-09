@@ -32,8 +32,6 @@ use mixnet_contract_common::{
 };
 #[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
-#[cfg(feature = "nymd-client")]
-use std::str::FromStr;
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
@@ -42,9 +40,9 @@ pub struct Config {
     network: network_defaults::all::Network,
     api_url: Url,
     nymd_url: Url,
-    mixnet_contract_address: Option<cosmrs::AccountId>,
-    vesting_contract_address: Option<cosmrs::AccountId>,
-    erc20_bridge_contract_address: Option<cosmrs::AccountId>,
+    mixnet_contract_address: cosmrs::AccountId,
+    vesting_contract_address: cosmrs::AccountId,
+    bandwidth_claim_contract_address: cosmrs::AccountId,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -54,26 +52,43 @@ pub struct Config {
 
 #[cfg(feature = "nymd-client")]
 impl Config {
-    pub fn new(
-        network: network_defaults::all::Network,
-        nymd_url: Url,
-        api_url: Url,
-        mixnet_contract_address: Option<cosmrs::AccountId>,
-        vesting_contract_address: Option<cosmrs::AccountId>,
-        erc20_bridge_contract_address: Option<cosmrs::AccountId>,
-    ) -> Self {
+    pub fn new(network: network_defaults::all::Network, nymd_url: Url, api_url: Url) -> Self {
         Config {
             network,
             nymd_url,
-            mixnet_contract_address,
-            vesting_contract_address,
-            erc20_bridge_contract_address,
+            mixnet_contract_address: DEFAULT_NETWORK
+                .mixnet_contract_address()
+                .parse()
+                .expect("Error parsing mixnet contract address"),
+            vesting_contract_address: DEFAULT_NETWORK
+                .vesting_contract_address()
+                .parse()
+                .expect("Error parsing vesting contract address"),
+            bandwidth_claim_contract_address: DEFAULT_NETWORK
+                .bandwidth_claim_contract_address()
+                .parse()
+                .expect("Error parsing bandwidth claim contract address"),
             api_url,
             mixnode_page_limit: None,
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
             rewarded_set_page_limit: None,
         }
+    }
+
+    pub fn with_mixnode_contract_address(mut self, address: cosmrs::AccountId) -> Self {
+        self.mixnet_contract_address = address;
+        self
+    }
+
+    pub fn with_vesting_contract_address(mut self, address: cosmrs::AccountId) -> Self {
+        self.vesting_contract_address = address;
+        self
+    }
+
+    pub fn with_bandwidth_claim_contract_address(mut self, address: cosmrs::AccountId) -> Self {
+        self.bandwidth_claim_contract_address = address;
+        self
     }
 
     pub fn with_mixnode_page_limit(mut self, limit: Option<u32>) -> Config {
@@ -100,9 +115,9 @@ impl Config {
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
     pub network: network_defaults::all::Network,
-    mixnet_contract_address: Option<cosmrs::AccountId>,
-    vesting_contract_address: Option<cosmrs::AccountId>,
-    erc20_bridge_contract_address: Option<cosmrs::AccountId>,
+    mixnet_contract_address: cosmrs::AccountId,
+    vesting_contract_address: cosmrs::AccountId,
+    bandwidth_claim_contract_address: cosmrs::AccountId,
     mnemonic: Option<bip39::Mnemonic>,
 
     mixnode_page_limit: Option<u32>,
@@ -125,18 +140,18 @@ impl Client<SigningNymdClient> {
         let nymd_client = NymdClient::connect_with_mnemonic(
             config.network,
             config.nymd_url.as_str(),
-            config.mixnet_contract_address.clone(),
-            config.vesting_contract_address.clone(),
-            config.erc20_bridge_contract_address.clone(),
             mnemonic.clone(),
             None,
-        )?;
+        )?
+        .with_mixnet_contract_address(config.mixnet_contract_address.clone())
+        .with_vesting_contract_address(config.vesting_contract_address.clone())
+        .with_bandwidth_claim_contract_address(config.bandwidth_claim_contract_address.clone());
 
         Ok(Client {
             network: config.network,
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
-            erc20_bridge_contract_address: config.erc20_bridge_contract_address,
+            bandwidth_claim_contract_address: config.bandwidth_claim_contract_address,
             mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -151,12 +166,12 @@ impl Client<SigningNymdClient> {
         self.nymd = NymdClient::connect_with_mnemonic(
             self.network,
             new_endpoint.as_ref(),
-            self.mixnet_contract_address.clone(),
-            self.vesting_contract_address.clone(),
-            self.erc20_bridge_contract_address.clone(),
             self.mnemonic.clone().unwrap(),
             None,
-        )?;
+        )?
+        .with_mixnet_contract_address(self.mixnet_contract_address.clone())
+        .with_vesting_contract_address(self.vesting_contract_address.clone())
+        .with_bandwidth_claim_contract_address(self.bandwidth_claim_contract_address.clone());
         Ok(())
     }
 
@@ -169,32 +184,15 @@ impl Client<SigningNymdClient> {
 impl Client<QueryNymdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
-        let nymd_client = NymdClient::connect(
-            config.nymd_url.as_str(),
-            Some(config.mixnet_contract_address.clone().unwrap_or_else(|| {
-                cosmrs::AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).unwrap()
-            })),
-            Some(config.vesting_contract_address.clone().unwrap_or_else(|| {
-                cosmrs::AccountId::from_str(DEFAULT_NETWORK.vesting_contract_address()).unwrap()
-            })),
-            Some(
-                config
-                    .erc20_bridge_contract_address
-                    .clone()
-                    .unwrap_or_else(|| {
-                        cosmrs::AccountId::from_str(
-                            DEFAULT_NETWORK.bandwidth_claim_contract_address(),
-                        )
-                        .unwrap()
-                    }),
-            ),
-        )?;
+        let nymd_client = NymdClient::connect(config.nymd_url.as_str())?
+            .with_mixnet_contract_address(config.mixnet_contract_address.clone())
+            .with_vesting_contract_address(config.vesting_contract_address.clone());
 
         Ok(Client {
             network: config.network,
             mixnet_contract_address: config.mixnet_contract_address,
             vesting_contract_address: config.vesting_contract_address,
-            erc20_bridge_contract_address: config.erc20_bridge_contract_address,
+            bandwidth_claim_contract_address: config.bandwidth_claim_contract_address,
             mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -206,12 +204,10 @@ impl Client<QueryNymdClient> {
     }
 
     pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nymd = NymdClient::connect(
-            new_endpoint.as_ref(),
-            self.mixnet_contract_address.clone(),
-            self.vesting_contract_address.clone(),
-            self.erc20_bridge_contract_address.clone(),
-        )?;
+        self.nymd = NymdClient::connect(new_endpoint.as_ref())?
+            .with_mixnet_contract_address(self.mixnet_contract_address.clone())
+            .with_vesting_contract_address(self.vesting_contract_address.clone())
+            .with_bandwidth_claim_contract_address(self.bandwidth_claim_contract_address.clone());
         Ok(())
     }
 }
@@ -225,10 +221,10 @@ impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
     pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
-        self.mixnet_contract_address = Some(mixnet_contract_address)
+        self.mixnet_contract_address = mixnet_contract_address
     }
 
-    pub fn get_mixnet_contract_address(&self) -> Option<cosmrs::AccountId> {
+    pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
         self.mixnet_contract_address.clone()
     }
 

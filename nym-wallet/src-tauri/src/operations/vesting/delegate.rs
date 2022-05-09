@@ -14,7 +14,7 @@ pub async fn get_pending_vesting_delegation_events(
 ) -> Result<Vec<DelegationEvent>, BackendError> {
   let guard = state.read().await;
   let client = &guard.current_client()?.nymd;
-  let vesting_contract = client.vesting_contract_address()?;
+  let vesting_contract = client.vesting_contract_address();
 
   Ok(
     client

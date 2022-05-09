@@ -39,16 +39,9 @@ impl ERC20Bridge {
             .expect("The list of validators is empty");
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
-        let nymd_client = NymdClient::connect_with_mnemonic(
-            DEFAULT_NETWORK,
-            nymd_url.as_ref(),
-            AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).ok(),
-            None,
-            AccountId::from_str(DEFAULT_NETWORK.bandwidth_claim_contract_address()).ok(),
-            mnemonic,
-            None,
-        )
-        .expect("Could not create nymd client");
+        let nymd_client =
+            NymdClient::connect_with_mnemonic(DEFAULT_NETWORK, nymd_url.as_ref(), mnemonic, None)
+                .expect("Could not create nymd client");
 
         ERC20Bridge {
             contract: eth_contract(web3.clone()),
@@ -124,9 +117,7 @@ impl ERC20Bridge {
         &self,
         credential: &TokenCredential,
     ) -> Result<(), RequestHandlingError> {
-        // It's ok to unwrap here, as the cosmos contract is set correctly
-        let erc20_bridge_contract_address =
-            self.nymd_client.erc20_bridge_contract_address().unwrap();
+        let bandwidth_claim_contract_address = self.nymd_client.bandwidth_claim_contract_address();
         let req = ExecuteMsg::LinkPayment {
             data: LinkPaymentData::new(
                 credential.verification_key().to_bytes(),
@@ -137,7 +128,7 @@ impl ERC20Bridge {
         };
         self.nymd_client
             .execute(
-                erc20_bridge_contract_address,
+                bandwidth_claim_contract_address,
                 &req,
                 Default::default(),
                 "Linking payment",

@@ -234,7 +234,7 @@ async fn state_functions() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let state = State::new(nymd_client, key_pair, storage.clone());
+    let state = State::new(nymd_client, key_pair, vec![], storage.clone());
 
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
     assert!(state.signed_before(&tx_hash).await.unwrap().is_none());

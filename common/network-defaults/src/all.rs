@@ -52,6 +52,10 @@ impl Network {
         self.details().bandwidth_claim_contract_address
     }
 
+    pub fn coconut_bandwidth_contract_address(&self) -> &str {
+        self.details().coconut_bandwidth_contract_address
+    }
+
     pub fn rewarding_validator_address(&self) -> &str {
         self.details().rewarding_validator_address
     }

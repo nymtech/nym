@@ -10,6 +10,8 @@ pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt17x6pt4msccvawgxjeg5nmnygt
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt1t4dmskxea0avvrj8xtmu66hv7dkyg9s8059t3c";
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
+pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
+    "nymt1ghd753shjuwexxywmgs4xz7x2q732vcnstz02j";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =

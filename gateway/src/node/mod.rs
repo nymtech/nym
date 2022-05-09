@@ -241,7 +241,7 @@ where
         self.config
             .get_validator_api_endpoints()
             .into_iter()
-            .map(|url| validator_client::ApiClient::new(url))
+            .map(validator_client::ApiClient::new)
             .collect()
     }
 

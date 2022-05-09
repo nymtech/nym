@@ -46,14 +46,8 @@ impl Client<QueryNymdClient> {
             .parse()
             .expect("the mixnet contract address is invalid!");
 
-        let client_config = validator_client::Config::new(
-            network,
-            nymd_url,
-            api_url,
-            Some(mixnet_contract),
-            None,
-            None,
-        );
+        let client_config = validator_client::Config::new(network, nymd_url, api_url)
+            .with_mixnode_contract_address(mixnet_contract);
         let inner =
             validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
@@ -80,14 +74,8 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let client_config = validator_client::Config::new(
-            network,
-            nymd_url,
-            api_url,
-            Some(mixnet_contract),
-            None,
-            None,
-        );
+        let client_config = validator_client::Config::new(network, nymd_url, api_url)
+            .with_mixnode_contract_address(mixnet_contract);
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 
@@ -356,12 +344,7 @@ impl<C> Client<C> {
         C: SigningCosmWasmClient + Sync,
         M: Serialize + Clone + Send,
     {
-        let contract = self
-            .0
-            .read()
-            .await
-            .get_mixnet_contract_address()
-            .ok_or(RewardingError::UnspecifiedContractAddress)?;
+        let contract = self.0.read().await.get_mixnet_contract_address();
 
         // grab the write lock here so we're sure nothing else is executing anything on the contract
         // in the meantime

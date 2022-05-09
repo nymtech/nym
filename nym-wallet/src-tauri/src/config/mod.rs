@@ -211,37 +211,34 @@ impl Config {
       .flat_map(|c| c.validators().cloned())
   }
 
-  pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
+  pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> cosmrs::AccountId {
     self
       .base
       .networks
       .mixnet_contract_address(network.into())
       .expect("No mixnet contract address found in config")
       .parse()
-      .ok()
+      .expect("Wrong format for mixnet contract address")
   }
 
-  pub fn get_vesting_contract_address(&self, network: WalletNetwork) -> Option<cosmrs::AccountId> {
+  pub fn get_vesting_contract_address(&self, network: WalletNetwork) -> cosmrs::AccountId {
     self
       .base
       .networks
       .vesting_contract_address(network.into())
       .expect("No vesting contract address found in config")
       .parse()
-      .ok()
+      .expect("Wrong format for vesting contract address")
   }
 
-  pub fn get_bandwidth_claim_contract_address(
-    &self,
-    network: WalletNetwork,
-  ) -> Option<cosmrs::AccountId> {
+  pub fn get_bandwidth_claim_contract_address(&self, network: WalletNetwork) -> cosmrs::AccountId {
     self
       .base
       .networks
       .bandwidth_claim_contract_address(network.into())
       .expect("No bandwidth claim contract address found in config")
       .parse()
-      .ok()
+      .expect("Wrong format for bandwidth claim contract address")
   }
 
   pub fn select_validator_nymd_url(&mut self, nymd_url: Url, network: WalletNetwork) {

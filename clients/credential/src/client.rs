@@ -2,66 +2,49 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bip39::Mnemonic;
-use coconut_bandwidth_contract_common::deposit::DepositData;
 use std::str::FromStr;
 use url::Url;
 
 use crate::error::Result;
-use crate::{CONTRACT_ADDRESS, MNEMONIC, NYMD_URL};
+use crate::{MNEMONIC, NYMD_URL};
 
-use coconut_bandwidth_contract_common::msg::ExecuteMsg;
-use network_defaults::DEFAULT_NETWORK;
-use validator_client::nymd::{
-    AccountId, CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient,
-};
+use network_defaults::{DEFAULT_NETWORK, DENOM, VOUCHER_INFO};
+use validator_client::nymd::traits::CoconutBandwidthSigningClient;
+use validator_client::nymd::{CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient};
 
 pub(crate) struct Client {
     nymd_client: NymdClient<SigningNymdClient>,
-    denom: Denom,
-    contract_address: AccountId,
 }
 
 impl Client {
     pub fn new() -> Self {
         let nymd_url = Url::from_str(NYMD_URL).unwrap();
         let mnemonic = Mnemonic::from_str(MNEMONIC).unwrap();
-        let nymd_client = NymdClient::connect_with_mnemonic(
-            DEFAULT_NETWORK,
-            nymd_url.as_ref(),
-            None,
-            None,
-            None,
-            mnemonic,
-            None,
-        )
-        .unwrap();
-        let denom = Denom::from_str(network_defaults::DENOM).unwrap();
-        let contract_address = AccountId::from_str(CONTRACT_ADDRESS).unwrap();
+        let nymd_client =
+            NymdClient::connect_with_mnemonic(DEFAULT_NETWORK, nymd_url.as_ref(), mnemonic, None)
+                .unwrap();
 
-        Client {
-            nymd_client,
-            denom,
-            contract_address,
-        }
+        Client { nymd_client }
     }
 
     pub async fn deposit(
         &self,
         amount: u64,
-        info: &str,
         verification_key: String,
         encryption_key: String,
     ) -> Result<String> {
-        let req = ExecuteMsg::DepositFunds {
-            data: DepositData::new(info.to_string(), verification_key, encryption_key),
-        };
-        let funds = vec![CosmosCoin {
-            denom: self.denom.clone(),
+        let amount = CosmosCoin {
             amount: Decimal::from(amount),
-        }];
+            denom: Denom::from_str(DENOM).unwrap(),
+        };
         Ok(self
             .nymd_client
-            .execute(&self.contract_address, &req, Default::default(), "", funds)
+            .deposit(
+                amount,
+                String::from(VOUCHER_INFO),
+                verification_key,
+                encryption_key,
+            )
             .await?
             .transaction_hash
             .to_string())

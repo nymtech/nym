@@ -23,7 +23,6 @@ use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
-use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};

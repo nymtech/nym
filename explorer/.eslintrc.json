@@ -1,5 +1,0 @@
-{
-  "extends": [
-    "@nymproject/eslint-config-react-typescript"
-  ]
-}

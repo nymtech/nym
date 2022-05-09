@@ -203,3 +203,13 @@ export type UptimeStoryResponse = {
   identity: string;
   owner: string;
 };
+
+export type MixNodeEconomicDynamicsStatsResponse = {
+  stake_saturation: number;
+  active_set_inclusion_probability: 'VeryHigh' | 'High' | 'Moderate' | 'Low' | 'VeryLow';
+  reserve_set_inclusion_probability: 'VeryHigh' | 'High' | 'Moderate' | 'Low' | 'VeryLow';
+  estimated_total_node_reward: number;
+  estimated_operator_reward: number;
+  estimated_delegators_reward: number;
+  current_interval_uptime: number;
+};

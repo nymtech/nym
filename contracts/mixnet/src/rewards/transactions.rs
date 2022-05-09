@@ -81,7 +81,8 @@ pub fn _try_compound_operator_reward(
 
     let mut updated_bond = bond.clone();
     let reward = calculate_operator_reward(storage, api, owner, &bond)?;
-    updated_bond.accumulated_rewards = Some(updated_bond.accumulated_rewards() - reward);
+    updated_bond.accumulated_rewards =
+        Some(updated_bond.accumulated_rewards().saturating_sub(reward));
     updated_bond.pledge_amount.amount += reward;
     mixnodes().replace(
         storage,
@@ -254,7 +255,7 @@ pub fn _try_compound_delegator_reward(
 
     {
         if let Some(mut bond) = mixnodes().may_load(deps.storage, mix_identity)? {
-            bond.accumulated_rewards = Some(bond.accumulated_rewards() - reward);
+            bond.accumulated_rewards = Some(bond.accumulated_rewards().saturating_sub(reward));
             mixnodes().save(deps.storage, mix_identity, &bond, block_height)?;
         }
     }

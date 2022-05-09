@@ -60,5 +60,5 @@ pub fn decr_reward_pool(
 
 pub fn circulating_supply(storage: &dyn Storage) -> StdResult<Uint128> {
     let reward_pool = REWARD_POOL.load(storage)?;
-    Ok(Uint128::new(TOTAL_SUPPLY) - reward_pool)
+    Ok(Uint128::new(TOTAL_SUPPLY).saturating_sub(reward_pool))
 }

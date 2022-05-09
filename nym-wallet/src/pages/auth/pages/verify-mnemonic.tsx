@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
-import { SignInContext } from 'src/context/sign-in';
+import { AuthContext } from 'src/context/auth';
 import { randomNumberBetween } from 'src/utils';
 import { HiddenWords, Subtitle, Title, WordTiles } from '../components';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWord, TMnemonicWords } from '../types';
@@ -13,7 +13,7 @@ export const VerifyMnemonic = () => {
   const [hiddenRandomWords, setHiddenRandomWords] = useState<THiddenMnemonicWords>();
   const [currentSelection, setCurrentSelection] = useState(0);
 
-  const { mnemonicWords } = useContext(SignInContext);
+  const { mnemonicWords } = useContext(AuthContext);
   const history = useHistory();
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material';
 import { ArrowDropDown, CheckSharp } from '@mui/icons-material';
-import { ClientContext, IS_DEV_MODE } from '../context/main';
+import { AppContext, IS_DEV_MODE } from '../context/main';
 import { Network } from '../types';
 
 const networks: { networkName: Network; name: string }[] = [
@@ -22,7 +22,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
 );
 
 export const NetworkSelector = () => {
-  const { network, switchNetwork } = useContext(ClientContext);
+  const { network, switchNetwork } = useContext(AppContext);
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 

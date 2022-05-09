@@ -1,89 +1,36 @@
-import React from 'react';
-import { Button } from '@mui/material';
-import { v4 as uuidv4 } from 'uuid';
-import { TAccount } from 'src/types';
+import React, { useContext, useState } from 'react';
+import { AccountsContext, AppContext } from 'src/context';
 import { EditAccountModal } from './EditAccountModal';
 import { AddAccountModal } from './AddAccountModal';
 import { AccountsModal } from './AccountsModal';
-import { ImportAccountModal } from './ImportAccountModal';
-import { AccountAvatar } from './AccountAvatar';
-import { TDialog } from './types';
+import { MnemonicModal } from './MnemonicModal';
+import { AccountOverview } from './AccountOverview';
+import { MultiAccountHowTo } from './MultiAccountHowTo';
 
-export const Accounts = ({
-  accounts,
-  selectedAccount,
-  accountToEdit,
-  dialogToDisplay,
-  addAccount,
-  editAccount,
-  setAccountToEdit,
-  importAccount,
-  setSelectedAccount,
-  setDialogToDisplay,
-}: {
-  accounts: TAccount[];
-  selectedAccount: TAccount;
-  accountToEdit?: TAccount;
-  dialogToDisplay?: TDialog;
-  addAccount: (acc: TAccount) => void;
-  editAccount: (acc: TAccount) => void;
-  importAccount: (acc: TAccount) => void;
-  setAccountToEdit: (acc: TAccount) => void;
-  setSelectedAccount: (accs: TAccount) => void;
-  setDialogToDisplay: (dialog: TDialog | undefined) => void;
-}) => (
-  <>
-    <Button
-      startIcon={<AccountAvatar address={selectedAccount.address} name={selectedAccount.name} />}
-      color="inherit"
-      onClick={() => setDialogToDisplay('Accounts')}
-      disableRipple
-    >
-      {selectedAccount.name}
-    </Button>
-    <AccountsModal
-      show={dialogToDisplay === 'Accounts'}
-      onClose={() => setDialogToDisplay(undefined)}
-      accounts={accounts}
-      onAccountSelect={(acc) => setSelectedAccount(acc)}
-      selectedAccount={selectedAccount.address}
-      onAdd={() => {
-        setDialogToDisplay('Add');
-      }}
-      onEdit={(acc) => {
-        setAccountToEdit(acc);
-        setDialogToDisplay('Edit');
-      }}
-      onImport={() => setDialogToDisplay('Import')}
-    />
-    <AddAccountModal
-      show={dialogToDisplay === 'Add'}
-      onClose={() => {
-        setDialogToDisplay('Accounts');
-      }}
-      onAdd={(name) => {
-        addAccount({ name, address: uuidv4() });
-        setDialogToDisplay('Accounts');
-      }}
-    />
-    <EditAccountModal
-      show={dialogToDisplay === 'Edit'}
-      account={accountToEdit}
-      onClose={() => {
-        setDialogToDisplay('Accounts');
-      }}
-      onEdit={(account) => {
-        editAccount(account);
-        setDialogToDisplay('Accounts');
-      }}
-    />
-    <ImportAccountModal
-      show={dialogToDisplay === 'Import'}
-      onClose={() => setDialogToDisplay('Accounts')}
-      onImport={() => {
-        importAccount({ name: 'New Account', address: uuidv4() });
-        setDialogToDisplay('Accounts');
-      }}
-    />
-  </>
-);
+export const Accounts = () => {
+  const { accounts, selectedAccount, setDialogToDisplay } = useContext(AccountsContext);
+
+  return accounts && selectedAccount ? (
+    <>
+      <AccountOverview account={selectedAccount} onClick={() => setDialogToDisplay('Accounts')} />
+      <AccountsModal />
+      <AddAccountModal />
+      <EditAccountModal />
+      <MnemonicModal />
+    </>
+  ) : null;
+};
+
+export const SingleAccount = () => {
+  const [showHowToDialog, setShowHowToDialog] = useState(false);
+  const { clientDetails } = useContext(AppContext);
+  return (
+    <>
+      <AccountOverview
+        account={{ id: 'Account 1', address: clientDetails?.client_address || '' }}
+        onClick={() => setShowHowToDialog(true)}
+      />
+      <MultiAccountHowTo show={showHowToDialog} handleClose={() => setShowHowToDialog(false)} />
+    </>
+  );
+};

@@ -2,17 +2,16 @@ import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { SignInContext } from 'src/context/sign-in';
+import { AuthContext } from 'src/context/auth';
 import { createPassword } from 'src/requests';
 import { PasswordInput, Subtitle, Title, PasswordStrength } from '../components';
 
 export const CreatePassword = () => {
-  const { password, setPassword, resetState } = useContext(SignInContext);
+  const { password, setPassword, resetState, mnemonic } = useContext(AuthContext);
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
   const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { mnemonic } = useContext(SignInContext);
   const history = useHistory();
 
   const handleSkip = () => {

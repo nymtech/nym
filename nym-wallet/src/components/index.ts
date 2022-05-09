@@ -15,3 +15,4 @@ export * from './ClientAddress';
 export * from './InfoToolTip';
 export * from './Title';
 export * from './TokenPoolSelector';
+export * from './LoadingPage';

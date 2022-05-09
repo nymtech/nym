@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,28 +11,24 @@ import {
   Typography,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import { AccountsContext } from 'src/context';
 
-export const ImportAccountModal = ({
-  show,
-  onClose,
-  onImport,
-}: {
-  show: boolean;
-  onClose: () => void;
-  onImport: (mnemonic: string) => void;
-}) => {
+export const ImportAccountModal = () => {
   const [mnemonic, setMnemonic] = useState('');
 
-  useEffect(() => {
-    if (!show) setMnemonic('');
-  }, [show]);
+  const { dialogToDisplay, setDialogToDisplay, handleImportAccount } = useContext(AccountsContext);
+
+  const handleClose = () => {
+    setMnemonic('');
+    setDialogToDisplay('Accounts');
+  };
 
   return (
-    <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Import'} onClose={handleClose} fullWidth hideBackdrop>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Import account</Typography>
-          <IconButton onClick={onClose}>
+          <IconButton onClick={handleClose}>
             <Close />
           </IconButton>
         </Box>
@@ -59,7 +55,7 @@ export const ImportAccountModal = ({
           disableElevation
           variant="contained"
           size="large"
-          onClick={() => onImport(mnemonic)}
+          onClick={() => handleImportAccount({ id: '', address: '' })}
           disabled={!mnemonic.length}
         >
           Import account

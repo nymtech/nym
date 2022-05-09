@@ -1,25 +1,18 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-
-import { v4 as uuid4 } from 'uuid';
-import { AccountsContainer } from '../AccountContainer';
+import { MockAccountsProvider } from 'src/context/mocks/accounts';
+import { Accounts } from '../Accounts';
 
 export default {
   title: 'Wallet / Multi Account',
-  component: AccountsContainer,
-} as ComponentMeta<typeof AccountsContainer>;
+  component: Accounts,
+} as ComponentMeta<typeof Accounts>;
 
-const Template: ComponentStory<typeof AccountsContainer> = (args) => (
+export const Default: ComponentStory<typeof Accounts> = () => (
   <Box display="flex" alignContent="center">
-    <AccountsContainer {...args} />
+    <MockAccountsProvider>
+      <Accounts />
+    </MockAccountsProvider>
   </Box>
 );
-
-export const Default = Template.bind({});
-Default.args = {
-  storedAccounts: [
-    { name: 'Account 1', address: uuid4() },
-    { name: 'Account 2', address: uuid4() },
-  ],
-};

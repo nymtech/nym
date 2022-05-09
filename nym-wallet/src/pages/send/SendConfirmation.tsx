@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Box, CircularProgress, Link, Typography } from '@mui/material';
 import { SendError } from './SendError';
-import { ClientContext, urls } from '../../context/main';
+import { AppContext, urls } from '../../context/main';
 import { SuccessReponse } from '../../components';
 import { TransactionDetails } from '../../components/TransactionDetails';
 import { TransactionDetails as TTransactionDetails } from '../../types';
@@ -15,7 +15,7 @@ export const SendConfirmation = ({
   error?: string;
   isLoading: boolean;
 }) => {
-  const { userBalance, currency, network } = useContext(ClientContext);
+  const { userBalance, currency, network } = useContext(AppContext);
 
   if (!data && !error && !isLoading) return null;
 

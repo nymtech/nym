@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,31 +11,23 @@ import {
   Typography,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { TAccount } from 'src/types';
+import { AccountsContext } from 'src/context';
 
-export const EditAccountModal = ({
-  account,
-  show,
-  onClose,
-  onEdit,
-}: {
-  account?: TAccount;
-  show: boolean;
-  onClose: () => void;
-  onEdit: (account: TAccount) => void;
-}) => {
+export const EditAccountModal = () => {
   const [accountName, setAccountName] = useState('');
 
+  const { accountToEdit, dialogToDisplay, setDialogToDisplay, handleEditAccount } = useContext(AccountsContext);
+
   useEffect(() => {
-    setAccountName(account ? account?.name : '');
-  }, [account]);
+    setAccountName(accountToEdit ? accountToEdit?.id : '');
+  }, [accountToEdit]);
 
   return (
-    <Dialog open={show} onClose={onClose} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Edit'} onClose={() => setDialogToDisplay('Accounts')} fullWidth hideBackdrop>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Edit account name</Typography>
-          <IconButton onClick={onClose}>
+          <IconButton onClick={() => setDialogToDisplay('Accounts')}>
             <Close />
           </IconButton>
         </Box>
@@ -60,7 +52,12 @@ export const EditAccountModal = ({
           disableElevation
           variant="contained"
           size="large"
-          onClick={() => account && onEdit({ ...account, name: accountName })}
+          onClick={() => {
+            if (accountToEdit) {
+              handleEditAccount({ ...accountToEdit, id: accountName });
+              setDialogToDisplay('Accounts');
+            }
+          }}
           disabled={!accountName?.length}
         >
           Edit

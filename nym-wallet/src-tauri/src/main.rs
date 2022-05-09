@@ -44,6 +44,7 @@ fn main() {
       mixnet::account::get_validator_api_urls,
       mixnet::account::get_validator_nymd_urls,
       mixnet::account::list_accounts,
+      mixnet::account::sign_in_decrypted_account,
       mixnet::account::logout,
       mixnet::account::remove_account_for_password,
       mixnet::account::remove_password,

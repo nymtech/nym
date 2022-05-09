@@ -4,7 +4,7 @@ import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
 import { getCurrentEpoch, getPendingDelegations, getReverseMixDelegations } from '../../requests';
 import { Epoch, PendingUndelegate, TPagedDelegations } from '../../types';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 import { removeObjectDuplicates } from '../../utils';
 
@@ -16,7 +16,7 @@ export const Undelegate = () => {
   const [pendingUndelegations, setPendingUndelegations] = useState<PendingUndelegate[]>();
   const [currentEndEpoch, setCurrentEndEpoch] = useState<Epoch['end']>();
 
-  const { clientDetails } = useContext(ClientContext);
+  const { clientDetails } = useContext(AppContext);
 
   const initialize = async () => {
     setStatus(EnumRequestStatus.initial);

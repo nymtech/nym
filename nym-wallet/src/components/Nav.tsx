@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
-import { ADMIN_ADDRESS, ClientContext } from '../context/main';
+import { ADMIN_ADDRESS, AppContext } from '../context/main';
 import { Bond, Delegate, Unbond, Undelegate } from '../svg-icons';
 
 const routesSchema = [
@@ -44,7 +44,7 @@ const routesSchema = [
 ];
 
 export const Nav = () => {
-  const { clientDetails, handleShowAdmin } = useContext(ClientContext);
+  const { clientDetails, handleShowAdmin } = useContext(AppContext);
   const location = useLocation();
 
   useEffect(() => {

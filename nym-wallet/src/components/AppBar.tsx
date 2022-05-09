@@ -1,19 +1,26 @@
 import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
+import { useHistory } from 'react-router-dom';
 import { Logout } from '@mui/icons-material';
-import { ClientContext } from '../context/main';
+import { AppContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { Node as NodeIcon } from '../svg-icons/node';
+import { MultiAccounts } from './Accounts';
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings } = useContext(ClientContext);
-
+  const { showSettings, logOut, handleShowSettings } = useContext(AppContext);
+  const history = useHistory();
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
       <Toolbar disableGutters>
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
-          <Grid item>
-            <NetworkSelector />
+          <Grid item container alignItems="center" spacing={1}>
+            <Grid item>
+              <MultiAccounts />
+            </Grid>
+            <Grid item>
+              <NetworkSelector />
+            </Grid>
           </Grid>
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>
@@ -26,7 +33,14 @@ export const AppBar = () => {
               </IconButton>
             </Grid>
             <Grid item>
-              <IconButton size="small" onClick={logOut} sx={{ color: 'nym.background.dark' }}>
+              <IconButton
+                size="small"
+                onClick={async () => {
+                  await logOut();
+                  history.push('/');
+                }}
+                sx={{ color: 'nym.background.dark' }}
+              >
                 <Logout fontSize="small" />
               </IconButton>
             </Grid>

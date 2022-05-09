@@ -101,9 +101,13 @@ impl ERC20Bridge {
         let owner_address = AccountId::from_str(&gateway_owner).map_err(|_| {
             RequestHandlingError::InvalidBandwidthCredential(String::from("gateway"))
         })?;
-        let gateway_bond = self.nymd_client.owns_gateway(&owner_address).await?.ok_or(
-            RequestHandlingError::InvalidBandwidthCredential(String::from("gateway")),
-        )?;
+        let gateway_bond = self
+            .nymd_client
+            .owns_gateway(&owner_address)
+            .await?
+            .ok_or_else(|| {
+                RequestHandlingError::InvalidBandwidthCredential(String::from("gateway"))
+            })?;
         if gateway_bond.gateway.identity_key == gateway_identity.to_base58_string() {
             Ok(())
         } else {

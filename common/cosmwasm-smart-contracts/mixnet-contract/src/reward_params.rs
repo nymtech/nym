@@ -47,11 +47,8 @@ impl NodeEpochRewards {
 
     pub fn node_profit(&self) -> U128 {
         let reward = U128::from_num(self.reward().u128());
-        if reward < self.operator_cost() {
-            U128::from_num(0u128)
-        } else {
-            reward - self.operator_cost()
-        }
+        // if operating cost is higher then the reward node profit is 0
+        reward.saturating_sub(self.operator_cost())
     }
 
     pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {

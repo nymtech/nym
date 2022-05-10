@@ -52,20 +52,22 @@ impl GroupParameters {
 #[derive(Debug, Clone)]
 pub struct Parameters {
     grp: GroupParameters,
-    paramsUser: ParametersUser,
-    paramsAuth: ParametersAuthority,
+    params_u: ParametersUser,
+    params_a: ParametersAuthority,
 }
 
 impl Parameters {
     pub(crate) fn get_grp(&self) -> &GroupParameters { &self.grp }
 
-    pub(crate) fn get_paramsUser(&self) -> &ParametersUser { &self.paramsUser }
+    pub(crate) fn get_params_u(&self) -> &ParametersUser { &self.params_u }
 
-    pub(crate) fn get_paramsAuth(&self) -> &ParametersAuthority { &self.paramsAuth }
+    pub(crate) fn get_params_a(&self) -> &ParametersAuthority { &self.params_a }
 
     pub fn new(grp: GroupParameters) -> Parameters {
         let g1 = grp.gen1();
         let g2 = grp.gen2();
+        let psi1 = hash_g1("psi1");
+        let psi2 = hash_g1("psi2");
         let gamma1 = hash_g1("gamma1");
         let gamma2 = hash_g1("gamma2");
         let eta = hash_g1("eta");
@@ -79,55 +81,59 @@ impl Parameters {
         let sigma = g1 * z;
         let theta = eta * z;
 
-        let sigmasUser: Vec<G1Projective> = (1..=L)
+        let sigmas_u: Vec<G1Projective> = (1..=L)
             .map(|i| sigma * (y * Scalar::from(i)))
             .collect();
-        let thetasUser: Vec<G1Projective> = (1..=L)
+
+        let thetas_u: Vec<G1Projective> = (1..=L)
             .map(|i| theta * (y * Scalar::from(i)))
             .collect();
 
-        let deltasAuth: Vec<G2Projective> = (0..=L - 1)
+        let deltas_a: Vec<G2Projective> = (0..=L - 1)
             .map(|i| g2 * (y * Scalar::from(i)))
             .collect();
-        let etasUser: Vec<G1Projective> = vec_a.iter().map(|x| g1 * x).collect();
+        let etas_u: Vec<G1Projective> = vec_a.iter().map(|x| g1 * x).collect();
 
-        let mut etasAuth: Vec<G2Projective> = Default::default();
-        for l in 1..=L + 1 {
+        let mut etas_a: Vec<G2Projective> = Default::default();
+        for l in 1..=L {
+            println!("l = {:?}", l);
             for k in 0..=l - 1 {
-                etasAuth.push(g2 * (vec_a[l as usize].neg() * (y * Scalar::from(k))));
+                println!("k = {:?}", k);
+                etas_a.push(g2 * (vec_a[l as usize - 1].neg() * (y * Scalar::from(k))));
             }
         }
 
         let sps_keypair = SPSKeyPair::new(grp.clone(), 2, 0);
-        let messagesA = vec![sigma, theta];
+        let messages_a = vec![sigma, theta];
 
-        let sps_signatures: Vec<SPSSignature> = sigmasUser
+        let sps_signatures: Vec<SPSSignature> = sigmas_u
             .iter()
-            .zip(thetasUser.iter())
-            .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&messagesA), None))
+            .zip(thetas_u.iter())
+            .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&messages_a), None))
             .collect();
 
         // Compute signature for each pair sigma, theta
-        let paramsUser = ParametersUser {
+        let params_u = ParametersUser {
             gammas: vec![gamma1, gamma2],
+            psi: vec![psi1, psi2],
             eta,
             omega,
-            etas: etasUser,
-            sigmas: sigmasUser,
-            thetas: thetasUser,
+            etas: etas_u,
+            sigmas: sigmas_u,
+            thetas: thetas_u,
             sps_signatures,
             sps_pk: sps_keypair.sps_vk,
         };
 
-        let paramsAuth = ParametersAuthority {
-            deltas: deltasAuth,
-            etas: etasAuth,
+        let params_a = ParametersAuthority {
+            deltas: deltas_a,
+            etas: etas_a,
         };
 
         return Parameters {
             grp,
-            paramsUser,
-            paramsAuth,
+            params_u,
+            params_a,
         };
     }
 }
@@ -135,6 +141,7 @@ impl Parameters {
 #[derive(Debug, Clone)]
 pub struct ParametersUser {
     gammas: Vec<G1Projective>,
+    psi: Vec<G1Projective>,
     eta: G1Projective,
     omega: G1Projective,
     etas: Vec<G1Projective>,
@@ -146,6 +153,8 @@ pub struct ParametersUser {
 
 impl ParametersUser {
     pub(crate) fn get_gammas(&self) -> &Vec<G1Projective> { &self.gammas }
+
+    pub(crate) fn get_psi(&self) -> &Vec<G1Projective> { &self.psi }
 
     pub(crate) fn get_eta(&self) -> &G1Projective { &self.eta }
 

@@ -9,7 +9,7 @@ use crate::scheme::setup::GroupParameters;
 
 #[derive(Debug, Clone)]
 pub struct SPSVerificationKey {
-    pub grparams: GroupParameters,
+    pub grp: GroupParameters,
     pub uus: Vec<G1Projective>,
     pub wws: Vec<G2Projective>,
     pub yy: G2Projective,
@@ -17,7 +17,7 @@ pub struct SPSVerificationKey {
 }
 
 pub struct SPSSecretKey {
-    spsVK: SPSVerificationKey,
+    sps_vk: SPSVerificationKey,
     us: Vec<Scalar>,
     ws: Vec<Scalar>,
     y: Scalar,
@@ -33,30 +33,30 @@ impl SPSSecretKey {
         self.y
     }
 
-    pub fn sign(&self, grparams: GroupParameters, messagesA: Option<&[G1Projective]>, messagesB: Option<&[G2Projective]>) -> SPSSignature {
-        let r = grparams.random_scalar();
-        let rr = grparams.gen1() * r;
-        let ss: G1Projective = match messagesA {
+    pub fn sign(&self, grp: GroupParameters, messages_a: Option<&[G1Projective]>, messages_b: Option<&[G2Projective]>) -> SPSSignature {
+        let r = grp.random_scalar();
+        let rr = grp.gen1() * r;
+        let ss: G1Projective = match messages_a {
             Some(msgsA) => {
                 let prodS: Vec<G1Projective> = msgsA
                     .iter()
                     .zip(self.ws.iter())
                     .map(|(m_i, w_i)| m_i * w_i.neg())
                     .collect();
-                grparams.gen1() * (self.z() - r * self.y()) + prodS.iter().fold(G1Projective::identity(), |acc, elem| acc + elem)
+                grp.gen1() * (self.z() - r * self.y()) + prodS.iter().fold(G1Projective::identity(), |acc, elem| acc + elem)
             }
-            None => grparams.gen1() * (self.z() - r * self.y())
+            None => grp.gen1() * (self.z() - r * self.y())
         };
-        let tt = match messagesB {
+        let tt = match messages_b {
             Some(msgsB) => {
                 let prodT: Vec<G2Projective> = msgsB
                     .iter()
                     .zip(self.us.iter())
                     .map(|(m_i, u_i)| m_i * u_i.neg())
                     .collect();
-                (grparams.gen2() + prodT.iter().fold(G2Projective::identity(), |acc, elem| acc + elem)) * r.invert().unwrap()
+                (grp.gen2() + prodT.iter().fold(G2Projective::identity(), |acc, elem| acc + elem)) * r.invert().unwrap()
             }
-            None => grparams.gen2() * r.invert().unwrap()
+            None => grp.gen2() * r.invert().unwrap()
         };
 
         SPSSignature
@@ -91,14 +91,14 @@ impl SPSKeyPair {
         let zz = grparams.gen2() * z;
 
         let sps_vk = SPSVerificationKey {
-            grparams: grparams.clone(),
+            grp: grparams.clone(),
             uus,
             wws,
             yy,
             zz,
         };
         let sps_sk = SPSSecretKey {
-            spsVK: sps_vk.clone(),
+            sps_vk: sps_vk.clone(),
             us,
             ws,
             y,

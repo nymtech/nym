@@ -130,7 +130,7 @@ impl WithdrawalReqProof {
     ) -> Self {
         let grp = params.get_grp();
         let g1 = grp.gen1();
-        let paramsU = params.get_paramsUser();
+        let params_u = params.get_params_u();
 
         // generate random values to replace the witnesses
         let r_com_opening = grp.random_scalar();
@@ -141,7 +141,7 @@ impl WithdrawalReqProof {
         let zkcm_com = g1 * r_com_opening
             + r_attributes
             .iter()
-            .zip(paramsU.get_gammas().iter())
+            .zip(params_u.get_gammas().iter())
             .map(|(rm_i, gamma_i)| gamma_i * rm_i)
             .sum::<G1Projective>();
 
@@ -154,7 +154,7 @@ impl WithdrawalReqProof {
         let zkcm_user_sk = g1 * r_attributes[0];
 
         // covert to bytes
-        let gammas_bytes = paramsU
+        let gammas_bytes = params_u
             .get_gammas()
             .iter()
             .map(|gamma| gamma.to_bytes())
@@ -203,7 +203,7 @@ impl WithdrawalReqProof {
     ) -> bool {
         let grp = params.get_grp();
         let g1 = grp.gen1();
-        let paramsU = params.get_paramsUser();
+        let paramsU = params.get_params_u();
 
         // recompute zk commitments for each instance
         let zkcm_com = instance.com * self.challenge
@@ -305,7 +305,7 @@ mod tests {
         let com = grp.gen1() * com_opening
             + attr
             .iter()
-            .zip(params.get_paramsUser().get_gammas())
+            .zip(params.get_params_u().get_gammas())
             .map(|(&m, gamma)| gamma * m)
             .sum::<G1Projective>();
         let h = hash_g1(com.to_bytes());

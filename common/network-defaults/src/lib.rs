@@ -101,6 +101,13 @@ impl ValidatorDetails {
         }
     }
 
+    pub fn new_with_name(nymd_url: &str, api_url: Option<&str>) -> Self {
+        ValidatorDetails {
+            nymd_url: nymd_url.to_string(),
+            api_url: api_url.map(ToString::to_string),
+        }
+    }
+
     pub fn nymd_url(&self) -> Url {
         self.nymd_url
             .parse()

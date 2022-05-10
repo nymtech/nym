@@ -4,6 +4,7 @@
 
 ### Added
 
+- wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
 - validator-api: add Swagger to document the REST API ([#1249]).
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).

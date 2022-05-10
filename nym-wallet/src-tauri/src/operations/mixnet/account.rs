@@ -169,7 +169,7 @@ async fn _connect_with_mnemonic(
     for network in WalletNetwork::iter() {
       log::debug!(
         "List of validators for {network}: [\n{}\n]",
-        state.get_validators(network).format(",\n")
+        state.get_config_validator_entries(network).format(",\n")
       );
     }
 
@@ -268,7 +268,7 @@ fn create_clients(
 ) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
   let mut clients = Vec::new();
   for network in WalletNetwork::iter() {
-    let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(&network) {
+    let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
       log::debug!("Using selected nymd_url for {network}: {url}");
       url.clone()
     } else {

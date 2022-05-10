@@ -88,8 +88,6 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nymd_url: String,
-    // allow setting a name for the nymd url, mostly for UI presentation purposes
-    pub nymd_name: Option<String>,
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
@@ -99,15 +97,13 @@ impl ValidatorDetails {
     pub fn new(nymd_url: &str, api_url: Option<&str>) -> Self {
         ValidatorDetails {
             nymd_url: nymd_url.to_string(),
-            nymd_name: None,
             api_url: api_url.map(ToString::to_string),
         }
     }
 
-    pub fn new_with_name(nymd_name: &str, nymd_url: &str, api_url: Option<&str>) -> Self {
+    pub fn new_with_name(nymd_url: &str, api_url: Option<&str>) -> Self {
         ValidatorDetails {
             nymd_url: nymd_url.to_string(),
-            nymd_name: Some(nymd_name.to_string()),
             api_url: api_url.map(ToString::to_string),
         }
     }

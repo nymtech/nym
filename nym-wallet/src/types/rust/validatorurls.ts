@@ -1,8 +1,5 @@
-export interface ValidatorUrls {
-  urls: Array<string>;
-}
+import type { ValidatorUrl } from './validatorurl';
 
-export interface Validator {
-  nymd_url: string;
-  api_url: string | null;
+export interface ValidatorUrls {
+  urls: Array<ValidatorUrl>;
 }

@@ -560,6 +560,6 @@ api_url = 'https://baz/api'
       .next()
       .and_then(|v| v.api_url)
       .unwrap();
-    assert_eq!(api_url.as_ref(), "https://validator.nymtech.net/api",);
+    assert_eq!(api_url.as_ref(), "https://validator.nymtech.net/api/",);
   }
 }

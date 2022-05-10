@@ -427,7 +427,7 @@ mod tests {
         .collect::<Vec<_>>(),
       vec![
         "http://nymd_url.com/api".parse().unwrap(),
-        "https://validator.nymtech.net/api".parse().unwrap(),
+        "https://validator.nymtech.net/api/".parse().unwrap(),
       ],
     );
     assert_eq!(

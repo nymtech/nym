@@ -21,6 +21,9 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 
+use crate::nymd::traits::DkgClient;
+use crate::nymd::SigningCosmWasmClient;
+use coconut_dkg_common::types::DealerDetails;
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     mixnode::DelegationEvent, ContractStateParams, Delegation, IdentityKey, Interval,
@@ -49,6 +52,8 @@ pub struct Config {
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
+    #[cfg(feature = "dkg")]
+    dealers_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nymd-client")]
@@ -74,6 +79,8 @@ impl Config {
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
             rewarded_set_page_limit: None,
+            #[cfg(feature = "dkg")]
+            dealers_page_limit: None,
         }
     }
 
@@ -121,6 +128,8 @@ pub struct Client<C> {
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
+    #[cfg(feature = "dkg")]
+    dealers_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub validator_api: validator_api::Client,
@@ -155,7 +164,8 @@ impl Client<SigningNymdClient> {
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
-            rewarded_set_page_limit: None,
+            rewarded_set_page_limit: config.rewarded_set_page_limit,
+            dealers_page_limit: config.dealers_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -216,6 +226,7 @@ impl Client<QueryNymdClient> {
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
+            dealers_page_limit: config.dealers_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -743,5 +754,62 @@ impl ApiClient {
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorClientError> {
         Ok(self.validator_api.get_coconut_verification_key().await?)
+    }
+}
+
+// dkg-related impl block
+#[cfg(feature = "dkg")]
+impl<C> Client<C>
+where
+    C: SigningCosmWasmClient + Send + Sync,
+{
+    pub async fn get_all_nymd_current_dealers(
+        &self,
+    ) -> Result<Vec<DealerDetails>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut dealers = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_current_dealers_paged(start_after.take(), self.mixnode_page_limit)
+                .await?;
+            dealers.append(&mut paged_response.dealers);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(dealers)
+    }
+
+    pub async fn get_all_nymd_past_dealers(
+        &self,
+    ) -> Result<Vec<DealerDetails>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut dealers = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_past_dealers_paged(start_after.take(), self.mixnode_page_limit)
+                .await?;
+            dealers.append(&mut paged_response.dealers);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(dealers)
     }
 }

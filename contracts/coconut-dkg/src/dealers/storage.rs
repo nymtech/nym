@@ -11,8 +11,13 @@ const CURRENT_DEALERS_PK: &str = "crd";
 const PAST_DEALERS_PK: &str = "ptd";
 const DEALERS_NODE_INDEX_IDX_NAMESPACE: &str = "dni";
 
+pub(crate) const DEALERS_PAGE_MAX_LIMIT: u32 = 75;
+pub(crate) const DEALERS_PAGE_DEFAULT_LIMIT: u32 = 50;
+
 pub(crate) const BLACKLISTED_DEALERS: Map<'_, &'_ Addr, Blacklisting> = Map::new("bld");
 pub(crate) const NODE_INDEX_COUNTER: Item<NodeIndex> = Item::new("node_index_counter");
+
+pub(crate) type DealersMap<'a> = IndexedMap<'a, &'a Addr, DealerDetails, DealersIndex<'a>>;
 
 pub(crate) struct DealersIndex<'a> {
     pub(crate) node_index: UniqueIndex<'a, NodeIndex, DealerDetails>,
@@ -25,14 +30,14 @@ impl<'a> IndexList<DealerDetails> for DealersIndex<'a> {
     }
 }
 
-pub(crate) fn current_dealers<'a>() -> IndexedMap<'a, &'a Addr, DealerDetails, DealersIndex<'a>> {
+pub(crate) fn current_dealers<'a>() -> DealersMap<'a> {
     let indexes = DealersIndex {
         node_index: UniqueIndex::new(|d| d.assigned_index, DEALERS_NODE_INDEX_IDX_NAMESPACE),
     };
     IndexedMap::new(CURRENT_DEALERS_PK, indexes)
 }
 
-pub(crate) fn past_dealers<'a>() -> IndexedMap<'a, &'a Addr, DealerDetails, DealersIndex<'a>> {
+pub(crate) fn past_dealers<'a>() -> DealersMap<'a> {
     let indexes = DealersIndex {
         node_index: UniqueIndex::new(|d| d.assigned_index, DEALERS_NODE_INDEX_IDX_NAMESPACE),
     };

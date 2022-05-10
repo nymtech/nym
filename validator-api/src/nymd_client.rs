@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
-use coconut_dkg_common::types::Epoch as DkgEpoch;
+use coconut_dkg_common::types::{DealerDetails, Epoch as DkgEpoch};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
@@ -432,11 +432,23 @@ impl<C> Client<C>
 where
     C: SigningCosmWasmClient + Sync + Send,
 {
-    async fn get_dkg_epoch(&self) -> Result<DkgEpoch, NymdError> {
+    pub(crate) async fn get_dkg_epoch(&self) -> Result<DkgEpoch, NymdError> {
         self.0.read().await.nymd.get_current_dkg_epoch().await
     }
 
-    async fn submit_dealing_commitment(
+    pub(crate) async fn get_current_dealers(
+        &self,
+    ) -> Result<Vec<DealerDetails>, ValidatorClientError> {
+        self.0.read().await.get_all_nymd_current_dealers().await
+    }
+
+    pub(crate) async fn get_past_dealers(
+        &self,
+    ) -> Result<Vec<DealerDetails>, ValidatorClientError> {
+        self.0.read().await.get_all_nymd_past_dealers().await
+    }
+
+    pub(crate) async fn submit_dealing_commitment(
         &self,
         epoch_id: u32,
         dealing_digest: [u8; 32],

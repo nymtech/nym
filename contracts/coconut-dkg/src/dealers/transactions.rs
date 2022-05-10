@@ -154,6 +154,7 @@ pub fn try_add_dealer(
 
     // save the dealer into the storage
     let dealer_details = DealerDetails {
+        address: info.sender.clone(),
         joined_at: env.block.height,
         left_at: None,
         blacklisting: None,

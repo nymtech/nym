@@ -69,13 +69,15 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         let location = custom_location
             .unwrap_or_else(|| self.config_directory().join(Self::config_file_name()));
 
-        if cfg!(unix) {
-            fs::write(location.clone(), templated_config)?;
-            let mut perms = fs::metadata(location.clone())?.permissions();
-            perms.set_mode(0o600);
-            fs::set_permissions(location, perms)?;
-        } else {
-            fs::write(location, templated_config)?;
+        cfg_if::cfg_if! {
+            if #[cfg(unix)] {
+                fs::write(location.clone(), templated_config)?;
+                let mut perms = fs::metadata(location.clone())?.permissions();
+                perms.set_mode(0o600);
+                fs::set_permissions(location, perms)?;
+            } else {
+                fs::write(location, templated_config)?;
+            }
         }
 
         Ok(())

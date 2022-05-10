@@ -24,14 +24,14 @@ pub struct RequestInfo {
 pub fn withdrawal_request(params: Parameters, sk_user: SecretKeyUser) -> Result<(WithdrawalRequest, RequestInfo)> {
     let grp = params.get_grp();
     let g1 = grp.gen1();
-    let paramsU = params.get_paramsUser();
+    let params_u = params.get_params_u();
     let v = grp.random_scalar();
     let attributes = vec![sk_user.sk, v];
     let com_opening = grp.random_scalar();
     let commitment = g1 * com_opening
         + attributes
         .iter()
-        .zip(paramsU.get_gammas())
+        .zip(params_u.get_gammas())
         .map(|(&m, gamma)| gamma * m)
         .sum::<G1Projective>();
 
@@ -78,7 +78,7 @@ pub fn withdrawal_request(params: Parameters, sk_user: SecretKeyUser) -> Result<
     Ok((req, req_info))
 }
 
-pub(crate) fn issue(params: &Parameters, req: WithdrawalRequest, pkU: PublicKeyUser, skA: SecretKeyAuth) -> Result<BlindedSignature> {
+pub(crate) fn issue(params: &Parameters, req: WithdrawalRequest, pk_u: PublicKeyUser, sk_a: SecretKeyAuth) -> Result<BlindedSignature> {
     let h = hash_g1(req.com.to_bytes());
     if !(h == req.com_hash) {
         return Err(DivisibleEcashError::WithdrawalRequestVerification(
@@ -91,7 +91,7 @@ pub(crate) fn issue(params: &Parameters, req: WithdrawalRequest, pkU: PublicKeyU
         com: req.com,
         h: req.com_hash,
         pc_coms: req.pc_coms.clone(),
-        pk_user: pkU,
+        pk_user: pk_u,
     };
     if !req.zk_proof.verify(&params, &instance) {
         return Err(DivisibleEcashError::WithdrawalRequestVerification(
@@ -102,9 +102,9 @@ pub(crate) fn issue(params: &Parameters, req: WithdrawalRequest, pkU: PublicKeyU
     let sig = req
         .pc_coms
         .iter()
-        .zip(skA.ys.iter())
+        .zip(sk_a.ys.iter())
         .map(|(pc, yi)| pc * yi)
-        .chain(std::iter::once(h * skA.x))
+        .chain(std::iter::once(h * sk_a.x))
         .sum();
 
     Ok(BlindedSignature(h, sig))

@@ -14,6 +14,7 @@ use crate::scheme::setup::GroupParameters;
 use crate::utils::try_deserialize_g1_projective;
 
 pub mod proof_withdrawal;
+pub mod proof_spend;
 
 type ChallengeDigest = Sha256;
 

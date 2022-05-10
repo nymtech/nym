@@ -26,7 +26,7 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
     <DialogContent>
       <Stack spacing={2}>
         <Alert severity="warning" icon={false}>
-          <Typography>In order to create multiple accounts your wallet need password.</Typography>
+          <Typography>In order to create multiple accounts your wallet needs a password.</Typography>
           <Typography>Follow steps below to create password.</Typography>
         </Alert>
         <Typography>How to create a password for your account</Typography>

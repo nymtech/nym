@@ -9,10 +9,11 @@ use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::clients::{ClientEncryptionKey, ClientIdentity, Recipient};
+use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
-use socks5_requests::{ConnectionId, Request, Response};
+use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -58,7 +59,7 @@ impl ServiceProvider {
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
-                message: response.into_bytes(),
+                message: Socks5Message::Response(response).into_bytes(),
                 with_reply_surb: false,
             };
 
@@ -200,25 +201,48 @@ impl ServiceProvider {
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
     ) {
-        // try to treat each received mix message as a service provider request
-        let deserialized_request = match Request::try_from_bytes(raw_request) {
-            Ok(request) => request,
+        let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
+            Ok(msg) => msg,
             Err(err) => {
-                error!("Failed to deserialized received request! - {}", err);
+                error!("Failed to deserialized received message! - {}", err);
                 return;
             }
         };
+        match deserialized_msg {
+            Socks5Message::Request(deserialized_request) => match deserialized_request {
+                Request::Connect(req) => self.handle_proxy_connect(
+                    controller_sender,
+                    mix_input_sender,
+                    req.conn_id,
+                    req.remote_addr,
+                    req.return_address,
+                ),
 
-        match deserialized_request {
-            Request::Connect(req) => self.handle_proxy_connect(
-                controller_sender,
-                mix_input_sender,
-                req.conn_id,
-                req.remote_addr,
-                req.return_address,
-            ),
-            Request::Send(conn_id, data, closed) => {
-                self.handle_proxy_send(controller_sender, conn_id, data, closed)
+                Request::Send(conn_id, data, closed) => {
+                    mix_input_sender
+                        .unbounded_send((
+                            Response::new(conn_id, vec![10u8], false),
+                            Recipient::new(
+                                ClientIdentity::from_base58_string(
+                                    "HqYWvCcB4sswYiyMj5Q8H5oc71kLf96vfrLK3npM7stH",
+                                )
+                                .unwrap(),
+                                ClientEncryptionKey::from_base58_string(
+                                    "CoeC5dcqurgdxr5zcgU77nZBSBCc8ntCiwUivQ9TX3KT",
+                                )
+                                .unwrap(),
+                                NodeIdentity::from_base58_string(
+                                    "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
+                                )
+                                .unwrap(),
+                            ),
+                        ))
+                        .unwrap();
+                    self.handle_proxy_send(controller_sender, conn_id, data, closed)
+                }
+            },
+            Socks5Message::Response(deserialized_response) => {
+                println!("Received the magic number {:?}", deserialized_response.data);
             }
         }
     }

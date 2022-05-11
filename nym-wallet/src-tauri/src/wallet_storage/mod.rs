@@ -22,7 +22,7 @@ pub(crate) const DEFAULT_WALLET_ACCOUNT_ID: &str = "default";
 
 /// When converting a single account entry to one that contains many, the first account will use
 /// this name.
-pub(crate) const DEFAULT_NAME_FIRST_ACCOUNT: &str = "Account 1";
+//pub(crate) const DEFAULT_NAME_FIRST_ACCOUNT: &str = "Account 1";
 
 fn get_storage_directory() -> Result<PathBuf, BackendError> {
   tauri::api::path::local_data_dir()
@@ -158,7 +158,7 @@ fn append_account_to_wallet_login_information_at_file(
   let decrypted_login = stored_wallet.decrypt_login(&id, password)?;
 
   // Add accounts to the inner structure
-  let mut accounts = decrypted_login.unwrap_into_multiple_accounts();
+  let mut accounts = decrypted_login.unwrap_into_multiple_accounts(id.clone());
   accounts.add(inner_id, mnemonic, hd_path)?;
 
   let encrypted_accounts = EncryptedLogin {

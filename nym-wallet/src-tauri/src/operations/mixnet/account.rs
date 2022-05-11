@@ -387,9 +387,12 @@ pub async fn sign_in_with_password(
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  let (mnemonic, all_accounts) = extract_mnemonic_and_all_accounts(stored_account)?;
+  let (mnemonic, all_accounts) = extract_first_mnemonic_and_all_accounts(stored_account, id)?;
 
   {
+    for account in &all_accounts {
+      log::trace!("account: {:?}", account);
+    }
     let mut w_state = state.write().await;
     w_state.set_all_accounts(all_accounts);
   }
@@ -397,8 +400,9 @@ pub async fn sign_in_with_password(
   _connect_with_mnemonic(mnemonic, state).await
 }
 
-fn extract_mnemonic_and_all_accounts(
+fn extract_first_mnemonic_and_all_accounts(
   stored_account: StoredLogin,
+  login_id: wallet_storage::AccountId,
 ) -> Result<(Mnemonic, Vec<wallet_storage::WalletAccount>), BackendError> {
   let mnemonic = match stored_account {
     StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
@@ -416,10 +420,9 @@ fn extract_mnemonic_and_all_accounts(
 
   // Keep track of all accounts for that id
   let all_accounts: Vec<_> = stored_account
-    .unwrap_into_multiple_accounts()
+    .unwrap_into_multiple_accounts(login_id)
     .into_accounts()
     .collect();
-
   Ok((mnemonic, all_accounts))
 }
 
@@ -477,7 +480,7 @@ async fn reset_state_with_all_accounts_from_file(
 ) -> Result<(), BackendError> {
   let stored_account = wallet_storage::load_existing_wallet_login_information(id, password)?;
   let all_accounts: Vec<_> = stored_account
-    .unwrap_into_multiple_accounts()
+    .unwrap_into_multiple_accounts(id.clone())
     .into_accounts()
     .collect();
 
@@ -518,6 +521,7 @@ fn derive_address(
 pub async fn list_accounts(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<AccountEntry>, BackendError> {
+  log::trace!("Listing accounts");
   let state = state.read().await;
   let network: Network = state.current_network().into();
   let prefix = network.bech32_prefix();
@@ -529,6 +533,10 @@ pub async fn list_accounts(
       address: derive_address(account.account.mnemonic().clone(), prefix)
         .unwrap()
         .to_string(),
+    })
+    .map(|account| {
+      log::trace!("{:?}", account);
+      account
     })
     .collect();
 
@@ -547,13 +555,18 @@ pub fn show_mnemonic_for_account_in_password(
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
 
   let mnemonic = match stored_account {
-    StoredLogin::Mnemonic(_) => return Err(BackendError::WalletUnexpectedMnemonicAccount),
-    StoredLogin::Multiple(ref accounts) => accounts
-      .get_account(&account_id)
-      .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
-      .account
-      .mnemonic()
-      .clone(),
+    StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
+    StoredLogin::Multiple(ref accounts) => {
+      for account in accounts.get_accounts() {
+        log::debug!("{:?}", account);
+      }
+      accounts
+        .get_account(&account_id)
+        .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+        .account
+        .mnemonic()
+        .clone()
+    }
   };
 
   Ok(mnemonic.to_string())
@@ -599,7 +612,7 @@ mod tests {
       wallet_storage::load_existing_wallet_login_information_at_file(wallet_file, &id, &password)
         .unwrap();
     let (mnemonic, all_accounts) =
-      extract_mnemonic_and_all_accounts(stored_account, id.clone()).unwrap();
+      extract_first_mnemonic_and_all_accounts(&stored_account, id.clone()).unwrap();
 
     let expected_mnemonic = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
     assert_eq!(mnemonic, expected_mnemonic);

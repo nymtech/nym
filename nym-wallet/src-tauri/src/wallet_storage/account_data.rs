@@ -1,6 +1,19 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// The wallet storage is a single json file, containing multiple entries. These are referred to as
+// Logins, and has a plaintext id tag attached.
+//
+// Each encrypted login contains either a single account, or a list of multiple accounts.
+//
+// NOTE: A not insignificant amount of complexity comes from being able to handle both these cases,
+// instead of, for example, converting a single account to a list of multiple accounts with a single
+// entry. This also avoids resaving the wallet file when opening a file created with an earlier
+// version of the wallet.
+//
+// In the future we might want to simplify by dropping the support for a single account entry,
+// instead treating as muliple accounts with one entry.
+
 use cosmrs::bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -10,7 +23,6 @@ use crate::error::BackendError;
 use super::encryption::EncryptedData;
 use super::password::AccountId;
 use super::UserPassword;
-use super::DEFAULT_NAME_FIRST_ACCOUNT;
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 
@@ -161,11 +173,9 @@ impl StoredLogin {
     }
   }
 
-  pub(crate) fn unwrap_into_multiple_accounts(self) -> MultipleAccounts {
+  pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
     match self {
-      StoredLogin::Mnemonic(ref account) => account
-        .clone()
-        .into_multiple(AccountId::new(DEFAULT_NAME_FIRST_ACCOUNT.to_string())),
+      StoredLogin::Mnemonic(ref account) => account.clone().into_multiple(id),
       StoredLogin::Multiple(ref accounts) => accounts.clone(),
     }
   }
@@ -189,11 +199,15 @@ impl MnemonicAccount {
     &self.hd_path
   }
 
-  pub(crate) fn into_multiple(self, id: AccountId) -> MultipleAccounts {
-    MultipleAccounts::new(WalletAccount {
+  pub(crate) fn into_wallet_account(self, id: AccountId) -> WalletAccount {
+    WalletAccount {
       id,
       account: self.into(),
-    })
+    }
+  }
+
+  pub(crate) fn into_multiple(self, id: AccountId) -> MultipleAccounts {
+    MultipleAccounts::new(self.into_wallet_account(id))
   }
 }
 

@@ -386,24 +386,15 @@ pub async fn sign_in_with_password(
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
-  let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  let (mnemonic, all_accounts) = extract_first_mnemonic_and_all_accounts(stored_account, id)?;
+  let stored_login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
 
-  {
-    for account in &all_accounts {
-      log::trace!("account: {:?}", account);
-    }
-    let mut w_state = state.write().await;
-    w_state.set_all_accounts(all_accounts);
-  }
+  let mnemonic = extract_first_mnemonic(&stored_login)?;
+  set_state_with_all_accounts(stored_login, id, state.clone()).await?;
 
   _connect_with_mnemonic(mnemonic, state).await
 }
 
-fn extract_first_mnemonic_and_all_accounts(
-  stored_account: StoredLogin,
-  login_id: wallet_storage::AccountId,
-) -> Result<(Mnemonic, Vec<wallet_storage::WalletAccount>), BackendError> {
+fn extract_first_mnemonic(stored_account: &StoredLogin) -> Result<Mnemonic, BackendError> {
   let mnemonic = match stored_account {
     StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
     StoredLogin::Multiple(ref accounts) => {
@@ -418,12 +409,7 @@ fn extract_first_mnemonic_and_all_accounts(
     }
   };
 
-  // Keep track of all accounts for that id
-  let all_accounts: Vec<_> = stored_account
-    .unwrap_into_multiple_accounts(login_id)
-    .into_accounts()
-    .collect();
-  Ok((mnemonic, all_accounts))
+  Ok(mnemonic)
 }
 
 #[tauri::command]
@@ -449,23 +435,24 @@ pub async fn add_account_for_password(
   let password = wallet_storage::UserPassword::new(password.to_string());
 
   // Creating the returned account entry could fail, so do it before attempting to store to wallet
-  let address = {
-    let state = state.read().await;
-    let network: Network = state.current_network().into();
-    derive_address(mnemonic.clone(), network.bech32_prefix())?.to_string()
-  };
-
   wallet_storage::append_account_to_wallet_login_information(
-    mnemonic,
+    mnemonic.clone(),
     hd_path,
     id.clone(),
     inner_id.clone(),
     &password,
   )?;
 
+  let address = {
+    let state = state.read().await;
+    let network: Network = state.current_network().into();
+    derive_address(mnemonic, network.bech32_prefix())?.to_string()
+  };
+
   // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
   // incrementally
-  reset_state_with_all_accounts_from_file(&id, &password, state).await?;
+  let stored_login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  set_state_with_all_accounts(stored_login, id, state).await?;
 
   Ok(AccountEntry {
     id: inner_id.to_string(),
@@ -473,16 +460,20 @@ pub async fn add_account_for_password(
   })
 }
 
-async fn reset_state_with_all_accounts_from_file(
-  id: &wallet_storage::AccountId,
-  password: &wallet_storage::UserPassword,
+async fn set_state_with_all_accounts(
+  stored_login: StoredLogin,
+  id: wallet_storage::AccountId,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let stored_account = wallet_storage::load_existing_wallet_login_information(id, password)?;
-  let all_accounts: Vec<_> = stored_account
+  log::trace!("Set state with accounts:");
+  let all_accounts: Vec<_> = stored_login
     .unwrap_into_multiple_accounts(id.clone())
     .into_accounts()
     .collect();
+
+  for account in &all_accounts {
+    log::trace!("account: {:?}", account);
+  }
 
   let mut w_state = state.write().await;
   w_state.set_all_accounts(all_accounts);
@@ -502,7 +493,9 @@ pub async fn remove_account_for_password(
   let password = wallet_storage::UserPassword::new(password.to_string());
   wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)?;
 
-  reset_state_with_all_accounts_from_file(&id, &password, state).await
+  // Load to reset the internal state
+  let stored_login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
+  set_state_with_all_accounts(stored_login, id, state).await
 }
 
 fn derive_address(
@@ -606,24 +599,13 @@ mod tests {
     let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
     let id = wallet_storage::AccountId::new("first".to_string());
     let password = wallet_storage::UserPassword::new("password".to_string());
-    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
 
     let stored_account =
       wallet_storage::load_existing_wallet_login_information_at_file(wallet_file, &id, &password)
         .unwrap();
-    let (mnemonic, all_accounts) =
-      extract_first_mnemonic_and_all_accounts(&stored_account, id.clone()).unwrap();
+    let mnemonic = extract_first_mnemonic(&stored_account).unwrap();
 
     let expected_mnemonic = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
     assert_eq!(mnemonic, expected_mnemonic);
-
-    assert_eq!(
-      all_accounts,
-      vec![wallet_storage::WalletAccount::new_mnemonic_backed_account(
-        id,
-        expected_mnemonic,
-        hd_path,
-      )]
-    );
   }
 }

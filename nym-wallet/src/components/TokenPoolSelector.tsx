@@ -11,7 +11,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
   const [value, setValue] = useState<TPoolOption>('balance');
   const {
     userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
-    currency,
+    clientDetails,
   } = useContext(AppContext);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
           {tokenAllocation && (
             <ListItemText
               primary="Locked"
-              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${currency?.major}`}
+              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${clientDetails?.denom}`}
             />
           )}
         </MenuItem>

@@ -4,11 +4,11 @@
 use crate::nymd::error::NymdError;
 use cosmrs::tendermint::abci;
 use itertools::Itertools;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
 // as theirs logs
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
     #[serde(default)]
     // weird thing is that the first msg_index seems to always be undefined on the raw logs

@@ -3,25 +3,28 @@
   windows_subsystem = "windows"
 )]
 
-use crate::menu::AddDefaultSubmenus;
-use crate::operations::{mixnet, simulate, validator_api, vesting};
-use crate::state::State;
 use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
+use validator_client::nymd::fee::helpers::Operation;
 
-mod coin;
 mod config;
 mod error;
 mod menu;
-mod network;
 mod network_config;
 mod operations;
 mod platform_constants;
 mod state;
 mod utils;
 mod wallet_storage;
+
+use crate::menu::AddDefaultSubmenus;
+use crate::operations::mixnet;
+use crate::operations::validator_api;
+use crate::operations::vesting;
+
+use crate::state::State;
 
 fn main() {
   dotenv::dotenv().ok();
@@ -32,7 +35,6 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       mixnet::account::add_account_for_password,
       mixnet::account::connect_with_mnemonic,
-      mixnet::account::create_new_account,
       mixnet::account::create_new_mnemonic,
       mixnet::account::create_password,
       mixnet::account::does_password_file_exist,
@@ -59,7 +61,9 @@ fn main() {
       mixnet::delegate::delegate_to_mixnode,
       mixnet::delegate::get_delegator_rewards,
       mixnet::delegate::get_pending_delegation_events,
-      mixnet::delegate::get_reverse_mix_delegations_paged,
+      mixnet::delegate::get_delegation_summary,
+      mixnet::delegate::get_all_pending_delegation_events,
+      mixnet::delegate::get_all_mix_delegations,
       mixnet::delegate::undelegate_from_mixnode,
       mixnet::epoch::get_current_epoch,
       mixnet::send::send,
@@ -72,8 +76,7 @@ fn main() {
       network_config::update_validator_urls,
       state::load_config_from_files,
       state::save_config_to_files,
-      utils::major_to_minor,
-      utils::minor_to_major,
+      utils::outdated_get_approximate_fee,
       utils::owns_gateway,
       utils::owns_mixnode,
       utils::get_env,
@@ -105,22 +108,6 @@ fn main() {
       vesting::queries::vesting_get_gateway_pledge,
       vesting::queries::vesting_get_mixnode_pledge,
       vesting::queries::vesting_start_time,
-      // simulate endpoints
-      simulate::admin::simulate_update_contract_settings,
-      simulate::mixnet::simulate_bond_gateway,
-      simulate::mixnet::simulate_bond_mixnode,
-      simulate::mixnet::simulate_unbond_gateway,
-      simulate::mixnet::simulate_unbond_mixnode,
-      simulate::mixnet::simulate_update_mixnode,
-      simulate::mixnet::simulate_delegate_to_mixnode,
-      simulate::mixnet::simulate_undelegate_from_mixnode,
-      simulate::cosmos::simulate_send,
-      simulate::vesting::simulate_vesting_bond_gateway,
-      simulate::vesting::simulate_vesting_bond_mixnode,
-      simulate::vesting::simulate_vesting_unbond_gateway,
-      simulate::vesting::simulate_vesting_unbond_mixnode,
-      simulate::vesting::simulate_vesting_update_mixnode,
-      simulate::vesting::simulate_withdraw_vested_coins,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())
@@ -134,6 +121,10 @@ fn setup_logging() {
   } else {
     // default to 'Info'
     log_builder.filter(None, log::LevelFilter::Info);
+  }
+
+  if ::std::env::var("RUST_TRACE_OPERATIONS").is_ok() {
+    log_builder.filter_module("nym_wallet::operations", log::LevelFilter::Trace);
   }
 
   log_builder

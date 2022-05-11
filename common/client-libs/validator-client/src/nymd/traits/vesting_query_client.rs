@@ -177,6 +177,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             .await
     }
 
+    /// Returns the total amount of delegated tokens that have vested
     async fn delegated_vesting(
         &self,
         vesting_account_address: &str,

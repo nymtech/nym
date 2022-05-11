@@ -1,70 +1,46 @@
-use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
-use serde::{Deserialize, Serialize};
+use nym_types::currency::MajorCurrencyAmount;
+use nym_types::transaction::{SendTxResult, TransactionDetails};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::{AccountId, CosmosCoin, Fee, TxResponse};
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/tauritxresult.ts"))]
-#[derive(Deserialize, Serialize)]
-pub struct TauriTxResult {
-  block_height: u64,
-  code: u32,
-  details: TransactionDetails,
-  gas_used: u64,
-  gas_wanted: u64,
-  tx_hash: String,
-}
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(
-  test,
-  ts(export, export_to = "../src/types/rust/transactiondetails.ts")
-)]
-#[derive(Deserialize, Serialize)]
-pub struct TransactionDetails {
-  amount: Coin,
-  from_address: String,
-  to_address: String,
-}
-
-impl TauriTxResult {
-  fn new(t: TxResponse, details: TransactionDetails) -> TauriTxResult {
-    TauriTxResult {
-      block_height: t.height.value(),
-      code: t.tx_result.code.value(),
-      details,
-      gas_used: t.tx_result.gas_used.value(),
-      gas_wanted: t.tx_result.gas_wanted.value(),
-      tx_hash: t.hash.to_string(),
-    }
-  }
-}
+use validator_client::nymd::{AccountId, CosmosCoin, Fee};
 
 #[tauri::command]
 pub async fn send(
   address: &str,
-  amount: Coin,
+  amount: MajorCurrencyAmount,
   memo: String,
   fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<TauriTxResult, BackendError> {
+) -> Result<SendTxResult, BackendError> {
+  let denom_minor = state.read().await.current_network().denom();
   let address = AccountId::from_str(address)?;
-  let network_denom = state.read().await.current_network().denom();
-  let cosmos_amount: CosmosCoin = amount.clone().into_cosmos_coin(&network_denom)?;
-  let result = nymd_client!(state)
+  let from_address = nymd_client!(state).address().to_string();
+  let cosmos_amount: CosmosCoin = amount.clone().into_minor_cosmos_coin()?;
+  log::info!(
+    ">>> Send: amount = {}, minor_amount = {:?}, from = {}, to = {}, fee = {:?}",
+    amount,
+    cosmos_amount,
+    from_address,
+    address.as_ref(),
+    fee,
+  );
+  let raw_res = nymd_client!(state)
     .send(&address, vec![cosmos_amount], memo, fee)
     .await?;
-  Ok(TauriTxResult::new(
-    result,
+  log::info!("<<< tx hash = {}", raw_res.hash.to_string());
+  let res = SendTxResult::new(
+    raw_res,
     TransactionDetails {
-      from_address: nymd_client!(state).address().to_string(),
+      from_address,
       to_address: address.to_string(),
       amount,
     },
-  ))
+    denom_minor.as_ref(),
+  )?;
+  log::trace!("<<< {:?}", res);
+  Ok(res)
 }

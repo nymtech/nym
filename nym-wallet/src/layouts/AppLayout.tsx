@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { NymWordmark } from '@nymproject/react';
+import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { Box, Container } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { AppContext } from 'src/context';
@@ -42,7 +42,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             <Nav />
           </Box>
         </Box>
-        <Container>
+        <Container maxWidth="xl">
           <AppBar />
           {children}
         </Container>

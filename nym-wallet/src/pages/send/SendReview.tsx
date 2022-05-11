@@ -14,7 +14,7 @@ const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: 
 
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
   const { getValues } = useFormContext();
-  const { clientDetails, currency } = useContext(AppContext);
+  const { clientDetails } = useContext(AppContext);
 
   const values = getValues();
 
@@ -43,13 +43,13 @@ export const SendReview = ({ transferFee }: { transferFee?: string }) => {
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Amount" subtitle={`${values.amount} ${currency?.major}`} />
+          <SendReviewField title="Amount" subtitle={`${values.amount.amount} ${clientDetails?.denom}`} />
         </Grid>
         <Grid item xs={12}>
           <Divider light />
         </Grid>
         <Grid item xs={12}>
-          <SendReviewField title="Transfer fee" subtitle={`${transferFee} ${currency?.major}`} info />
+          <SendReviewField title="Transfer fee" subtitle={`${transferFee} ${clientDetails?.denom}`} info />
         </Grid>
       </Grid>
     </Card>

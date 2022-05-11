@@ -1,11 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material';
+import { TauriContractStateParams } from 'src/types';
 
 import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import { getContractParams, setContractParams } from '../../requests';
-import { TauriContractStateParams } from '../../types';
 
 const AdminForm: React.FC<{
   params: TauriContractStateParams;

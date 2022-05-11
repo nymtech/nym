@@ -41,6 +41,11 @@ const routesSchema = [
     route: '/undelegate',
     Icon: Undelegate,
   },
+  {
+    label: 'Delegation',
+    route: '/delegation',
+    Icon: Delegate,
+  },
 ];
 
 export const Nav = () => {

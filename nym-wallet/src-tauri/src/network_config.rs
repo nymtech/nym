@@ -1,52 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::BackendError;
-use crate::network::Network as WalletNetwork;
-use crate::state::State;
+use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-use std::{fmt, sync::Arc};
 use tokio::sync::RwLock;
 
-// When the UI queries validator urls we use this type
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ValidatorUrls {
-  pub urls: Vec<ValidatorUrl>,
-}
+use nym_wallet_types::network::Network as WalletNetwork;
+use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurl.ts"))]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ValidatorUrl {
-  pub url: String,
-  pub name: Option<String>,
-}
-
-// The type used when adding or removing validators, effectively the input.
-// NOTE: we should consider if we want to split this up
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Validator {
-  pub nymd_url: String,
-  pub nymd_name: Option<String>,
-  pub api_url: Option<String>,
-}
-
-impl fmt::Display for Validator {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let nymd_url = format!("nymd_url: {}", self.nymd_url);
-    let api_url = self
-      .api_url
-      .as_ref()
-      .map(|api_url| format!(", api_url: {}", api_url))
-      .unwrap_or_default();
-    write!(f, "{nymd_url}{api_url}")
-  }
-}
+use crate::error::BackendError;
+use crate::state::State;
 
 #[tauri::command]
 pub async fn get_validator_nymd_urls(

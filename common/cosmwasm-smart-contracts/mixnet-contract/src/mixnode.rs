@@ -14,13 +14,10 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../../nym-wallet/src/types/rust/rewardedsetnodestatus.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum RewardedSetNodeStatus {
@@ -109,11 +106,6 @@ impl PendingUndelegate {
     }
 }
 
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(
-    test,
-    ts(export, export_to = "../../../nym-wallet/src/types/rust/mixnode.ts")
-)]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,

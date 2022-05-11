@@ -1,4 +1,4 @@
-import { Coin, Denom, Gateway, MixNode, PledgeData } from './rust';
+import { Gateway, MajorCurrencyAmount, MixNode, PledgeData } from '@nymproject/types';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -11,66 +11,36 @@ export type TNodeOwnership = {
   vestingPledge?: PledgeData;
 };
 
-export type TClientDetails = {
-  account: {
-    client_address: string;
-    contract_address: string;
-    demon: Denom;
-  };
-};
-
-export type TSignInWithMnemonic = {
-  denom: string;
-} & TClientDetails;
-
-export type TCreateAccount = {
-  mnemonic: string;
-} & TSignInWithMnemonic;
-
-export type TFee = {
-  [EnumNodeType.mixnode]: Coin;
-  [EnumNodeType.gateway]?: Coin;
+export type TPendingDelegation = {
+  block_height: number;
 };
 
 export type TDelegation = {
   owner: string;
   node_identity: string;
-  amount: Coin;
+  amount: MajorCurrencyAmount;
   block_height: number;
-  proxy: string; // proxy address used to delegate the funds on behalf of anouther address
+  proxy: string; // proxy address used to delegate the funds on behalf of another address
+  pending?: TPendingDelegation;
 };
 
-export type TPagedDelegations = {
-  delegations: TDelegation[];
-  start_next_after: string;
-};
-
-export type TMixnodeBondDetails = {
-  pledge_amount: Coin;
-  total_delegation: Coin;
-  owner: string;
-  layer: string;
-  block_height: number;
-  mix_node: MixNode;
-  proxy: any;
-};
-
-export type TBondArgs = {
-  type: EnumNodeType;
-  data: MixNode | Gateway;
-  pledge: Coin;
+export type TBondGatewayArgs = {
+  gateway: Gateway;
+  pledge: MajorCurrencyAmount;
   ownerSignature: string;
 };
 
-export type TDelegateArgs = {
-  type: EnumNodeType;
-  identity: string;
-  amount: Coin;
+export type TBondMixNodeArgs = {
+  mixnode: MixNode;
+  pledge: MajorCurrencyAmount;
+  ownerSignature: string;
 };
 
-export type TCurrency = {
-  minor: 'UNYM' | 'UNYMT';
-  major: 'NYM' | 'NYMT';
+export type TBondArgs = { type: EnumNodeType } & (TBondGatewayArgs | TBondMixNodeArgs);
+
+export type TDelegateArgs = {
+  identity: string;
+  amount: MajorCurrencyAmount;
 };
 
 export type Period = 'Before' | { In: number } | 'After';

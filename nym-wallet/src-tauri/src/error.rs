@@ -1,3 +1,4 @@
+use nym_types::error::TypesError;
 use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
@@ -6,6 +7,11 @@ use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {
+  #[error("{source}")]
+  TypesError {
+    #[from]
+    source: TypesError,
+  },
   #[error("{source}")]
   Bip39Error {
     #[from]
@@ -69,16 +75,10 @@ pub enum BackendError {
   ClientNotInitialized,
   #[error("No balance available for address {0}")]
   NoBalance(String),
-  #[error("{0} is not a valid denomination string")]
-  InvalidDenom(String),
-  #[error("{0} is not a valid network denomination string")]
-  InvalidNetworkDenom(String),
   #[error("The provided network is not supported (yet)")]
   NetworkNotSupported(config::defaults::all::Network),
   #[error("Could not access the local data storage directory")]
   UnknownStorageDirectory,
-  #[error("No validator API URL configured")]
-  NoValidatorApiUrlConfigured,
   #[error("The wallet file already exists")]
   WalletFileAlreadyExists,
   #[error("The wallet file is not found")]
@@ -95,10 +95,10 @@ pub enum BackendError {
   WalletMnemonicAlreadyExistsInWalletLogin,
   #[error("Adding a different password to the wallet not currently supported")]
   WalletDifferentPasswordDetected,
-  #[error("Unexpted mnemonic account for login")]
+  #[error("Unexpected mnemonic account for login")]
   WalletUnexpectedMnemonicAccount,
-  #[error("Unexpted multiple account entry for login")]
-  WalletUnexpectedMultipleAccounts,
+  // #[error("Unexpected multiple account entry for login")]
+  // WalletUnexpectedMultipleAccounts,
   #[error("Failed to derive address from mnemonic")]
   FailedToDeriveAddress,
 }

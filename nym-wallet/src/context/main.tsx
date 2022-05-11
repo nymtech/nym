@@ -1,19 +1,19 @@
-import React, { useMemo, createContext, useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, Network, TCurrency, TMixnodeBondDetails, AccountEntry, AppEnv } from '../types';
+import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
+import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import {
+  getEnv,
   getMixnodeBondDetails,
+  listAccounts,
   selectNetwork,
   signInWithMnemonic,
   signInWithPassword,
   signOut,
   switchAccount,
-  getEnv,
-  listAccounts,
 } from '../requests';
-import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
 
 export const urls = (networkName?: Network) =>
@@ -34,13 +34,12 @@ type TAppContext = {
   appEnv?: AppEnv;
   clientDetails?: Account;
   storedAccounts?: AccountEntry[];
-  mixnodeDetails?: TMixnodeBondDetails | null;
+  mixnodeDetails?: MixNodeBond | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
   showSettings: boolean;
   showTerminal: boolean;
   network?: Network;
-  currency?: TCurrency;
   isLoading: boolean;
   isAdminAddress: boolean;
   error?: string;
@@ -63,10 +62,9 @@ export const AppContext = createContext({} as TAppContext);
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
-  const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
+  const [mixnodeDetails, setMixnodeDetails] = useState<MixNodeBond | null>(null);
   const [network, setNetwork] = useState<Network | undefined>();
   const [appEnv, setAppEnv] = useState<AppEnv>();
-  const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
@@ -75,8 +73,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
 
-  const userBalance = useGetBalance(clientDetails?.client_address);
-  const history = useHistory();
+  const userBalance = useGetBalance(clientDetails);
+  const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
   const clearState = () => {
@@ -85,7 +83,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setNetwork(undefined);
     setError(undefined);
     setIsLoading(false);
-    setMixnodeDetails(undefined);
+    setMixnodeDetails(null);
   };
 
   const loadAccount = async (n: Network) => {
@@ -95,8 +93,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (e) {
       enqueueSnackbar('Error loading account', { variant: 'error' });
       Console.error(e as string);
-    } finally {
-      setCurrency(currencyMap(n));
     }
   };
 
@@ -106,7 +102,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getBondDetails = async () => {
-    setMixnodeDetails(undefined);
+    setMixnodeDetails(null);
     try {
       const mixnode = await getMixnodeBondDetails();
       setMixnodeDetails(mixnode);
@@ -125,7 +121,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!clientDetails) {
       clearState();
-      history.push('/');
+      navigate('/');
     }
   }, [clientDetails]);
 
@@ -151,7 +147,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         setLoginType('password');
       }
       setNetwork('MAINNET');
-      history.push('/balance');
+      navigate('/balance');
     } catch (e) {
       setError(e as string);
     } finally {
@@ -200,7 +196,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       showSettings,
       showTerminal,
       network,
-      currency,
       loginType,
       setIsLoading,
       setError,
@@ -226,7 +221,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       showAdmin,
       showSettings,
       network,
-      currency,
       storedAccounts,
       showTerminal,
     ],

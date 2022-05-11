@@ -225,7 +225,17 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.client.get_block(None).await?.block.header.time)
+        self.get_block_timestamp(None).await
+    }
+
+    pub async fn get_block_timestamp(
+        &self,
+        height: Option<u32>,
+    ) -> Result<TendermintTime, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.client.get_block(height).await?.block.header.time)
     }
 
     pub async fn get_current_block_height(&self) -> Result<Height, NymdError>

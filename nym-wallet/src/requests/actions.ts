@@ -1,49 +1,30 @@
-import { invoke } from '@tauri-apps/api';
-import { Console } from '../utils/console';
-import { Coin, DelegationResult, EnumNodeType, TauriTxResult, TBondArgs } from '../types';
+import { MajorCurrencyAmount, SendTxResult, TransactionExecuteResult } from '@nymproject/types';
+import { EnumNodeType, TBondArgs, TBondGatewayArgs, TBondMixNodeArgs } from '../types';
+import { invokeWrapper } from './wrapper';
 
-export const bond = async ({ type, data, pledge, ownerSignature }: TBondArgs): Promise<any> => {
-  await invoke(`bond_${type}`, { [type]: data, ownerSignature, pledge });
+export const bondGateway = async (args: TBondGatewayArgs) =>
+  invokeWrapper<TransactionExecuteResult>('bond_gateway', args);
+
+export const unbondGateway = async () => invokeWrapper<TransactionExecuteResult>('unbond_gateway');
+
+export const bondMixNode = async (args: TBondMixNodeArgs) =>
+  invokeWrapper<TransactionExecuteResult>('bond_mixnode', args);
+
+export const unbondMixNode = async () => invokeWrapper<TransactionExecuteResult>('unbond_mixnode');
+
+export const updateMixnode = async (profitMarginPercent: number) =>
+  invokeWrapper<TransactionExecuteResult>('update_mixnode', { profitMarginPercent });
+
+export const send = async (args: { amount: MajorCurrencyAmount; address: string; memo: string }) =>
+  invokeWrapper<SendTxResult>('send', args);
+
+export const unbond = async (type: EnumNodeType) => {
+  if (type === EnumNodeType.mixnode) return unbondMixNode();
+  return unbondGateway();
 };
 
-export const unbond = async (type: EnumNodeType): Promise<void> => {
-  await invoke(`unbond_${type}`);
-};
-
-export const delegate = async ({
-  type,
-  identity,
-  amount,
-}: {
-  type: EnumNodeType;
-  identity: string;
-  amount: Coin;
-}): Promise<DelegationResult> => {
-  const res: DelegationResult = await invoke(`delegate_to_${type}`, { identity, amount });
-  return res;
-};
-
-export const undelegate = async ({
-  type,
-  identity,
-}: {
-  type: EnumNodeType;
-  identity: string;
-}): Promise<DelegationResult | undefined> => {
-  try {
-    const res: DelegationResult = await invoke(`undelegate_from_${type}`, { identity });
-    return res;
-  } catch (e) {
-    Console.log(e as string);
-    return undefined;
-  }
-};
-
-export const send = async (args: { amount: Coin; address: string; memo: string }): Promise<TauriTxResult> => {
-  const res: TauriTxResult = await invoke('send', args);
-  return res;
-};
-
-export const updateMixnode = async (profitMarginPercent: number): Promise<void> => {
-  await invoke('update_mixnode', { profitMarginPercent });
+export const bond = async (args: TBondArgs) => {
+  const { type, ...other } = args;
+  if (type === EnumNodeType.mixnode) return bondMixNode(other as TBondMixNodeArgs);
+  return bondGateway(other as TBondGatewayArgs);
 };

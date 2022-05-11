@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, LinearProgress, Stack } from '@mui/material';
-import { NymWordmark } from '@nymproject/react';
+import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { AuthTheme } from 'src/theme';
 
 export const LoadingPage = () => (

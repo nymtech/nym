@@ -58,11 +58,14 @@ config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 # Used for Type conversion, can be extracted but its a lot of work
 vesting-contract = { path = "../../contracts/vesting" }
+nym-types = { path = "../../common/types" }
+nym-wallet-types = { path = "../nym-wallet-types" }
 
 [dev-dependencies]
-ts-rs = "6.1.2"
 tempfile = "3.3.0"
+ts-rs = "6.1.2"
 
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+generate-ts = []

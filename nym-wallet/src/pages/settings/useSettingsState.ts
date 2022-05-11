@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
 import { useSnackbar } from 'notistack';
-import { getMixnodeStakeSaturation, getMixnodeStatus, getInclusionProbability } from '../../requests';
+import { InclusionProbabilityResponse, MixnodeStatus } from '@nymproject/types';
 import { AppContext } from '../../context/main';
-import { MixnodeStatus, InclusionProbabilityResponse } from '../../types';
+import { getInclusionProbability, getMixnodeStakeSaturation, getMixnodeStatus } from '../../requests';
 
 export const useSettingsState = (shouldUpdate: boolean) => {
   const [status, setStatus] = useState<MixnodeStatus>('not_found');
@@ -34,7 +34,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     const probability = await getInclusionProbability(mixnodeKey);
     if (probability) {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-
       setInclusionProbability({ in_active: probability.in_active, in_reserve: probability.in_reserve });
     }
   };

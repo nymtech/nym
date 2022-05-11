@@ -1,82 +1,55 @@
-import { invoke } from '@tauri-apps/api';
-import { DelegationEvent } from 'src/types/rust/delegationevent';
 import {
-  Balance,
-  Coin,
-  InclusionProbabilityResponse,
+  TPagedDelegations,
+  DelegationEvent,
+  StakeSaturationResponse,
   MixnodeStatusResponse,
   Operation,
-  StakeSaturationResponse,
-  TMixnodeBondDetails,
-  TPagedDelegations,
-  Epoch,
-} from '../types';
+  InclusionProbabilityResponse,
+  Balance,
+  MajorCurrencyAmount,
+  MixNodeBond,
+} from '@nymproject/types';
+import { Epoch } from 'src/types';
+import { invokeWrapper } from './wrapper';
 
-export const getReverseMixDelegations = async (): Promise<TPagedDelegations> => {
-  const res: TPagedDelegations = await invoke('get_reverse_mix_delegations_paged');
-  return res;
-};
+export const getReverseMixDelegations = async () =>
+  invokeWrapper<TPagedDelegations>('get_reverse_mix_delegations_paged');
 
-export const getReverseGatewayDelegations = async (): Promise<TPagedDelegations> => {
-  const res: TPagedDelegations = await invoke('get_reverse_gateway_delegations_paged');
-  return res;
-};
+export const getReverseGatewayDelegations = async () =>
+  invokeWrapper<TPagedDelegations>('get_reverse_gateway_delegations_paged');
 
-export const getPendingDelegations = async (): Promise<DelegationEvent[]> => {
-  const res: DelegationEvent[] = await invoke('get_pending_delegation_events');
-  return res;
-};
+export const getPendingDelegations = async () => invokeWrapper<DelegationEvent[]>('get_pending_delegation_events');
 
-export const getPendingVestingDelegations = async (): Promise<DelegationEvent[]> => {
-  const res: DelegationEvent[] = await invoke('get_pending_vesting_delegation_events');
-  return res;
-};
+export const getPendingVestingDelegations = async () =>
+  invokeWrapper<DelegationEvent[]>('get_pending_vesting_delegation_events');
 
-export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> => {
-  const res: TMixnodeBondDetails = await invoke('mixnode_bond_details');
-  return res;
-};
+export const getAllPendingDelegations = async () =>
+  invokeWrapper<DelegationEvent[]>('get_all_pending_delegation_events');
 
-export const getMixnodeStakeSaturation = async (identity: string): Promise<StakeSaturationResponse> => {
-  const res: StakeSaturationResponse = await invoke('mixnode_stake_saturation', { identity });
-  return res;
-};
+export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeBond | null>('mixnode_bond_details');
 
-export const getMixnodeStatus = async (identity: string): Promise<MixnodeStatusResponse> => {
-  const res: MixnodeStatusResponse = await invoke('mixnode_status', { identity });
-  return res;
-};
+export const getOperatorRewards = async (address: string) =>
+  invokeWrapper<MajorCurrencyAmount>('get_operator_rewards', { address });
 
-export const checkMixnodeOwnership = async (): Promise<boolean> => {
-  const res: boolean = await invoke('owns_mixnode');
-  return res;
-};
+export const getMixnodeStakeSaturation = async (identity: string) =>
+  invokeWrapper<StakeSaturationResponse>('mixnode_stake_saturation', { identity });
 
-export const checkGatewayOwnership = async (): Promise<boolean> => {
-  const res: boolean = await invoke('owns_gateway');
-  return res;
-};
+// export const getMixnodeRewardEstimation = async (identity: string) =>
+//   invokeWrapper<RewardEstimationResponse>('mixnode_reward_estimation', { identity });
+
+export const getMixnodeStatus = async (identity: string) =>
+  invokeWrapper<MixnodeStatusResponse>('mixnode_status', { identity });
+
+export const checkMixnodeOwnership = async () => invokeWrapper<boolean>('owns_mixnode');
+
+export const checkGatewayOwnership = async () => invokeWrapper<boolean>('owns_gateway');
 
 // NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
 // as for the actual transaction, the gas cost is being simulated beforehand
-export const getGasFee = async (operation: Operation): Promise<Coin> => {
-  // THIS NO LONGER EXISTS : )
-  // const res: Coin = await invoke('outdated_get_approximate_fee', { operation });
-  // return res;
-  return new Promise(((resolve, reject) => reject()))
-};
+export const getGasFee = async (operation: Operation) =>
+  invokeWrapper<MajorCurrencyAmount>('outdated_get_approximate_fee', { operation });
 
-export const getInclusionProbability = async (identity: string): Promise<InclusionProbabilityResponse> => {
-  const res: InclusionProbabilityResponse = await invoke('mixnode_inclusion_probability', { identity });
-  return res;
-};
+export const getInclusionProbability = async (identity: string) =>
+  invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { identity });
 
-export const userBalance = async (): Promise<Balance> => {
-  const res: Balance = await invoke('get_balance');
-  return res;
-};
-
-export const getCurrentEpoch = async (): Promise<Epoch> => {
-  const res: Epoch = await invoke('get_current_epoch');
-  return res;
-};
+export const getCurrentEpoch = async () => invokeWrapper<Epoch>('get_current_epoch');

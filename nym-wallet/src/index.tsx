@@ -8,10 +8,14 @@ import { AppProvider } from './context/main';
 import { ErrorFallback } from './components';
 import { NymWalletTheme } from './theme';
 import { maximizeWindow } from './utils';
+import { config } from './config';
 
 const App = () => {
   useEffect(() => {
-    maximizeWindow();
+    // do not maximise in dev mode, because it happens on hot reloading
+    if (!config.IS_DEV_MODE) {
+      maximizeWindow();
+    }
   }, []);
 
   return (

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { AuthContext } from 'src/context/auth';
 import { Check, ContentCopySharp } from '@mui/icons-material';
@@ -8,7 +8,7 @@ import { WordTiles } from '../components';
 
 export const CreateMnemonic = () => {
   const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(AuthContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (mnemonicWords.length === 0) {
@@ -52,7 +52,7 @@ export const CreateMnemonic = () => {
         color="primary"
         disableElevation
         size="large"
-        onClick={() => history.push('/verify-mnemonic')}
+        onClick={() => navigate('/verify-mnemonic')}
         sx={{ width: 250 }}
         disabled={!copied}
       >
@@ -61,7 +61,7 @@ export const CreateMnemonic = () => {
       <Button
         onClick={() => {
           resetState();
-          history.goBack();
+          navigate(-1);
         }}
         color="inherit"
       >

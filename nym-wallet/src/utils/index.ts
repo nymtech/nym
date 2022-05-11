@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api';
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { valid } from 'semver';
-import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins } from '../requests';
-import { Coin, Network, TCurrency } from '../types';
+import { basicRawCoinValueValidation, MajorAmountString } from '@nymproject/types';
+import { getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
@@ -18,41 +17,23 @@ export const validateKey = (key: string, bytesLength: number): boolean => {
   }
 };
 
-export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
-  const amountFloat = parseFloat(rawAmount);
-
-  // it cannot have more than 6 decimal places
-  if (amountFloat !== parseInt(amountFloat.toFixed(6), Number(10))) {
-    return false;
-  }
-
-  // it cannot be larger than the total supply
-  if (amountFloat > 1_000_000_000_000_000) {
-    return false;
-  }
-
-  // it can't be lower than one micro coin
-  return amountFloat >= 0.000001;
-};
-
-export const validateAmount = async (amount: string, minimum: string): Promise<boolean> => {
+export const validateAmount = async (
+  majorAmountAsString: MajorAmountString,
+  minimumAmountAsString: MajorAmountString,
+): Promise<boolean> => {
   // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
-  if (!Number(amount)) {
+  if (!Number(majorAmountAsString)) {
     return false;
   }
 
   try {
-    const minorValueStr: Coin = await invoke('major_to_minor', {
-      amount,
-    });
-
-    if (!basicRawCoinValueValidation(minorValueStr.amount)) {
+    if (!basicRawCoinValueValidation(majorAmountAsString)) {
       return false;
     }
 
-    const minorValue = parseInt(minorValueStr.amount, Number(10));
+    const majorValueFloat = parseInt(majorAmountAsString, Number(10));
 
-    return minorValue >= parseInt(minimum, Number(10));
+    return majorValueFloat >= parseInt(minimumAmountAsString, Number(10));
   } catch (e) {
     Console.error(e as string);
     return false;
@@ -90,13 +71,13 @@ export const isGreaterThan = (a: number, b: number) => a > b;
 export const checkHasEnoughFunds = async (allocationValue: string): Promise<boolean> => {
   try {
     const walletValue = await userBalance();
-    const minorValue = await majorToMinor(allocationValue);
-    const remainingBalance = +walletValue.coin.amount - +minorValue.amount;
+
+    const remainingBalance = +walletValue.amount.amount - +allocationValue;
     return remainingBalance >= 0;
   } catch (e) {
     Console.log(e as string);
+    return false;
   }
-  return false;
 };
 
 export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
@@ -115,21 +96,6 @@ export const randomNumberBetween = (min: number, max: number) => {
   const minCeil = Math.ceil(min);
   const maxFloor = Math.floor(max);
   return Math.floor(Math.random() * (maxFloor - minCeil + 1) + minCeil);
-};
-
-export const currencyMap = (network?: Network): TCurrency => {
-  switch (network) {
-    case 'SANDBOX':
-      return {
-        minor: 'UNYMT',
-        major: 'NYMT',
-      };
-    default:
-      return {
-        minor: 'UNYM',
-        major: 'NYM',
-      };
-  }
 };
 
 export const splice = (size: number, address?: string): string => {

@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(export, export_to = "../../nym-wallet/src/types/rust/mixnodestatus.ts")
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/MixnodeStatus.ts")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MixnodeStatus {
@@ -27,13 +27,10 @@ impl MixnodeStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/corenodestatusresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/CoreNodeStatusResponse.ts")
 )]
 pub struct CoreNodeStatusResponse {
     pub identity: String,
@@ -41,13 +38,10 @@ pub struct CoreNodeStatusResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/mixnodestatusresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/MixnodeStatusResponse.ts")
 )]
 pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
@@ -70,13 +64,10 @@ pub struct UptimeResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/stakesaturationresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/StakeSaturationResponse.ts")
 )]
 pub struct StakeSaturationResponse {
     pub saturation: f32,
@@ -84,13 +75,10 @@ pub struct StakeSaturationResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/selectionchance.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/SelectionChance.ts")
 )]
 pub enum SelectionChance {
     VeryHigh,
@@ -125,13 +113,10 @@ impl fmt::Display for SelectionChance {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/inclusionprobabilityresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/InclusionProbabilityResponse.ts")
 )]
 pub struct InclusionProbabilityResponse {
     pub in_active: SelectionChance,

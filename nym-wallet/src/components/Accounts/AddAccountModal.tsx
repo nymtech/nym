@@ -165,6 +165,7 @@ export const AddAccountModal = () => {
 
   useEffect(() => {
     if (dialogToDisplay === 'Add') generateMnemonic();
+    if (dialogToDisplay === 'Accounts') setStep(0);
   }, [dialogToDisplay]);
 
   useEffect(() => {

@@ -387,7 +387,7 @@ pub async fn sign_in_with_password(
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  let (mnemonic, all_accounts) = extract_mnemonic_and_all_accounts(stored_account, id)?;
+  let (mnemonic, all_accounts) = extract_mnemonic_and_all_accounts(stored_account)?;
 
   {
     let mut w_state = state.write().await;
@@ -399,7 +399,6 @@ pub async fn sign_in_with_password(
 
 fn extract_mnemonic_and_all_accounts(
   stored_account: StoredLogin,
-  id: wallet_storage::AccountId,
 ) -> Result<(Mnemonic, Vec<wallet_storage::WalletAccount>), BackendError> {
   let mnemonic = match stored_account {
     StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
@@ -417,7 +416,7 @@ fn extract_mnemonic_and_all_accounts(
 
   // Keep track of all accounts for that id
   let all_accounts: Vec<_> = stored_account
-    .unwrap_into_multiple_accounts(id)
+    .unwrap_into_multiple_accounts()
     .into_accounts()
     .collect();
 
@@ -478,7 +477,7 @@ async fn reset_state_with_all_accounts_from_file(
 ) -> Result<(), BackendError> {
   let stored_account = wallet_storage::load_existing_wallet_login_information(id, password)?;
   let all_accounts: Vec<_> = stored_account
-    .unwrap_into_multiple_accounts(id.clone())
+    .unwrap_into_multiple_accounts()
     .into_accounts()
     .collect();
 

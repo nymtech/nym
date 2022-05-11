@@ -10,6 +10,7 @@ use crate::error::BackendError;
 use super::encryption::EncryptedData;
 use super::password::AccountId;
 use super::UserPassword;
+use super::DEFAULT_NAME_FIRST_ACCOUNT;
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 
@@ -160,9 +161,11 @@ impl StoredLogin {
     }
   }
 
-  pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
+  pub(crate) fn unwrap_into_multiple_accounts(self) -> MultipleAccounts {
     match self {
-      StoredLogin::Mnemonic(ref account) => account.clone().into_multiple(id),
+      StoredLogin::Mnemonic(ref account) => account
+        .clone()
+        .into_multiple(AccountId::new(DEFAULT_NAME_FIRST_ACCOUNT.to_string())),
       StoredLogin::Multiple(ref accounts) => accounts.clone(),
     }
   }

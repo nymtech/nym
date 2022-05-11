@@ -1,6 +1,6 @@
 use crate::window_toggle;
 use tauri::{
-  AppHandle, LogicalPosition, Manager, Menu, PhysicalPosition, Position, SystemTrayEvent, Wry,
+  AppHandle, LogicalPosition, Manager, Menu, PhysicalPosition, Position, SystemTrayEvent, Wry, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem,
 };
 #[cfg(target_os = "macos")]
 use tauri::{CustomMenuItem, MenuItem, Submenu, SystemTray, SystemTrayMenu, SystemTrayMenuItem};

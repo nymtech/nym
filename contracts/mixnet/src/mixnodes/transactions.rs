@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage;
+use super::storage::{self, LAST_PM_UPDATE_TIME};
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
@@ -17,6 +17,8 @@ use mixnet_contract_common::events::{
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
+
+const MIN_PM_UPDATE_INTERVAL: u64 = 60 * 60 * 24 * 30; // one month roughly
 
 pub fn try_checkpoint_mixnodes(
     storage: &mut dyn Storage,
@@ -152,6 +154,8 @@ fn _try_add_mixnode(
         storage::TOTAL_DELEGATION.save(deps.storage, identity, &Uint128::zero())?;
     }
 
+    storage::LAST_PM_UPDATE_TIME.save(deps.storage, identity, &env.block.time.seconds())?;
+
     mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
 
     Ok(Response::new().add_event(new_mixnode_bonding_event(
@@ -191,6 +195,7 @@ pub(crate) fn _try_remove_mixnode(
 
     crate::rewards::transactions::_try_compound_operator_reward(
         deps.storage,
+        deps.api,
         env.block.height,
         &owner,
         None,
@@ -293,6 +298,19 @@ pub(crate) fn _try_update_mixnode_config(
         });
     }
 
+    let last_update_time = storage::LAST_PM_UPDATE_TIME
+        .load(deps.storage, mixnode_bond.identity())
+        .unwrap_or(0);
+
+    let current_block_time = env.block.time.seconds();
+
+    if current_block_time - last_update_time < MIN_PM_UPDATE_INTERVAL {
+        return Err(ContractError::UpdatePMTooSoon {
+            last_update_time,
+            current_block_time,
+        });
+    }
+
     // We don't have to check lower bound as its an u8
     if profit_margin_percent > 100 {
         return Err(ContractError::InvalidProfitMarginPercent(
@@ -314,6 +332,8 @@ pub(crate) fn _try_update_mixnode_config(
                 .ok_or(ContractError::NoBondFound)
         },
     )?;
+
+    LAST_PM_UPDATE_TIME.save(deps.storage, mixnode_bond.identity(), &current_block_time)?;
 
     let mut response = Response::new();
 
@@ -361,6 +381,8 @@ fn validate_mixnode_pledge(
 
 #[cfg(test)]
 pub mod tests {
+    use std::f64::MIN;
+
     use super::*;
     use crate::contract::{execute, query, INITIAL_MIXNODE_PLEDGE};
     use crate::error::ContractError;
@@ -374,6 +396,7 @@ pub mod tests {
     use mixnet_contract_common::{
         ExecuteMsg, Layer, LayerDistribution, MixNode, PagedMixnodeResponse, QueryMsg,
     };
+    use rand::thread_rng;
 
     #[test]
     fn mixnode_add() {
@@ -409,7 +432,7 @@ pub mod tests {
 
         // if we send enough funds
         let info = mock_info("anyone", &tests::fixtures::good_mixnode_pledge());
-        let (msg, identity) = tests::messages::valid_bond_mixnode_msg("anyone");
+        let (msg, (identity, sphinx)) = tests::messages::valid_bond_mixnode_msg("anyone");
 
         // we get back a message telling us everything was OK
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -430,6 +453,7 @@ pub mod tests {
         assert_eq!(
             &MixNode {
                 identity_key: identity,
+                sphinx_key: sphinx,
                 ..tests::fixtures::mix_node_fixture()
             },
             page.nodes[0].mix_node()
@@ -489,7 +513,7 @@ pub mod tests {
             .unwrap()
             .is_none());
 
-        let (msg, identity) = tests::messages::valid_bond_mixnode_msg("mix-owner");
+        let (msg, (identity, _)) = tests::messages::valid_bond_mixnode_msg("mix-owner");
 
         // it's all fine, owner is saved
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
@@ -663,7 +687,7 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
 
         let info = mock_info("mix-owner", &tests::fixtures::good_mixnode_pledge());
-        let (bond_msg, identity) = tests::messages::valid_bond_mixnode_msg("mix-owner");
+        let (bond_msg, (identity, _)) = tests::messages::valid_bond_mixnode_msg("mix-owner");
         execute(deps.as_mut(), mock_env(), info, bond_msg.clone()).unwrap();
 
         assert_eq!(
@@ -712,6 +736,7 @@ pub mod tests {
     #[test]
     fn updating_mixnode_config() {
         let sender = "bob";
+        let mut env = mock_env();
         let mut deps = test_helpers::init_contract();
         let info = mock_info(sender, &[]);
 
@@ -719,7 +744,7 @@ pub mod tests {
         let msg = ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent: 10,
         };
-        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        let ret = execute(deps.as_mut(), env.clone(), info.clone(), msg);
         assert_eq!(
             ret,
             Err(ContractError::NoAssociatedMixNodeBond {
@@ -748,12 +773,14 @@ pub mod tests {
                 .profit_margin_percent
         );
 
+        env.block.time = env.block.time.plus_seconds(MIN_PM_UPDATE_INTERVAL + 1);
+
         // try updating with an invalid value
         let profit_margin_percent = 101;
         let msg = ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
         };
-        let ret = execute(deps.as_mut(), mock_env(), info.clone(), msg);
+        let ret = execute(deps.as_mut(), env.clone(), info.clone(), msg);
         assert_eq!(
             ret,
             Err(ContractError::InvalidProfitMarginPercent(
@@ -765,7 +792,7 @@ pub mod tests {
         let msg = ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
         };
-        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(
             profit_margin_percent,
             storage::mixnodes()
@@ -843,5 +870,87 @@ pub mod tests {
         assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, bob_identity);
         assert_eq!(bob_node.layer, mixnet_contract_common::Layer::Two);
+    }
+
+    #[test]
+    fn adding_mixnode_with_duplicate_sphinx_key_errors_out() {
+        let mut deps = test_helpers::init_contract();
+
+        let keypair1 = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let keypair2 = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let sig1 = keypair1.private_key().sign_text("alice");
+        let sig2 = keypair1.private_key().sign_text("bob");
+
+        let info_alice = mock_info("alice", &tests::fixtures::good_mixnode_pledge());
+        let info_bob = mock_info("bob", &tests::fixtures::good_mixnode_pledge());
+
+        let mut mixnode = MixNode {
+            host: "1.2.3.4".to_string(),
+            mix_port: 1234,
+            verloc_port: 1234,
+            http_api_port: 1234,
+            sphinx_key: crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng())
+                .public_key()
+                .to_base58_string(),
+            identity_key: keypair1.public_key().to_base58_string(),
+            version: "v0.1.2.3".to_string(),
+            profit_margin_percent: 10,
+        };
+
+        assert!(
+            try_add_mixnode(deps.as_mut(), mock_env(), info_alice, mixnode.clone(), sig1).is_ok()
+        );
+
+        mixnode.identity_key = keypair2.public_key().to_base58_string();
+
+        // change identity but reuse sphinx key
+        assert!(try_add_mixnode(deps.as_mut(), mock_env(), info_bob, mixnode, sig2).is_err());
+    }
+
+    #[test]
+    fn updating_pm_too_often_fails() {
+        use super::MIN_PM_UPDATE_INTERVAL;
+
+        let mut deps = test_helpers::init_contract();
+        let mut env = mock_env();
+
+        let keypair1 = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let sig1 = keypair1.private_key().sign_text("alice");
+
+        let info_alice = mock_info("alice", &tests::fixtures::good_mixnode_pledge());
+
+        let mixnode = MixNode {
+            host: "1.2.3.4".to_string(),
+            mix_port: 1234,
+            verloc_port: 1234,
+            http_api_port: 1234,
+            sphinx_key: crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng())
+                .public_key()
+                .to_base58_string(),
+            identity_key: keypair1.public_key().to_base58_string(),
+            version: "v0.1.2.3".to_string(),
+            profit_margin_percent: 10,
+        };
+
+        assert!(try_add_mixnode(
+            deps.as_mut(),
+            mock_env(),
+            info_alice.clone(),
+            mixnode.clone(),
+            sig1
+        )
+        .is_ok());
+
+        env.block.time = env.block.time.plus_seconds(MIN_PM_UPDATE_INTERVAL - 1);
+
+        // fails if too soon after bonding
+        assert!(
+            try_update_mixnode_config(deps.as_mut(), env.clone(), info_alice.clone(), 20).is_err()
+        );
+
+        env.block.time = env.block.time.plus_seconds(2);
+
+        // succeds after some time
+        assert!(try_update_mixnode_config(deps.as_mut(), env, info_alice, 20).is_ok());
     }
 }

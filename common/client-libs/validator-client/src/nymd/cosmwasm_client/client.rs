@@ -8,9 +8,7 @@ use crate::nymd::cosmwasm_client::types::{
 };
 use crate::nymd::error::NymdError;
 use async_trait::async_trait;
-use cosmrs::proto::cosmos::auth::v1beta1::{
-    BaseAccount, QueryAccountRequest, QueryAccountResponse,
-};
+use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
 use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
     QueryTotalSupplyRequest, QueryTotalSupplyResponse,
@@ -32,12 +30,26 @@ use cosmwasm_std::Coin as CosmWasmCoin;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
+use std::time::Duration;
 
 #[async_trait]
-impl CosmWasmClient for HttpClient {}
+impl CosmWasmClient for HttpClient {
+    fn broadcast_polling_rate(&self) -> Duration {
+        Duration::from_secs(4)
+    }
+
+    fn broadcast_timeout(&self) -> Duration {
+        Duration::from_secs(60)
+    }
+}
 
 #[async_trait]
 pub trait CosmWasmClient: rpc::Client {
+    // this should probably get redesigned, but I'm leaving those like that temporarily to fix
+    // the underlying issue more quickly
+    fn broadcast_polling_rate(&self) -> Duration;
+    fn broadcast_timeout(&self) -> Duration;
+
     // helper method to remove duplicate code involved in making abci requests with protobuf messages
     // TODO: perhaps it should have an additional argument to determine whether the response should
     // require proof?
@@ -83,21 +95,16 @@ pub trait CosmWasmClient: rpc::Client {
             .make_abci_query::<_, QueryAccountResponse>(path, req)
             .await?;
 
-        let base_account = res
-            .account
-            .map(|account| BaseAccount::decode(account.value.as_ref()))
-            .transpose()?;
-
-        base_account
-            .map(|base_account| base_account.try_into())
-            .transpose()
+        res.account.map(TryFrom::try_from).transpose()
     }
 
     async fn get_sequence(&self, address: &AccountId) -> Result<SequenceResponse, NymdError> {
-        let base_account = self
+        let account = self
             .get_account(address)
             .await?
             .ok_or_else(|| NymdError::NonExistentAccountError(address.clone()))?;
+        let base_account = account.try_get_base_account()?;
+
         Ok(SequenceResponse {
             account_number: base_account.account_number,
             sequence: base_account.sequence,
@@ -258,6 +265,42 @@ pub trait CosmWasmClient: rpc::Client {
         tx: Transaction,
     ) -> Result<broadcast::tx_commit::Response, NymdError> {
         Ok(rpc::Client::broadcast_tx_commit(self, tx).await?)
+    }
+
+    async fn broadcast_tx(&self, tx: Transaction) -> Result<TxResponse, NymdError> {
+        let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
+
+        if broadcasted.code.is_err() {
+            let code_val = broadcasted.code.value();
+            return Err(NymdError::BroadcastTxErrorDeliverTx {
+                hash: broadcasted.hash,
+                height: None,
+                code: code_val,
+                raw_log: broadcasted.log.to_string(),
+            });
+        }
+
+        let tx_hash = broadcasted.hash;
+
+        let start = tokio::time::Instant::now();
+        loop {
+            log::debug!(
+                "Polling for result of including {} in a block...",
+                broadcasted.hash
+            );
+            if tokio::time::Instant::now().duration_since(start) >= self.broadcast_timeout() {
+                return Err(NymdError::BroadcastTimeout {
+                    hash: tx_hash,
+                    timeout: self.broadcast_timeout(),
+                });
+            }
+
+            if let Ok(poll_res) = self.get_tx(tx_hash).await {
+                return Ok(poll_res);
+            }
+
+            tokio::time::sleep(self.broadcast_polling_rate()).await;
+        }
     }
 
     async fn get_codes(&self) -> Result<Vec<Code>, NymdError> {

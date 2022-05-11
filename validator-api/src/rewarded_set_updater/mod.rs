@@ -22,9 +22,9 @@ use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Notify;
+use time::OffsetDateTime;
+use tokio::time::sleep;
 use validator_client::nymd::{CosmosCoin, SigningNymdClient};
 
 pub(crate) mod error;
@@ -62,7 +62,6 @@ type Epoch = Interval;
 
 pub struct RewardedSetUpdater {
     nymd_client: Client<SigningNymdClient>,
-    update_rewarded_set_notify: Arc<Notify>,
     validator_cache: ValidatorCache,
     storage: ValidatorApiStorage,
 }
@@ -74,13 +73,11 @@ impl RewardedSetUpdater {
 
     pub(crate) async fn new(
         nymd_client: Client<SigningNymdClient>,
-        update_rewarded_set_notify: Arc<Notify>,
         validator_cache: ValidatorCache,
         storage: ValidatorApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {
             nymd_client,
-            update_rewarded_set_notify,
             validator_cache,
             storage,
         })
@@ -177,9 +174,8 @@ impl RewardedSetUpdater {
         for rewarded_node in rewarded_set.into_iter() {
             let uptime = self
                 .storage
-                .get_average_mixnode_uptime_in_interval(
+                .get_average_mixnode_uptime_in_the_last_24hrs(
                     rewarded_node.identity(),
-                    epoch.start_unix_timestamp(),
                     epoch.end_unix_timestamp(),
                 )
                 .await?;
@@ -200,7 +196,7 @@ impl RewardedSetUpdater {
     }
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
-    async fn update_rewarded_set(&self) -> Result<(), RewardingError> {
+    async fn update(&self) -> Result<(), RewardingError> {
         let epoch = self.epoch().await?;
         log::info!("Starting rewarded set update");
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
@@ -242,13 +238,76 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
+    async fn update_blacklist(&mut self, epoch: &Interval) -> Result<(), RewardingError> {
+        info!("Updating blacklist");
+
+        let mut mix_blacklist_add = HashSet::new();
+        let mut mix_blacklist_remove = HashSet::new();
+        let mut gate_blacklist_add = HashSet::new();
+        let mut gate_blacklist_remove = HashSet::new();
+
+        let mixnodes = self
+            .storage
+            .get_all_avg_mix_reliability_in_last_24hr(epoch.end_unix_timestamp())
+            .await?;
+        let gateways = self
+            .storage
+            .get_all_avg_gateway_reliability_in_last_24hr(epoch.end_unix_timestamp())
+            .await?;
+
+        // TODO: Make thresholds configurable
+        for mix in mixnodes {
+            if mix.value() <= 50.0 {
+                mix_blacklist_add.insert(mix.identity().to_string());
+            } else {
+                mix_blacklist_remove.insert(mix.identity().to_string());
+            }
+        }
+
+        self.validator_cache
+            .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
+            .await;
+
+        for gateway in gateways {
+            if gateway.value() <= 50.0 {
+                gate_blacklist_add.insert(gateway.identity().to_string());
+            } else {
+                gate_blacklist_remove.insert(gateway.identity().to_string());
+            }
+        }
+
+        self.validator_cache
+            .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
+            .await;
+        Ok(())
+    }
+
     pub(crate) async fn run(&mut self) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
         loop {
             // wait until the cache refresher determined its time to update the rewarded/active sets
-            self.update_rewarded_set_notify.notified().await;
-            self.update_rewarded_set().await?;
+            let time = OffsetDateTime::now_utc().unix_timestamp();
+            let epoch = self.epoch().await?;
+            let time_to_epoch_change = epoch.end_unix_timestamp() - time;
+            if time_to_epoch_change <= 0 {
+                self.update_blacklist(&epoch).await?;
+                log::info!(
+                    "Time to epoch change is {}, updating rewarded set",
+                    time_to_epoch_change
+                );
+                self.update().await?;
+            } else {
+                log::info!(
+                    "Waiting for epoch change, time to epoch change is {}",
+                    time_to_epoch_change
+                );
+                // Sleep at most 300 before checking again, to keep logs busy
+                let s = time_to_epoch_change.min(300).max(0) as u64;
+                sleep(Duration::from_secs(s)).await;
+            }
+            // allow some blocks to pass
+            sleep(Duration::from_secs(10)).await;
         }
         #[allow(unreachable_code)]
         Ok(())

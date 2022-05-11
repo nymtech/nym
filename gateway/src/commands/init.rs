@@ -43,10 +43,14 @@ pub struct Init {
     #[clap(long)]
     validator_apis: Option<String>,
 
-    /// Set this gateway to work in a testnet mode that would allow clients to bypass bandwidth credential requirement
+    /// Cosmos wallet mnemonic needed for double spending protection
+    #[clap(long)]
+    mnemonic: String,
+
+    /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
-    testnet_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -57,11 +61,6 @@ pub struct Init {
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     validators: Option<String>,
-
-    /// Cosmos wallet mnemonic
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    mnemonic: String,
 }
 
 impl From<Init> for OverrideConfig {
@@ -74,18 +73,16 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
             validator_apis: init_config.validator_apis,
+            mnemonic: Some(init_config.mnemonic),
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            testnet_mode: init_config.testnet_mode,
+            enabled_credentials_mode: init_config.enabled_credentials_mode,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: Some(init_config.eth_endpoint),
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             validators: init_config.validators,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            mnemonic: Some(init_config.mnemonic),
         }
     }
 }
@@ -160,12 +157,13 @@ mod tests {
         let args = Init {
             id: "foo-id".to_string(),
             host: "foo-host".to_string(),
-            wallet_address: "nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9".to_string(),
+            wallet_address: "n1z9egw0knv47nmur0p8vk4rcx59h9gg4zjx9ede".to_string(),
             mix_port: Some(42),
             clients_port: Some(43),
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
+            mnemonic: "a b c".to_string(),
         };
 
         let config = Config::new(&args.id);

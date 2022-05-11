@@ -1,22 +1,20 @@
 import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, Network, TCurrency, TMixnodeBondDetails, AccountEntry } from '../types';
+import { Account, Network, TCurrency, TMixnodeBondDetails, AccountEntry, AppEnv } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
-import { config } from '../../config';
 import {
   getMixnodeBondDetails,
-  listAccounts,
   selectNetwork,
   signInWithMnemonic,
   signInWithPassword,
   signOut,
   switchAccount,
+  getEnv,
+  listAccounts,
 } from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
-
-export const { ADMIN_ADDRESS, IS_DEV_MODE } = config;
 
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
@@ -33,15 +31,18 @@ type TLoginType = 'mnemonic' | 'password';
 
 type TAppContext = {
   mode: 'light' | 'dark';
+  appEnv?: AppEnv;
   clientDetails?: Account;
   storedAccounts?: AccountEntry[];
   mixnodeDetails?: TMixnodeBondDetails | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
   showSettings: boolean;
+  showTerminal: boolean;
   network?: Network;
   currency?: TCurrency;
   isLoading: boolean;
+  isAdminAddress: boolean;
   error?: string;
   loginType?: TLoginType;
   setIsLoading: (isLoading: boolean) => void;
@@ -51,6 +52,7 @@ type TAppContext = {
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
   logIn: (opts: { type: TLoginType; value: string }) => void;
+  handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
   onAccountChange: (accountId: string) => void;
@@ -63,9 +65,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
   const [network, setNetwork] = useState<Network | undefined>();
+  const [appEnv, setAppEnv] = useState<AppEnv>();
   const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
@@ -126,7 +130,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   }, [clientDetails]);
 
   useEffect(() => {
-    if (network) refreshAccount(network);
+    if (network) {
+      refreshAccount(network);
+      getEnv().then(setAppEnv);
+    }
   }, [network]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
@@ -175,11 +182,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
   const memoizedValue = useMemo(
     () => ({
       mode,
+      appEnv,
+      isAdminAddress: Boolean(appEnv?.ADMIN_ADDRESS && clientDetails?.client_address === appEnv.ADMIN_ADDRESS),
       isLoading,
       error,
       clientDetails,
@@ -188,6 +198,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       userBalance,
       showAdmin,
       showSettings,
+      showTerminal,
       network,
       currency,
       loginType,
@@ -198,6 +209,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       getBondDetails,
       handleShowSettings,
       handleShowAdmin,
+      handleShowTerminal,
       logIn,
       logOut,
       onAccountChange,
@@ -205,6 +217,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     [
       loginType,
       mode,
+      appEnv,
       isLoading,
       error,
       clientDetails,
@@ -215,6 +228,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       network,
       currency,
       storedAccounts,
+      showTerminal,
     ],
   );
 

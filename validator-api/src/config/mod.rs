@@ -27,6 +27,12 @@ const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+#[cfg(not(feature = "coconut"))]
+const DEFAULT_ETH_PRIVATE_KEY: &str =
+    "0000000000000000000000000000000000000000000000000000000000000001";
+
 const DEFAULT_TEST_ROUTES: usize = 3;
 const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
@@ -53,6 +59,10 @@ pub struct Config {
 
     #[serde(default)]
     rewarding: Rewarding,
+
+    #[serde(default)]
+    #[cfg(feature = "coconut")]
+    coconut_signer: CoconutSigner,
 }
 
 impl NymConfig for Config {
@@ -88,9 +98,8 @@ pub struct Base {
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
 
-    // Avoid breaking derives for now
-    #[cfg(feature = "coconut")]
-    keypair_bs58: String,
+    /// Mnemonic used for rewarding and/or multisig operations
+    mnemonic: String,
 }
 
 impl Default for Base {
@@ -100,8 +109,7 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_NETWORK.mixnet_contract_address().to_string(),
-            #[cfg(feature = "coconut")]
-            keypair_bs58: String::default(),
+            mnemonic: String::default(),
         }
     }
 }
@@ -115,10 +123,10 @@ pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
 
-    /// Indicates whether this validator api is running in a testnet mode, thus attempting
+    /// Indicates whether this validator api is running in a disabled credentials mode, thus attempting
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     /// Specifies list of all validators on the network issuing coconut credentials.
     /// A special care must be taken to ensure they are in correct order.
@@ -154,11 +162,8 @@ pub struct NetworkMonitor {
     #[serde(with = "humantime_serde")]
     packet_delivery_timeout: Duration,
 
-    /// Path to directory containing public/private keys used for bandwidth token purchase.
-    /// Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
-    /// The public key is the name of the file, while the private key is the content.
-    #[cfg(not(feature = "coconut"))]
-    backup_bandwidth_token_keys_dir: PathBuf,
+    /// Path to the database containing bandwidth credentials of this client.
+    credentials_database_path: PathBuf,
 
     /// Ethereum private key.
     #[cfg(not(feature = "coconut"))]
@@ -184,9 +189,8 @@ pub struct NetworkMonitor {
 }
 
 impl NetworkMonitor {
-    #[cfg(not(feature = "coconut"))]
-    fn default_backup_bandwidth_token_keys_dir() -> PathBuf {
-        Config::default_data_directory(None).join("backup_bandwidth_token_keys_dir")
+    fn default_credentials_database_path() -> PathBuf {
+        Config::default_data_directory(None).join("credentials_database.db")
     }
 }
 
@@ -196,7 +200,7 @@ impl Default for NetworkMonitor {
             min_mixnode_reliability: DEFAULT_MIN_MIXNODE_RELIABILITY,
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
-            testnet_mode: false,
+            disabled_credentials_mode: true,
             all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
@@ -205,12 +209,11 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
+            credentials_database_path: Self::default_credentials_database_path(),
             #[cfg(not(feature = "coconut"))]
-            backup_bandwidth_token_keys_dir: Self::default_backup_bandwidth_token_keys_dir(),
+            eth_private_key: DEFAULT_ETH_PRIVATE_KEY.to_string(),
             #[cfg(not(feature = "coconut"))]
-            eth_private_key: "".to_string(),
-            #[cfg(not(feature = "coconut"))]
-            eth_endpoint: "".to_string(),
+            eth_endpoint: DEFAULT_ETH_ENDPOINT.to_string(),
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
             route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,
@@ -261,9 +264,6 @@ pub struct Rewarding {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
 
-    /// Mnemonic (currently of the network monitor) used for rewarding
-    mnemonic: String,
-
     /// Specifies the minimum percentage of monitor test run data present in order to
     /// distribute rewards for given interval.
     /// Note, only values in range 0-100 are valid
@@ -274,10 +274,20 @@ impl Default for Rewarding {
     fn default() -> Self {
         Rewarding {
             enabled: false,
-            mnemonic: String::default(),
             minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
         }
     }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+#[cfg(feature = "coconut")]
+pub struct CoconutSigner {
+    /// Specifies whether rewarding service is enabled in this process.
+    enabled: bool,
+
+    /// Base58 encoded signing keypair
+    keypair_bs58: String,
 }
 
 impl Config {
@@ -287,7 +297,7 @@ impl Config {
 
     #[cfg(feature = "coconut")]
     pub fn keypair(&self) -> KeyPair {
-        KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
+        KeyPair::try_from_bs58(self.coconut_signer.keypair_bs58.clone()).unwrap()
     }
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
@@ -295,13 +305,19 @@ impl Config {
         self
     }
 
-    pub fn with_testnet_mode(mut self, testnet_mode: bool) -> Self {
-        self.network_monitor.testnet_mode = testnet_mode;
+    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
+        self.network_monitor.disabled_credentials_mode = disabled_credentials_mode;
         self
     }
 
     pub fn with_rewarding_enabled(mut self, enabled: bool) -> Self {
         self.rewarding.enabled = enabled;
+        self
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn with_coconut_signer_enabled(mut self, enabled: bool) -> Self {
+        self.coconut_signer.enabled = enabled;
         self
     }
 
@@ -316,13 +332,13 @@ impl Config {
     }
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
-        self.rewarding.mnemonic = mnemonic.into();
+        self.base.mnemonic = mnemonic.into();
         self
     }
 
     #[cfg(feature = "coconut")]
     pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
-        self.base.keypair_bs58 = keypair_bs58.into();
+        self.coconut_signer.keypair_bs58 = keypair_bs58.into();
         self
     }
 
@@ -362,13 +378,17 @@ impl Config {
         self.network_monitor.enabled
     }
 
-    pub fn get_testnet_mode(&self) -> bool {
-        self.network_monitor.testnet_mode
+    #[cfg(feature = "coconut")]
+    pub fn get_coconut_signer_enabled(&self) -> bool {
+        self.coconut_signer.enabled
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_backup_bandwidth_token_keys_dir(&self) -> PathBuf {
-        self.network_monitor.backup_bandwidth_token_keys_dir.clone()
+    pub fn get_disabled_credentials_mode(&self) -> bool {
+        self.network_monitor.disabled_credentials_mode
+    }
+
+    pub fn get_credentials_database_path(&self) -> PathBuf {
+        self.network_monitor.credentials_database_path.clone()
     }
 
     #[cfg(not(feature = "coconut"))]
@@ -396,7 +416,7 @@ impl Config {
     }
 
     pub fn get_mnemonic(&self) -> String {
-        self.rewarding.mnemonic.clone()
+        self.base.mnemonic.clone()
     }
 
     pub fn get_network_monitor_run_interval(&self) -> Duration {
@@ -433,14 +453,6 @@ impl Config {
 
     pub fn get_minimum_test_routes(&self) -> usize {
         self.network_monitor.minimum_test_routes
-    }
-
-    pub fn get_min_mixnode_reliability(&self) -> u8 {
-        self.network_monitor.min_mixnode_reliability
-    }
-
-    pub fn get_min_gateway_reliability(&self) -> u8 {
-        self.network_monitor.min_gateway_reliability
     }
 
     pub fn get_route_test_packets(&self) -> usize {

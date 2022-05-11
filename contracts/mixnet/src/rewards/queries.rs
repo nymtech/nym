@@ -39,20 +39,29 @@ pub fn query_operator_reward(deps: Deps, owner: String) -> Result<Uint128, Contr
         }
     };
 
-    super::transactions::calculate_operator_reward(deps.storage, &owner_address, &bond)
+    super::transactions::calculate_operator_reward(deps.storage, deps.api, &owner_address, &bond)
 }
 
 pub fn query_delegator_reward(
     deps: Deps,
     owner: String,
     mix_identity: IdentityKey,
+    proxy: Option<String>,
 ) -> Result<Uint128, ContractError> {
-    let owner_address = deps.api.addr_validate(&owner)?;
-    super::transactions::calculate_delegator_reward(
-        deps.storage,
-        owner_address.as_str(),
-        &mix_identity,
-    )
+    let proxy = match proxy {
+        Some(proxy) => Some(
+            deps.api
+                .addr_validate(&proxy)
+                .map_err(|_| ContractError::InvalidAddress(proxy))?,
+        ),
+        None => None,
+    };
+
+    let key = mixnet_contract_common::delegation::generate_storage_key(
+        &deps.api.addr_validate(&owner)?,
+        proxy.as_ref(),
+    );
+    super::transactions::calculate_delegator_reward(deps.storage, deps.api, key, &mix_identity)
 }
 
 #[cfg(test)]

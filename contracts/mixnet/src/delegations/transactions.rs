@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use super::storage::{self, PENDING_DELEGATION_EVENTS};
+// use crate::contract::debug_with_visibility;
+// use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
@@ -43,9 +45,15 @@ pub(crate) fn _try_reconcile_all_delegation_events(
 
     let mut response = Response::new();
 
+    // debug_with_visibility(api, "Reconciling delegation events");
+
     for (key, delegation_event) in pending_delegation_events {
         match delegation_event {
             DelegationEvent::Delegate(delegation) => {
+                // if for some reason the delegation is zero, don't do anything since it should be a no-op anyway
+                if delegation.amount.amount == Uint128::zero() {
+                    continue;
+                }
                 let event = try_reconcile_delegation(storage, delegation)?;
                 response = response.add_event(event);
             }
@@ -99,8 +107,7 @@ pub(crate) fn try_delegate_to_mixnode(
     let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(
-        deps.storage,
-        deps.api,
+        deps,
         env.block.height,
         &mix_identity,
         info.sender.as_str(),
@@ -120,8 +127,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     let amount = validate_delegation_stake(info.funds)?;
 
     _try_delegate_to_mixnode(
-        deps.storage,
-        deps.api,
+        deps,
         env.block.height,
         &mix_identity,
         &delegate,
@@ -171,19 +177,18 @@ pub(crate) fn try_reconcile_delegation(
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
-    storage: &mut dyn Storage,
-    api: &dyn Api,
+    deps: DepsMut<'_>,
     block_height: u64,
     mix_identity: &str,
     delegate: &str,
     amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
-    let delegate = api.addr_validate(delegate)?;
+    let delegate = deps.api.addr_validate(delegate)?;
 
     // check if the target node actually exists
     if mixnodes_storage::mixnodes()
-        .may_load(storage, mix_identity)?
+        .may_load(deps.storage, mix_identity)?
         .is_none()
     {
         return Err(ContractError::MixNodeBondNotFound {
@@ -199,8 +204,19 @@ pub(crate) fn _try_delegate_to_mixnode(
         proxy.clone(),
     );
 
+    if storage::PENDING_DELEGATION_EVENTS
+        .may_load(deps.storage, delegation.event_storage_key())?
+        .is_some()
+    {
+        return Err(ContractError::DelegationEventAlreadyPending {
+            block_height,
+            identity: mix_identity.to_string(),
+            kind: "delgation".to_string(),
+        });
+    }
+
     storage::PENDING_DELEGATION_EVENTS.save(
-        storage,
+        deps.storage,
         delegation.event_storage_key(),
         &DelegationEvent::Delegate(delegation),
     )?;
@@ -245,6 +261,8 @@ pub(crate) fn try_reconcile_undelegation(
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
 
+    // debug_with_visibility(api, "Reconciling undelegations");
+
     let any_delegations = delegation_map
         .prefix(pending_undelegate.storage_key())
         .keys(storage, None, None, cosmwasm_std::Order::Ascending)
@@ -266,14 +284,14 @@ pub(crate) fn try_reconcile_undelegation(
         });
     }
 
-    let reward = crate::rewards::transactions::_try_compound_delegator_reward(
-        pending_undelegate.block_height(),
-        api,
+    let reward = crate::rewards::transactions::calculate_delegator_reward(
         storage,
-        pending_undelegate.delegate().as_str(),
+        api,
+        pending_undelegate.proxy_storage_key(),
         &pending_undelegate.mix_identity(),
-        None,
     )?;
+
+    // debug_with_visibility(api, format!("Delegator reward: {}", reward));
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map
@@ -298,12 +316,23 @@ pub(crate) fn try_reconcile_undelegation(
 
     let mut total_delegation = Uint128::zero();
 
-    if crate::mixnodes::storage::mixnodes()
-        .may_load(storage, &pending_undelegate.mix_identity())?
-        .is_none()
+    // debug_with_visibility(api, "Reducing accumulated rewards");
+
     {
-        // Since the mixnode is no longer bonded the reward did not compound and we need to manually add it to the total
-        total_delegation = reward;
+        if let Some(mut bond) = crate::mixnodes::storage::mixnodes()
+            .may_load(storage, &pending_undelegate.mix_identity())?
+        {
+            let remaining = bond.accumulated_rewards().saturating_sub(reward);
+            // debug_with_visibility(api, format!("Remaining accumulated rewards: {}", remaining));
+            bond.accumulated_rewards = Some(remaining);
+
+            crate::mixnodes::storage::mixnodes().save(
+                storage,
+                &pending_undelegate.mix_identity(),
+                &bond,
+                pending_undelegate.block_height(),
+            )?;
+        }
     }
 
     for h in delegation_heights {
@@ -318,29 +347,53 @@ pub(crate) fn try_reconcile_undelegation(
         )?;
     }
 
-    let bank_msg = BankMsg::Send {
-        to_address: pending_undelegate
-            .proxy()
-            .as_ref()
-            .unwrap_or(&pending_undelegate.delegate())
-            .to_string(),
-        amount: coins(total_delegation.u128(), DENOM),
-    };
-
     mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
         storage,
         &pending_undelegate.mix_identity(),
         |total_node_delegation| {
+            // debug_with_visibility(api, "Setting total delegation");
+            let remaining = match total_node_delegation.unwrap().checked_sub(total_delegation) {
+                Ok(remaining) => remaining,
+                Err(_) => {
+                    // debug_with_visibility(
+                    //     api,
+                    //     format!(
+                    //         "Overflowed delegation subsctraction, {} - {}",
+                    //         total_node_delegation.unwrap(),
+                    //         total_delegation
+                    //     ),
+                    // );
+                    return Err(ContractError::TotalDelegationSubOverflow {
+                        mix_identity: pending_undelegate.mix_identity(),
+                        total_node_delegation: total_node_delegation.unwrap().u128(),
+                        to_subtract: total_delegation.u128(),
+                    });
+                }
+            };
+            // debug_with_visibility(api, format!("Remaining total delegation: {}", remaining));
             // the first unwrap is fine because the delegation information MUST exist, otherwise we would
             // have never gotten here in the first place
             // the second unwrap is also fine because we should NEVER underflow here,
             // if we do, it means we have some serious error in our logic
-            Ok(total_node_delegation
-                .unwrap()
-                .checked_sub(total_delegation)
-                .unwrap())
+            Ok(remaining)
         },
     )?;
+
+    let total_funds = total_delegation + reward;
+
+    // don't add a bank message if it would have resulted in attempting to send 0 tokens
+    let bank_msg = if total_delegation != Uint128::zero() {
+        Some(BankMsg::Send {
+            to_address: pending_undelegate
+                .proxy()
+                .as_ref()
+                .unwrap_or(&pending_undelegate.delegate())
+                .to_string(),
+            amount: coins(total_funds.u128(), DENOM),
+        })
+    } else {
+        None
+    };
 
     let mut wasm_msg = None;
 
@@ -348,7 +401,7 @@ pub(crate) fn try_reconcile_undelegation(
         let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
             owner: pending_undelegate.delegate().as_str().to_string(),
             mix_identity: pending_undelegate.mix_identity(),
-            amount: Coin::new(total_delegation.u128(), DENOM),
+            amount: Coin::new(total_funds.u128(), DENOM),
         });
 
         wasm_msg = Some(wasm_execute(proxy, &msg, vec![one_ucoin()])?);
@@ -358,11 +411,13 @@ pub(crate) fn try_reconcile_undelegation(
         &pending_undelegate.delegate(),
         &pending_undelegate.proxy(),
         &pending_undelegate.mix_identity(),
-        total_delegation,
+        total_funds,
     );
 
+    // debug_with_visibility(api, "Done");
+
     Ok(ReconcileUndelegateResponse {
-        bank_msg: Some(bank_msg),
+        bank_msg,
         wasm_msg,
         event,
     })
@@ -383,6 +438,17 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
         proxy.clone(),
         env.block.height,
     );
+
+    if storage::PENDING_DELEGATION_EVENTS
+        .may_load(deps.storage, event.event_storage_key())?
+        .is_some()
+    {
+        return Err(ContractError::DelegationEventAlreadyPending {
+            block_height: event.block_height(),
+            identity: mix_identity,
+            kind: "undelgation".to_string(),
+        });
+    }
 
     PENDING_DELEGATION_EVENTS.save(
         deps.storage,

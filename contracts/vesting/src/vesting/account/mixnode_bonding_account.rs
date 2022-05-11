@@ -14,6 +14,23 @@ use vesting_contract_common::PledgeData;
 use super::Account;
 
 impl MixnodeBondingAccount for Account {
+    fn try_compound_operator_reward(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::CompoundOperatorRewardOnBehalf {
+            owner: self.owner_address().into_string(),
+        };
+
+        let compound_operator_reward_msg = wasm_execute(
+            MIXNET_CONTRACT_ADDRESS.load(storage)?,
+            &msg,
+            vec![one_ucoin()],
+        )?;
+
+        Ok(Response::new().add_message(compound_operator_reward_msg))
+    }
+
     fn try_update_mixnode_config(
         &self,
         profit_margin_percent: u8,

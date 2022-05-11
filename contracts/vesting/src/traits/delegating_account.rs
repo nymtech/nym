@@ -3,6 +3,12 @@ use cosmwasm_std::{Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::IdentityKey;
 
 pub trait DelegatingAccount {
+    fn try_compound_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        storage: &dyn Storage,
+    ) -> Result<Response, ContractError>;
+
     fn try_delegate_to_mixnode(
         &self,
         mix_identity: IdentityKey,

@@ -27,9 +27,8 @@ pub fn try_write_rewarded_set(
         return Err(ContractError::Unauthorized);
     }
 
-    // sanity check to make sure the sending validator is in sync with the contract state
-    // (i.e. so that we'd known that top k nodes are actually expected to be active)
-    if active_set_size != state.params.mixnode_active_set_size {
+    // We don't want more then we need, less should be fine, as we could have less nodes bonded overall
+    if active_set_size > state.params.mixnode_active_set_size {
         return Err(ContractError::UnexpectedActiveSetSize {
             received: active_set_size,
             expected: state.params.mixnode_active_set_size,
@@ -43,16 +42,7 @@ pub fn try_write_rewarded_set(
         });
     }
 
-    let last_update = storage::CURRENT_REWARDED_SET_HEIGHT.load(deps.storage)?;
     let block_height = env.block.height;
-
-    if last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS > block_height {
-        return Err(ContractError::TooFrequentRewardedSetUpdate {
-            last_update,
-            minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
-            current_height: block_height,
-        });
-    }
     let num_nodes = rewarded_set.len();
 
     storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
@@ -184,21 +174,6 @@ mod tests {
 
         // cannot be performed too soon after a previous update
         env.block.height = last_update + 1;
-        assert_eq!(
-            Err(ContractError::TooFrequentRewardedSetUpdate {
-                last_update,
-                minimum_delay: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
-                current_height: last_update + 1,
-            }),
-            try_write_rewarded_set(
-                deps.as_mut(),
-                env.clone(),
-                authorised_sender.clone(),
-                full_rewarded_set.clone(),
-                current_state.params.mixnode_active_set_size
-            )
-        );
-
         // after successful rewarded set write, all internal storage structures are updated appropriately
         env.block.height = last_update + crate::constants::REWARDED_SET_REFRESH_BLOCKS;
         let expected_response = Response::new().add_event(new_change_rewarded_set_event(

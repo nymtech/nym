@@ -19,9 +19,9 @@ version = '{{ client.version }}'
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 
-# Indicates whether this client is running in a testnet mode, thus attempting
+# Indicates whether this client is running in a disabled credentials mode, thus attempting
 # to claim bandwidth without presenting bandwidth credentials.
-testnet_mode = {{ client.testnet_mode }}
+disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
 validator_api_urls = [
@@ -46,10 +46,8 @@ public_encryption_key_file = '{{ client.public_encryption_key_file }}'
 # sent but not received back.
 reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
 
-# Path to directory containing public/private keys used for bandwidth token purchase.
-# Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
-# The public key is the name of the file, while the private key is the content.
-backup_bandwidth_token_keys_dir = '{{ client.backup_bandwidth_token_keys_dir }}'
+# Path to the database containing bandwidth credentials
+database_path = '{{ client.database_path }}'
 
 # Ethereum private key.
 eth_private_key = '{{ client.eth_private_key }}'

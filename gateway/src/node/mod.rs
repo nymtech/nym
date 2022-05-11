@@ -188,7 +188,7 @@ where
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
-            self.config.get_testnet_mode(),
+            self.config.get_disabled_credentials_mode(),
             #[cfg(feature = "coconut")]
             verification_key,
             #[cfg(not(feature = "coconut"))]
@@ -276,7 +276,7 @@ where
         let erc20_bridge = ERC20Bridge::new(
             self.config.get_eth_endpoint(),
             self.config.get_validator_nymd_endpoints(),
-            self.config.get_cosmos_mnemonic(),
+            self.config._get_cosmos_mnemonic(),
         );
 
         let mix_forwarding_channel = self.start_packet_forwarder();

@@ -4,21 +4,10 @@
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-#[cfg(feature = "coconut")]
-use coconut_interface::{Credential, Parameters};
 use config::NymConfig;
-#[cfg(feature = "coconut")]
-use credentials::coconut::{
-    bandwidth::prepare_for_spending, bandwidth::BandwidthVoucher, bandwidth::TOTAL_ATTRIBUTES,
-    utils::obtain_aggregate_signature,
-};
-#[cfg(feature = "coconut")]
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
-#[cfg(feature = "coconut")]
-use network_defaults::BANDWIDTH_VALUE;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
@@ -27,16 +16,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
-#[cfg(feature = "coconut")]
-use validator_client::nymd::tx::Hash;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
 #[cfg(feature = "eth")]
 #[cfg(not(feature = "coconut"))]
 use crate::commands::{
-    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
-    TESTNET_MODE_ARG_NAME,
+    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ENABLED_CREDENTIALS_MODE_ARG_NAME,
+    ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
 };
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -79,66 +66,26 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     #[cfg(not(feature = "coconut"))]
         let app = app
         .arg(
-            Arg::with_name(TESTNET_MODE_ARG_NAME)
-                .long(TESTNET_MODE_ARG_NAME)
-                .help("Set this client to work in a testnet mode that would attempt to use gateway without bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
+            Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
+                .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
+                .help("Set this client to work in a enabled credentials mode that would attempt to use gateway with bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
                 .conflicts_with_all(&[ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME])
         )
         .arg(Arg::with_name(ETH_ENDPOINT_ARG_NAME)
             .long(ETH_ENDPOINT_ARG_NAME)
             .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .default_value_if(TESTNET_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
+            .default_value_if(ENABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
             .required(true))
         .arg(Arg::with_name(ETH_PRIVATE_KEY_ARG_NAME)
             .long(ETH_PRIVATE_KEY_ARG_NAME)
             .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
             .takes_value(true)
-            .default_value_if(TESTNET_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
+            .default_value_if(ENABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
             .required(true)
         );
 
     app
-}
-
-// this behaviour should definitely be changed, we shouldn't
-// need to get bandwidth credential for registration
-#[cfg(feature = "coconut")]
-async fn _prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
-    let verification_key = obtain_aggregate_verification_key(validators)
-        .await
-        .expect("could not obtain aggregate verification key of validators");
-
-    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-    let mut rng = OsRng;
-    let bandwidth_credential_attributes = BandwidthVoucher::new(
-        &params,
-        BANDWIDTH_VALUE.to_string(),
-        network_defaults::VOUCHER_INFO.to_string(),
-        Hash::new([0; 32]),
-        // workaround for putting a valid value here, without deriving clone for the private
-        // key, until we have actual useful values
-        identity::PrivateKey::from_base58_string(
-            identity::KeyPair::new(&mut rng)
-                .private_key()
-                .to_base58_string(),
-        )
-        .unwrap(),
-        encryption::KeyPair::new(&mut rng).private_key().clone(),
-    );
-
-    let bandwidth_credential =
-        obtain_aggregate_signature(&params, &bandwidth_credential_attributes, validators)
-            .await
-            .expect("could not obtain bandwidth credential");
-
-    prepare_for_spending(
-        raw_identity,
-        &bandwidth_credential,
-        &bandwidth_credential_attributes,
-        &verification_key,
-    )
-    .expect("could not prepare out bandwidth credential for spending")
 }
 
 async fn register_with_gateway(

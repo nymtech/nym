@@ -162,14 +162,16 @@ impl NymClient {
 
         #[cfg(feature = "coconut")]
         let bandwidth_controller = BandwidthController::new(
+            credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                .await,
             self.config.get_base().get_validator_api_endpoints(),
-            *self.key_manager.identity_keypair().public_key(),
         );
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
+            credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                .await,
             self.config.get_base().get_eth_endpoint(),
             self.config.get_base().get_eth_private_key(),
-            self.config.get_base().get_backup_bandwidth_token_keys_dir(),
         )
         .expect("Could not create bandwidth controller");
 
@@ -185,8 +187,8 @@ impl NymClient {
             Some(bandwidth_controller),
         );
 
-        if self.config.get_base().get_testnet_mode() {
-            gateway_client.set_testnet_mode(true)
+        if self.config.get_base().get_disabled_credentials_mode() {
+            gateway_client.set_disabled_credentials_mode(true)
         }
         gateway_client
             .authenticate_and_start()

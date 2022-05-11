@@ -5,6 +5,7 @@ pub mod error;
 
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 use error::CoconutInterfaceError;
 
@@ -24,9 +25,11 @@ impl Credential {
     pub fn new(
         n_params: u32,
         theta: Theta,
-        public_attributes: Vec<Vec<u8>>,
+        voucher_value: String,
+        voucher_info: String,
         signature: &Signature,
     ) -> Credential {
+        let public_attributes = vec![voucher_value.into_bytes(), voucher_info.into_bytes()];
         Credential {
             n_params,
             theta,
@@ -35,8 +38,18 @@ impl Credential {
         }
     }
 
-    pub fn public_attributes(&self) -> Vec<Vec<u8>> {
-        self.public_attributes.clone()
+    pub fn voucher_value(&self) -> Result<u64, CoconutInterfaceError> {
+        let bandwidth_vec = self
+            .public_attributes
+            .get(0)
+            .ok_or(CoconutInterfaceError::NotEnoughPublicAttributes)?
+            .to_owned();
+        let bandwidth_str = String::from_utf8(bandwidth_vec)
+            .map_err(|_| CoconutInterfaceError::InvalidBandwidth)?;
+        let value =
+            u64::from_str(&bandwidth_str).map_err(|_| CoconutInterfaceError::InvalidBandwidth)?;
+
+        Ok(value)
     }
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {

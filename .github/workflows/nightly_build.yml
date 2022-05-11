@@ -75,7 +75,6 @@ jobs:
           command: clippy
           args: --workspace --all-targets -- -D warnings
 
-
       # COCONUT stuff
       - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
@@ -89,12 +88,45 @@ jobs:
           command: test
           args: --workspace --features=coconut
 
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
       - name: Run clippy with coconut enabled
         uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
           args: --workspace --all-targets --features=coconut -- -D warnings
+
+      # nym-wallet (the rust part)
+      - name: Build nym-wallet rust code
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path nym-wallet/Cargo.toml --workspace
+
+      - name: Run nym-wallet tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path nym-wallet/Cargo.toml --workspace
+
+      - name: Check nym-wallet formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path nym-wallet/Cargo.toml --all -- --check
+
+      - name: Run clippy for nym-wallet
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
+        with:
+          command: clippy
+          args: --manifest-path nym-wallet/Cargo.toml --workspace --all-targets -- -D warnings
+
   notification:
     needs: build
     runs-on: ubuntu-latest

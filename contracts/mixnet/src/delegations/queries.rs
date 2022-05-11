@@ -9,16 +9,25 @@ use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    Delegation, IdentityKey, PagedDelegatorDelegationsResponse, PagedMixDelegationsResponse,
+    delegation, Delegation, IdentityKey, PagedDelegatorDelegationsResponse,
+    PagedMixDelegationsResponse,
 };
 
 pub(crate) fn query_pending_delegation_events(
-    storage: &dyn Storage,
+    deps: Deps<'_>,
     owner_address: String,
+    proxy_address: Option<String>,
 ) -> Result<Vec<DelegationEvent>, ContractError> {
+    let validated_owner = deps.api.addr_validate(&owner_address)?;
+    let validated_proxy = proxy_address
+        .map(|proxy| deps.api.addr_validate(&proxy))
+        .transpose()?;
+
+    let key_prefix = delegation::generate_storage_key(&validated_owner, validated_proxy.as_ref());
+
     Ok(storage::PENDING_DELEGATION_EVENTS
-        .sub_prefix(owner_address.as_bytes().to_vec())
-        .range(storage, None, None, Order::Ascending)
+        .sub_prefix(key_prefix)
+        .range(deps.storage, None, None, Order::Ascending)
         .filter_map(|r| r.ok())
         .map(|(_key, delegation_event)| delegation_event)
         .collect::<Vec<DelegationEvent>>())
@@ -119,7 +128,7 @@ pub(crate) fn query_mixnode_delegation(
     proxy: Option<String>,
 ) -> Result<Vec<Delegation>, ContractError> {
     let validated_delegator = api.addr_validate(&delegator)?;
-    let proxy = proxy.map(|p| api.addr_validate(&p).expect("Invalid proxy address"));
+    let proxy = proxy.map(|p| api.addr_validate(&p)).transpose()?;
     let storage_key = (
         mix_identity.clone(),
         mixnet_contract_common::delegation::generate_storage_key(

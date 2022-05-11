@@ -11,9 +11,6 @@ use credentials::error::Error;
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
 
-#[cfg(feature = "coconut")]
-const BANDWIDTH_INDEX: usize = 0;
-
 pub struct Bandwidth {
     value: u64,
 }
@@ -29,16 +26,8 @@ impl TryFrom<Credential> for Bandwidth {
     type Error = Error;
 
     fn try_from(credential: Credential) -> Result<Self, Self::Error> {
-        match credential.public_attributes().get(BANDWIDTH_INDEX) {
-            None => Err(Error::NotEnoughPublicAttributes),
-            Some(attr) => match <[u8; 8]>::try_from(attr.as_slice()) {
-                Ok(bandwidth_bytes) => {
-                    let value = u64::from_be_bytes(bandwidth_bytes);
-                    Ok(Self { value })
-                }
-                Err(_) => Err(Error::InvalidBandwidthSize),
-            },
-        }
+        let value = credential.voucher_value()?;
+        Ok(Self { value })
     }
 }
 

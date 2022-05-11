@@ -5,6 +5,9 @@ use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
+
+#[cfg(feature = "nymd-client")]
+use validator_api_requests::models::UptimeResponse;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
@@ -153,6 +156,10 @@ impl Client<SigningNymdClient> {
         )?;
         Ok(())
     }
+
+    pub fn set_nymd_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.nymd.set_simulated_gas_multiplier(multiplier)
+    }
 }
 
 #[cfg(feature = "nymd-client")]
@@ -260,13 +267,14 @@ impl<C> Client<C> {
         &self,
         address: String,
         mix_identity: IdentityKey,
+        proxy: Option<String>,
     ) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
         Ok(self
             .nymd
-            .get_delegator_rewards(address, mix_identity)
+            .get_delegator_rewards(address, mix_identity, proxy)
             .await?
             .u128())
     }
@@ -274,13 +282,14 @@ impl<C> Client<C> {
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,
+        proxy_address: Option<String>,
     ) -> Result<Vec<DelegationEvent>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
         Ok(self
             .nymd
-            .get_pending_delegation_events(owner_address)
+            .get_pending_delegation_events(owner_address, proxy_address)
             .await?)
     }
 
@@ -574,6 +583,12 @@ impl<C> Client<C> {
         }
 
         Ok(delegations)
+    }
+
+    pub async fn get_mixnode_avg_uptimes(
+        &self,
+    ) -> Result<Vec<UptimeResponse>, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnode_avg_uptimes().await?)
     }
 
     pub async fn blind_sign(

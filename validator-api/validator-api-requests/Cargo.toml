@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+schemars = { version = "0.8", features = ["preserve_order"] }
 serde = "1.0"
 
 [dev-dependencies]

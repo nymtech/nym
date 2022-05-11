@@ -46,6 +46,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
+            try_compound_delegator_reward(mix_identity, info, deps)
+        }
+        ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
         ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
         } => try_update_mixnode_config(profit_margin_percent, info, deps),
@@ -234,6 +238,14 @@ pub fn try_track_unbond_gateway(
     Ok(Response::new().add_event(new_track_gateway_unbond_event()))
 }
 
+pub fn try_compound_operator_reward(
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_compound_operator_reward(deps.storage)
+}
+
 pub fn try_bond_mixnode(
     mix_node: MixNode,
     owner_signature: String,
@@ -293,6 +305,15 @@ fn try_delegate_to_mixnode(
     account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
 
+fn try_compound_delegator_reward(
+    mix_identity: IdentityKey,
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_compound_delegator_reward(mix_identity, deps.storage)
+}
+
 fn try_undelegate_from_mixnode(
     mix_identity: IdentityKey,
     info: MessageInfo,
@@ -313,6 +334,7 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
+
     let account_exists = account_from_address(owner_address, deps.storage, deps.api).is_ok();
     if account_exists {
         return Err(ContractError::AccountAlreadyExists(
@@ -323,6 +345,7 @@ fn try_create_periodic_vesting_account(
     let vesting_spec = vesting_spec.unwrap_or_default();
 
     let coin = validate_funds(&info.funds)?;
+
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
         Some(deps.api.addr_validate(&staking_address)?)
@@ -336,6 +359,9 @@ fn try_create_periodic_vesting_account(
     let periods = populate_vesting_periods(start_time, vesting_spec);
 
     let start_time = Timestamp::from_seconds(start_time);
+
+    let response = Response::new();
+
     Account::new(
         owner_address.clone(),
         staking_address.clone(),
@@ -344,24 +370,6 @@ fn try_create_periodic_vesting_account(
         periods,
         deps.storage,
     )?;
-
-    let mut response = Response::new();
-
-    let send_tokens_owner = BankMsg::Send {
-        to_address: owner_address.as_str().to_string(),
-        amount: vec![Coin::new(1_000_000, DENOM)],
-    };
-
-    response = response.add_message(send_tokens_owner);
-
-    if let Some(staking_address) = staking_address.as_ref() {
-        let send_tokens_staking = BankMsg::Send {
-            to_address: staking_address.clone().as_str().to_string(),
-            amount: vec![Coin::new(1_000_000, DENOM)],
-        };
-
-        response = response.add_message(send_tokens_staking);
-    }
 
     Ok(response.add_event(new_periodic_vesting_account_event(
         &owner_address,

@@ -4,10 +4,10 @@
 use config::defaults::DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
-use mixnet_contract_common::U128;
 use mixnet_contract_common::{
     reward_params::NodeEpochRewards, Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond,
 };
+use mixnet_contract_common::{SphinxKey, U128};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -17,6 +17,9 @@ const MIXNODES_PK_NAMESPACE: &str = "mn";
 const MIXNODES_PK_CHECKPOINTS: &str = "mn__check";
 const MIXNODES_PK_CHANGELOG: &str = "mn__change";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+
+const LAST_PM_UPDATE_NAMESPACE: &str = "lpm";
 
 // paged retrieval limits for all queries and transactions
 pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
@@ -25,15 +28,20 @@ pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 pub(crate) const TOTAL_DELEGATION: Map<'_, IdentityKeyRef<'_>, Uint128> =
     Map::new(TOTAL_DELEGATION_NAMESPACE);
 
+pub(crate) const LAST_PM_UPDATE_TIME: Map<'_, IdentityKeyRef<'_>, u64> =
+    Map::new(LAST_PM_UPDATE_NAMESPACE);
+
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
+
+    pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, StoredMixnodeBond>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
 // note that from my understanding this will be converted into a macro at some point in the future
 impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<StoredMixnodeBond>> + '_> {
-        let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.owner];
+        let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.owner, &self.sphinx_key];
         Box::new(v.into_iter())
     }
 }
@@ -43,12 +51,16 @@ pub(crate) fn mixnodes<'a>(
 ) -> IndexedSnapshotMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
+        sphinx_key: UniqueIndex::new(
+            |d| d.mix_node.sphinx_key.clone(),
+            MIXNODES_SPHINX_IDX_NAMESPACE,
+        ),
     };
     IndexedSnapshotMap::new(
         MIXNODES_PK_NAMESPACE,
         MIXNODES_PK_CHECKPOINTS,
         MIXNODES_PK_CHANGELOG,
-        Strategy::Never,
+        Strategy::Selected,
         indexes,
     )
 }

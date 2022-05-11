@@ -1,10 +1,12 @@
 import React from 'react';
 import { Route, Switch } from 'react-router-dom';
 import { ApplicationLayout } from 'src/layouts';
+import { Terminal } from 'src/pages/terminal';
 import { Bond, Balance, Delegate, InternalDocs, Receive, Send, Unbond, Undelegate } from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>
+    <Terminal />
     <Switch>
       <Route path="/balance">
         <Balance />

@@ -3,6 +3,7 @@ import { Alert, AlertTitle, Box, CircularProgress, Grid, Typography } from '@mui
 import { useParams } from 'react-router-dom';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
 import { BondBreakdownTable } from '../../components/MixNodes/BondBreakdown';
+import { DelegatorsInfoTable, EconomicsInfoColumns, EconomicsInfoRows } from '../../components/MixNodes/Economics';
 import { ComponentError } from '../../components/ComponentError';
 import { ContentCard } from '../../components/ContentCard';
 import { TwoColSmallTable } from '../../components/TwoColSmallTable';
@@ -79,6 +80,16 @@ const PageMixnodeDetailWithState: React.FC = () => {
       <Grid container>
         <Grid item xs={12}>
           <DetailTable columnsData={columns} tableName="Mixnode detail table" rows={mixNodeRow ? [mixNodeRow] : []} />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2} mt={0}>
+        <Grid item xs={12}>
+          <DelegatorsInfoTable
+            columnsData={EconomicsInfoColumns}
+            tableName="Delegators info table"
+            rows={[EconomicsInfoRows()]}
+          />
         </Grid>
       </Grid>
 

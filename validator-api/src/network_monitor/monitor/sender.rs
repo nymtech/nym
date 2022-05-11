@@ -7,6 +7,7 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
 use config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
+use credential_storage::PersistentStorage;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -97,8 +98,8 @@ struct FreshGatewayClientData {
     // for coconut bandwidth credentials we currently have no double spending protection, just to
     // get things running we're re-using the same credential for all gateways all the time.
     // THIS IS VERY BAD!!
-    bandwidth_controller: BandwidthController,
-    testnet_mode: bool,
+    bandwidth_controller: BandwidthController<PersistentStorage>,
+    disabled_credentials_mode: bool,
 }
 
 impl FreshGatewayClientData {
@@ -157,8 +158,8 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        bandwidth_controller: BandwidthController,
-        testnet_mode: bool,
+        bandwidth_controller: BandwidthController<PersistentStorage>,
+        disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
             active_gateway_clients: ActiveGatewayClients::new(),
@@ -167,7 +168,7 @@ impl PacketSender {
                 local_identity,
                 gateway_response_timeout,
                 bandwidth_controller,
-                testnet_mode,
+                disabled_credentials_mode,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -215,8 +216,8 @@ impl PacketSender {
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
         );
 
-        if fresh_gateway_client_data.testnet_mode {
-            gateway_client.set_testnet_mode(true)
+        if fresh_gateway_client_data.disabled_credentials_mode {
+            gateway_client.set_disabled_credentials_mode(true)
         }
 
         (

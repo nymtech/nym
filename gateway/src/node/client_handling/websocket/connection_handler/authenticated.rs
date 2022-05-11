@@ -45,8 +45,8 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential did not verify correctly")]
     InvalidBandwidthCredential,
 
-    #[error("This gateway is not running in the testnet mode")]
-    NotInTestnetMode,
+    #[error("This gateway is not running in the disabled credentials mode")]
+    NotInDisabledCredentialsMode,
 
     #[cfg(not(feature = "coconut"))]
     #[error("Ethereum web3 error")]
@@ -306,8 +306,8 @@ where
     async fn handle_claim_testnet_bandwidth(
         &mut self,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        if !self.inner.testnet_mode {
-            return Err(RequestHandlingError::NotInTestnetMode);
+        if !self.inner.disabled_credentials_mode {
+            return Err(RequestHandlingError::NotInDisabledCredentialsMode);
         }
 
         self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE)

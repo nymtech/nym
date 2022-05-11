@@ -39,6 +39,14 @@ In the project roots there's a `.env.sample` file, these values currently match 
 - In the root directory, create a new file named `.env` 
 - Input the values against the variables
 
+## Terminal
+
+The `terminal` is shown either in development mode, or by setting the `SHOW_TERMINAL` to any value, e.g. `true`.
+
+When enabled, the `terminal` icon is shown in the nav and clicking it displays a modal that shows the inner state of the wallet. In the future, this will also allow interactions, e.g. queries or executing commands such as delegation or undelegating.
+
+It is intended to be used during development and for troubleshooting.
+
 ## Development mode
 
 You can compile the wallet in development mode by running the following command inside the `nym-wallet` directory:
@@ -57,6 +65,10 @@ Run the following command from the `nym-wallet` folder
 yarn build
 ```
 The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
+
+## Admin mode
+
+The admin screens can be shown by setting the environment variable `ADMIN_ADDRESS`. You'll need to know the admin account address for the network you are using.
 
 ### Binary output directory structure 
 ```

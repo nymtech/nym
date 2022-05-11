@@ -3,6 +3,7 @@
 
 use thiserror::Error;
 
+use credential_storage::error::StorageError;
 use credentials::error::Error as CredentialError;
 use crypto::asymmetric::encryption::KeyRecoveryError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
@@ -38,4 +39,7 @@ pub enum CredentialClientError {
 
     #[error("Could not parse X25519 data")]
     X25519ParseError(#[from] KeyRecoveryError),
+
+    #[error("Could not use shared storage")]
+    SharedStorageError(#[from] StorageError),
 }

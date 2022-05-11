@@ -6,7 +6,6 @@ import {
   InclusionProbabilityResponse,
   MixnodeStatusResponse,
   Operation,
-  RewardEstimationResponse,
   StakeSaturationResponse,
   TMixnodeBondDetails,
   TPagedDelegations,
@@ -28,6 +27,11 @@ export const getPendingDelegations = async (): Promise<DelegationEvent[]> => {
   return res;
 };
 
+export const getPendingVestingDelegations = async (): Promise<DelegationEvent[]> => {
+  const res: DelegationEvent[] = await invoke('get_pending_vesting_delegation_events');
+  return res;
+};
+
 export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | null> => {
   const res: TMixnodeBondDetails = await invoke('mixnode_bond_details');
   return res;
@@ -35,11 +39,6 @@ export const getMixnodeBondDetails = async (): Promise<TMixnodeBondDetails | nul
 
 export const getMixnodeStakeSaturation = async (identity: string): Promise<StakeSaturationResponse> => {
   const res: StakeSaturationResponse = await invoke('mixnode_stake_saturation', { identity });
-  return res;
-};
-
-export const getMixnodeRewardEstimation = async (identity: string): Promise<RewardEstimationResponse> => {
-  const res: RewardEstimationResponse = await invoke('mixnode_reward_estimation', { identity });
   return res;
 };
 

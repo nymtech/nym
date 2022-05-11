@@ -4,11 +4,14 @@
 use crate::nymd_client::Client;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use config::defaults::VALIDATOR_API_VERSION;
 use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
+use okapi::openapi3::OpenApi;
+use rocket::Route;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 
 use rocket::fairing::AdHoc;
 use serde::Serialize;
@@ -17,7 +20,7 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::RwLock;
 use tokio::time;
 use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::CosmWasmClient;
@@ -28,7 +31,6 @@ pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
     cache: ValidatorCache,
     caching_interval: Duration,
-    update_rewarded_set_notify: Option<Arc<Notify>>,
 }
 
 #[derive(Clone)]
@@ -89,13 +91,11 @@ impl<C> ValidatorCacheRefresher<C> {
         nymd_client: Client<C>,
         caching_interval: Duration,
         cache: ValidatorCache,
-        update_rewarded_set_notify: Option<Arc<Notify>>,
     ) -> Self {
         ValidatorCacheRefresher {
             nymd_client,
             cache,
             caching_interval,
-            update_rewarded_set_notify,
         }
     }
 
@@ -131,11 +131,16 @@ impl<C> ValidatorCacheRefresher<C> {
             self.nymd_client.get_gateways(),
         )?;
 
-        let rewarded_set_identities = self.nymd_client.get_rewarded_set_identities().await?;
-        let (rewarded_set, active_set) =
-            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities);
+        let (rewarded_set, active_set) = if let Ok(rewarded_set_identities) =
+            self.nymd_client.get_rewarded_set_identities().await
+        {
+            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities)
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
+        let current_epoch = self.nymd_client.get_current_epoch().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -150,22 +155,9 @@ impl<C> ValidatorCacheRefresher<C> {
                 rewarded_set,
                 active_set,
                 epoch_rewarding_params,
+                current_epoch,
             )
             .await;
-
-        if let Some(notify) = &self.update_rewarded_set_notify {
-            let update_details = self
-                .nymd_client
-                .get_current_rewarded_set_update_details()
-                .await?;
-
-            if update_details.last_refreshed_block + (update_details.refresh_rate_blocks as u64)
-                < update_details.current_height
-            {
-                // there's only ever a single waiter -> the set updater
-                notify.notify_one()
-            }
-        }
 
         Ok(())
     }
@@ -189,6 +181,19 @@ impl<C> ValidatorCacheRefresher<C> {
     }
 }
 
+pub(crate) fn validator_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![
+        settings: routes::get_mixnodes,
+        routes::get_gateways,
+        routes::get_active_set,
+        routes::get_rewarded_set,
+        routes::get_blacklisted_mixnodes,
+        routes::get_blacklisted_gateways,
+        routes::get_epoch_reward_params,
+        routes::get_current_epoch
+    ]
+}
+
 impl ValidatorCache {
     fn new() -> Self {
         ValidatorCache {
@@ -199,18 +204,7 @@ impl ValidatorCache {
 
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
-            rocket.manage(Self::new()).mount(
-                // this format! is so ugly...
-                format!("/{}", VALIDATOR_API_VERSION),
-                routes![
-                    routes::get_mixnodes,
-                    routes::get_gateways,
-                    routes::get_active_set,
-                    routes::get_rewarded_set,
-                    routes::get_blacklisted_mixnodes,
-                    routes::get_blacklisted_gateways,
-                ],
-            )
+            rocket.manage(Self::new())
         })
     }
 
@@ -221,108 +215,205 @@ impl ValidatorCache {
         rewarded_set: Vec<MixNodeBond>,
         active_set: Vec<MixNodeBond>,
         epoch_rewarding_params: EpochRewardParams,
+        current_epoch: Interval,
     ) {
-        let mut inner = self.inner.write().await;
-
-        inner.mixnodes.update(mixnodes);
-        inner.gateways.update(gateways);
-        inner.rewarded_set.update(rewarded_set);
-        inner.active_set.update(active_set);
-        inner.current_reward_params.update(epoch_rewarding_params);
+        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+            Ok(mut cache) => {
+                cache.mixnodes.update(mixnodes);
+                cache.gateways.update(gateways);
+                cache.rewarded_set.update(rewarded_set);
+                cache.active_set.update(active_set);
+                cache.current_reward_params.update(epoch_rewarding_params);
+                cache.current_epoch.update(Some(current_epoch));
+            }
+            Err(e) => {
+                error!("{}", e);
+            }
+        }
     }
 
-    pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
-        self.inner.read().await.mixnodes_blacklist.clone()
+    pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => Some(cache.mixnodes_blacklist.clone()),
+            Err(e) => {
+                error!("{}", e);
+                None
+            }
+        }
     }
 
-    pub async fn gateways_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
-        self.inner.read().await.gateways_blacklist.clone()
+    pub async fn gateways_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => Some(cache.gateways_blacklist.clone()),
+            Err(e) => {
+                error!("{}", e);
+                None
+            }
+        }
     }
 
-    pub async fn insert_mixnodes_blacklist(&mut self, mix_identity: IdentityKey) {
-        self.inner
-            .write()
-            .await
-            .mixnodes_blacklist
-            .value
-            .insert(mix_identity);
+    pub async fn update_mixnodes_blacklist(
+        &self,
+        add: HashSet<IdentityKey>,
+        remove: HashSet<IdentityKey>,
+    ) {
+        let blacklist = self.mixnodes_blacklist().await;
+        if let Some(blacklist) = blacklist {
+            let mut blacklist = blacklist
+                .value
+                .union(&add)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            let to_remove = blacklist
+                .intersection(&remove)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            for key in to_remove {
+                blacklist.remove(&key);
+            }
+            match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+                Ok(mut cache) => {
+                    cache.mixnodes_blacklist.update(blacklist);
+                    return;
+                }
+                Err(e) => error!("{}", e),
+            }
+        }
+        error!("Failed to update mixnodes blacklist");
     }
 
-    pub async fn remove_mixnodes_blacklist(&mut self, mix_identity: &str) {
-        self.inner
-            .write()
-            .await
-            .mixnodes_blacklist
-            .value
-            .remove(mix_identity);
-    }
-
-    pub async fn insert_gateways_blacklist(&mut self, gateway_identity: IdentityKey) {
-        self.inner
-            .write()
-            .await
-            .gateways_blacklist
-            .value
-            .insert(gateway_identity);
-    }
-
-    pub async fn remove_gateways_blacklist(&mut self, gateway_identity: &str) {
-        self.inner
-            .write()
-            .await
-            .gateways_blacklist
-            .value
-            .remove(gateway_identity);
+    pub async fn update_gateways_blacklist(
+        &self,
+        add: HashSet<IdentityKey>,
+        remove: HashSet<IdentityKey>,
+    ) {
+        let blacklist = self.gateways_blacklist().await;
+        if let Some(blacklist) = blacklist {
+            let mut blacklist = blacklist
+                .value
+                .union(&add)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            let to_remove = blacklist
+                .intersection(&remove)
+                .cloned()
+                .collect::<HashSet<IdentityKey>>();
+            for key in to_remove {
+                blacklist.remove(&key);
+            }
+            match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+                Ok(mut cache) => {
+                    cache.gateways_blacklist.update(blacklist);
+                    return;
+                }
+                Err(e) => error!("{}", e),
+            }
+        }
+        error!("Failed to update gateways blacklist");
     }
 
     pub async fn mixnodes(&self) -> Vec<MixNodeBond> {
-        let blacklist = self.mixnodes_blacklist().await.value;
-        self.inner
-            .read()
-            .await
-            .mixnodes
-            .value
-            .iter()
-            .filter(|mix| !blacklist.contains(mix.identity()))
-            .cloned()
-            .collect()
+        let blacklist = self.mixnodes_blacklist().await;
+        let mixnodes = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.mixnodes.clone(),
+            Err(e) => {
+                error!("{}", e);
+                return Vec::new();
+            }
+        };
+
+        if let Some(blacklist) = blacklist {
+            mixnodes
+                .value
+                .iter()
+                .filter(|mix| !blacklist.value.contains(mix.identity()))
+                .cloned()
+                .collect()
+        } else {
+            mixnodes.value
+        }
     }
 
     pub async fn mixnodes_all(&self) -> Vec<MixNodeBond> {
-        self.inner.read().await.mixnodes.value.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.mixnodes.clone().into_inner(),
+            Err(e) => {
+                error!("{}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub async fn gateways(&self) -> Vec<GatewayBond> {
-        let blacklist = self.gateways_blacklist().await.value;
-        self.inner
-            .read()
-            .await
-            .gateways
-            .value
-            .iter()
-            .filter(|gateway| !blacklist.contains(gateway.identity()))
-            .cloned()
-            .collect()
+        let blacklist = self.gateways_blacklist().await;
+        let gateways = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.gateways.clone(),
+            Err(e) => {
+                error!("{}", e);
+                return Vec::new();
+            }
+        };
+
+        if let Some(blacklist) = blacklist {
+            gateways
+                .value
+                .iter()
+                .filter(|mix| !blacklist.value.contains(mix.identity()))
+                .cloned()
+                .collect()
+        } else {
+            gateways.value
+        }
     }
 
     pub async fn gateways_all(&self) -> Vec<GatewayBond> {
-        self.inner.read().await.gateways.value.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.gateways.value.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub async fn rewarded_set(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.read().await.rewarded_set.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.rewarded_set.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(Vec::new())
+            }
+        }
     }
 
     pub async fn active_set(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.read().await.active_set.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.active_set.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(Vec::new())
+            }
+        }
     }
 
     pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {
-        self.inner.read().await.current_reward_params.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.current_reward_params.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(EpochRewardParams::new_empty())
+            }
+        }
     }
 
     pub(crate) async fn current_epoch(&self) -> Cache<Option<Interval>> {
-        self.inner.read().await.current_epoch.clone()
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.current_epoch.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(None)
+            }
+        }
     }
 
     pub async fn mixnode_details(
@@ -332,7 +423,7 @@ impl ValidatorCache {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
 
-        let active_set = &self.inner.read().await.active_set.value;
+        let active_set = &self.active_set().await.value;
         if let Some(bond) = active_set
             .iter()
             .find(|mix| mix.mix_node.identity_key == identity)
@@ -340,7 +431,7 @@ impl ValidatorCache {
             return (Some(bond.clone()), MixnodeStatus::Active);
         }
 
-        let rewarded_set = &self.inner.read().await.rewarded_set.value;
+        let rewarded_set = &self.rewarded_set().await.value;
         if let Some(bond) = rewarded_set
             .iter()
             .find(|mix| mix.mix_node.identity_key == identity)
@@ -348,7 +439,7 @@ impl ValidatorCache {
             return (Some(bond.clone()), MixnodeStatus::Standby);
         }
 
-        let all_bonded = &self.inner.read().await.mixnodes.value;
+        let all_bonded = &self.mixnodes().await;
         if let Some(bond) = all_bonded
             .iter()
             .find(|mix| mix.mix_node.identity_key == identity)

@@ -19,17 +19,12 @@ mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 ##### network monitor config options #####
 
 [network_monitor]
-
-# Mixnodes and gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
-min_mixnode_reliability = {{ network_monitor.min_mixnode_reliability }} # deafults to 50
-min_gateway_reliability = {{ network_monitor.min_gateway_reliability }} # defaults to 20
-
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
-# Indicates whether this validator api is running in a testnet mode, thus attempting
+# Indicates whether this validator api is running in a disabled credentials mode, thus attempting
 # to claim bandwidth without presenting bandwidth credentials.
-testnet_mode = {{ network_monitor.testnet_mode }}
+disabled_credentials_mode = {{ network_monitor.disabled_credentials_mode }}
 
 # Specifies list of all validators on the network issuing coconut credentials.
 # A special care must be taken to ensure they are in correct order.
@@ -63,10 +58,7 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 
-# Path to directory containing public/private keys used for bandwidth token purchase.
-# Those are saved in case of emergency, to be able to reclaim bandwidth tokens.
-# The public key is the name of the file, while the private key is the content.
-backup_bandwidth_token_keys_dir = '{{ network_monitor.backup_bandwidth_token_keys_dir }}'
+credentials_database_path = '{{ network_monitor.credentials_database_path }}'
 
 # Ethereum private key.
 eth_private_key = '{{ network_monitor.eth_private_key }}'

@@ -3,7 +3,9 @@
 
 use crate::nymd::error::NymdError;
 use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
+use cosmrs::proto::cosmos::base::v1beta1::Coin as ProtoCoin;
 use cosmrs::rpc::endpoint::broadcast;
+use cosmrs::Coin;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;
@@ -17,7 +19,7 @@ impl CheckResponse for broadcast::tx_commit::Response {
         if self.check_tx.code.is_err() {
             return Err(NymdError::BroadcastTxErrorCheckTx {
                 hash: self.hash,
-                height: self.height,
+                height: Some(self.height),
                 code: self.check_tx.code.value(),
                 raw_log: self.check_tx.log.value().to_owned(),
             });
@@ -26,9 +28,24 @@ impl CheckResponse for broadcast::tx_commit::Response {
         if self.deliver_tx.code.is_err() {
             return Err(NymdError::BroadcastTxErrorDeliverTx {
                 hash: self.hash,
-                height: self.height,
+                height: Some(self.height),
                 code: self.deliver_tx.code.value(),
                 raw_log: self.deliver_tx.log.value().to_owned(),
+            });
+        }
+
+        Ok(self)
+    }
+}
+
+impl CheckResponse for crate::nymd::TxResponse {
+    fn check_response(self) -> Result<Self, NymdError> {
+        if self.tx_result.code.is_err() {
+            return Err(NymdError::BroadcastTxErrorDeliverTx {
+                hash: self.hash,
+                height: Some(self.height),
+                code: self.tx_result.code.value(),
+                raw_log: self.tx_result.log.value().to_owned(),
             });
         }
 
@@ -64,4 +81,15 @@ pub(crate) fn next_page_key(pagination_info: Option<PageResponse>) -> Option<Vec
     }
 
     None
+}
+
+pub(crate) fn parse_proto_coin_vec(value: Vec<ProtoCoin>) -> Result<Vec<Coin>, NymdError> {
+    value
+        .into_iter()
+        .map(|proto_coin| {
+            Coin::try_from(&proto_coin).map_err(|_| NymdError::MalformedCoin {
+                coin_representation: format!("{:?}", proto_coin),
+            })
+        })
+        .collect()
 }

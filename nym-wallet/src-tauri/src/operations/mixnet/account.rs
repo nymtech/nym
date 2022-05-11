@@ -1,7 +1,8 @@
 use crate::coin::{Coin, Denom};
-use crate::config::Config;
+use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
+use crate::network_config;
 use crate::nymd_client;
 use crate::state::State;
 use crate::wallet_storage::{self, StoredLogin, DEFAULT_WALLET_ACCOUNT_ID};
@@ -67,13 +68,6 @@ pub struct Balance {
   printable_balance: String,
 }
 
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
-#[derive(Serialize, Deserialize)]
-pub struct ValidatorUrls {
-  urls: Vec<String>,
-}
-
 #[tauri::command]
 pub async fn connect_with_mnemonic(
   mnemonic: String,
@@ -122,8 +116,9 @@ pub async fn create_new_account(
 }
 
 #[tauri::command]
-pub fn create_new_mnemonic() -> String {
-  random_mnemonic().to_string()
+pub fn create_new_mnemonic() -> Result<String, BackendError> {
+  let rand_mnemonic = random_mnemonic();
+  Ok(rand_mnemonic.to_string())
 }
 
 #[tauri::command]
@@ -165,42 +160,6 @@ fn random_mnemonic() -> Mnemonic {
   Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
 }
 
-#[tauri::command]
-pub async fn update_validator_urls(
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<(), BackendError> {
-  // Update the list of validators by fecthing additional ones remotely. If it fails, just ignore.
-  let mut w_state = state.write().await;
-  let _r = w_state.fetch_updated_validator_urls().await;
-  Ok(())
-}
-
-#[tauri::command]
-pub async fn get_validator_nymd_urls(
-  network: WalletNetwork,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<ValidatorUrls, BackendError> {
-  let state = state.read().await;
-  let urls: Vec<String> = state
-    .get_nymd_urls(network)
-    .map(|url| url.to_string())
-    .collect();
-  Ok(ValidatorUrls { urls })
-}
-
-#[tauri::command]
-pub async fn get_validator_api_urls(
-  network: WalletNetwork,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<ValidatorUrls, BackendError> {
-  let state = state.read().await;
-  let urls: Vec<String> = state
-    .get_api_urls(network)
-    .map(|url| url.to_string())
-    .collect();
-  Ok(ValidatorUrls { urls })
-}
-
 async fn _connect_with_mnemonic(
   mnemonic: Mnemonic,
   state: tauri::State<'_, Arc<RwLock<State>>>,
@@ -210,7 +169,7 @@ async fn _connect_with_mnemonic(
     w_state.load_config_files();
   }
 
-  update_validator_urls(state.clone()).await?;
+  network_config::update_validator_urls(state.clone()).await?;
 
   let config = {
     let state = state.read().await;
@@ -219,7 +178,7 @@ async fn _connect_with_mnemonic(
     for network in WalletNetwork::iter() {
       log::debug!(
         "List of validators for {network}: [\n{}\n]",
-        state.get_validators(network).format(",\n")
+        state.get_config_validator_entries(network).format(",\n")
       );
     }
 
@@ -318,7 +277,7 @@ fn create_clients(
 ) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
   let mut clients = Vec::new();
   for network in WalletNetwork::iter() {
-    let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(&network) {
+    let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
       log::debug!("Using selected nymd_url for {network}: {url}");
       url.clone()
     } else {
@@ -347,7 +306,7 @@ fn create_clients(
     log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
     log::info!("Connecting to: api_url: {api_url} for {network}");
 
-    let client = validator_client::Client::new_signing(
+    let mut client = validator_client::Client::new_signing(
       validator_client::Config::new(
         network.into(),
         nymd_url,
@@ -358,6 +317,7 @@ fn create_clients(
       ),
       mnemonic.clone(),
     )?;
+    client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
     clients.push(client);
   }
   Ok(clients)

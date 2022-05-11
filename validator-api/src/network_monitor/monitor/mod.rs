@@ -42,8 +42,6 @@ pub(super) struct Monitor {
     /// The minimum number of test routes that need to be constructed (and working) in order for
     /// a monitor test run to be valid.
     minimum_test_routes: usize,
-    min_mixnode_reliability: u8,
-    min_gateway_reliability: u8,
 }
 
 impl Monitor {
@@ -68,8 +66,6 @@ impl Monitor {
             route_test_packets: config.get_route_test_packets(),
             test_routes: config.get_test_routes(),
             minimum_test_routes: config.get_minimum_test_routes(),
-            min_mixnode_reliability: config.get_min_mixnode_reliability(),
-            min_gateway_reliability: config.get_min_gateway_reliability(),
         }
     }
 
@@ -78,35 +74,6 @@ impl Monitor {
     async fn submit_new_node_statuses(&mut self, test_summary: TestSummary) {
         // indicate our run has completed successfully and should be used in any future
         // uptime calculations
-
-        for result in test_summary.mixnode_results.iter() {
-            if result.reliability < self.min_mixnode_reliability {
-                self.packet_preparer
-                    .validator_cache()
-                    .insert_mixnodes_blacklist(result.identity.clone())
-                    .await;
-            } else {
-                self.packet_preparer
-                    .validator_cache()
-                    .remove_mixnodes_blacklist(&result.identity)
-                    .await;
-            }
-        }
-
-        for result in test_summary.gateway_results.iter() {
-            if result.reliability < self.min_gateway_reliability {
-                self.packet_preparer
-                    .validator_cache()
-                    .insert_gateways_blacklist(result.identity.clone())
-                    .await;
-            } else {
-                self.packet_preparer
-                    .validator_cache()
-                    .remove_gateways_blacklist(&result.identity)
-                    .await;
-            }
-        }
-
         if let Err(err) = self
             .node_status_storage
             .insert_monitor_run_results(

@@ -17,9 +17,9 @@ url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 secp256k1 = "0.20.3"
 web3 = { version = "0.17.0", default-features = false }
+async-trait = { version = "0.1.51" }
 
 # internal
-cosmrs = { version = "0.4.1", optional = true }
 credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
@@ -40,6 +40,9 @@ features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.14"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.credential-storage]
+path = "../../credential-storage"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
@@ -69,6 +72,6 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut", "cosmrs"]
+coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
 wasm = ["web3/wasm", "web3/http", "web3/signing"]
 default = ["web3/default"]

@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
-import { ADMIN_ADDRESS, AppContext } from '../context/main';
+import { AppContext } from '../context/main';
 import { Bond, Delegate, Unbond, Undelegate } from '../svg-icons';
 
 const routesSchema = [
@@ -44,18 +44,18 @@ const routesSchema = [
 ];
 
 export const Nav = () => {
-  const { clientDetails, handleShowAdmin } = useContext(AppContext);
+  const { isAdminAddress, handleShowAdmin } = useContext(AppContext);
   const location = useLocation();
 
   useEffect(() => {
-    if (clientDetails?.client_address === ADMIN_ADDRESS) {
+    if (isAdminAddress) {
       routesSchema.push({
         label: 'Docs',
         route: '/docs',
         Icon: Description,
       });
     }
-  }, []);
+  }, [isAdminAddress]);
 
   return (
     <div
@@ -84,7 +84,7 @@ export const Nav = () => {
             />
           </ListItem>
         ))}
-        {clientDetails?.client_address === ADMIN_ADDRESS && (
+        {isAdminAddress && (
           <ListItem disableGutters onClick={handleShowAdmin}>
             <ListItemIcon
               sx={{

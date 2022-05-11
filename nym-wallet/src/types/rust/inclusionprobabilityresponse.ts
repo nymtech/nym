@@ -1,4 +1,6 @@
+import { SelectionChance } from './selectionchance';
+
 export interface InclusionProbabilityResponse {
-  in_active: number;
-  in_reserve: number;
+  in_active: SelectionChance;
+  in_reserve: SelectionChance;
 }

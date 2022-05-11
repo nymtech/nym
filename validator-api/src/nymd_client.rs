@@ -3,12 +3,13 @@
 
 use crate::config::Config;
 use crate::rewarded_set_updater::error::RewardingError;
+#[cfg(feature = "coconut")]
+use async_trait::async_trait;
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
-    RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -22,7 +23,7 @@ use validator_client::nymd::{
 };
 use validator_client::ValidatorClientError;
 
-pub(crate) struct Client<C>(Arc<RwLock<validator_client::Client<C>>>);
+pub(crate) struct Client<C>(pub(crate) Arc<RwLock<validator_client::Client<C>>>);
 
 impl<C> Clone for Client<C> {
     fn clone(&self) -> Self {
@@ -156,6 +157,7 @@ impl<C> Client<C> {
         &self,
         address: String,
         mix_identity: IdentityKey,
+        proxy: Option<String>,
     ) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
@@ -163,7 +165,7 @@ impl<C> Client<C> {
         self.0
             .read()
             .await
-            .get_delegator_rewards(address, mix_identity)
+            .get_delegator_rewards(address, mix_identity, proxy)
             .await
     }
 
@@ -265,19 +267,6 @@ impl<C> Client<C> {
             .await
     }
 
-    pub(crate) async fn get_current_rewarded_set_update_details(
-        &self,
-    ) -> Result<RewardedSetUpdateDetails, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0
-            .read()
-            .await
-            .get_current_rewarded_set_update_details()
-            .await
-    }
-
     #[allow(dead_code)]
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
@@ -332,11 +321,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let mut msgs = reward_msgs;
+        // // First we create the checkpoint, all subsequent changes to a node will be made to the checkpoint
+        let mut msgs = vec![(ExecuteMsg::CheckpointMixnodes {}, vec![])];
+        msgs.extend(reward_msgs);
 
         let epoch_msgs = vec![
             (ExecuteMsg::ReconcileDelegations {}, vec![]),
-            (ExecuteMsg::CheckpointMixnodes {}, vec![]),
             (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
             (
                 ExecuteMsg::WriteRewardedSet {
@@ -413,5 +403,22 @@ impl<C> Client<C> {
                 }
             }
         }
+    }
+}
+
+#[async_trait]
+#[cfg(feature = "coconut")]
+impl<C> crate::coconut::client::Client for Client<C>
+where
+    C: CosmWasmClient + Sync + Send,
+{
+    async fn get_tx(
+        &self,
+        tx_hash: &str,
+    ) -> crate::coconut::error::Result<validator_client::nymd::TxResponse> {
+        let tx_hash = tx_hash
+            .parse::<validator_client::nymd::tx::Hash>()
+            .map_err(|_| crate::coconut::error::CoconutError::TxHashParseError)?;
+        Ok(self.0.read().await.nymd.get_tx(tx_hash).await?)
     }
 }

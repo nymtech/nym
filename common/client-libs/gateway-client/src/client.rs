@@ -9,8 +9,12 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::PersistentStorage;
 #[cfg(feature = "coconut")]
 use coconut_interface::Credential;
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::PersistentStorage;
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
@@ -41,7 +45,7 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
@@ -51,7 +55,7 @@ pub struct GatewayClient {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
-    bandwidth_controller: Option<BandwidthController>,
+    bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -75,11 +79,11 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        bandwidth_controller: Option<BandwidthController>,
+        bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
-            testnet_mode: false,
+            disabled_credentials_mode: true,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
@@ -96,8 +100,8 @@ impl GatewayClient {
         }
     }
 
-    pub fn set_testnet_mode(&mut self, testnet_mode: bool) {
-        self.testnet_mode = testnet_mode
+    pub fn set_disabled_credentials_mode(&mut self, disabled_credentials_mode: bool) {
+        self.disabled_credentials_mode = disabled_credentials_mode
     }
 
     // TODO: later convert into proper builder methods
@@ -130,7 +134,7 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
-            testnet_mode: false,
+            disabled_credentials_mode: true,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
@@ -544,13 +548,13 @@ impl GatewayClient {
         if self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
-        if self.bandwidth_controller.is_none() && !self.testnet_mode {
+        if self.bandwidth_controller.is_none() && !self.disabled_credentials_mode {
             return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
-        if self.testnet_mode {
-            info!("The client is running in testnet mode - attempting to claim bandwidth without a credential");
+        if self.disabled_credentials_mode {
+            info!("The client is running in disabled credentials mode - attempting to claim bandwidth without a credential");
             return self.try_claim_testnet_bandwidth().await;
         }
 

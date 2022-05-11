@@ -160,7 +160,11 @@ pub(crate) async fn get_economic_dynamics_stats(
                 retrieve_mixnode_econ_stats(&state.inner.validator_client, pubkey).await?;
 
             // update cache
-            state.inner.mixnode.set_econ_stats(pubkey, econ_stats).await;
+            state
+                .inner
+                .mixnode
+                .set_econ_stats(pubkey, econ_stats.clone())
+                .await;
             Some(Json(econ_stats))
         }
     }

@@ -3,12 +3,11 @@
 
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
-    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, SequenceResponse, UploadResult,
+    Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
+    InstantiateResult, MigrateResult, SequenceResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmwasm_std::{Coin, Uint128};
@@ -23,12 +22,14 @@ use mixnet_contract_common::{
     PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
 use serde::Serialize;
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+pub use cosmrs::bank::MsgSend;
 pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
@@ -43,7 +44,6 @@ pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
-use std::collections::HashMap;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
 pub mod cosmwasm_client;
@@ -171,6 +171,10 @@ impl<C> NymdClient<C> {
             .ok_or(NymdError::NoContractAddressAvailable)
     }
 
+    pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.simulated_gas_multiplier = multiplier;
+    }
+
     pub fn address(&self) -> &AccountId
     where
         C: SigningCosmWasmClient,
@@ -224,6 +228,16 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
     {
         self.client.get_sequence(self.address()).await
+    }
+
+    pub async fn get_account_details(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<Account>, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.client.get_account(address).await
     }
 
     pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
@@ -315,6 +329,7 @@ impl<C> NymdClient<C> {
         &self,
         address: String,
         mix_identity: IdentityKey,
+        proxy: Option<String>,
     ) -> Result<Uint128, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -322,6 +337,7 @@ impl<C> NymdClient<C> {
         let request = QueryMsg::QueryDelegatorReward {
             address,
             mix_identity,
+            proxy,
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
@@ -331,11 +347,15 @@ impl<C> NymdClient<C> {
     pub async fn get_pending_delegation_events(
         &self,
         owner_address: String,
+        proxy_address: Option<String>,
     ) -> Result<Vec<DelegationEvent>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::GetPendingDelegationEvents { owner_address };
+        let request = QueryMsg::GetPendingDelegationEvents {
+            owner_address,
+            proxy_address,
+        };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
             .await
@@ -620,7 +640,7 @@ impl<C> NymdClient<C> {
         recipient: &AccountId,
         amount: Vec<CosmosCoin>,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -635,7 +655,7 @@ impl<C> NymdClient<C> {
         &self,
         msgs: Vec<(AccountId, Vec<CosmosCoin>)>,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, NymdError>
+    ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {

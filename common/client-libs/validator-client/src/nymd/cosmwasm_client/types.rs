@@ -1,23 +1,34 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 // TODO: There's a significant argument to pull those out of the package and make a PR on https://github.com/cosmos/cosmos-rust/
 
+use crate::nymd::cosmwasm_client::helpers::parse_proto_coin_vec;
 use crate::nymd::cosmwasm_client::logs::Log;
 use crate::nymd::error::NymdError;
 use cosmrs::crypto::PublicKey;
-use cosmrs::proto::cosmos::auth::v1beta1::BaseAccount;
+use cosmrs::proto::cosmos::auth::v1beta1::{
+    BaseAccount as ProtoBaseAccount, ModuleAccount as ProtoModuleAccount,
+};
 use cosmrs::proto::cosmos::base::abci::v1beta1::{
     GasInfo as ProtoGasInfo, Result as ProtoAbciResult,
 };
 use cosmrs::proto::cosmos::tx::v1beta1::SimulateResponse as ProtoSimulateResponse;
+use cosmrs::proto::cosmos::vesting::v1beta1::{
+    BaseVestingAccount as ProtoBaseVestingAccount,
+    ContinuousVestingAccount as ProtoContinuousVestingAccount,
+    DelayedVestingAccount as ProtoDelayedVestingAccount, Period as ProtoPeriod,
+    PeriodicVestingAccount as ProtoPeriodicVestingAccount,
+    PermanentLockedAccount as ProtoPermanentLockedAccount,
+};
 use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
 use cosmrs::tendermint::{abci, chain};
 use cosmrs::tx::{AccountNumber, Gas, SequenceNumber};
-use cosmrs::{tx, AccountId, Coin};
+use cosmrs::{tx, AccountId, Any, Coin};
+use prost::Message;
 use serde::Serialize;
 use std::convert::{TryFrom, TryInto};
 
@@ -32,8 +43,11 @@ pub struct SequenceResponse {
     pub sequence: SequenceNumber,
 }
 
+/// BaseAccount defines a base account type. It contains all the necessary fields
+/// for basic account functionality. Any custom account type should extend this
+/// type for additional functionality (e.g. vesting).
 #[derive(Debug)]
-pub struct Account {
+pub struct BaseAccount {
     /// Bech32 account address
     pub address: AccountId,
     pub pubkey: Option<PublicKey>,
@@ -41,10 +55,10 @@ pub struct Account {
     pub sequence: SequenceNumber,
 }
 
-impl TryFrom<BaseAccount> for Account {
+impl TryFrom<ProtoBaseAccount> for BaseAccount {
     type Error = NymdError;
 
-    fn try_from(value: BaseAccount) -> Result<Self, Self::Error> {
+    fn try_from(value: ProtoBaseAccount) -> Result<Self, Self::Error> {
         let address: AccountId = value
             .address
             .parse()
@@ -56,12 +70,267 @@ impl TryFrom<BaseAccount> for Account {
             .transpose()
             .map_err(|_| NymdError::InvalidPublicKey(address.clone()))?;
 
-        Ok(Account {
+        Ok(BaseAccount {
             address,
             pubkey,
             account_number: value.account_number,
             sequence: value.sequence,
         })
+    }
+}
+
+/// ModuleAccount defines an account for modules that holds coins on a pool.
+#[derive(Debug)]
+pub struct ModuleAccount {
+    pub base_account: Option<BaseAccount>,
+    pub name: String,
+    pub permissions: Vec<String>,
+}
+
+impl TryFrom<ProtoModuleAccount> for ModuleAccount {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoModuleAccount) -> Result<Self, Self::Error> {
+        let base_account = value.base_account.map(TryFrom::try_from).transpose()?;
+
+        Ok(ModuleAccount {
+            base_account,
+            name: value.name,
+            permissions: value.permissions,
+        })
+    }
+}
+
+/// BaseVestingAccount implements the VestingAccount interface. It contains all
+/// the necessary fields needed for any vesting account implementation.
+#[derive(Debug)]
+pub struct BaseVestingAccount {
+    pub base_account: Option<BaseAccount>,
+    pub original_vesting: Vec<Coin>,
+    pub delegated_free: Vec<Coin>,
+    pub delegated_vesting: Vec<Coin>,
+    pub end_time: i64,
+}
+
+impl TryFrom<ProtoBaseVestingAccount> for BaseVestingAccount {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoBaseVestingAccount) -> Result<Self, Self::Error> {
+        let base_account = value.base_account.map(TryFrom::try_from).transpose()?;
+
+        let original_vesting = parse_proto_coin_vec(value.original_vesting)?;
+        let delegated_free = parse_proto_coin_vec(value.delegated_free)?;
+        let delegated_vesting = parse_proto_coin_vec(value.delegated_vesting)?;
+
+        Ok(BaseVestingAccount {
+            base_account,
+            original_vesting,
+            delegated_free,
+            delegated_vesting,
+            end_time: value.end_time,
+        })
+    }
+}
+
+/// ContinuousVestingAccount implements the VestingAccount interface. It
+/// continuously vests by unlocking coins linearly with respect to time.
+#[derive(Debug)]
+pub struct ContinuousVestingAccount {
+    pub base_vesting_account: Option<BaseVestingAccount>,
+    pub start_time: i64,
+}
+
+impl TryFrom<ProtoContinuousVestingAccount> for ContinuousVestingAccount {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoContinuousVestingAccount) -> Result<Self, Self::Error> {
+        let base_vesting_account = value
+            .base_vesting_account
+            .map(TryFrom::try_from)
+            .transpose()?;
+
+        Ok(ContinuousVestingAccount {
+            base_vesting_account,
+            start_time: value.start_time,
+        })
+    }
+}
+
+/// DelayedVestingAccount implements the VestingAccount interface. It vests all
+/// coins after a specific time, but non prior. In other words, it keeps them
+/// locked until a specified time.
+#[derive(Debug)]
+pub struct DelayedVestingAccount {
+    pub base_vesting_account: Option<BaseVestingAccount>,
+}
+
+impl TryFrom<ProtoDelayedVestingAccount> for DelayedVestingAccount {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoDelayedVestingAccount) -> Result<Self, Self::Error> {
+        let base_vesting_account = value
+            .base_vesting_account
+            .map(TryFrom::try_from)
+            .transpose()?;
+
+        Ok(DelayedVestingAccount {
+            base_vesting_account,
+        })
+    }
+}
+
+/// Period defines a length of time and amount of coins that will vest.
+#[derive(Debug)]
+pub struct Period {
+    pub length: i64,
+    pub amount: Vec<Coin>,
+}
+
+impl TryFrom<ProtoPeriod> for Period {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoPeriod) -> Result<Self, Self::Error> {
+        Ok(Period {
+            length: value.length,
+            amount: parse_proto_coin_vec(value.amount)?,
+        })
+    }
+}
+
+/// PeriodicVestingAccount implements the VestingAccount interface. It
+/// periodically vests by unlocking coins during each specified period.
+#[derive(Debug)]
+pub struct PeriodicVestingAccount {
+    pub base_vesting_account: Option<BaseVestingAccount>,
+    pub start_time: i64,
+    pub vesting_periods: Vec<Period>,
+}
+
+impl TryFrom<ProtoPeriodicVestingAccount> for PeriodicVestingAccount {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoPeriodicVestingAccount) -> Result<Self, Self::Error> {
+        let base_vesting_account = value
+            .base_vesting_account
+            .map(TryFrom::try_from)
+            .transpose()?;
+
+        let vesting_periods = value
+            .vesting_periods
+            .into_iter()
+            .map(TryFrom::try_from)
+            .collect::<Result<_, _>>()?;
+
+        Ok(PeriodicVestingAccount {
+            base_vesting_account,
+            start_time: value.start_time,
+            vesting_periods,
+        })
+    }
+}
+
+/// PermanentLockedAccount implements the VestingAccount interface. It does
+/// not ever release coins, locking them indefinitely. Coins in this account can
+/// still be used for delegating and for governance votes even while locked.
+#[derive(Debug)]
+pub struct PermanentLockedAccount {
+    pub base_vesting_account: Option<BaseVestingAccount>,
+}
+
+impl TryFrom<ProtoPermanentLockedAccount> for PermanentLockedAccount {
+    type Error = NymdError;
+
+    fn try_from(value: ProtoPermanentLockedAccount) -> Result<Self, Self::Error> {
+        let base_vesting_account = value
+            .base_vesting_account
+            .map(TryFrom::try_from)
+            .transpose()?;
+
+        Ok(PermanentLockedAccount {
+            base_vesting_account,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum Account {
+    Base(BaseAccount),
+    Module(ModuleAccount),
+    BaseVesting(BaseVestingAccount),
+    ContinuousVesting(ContinuousVestingAccount),
+    DelayedVesting(DelayedVestingAccount),
+    PeriodicVesting(PeriodicVestingAccount),
+    PermanentLockedVesting(PermanentLockedAccount),
+}
+
+impl Account {
+    pub fn try_get_base_account(&self) -> Result<&BaseAccount, NymdError> {
+        match self {
+            Account::Base(acc) => Ok(acc),
+            Account::Module(acc) => acc
+                .base_account
+                .as_ref()
+                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+            Account::BaseVesting(acc) => acc
+                .base_account
+                .as_ref()
+                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+            Account::ContinuousVesting(acc) => acc
+                .base_vesting_account
+                .as_ref()
+                .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
+                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+            Account::DelayedVesting(acc) => acc
+                .base_vesting_account
+                .as_ref()
+                .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
+                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+            Account::PeriodicVesting(acc) => acc
+                .base_vesting_account
+                .as_ref()
+                .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
+                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+            Account::PermanentLockedVesting(acc) => acc
+                .base_vesting_account
+                .as_ref()
+                .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
+                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+        }
+    }
+}
+
+impl TryFrom<Any> for Account {
+    type Error = NymdError;
+
+    fn try_from(raw_account: Any) -> Result<Self, Self::Error> {
+        match raw_account.type_url.as_ref() {
+            "/cosmos.auth.v1beta1.BaseAccount" => Ok(Account::Base(
+                ProtoBaseAccount::decode(raw_account.value.as_ref())?.try_into()?,
+            )),
+            "/cosmos.auth.v1beta1.ModuleAccount" => Ok(Account::Module(
+                ProtoModuleAccount::decode(raw_account.value.as_ref())?.try_into()?,
+            )),
+            "/cosmos.vesting.v1beta1.BaseVestingAccount" => Ok(Account::BaseVesting(
+                ProtoBaseVestingAccount::decode(raw_account.value.as_ref())?.try_into()?,
+            )),
+            "/cosmos.vesting.v1beta1.ContinuousVestingAccount" => Ok(Account::ContinuousVesting(
+                ProtoContinuousVestingAccount::decode(raw_account.value.as_ref())?.try_into()?,
+            )),
+            "/cosmos.vesting.v1beta1.DelayedVestingAccount" => Ok(Account::DelayedVesting(
+                ProtoDelayedVestingAccount::decode(raw_account.value.as_ref())?.try_into()?,
+            )),
+            "/cosmos.vesting.v1beta1.PeriodicVestingAccount" => Ok(Account::PeriodicVesting(
+                ProtoPeriodicVestingAccount::decode(raw_account.value.as_ref())?.try_into()?,
+            )),
+            "/cosmos.vesting.v1beta1.PermanentLockedAccount" => {
+                Ok(Account::PermanentLockedVesting(
+                    ProtoPermanentLockedAccount::decode(raw_account.value.as_ref())?.try_into()?,
+                ))
+            }
+            _ => Err(NymdError::UnsupportedAccountType {
+                type_url: raw_account.type_url,
+            }),
+        }
     }
 }
 

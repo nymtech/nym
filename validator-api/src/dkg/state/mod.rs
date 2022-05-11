@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::types::{Epoch, NodeIndex};
+use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch, NodeIndex};
 use crypto::asymmetric::identity;
 use dkg::{bte, Dealing};
 use futures::lock::Mutex;
@@ -16,14 +16,55 @@ pub(crate) use accessor::StateAccessor;
 
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
 
-// TODO: some TryFrom impl to convert from encoded contract data
 // note: each dealer is also a receiver which simplifies some logic significantly
-#[derive(Debug, Serialize, Deserialize)]
-struct Dealer {
-    node_index: NodeIndex,
-    bte_public_key: bte::PublicKeyWithProof,
-    identity: identity::PublicKey,
-    remote_address: SocketAddr,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct Dealer {
+    pub(crate) chain_address: Addr,
+    pub(crate) node_index: NodeIndex,
+    pub(crate) bte_public_key: bte::PublicKeyWithProof,
+    pub(crate) identity: identity::PublicKey,
+    pub(crate) remote_address: SocketAddr,
+}
+
+// TODO: move it elsewhere and propagate it to the contract
+pub enum MalformedDealer {
+    MalformedEd25519PublicKey,
+    MalformedBTEPublicKey,
+    InvalidBTEPublicKey,
+    InvalidHostInformation,
+}
+
+impl Dealer {
+    pub(crate) fn try_parse_from_raw(
+        contract_value: DealerDetails,
+    ) -> Result<Self, MalformedDealer> {
+        // this should be impossible as the contract must have used this key for signature verification
+        let identity = identity::PublicKey::from_base58_string(contract_value.ed25519_public_key)
+            .map_err(|_| MalformedDealer::MalformedEd25519PublicKey)?;
+
+        let bte_public_key = bs58::decode(contract_value.bte_public_key_with_proof)
+            .into_vec()
+            .map(|bytes| bte::PublicKeyWithProof::try_from_bytes(&bytes))
+            .map_err(|_| MalformedDealer::MalformedBTEPublicKey)?
+            .map_err(|_| MalformedDealer::MalformedBTEPublicKey)?;
+
+        if !bte_public_key.verify() {
+            return Err(MalformedDealer::InvalidBTEPublicKey);
+        }
+
+        let parsed_host = contract_value
+            .host
+            .parse()
+            .map_err(|_| MalformedDealer::InvalidHostInformation)?;
+
+        Ok(Dealer {
+            chain_address: contract_value.address,
+            node_index: contract_value.assigned_index,
+            bte_public_key,
+            identity,
+            remote_address: parsed_host,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -6,12 +6,13 @@ use crypto::asymmetric::identity;
 use dkg::{bte, Dealing};
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 mod accessor;
 
+use crate::dkg::error::DkgError;
 pub(crate) use accessor::StateAccessor;
 
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
@@ -81,12 +82,17 @@ pub struct ReceivedDealing {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DkgStateInner {
+    last_seen_height: BlockHeight,
     bte_decryption_key: bte::DecryptionKey,
     signing_key: identity::PublicKey,
 
     current_epoch: Epoch,
 
     expected_epoch_dealing_digests: HashMap<IdentityBytes, [u8; 32]>,
+
+    // we need to keep track of all bad dealers as well so that we wouldn't attempt to compalaint about them
+    // repeatedly
+    bad_dealers: HashSet<Addr>,
     current_epoch_dealers: HashMap<IdentityBytes, Dealer>,
     verified_epoch_dealings: HashMap<IdentityBytes, ReceivedDealing>,
     unconfirmed_dealings: HashMap<IdentityBytes, ReceivedDealing>,
@@ -125,5 +131,13 @@ impl DkgState {
             .verified_epoch_dealings
             .get(&dealer.to_bytes())
             .cloned()
+    }
+
+    pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, Dealer> {
+        self.inner.lock().await.current_epoch_dealers.clone()
+    }
+
+    pub(crate) async fn get_malformed_dealers(&self) -> HashSet<Addr> {
+        self.inner.lock().await.bad_dealers.clone()
     }
 }

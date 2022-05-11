@@ -16,6 +16,9 @@ pub struct DealerDetails {
     pub ed25519_public_key: EncodedEd25519PublicKey,
     pub bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
     pub assigned_index: NodeIndex,
+    // TODO: in the future, perhaps, this could get replaced by some gossip system and address books
+    // like in 'normal' Tendermint?
+    pub host: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]

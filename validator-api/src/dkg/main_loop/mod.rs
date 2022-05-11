@@ -1,8 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::dkg::smart_contract::publisher::Publisher;
 use crate::dkg::smart_contract::watcher;
-use crate::dkg::state::{DkgState, StateAccessor};
+use crate::dkg::state::StateAccessor;
+use coconut_dkg_common::types::DealerDetails;
 use futures::channel::mpsc;
 use futures::StreamExt;
 
@@ -12,12 +14,19 @@ pub(crate) type ContractEventsReceiver = mpsc::UnboundedReceiver<watcher::Event>
 pub(crate) type ContractEventsSender = mpsc::UnboundedSender<watcher::Event>;
 
 // it is driven by events received from the contract watcher
-pub(crate) struct ProcessingLoop {
+pub(crate) struct ProcessingLoop<C> {
     state_accessor: StateAccessor,
     contract_events_receiver: ContractEventsReceiver,
+
+    contract_publisher: Publisher<C>,
+    // network_sender: Sender
 }
 
-impl ProcessingLoop {
+impl<C> ProcessingLoop<C> {
+    fn verify_dealer(&self, contract_dealer_details: &DealerDetails) {
+        //
+    }
+
     async fn process_event(&self, event: watcher::Event) {
         todo!()
     }

@@ -110,6 +110,7 @@ pub fn try_add_dealer(
     ed25519_key: EncodedEd25519PublicKey,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
     owner_signature: String,
+    host: String,
 ) -> Result<Response, ContractError> {
     // check whether this sender is eligible to become a dealer
     verify_dealer(deps.branch(), env.block.height, &info.sender)?;
@@ -161,6 +162,7 @@ pub fn try_add_dealer(
         ed25519_public_key: ed25519_key,
         bte_public_key_with_proof: bte_key_with_proof,
         assigned_index: node_index,
+        host,
     };
     dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
 

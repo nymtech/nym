@@ -22,8 +22,8 @@ use validator_client::nymd::error::NymdError;
 use validator_client::nymd::traits::DkgClient;
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
-    TendermintTime,
+    CosmWasmClient, CosmosCoin, Fee, Height, QueryNymdClient, SigningCosmWasmClient,
+    SigningNymdClient, TendermintTime,
 };
 use validator_client::ValidatorClientError;
 
@@ -117,6 +117,15 @@ impl<C> Client<C> {
             .await?;
 
         Ok(time)
+    }
+
+    pub(crate) async fn current_block_height(&self) -> Result<Height, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let height = self.0.read().await.nymd.get_current_block_height().await?;
+
+        Ok(height)
     }
 
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>

@@ -11,6 +11,12 @@ pub(crate) enum Event {
     DkgContractChange(watcher::Event),
 }
 
+impl Event {
+    pub(crate) fn new_contract_change_event(event: watcher::Event) -> Self {
+        Event::DkgContractChange(event)
+    }
+}
+
 impl Display for Event {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -347,7 +347,7 @@ impl PublicKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,

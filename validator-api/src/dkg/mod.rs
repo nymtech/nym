@@ -9,6 +9,14 @@ pub(crate) mod networking;
 mod smart_contract;
 pub(crate) mod state;
 
+pub(crate) struct Config {
+    // not entirely sure what should go here just yet
+}
+
+pub(crate) fn initiate_dkg(config: Config) {
+    //
+}
+
 // upon startup, the following tasks will need to be spawned:
 // - smart contract watcher
 // - main loop processing

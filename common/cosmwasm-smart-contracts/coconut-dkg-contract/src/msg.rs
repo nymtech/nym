@@ -4,6 +4,7 @@
 use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -18,6 +19,7 @@ pub enum ExecuteMsg {
         ed25519_key: EncodedEd25519PublicKey,
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
         owner_signature: String,
+        host: String,
     },
     CommitDealing {
         epoch_id: u32,

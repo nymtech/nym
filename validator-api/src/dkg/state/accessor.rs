@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dkg::events::{DispatcherSender, Event};
-use crate::dkg::state::{DkgState, ReceivedDealing};
-use coconut_dkg_common::types::Epoch;
+use crate::dkg::smart_contract::watcher;
+use crate::dkg::state::{Dealer, DkgState, IdentityBytes, ReceivedDealing};
+use coconut_dkg_common::types::{Addr, Epoch};
 use crypto::asymmetric::identity;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 
 // essentially some intermediary that allows either pushing events to the dispatcher or operating
@@ -25,6 +27,11 @@ impl StateAccessor {
         }
     }
 
+    pub(crate) async fn push_contract_change_event(&self, event: watcher::Event) {
+        self.push_event(Event::new_contract_change_event(event))
+            .await
+    }
+
     pub(crate) async fn current_epoch(&self) -> Epoch {
         self.dkg_state.current_epoch().await
     }
@@ -38,5 +45,13 @@ impl StateAccessor {
 
     pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> (bool, Epoch) {
         self.dkg_state.is_dealers_remote_address(remote).await
+    }
+
+    pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, Dealer> {
+        self.dkg_state.get_known_dealers().await
+    }
+
+    pub(crate) async fn get_malformed_dealers(&self) -> HashSet<Addr> {
+        self.dkg_state.get_malformed_dealers().await
     }
 }

@@ -21,8 +21,10 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 
+#[cfg(feature = "dkg")]
 use crate::nymd::traits::DkgClient;
 use crate::nymd::SigningCosmWasmClient;
+#[cfg(feature = "dkg")]
 use coconut_dkg_common::types::DealerDetails;
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
@@ -165,6 +167,7 @@ impl Client<SigningNymdClient> {
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
+            #[cfg(feature = "dkg")]
             dealers_page_limit: config.dealers_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
@@ -226,6 +229,7 @@ impl Client<QueryNymdClient> {
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
+            #[cfg(feature = "dkg")]
             dealers_page_limit: config.dealers_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,

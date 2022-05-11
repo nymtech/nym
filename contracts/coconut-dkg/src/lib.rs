@@ -55,6 +55,7 @@ pub fn execute(
             ed25519_key,
             bte_key_with_proof,
             owner_signature,
+            host,
         } => dealers::transactions::try_add_dealer(
             deps,
             env,
@@ -62,6 +63,7 @@ pub fn execute(
             ed25519_key,
             bte_key_with_proof,
             owner_signature,
+            host,
         ),
         ExecuteMsg::CommitDealing {
             epoch_id,

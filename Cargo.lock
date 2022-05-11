@@ -3239,6 +3239,7 @@ dependencies = [
  "async-trait",
  "attohttpc",
  "bincode",
+ "bs58",
  "bytes",
  "cfg-if 1.0.0",
  "clap 2.34.0",

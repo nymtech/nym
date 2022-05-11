@@ -4,8 +4,8 @@ import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
 import { createPassword } from 'src/requests';
+import { PasswordInput } from 'src/components';
 import { Subtitle, Title, PasswordStrength } from '../components';
-import { PasswordInput } from '../components/textfields';
 
 export const ConnectPassword = () => {
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');

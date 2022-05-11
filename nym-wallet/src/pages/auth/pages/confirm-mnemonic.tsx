@@ -2,8 +2,9 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
 import { validateMnemonic } from 'src/requests';
+import { MnemonicInput } from 'src/components';
 import { AuthContext } from 'src/context/auth';
-import { MnemonicInput, Subtitle } from '../components';
+import { Subtitle } from '../components';
 
 export const ConfirmMnemonic = () => {
   const { error, setError, setMnemonic, mnemonic } = useContext(AuthContext);

@@ -1,7 +1,8 @@
 import React, { useContext, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
-import { PasswordInput, Subtitle } from '../components';
+import { PasswordInput } from 'src/components';
+import { Subtitle } from '../components';
 import { AppContext } from '../../../context/main';
 
 export const SignInPassword = () => {

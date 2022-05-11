@@ -4,7 +4,8 @@ import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
 import { createPassword } from 'src/requests';
-import { PasswordInput, Subtitle, Title, PasswordStrength } from '../components';
+import { PasswordInput } from 'src/components';
+import { Subtitle, Title, PasswordStrength } from '../components';
 
 export const CreatePassword = () => {
   const { password, setPassword, resetState, mnemonic } = useContext(AuthContext);

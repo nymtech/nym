@@ -16,6 +16,7 @@ import { ArrowBackSharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic } from 'src/requests';
 import { AccountsContext } from 'src/context';
+import { PasswordInput } from 'src/components';
 import { Mnemonic } from '../Mnemonic';
 
 const createAccountSteps = [
@@ -117,7 +118,12 @@ const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void 
             {error}
           </Typography>
         )}
-        <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth type="password" />
+        <PasswordInput
+          password={value}
+          onUpdatePassword={(pswrd) => setValue(pswrd)}
+          label="Confirm password"
+          autoFocus
+        />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button
@@ -210,7 +216,6 @@ export const AddAccountModal = () => {
                 onConfirm={async (password) => {
                   if (data.accountName && data.mnemonic) {
                     await handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
-                    setStep(0);
                   }
                 }}
               />

@@ -8,13 +8,13 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  TextField,
   Typography,
 } from '@mui/material';
 import { ArrowBackSharp } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
 import { useClipboard } from 'use-clipboard-copy';
 import { Mnemonic } from '../Mnemonic';
+import { PasswordInput } from '../textfields';
 
 export const MnemonicModal = () => {
   const [password, setPassword] = useState('');
@@ -62,12 +62,10 @@ export const MnemonicModal = () => {
           {!accountMnemonic.value ? (
             <>
               <Typography sx={{ mb: 2 }}>Enter the password used to login to your wallet</Typography>
-              <TextField
+              <PasswordInput
                 label="Password"
-                type="password"
-                fullWidth
-                value={password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                password={password}
+                onUpdatePassword={(pswrd) => setPassword(pswrd)}
                 autoFocus
               />
             </>

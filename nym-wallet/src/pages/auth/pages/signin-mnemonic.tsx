@@ -3,7 +3,8 @@ import { useHistory } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
 import { AppContext } from 'src/context';
 import { isPasswordCreated } from 'src/requests';
-import { MnemonicInput, Subtitle } from '../components';
+import { MnemonicInput } from 'src/components';
+import { Subtitle } from '../components';
 
 export const SignInMnemonic = () => {
   const [mnemonic, setMnemonic] = useState('');

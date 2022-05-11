@@ -207,9 +207,10 @@ export const AddAccountModal = () => {
           case 2:
             return (
               <ConfirmPassword
-                onConfirm={(password) => {
+                onConfirm={async (password) => {
                   if (data.accountName && data.mnemonic) {
-                    handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                    await handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                    setStep(0);
                   }
                 }}
               />

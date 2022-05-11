@@ -116,9 +116,8 @@ pub async fn create_new_account(
 }
 
 #[tauri::command]
-pub fn create_new_mnemonic() -> Result<String, BackendError> {
-  let rand_mnemonic = random_mnemonic();
-  Ok(rand_mnemonic.to_string())
+pub fn create_new_mnemonic() -> String {
+  random_mnemonic().to_string()
 }
 
 #[tauri::command]
@@ -580,6 +579,11 @@ pub async fn sign_in_decrypted_account(
       .account;
     account.mnemonic().clone()
   };
+
+  {
+      state.write().await.logout();
+  }
+
   _connect_with_mnemonic(mnemonic, state).await
 }
 

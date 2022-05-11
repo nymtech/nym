@@ -124,6 +124,11 @@ export const currencyMap = (network?: Network): TCurrency => {
         minor: 'UNYM',
         major: 'NYM',
       };
+    case 'QA': 
+      return {
+      minor: 'UNYM',
+      major: 'NYM',
+    };
     default:
       return {
         minor: 'UNYMT',

@@ -9,7 +9,7 @@ use crate::dkg::state::{Dealer, DkgState, Malformation, MalformedDealer};
 use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::info;
+use log::{debug, info, trace};
 
 // essentially events originating from the contract watcher could only drive our state forward
 // (TODO: is it actually true? I guess we'll find out soon enough)
@@ -45,6 +45,7 @@ impl<C> ProcessingLoop<C> {
         if dealer.bte_public_key.verify() {
             self.dkg_state.try_add_new_dealer(dealer).await
         } else {
+            debug!("received dealer {} failed to prove possession of its BTE key and it will be dealt with accordingly", dealer.chain_address);
             let dealer_address = dealer.chain_address.clone();
             // the dealer failed to provide valid proof of possession
             let malformation = Malformation::InvalidBTEPublicKey;
@@ -61,6 +62,10 @@ impl<C> ProcessingLoop<C> {
         dealer_details: DealerDetails,
         malformation: Malformation,
     ) {
+        debug!(
+            "received dealer {} is malformed ({:?}) and it will be dealt with accordingly",
+            dealer_details.address, malformation
+        );
         let dealer_address = dealer_details.address.clone();
         self.dkg_state
             .try_add_malformed_dealer(MalformedDealer::Raw(dealer_details))
@@ -70,6 +75,7 @@ impl<C> ProcessingLoop<C> {
     }
 
     async fn process_new_dealer(&self, dealer_details: DealerDetails) {
+        trace!("processing new dealer ({})", dealer_details.address);
         match Dealer::try_parse_from_raw(&dealer_details) {
             Ok(dealer) => self.deal_with_new_dealer(dealer).await,
             Err(malformed_dealer) => {
@@ -80,10 +86,16 @@ impl<C> ProcessingLoop<C> {
     }
 
     async fn process_dealer_removal(&self, dealer_address: Addr) {
+        trace!("processing dealer removal ({})", dealer_address);
         self.dkg_state.try_remove_dealer(dealer_address).await
     }
 
     async fn process_dealer_changes(&self, changes: Vec<DealerChange>, height: BlockHeight) {
+        debug!(
+            "processing dealer set change event with {} changes at height {}",
+            changes.len(),
+            height
+        );
         for change in changes {
             match change {
                 DealerChange::Addition { details } => self.process_new_dealer(details).await,

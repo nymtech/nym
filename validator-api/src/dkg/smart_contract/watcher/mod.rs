@@ -5,7 +5,7 @@ use crate::dkg::error::DkgError;
 use crate::dkg::state::StateAccessor;
 use crate::Client;
 use coconut_dkg_common::types::EpochState;
-use log::warn;
+use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
@@ -49,6 +49,7 @@ where
             .keys()
             .chain(known_dealers.values().map(|dealer| &dealer.chain_address))
         {
+            debug!("detected dealer that should get removed - {}", dealer);
             if !contract_dealers.contains_key(dealer) {
                 changes.push(DealerChange::Removal {
                     address: dealer.clone(),
@@ -68,10 +69,15 @@ where
 
             // we had absolutely no idea about this dealer existing
             if !is_bad || !is_known {
+                debug!("detected dealer that should get added - {}", dealer);
                 changes.push(DealerChange::Addition { details });
             }
         }
 
+        trace!(
+            "pushing {} dealer set changes onto the event queue",
+            changes.len()
+        );
         self.state_accessor
             .push_contract_change_event(Event::new(
                 current_height,
@@ -96,6 +102,8 @@ where
     }
 
     async fn poll_contract(&self) -> Result<(), DkgError> {
+        trace!("polling the dkg smart contract for any changes");
+
         // based on the current epoch state (assuming it HASN'T CHANGED since last check), the following further actions have to be performed:
         // (if the epoch state changed, we have to ALSO perform actions as if it was in the previous variants):
 
@@ -112,6 +120,11 @@ where
         // we don't care about identities of potential new dealers just yet)
         let prior_epoch = self.state_accessor.current_epoch().await;
         let current_epoch = self.client.get_dkg_epoch().await?;
+
+        debug!(
+            "contract epoch is in {:?} state, while our stored epoch is in {:?}",
+            current_epoch.state, prior_epoch.state
+        );
 
         if prior_epoch.state != current_epoch.state {
             todo!()

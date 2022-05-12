@@ -7,6 +7,7 @@ use crate::dkg::main_loop::ContractEventsSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::error;
+use log::trace;
 use std::fmt::Display;
 
 pub(crate) type DispatcherSender = mpsc::UnboundedSender<Event>;
@@ -32,9 +33,11 @@ impl Dispatcher {
     fn handle_event(&self, event: Event) {
         match event {
             Event::NewDealing(new_dealing_request) => {
+                trace!("received and forwarding NewDealing Event");
                 self.forward_event(&self.dealing_processor, new_dealing_request)
             }
             Event::DkgContractChange(watcher_event) => {
+                trace!("received and forwarding DkgContractChange Event");
                 self.forward_event(&self.contract_event_sender, watcher_event)
             }
         }

@@ -6,10 +6,10 @@ use core::ops::Mul;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Neg;
 
-use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::{
-    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
+    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, multi_miller_loop, Scalar,
 };
+use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use ff::Field;
 use group::{Curve, Group};
 
@@ -85,9 +85,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-where
-    T: Sum,
-    for<'a> &'a T: Mul<Scalar, Output = T>,
+    where
+        T: Sum,
+        for<'a> &'a T: Mul<Scalar, Output=T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(DivisibleEcashError::Interpolation(
@@ -123,11 +123,18 @@ where
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#appendix-J.9.1
 const G1_HASH_DOMAIN: &[u8] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_";
 
+// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#appendix-J.10.1
+const G2_HASH_DOMAIN: &[u8] = b"QUUX-V01-CS02-with-BLS12381G2_XMD:SHA-256_SSWU_RO_";
+
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#appendix-K.1
 const SCALAR_HASH_DOMAIN: &[u8] = b"QUUX-V01-CS02-with-expander";
 
 pub fn hash_g1<M: AsRef<[u8]>>(msg: M) -> G1Projective {
     <G1Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(msg, G1_HASH_DOMAIN)
+}
+
+pub fn hash_g2<M: AsRef<[u8]>>(msg: M) -> G2Projective {
+    <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(msg, G2_HASH_DOMAIN)
 }
 
 pub fn hash_to_scalar<M: AsRef<[u8]>>(msg: M) -> Scalar {

@@ -72,6 +72,12 @@ impl SPSVerificationKey {
     pub fn verify() -> bool {
         return true;
     }
+
+    pub fn get_ith_ww(&self, idx: usize) -> &G2Projective { return self.wws.get(idx).unwrap(); }
+
+    pub fn get_zz(&self) -> &G2Projective { return &self.zz; }
+
+    pub fn get_yy(&self) -> &G2Projective { return &self.yy; }
 }
 
 pub struct SPSKeyPair {
@@ -110,7 +116,7 @@ impl SPSKeyPair {
 
 #[derive(Debug, Clone)]
 pub struct SPSSignature {
-    rr: G1Projective,
-    ss: G1Projective,
-    tt: G2Projective,
+    pub rr: G1Projective,
+    pub ss: G1Projective,
+    pub tt: G2Projective,
 }

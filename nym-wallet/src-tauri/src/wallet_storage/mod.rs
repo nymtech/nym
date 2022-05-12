@@ -10,7 +10,9 @@ use cosmrs::bip32::DerivationPath;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::PathBuf;
 
-use self::account_data::{EncryptedLogin, StoredWallet};
+#[cfg(test)]
+use self::account_data::MnemonicAccount;
+use self::account_data::{EncryptedLogin, MultipleAccounts, StoredWallet};
 
 pub(crate) mod account_data;
 pub(crate) mod encryption;
@@ -107,7 +109,7 @@ fn store_wallet_login_at_file(
     return Err(BackendError::WalletDifferentPasswordDetected);
   }
 
-  let new_account = account_data::MnemonicAccount::new(mnemonic, hd_path);
+  let new_account = MnemonicAccount::new(mnemonic, hd_path);
   let new_login = StoredLogin::Mnemonic(new_account);
   let new_encrypted_account = EncryptedLogin::encrypt(id, &new_login, password)?;
   stored_wallet.add_encrypted_login(new_encrypted_account)?;
@@ -153,7 +155,7 @@ fn store_wallet_login_with_multiple_accounts_at_file(
     return Err(BackendError::WalletDifferentPasswordDetected);
   }
 
-  let mut new_accounts = account_data::MultipleAccounts::new();
+  let mut new_accounts = MultipleAccounts::new();
   new_accounts.add(DEFAULT_FIRST_ACCOUNT_NAME.into(), mnemonic, hd_path)?;
   let new_login = StoredLogin::Multiple(new_accounts);
   let new_encrypted_login = EncryptedLogin::encrypt(id, &new_login, password)?;
@@ -329,7 +331,7 @@ fn remove_account_from_wallet_login_at_file(
 
 #[cfg(test)]
 mod tests {
-  use crate::wallet_storage::account_data::WalletAccount;
+  use crate::wallet_storage::account_data::{MnemonicAccount, WalletAccount};
 
   use super::*;
   use config::defaults::COSMOS_DERIVATION_PATH;
@@ -630,9 +632,9 @@ mod tests {
     let account = accounts
       .get_account(&DEFAULT_FIRST_ACCOUNT_NAME.into())
       .unwrap();
-    assert_eq!(account.id, DEFAULT_FIRST_ACCOUNT_NAME.into());
-    assert_eq!(account.account.mnemonic(), &dummy_account1);
-    assert_eq!(account.account.hd_path(), &cosmos_hd_path);
+    assert_eq!(account.id().as_ref(), DEFAULT_FIRST_ACCOUNT_NAME);
+    assert_eq!(account.mnemonic(), &dummy_account1);
+    assert_eq!(account.hd_path(), &cosmos_hd_path);
   }
 
   #[test]
@@ -873,9 +875,9 @@ mod tests {
     let account = acc2
       .get_account(&DEFAULT_FIRST_ACCOUNT_NAME.into())
       .unwrap();
-    assert_eq!(account.id, DEFAULT_FIRST_ACCOUNT_NAME.into());
-    assert_eq!(account.account.mnemonic(), &dummy_account2);
-    assert_eq!(account.account.hd_path(), &different_hd_path);
+    assert_eq!(account.id().as_ref(), DEFAULT_FIRST_ACCOUNT_NAME);
+    assert_eq!(account.mnemonic(), &dummy_account2);
+    assert_eq!(account.hd_path(), &different_hd_path);
   }
 
   #[test]
@@ -1027,8 +1029,11 @@ mod tests {
     let loaded_accounts = load_existing_wallet_login_at_file(wallet_file, &id1, &password).unwrap();
     let accounts = loaded_accounts.as_multiple_accounts().unwrap();
     let expected = vec![
-      WalletAccount::new_mnemonic_backed_account(id1.into(), dummy_account1, hd_path.clone()),
-      WalletAccount::new_mnemonic_backed_account(id2, dummy_account2, hd_path),
+      WalletAccount::new(
+        id1.into(),
+        MnemonicAccount::new(dummy_account1, hd_path.clone()),
+      ),
+      WalletAccount::new(id2, MnemonicAccount::new(dummy_account2, hd_path)),
     ]
     .into();
     assert_eq!(accounts, &expected);
@@ -1107,9 +1112,12 @@ mod tests {
     let loaded_accounts = load_existing_wallet_login_at_file(wallet_file, &id2, &password).unwrap();
     let accounts = loaded_accounts.as_multiple_accounts().unwrap();
     let expected = vec![
-      WalletAccount::new_mnemonic_backed_account(id2.into(), dummy_account2, hd_path.clone()),
-      WalletAccount::new_mnemonic_backed_account(id3, dummy_account3, hd_path.clone()),
-      WalletAccount::new_mnemonic_backed_account(id4, dummy_account4, hd_path),
+      WalletAccount::new(
+        id2.into(),
+        MnemonicAccount::new(dummy_account2, hd_path.clone()),
+      ),
+      WalletAccount::new(id3, MnemonicAccount::new(dummy_account3, hd_path.clone())),
+      WalletAccount::new(id4, MnemonicAccount::new(dummy_account4, hd_path)),
     ]
     .into();
     assert_eq!(accounts, &expected);
@@ -1175,10 +1183,9 @@ mod tests {
     let loaded_login =
       load_existing_wallet_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
     let accounts = loaded_login.as_multiple_accounts().unwrap();
-    let expected = vec![WalletAccount::new_mnemonic_backed_account(
+    let expected = vec![WalletAccount::new(
       DEFAULT_FIRST_ACCOUNT_NAME.into(),
-      dummy_account1,
-      hd_path.clone(),
+      MnemonicAccount::new(dummy_account1, hd_path.clone()),
     )]
     .into();
     assert_eq!(accounts, &expected);
@@ -1186,13 +1193,12 @@ mod tests {
     let loaded_login = load_existing_wallet_login_at_file(wallet_file, &id2, &password).unwrap();
     let accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![
-      WalletAccount::new_mnemonic_backed_account(
+      WalletAccount::new(
         DEFAULT_FIRST_ACCOUNT_NAME.into(),
-        dummy_account2,
-        hd_path.clone(),
+        MnemonicAccount::new(dummy_account2, hd_path.clone()),
       ),
-      WalletAccount::new_mnemonic_backed_account(id3, dummy_account3, hd_path.clone()),
-      WalletAccount::new_mnemonic_backed_account(id4, dummy_account4, hd_path),
+      WalletAccount::new(id3, MnemonicAccount::new(dummy_account3, hd_path.clone())),
+      WalletAccount::new(id4, MnemonicAccount::new(dummy_account4, hd_path)),
     ]
     .into();
     assert_eq!(accounts, &expected);
@@ -1330,8 +1336,11 @@ mod tests {
     let loaded_accounts = load_existing_wallet_login_at_file(wallet_file, &id2, &password).unwrap();
     let accounts = loaded_accounts.as_multiple_accounts().unwrap();
     let expected = vec![
-      WalletAccount::new_mnemonic_backed_account(id2.into(), dummy_account2, hd_path.clone()),
-      WalletAccount::new_mnemonic_backed_account(id3, dummy_account3, hd_path),
+      WalletAccount::new(
+        id2.into(),
+        MnemonicAccount::new(dummy_account2, hd_path.clone()),
+      ),
+      WalletAccount::new(id3, MnemonicAccount::new(dummy_account3, hd_path)),
     ]
     .into();
     assert_eq!(accounts, &expected);
@@ -1451,10 +1460,9 @@ mod tests {
     // The other login is still there
     let loaded_account = load_existing_wallet_login_at_file(wallet, &id3, &password).unwrap();
     let acc3 = loaded_account.as_multiple_accounts().unwrap();
-    let expected = vec![WalletAccount::new_mnemonic_backed_account(
+    let expected = vec![WalletAccount::new(
       DEFAULT_FIRST_ACCOUNT_NAME.into(),
-      dummy_account3,
-      cosmos_hd_path,
+      MnemonicAccount::new(dummy_account3, cosmos_hd_path),
     )]
     .into();
     assert_eq!(acc3, &expected);
@@ -1524,12 +1532,14 @@ mod tests {
       load_existing_wallet_login_at_file(wallet.clone(), &id2, &password).unwrap();
     let accounts = loaded_accounts.as_multiple_accounts().unwrap();
     let expected = vec![
-      WalletAccount::new_mnemonic_backed_account(
+      WalletAccount::new(
         id2.clone().into(),
-        dummy_account2,
-        hd_path.clone(),
+        MnemonicAccount::new(dummy_account2, hd_path.clone()),
       ),
-      WalletAccount::new_mnemonic_backed_account(id4.clone(), dummy_account4, hd_path.clone()),
+      WalletAccount::new(
+        id4.clone(),
+        MnemonicAccount::new(dummy_account4, hd_path.clone()),
+      ),
     ]
     .into();
     assert_eq!(accounts, &expected);

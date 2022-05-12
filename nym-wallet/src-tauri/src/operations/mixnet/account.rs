@@ -405,7 +405,6 @@ fn extract_first_mnemonic(
         .get_accounts()
         .next()
         .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
-        .account
         .mnemonic()
         .clone()
     }
@@ -530,8 +529,8 @@ pub async fn list_accounts(
   let all_accounts = state
     .get_all_accounts()
     .map(|account| AccountEntry {
-      id: account.id.to_string(),
-      address: derive_address(account.account.mnemonic().clone(), prefix)
+      id: account.id().to_string(),
+      address: derive_address(account.mnemonic().clone(), prefix)
         .unwrap()
         .to_string(),
     })
@@ -564,7 +563,6 @@ pub fn show_mnemonic_for_account_in_password(
       accounts
         .get_account(&account_id)
         .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
-        .account
         .mnemonic()
         .clone()
     }
@@ -583,9 +581,8 @@ pub async fn sign_in_decrypted_account(
     let state = state.read().await;
     let account = &state
       .get_all_accounts()
-      .find(|a| a.id.as_ref() == account_id)
-      .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
-      .account;
+      .find(|a| a.id().as_ref() == account_id)
+      .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?;
     account.mnemonic().clone()
   };
 
@@ -602,7 +599,10 @@ mod tests {
 
   use std::path::PathBuf;
 
-  use crate::wallet_storage;
+  use crate::wallet_storage::{
+    self,
+    account_data::{MnemonicAccount, WalletAccount},
+  };
 
   // This decryptes a stored wallet file using the same procedure as when signing in. Most tests
   // related to the encryped wallet storage is in `wallet_storage`.
@@ -630,13 +630,10 @@ mod tests {
 
     assert_eq!(
       all_accounts,
-      vec![
-        wallet_storage::account_data::WalletAccount::new_mnemonic_backed_account(
-          account_id,
-          expected_mnemonic,
-          hd_path
-        )
-      ]
+      vec![WalletAccount::new(
+        account_id,
+        MnemonicAccount::new(expected_mnemonic, hd_path),
+      )]
     );
   }
 

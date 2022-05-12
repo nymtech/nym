@@ -177,9 +177,7 @@ impl StoredLogin {
   // argument.
   pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
     match self {
-      StoredLogin::Mnemonic(ref account) => {
-        vec![WalletAccount::from_mnemonic_account(id, account.clone())].into()
-      }
+      StoredLogin::Mnemonic(ref account) => vec![WalletAccount::new(id, account.clone())].into(),
       StoredLogin::Multiple(ref accounts) => accounts.clone(),
     }
   }
@@ -228,11 +226,10 @@ impl MultipleAccounts {
     if self.get_account(&id).is_some() {
       Err(BackendError::IdAlreadyExistsInStoredWalletLogin)
     } else {
-      self
-        .accounts
-        .push(WalletAccount::new_mnemonic_backed_account(
-          id, mnemonic, hd_path,
-        ));
+      self.accounts.push(WalletAccount::new(
+        id,
+        MnemonicAccount::new(mnemonic, hd_path),
+      ));
       Ok(())
     }
   }
@@ -255,26 +252,32 @@ impl From<Vec<WalletAccount>> for MultipleAccounts {
 /// An entry in the list of stored accounts
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 pub(crate) struct WalletAccount {
-  pub id: AccountId,
-  pub account: AccountData,
+  id: AccountId,
+  account: AccountData,
 }
 
 impl WalletAccount {
-  pub(crate) fn new_mnemonic_backed_account(
-    id: AccountId,
-    mnemonic: bip39::Mnemonic,
-    hd_path: DerivationPath,
-  ) -> Self {
-    Self {
-      id,
-      account: AccountData::Mnemonic(MnemonicAccount::new(mnemonic, hd_path)),
-    }
-  }
-
-  pub(crate) fn from_mnemonic_account(id: AccountId, mnemonic_account: MnemonicAccount) -> Self {
+  pub(crate) fn new(id: AccountId, mnemonic_account: MnemonicAccount) -> Self {
     Self {
       id,
       account: AccountData::Mnemonic(mnemonic_account),
+    }
+  }
+
+  pub(crate) fn id(&self) -> &AccountId {
+    &self.id
+  }
+
+  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+    match self.account {
+      AccountData::Mnemonic(ref account) => account.mnemonic(),
+    }
+  }
+
+  #[cfg(test)]
+  pub(crate) fn hd_path(&self) -> &DerivationPath {
+    match self.account {
+      AccountData::Mnemonic(ref account) => account.hd_path(),
     }
   }
 }
@@ -284,24 +287,9 @@ impl WalletAccount {
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 #[serde(untagged)]
 #[zeroize(drop)]
-pub(crate) enum AccountData {
+enum AccountData {
   Mnemonic(MnemonicAccount),
   // PrivateKey(PrivateKeyAccount)
-}
-
-impl AccountData {
-  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
-    match self {
-      AccountData::Mnemonic(account) => account.mnemonic(),
-    }
-  }
-
-  #[cfg(test)]
-  pub(crate) fn hd_path(&self) -> &DerivationPath {
-    match self {
-      AccountData::Mnemonic(account) => account.hd_path(),
-    }
-  }
 }
 
 /// An account backed by a unique mnemonic.

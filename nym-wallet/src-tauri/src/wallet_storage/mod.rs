@@ -6,7 +6,6 @@ pub(crate) use crate::wallet_storage::password::{AccountId, LoginId, UserPasswor
 
 use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
-use crate::wallet_storage::encryption::encrypt_struct;
 use cosmrs::bip32::DerivationPath;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::PathBuf;
@@ -108,12 +107,9 @@ fn store_wallet_login_at_file(
     return Err(BackendError::WalletDifferentPasswordDetected);
   }
 
-  let new_account = StoredLogin::new_mnemonic_backed_account(mnemonic, hd_path);
-  let new_encrypted_account = EncryptedLogin {
-    id,
-    account: encrypt_struct(&new_account, password)?,
-  };
-
+  let new_account = account_data::MnemonicAccount::new(mnemonic, hd_path);
+  let new_login = StoredLogin::Mnemonic(new_account);
+  let new_encrypted_account = EncryptedLogin::encrypt(id, &new_login, password)?;
   stored_wallet.add_encrypted_login(new_encrypted_account)?;
 
   let file = OpenOptions::new()
@@ -157,18 +153,10 @@ fn store_wallet_login_with_multiple_accounts_at_file(
     return Err(BackendError::WalletDifferentPasswordDetected);
   }
 
-  let mut new_accounts = account_data::MultipleAccounts::empty();
-  new_accounts.add(
-    DEFAULT_FIRST_ACCOUNT_NAME.to_string().into(),
-    mnemonic,
-    hd_path,
-  )?;
-
+  let mut new_accounts = account_data::MultipleAccounts::new();
+  new_accounts.add(DEFAULT_FIRST_ACCOUNT_NAME.into(), mnemonic, hd_path)?;
   let new_login = StoredLogin::Multiple(new_accounts);
-  let new_encrypted_login = EncryptedLogin {
-    id,
-    account: encrypt_struct(&new_login, password)?,
-  };
+  let new_encrypted_login = EncryptedLogin::encrypt(id, &new_login, password)?;
 
   stored_wallet.add_encrypted_login(new_encrypted_login)?;
 
@@ -222,10 +210,7 @@ fn append_account_to_wallet_login_at_file(
   let mut accounts = decrypted_login.unwrap_into_multiple_accounts(first_id_when_converting);
   accounts.add(inner_id, mnemonic, hd_path)?;
 
-  let encrypted_accounts = EncryptedLogin {
-    id,
-    account: encrypt_struct(&StoredLogin::Multiple(accounts), password)?,
-  };
+  let encrypted_accounts = EncryptedLogin::encrypt(id, &StoredLogin::Multiple(accounts), password)?;
 
   stored_wallet.replace_encrypted_login(encrypted_accounts)?;
 
@@ -305,6 +290,7 @@ fn remove_account_from_wallet_login_at_file(
 
   let mut decrypted_login = stored_wallet.decrypt_login(id, password)?;
 
+  // Remove the account
   let is_empty = match decrypted_login {
     StoredLogin::Mnemonic(_) => {
       log::warn!("Encountered mnemonic login instead of list of accounts, aborting");
@@ -316,19 +302,17 @@ fn remove_account_from_wallet_login_at_file(
     }
   };
 
+  // Remove the login, or encrypt the new updated login
   if is_empty {
     stored_wallet
       .remove_encrypted_login(id)
       .ok_or(BackendError::NoSuchIdInWallet)?;
   } else {
-    // Replace the encrypted login with the pruned one.
-    let encrypted_accounts = EncryptedLogin {
-      id: id.clone(),
-      account: encrypt_struct(&decrypted_login, password)?,
-    };
+    let encrypted_accounts = EncryptedLogin::encrypt(id.clone(), &decrypted_login, password)?;
     stored_wallet.replace_encrypted_login(encrypted_accounts)?;
   }
 
+  // Remove the file, or write the new file
   if stored_wallet.is_empty() {
     log::info!("Removing file: {:#?}", filepath);
     Ok(fs::remove_file(filepath)?)
@@ -785,7 +769,7 @@ mod tests {
   #[test]
   fn store_two_mnemonic_accounts_using_two_logins() {
     let store_dir = tempdir().unwrap();
-    let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+    let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
 
     let dummy_account1 = bip39::Mnemonic::generate(24).unwrap();
     let dummy_account2 = bip39::Mnemonic::generate(24).unwrap();
@@ -799,7 +783,7 @@ mod tests {
 
     // Store the first account
     store_wallet_login_at_file(
-      wallet_file.clone(),
+      wallet.clone(),
       dummy_account1.clone(),
       cosmos_hd_path.clone(),
       id1.clone(),
@@ -807,15 +791,14 @@ mod tests {
     )
     .unwrap();
 
-    let loaded_account =
-      load_existing_wallet_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
-    let acc = loaded_account.as_mnemonic_account().unwrap();
+    let login = load_existing_wallet_login_at_file(wallet.clone(), &id1, &password).unwrap();
+    let acc = login.as_mnemonic_account().unwrap();
     assert_eq!(&dummy_account1, acc.mnemonic());
     assert_eq!(&cosmos_hd_path, acc.hd_path());
 
     // Add an extra account
     store_wallet_login_at_file(
-      wallet_file.clone(),
+      wallet.clone(),
       dummy_account2.clone(),
       different_hd_path.clone(),
       id2.clone(),
@@ -825,12 +808,12 @@ mod tests {
 
     // first account should be unchanged
     let loaded_account =
-      load_existing_wallet_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+      load_existing_wallet_login_at_file(wallet.clone(), &id1, &password).unwrap();
     let acc1 = loaded_account.as_mnemonic_account().unwrap();
     assert_eq!(&dummy_account1, acc1.mnemonic());
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
-    let loaded_account = load_existing_wallet_login_at_file(wallet_file, &id2, &password).unwrap();
+    let loaded_account = load_existing_wallet_login_at_file(wallet, &id2, &password).unwrap();
     let acc2 = loaded_account.as_mnemonic_account().unwrap();
     assert_eq!(&dummy_account2, acc2.mnemonic());
     assert_eq!(&different_hd_path, acc2.hd_path());

@@ -3,7 +3,7 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
-use crate::statistics::{Statistics, StatsData, Timer};
+use crate::statistics::{Statistics, StatsData, StatsMessage, Timer};
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
@@ -16,6 +16,8 @@ use proxy_helpers::connection_controller::{Controller, ControllerCommand, Contro
 use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
@@ -53,9 +55,14 @@ impl ServiceProvider {
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Response, Recipient)>,
+        response_stats_data: &Arc<RwLock<StatsData>>,
     ) {
         // TODO: wire SURBs in here once they're available
         while let Some((response, return_address)) = mix_reader.next().await {
+            response_stats_data
+                .write()
+                .await
+                .processed(response.data.len());
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
@@ -195,12 +202,12 @@ impl ServiceProvider {
             .unwrap()
     }
 
-    fn handle_proxy_request(
+    async fn handle_proxy_request(
         &mut self,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
-        stats: &mut Statistics,
+        request_stats_data: &Arc<RwLock<StatsData>>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -220,13 +227,12 @@ impl ServiceProvider {
                 ),
 
                 Request::Send(conn_id, data, closed) => {
-                    stats.processed(data.len());
-                    stats.maybe_send(mix_input_sender);
+                    request_stats_data.write().await.processed(data.len());
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
             Socks5Message::Response(deserialized_response) => {
-                match StatsData::from_bytes(&deserialized_response.data) {
+                match StatsMessage::from_bytes(&deserialized_response.data) {
                     Ok(data) => println!("{}", data),
                     Err(e) => error!("Malformed statistics received: {}", e),
                 }
@@ -256,14 +262,25 @@ impl ServiceProvider {
             active_connections_controller.run().await;
         });
 
+        let mut stats = Statistics::new(String::from("Open proxy"), timer_receiver);
+        let request_stats_data = Arc::clone(stats.request_data());
+        let response_stats_data = Arc::clone(stats.response_data());
+        let mix_input_sender_clone = mix_input_sender.clone();
+        tokio::spawn(async move {
+            stats.run(&mix_input_sender_clone).await;
+        });
+
         // start the listener for mix messages
         tokio::spawn(async move {
-            Self::mixnet_response_listener(websocket_writer, mix_input_receiver).await;
+            Self::mixnet_response_listener(
+                websocket_writer,
+                mix_input_receiver,
+                &response_stats_data,
+            )
+            .await;
         });
 
         println!("\nAll systems go. Press CTRL-C to stop the server.");
-
-        let mut stats = Statistics::new(String::from("Requests"), timer_receiver);
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
             let received = match Self::read_websocket_message(&mut websocket_reader).await {
@@ -281,8 +298,9 @@ impl ServiceProvider {
                 &raw_message,
                 &mut controller_sender,
                 &mix_input_sender,
-                &mut stats,
+                &request_stats_data,
             )
+            .await;
         }
     }
 

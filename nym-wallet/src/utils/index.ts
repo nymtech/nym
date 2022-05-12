@@ -121,9 +121,9 @@ export const currencyMap = (network?: Network): TCurrency => {
   switch (network) {
     case 'SANDBOX':
       return {
-          minor: 'UNYMT',
-          major: 'NYMT',
-        };
+        minor: 'UNYMT',
+        major: 'NYMT',
+      };
     default:
       return {
         minor: 'UNYM',

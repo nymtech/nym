@@ -69,9 +69,9 @@ impl From<&str> for AccountId {
 }
 
 impl From<LoginId> for AccountId {
-    fn from(login_id: LoginId) -> Self {
-        Self::new(login_id.0)
-    }
+  fn from(login_id: LoginId) -> Self {
+    Self::new(login_id.0)
+  }
 }
 
 impl fmt::Display for AccountId {

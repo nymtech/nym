@@ -5,7 +5,7 @@ use crate::network::Network as WalletNetwork;
 use crate::network_config;
 use crate::nymd_client;
 use crate::state::State;
-use crate::wallet_storage::{self, StoredLogin, DEFAULT_LOGIN_ID};
+use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
@@ -394,10 +394,12 @@ pub async fn sign_in_with_password(
   _connect_with_mnemonic(mnemonic, state).await
 }
 
-fn extract_first_mnemonic(stored_account: &StoredLogin) -> Result<Mnemonic, BackendError> {
+fn extract_first_mnemonic(
+  stored_account: &wallet_storage::StoredLogin,
+) -> Result<Mnemonic, BackendError> {
   let mnemonic = match stored_account {
-    StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
-    StoredLogin::Multiple(ref accounts) => {
+    wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
+    wallet_storage::StoredLogin::Multiple(ref accounts) => {
       // Login using the first account in the list
       accounts
         .get_accounts()
@@ -464,7 +466,7 @@ pub async fn add_account_for_password(
 
 // The first `AccoundId` when converting is the `LoginId` for the entry that was loaded.
 async fn set_state_with_all_accounts(
-  stored_login: StoredLogin,
+  stored_login: wallet_storage::StoredLogin,
   first_id_when_converting: wallet_storage::AccountId,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
@@ -554,8 +556,8 @@ pub fn show_mnemonic_for_account_in_password(
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
 
   let mnemonic = match stored_account {
-    StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
-    StoredLogin::Multiple(ref accounts) => {
+    wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
+    wallet_storage::StoredLogin::Multiple(ref accounts) => {
       for account in accounts.get_accounts() {
         log::debug!("{:?}", account);
       }

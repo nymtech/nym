@@ -49,7 +49,7 @@ impl NetworkRequesterStorage {
         msg: StatsMessage,
     ) -> Result<(), NetworkRequesterStorageError> {
         let timestamp: DateTime<Utc> = DateTime::parse_from_rfc2822(&msg.timestamp)
-            .map_err(|_| NetworkRequesterStorageError::TimestampParseError)?
+            .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
             .into();
         Ok(self
             .manager

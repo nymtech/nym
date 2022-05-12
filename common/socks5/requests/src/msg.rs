@@ -39,12 +39,12 @@ impl Message {
 
         if b[0] == Self::REQUEST_FLAG {
             Request::try_from_bytes(&b[1..])
-                .map(|r| Message::Request(r))
-                .map_err(|e| MessageError::Request(e))
+                .map(Message::Request)
+                .map_err(MessageError::Request)
         } else if b[0] == Self::RESPONSE_FLAG {
             Response::try_from_bytes(&b[1..])
-                .map(|r| Message::Response(r))
-                .map_err(|e| MessageError::Response(e))
+                .map(Message::Response)
+                .map_err(MessageError::Response)
         } else {
             Err(MessageError::UnknownMessageType)
         }

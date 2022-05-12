@@ -5,7 +5,7 @@ use rand::thread_rng;
 use crate::constants::L;
 use crate::error::Result;
 use crate::scheme::structure_preserving_signature::{SPSKeyPair, SPSSignature, SPSVerificationKey};
-use crate::utils::hash_g1;
+use crate::utils::{hash_g1, hash_g2};
 
 #[derive(Debug, Clone)]
 pub struct GroupParameters {
@@ -67,7 +67,7 @@ impl Parameters {
         let g1 = grp.gen1();
         let g2 = grp.gen2();
         let psi1 = hash_g1("psi1");
-        let psi2 = hash_g1("psi2");
+        let psi2 = hash_g2("psi2");
         let gamma1 = hash_g1("gamma1");
         let gamma2 = hash_g1("gamma2");
         let eta = hash_g1("eta");
@@ -115,7 +115,8 @@ impl Parameters {
         // Compute signature for each pair sigma, theta
         let params_u = ParametersUser {
             gammas: vec![gamma1, gamma2],
-            psi: vec![psi1, psi2],
+            psi1,
+            psi2,
             eta,
             omega,
             etas: etas_u,
@@ -141,7 +142,8 @@ impl Parameters {
 #[derive(Debug, Clone)]
 pub struct ParametersUser {
     gammas: Vec<G1Projective>,
-    psi: Vec<G1Projective>,
+    psi1: G1Projective,
+    psi2: G2Projective,
     eta: G1Projective,
     omega: G1Projective,
     etas: Vec<G1Projective>,
@@ -154,7 +156,9 @@ pub struct ParametersUser {
 impl ParametersUser {
     pub(crate) fn get_gammas(&self) -> &Vec<G1Projective> { &self.gammas }
 
-    pub(crate) fn get_psi(&self) -> &Vec<G1Projective> { &self.psi }
+    pub(crate) fn get_psi0(&self) -> &G1Projective { &self.psi1 }
+
+    pub(crate) fn get_psi1(&self) -> &G2Projective { &self.psi2 }
 
     pub(crate) fn get_eta(&self) -> &G1Projective { &self.eta }
 
@@ -188,5 +192,9 @@ pub struct ParametersAuthority {
 impl ParametersAuthority {
     pub(crate) fn get_deltas(&self) -> &[G2Projective] { &self.deltas }
 
+    pub(crate) fn get_ith_delta(&self, idx: usize) -> &G2Projective { self.deltas.get(idx).unwrap() }
+
     pub(crate) fn get_etas(&self) -> &[G2Projective] { &self.etas }
+
+    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G2Projective { self.etas.get(idx).unwrap() }
 }

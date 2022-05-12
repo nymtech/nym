@@ -581,7 +581,7 @@ pub async fn sign_in_decrypted_account(
   };
 
   {
-      state.write().await.logout();
+    state.write().await.logout();
   }
 
   _connect_with_mnemonic(mnemonic, state).await
@@ -603,13 +603,30 @@ mod tests {
     let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
     let id = wallet_storage::AccountId::new("first".to_string());
     let password = wallet_storage::UserPassword::new("password".to_string());
+    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
 
-    let stored_account =
+    let stored_login =
       wallet_storage::load_existing_wallet_login_information_at_file(wallet_file, &id, &password)
         .unwrap();
-    let mnemonic = extract_first_mnemonic(&stored_account).unwrap();
+    let mnemonic = extract_first_mnemonic(&stored_login).unwrap();
 
     let expected_mnemonic = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
     assert_eq!(mnemonic, expected_mnemonic);
+
+    let all_accounts: Vec<_> = stored_login
+      .unwrap_into_multiple_accounts(id.clone())
+      .into_accounts()
+      .collect();
+
+    assert_eq!(
+      all_accounts,
+      vec![
+        wallet_storage::account_data::WalletAccount::new_mnemonic_backed_account(
+          id,
+          expected_mnemonic,
+          hd_path
+        )
+      ]
+    );
   }
 }

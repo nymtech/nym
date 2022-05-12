@@ -3,13 +3,17 @@
 
 use clap::{App, Arg, ArgMatches};
 
+use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
+
 mod allowed_hosts;
 mod connection;
 mod core;
 mod statistics;
+mod storage;
 mod websocket;
 
 const OPEN_PROXY_ARG: &str = "open-proxy";
+const WS_PORT: &str = "websocket-port";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
@@ -21,6 +25,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(OPEN_PROXY_ARG)
                 .short("o"),
         )
+        .arg(
+            Arg::with_name(WS_PORT)
+                .help("websocket port to bind to")
+                .long(WS_PORT)
+                .short("p")
+                .takes_value(true),
+        )
         .get_matches()
 }
 
@@ -28,14 +39,20 @@ fn parse_args<'a>() -> ArgMatches<'a> {
 async fn main() {
     setup_logging();
     let matches = parse_args();
+
     let open_proxy = matches.is_present(OPEN_PROXY_ARG);
     if open_proxy {
         println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
     }
 
-    let uri = "ws://localhost:1977";
+    let uri = format!(
+        "ws://localhost:{}",
+        matches
+            .value_of(WS_PORT)
+            .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
+    );
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri.into(), open_proxy);
+    let mut server = core::ServiceProvider::new(uri, open_proxy);
     server.run().await;
 }
 

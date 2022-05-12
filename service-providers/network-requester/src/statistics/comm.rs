@@ -17,9 +17,9 @@ use super::error::StatsError;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
-    description: String,
-    request_data: StatsData,
-    response_data: StatsData,
+    pub description: String,
+    pub request_data: StatsData,
+    pub response_data: StatsData,
 }
 
 impl StatsMessage {
@@ -50,12 +50,16 @@ impl Display for StatsMessage {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsData {
-    total_processed_bytes: usize,
+    total_processed_bytes: u32,
 }
 
 impl StatsData {
-    pub fn processed(&mut self, bytes: usize) {
+    pub fn processed(&mut self, bytes: u32) {
         self.total_processed_bytes += bytes;
+    }
+
+    pub fn total_processed_bytes(&self) -> u32 {
+        self.total_processed_bytes
     }
 }
 

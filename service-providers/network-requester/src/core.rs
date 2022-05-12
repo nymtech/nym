@@ -4,6 +4,7 @@
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
 use crate::statistics::{Statistics, StatsData, StatsMessage, Timer};
+use crate::storage::NetworkRequesterStorage;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
@@ -27,6 +28,7 @@ static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
     listening_address: String,
+    db_path: PathBuf,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
 }
@@ -42,9 +44,16 @@ impl ServiceProvider {
             HostsStore::default_base_dir(),
             PathBuf::from("unknown.list"),
         );
+
+        let db_path = HostsStore::default_base_dir()
+            .join("service-providers")
+            .join("network-requester")
+            .join("db.sqlite");
+
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
             listening_address,
+            db_path,
             outbound_request_filter,
             open_proxy,
         }
@@ -62,7 +71,7 @@ impl ServiceProvider {
             response_stats_data
                 .write()
                 .await
-                .processed(response.data.len());
+                .processed(response.data.len() as u32);
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
@@ -202,8 +211,9 @@ impl ServiceProvider {
             .unwrap()
     }
 
-    async fn handle_proxy_request(
+    async fn handle_proxy_message(
         &mut self,
+        storage: &NetworkRequesterStorage,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
@@ -227,13 +237,20 @@ impl ServiceProvider {
                 ),
 
                 Request::Send(conn_id, data, closed) => {
-                    request_stats_data.write().await.processed(data.len());
+                    request_stats_data
+                        .write()
+                        .await
+                        .processed(data.len() as u32);
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
             Socks5Message::Response(deserialized_response) => {
                 match StatsMessage::from_bytes(&deserialized_response.data) {
-                    Ok(data) => println!("{}", data),
+                    Ok(data) => {
+                        if let Err(e) = storage.insert_service_statistics(data).await {
+                            error!("Could not store received statistics: {}", e);
+                        }
+                    }
                     Err(e) => error!("Malformed statistics received: {}", e),
                 }
             }
@@ -270,6 +287,10 @@ impl ServiceProvider {
             stats.run(&mix_input_sender_clone).await;
         });
 
+        let storage = NetworkRequesterStorage::init(&self.db_path)
+            .await
+            .expect("Could not create network requester storage");
+
         // start the listener for mix messages
         tokio::spawn(async move {
             Self::mixnet_response_listener(
@@ -294,7 +315,8 @@ impl ServiceProvider {
             let raw_message = received.message;
             // TODO: here be potential SURB (i.e. received.reply_SURB)
 
-            self.handle_proxy_request(
+            self.handle_proxy_message(
+                &storage,
                 &raw_message,
                 &mut controller_sender,
                 &mix_input_sender,

@@ -269,6 +269,7 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) = mpsc::unbounded::<(Response, Recipient)>();
 
         let (mut timer_sender, timer_receiver) = Timer::new();
+        let interval = timer_sender.interval();
         tokio::spawn(async move {
             timer_sender.run().await;
         });
@@ -279,7 +280,7 @@ impl ServiceProvider {
             active_connections_controller.run().await;
         });
 
-        let mut stats = Statistics::new(String::from("Open proxy"), timer_receiver);
+        let mut stats = Statistics::new(String::from("Open proxy"), interval, timer_receiver);
         let request_stats_data = Arc::clone(stats.request_data());
         let response_stats_data = Arc::clone(stats.response_data());
         let mix_input_sender_clone = mix_input_sender.clone();

@@ -5,8 +5,9 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use sqlx::types::chrono::{DateTime, Utc};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 use nymsphinx::addressing::clients::{ClientEncryptionKey, ClientIdentity, Recipient};
@@ -20,6 +21,8 @@ pub struct StatsMessage {
     pub description: String,
     pub request_data: StatsData,
     pub response_data: StatsData,
+    pub interval_seconds: u32,
+    pub timestamp: String,
 }
 
 impl StatsMessage {
@@ -29,22 +32,6 @@ impl StatsMessage {
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, StatsError> {
         Ok(bincode::deserialize(b)?)
-    }
-}
-
-impl Display for StatsMessage {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "\
-        Service with description: {}\n\
-        Requested traffic: {} bytes\n\
-        Response traffic: {} bytes\n\
-        ",
-            self.description,
-            self.request_data.total_processed_bytes,
-            self.response_data.total_processed_bytes
-        )
     }
 }
 
@@ -67,11 +54,17 @@ pub struct Statistics {
     description: String,
     request_data: Arc<RwLock<StatsData>>,
     response_data: Arc<RwLock<StatsData>>,
+    interval_seconds: u32,
+    timestamp: DateTime<Utc>,
     timer_receiver: mpsc::Receiver<()>,
 }
 
 impl Statistics {
-    pub fn new(description: String, timer_receiver: mpsc::Receiver<()>) -> Self {
+    pub fn new(
+        description: String,
+        interval_seconds: Duration,
+        timer_receiver: mpsc::Receiver<()>,
+    ) -> Self {
         Statistics {
             description,
             request_data: Arc::new(RwLock::new(StatsData {
@@ -80,6 +73,8 @@ impl Statistics {
             response_data: Arc::new(RwLock::new(StatsData {
                 total_processed_bytes: 0,
             })),
+            timestamp: Utc::now(),
+            interval_seconds: interval_seconds.as_secs() as u32,
             timer_receiver,
         }
     }
@@ -101,6 +96,8 @@ impl Statistics {
                     description: self.description.clone(),
                     request_data: self.request_data.read().await.clone(),
                     response_data: self.response_data.read().await.clone(),
+                    interval_seconds: self.interval_seconds,
+                    timestamp: self.timestamp.to_rfc2822(),
                 };
                 match stats_message.to_bytes() {
                     Ok(data) => {
@@ -135,5 +132,6 @@ impl Statistics {
     async fn reset_stats(&mut self) {
         self.request_data.write().await.total_processed_bytes = 0;
         self.response_data.write().await.total_processed_bytes = 0;
+        self.timestamp = Utc::now();
     }
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use log::*;
+use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
 
@@ -46,13 +47,18 @@ impl NetworkRequesterStorage {
     pub(super) async fn insert_service_statistics(
         &self,
         msg: StatsMessage,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), NetworkRequesterStorageError> {
+        let timestamp: DateTime<Utc> = DateTime::parse_from_rfc2822(&msg.timestamp)
+            .map_err(|_| NetworkRequesterStorageError::TimestampParseError)?
+            .into();
         Ok(self
             .manager
             .insert_service_statistics(
                 msg.description,
                 msg.request_data.total_processed_bytes(),
                 msg.response_data.total_processed_bytes(),
+                msg.interval_seconds,
+                timestamp,
             )
             .await?)
     }

@@ -8,4 +8,7 @@ pub enum NetworkRequesterStorageError {
 
     #[error("SQL migrate error - {0}")]
     DatabaseMigrateError(#[from] sqlx::migrate::MigrateError),
+
+    #[error("Timestamp could not be parsed")]
+    TimestampParseError,
 }

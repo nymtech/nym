@@ -49,10 +49,10 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
 pub(crate) fn load_existing_wallet() -> Result<StoredWallet, BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
-  load_existing_wallet_at_file(filepath)
+  load_existing_wallet_at_file(&filepath)
 }
 
-fn load_existing_wallet_at_file(filepath: PathBuf) -> Result<StoredWallet, BackendError> {
+fn load_existing_wallet_at_file(filepath: &PathBuf) -> Result<StoredWallet, BackendError> {
   if !filepath.exists() {
     return Err(BackendError::WalletFileNotFound);
   }
@@ -69,11 +69,11 @@ pub(crate) fn load_existing_login(
 ) -> Result<StoredLogin, BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
-  load_existing_login_at_file(filepath, id, password)
+  load_existing_login_at_file(&filepath, id, password)
 }
 
 pub(crate) fn load_existing_login_at_file(
-  filepath: PathBuf,
+  filepath: &PathBuf,
   id: &LoginId,
   password: &UserPassword,
 ) -> Result<StoredLogin, BackendError> {
@@ -94,19 +94,19 @@ pub(crate) fn store_login(
   create_dir_all(&store_dir)?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-  store_login_at_file(filepath, mnemonic, hd_path, id, password)
+  store_login_at_file(&filepath, mnemonic, hd_path, id, password)
 }
 
 // DEPRECATED: only used in tests, where it's used to test supporting older wallet formats
 #[cfg(test)]
 fn store_login_at_file(
-  filepath: PathBuf,
+  filepath: &PathBuf,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
   id: LoginId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
     Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
     result => result?,
   };
@@ -142,17 +142,17 @@ pub(crate) fn store_login_with_multiple_accounts(
   create_dir_all(&store_dir)?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-  store_login_with_multiple_accounts_at_file(filepath, mnemonic, hd_path, id, password)
+  store_login_with_multiple_accounts_at_file(&filepath, mnemonic, hd_path, id, password)
 }
 
 fn store_login_with_multiple_accounts_at_file(
-  filepath: PathBuf,
+  filepath: &PathBuf,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
   id: LoginId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
     Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
     result => result?,
   };
@@ -195,18 +195,18 @@ pub(crate) fn append_account_to_login(
   create_dir_all(&store_dir)?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-  append_account_to_login_at_file(filepath, mnemonic, hd_path, id, inner_id, password)
+  append_account_to_login_at_file(&filepath, mnemonic, hd_path, id, inner_id, password)
 }
 
 fn append_account_to_login_at_file(
-  filepath: PathBuf,
+  filepath: &PathBuf,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
   id: LoginId,
   inner_id: AccountId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
     Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
     result => result?,
   };
@@ -239,12 +239,12 @@ fn append_account_to_login_at_file(
 pub(crate) fn remove_login(id: &LoginId) -> Result<(), BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
-  remove_login_at_file(filepath, id)
+  remove_login_at_file(&filepath, id)
 }
 
-fn remove_login_at_file(filepath: PathBuf, id: &LoginId) -> Result<(), BackendError> {
+fn remove_login_at_file(filepath: &PathBuf, id: &LoginId) -> Result<(), BackendError> {
   log::warn!("Removing wallet account with id: {id}. This includes all associated accounts!");
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
     Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
     result => result?,
   };
@@ -283,17 +283,17 @@ pub(crate) fn remove_account_from_login(
 ) -> Result<(), BackendError> {
   let store_dir = get_storage_directory()?;
   let filepath = store_dir.join(WALLET_INFO_FILENAME);
-  remove_account_from_login_at_file(filepath, id, inner_id, password)
+  remove_account_from_login_at_file(&filepath, id, inner_id, password)
 }
 
 fn remove_account_from_login_at_file(
-  filepath: PathBuf,
+  filepath: &PathBuf,
   id: &LoginId,
   inner_id: &AccountId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
   log::info!("Removing associated account from login account: {id}");
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath.clone()) {
+  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
     Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
     result => result?,
   };
@@ -354,14 +354,14 @@ mod tests {
     let password = UserPassword::new("password".to_string());
 
     assert!(matches!(
-      load_existing_wallet_at_file(wallet_file.clone()),
+      load_existing_wallet_at_file(&wallet_file),
       Err(BackendError::WalletFileNotFound),
     ));
     assert!(matches!(
-      load_existing_login_at_file(wallet_file.clone(), &id1, &password),
+      load_existing_login_at_file(&wallet_file, &id1, &password),
       Err(BackendError::WalletFileNotFound),
     ));
-    remove_login_at_file(wallet_file, &id1).unwrap_err();
+    remove_login_at_file(&wallet_file, &id1).unwrap_err();
   }
 
   #[test]
@@ -374,16 +374,9 @@ mod tests {
     let password = UserPassword::new("password".to_string());
     let id1 = LoginId::new("first".to_string());
 
-    store_login_at_file(
-      wallet_file.clone(),
-      account1,
-      hd_path,
-      id1.clone(),
-      &password,
-    )
-    .unwrap();
+    store_login_at_file(&wallet_file, account1, hd_path, id1.clone(), &password).unwrap();
 
-    let stored_wallet = load_existing_wallet_at_file(wallet_file).unwrap();
+    let stored_wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
     assert_eq!(stored_wallet.len(), 1);
 
     let login = stored_wallet.get_encrypted_login_by_index(0).unwrap();
@@ -404,7 +397,7 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1,
       cosmos_hd_path,
       id1.clone(),
@@ -412,7 +405,7 @@ mod tests {
     )
     .unwrap();
 
-    let stored_wallet = load_existing_wallet_at_file(wallet_file).unwrap();
+    let stored_wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
     assert_eq!(stored_wallet.len(), 1);
 
     let login = stored_wallet.get_encrypted_login_by_index(0).unwrap();
@@ -434,7 +427,7 @@ mod tests {
 
     // Store the first login
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -444,7 +437,7 @@ mod tests {
 
     // and storing the same id again fails
     assert!(matches!(
-      store_login_at_file(wallet_file, account1, hd_path, id1, &password,),
+      store_login_at_file(&wallet_file, account1, hd_path, id1, &password,),
       Err(BackendError::IdAlreadyExistsInWallet),
     ));
   }
@@ -461,7 +454,7 @@ mod tests {
 
     // Store the first login
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -471,7 +464,7 @@ mod tests {
 
     // and storing the same id again fails
     assert!(matches!(
-      store_login_with_multiple_accounts_at_file(wallet_file, account1, hd_path, id1, &password,),
+      store_login_with_multiple_accounts_at_file(&wallet_file, account1, hd_path, id1, &password,),
       Err(BackendError::IdAlreadyExistsInWallet),
     ));
   }
@@ -487,18 +480,11 @@ mod tests {
     let bad_password = UserPassword::new("bad-password".to_string());
     let id1 = LoginId::new("first".to_string());
 
-    store_login_at_file(
-      wallet_file.clone(),
-      account1,
-      hd_path,
-      id1.clone(),
-      &password,
-    )
-    .unwrap();
+    store_login_at_file(&wallet_file, account1, hd_path, id1.clone(), &password).unwrap();
 
     // Trying to load it with wrong password now fails
     assert!(matches!(
-      load_existing_login_at_file(wallet_file, &id1, &bad_password),
+      load_existing_login_at_file(&wallet_file, &id1, &bad_password),
       Err(BackendError::DecryptionError),
     ));
   }
@@ -515,7 +501,7 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1,
       hd_path,
       id1.clone(),
@@ -525,7 +511,7 @@ mod tests {
 
     // Trying to load it with wrong password now fails
     assert!(matches!(
-      load_existing_login_at_file(wallet_file, &id1, &bad_password),
+      load_existing_login_at_file(&wallet_file, &id1, &bad_password),
       Err(BackendError::DecryptionError),
     ));
   }
@@ -541,11 +527,11 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
-    store_login_at_file(wallet_file.clone(), account1, hd_path, id1, &password).unwrap();
+    store_login_at_file(&wallet_file, account1, hd_path, id1, &password).unwrap();
 
     // Trying to load with the wrong id
     assert!(matches!(
-      load_existing_login_at_file(wallet_file, &id2, &password),
+      load_existing_login_at_file(&wallet_file, &id2, &password),
       Err(BackendError::NoSuchIdInWallet),
     ));
   }
@@ -561,18 +547,12 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
-    store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
-      account1,
-      hd_path,
-      id1,
-      &password,
-    )
-    .unwrap();
+    store_login_with_multiple_accounts_at_file(&wallet_file, account1, hd_path, id1, &password)
+      .unwrap();
 
     // Trying to load with the wrong id
     assert!(matches!(
-      load_existing_login_at_file(wallet_file, &id2, &password),
+      load_existing_login_at_file(&wallet_file, &id2, &password),
       Err(BackendError::NoSuchIdInWallet),
     ));
   }
@@ -588,7 +568,7 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -596,7 +576,7 @@ mod tests {
     )
     .unwrap();
 
-    let loaded_login = load_existing_login_at_file(wallet_file, &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc.mnemonic());
     assert_eq!(&hd_path, acc.hd_path());
@@ -613,7 +593,7 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       acc1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -621,7 +601,7 @@ mod tests {
     )
     .unwrap();
 
-    let loaded_login = load_existing_login_at_file(wallet_file, &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let accounts = loaded_login.as_multiple_accounts().unwrap();
     assert_eq!(accounts.len(), 1);
     let account = accounts
@@ -648,7 +628,7 @@ mod tests {
     let id2 = LoginId::new("second".to_string());
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1,
       cosmos_hd_path.clone(),
       id1,
@@ -658,7 +638,7 @@ mod tests {
 
     // Can't store a second login if you use different password
     assert!(matches!(
-      store_login_at_file(wallet_file, account2, cosmos_hd_path, id2, &bad_password),
+      store_login_at_file(&wallet_file, account2, cosmos_hd_path, id2, &bad_password),
       Err(BackendError::WalletDifferentPasswordDetected),
     ));
   }
@@ -679,7 +659,7 @@ mod tests {
     let id2 = LoginId::new("second".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1,
       hd_path.clone(),
       id1,
@@ -690,7 +670,7 @@ mod tests {
     // Can't store a second login if you use different password
     assert!(matches!(
       store_login_with_multiple_accounts_at_file(
-        wallet_file,
+        &wallet_file,
         account2,
         hd_path,
         id2,
@@ -716,9 +696,9 @@ mod tests {
     let id2 = LoginId::new("second".to_string());
 
     // Store the first account
-    store_login_at_file(wallet_file.clone(), account1, hd_path, id1, &password).unwrap();
+    store_login_at_file(&wallet_file, account1, hd_path, id1, &password).unwrap();
 
-    let stored_wallet = load_existing_wallet_at_file(wallet_file.clone()).unwrap();
+    let stored_wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
     let encrypted_blob = &stored_wallet
       .get_encrypted_login_by_index(0)
       .unwrap()
@@ -729,16 +709,9 @@ mod tests {
     let original_salt = encrypted_blob.salt().to_vec();
 
     // Add an extra account
-    store_login_at_file(
-      wallet_file.clone(),
-      account2,
-      different_hd_path,
-      id2,
-      &password,
-    )
-    .unwrap();
+    store_login_at_file(&wallet_file, account2, different_hd_path, id2, &password).unwrap();
 
-    let loaded_accounts = load_existing_wallet_at_file(wallet_file).unwrap();
+    let loaded_accounts = load_existing_wallet_at_file(&wallet_file).unwrap();
     assert_eq!(loaded_accounts.len(), 2);
     let encrypted_blob = &loaded_accounts
       .get_encrypted_login_by_index(1)
@@ -767,7 +740,7 @@ mod tests {
 
     // Store the first account
     store_login_at_file(
-      wallet.clone(),
+      &wallet,
       account1.clone(),
       cosmos_hd_path.clone(),
       id1.clone(),
@@ -775,14 +748,14 @@ mod tests {
     )
     .unwrap();
 
-    let login = load_existing_login_at_file(wallet.clone(), &id1, &password).unwrap();
+    let login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
     let acc = login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc.mnemonic());
     assert_eq!(&cosmos_hd_path, acc.hd_path());
 
     // Add an extra account
     store_login_at_file(
-      wallet.clone(),
+      &wallet,
       account2.clone(),
       different_hd_path.clone(),
       id2.clone(),
@@ -791,12 +764,12 @@ mod tests {
     .unwrap();
 
     // first account should be unchanged
-    let loaded_login = load_existing_login_at_file(wallet.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
     let acc1 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc1.mnemonic());
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
-    let loaded_login = load_existing_login_at_file(wallet, &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet, &id2, &password).unwrap();
     let acc2 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account2, acc2.mnemonic());
     assert_eq!(&different_hd_path, acc2.hd_path());
@@ -819,7 +792,7 @@ mod tests {
 
     // Store the first account
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -827,14 +800,14 @@ mod tests {
     )
     .unwrap();
 
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc.mnemonic());
     assert_eq!(&hd_path, acc.hd_path());
 
     // Add an extra account
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2.clone(),
       different_hd_path.clone(),
       id2.clone(),
@@ -843,12 +816,12 @@ mod tests {
     .unwrap();
 
     // first account should be unchanged
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc1 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc1.mnemonic());
     assert_eq!(&hd_path, acc1.hd_path());
 
-    let loaded_login = load_existing_login_at_file(wallet_file, &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
     let acc2 = loaded_login.as_multiple_accounts().unwrap();
     assert_eq!(acc2.len(), 1);
     let account = acc2
@@ -872,18 +845,12 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
-    store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
-      account1,
-      hd_path,
-      id1,
-      &password,
-    )
-    .unwrap();
+    store_login_with_multiple_accounts_at_file(&wallet_file, account1, hd_path, id1, &password)
+      .unwrap();
 
     // Fails to delete non-existent id in the wallet
     assert!(matches!(
-      remove_login_at_file(wallet_file, &id2),
+      remove_login_at_file(&wallet_file, &id2),
       Err(BackendError::NoSuchIdInWallet),
     ));
   }
@@ -905,7 +872,7 @@ mod tests {
 
     // Store two accounts with two different passwords
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       cosmos_hd_path.clone(),
       id1.clone(),
@@ -913,7 +880,7 @@ mod tests {
     )
     .unwrap();
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2.clone(),
       different_hd_path.clone(),
       id2.clone(),
@@ -922,41 +889,41 @@ mod tests {
     .unwrap();
 
     // Load and compare
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc1 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc1.mnemonic());
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
     let acc2 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account2, acc2.mnemonic());
     assert_eq!(&different_hd_path, acc2.hd_path());
 
     // Delete the second account
-    remove_login_at_file(wallet_file.clone(), &id2).unwrap();
+    remove_login_at_file(&wallet_file, &id2).unwrap();
 
     // The first account should be unchanged
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc1 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(&account1, acc1.mnemonic());
     assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
     // And we can't load the second one anymore
     assert!(matches!(
-      load_existing_login_at_file(wallet_file.clone(), &id2, &password),
+      load_existing_login_at_file(&wallet_file, &id2, &password),
       Err(BackendError::NoSuchIdInWallet),
     ));
 
     // Delete the first account
     assert!(wallet_file.exists());
-    remove_login_at_file(wallet_file.clone(), &id1).unwrap();
+    remove_login_at_file(&wallet_file, &id1).unwrap();
 
     // The file should now be removed
     assert!(!wallet_file.exists());
 
     // And trying to load when the file is gone fails
     assert!(matches!(
-      load_existing_login_at_file(wallet_file, &id1, &password),
+      load_existing_login_at_file(&wallet_file, &id1, &password),
       Err(BackendError::WalletFileNotFound),
     ));
   }
@@ -976,7 +943,7 @@ mod tests {
     let id2 = AccountId::new("second".to_string());
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -985,13 +952,13 @@ mod tests {
     .unwrap();
 
     // Check that it's there as the correct non-multiple type
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(acc.mnemonic(), &account1);
     assert_eq!(acc.hd_path(), &hd_path);
 
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -1001,7 +968,7 @@ mod tests {
     .unwrap();
 
     // Check that it is now multiple mnemonic type
-    let loaded_login = load_existing_login_at_file(wallet_file, &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![
       WalletAccount::new(id1.into(), MnemonicAccount::new(account1, hd_path.clone())),
@@ -1030,7 +997,7 @@ mod tests {
     let id4 = AccountId::new("fourth".to_string());
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -1039,7 +1006,7 @@ mod tests {
     .unwrap();
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1048,14 +1015,14 @@ mod tests {
     .unwrap();
 
     // Check that it's there as the correct non-multiple type
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
     let acc2 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(acc2.mnemonic(), &account2);
     assert_eq!(acc2.hd_path(), &hd_path);
 
     // Add a third and fourth mnenonic grouped together with the second one
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account3.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1064,7 +1031,7 @@ mod tests {
     )
     .unwrap();
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account4.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1074,12 +1041,12 @@ mod tests {
     .unwrap();
 
     // Check that we can load all four
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let acc1 = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(acc1.mnemonic(), &account1);
     assert_eq!(acc1.hd_path(), &hd_path);
 
-    let loaded_login = load_existing_login_at_file(wallet_file, &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
     let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![
       WalletAccount::new(id2.into(), MnemonicAccount::new(account2, hd_path.clone())),
@@ -1109,7 +1076,7 @@ mod tests {
     let id4 = AccountId::new("fourth".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -1118,7 +1085,7 @@ mod tests {
     .unwrap();
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1128,7 +1095,7 @@ mod tests {
 
     // Add a third and fourth mnenonic grouped together with the second one
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account3.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1137,7 +1104,7 @@ mod tests {
     )
     .unwrap();
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account4.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1147,7 +1114,7 @@ mod tests {
     .unwrap();
 
     // Check that we can load all four
-    let loaded_login = load_existing_login_at_file(wallet_file.clone(), &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![WalletAccount::new(
       DEFAULT_FIRST_ACCOUNT_NAME.into(),
@@ -1156,7 +1123,7 @@ mod tests {
     .into();
     assert_eq!(loaded_accounts, &expected);
 
-    let loaded_login = load_existing_login_at_file(wallet_file, &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
     let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![
       WalletAccount::new(
@@ -1184,17 +1151,10 @@ mod tests {
     let id1 = LoginId::new("first".to_string());
     let id2 = AccountId::new("second".to_string());
 
-    store_login_at_file(
-      wallet.clone(),
-      account1,
-      hd_path.clone(),
-      id1.clone(),
-      &password,
-    )
-    .unwrap();
+    store_login_at_file(&wallet, account1, hd_path.clone(), id1.clone(), &password).unwrap();
 
     append_account_to_login_at_file(
-      wallet.clone(),
+      &wallet,
       account2,
       hd_path,
       id1.clone(),
@@ -1203,10 +1163,10 @@ mod tests {
     )
     .unwrap();
 
-    remove_account_from_login_at_file(wallet.clone(), &id1, &id2, &password).unwrap();
+    remove_account_from_login_at_file(&wallet, &id1, &id2, &password).unwrap();
 
     assert!(matches!(
-      remove_account_from_login_at_file(wallet, &id1, &id2, &password),
+      remove_account_from_login_at_file(&wallet, &id1, &id2, &password),
       Err(BackendError::NoSuchIdInWalletLoginEntry),
     ));
   }
@@ -1226,7 +1186,7 @@ mod tests {
     let id2 = AccountId::new("second".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1,
       hd_path.clone(),
       id1.clone(),
@@ -1235,7 +1195,7 @@ mod tests {
     .unwrap();
 
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2,
       hd_path,
       id1.clone(),
@@ -1244,10 +1204,10 @@ mod tests {
     )
     .unwrap();
 
-    remove_account_from_login_at_file(wallet_file.clone(), &id1, &id2, &password).unwrap();
+    remove_account_from_login_at_file(&wallet_file, &id1, &id2, &password).unwrap();
 
     assert!(matches!(
-      remove_account_from_login_at_file(wallet_file, &id1, &id2, &password),
+      remove_account_from_login_at_file(&wallet_file, &id1, &id2, &password),
       Err(BackendError::NoSuchIdInWalletLoginEntry),
     ));
   }
@@ -1269,7 +1229,7 @@ mod tests {
     let id3 = AccountId::new("third".to_string());
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account1,
       hd_path.clone(),
       id1.clone(),
@@ -1278,7 +1238,7 @@ mod tests {
     .unwrap();
 
     store_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account2.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1287,7 +1247,7 @@ mod tests {
     .unwrap();
 
     append_account_to_login_at_file(
-      wallet_file.clone(),
+      &wallet_file,
       account3.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1296,10 +1256,10 @@ mod tests {
     )
     .unwrap();
 
-    remove_login_at_file(wallet_file.clone(), &id1).unwrap();
+    remove_login_at_file(&wallet_file, &id1).unwrap();
 
     // The second login one is still there
-    let loaded_login = load_existing_login_at_file(wallet_file, &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
     let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![
       WalletAccount::new(id2.into(), MnemonicAccount::new(account2, hd_path.clone())),
@@ -1324,7 +1284,7 @@ mod tests {
     let id2 = AccountId::new("second".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet.clone(),
+      &wallet,
       account1,
       hd_path.clone(),
       id1.clone(),
@@ -1333,7 +1293,7 @@ mod tests {
     .unwrap();
 
     append_account_to_login_at_file(
-      wallet.clone(),
+      &wallet,
       account2,
       hd_path,
       id1.clone(),
@@ -1342,21 +1302,16 @@ mod tests {
     )
     .unwrap();
 
-    remove_account_from_login_at_file(
-      wallet.clone(),
-      &id1,
-      &DEFAULT_FIRST_ACCOUNT_NAME.into(),
-      &password,
-    )
-    .unwrap();
-    remove_account_from_login_at_file(wallet.clone(), &id1, &id2, &password).unwrap();
+    remove_account_from_login_at_file(&wallet, &id1, &DEFAULT_FIRST_ACCOUNT_NAME.into(), &password)
+      .unwrap();
+    remove_account_from_login_at_file(&wallet, &id1, &id2, &password).unwrap();
 
     // The file should now be removed
     assert!(!wallet.exists());
 
     // And trying to load when the file is gone fails
     assert!(matches!(
-      load_existing_login_at_file(wallet, &id1, &password),
+      load_existing_login_at_file(&wallet, &id1, &password),
       Err(BackendError::WalletFileNotFound),
     ));
   }
@@ -1378,7 +1333,7 @@ mod tests {
     let id3 = LoginId::new("third".to_string());
 
     store_login_with_multiple_accounts_at_file(
-      wallet.clone(),
+      &wallet,
       account1,
       hd_path.clone(),
       id1.clone(),
@@ -1387,7 +1342,7 @@ mod tests {
     .unwrap();
 
     append_account_to_login_at_file(
-      wallet.clone(),
+      &wallet,
       account2,
       hd_path.clone(),
       id1.clone(),
@@ -1397,7 +1352,7 @@ mod tests {
     .unwrap();
 
     store_login_with_multiple_accounts_at_file(
-      wallet.clone(),
+      &wallet,
       account3.clone(),
       hd_path.clone(),
       id3.clone(),
@@ -1405,23 +1360,18 @@ mod tests {
     )
     .unwrap();
 
-    remove_account_from_login_at_file(
-      wallet.clone(),
-      &id1,
-      &DEFAULT_FIRST_ACCOUNT_NAME.into(),
-      &password,
-    )
-    .unwrap();
-    remove_account_from_login_at_file(wallet.clone(), &id1, &id2, &password).unwrap();
+    remove_account_from_login_at_file(&wallet, &id1, &DEFAULT_FIRST_ACCOUNT_NAME.into(), &password)
+      .unwrap();
+    remove_account_from_login_at_file(&wallet, &id1, &id2, &password).unwrap();
 
     // And trying to load when the file is gone fails
     assert!(matches!(
-      load_existing_login_at_file(wallet.clone(), &id1, &password),
+      load_existing_login_at_file(&wallet, &id1, &password),
       Err(BackendError::NoSuchIdInWallet),
     ));
 
     // The other login is still there
-    let loaded_login = load_existing_login_at_file(wallet, &id3, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet, &id3, &password).unwrap();
     let acc3 = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![WalletAccount::new(
       DEFAULT_FIRST_ACCOUNT_NAME.into(),
@@ -1450,7 +1400,7 @@ mod tests {
     let id4 = AccountId::new("fourth".to_string());
 
     store_login_at_file(
-      wallet.clone(),
+      &wallet,
       acc1.clone(),
       hd_path.clone(),
       id1.clone(),
@@ -1459,7 +1409,7 @@ mod tests {
     .unwrap();
 
     store_login_at_file(
-      wallet.clone(),
+      &wallet,
       acc2.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1469,7 +1419,7 @@ mod tests {
 
     // Add a third and fourth mnenonic grouped together with the second one
     append_account_to_login_at_file(
-      wallet.clone(),
+      &wallet,
       acc3,
       hd_path.clone(),
       id2.clone(),
@@ -1478,7 +1428,7 @@ mod tests {
     )
     .unwrap();
     append_account_to_login_at_file(
-      wallet.clone(),
+      &wallet,
       acc4.clone(),
       hd_path.clone(),
       id2.clone(),
@@ -1488,10 +1438,10 @@ mod tests {
     .unwrap();
 
     // Delete the third mnemonic, from the second login entry
-    remove_account_from_login_at_file(wallet.clone(), &id2, &id3, &password).unwrap();
+    remove_account_from_login_at_file(&wallet, &id2, &id3, &password).unwrap();
 
     // Check that we can still load the other accounts
-    let loaded_login = load_existing_login_at_file(wallet.clone(), &id2, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet, &id2, &password).unwrap();
     let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
     let expected = vec![
       WalletAccount::new(
@@ -1504,16 +1454,15 @@ mod tests {
     assert_eq!(loaded_accounts, &expected);
 
     // Delete the second and fourth mnemonic from the second login entry removes the login entry
-    remove_account_from_login_at_file(wallet.clone(), &id2, &id2.clone().into(), &password)
-      .unwrap();
-    remove_account_from_login_at_file(wallet.clone(), &id2, &id4, &password).unwrap();
+    remove_account_from_login_at_file(&wallet, &id2, &id2.clone().into(), &password).unwrap();
+    remove_account_from_login_at_file(&wallet, &id2, &id4, &password).unwrap();
     assert!(matches!(
-      load_existing_login_at_file(wallet.clone(), &id2, &password),
+      load_existing_login_at_file(&wallet, &id2, &password),
       Err(BackendError::NoSuchIdInWallet),
     ));
 
     // The first login is still available
-    let loaded_login = load_existing_login_at_file(wallet, &id1, &password).unwrap();
+    let loaded_login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
     let account = loaded_login.as_mnemonic_account().unwrap();
     assert_eq!(account.mnemonic(), &acc1);
     assert_eq!(account.hd_path(), &hd_path);
@@ -1526,7 +1475,7 @@ mod tests {
     const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet.json";
     let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
 
-    let wallet = load_existing_wallet_at_file(wallet_file).unwrap();
+    let wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
 
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());

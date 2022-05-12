@@ -616,8 +616,7 @@ mod tests {
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
 
     let stored_login =
-      wallet_storage::load_existing_login_at_file(wallet_file, &login_id, &password)
-        .unwrap();
+      wallet_storage::load_existing_login_at_file(&wallet_file, &login_id, &password).unwrap();
     let mnemonic = extract_first_mnemonic(&stored_login).unwrap();
 
     let expected_mnemonic = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();

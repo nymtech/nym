@@ -778,7 +778,7 @@ where
         loop {
             let mut paged_response = self
                 .nymd
-                .get_current_dealers_paged(start_after.take(), self.mixnode_page_limit)
+                .get_current_dealers_paged(start_after.take(), self.dealers_page_limit)
                 .await?;
             dealers.append(&mut paged_response.dealers);
 
@@ -803,7 +803,7 @@ where
         loop {
             let mut paged_response = self
                 .nymd
-                .get_past_dealers_paged(start_after.take(), self.mixnode_page_limit)
+                .get_past_dealers_paged(start_after.take(), self.dealers_page_limit)
                 .await?;
             dealers.append(&mut paged_response.dealers);
 

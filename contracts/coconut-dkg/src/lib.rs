@@ -77,7 +77,45 @@ pub fn execute(
             dealing_digest,
             receivers,
         ),
+        ExecuteMsg::UnsafeResetAll { init_msg } => reset_contract_state(deps, env, info, init_msg),
     }
+}
+
+fn reset_contract_state(
+    mut deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    init_msg: InstantiateMsg,
+) -> Result<Response, ContractError> {
+    // this resets the epoch
+    instantiate(deps.branch(), env, info, init_msg)?;
+
+    // clear all dealings, public keys, etc
+    let current = dealers::storage::current_dealers()
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
+    let past = dealers::storage::past_dealers()
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
+    let blacklisted = crate::dealers::storage::BLACKLISTED_DEALERS
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for dealer in current {
+        dealers::storage::current_dealers().remove(deps.storage, &dealer)?;
+    }
+
+    for dealer in past {
+        dealers::storage::past_dealers().remove(deps.storage, &dealer)?;
+    }
+
+    for dealer in blacklisted {
+        dealers::storage::BLACKLISTED_DEALERS.remove(deps.storage, &dealer);
+    }
+
+    crate::dealers::storage::NODE_INDEX_COUNTER.save(deps.storage, &0u64)?;
+
+    Ok(Response::default())
 }
 
 #[entry_point]

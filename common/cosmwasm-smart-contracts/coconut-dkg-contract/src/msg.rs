@@ -28,6 +28,9 @@ pub enum ExecuteMsg {
         receivers: u32,
         // need to think if anything else is required
     },
+
+    // only exists for debugging purposes on local network to reset the entire state of the contract
+    UnsafeResetAll {init_msg: InstantiateMsg},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

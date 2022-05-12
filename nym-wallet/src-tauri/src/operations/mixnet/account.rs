@@ -372,7 +372,7 @@ pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendEr
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
-  wallet_storage::store_wallet_login_information(mnemonic, hd_path, id, &password)
+  wallet_storage::store_wallet_login_multiple_information(mnemonic, hd_path, id, &password)
 }
 
 #[tauri::command]
@@ -628,5 +628,10 @@ mod tests {
         )
       ]
     );
+  }
+
+  #[test]
+  fn decrypt_stored_wallet_multiple_for_sign_in() {
+    // WIP(JON): same as above but with file containing multiple accounts
   }
 }

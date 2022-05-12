@@ -21,6 +21,18 @@ impl AsRef<str> for AccountId {
   }
 }
 
+impl From<String> for AccountId {
+    fn from(id: String) -> Self {
+        Self::new(id)
+    }
+}
+
+impl From<&str> for AccountId {
+    fn from(id: &str) -> Self {
+        Self::new(id.to_string())
+    }
+}
+
 impl fmt::Display for AccountId {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "{}", self.0)

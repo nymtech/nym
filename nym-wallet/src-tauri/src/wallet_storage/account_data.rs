@@ -157,6 +157,10 @@ impl StoredLogin {
     Self::Mnemonic(MnemonicAccount { mnemonic, hd_path })
   }
 
+  pub(crate) fn new_multiple_login() -> Self {
+    Self::Multiple(MultipleAccounts::empty())
+  }
+
   #[cfg(test)]
   pub(crate) fn as_mnemonic_account(&self) -> Option<&MnemonicAccount> {
     match self {
@@ -194,7 +198,6 @@ impl MnemonicAccount {
     &self.mnemonic
   }
 
-  #[cfg(test)]
   pub(crate) fn hd_path(&self) -> &DerivationPath {
     &self.hd_path
   }
@@ -239,6 +242,12 @@ pub(crate) struct MultipleAccounts {
 }
 
 impl MultipleAccounts {
+  pub(crate) fn empty() -> Self {
+    MultipleAccounts {
+      accounts: Vec::new(),
+    }
+  }
+
   pub(crate) fn new(account: WalletAccount) -> Self {
     MultipleAccounts {
       accounts: vec![account],
@@ -338,6 +347,13 @@ impl AccountData {
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     match self {
       AccountData::Mnemonic(account) => account.mnemonic(),
+    }
+  }
+
+  #[cfg(test)]
+  pub(crate) fn hd_path(&self) -> &DerivationPath {
+    match self {
+      AccountData::Mnemonic(account) => account.hd_path(),
     }
   }
 }

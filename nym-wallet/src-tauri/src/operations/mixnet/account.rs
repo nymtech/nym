@@ -5,7 +5,7 @@ use crate::network::Network as WalletNetwork;
 use crate::network_config;
 use crate::nymd_client;
 use crate::state::State;
-use crate::wallet_storage::{self, StoredLogin, DEFAULT_WALLET_ACCOUNT_ID};
+use crate::wallet_storage::{self, StoredLogin, DEFAULT_LOGIN_ID};
 
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
@@ -370,7 +370,7 @@ pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendEr
   let mnemonic = Mnemonic::from_str(mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   wallet_storage::store_wallet_login_multiple_information(mnemonic, hd_path, id, &password)
 }
@@ -383,12 +383,13 @@ pub async fn sign_in_with_password(
   log::info!("Signing in with password");
 
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
   let stored_login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
 
   let mnemonic = extract_first_mnemonic(&stored_login)?;
-  set_state_with_all_accounts(stored_login, id, state.clone()).await?;
+  let first_id_when_converting = id.into();
+  set_state_with_all_accounts(stored_login, first_id_when_converting, state.clone()).await?;
 
   _connect_with_mnemonic(mnemonic, state).await
 }
@@ -414,7 +415,7 @@ fn extract_first_mnemonic(stored_account: &StoredLogin) -> Result<Mnemonic, Back
 #[tauri::command]
 pub fn remove_password() -> Result<(), BackendError> {
   log::info!("Removing password");
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   wallet_storage::remove_wallet_login_information(&id)
 }
 
@@ -429,11 +430,10 @@ pub async fn add_account_for_password(
   let mnemonic = Mnemonic::from_str(mnemonic)?;
   let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
   let password = wallet_storage::UserPassword::new(password.to_string());
 
-  // Creating the returned account entry could fail, so do it before attempting to store to wallet
   wallet_storage::append_account_to_wallet_login_information(
     mnemonic.clone(),
     hd_path,
@@ -451,7 +451,10 @@ pub async fn add_account_for_password(
   // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
   // incrementally
   let stored_login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  set_state_with_all_accounts(stored_login, id, state).await?;
+  // NOTE: since we are appending, this id shouldn't be needed, but setting the state is supposed
+  // to be a general function
+  let first_id_when_converting = id.into();
+  set_state_with_all_accounts(stored_login, first_id_when_converting, state).await?;
 
   Ok(AccountEntry {
     id: inner_id.to_string(),
@@ -459,14 +462,15 @@ pub async fn add_account_for_password(
   })
 }
 
+// The first `AccoundId` when converting is the `LoginId` for the entry that was loaded.
 async fn set_state_with_all_accounts(
   stored_login: StoredLogin,
-  id: wallet_storage::AccountId,
+  first_id_when_converting: wallet_storage::AccountId,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
   log::trace!("Set state with accounts:");
   let all_accounts: Vec<_> = stored_login
-    .unwrap_into_multiple_accounts(id.clone())
+    .unwrap_into_multiple_accounts(first_id_when_converting)
     .into_accounts()
     .collect();
 
@@ -487,14 +491,17 @@ pub async fn remove_account_for_password(
 ) -> Result<(), BackendError> {
   log::info!("Removing account: {inner_id}");
   // Currently we only support a single, default, id in the wallet
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
   let password = wallet_storage::UserPassword::new(password.to_string());
   wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)?;
 
   // Load to reset the internal state
   let stored_login = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
-  set_state_with_all_accounts(stored_login, id, state).await
+  // NOTE: Since we removed from a multi-account login, this id shouldn't be needed, but setting
+  // the state is supposed to be a general function
+  let first_id_when_converting = id.into();
+  set_state_with_all_accounts(stored_login, first_id_when_converting, state).await
 }
 
 fn derive_address(
@@ -541,7 +548,7 @@ pub fn show_mnemonic_for_account_in_password(
   password: String,
 ) -> Result<String, BackendError> {
   log::info!("Getting mnemonic for: {account_id}");
-  let id = wallet_storage::AccountId::new(DEFAULT_WALLET_ACCOUNT_ID.to_string());
+  let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let account_id = wallet_storage::AccountId::new(account_id);
   let password = wallet_storage::UserPassword::new(password);
   let stored_account = wallet_storage::load_existing_wallet_login_information(&id, &password)?;
@@ -601,20 +608,24 @@ mod tests {
   fn decrypt_stored_wallet_for_sign_in() {
     const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet.json";
     let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
-    let id = wallet_storage::AccountId::new("first".to_string());
+    let login_id = wallet_storage::LoginId::new("first".to_string());
+    let account_id = wallet_storage::AccountId::new("first".to_string());
     let password = wallet_storage::UserPassword::new("password".to_string());
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
 
-    let stored_login =
-      wallet_storage::load_existing_wallet_login_information_at_file(wallet_file, &id, &password)
-        .unwrap();
+    let stored_login = wallet_storage::load_existing_wallet_login_information_at_file(
+      wallet_file,
+      &login_id,
+      &password,
+    )
+    .unwrap();
     let mnemonic = extract_first_mnemonic(&stored_login).unwrap();
 
     let expected_mnemonic = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
     assert_eq!(mnemonic, expected_mnemonic);
 
     let all_accounts: Vec<_> = stored_login
-      .unwrap_into_multiple_accounts(id.clone())
+      .unwrap_into_multiple_accounts(account_id.clone())
       .into_accounts()
       .collect();
 
@@ -622,7 +633,7 @@ mod tests {
       all_accounts,
       vec![
         wallet_storage::account_data::WalletAccount::new_mnemonic_backed_account(
-          id,
+          account_id,
           expected_mnemonic,
           hd_path
         )

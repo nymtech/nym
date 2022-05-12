@@ -21,7 +21,7 @@ use zeroize::Zeroize;
 use crate::error::BackendError;
 
 use super::encryption::EncryptedData;
-use super::password::AccountId;
+use super::password::{AccountId, LoginId};
 use super::UserPassword;
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
@@ -56,10 +56,7 @@ impl StoredWallet {
     Ok(())
   }
 
-  fn get_encrypted_login(
-    &self,
-    id: &AccountId,
-  ) -> Result<&EncryptedData<StoredLogin>, BackendError> {
+  fn get_encrypted_login(&self, id: &LoginId) -> Result<&EncryptedData<StoredLogin>, BackendError> {
     self
       .accounts
       .iter()
@@ -68,10 +65,7 @@ impl StoredWallet {
       .ok_or(BackendError::NoSuchIdInWallet)
   }
 
-  fn get_encrypted_login_mut(
-    &mut self,
-    id: &AccountId,
-  ) -> Result<&mut EncryptedLogin, BackendError> {
+  fn get_encrypted_login_mut(&mut self, id: &LoginId) -> Result<&mut EncryptedLogin, BackendError> {
     self
       .accounts
       .iter_mut()
@@ -91,7 +85,7 @@ impl StoredWallet {
     Ok(())
   }
 
-  pub fn remove_encrypted_login(&mut self, id: &AccountId) -> Option<EncryptedLogin> {
+  pub fn remove_encrypted_login(&mut self, id: &LoginId) -> Option<EncryptedLogin> {
     if let Some(index) = self.accounts.iter().position(|account| &account.id == id) {
       log::info!("Removing from wallet file: {id}");
       Some(self.accounts.remove(index))
@@ -103,7 +97,7 @@ impl StoredWallet {
 
   pub fn decrypt_login(
     &self,
-    id: &AccountId,
+    id: &LoginId,
     password: &UserPassword,
   ) -> Result<StoredLogin, BackendError> {
     self.get_encrypted_login(id)?.decrypt_struct(password)
@@ -134,7 +128,7 @@ impl Default for StoredWallet {
 /// Each entry in the stored wallet file. An id field in plaintext and an encrypted stored login.
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct EncryptedLogin {
-  pub id: AccountId,
+  pub id: LoginId,
   pub account: EncryptedData<StoredLogin>,
 }
 

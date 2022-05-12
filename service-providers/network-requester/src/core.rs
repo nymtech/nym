@@ -3,14 +3,14 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
+use crate::statistics::{Statistics, StatsData, Timer};
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::{ClientEncryptionKey, ClientIdentity, Recipient};
-use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
@@ -200,6 +200,7 @@ impl ServiceProvider {
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
+        stats: &mut Statistics,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -219,30 +220,16 @@ impl ServiceProvider {
                 ),
 
                 Request::Send(conn_id, data, closed) => {
-                    mix_input_sender
-                        .unbounded_send((
-                            Response::new(conn_id, vec![10u8], false),
-                            Recipient::new(
-                                ClientIdentity::from_base58_string(
-                                    "HqYWvCcB4sswYiyMj5Q8H5oc71kLf96vfrLK3npM7stH",
-                                )
-                                .unwrap(),
-                                ClientEncryptionKey::from_base58_string(
-                                    "CoeC5dcqurgdxr5zcgU77nZBSBCc8ntCiwUivQ9TX3KT",
-                                )
-                                .unwrap(),
-                                NodeIdentity::from_base58_string(
-                                    "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
-                                )
-                                .unwrap(),
-                            ),
-                        ))
-                        .unwrap();
+                    stats.processed(data.len());
+                    stats.maybe_send(mix_input_sender);
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
             Socks5Message::Response(deserialized_response) => {
-                println!("Received the magic number {:?}", deserialized_response.data);
+                match StatsData::from_bytes(&deserialized_response.data) {
+                    Ok(data) => println!("{}", data),
+                    Err(e) => error!("Malformed statistics received: {}", e),
+                }
             }
         }
     }
@@ -258,6 +245,11 @@ impl ServiceProvider {
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) = mpsc::unbounded::<(Response, Recipient)>();
 
+        let (mut timer_sender, timer_receiver) = Timer::new();
+        tokio::spawn(async move {
+            timer_sender.run().await;
+        });
+
         // controller for managing all active connections
         let (mut active_connections_controller, mut controller_sender) = Controller::new();
         tokio::spawn(async move {
@@ -271,6 +263,7 @@ impl ServiceProvider {
 
         println!("\nAll systems go. Press CTRL-C to stop the server.");
 
+        let mut stats = Statistics::new(String::from("Requests"), timer_receiver);
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
             let received = match Self::read_websocket_message(&mut websocket_reader).await {
@@ -284,7 +277,12 @@ impl ServiceProvider {
             let raw_message = received.message;
             // TODO: here be potential SURB (i.e. received.reply_SURB)
 
-            self.handle_proxy_request(&raw_message, &mut controller_sender, &mix_input_sender)
+            self.handle_proxy_request(
+                &raw_message,
+                &mut controller_sender,
+                &mix_input_sender,
+                &mut stats,
+            )
         }
     }
 

@@ -3164,6 +3164,7 @@ dependencies = [
 name = "nym-network-requester"
 version = "1.0.1"
 dependencies = [
+ "bincode",
  "clap 2.34.0",
  "dirs",
  "futures",
@@ -3175,7 +3176,9 @@ dependencies = [
  "proxy-helpers",
  "publicsuffix",
  "rand 0.7.3",
+ "serde",
  "socks5-requests",
+ "thiserror",
  "tokio",
  "tokio-tungstenite",
  "websocket-requests",

@@ -1,13 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::types::{BlockHeight, DealerDetails};
+use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub(crate) struct Event {
-    height: BlockHeight,
-    event_type: EventType,
+    pub(crate) height: BlockHeight,
+    pub(crate) event_type: EventType,
 }
 
 impl Event {
@@ -27,8 +27,14 @@ impl Display for Event {
 }
 
 #[derive(Debug)]
+pub(crate) enum DealerChange {
+    Addition { details: DealerDetails },
+    Removal { address: Addr },
+}
+
+#[derive(Debug)]
 pub(crate) enum EventType {
-    NewDealerIdentity { details: DealerDetails },
+    DealerSetChange { changes: Vec<DealerChange> },
     NewDealingCommitment,
 }
 
@@ -36,8 +42,8 @@ impl Display for EventType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "EventType - ")?;
         match self {
-            EventType::NewDealerIdentity { details } => {
-                write!(f, "NewDealerIdentity for {}", details.address)
+            EventType::DealerSetChange { changes } => {
+                write!(f, "DealerSetChange with {} changes", changes.len())
             }
             EventType::NewDealingCommitment => write!(f, "NewDealingCommitment"),
         }

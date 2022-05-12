@@ -6,10 +6,11 @@ use crate::dkg::state::StateAccessor;
 use crate::Client;
 use coconut_dkg_common::types::EpochState;
 use log::warn;
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
 
-pub(crate) use event::{Event, EventType};
+pub(crate) use event::{DealerChange, Event, EventType};
 use validator_client::nymd::SigningCosmWasmClient;
 
 mod event;
@@ -24,39 +25,66 @@ impl<C> Watcher<C>
 where
     C: SigningCosmWasmClient + Send + Sync,
 {
-    async fn try_get_new_dealers(&self) -> Result<(), DkgError> {
+    async fn check_for_dealers(&self) -> Result<(), DkgError> {
+        // get current state
         let known_dealers = self.state_accessor.get_known_dealers().await;
         let bad_dealers = self.state_accessor.get_malformed_dealers().await;
 
+        // get data from the contract
         let current_height = self.client.current_block_height().await?.value();
-        let current_dealers = self.client.get_current_dealers().await?;
-        for dealer in current_dealers {
-            let is_bad = bad_dealers.contains(&dealer.address);
+        let contract_dealers = self.client.get_current_dealers().await?;
+        let contract_dealers = contract_dealers
+            .into_iter()
+            .map(|dealer| (dealer.address.clone(), dealer))
+            .collect::<HashMap<_, _>>();
+
+        // TODO: this would probably have to get generalised since we'd need to use the same logic
+        // for other possible events
+
+        let mut changes = Vec::new();
+
+        // check for removed dealers (if our lists contain keys that do not exist in the contract,
+        // it implies they got purged from there)
+        for dealer in bad_dealers
+            .keys()
+            .chain(known_dealers.values().map(|dealer| &dealer.chain_address))
+        {
+            if !contract_dealers.contains_key(dealer) {
+                changes.push(DealerChange::Removal {
+                    address: dealer.clone(),
+                });
+            }
+        }
+
+        // check for new dealers
+        for (dealer, details) in contract_dealers {
+            let is_bad = bad_dealers.contains_key(&dealer);
             // ideally we would have been accessing the hashmap by address, but it would make
             // other parts inconvenient. However, we're extremely unlikely to have more than 100 dealers
             // anyway, so the overhead of iterating over the entire map is minimal
             let is_known = known_dealers
                 .values()
-                .any(|known_dealer| known_dealer.chain_address == dealer.address);
+                .any(|known_dealer| known_dealer.chain_address == dealer);
 
             // we had absolutely no idea about this dealer existing
             if !is_bad || !is_known {
-                let watcher_event = self::Event::new(
-                    current_height,
-                    EventType::NewDealerIdentity { details: dealer },
-                );
-                self.state_accessor
-                    .push_contract_change_event(watcher_event)
-                    .await;
+                changes.push(DealerChange::Addition { details });
             }
         }
+
+        self.state_accessor
+            .push_contract_change_event(Event::new(
+                current_height,
+                EventType::DealerSetChange { changes },
+            ))
+            .await;
 
         Ok(())
     }
 
     async fn perform_epoch_state_based_actions(&self, state: EpochState) -> Result<(), DkgError> {
         match state {
-            EpochState::PublicKeySubmission { .. } => self.try_get_new_dealers().await,
+            EpochState::PublicKeySubmission { .. } => self.check_for_dealers().await,
             EpochState::DealingExchange { .. } => todo!(),
             EpochState::ComplaintSubmission { .. } => todo!(),
             EpochState::ComplaintVoting { .. } => todo!(),

@@ -5,14 +5,14 @@ use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch, NodeInd
 use crypto::asymmetric::identity;
 use dkg::{bte, Dealing};
 use futures::lock::Mutex;
+use log::error;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 mod accessor;
 
-use crate::dkg::error::DkgError;
 pub(crate) use accessor::StateAccessor;
 
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
@@ -27,8 +27,15 @@ pub(crate) struct Dealer {
     pub(crate) remote_address: SocketAddr,
 }
 
+impl Dealer {
+    pub(crate) fn map_key(&self) -> IdentityBytes {
+        self.identity.to_bytes()
+    }
+}
+
 // TODO: move it elsewhere and propagate it to the contract
-pub enum MalformedDealer {
+#[derive(Debug)]
+pub enum Malformation {
     MalformedEd25519PublicKey,
     MalformedBTEPublicKey,
     InvalidBTEPublicKey,
@@ -36,35 +43,48 @@ pub enum MalformedDealer {
 }
 
 impl Dealer {
-    pub(crate) fn try_parse_from_raw(
-        contract_value: DealerDetails,
-    ) -> Result<Self, MalformedDealer> {
+    pub(crate) fn try_parse_from_raw(contract_value: &DealerDetails) -> Result<Self, Malformation> {
         // this should be impossible as the contract must have used this key for signature verification
-        let identity = identity::PublicKey::from_base58_string(contract_value.ed25519_public_key)
-            .map_err(|_| MalformedDealer::MalformedEd25519PublicKey)?;
+        let identity = identity::PublicKey::from_base58_string(&contract_value.ed25519_public_key)
+            .map_err(|_| Malformation::MalformedEd25519PublicKey)?;
 
-        let bte_public_key = bs58::decode(contract_value.bte_public_key_with_proof)
+        let bte_public_key = bs58::decode(&contract_value.bte_public_key_with_proof)
             .into_vec()
             .map(|bytes| bte::PublicKeyWithProof::try_from_bytes(&bytes))
-            .map_err(|_| MalformedDealer::MalformedBTEPublicKey)?
-            .map_err(|_| MalformedDealer::MalformedBTEPublicKey)?;
+            .map_err(|_| Malformation::MalformedBTEPublicKey)?
+            .map_err(|_| Malformation::MalformedBTEPublicKey)?;
 
         if !bte_public_key.verify() {
-            return Err(MalformedDealer::InvalidBTEPublicKey);
+            return Err(Malformation::InvalidBTEPublicKey);
         }
 
         let parsed_host = contract_value
             .host
             .parse()
-            .map_err(|_| MalformedDealer::InvalidHostInformation)?;
+            .map_err(|_| Malformation::InvalidHostInformation)?;
 
         Ok(Dealer {
-            chain_address: contract_value.address,
+            chain_address: contract_value.address.clone(),
             node_index: contract_value.assigned_index,
             bte_public_key,
             identity,
             remote_address: parsed_host,
         })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) enum MalformedDealer {
+    Raw(DealerDetails),
+    Parsed(Dealer),
+}
+
+impl MalformedDealer {
+    pub(crate) fn address(&self) -> &Addr {
+        match self {
+            MalformedDealer::Raw(dealer) => &dealer.address,
+            MalformedDealer::Parsed(dealer) => &dealer.chain_address,
+        }
     }
 }
 
@@ -90,9 +110,9 @@ struct DkgStateInner {
 
     expected_epoch_dealing_digests: HashMap<IdentityBytes, [u8; 32]>,
 
-    // we need to keep track of all bad dealers as well so that we wouldn't attempt to compalaint about them
+    // we need to keep track of all bad dealers as well so that we wouldn't attempt to complaint about them
     // repeatedly
-    bad_dealers: HashSet<Addr>,
+    bad_dealers: HashMap<Addr, MalformedDealer>,
     current_epoch_dealers: HashMap<IdentityBytes, Dealer>,
     verified_epoch_dealings: HashMap<IdentityBytes, ReceivedDealing>,
     unconfirmed_dealings: HashMap<IdentityBytes, ReceivedDealing>,
@@ -137,7 +157,70 @@ impl DkgState {
         self.inner.lock().await.current_epoch_dealers.clone()
     }
 
-    pub(crate) async fn get_malformed_dealers(&self) -> HashSet<Addr> {
+    pub(crate) async fn get_malformed_dealers(&self) -> HashMap<Addr, MalformedDealer> {
         self.inner.lock().await.bad_dealers.clone()
+    }
+
+    pub(crate) async fn update_last_seen_height(&self, new_last_seen: BlockHeight) {
+        self.inner.lock().await.last_seen_height = new_last_seen;
+    }
+
+    pub(crate) async fn try_add_new_dealer(&self, dealer: Dealer) {
+        // TODO: perhaps we should panic or something instead since this should have never occured in the first place?
+        if let Some(old_dealer) = self
+            .inner
+            .lock()
+            .await
+            .current_epoch_dealers
+            .insert(dealer.map_key(), dealer)
+        {
+            error!(
+                "We have overwritten {} dealer details",
+                old_dealer.chain_address
+            )
+        }
+    }
+
+    pub(crate) async fn try_add_malformed_dealer(&self, dealer_details: MalformedDealer) {
+        // TODO: perhaps we should panic or something instead since this should have never occured in the first place?
+        if let Some(old_dealer) = self
+            .inner
+            .lock()
+            .await
+            .bad_dealers
+            .insert(dealer_details.address().clone(), dealer_details)
+        {
+            error!(
+                "We have overwritten {} dealer details",
+                old_dealer.address()
+            )
+        }
+    }
+
+    pub(crate) async fn try_remove_dealer(&self, dealer_address: Addr) {
+        let mut guard = self.inner.lock().await;
+
+        // dealer is in either bad dealers or known dealers, never both,
+        // so if we managed to remove it from the former, we don't need to check the latter
+        if guard.bad_dealers.remove(&dealer_address).is_none() {
+            // find storage key associated with the entry we want to remove
+            let storage_key = guard
+                .current_epoch_dealers
+                .values()
+                .find(|&dealer| dealer.chain_address == dealer_address)
+                .map(|dealer| dealer.map_key());
+
+            match storage_key {
+                Some(key) => {
+                    guard.current_epoch_dealers.remove(&key);
+                }
+                // this should be impossible as in order to get to this point we must have learned about
+                // this dealer existing somewhere in our state!
+                None => error!(
+                    "We failed to remove {} dealer details as it somehow doesn't exist!",
+                    dealer_address
+                ),
+            }
+        }
     }
 }

@@ -44,6 +44,16 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
   get_storage_directory().map(|dir| dir.join(WALLET_INFO_FILENAME))
 }
 
+fn write_to_file(filepath: &PathBuf, wallet: &StoredWallet) -> Result<(), BackendError> {
+  let file = OpenOptions::new()
+    .create(true)
+    .write(true)
+    .truncate(true)
+    .open(filepath)?;
+
+  Ok(serde_json::to_writer_pretty(file, &wallet)?)
+}
+
 /// Load stored wallet file
 #[allow(unused)]
 pub(crate) fn load_existing_wallet() -> Result<StoredWallet, BackendError> {
@@ -122,13 +132,7 @@ fn store_login_at_file(
   let new_encrypted_account = EncryptedLogin::encrypt(id, &new_login, password)?;
   stored_wallet.add_encrypted_login(new_encrypted_account)?;
 
-  let file = OpenOptions::new()
-    .create(true)
-    .write(true)
-    .truncate(true)
-    .open(filepath)?;
-
-  Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+  write_to_file(filepath, &stored_wallet)
 }
 
 pub(crate) fn store_login_with_multiple_accounts(
@@ -170,13 +174,7 @@ fn store_login_with_multiple_accounts_at_file(
 
   stored_wallet.add_encrypted_login(new_encrypted_login)?;
 
-  let file = OpenOptions::new()
-    .create(true)
-    .write(true)
-    .truncate(true)
-    .open(filepath)?;
-
-  Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+  write_to_file(filepath, &stored_wallet)
 }
 
 /// Append an account to an already existing top-level encrypted account entry.
@@ -224,13 +222,7 @@ fn append_account_to_login_at_file(
 
   stored_wallet.replace_encrypted_login(encrypted_accounts)?;
 
-  let file = OpenOptions::new()
-    .create(true)
-    .write(true)
-    .truncate(true)
-    .open(filepath)?;
-
-  Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+  write_to_file(filepath, &stored_wallet)
 }
 
 /// Remove the entire encrypted login entry for the given `id`. This means potentially removing all
@@ -262,13 +254,7 @@ fn remove_login_at_file(filepath: &PathBuf, id: &LoginId) -> Result<(), BackendE
     log::info!("Removing file: {:#?}", filepath);
     Ok(fs::remove_file(filepath)?)
   } else {
-    let file = OpenOptions::new()
-      .create(true)
-      .write(true)
-      .truncate(true)
-      .open(filepath)?;
-
-    Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+    write_to_file(filepath, &stored_wallet)
   }
 }
 
@@ -327,13 +313,7 @@ fn remove_account_from_login_at_file(
     log::info!("Removing file: {:#?}", filepath);
     Ok(fs::remove_file(filepath)?)
   } else {
-    let file = OpenOptions::new()
-      .create(true)
-      .write(true)
-      .truncate(true)
-      .open(filepath)?;
-
-    Ok(serde_json::to_writer_pretty(file, &stored_wallet)?)
+    write_to_file(filepath, &stored_wallet)
   }
 }
 

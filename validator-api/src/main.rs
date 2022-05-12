@@ -14,6 +14,7 @@ use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
 use contract_cache::ValidatorCache;
+use dotenv::dotenv;
 use log::{info, warn};
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -558,12 +559,16 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 async fn main() -> Result<()> {
     println!("Starting validator api...");
 
+    dotenv().ok();
+
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
-        // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
     }}
 
     setup_logging();
-    let args = parse_args();
-    run_validator_api(args).await
+    // let args = parse_args();
+    // run_validator_api(args).await
+
+    crate::dkg::dkg_only_main().await
 }

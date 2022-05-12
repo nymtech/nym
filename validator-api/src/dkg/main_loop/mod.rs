@@ -29,6 +29,20 @@ pub(crate) struct ProcessingLoop<C> {
 }
 
 impl<C> ProcessingLoop<C> {
+    pub(crate) fn new(
+        dkg_state: DkgState,
+        dispatcher_sender: DispatcherSender,
+        contract_events_receiver: ContractEventsReceiver,
+        contract_publisher: Publisher<C>,
+    ) -> Self {
+        ProcessingLoop {
+            dkg_state,
+            dispatcher_sender,
+            contract_events_receiver,
+            contract_publisher,
+        }
+    }
+
     async fn raise_malformed_dealer_complaint(
         &self,
         dealer_address: Addr,

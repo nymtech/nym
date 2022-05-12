@@ -102,9 +102,15 @@ pub struct ReceivedDealing {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DkgStateInner {
+    submitted_keys: bool,
+    submitted_commitment: bool,
+    submitted_verification_keys: bool,
+    assigned_index: NodeIndex,
+    signing_key: identity::PrivateKey,
+    signing_public_key: identity::PublicKey,
+
     last_seen_height: BlockHeight,
     bte_decryption_key: bte::DecryptionKey,
-    signing_key: identity::PublicKey,
 
     current_epoch: Epoch,
 
@@ -119,6 +125,17 @@ struct DkgStateInner {
 }
 
 impl DkgState {
+    // this should only ever be called once, during init
+    pub(crate) fn new_fresh() -> Self {
+        // DkgState {
+        //     inner: Arc::new(Mutex::new(DkgStateInner {
+        //         //
+        //     })),
+        // }
+
+        todo!()
+    }
+
     // some save/load action here
     pub(crate) async fn save(&self) {
         todo!()

@@ -4,5 +4,5 @@
 mod dispatcher;
 mod event;
 
-pub(crate) use dispatcher::DispatcherSender;
+pub(crate) use dispatcher::{Dispatcher, DispatcherSender};
 pub(crate) use event::Event;

@@ -12,6 +12,10 @@ impl<C> Publisher<C>
 where
     C: SigningCosmWasmClient + Send + Sync,
 {
+    pub(crate) fn new(client: Client<C>) -> Self {
+        Publisher { client }
+    }
+
     pub(crate) async fn submit_dealing_commitment(&self) {
         // self.client.submit_dealing_commitment().await;
         //

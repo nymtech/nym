@@ -3,3 +3,6 @@
 
 pub(crate) mod publisher;
 pub(crate) mod watcher;
+
+pub(crate) use publisher::Publisher;
+pub(crate) use watcher::Watcher;

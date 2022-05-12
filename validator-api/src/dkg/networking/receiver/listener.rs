@@ -31,7 +31,7 @@ impl<A> Listener<A> {
         );
     }
 
-    async fn run(&mut self)
+    pub(crate) async fn run(&mut self)
     where
         A: ToSocketAddrs + Display,
     {

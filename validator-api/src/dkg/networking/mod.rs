@@ -3,7 +3,7 @@
 
 pub(crate) mod codec;
 pub(crate) mod message;
-mod receiver;
-mod sender;
+pub(crate) mod receiver;
+pub(crate) mod sender;
 
 pub(crate) const PROTOCOL_VERSION: u32 = 1;

@@ -14,6 +14,7 @@ pub(crate) type DealingReceiver = mpsc::UnboundedReceiver<NewDealingMessage>;
 pub(crate) type DealingSender = mpsc::UnboundedSender<NewDealingMessage>;
 
 pub(crate) struct Processor {
+    // TODO: should it hold the actual dkg_state or rather the stateaccessor and emit events regarding processed dealing?
     dkg_state: DkgState,
     receiver: DealingReceiver,
 }

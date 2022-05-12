@@ -17,14 +17,26 @@ mod event;
 
 pub(crate) struct Watcher<C> {
     client: Client<C>,
-    polling_rate: Duration,
     state_accessor: StateAccessor,
+    polling_rate: Duration,
 }
 
 impl<C> Watcher<C>
 where
     C: SigningCosmWasmClient + Send + Sync,
 {
+    pub(crate) fn new(
+        client: Client<C>,
+        state_accessor: StateAccessor,
+        polling_rate: Duration,
+    ) -> Self {
+        Watcher {
+            client,
+            state_accessor,
+            polling_rate,
+        }
+    }
+
     async fn check_for_dealers(&self) -> Result<(), DkgError> {
         // get current state
         let known_dealers = self.state_accessor.get_known_dealers().await;

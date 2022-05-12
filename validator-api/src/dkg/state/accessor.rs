@@ -19,6 +19,13 @@ pub(crate) struct StateAccessor {
 }
 
 impl StateAccessor {
+    pub(crate) fn new(dkg_state: DkgState, dispatcher_sender: DispatcherSender) -> Self {
+        StateAccessor {
+            dkg_state,
+            dispatcher_sender,
+        }
+    }
+
     pub(crate) async fn push_event(&self, event: Event) {
         if let Err(err) = self.dispatcher_sender.unbounded_send(event) {
             log::error!("Our event dispatcher failed to receive {} event - it has presumably crashed. Shutting down the API after saving DKG state", err.into_inner());

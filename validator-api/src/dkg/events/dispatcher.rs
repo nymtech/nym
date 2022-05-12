@@ -21,6 +21,18 @@ pub(crate) struct Dispatcher {
 }
 
 impl Dispatcher {
+    pub(crate) fn new(
+        event_receiver: DispatcherReceiver,
+        dealing_processor: DealingSender,
+        contract_event_sender: ContractEventsSender,
+    ) -> Self {
+        Dispatcher {
+            event_receiver,
+            dealing_processor,
+            contract_event_sender,
+        }
+    }
+
     // we require `T` to be explicitly `Display` for the purposes of providing better error messages
     // before crashing
     fn forward_event<T: Display>(&self, channel: &mpsc::UnboundedSender<T>, event_item: T) {

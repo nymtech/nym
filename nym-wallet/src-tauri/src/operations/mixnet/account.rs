@@ -372,7 +372,7 @@ pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendEr
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
-  wallet_storage::store_wallet_login_with_multiple_accounts(mnemonic, hd_path, id, &password)
+  wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, id, &password)
 }
 
 #[tauri::command]
@@ -385,7 +385,7 @@ pub async fn sign_in_with_password(
   // Currently we only support a single, default, id in the wallet
   let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let password = wallet_storage::UserPassword::new(password);
-  let stored_login = wallet_storage::load_existing_wallet_login(&id, &password)?;
+  let stored_login = wallet_storage::load_existing_login(&id, &password)?;
 
   let mnemonic = extract_first_mnemonic(&stored_login)?;
   let first_id_when_converting = id.into();
@@ -417,7 +417,7 @@ fn extract_first_mnemonic(
 pub fn remove_password() -> Result<(), BackendError> {
   log::info!("Removing password");
   let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-  wallet_storage::remove_wallet_login(&id)
+  wallet_storage::remove_login(&id)
 }
 
 #[tauri::command]
@@ -435,7 +435,7 @@ pub async fn add_account_for_password(
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
   let password = wallet_storage::UserPassword::new(password.to_string());
 
-  wallet_storage::append_account_to_wallet_login(
+  wallet_storage::append_account_to_login(
     mnemonic.clone(),
     hd_path,
     id.clone(),
@@ -451,7 +451,7 @@ pub async fn add_account_for_password(
 
   // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
   // incrementally
-  let stored_login = wallet_storage::load_existing_wallet_login(&id, &password)?;
+  let stored_login = wallet_storage::load_existing_login(&id, &password)?;
   // NOTE: since we are appending, this id shouldn't be needed, but setting the state is supposed
   // to be a general function
   let first_id_when_converting = id.into();
@@ -495,10 +495,10 @@ pub async fn remove_account_for_password(
   let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let inner_id = wallet_storage::AccountId::new(inner_id.to_string());
   let password = wallet_storage::UserPassword::new(password.to_string());
-  wallet_storage::remove_account_from_wallet_login(&id, &inner_id, &password)?;
+  wallet_storage::remove_account_from_login(&id, &inner_id, &password)?;
 
   // Load to reset the internal state
-  let stored_login = wallet_storage::load_existing_wallet_login(&id, &password)?;
+  let stored_login = wallet_storage::load_existing_login(&id, &password)?;
   // NOTE: Since we removed from a multi-account login, this id shouldn't be needed, but setting
   // the state is supposed to be a general function
   let first_id_when_converting = id.into();
@@ -552,7 +552,7 @@ pub fn show_mnemonic_for_account_in_password(
   let id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let account_id = wallet_storage::AccountId::new(account_id);
   let password = wallet_storage::UserPassword::new(password);
-  let stored_account = wallet_storage::load_existing_wallet_login(&id, &password)?;
+  let stored_account = wallet_storage::load_existing_login(&id, &password)?;
 
   let mnemonic = match stored_account {
     wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
@@ -616,7 +616,7 @@ mod tests {
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
 
     let stored_login =
-      wallet_storage::load_existing_wallet_login_at_file(wallet_file, &login_id, &password)
+      wallet_storage::load_existing_login_at_file(wallet_file, &login_id, &password)
         .unwrap();
     let mnemonic = extract_first_mnemonic(&stored_login).unwrap();
 

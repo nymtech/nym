@@ -28,13 +28,18 @@ static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
     listening_address: String,
+    description: String,
     db_path: PathBuf,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
 }
 
 impl ServiceProvider {
-    pub fn new(listening_address: String, open_proxy: bool) -> ServiceProvider {
+    pub fn new(
+        listening_address: String,
+        description: String,
+        open_proxy: bool,
+    ) -> ServiceProvider {
         let allowed_hosts = HostsStore::new(
             HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),
@@ -53,6 +58,7 @@ impl ServiceProvider {
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
             listening_address,
+            description,
             db_path,
             outbound_request_filter,
             open_proxy,
@@ -280,7 +286,7 @@ impl ServiceProvider {
             active_connections_controller.run().await;
         });
 
-        let mut stats = Statistics::new(String::from("Open proxy"), interval, timer_receiver);
+        let mut stats = Statistics::new(self.description.clone(), interval, timer_receiver);
         let request_stats_data = Arc::clone(stats.request_data());
         let response_stats_data = Arc::clone(stats.response_data());
         let mix_input_sender_clone = mix_input_sender.clone();

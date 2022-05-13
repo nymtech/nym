@@ -14,6 +14,7 @@ mod websocket;
 
 const OPEN_PROXY_ARG: &str = "open-proxy";
 const WS_PORT: &str = "websocket-port";
+const DESCRIPTION: &str = "description";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
@@ -31,6 +32,14 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(WS_PORT)
                 .short("p")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(DESCRIPTION)
+                .help("service description")
+                .long(DESCRIPTION)
+                .short("d")
+                .takes_value(true)
+                .default_value("undefined"),
         )
         .get_matches()
 }
@@ -51,8 +60,10 @@ async fn main() {
             .value_of(WS_PORT)
             .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
     );
+
+    let description = matches.value_of(DESCRIPTION).unwrap().to_string();
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri, open_proxy);
+    let mut server = core::ServiceProvider::new(uri, description, open_proxy);
     server.run().await;
 }
 

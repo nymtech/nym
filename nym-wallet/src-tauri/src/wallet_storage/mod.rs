@@ -348,7 +348,6 @@ mod tests {
   fn store_single_login() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -370,7 +369,6 @@ mod tests {
   fn store_single_login_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -399,7 +397,6 @@ mod tests {
   fn store_twice_for_the_same_id_fails() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -426,7 +423,6 @@ mod tests {
   fn store_twice_for_the_same_id_fails_with_multiple() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -453,7 +449,6 @@ mod tests {
   fn load_with_wrong_password_fails() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -473,7 +468,6 @@ mod tests {
   fn load_with_wrong_password_fails_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -500,7 +494,6 @@ mod tests {
   fn load_with_wrong_id_fails() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -520,7 +513,6 @@ mod tests {
   fn load_with_wrong_id_fails_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -541,7 +533,6 @@ mod tests {
   fn store_and_load_a_single_login() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -566,7 +557,6 @@ mod tests {
   fn store_and_load_a_single_login_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let acc1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let password = UserPassword::new("password".to_string());
@@ -596,14 +586,11 @@ mod tests {
   fn store_a_second_login_with_a_different_password_fails() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
     let bad_password = UserPassword::new("bad-password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -627,14 +614,11 @@ mod tests {
   fn store_a_second_login_with_a_different_password_fails_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
     let bad_password = UserPassword::new("bad-password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -664,14 +648,11 @@ mod tests {
   fn store_two_mnemonic_accounts_gives_different_salts_and_iv() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let different_hd_path: DerivationPath = "m".parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -707,14 +688,11 @@ mod tests {
   fn store_two_mnemonic_accounts_using_two_logins() {
     let store_dir = tempdir().unwrap();
     let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let different_hd_path: DerivationPath = "m".parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -759,14 +737,11 @@ mod tests {
   fn store_one_mnemonic_account_and_one_multi_account() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let different_hd_path: DerivationPath = "m".parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -816,12 +791,9 @@ mod tests {
   fn remove_non_existent_id_fails() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -839,14 +811,11 @@ mod tests {
   fn store_and_remove_wallet_login_information() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     let different_hd_path: DerivationPath = "m".parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
 
@@ -912,13 +881,10 @@ mod tests {
   fn append_account_converts_the_type() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = AccountId::new("second".to_string());
 
@@ -962,15 +928,12 @@ mod tests {
   fn append_accounts_to_existing_login() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let account3 = bip39::Mnemonic::generate(24).unwrap();
     let account4 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
     let id3 = AccountId::new("third".to_string());
@@ -1041,15 +1004,12 @@ mod tests {
   fn append_accounts_to_existing_login_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let account3 = bip39::Mnemonic::generate(24).unwrap();
     let account4 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
     let id3 = AccountId::new("third".to_string());
@@ -1121,13 +1081,10 @@ mod tests {
   fn delete_the_same_account_twice_for_a_login_fails() {
     let store_dir = tempdir().unwrap();
     let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = AccountId::new("second".to_string());
 
@@ -1155,13 +1112,10 @@ mod tests {
   fn delete_the_same_account_twice_for_a_login_fails_with_multi() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = AccountId::new("second".to_string());
 
@@ -1196,14 +1150,11 @@ mod tests {
   fn delete_appended_account_doesnt_affect_others() {
     let store_dir = tempdir().unwrap();
     let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let account3 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
     let id3 = AccountId::new("third".to_string());
@@ -1253,13 +1204,10 @@ mod tests {
   fn remove_all_accounts_for_a_login_removes_the_file_when_empty() {
     let store_dir = tempdir().unwrap();
     let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = AccountId::new("second".to_string());
 
@@ -1300,14 +1248,11 @@ mod tests {
   fn remove_all_accounts_for_a_login_removes_that_login() {
     let store_dir = tempdir().unwrap();
     let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let account1 = bip39::Mnemonic::generate(24).unwrap();
     let account2 = bip39::Mnemonic::generate(24).unwrap();
     let account3 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = AccountId::new("second".to_string());
     let id3 = LoginId::new("third".to_string());
@@ -1365,15 +1310,12 @@ mod tests {
   fn append_accounts_and_remove_appended_accounts() {
     let store_dir = tempdir().unwrap();
     let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-
     let acc1 = bip39::Mnemonic::generate(24).unwrap();
     let acc2 = bip39::Mnemonic::generate(24).unwrap();
     let acc3 = bip39::Mnemonic::generate(24).unwrap();
     let acc4 = bip39::Mnemonic::generate(24).unwrap();
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-
     let password = UserPassword::new("password".to_string());
-
     let id1 = LoginId::new("first".to_string());
     let id2 = LoginId::new("second".to_string());
     let id3 = AccountId::new("third".to_string());

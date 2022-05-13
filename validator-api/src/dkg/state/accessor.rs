@@ -4,9 +4,9 @@
 use crate::dkg::events::{DispatcherSender, Event};
 use crate::dkg::smart_contract::watcher;
 use crate::dkg::state::{Dealer, DkgState, IdentityBytes, MalformedDealer, ReceivedDealing};
-use coconut_dkg_common::types::{Addr, Epoch};
+use coconut_dkg_common::types::{Addr, BlockHeight, Epoch};
 use crypto::asymmetric::identity;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 
 // essentially some intermediary that allows either pushing events to the dispatcher or operating
@@ -29,7 +29,7 @@ impl StateAccessor {
     pub(crate) async fn push_event(&self, event: Event) {
         if let Err(err) = self.dispatcher_sender.unbounded_send(event) {
             log::error!("Our event dispatcher failed to receive {} event - it has presumably crashed. Shutting down the API after saving DKG state", err.into_inner());
-            self.dkg_state.save().await;
+            self.dkg_state.save_to_file().await;
             std::process::exit(1);
         }
     }
@@ -37,6 +37,18 @@ impl StateAccessor {
     pub(crate) async fn push_contract_change_event(&self, event: watcher::Event) {
         self.push_event(Event::new_contract_change_event(event))
             .await
+    }
+
+    pub(crate) async fn push_new_key_submission_event(&self, block_height: BlockHeight) {
+        self.push_event(Event::new_contract_change_event(watcher::Event::new(
+            block_height,
+            watcher::EventType::NewKeySubmission,
+        )))
+        .await
+    }
+
+    pub(crate) async fn has_submitted_keys(&self) -> bool {
+        self.dkg_state.has_submitted_keys().await
     }
 
     pub(crate) async fn current_epoch(&self) -> Epoch {

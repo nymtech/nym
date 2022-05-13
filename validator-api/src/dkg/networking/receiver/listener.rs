@@ -5,6 +5,7 @@
 
 use crate::dkg::networking::receiver::handler::ConnectionHandler;
 use crate::dkg::state::StateAccessor;
+use log::debug;
 use std::fmt::Display;
 use std::net::SocketAddr;
 use std::process;
@@ -35,6 +36,8 @@ impl<A> Listener<A> {
     where
         A: ToSocketAddrs + Display,
     {
+        debug!("starting off-chain DKG Listener");
+
         let listener = match TcpListener::bind(&self.address).await {
             Ok(listener) => listener,
             Err(err) => {

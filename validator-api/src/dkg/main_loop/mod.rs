@@ -104,6 +104,11 @@ impl<C> ProcessingLoop<C> {
         self.dkg_state.try_remove_dealer(dealer_address).await
     }
 
+    async fn process_new_key_submission(&self, height: BlockHeight) {
+        debug!("attempting to register our own dealer keys for this round of dkg");
+        info!(".... but that's not implemented yet....");
+    }
+
     async fn process_dealer_changes(&self, changes: Vec<DealerChange>, height: BlockHeight) {
         debug!(
             "processing dealer set change event with {} changes at height {}",
@@ -121,6 +126,7 @@ impl<C> ProcessingLoop<C> {
 
     async fn process_event(&self, event: watcher::Event) {
         match event.event_type {
+            EventType::NewKeySubmission => self.process_new_key_submission(event.height).await,
             EventType::DealerSetChange { changes } => {
                 self.process_dealer_changes(changes, event.height).await
             }
@@ -129,6 +135,8 @@ impl<C> ProcessingLoop<C> {
     }
 
     pub(crate) async fn run(&mut self) {
+        debug!("starting DKG main processing loop");
+
         while let Some(event) = self.contract_events_receiver.next().await {
             self.process_event(event).await
         }

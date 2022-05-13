@@ -48,6 +48,7 @@ impl fmt::Display for Ed25519RecoveryError {
 impl std::error::Error for Ed25519RecoveryError {}
 
 /// Keypair for usage in ed25519 EdDSA.
+#[derive(Debug)]
 pub struct KeyPair {
     private_key: PrivateKey,
     public_key: PublicKey,

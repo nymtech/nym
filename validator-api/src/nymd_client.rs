@@ -5,7 +5,9 @@ use crate::config::Config;
 use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
-use coconut_dkg_common::types::{DealerDetails, Epoch as DkgEpoch};
+use coconut_dkg_common::types::{
+    BlacklistedDealer, BlacklistingResponse, DealerDetails, Epoch as DkgEpoch,
+};
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
@@ -22,7 +24,7 @@ use validator_client::nymd::error::NymdError;
 use validator_client::nymd::traits::DkgClient;
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    CosmWasmClient, CosmosCoin, Fee, Height, QueryNymdClient, SigningCosmWasmClient,
+    AccountId, CosmWasmClient, CosmosCoin, Fee, Height, QueryNymdClient, SigningCosmWasmClient,
     SigningNymdClient, TendermintTime,
 };
 use validator_client::ValidatorClientError;
@@ -280,6 +282,13 @@ impl<C> Client<C> {
             .await
     }
 
+    pub(crate) async fn address(&self) -> AccountId
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        self.0.read().await.nymd.address().clone()
+    }
+
     #[allow(dead_code)]
     pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
@@ -455,6 +464,19 @@ where
         &self,
     ) -> Result<Vec<DealerDetails>, ValidatorClientError> {
         self.0.read().await.get_all_nymd_past_dealers().await
+    }
+
+    pub(crate) async fn get_blacklisted_dealers(
+        &self,
+    ) -> Result<Vec<BlacklistedDealer>, ValidatorClientError> {
+        self.0.read().await.get_all_nymd_blacklisted_dealers().await
+    }
+
+    pub(crate) async fn get_blacklisting(
+        &self,
+        address: String,
+    ) -> Result<BlacklistingResponse, NymdError> {
+        self.0.read().await.nymd.get_blacklisting(address).await
     }
 
     pub(crate) async fn submit_dealing_commitment(

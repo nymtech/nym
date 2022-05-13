@@ -5,7 +5,7 @@ use crate::dkg::networking::message::NewDealingMessage;
 use crate::dkg::state::DkgState;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::error;
+use log::{debug, error};
 
 // Once the DKG epoch begins, all parties will begin exchanging dealings with each other.
 // We really don't want to be processing all of them in parallel since we would starve other
@@ -31,6 +31,8 @@ impl Processor {
     }
 
     pub(crate) async fn run(&mut self) {
+        debug!("starting Dealing Processor");
+
         while let Some(dealing) = self.receiver.next().await {
             self.process_dealing(dealing).await
         }

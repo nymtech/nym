@@ -6,8 +6,7 @@ use crate::dkg::events::Event;
 use crate::dkg::main_loop::ContractEventsSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::error;
-use log::trace;
+use log::{debug, error, trace};
 use std::fmt::Display;
 
 pub(crate) type DispatcherSender = mpsc::UnboundedSender<Event>;
@@ -56,6 +55,7 @@ impl Dispatcher {
     }
 
     pub(crate) async fn run(&mut self) {
+        debug!("starting Dispatcher");
         while let Some(new_event) = self.event_receiver.next().await {
             self.handle_event(new_event)
         }

@@ -42,13 +42,13 @@ impl Display for Blacklisting {
         if let Some(expiration) = self.expiration {
             write!(
                 f,
-                "blacklisted at block height {}. reason given: {}. Expires at: {}",
+                "blacklisted at block height {}. reason given: {}. expires at: {}",
                 self.height, self.height, expiration
             )
         } else {
             write!(
                 f,
-                "blacklisted at block height {}. reason given: {}",
+                "permanently blacklisted at block height {}. reason given: {}",
                 self.height, self.height
             )
         }
@@ -161,5 +161,18 @@ impl BlacklistingResponse {
             dealer,
             blacklisting,
         }
+    }
+
+    pub fn is_blacklisted(&self, current_height: BlockHeight) -> bool {
+        match self.blacklisting {
+            None => false,
+            Some(blacklisting) => !blacklisting.has_expired(current_height),
+        }
+    }
+
+    pub fn unchecked_get_blacklisting(&self) -> &Blacklisting {
+        self.blacklisting
+            .as_ref()
+            .expect("dealer is not blacklisted")
     }
 }

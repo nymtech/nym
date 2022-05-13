@@ -10,7 +10,7 @@ use crate::Client;
 use crypto::asymmetric::identity;
 use dkg::bte;
 use futures::channel::mpsc;
-use log::info;
+use log::{error, info};
 use rand::rngs::OsRng;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
@@ -111,8 +111,7 @@ fn make_client() -> Client<SigningNymdClient> {
     // this one is irrelevant as we don't need to call it
     let api_url = "http://localhost:8080".parse().unwrap();
 
-    // TODO: this is an incorrect address, but I just wanted to have something compiling
-    let contract_address = "nymt17x6pt4msccvawgxjeg5nmnygttu56tftg5l6j3"
+    let contract_address = "nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr"
         .parse()
         .unwrap();
 
@@ -160,6 +159,5 @@ pub(crate) async fn dkg_only_main() -> anyhow::Result<()> {
         identity: ed25519_keys,
     };
 
-    run_dkg(dkg_config, client).await;
-    Ok(())
+    run_dkg(dkg_config, client).await
 }

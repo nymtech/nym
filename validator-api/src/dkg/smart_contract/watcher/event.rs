@@ -34,6 +34,7 @@ pub(crate) enum DealerChange {
 
 #[derive(Debug)]
 pub(crate) enum EventType {
+    NewKeySubmission,
     DealerSetChange { changes: Vec<DealerChange> },
     NewDealingCommitment,
 }
@@ -42,6 +43,7 @@ impl Display for EventType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "EventType - ")?;
         match self {
+            EventType::NewKeySubmission => write!(f, "NewKeySubmission"),
             EventType::DealerSetChange { changes } => {
                 write!(f, "DealerSetChange with {} changes", changes.len())
             }

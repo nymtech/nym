@@ -4,13 +4,14 @@
 use crate::dkg::error::DkgError;
 use crate::dkg::state::StateAccessor;
 use crate::Client;
-use coconut_dkg_common::types::EpochState;
+use coconut_dkg_common::types::{BlockHeight, DealerDetails, EpochState};
 use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
 
 pub(crate) use event::{DealerChange, Event, EventType};
+use mixnet_contract_common::Addr;
 use validator_client::nymd::SigningCosmWasmClient;
 
 mod event;
@@ -37,22 +38,17 @@ where
         }
     }
 
-    async fn check_for_dealers(&self) -> Result<(), DkgError> {
+    async fn check_for_dealers(
+        &self,
+        contract_dealers: HashMap<Addr, DealerDetails>,
+        current_height: BlockHeight,
+    ) -> Result<(), DkgError> {
         // get current state
         let known_dealers = self.state_accessor.get_known_dealers().await;
         let bad_dealers = self.state_accessor.get_malformed_dealers().await;
 
-        // get data from the contract
-        let current_height = self.client.current_block_height().await?.value();
-        let contract_dealers = self.client.get_current_dealers().await?;
-        let contract_dealers = contract_dealers
-            .into_iter()
-            .map(|dealer| (dealer.address.clone(), dealer))
-            .collect::<HashMap<_, _>>();
-
         // TODO: this would probably have to get generalised since we'd need to use the same logic
         // for other possible events
-
         let mut changes = Vec::new();
 
         // check for removed dealers (if our lists contain keys that do not exist in the contract,
@@ -100,9 +96,65 @@ where
         Ok(())
     }
 
+    async fn check_for_own_submission(
+        &self,
+        contract_dealers: &HashMap<Addr, DealerDetails>,
+        current_height: BlockHeight,
+    ) -> Result<(), DkgError> {
+        // note: normally we want to avoid the unchecked API, however, in this case it's fine as the
+        // `AccountId` is coming from the client is valid as it has been derived directly from the provided mnemonic,
+        // and hence we are certain it is valid
+        let address = Addr::unchecked(self.client.address().await.as_ref());
+        if !contract_dealers.contains_key(&address) {
+            // our key is not present in contract dealers, check if we think we have submitted it
+            if !self.state_accessor.has_submitted_keys().await {
+                // if we just transitioned into `PublicKeySubmission` and we haven't submitted our own keys
+                // we should emit event to do just that
+                debug!("we never registered our own dkg keys");
+                self.state_accessor
+                    .push_new_key_submission_event(current_height)
+                    .await;
+            } else {
+                // check if we got blacklisted, since we think we have submitted our own key...
+                let blacklisting = self.client.get_blacklisting(address.into_string()).await?;
+
+                if blacklisting.is_blacklisted(current_height) {
+                    warn!("our dealer is blacklisted - {}. We cannot participate in this round of DKG", blacklisting.unchecked_get_blacklisting());
+                    // TODO: what to do about it? can we do anything about it?
+                } else {
+                    // we've been blacklisted in the past, but it has already expired
+                    debug!(
+                        "our dealer has been blacklisted in the past, but it has already expired"
+                    );
+                    self.state_accessor
+                        .push_new_key_submission_event(current_height)
+                        .await;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn public_key_submission_actions(&self) -> Result<(), DkgError> {
+        let current_height = self.client.current_block_height().await?.value();
+        let contract_dealers = self
+            .client
+            .get_current_dealers()
+            .await?
+            .into_iter()
+            .map(|dealer| (dealer.address.clone(), dealer))
+            .collect::<HashMap<_, _>>();
+
+        self.check_for_own_submission(&contract_dealers, current_height)
+            .await?;
+        self.check_for_dealers(contract_dealers, current_height)
+            .await
+    }
+
     async fn perform_epoch_state_based_actions(&self, state: EpochState) -> Result<(), DkgError> {
         match state {
-            EpochState::PublicKeySubmission { .. } => self.check_for_dealers().await,
+            EpochState::PublicKeySubmission { .. } => self.public_key_submission_actions().await,
             EpochState::DealingExchange { .. } => todo!(),
             EpochState::ComplaintSubmission { .. } => todo!(),
             EpochState::ComplaintVoting { .. } => todo!(),
@@ -138,6 +190,10 @@ where
             current_epoch.state, prior_epoch.state
         );
 
+        // this is not entirely true, but for time being let's just use it to test basic event propagation
+        self.perform_epoch_state_based_actions(current_epoch.state)
+            .await?;
+
         if prior_epoch.state != current_epoch.state {
             todo!()
         }
@@ -146,6 +202,7 @@ where
     }
 
     pub(crate) async fn run(&self) {
+        debug!("Starting dkg contract poller");
         let mut interval = interval(self.polling_rate);
         loop {
             interval.tick().await;

@@ -1,10 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::Client;
 use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch, NodeIndex};
 use crypto::asymmetric::identity;
 use dkg::{bte, Dealing};
 use futures::lock::Mutex;
+use log::debug;
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,7 +15,9 @@ use std::sync::Arc;
 
 mod accessor;
 
+use crate::dkg::error::DkgError;
 pub(crate) use accessor::StateAccessor;
+use validator_client::nymd::SigningCosmWasmClient;
 
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
 
@@ -88,16 +92,25 @@ impl MalformedDealer {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct DkgState {
-    inner: Arc<Mutex<DkgStateInner>>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReceivedDealing {
     epoch_id: u32,
     dealing: Box<Dealing>,
     signature: identity::Signature,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct DkgState {
+    inner_state: Arc<Mutex<DkgStateInner>>,
+    keys: Arc<Keys>,
+}
+
+// we don't want to serialize/deserialize those as they are treated differently
+#[derive(Debug)]
+struct Keys {
+    identity: identity::KeyPair,
+    bte_decryption_key: bte::DecryptionKey,
+    bte_public_key: bte::PublicKeyWithProof,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -106,11 +119,8 @@ struct DkgStateInner {
     submitted_commitment: bool,
     submitted_verification_keys: bool,
     assigned_index: NodeIndex,
-    signing_key: identity::PrivateKey,
-    signing_public_key: identity::PublicKey,
 
     last_seen_height: BlockHeight,
-    bte_decryption_key: bte::DecryptionKey,
 
     current_epoch: Epoch,
 
@@ -126,23 +136,55 @@ struct DkgStateInner {
 
 impl DkgState {
     // this should only ever be called once, during init
-    pub(crate) fn new_fresh() -> Self {
-        // DkgState {
-        //     inner: Arc::new(Mutex::new(DkgStateInner {
-        //         //
-        //     })),
-        // }
+    pub(crate) async fn initialise_fresh<C>(
+        nyxd_client: &Client<C>,
+        identity: identity::KeyPair,
+        bte_decryption_key: bte::DecryptionKey,
+        bte_public_key: bte::PublicKeyWithProof,
+    ) -> Result<Self, DkgError>
+    where
+        C: SigningCosmWasmClient + Send + Sync,
+    {
+        debug!("attempting to initialise fresh dkg state");
 
+        let current_epoch = nyxd_client.get_dkg_epoch().await?;
+
+        // TODO: IF we didn't load the state from the file, grab all other data from the contract while
+        // we're at it, like dealers, dealing commitments, etc.
+
+        Ok(DkgState {
+            inner_state: Arc::new(Mutex::new(DkgStateInner {
+                submitted_keys: false,
+                submitted_commitment: false,
+                submitted_verification_keys: false,
+                assigned_index: 0,
+                last_seen_height: 0,
+                current_epoch,
+                expected_epoch_dealing_digests: HashMap::new(),
+                bad_dealers: HashMap::new(),
+                current_epoch_dealers: HashMap::new(),
+                verified_epoch_dealings: HashMap::new(),
+                unconfirmed_dealings: HashMap::new(),
+            })),
+            keys: Arc::new(Keys {
+                identity,
+                bte_decryption_key,
+                bte_public_key,
+            }),
+        })
+    }
+
+    pub(crate) async fn load_from_file(&self) {
         todo!()
     }
 
     // some save/load action here
-    pub(crate) async fn save(&self) {
+    pub(crate) async fn save_to_file(&self) {
         todo!()
     }
 
     pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> (bool, Epoch) {
-        let guard = self.inner.lock().await;
+        let guard = self.inner_state.lock().await;
         let epoch = guard.current_epoch;
         let dealers = &guard.current_epoch_dealers;
 
@@ -154,15 +196,19 @@ impl DkgState {
         )
     }
 
+    pub(crate) async fn has_submitted_keys(&self) -> bool {
+        self.inner_state.lock().await.submitted_keys
+    }
+
     pub(crate) async fn current_epoch(&self) -> Epoch {
-        self.inner.lock().await.current_epoch
+        self.inner_state.lock().await.current_epoch
     }
 
     pub(crate) async fn get_verified_dealing(
         &self,
         dealer: identity::PublicKey,
     ) -> Option<ReceivedDealing> {
-        self.inner
+        self.inner_state
             .lock()
             .await
             .verified_epoch_dealings
@@ -171,21 +217,21 @@ impl DkgState {
     }
 
     pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, Dealer> {
-        self.inner.lock().await.current_epoch_dealers.clone()
+        self.inner_state.lock().await.current_epoch_dealers.clone()
     }
 
     pub(crate) async fn get_malformed_dealers(&self) -> HashMap<Addr, MalformedDealer> {
-        self.inner.lock().await.bad_dealers.clone()
+        self.inner_state.lock().await.bad_dealers.clone()
     }
 
     pub(crate) async fn update_last_seen_height(&self, new_last_seen: BlockHeight) {
-        self.inner.lock().await.last_seen_height = new_last_seen;
+        self.inner_state.lock().await.last_seen_height = new_last_seen;
     }
 
     pub(crate) async fn try_add_new_dealer(&self, dealer: Dealer) {
-        // TODO: perhaps we should panic or something instead since this should have never occured in the first place?
+        // TODO: perhaps we should panic or something instead since this should have never occurred in the first place?
         if let Some(old_dealer) = self
-            .inner
+            .inner_state
             .lock()
             .await
             .current_epoch_dealers
@@ -199,9 +245,9 @@ impl DkgState {
     }
 
     pub(crate) async fn try_add_malformed_dealer(&self, dealer_details: MalformedDealer) {
-        // TODO: perhaps we should panic or something instead since this should have never occured in the first place?
+        // TODO: perhaps we should panic or something instead since this should have never occurred in the first place?
         if let Some(old_dealer) = self
-            .inner
+            .inner_state
             .lock()
             .await
             .bad_dealers
@@ -215,7 +261,7 @@ impl DkgState {
     }
 
     pub(crate) async fn try_remove_dealer(&self, dealer_address: Addr) {
-        let mut guard = self.inner.lock().await;
+        let mut guard = self.inner_state.lock().await;
 
         // dealer is in either bad dealers or known dealers, never both,
         // so if we managed to remove it from the former, we don't need to check the latter

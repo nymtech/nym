@@ -81,6 +81,7 @@ pub(crate) fn validate_key_possession_signature(
     owner: &Addr,
     signature: String,
     encoded_key: EncodedEd25519PublicKeyRef<'_>,
+    host: &str,
 ) -> Result<(), ContractError> {
     let mut key_bytes = [0u8; 32];
     let mut signature_bytes = [0u8; 64];
@@ -92,9 +93,12 @@ pub(crate) fn validate_key_possession_signature(
         .into(&mut signature_bytes)
         .map_err(ContractError::MalformedEd25519Signature)?;
 
+    let mut plaintext = owner.to_string();
+    plaintext.push_str(host);
+
     let res = deps
         .api
-        .ed25519_verify(owner.as_bytes(), &signature_bytes, &key_bytes)?;
+        .ed25519_verify(plaintext.as_bytes(), &signature_bytes, &key_bytes)?;
 
     if !res {
         Err(ContractError::InvalidEd25519Signature)
@@ -123,6 +127,7 @@ pub fn try_add_dealer(
         &info.sender,
         owner_signature,
         &ed25519_key,
+        &host,
     ) {
         dealers_storage::blacklist_dealer(
             deps.storage,

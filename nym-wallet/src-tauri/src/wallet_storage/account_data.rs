@@ -50,7 +50,7 @@ impl StoredWallet {
 
   pub fn add_encrypted_login(&mut self, new_login: EncryptedLogin) -> Result<(), BackendError> {
     if self.get_encrypted_login(&new_login.id).is_ok() {
-      return Err(BackendError::IdAlreadyExistsInWallet);
+      return Err(BackendError::WalletLoginIdAlreadyExists);
     }
     self.accounts.push(new_login);
     Ok(())
@@ -62,7 +62,7 @@ impl StoredWallet {
       .iter()
       .find(|account| &account.id == id)
       .map(|account| &account.account)
-      .ok_or(BackendError::NoSuchIdInWallet)
+      .ok_or(BackendError::WalletNoSuchLoginId)
   }
 
   fn get_encrypted_login_mut(&mut self, id: &LoginId) -> Result<&mut EncryptedLogin, BackendError> {
@@ -70,7 +70,7 @@ impl StoredWallet {
       .accounts
       .iter_mut()
       .find(|account| &account.id == id)
-      .ok_or(BackendError::NoSuchIdInWallet)
+      .ok_or(BackendError::WalletNoSuchLoginId)
   }
 
   #[cfg(test)]
@@ -224,7 +224,7 @@ impl MultipleAccounts {
     hd_path: DerivationPath,
   ) -> Result<(), BackendError> {
     if self.get_account(&id).is_some() {
-      Err(BackendError::IdAlreadyExistsInStoredWalletLogin)
+      Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
     } else {
       self.accounts.push(WalletAccount::new(
         id,
@@ -236,7 +236,7 @@ impl MultipleAccounts {
 
   pub(crate) fn remove(&mut self, id: &AccountId) -> Result<(), BackendError> {
     if self.get_account(id).is_none() {
-      return Err(BackendError::NoSuchIdInWalletLoginEntry);
+      return Err(BackendError::WalletNoSuchAccountIdInWalletLogin);
     }
     self.accounts.retain(|accounts| &accounts.id != id);
     Ok(())

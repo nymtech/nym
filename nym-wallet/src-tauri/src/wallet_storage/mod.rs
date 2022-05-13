@@ -248,7 +248,7 @@ fn remove_login_at_file(filepath: &Path, id: &LoginId) -> Result<(), BackendErro
 
   stored_wallet
     .remove_encrypted_login(id)
-    .ok_or(BackendError::NoSuchIdInWallet)?;
+    .ok_or(BackendError::WalletNoSuchLoginId)?;
 
   if stored_wallet.is_empty() {
     log::info!("Removing file: {:#?}", filepath);
@@ -302,7 +302,7 @@ fn remove_account_from_login_at_file(
   if is_empty {
     stored_wallet
       .remove_encrypted_login(id)
-      .ok_or(BackendError::NoSuchIdInWallet)?;
+      .ok_or(BackendError::WalletNoSuchLoginId)?;
   } else {
     let encrypted_accounts = EncryptedLogin::encrypt(id.clone(), &decrypted_login, password)?;
     stored_wallet.replace_encrypted_login(encrypted_accounts)?;
@@ -415,7 +415,7 @@ mod tests {
     // and storing the same id again fails
     assert!(matches!(
       store_login_at_file(&wallet_file, account1, hd_path, id1, &password,),
-      Err(BackendError::IdAlreadyExistsInWallet),
+      Err(BackendError::WalletLoginIdAlreadyExists),
     ));
   }
 
@@ -441,7 +441,7 @@ mod tests {
     // and storing the same id again fails
     assert!(matches!(
       store_login_with_multiple_accounts_at_file(&wallet_file, account1, hd_path, id1, &password,),
-      Err(BackendError::IdAlreadyExistsInWallet),
+      Err(BackendError::WalletLoginIdAlreadyExists),
     ));
   }
 
@@ -505,7 +505,7 @@ mod tests {
     // Trying to load with the wrong id
     assert!(matches!(
       load_existing_login_at_file(&wallet_file, &id2, &password),
-      Err(BackendError::NoSuchIdInWallet),
+      Err(BackendError::WalletNoSuchLoginId),
     ));
   }
 
@@ -525,7 +525,7 @@ mod tests {
     // Trying to load with the wrong id
     assert!(matches!(
       load_existing_login_at_file(&wallet_file, &id2, &password),
-      Err(BackendError::NoSuchIdInWallet),
+      Err(BackendError::WalletNoSuchLoginId),
     ));
   }
 
@@ -803,7 +803,7 @@ mod tests {
     // Fails to delete non-existent id in the wallet
     assert!(matches!(
       remove_login_at_file(&wallet_file, &id2),
-      Err(BackendError::NoSuchIdInWallet),
+      Err(BackendError::WalletNoSuchLoginId),
     ));
   }
 
@@ -860,7 +860,7 @@ mod tests {
     // And we can't load the second one anymore
     assert!(matches!(
       load_existing_login_at_file(&wallet_file, &id2, &password),
-      Err(BackendError::NoSuchIdInWallet),
+      Err(BackendError::WalletNoSuchLoginId),
     ));
 
     // Delete the first account
@@ -1104,7 +1104,7 @@ mod tests {
 
     assert!(matches!(
       remove_account_from_login_at_file(&wallet, &id1, &id2, &password),
-      Err(BackendError::NoSuchIdInWalletLoginEntry),
+      Err(BackendError::WalletNoSuchAccountIdInWalletLogin),
     ));
   }
 
@@ -1142,7 +1142,7 @@ mod tests {
 
     assert!(matches!(
       remove_account_from_login_at_file(&wallet_file, &id1, &id2, &password),
-      Err(BackendError::NoSuchIdInWalletLoginEntry),
+      Err(BackendError::WalletNoSuchAccountIdInWalletLogin),
     ));
   }
 
@@ -1292,7 +1292,7 @@ mod tests {
     // And trying to load when the file is gone fails
     assert!(matches!(
       load_existing_login_at_file(&wallet, &id1, &password),
-      Err(BackendError::NoSuchIdInWallet),
+      Err(BackendError::WalletNoSuchLoginId),
     ));
 
     // The other login is still there
@@ -1380,7 +1380,7 @@ mod tests {
     remove_account_from_login_at_file(&wallet, &id2, &id4, &password).unwrap();
     assert!(matches!(
       load_existing_login_at_file(&wallet, &id2, &password),
-      Err(BackendError::NoSuchIdInWallet),
+      Err(BackendError::WalletNoSuchLoginId),
     ));
 
     // The first login is still available

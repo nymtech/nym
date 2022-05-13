@@ -83,20 +83,20 @@ pub enum BackendError {
   WalletFileAlreadyExists,
   #[error("The wallet file is not found")]
   WalletFileNotFound,
-  #[error("Account ID not found in wallet")]
-  NoSuchIdInWallet,
-  #[error("Account ID not found in wallet login entry")]
-  NoSuchIdInWalletLoginEntry,
-  #[error("Account ID already found in wallet")]
-  IdAlreadyExistsInWallet,
-  #[error("Account ID already found in stored wallet login")]
-  IdAlreadyExistsInStoredWalletLogin,
+  #[error("Login ID not found in wallet")]
+  WalletNoSuchLoginId,
+  #[error("Account ID not found in wallet login")]
+  WalletNoSuchAccountIdInWalletLogin,
+  #[error("Login ID already found in wallet")]
+  WalletLoginIdAlreadyExists,
+  #[error("Account ID already found in wallet login")]
+  WalletAccountIdAlreadyExistsInWalletLogin,
   #[error("Adding a different password to the wallet not currently supported")]
   WalletDifferentPasswordDetected,
-  #[error("Unexpted multiple account entries found")]
-  WalletUnexpectedMultipleAccounts,
-  #[error("Unexpted mnemonic account found")]
+  #[error("Unexpted mnemonic account for login")]
   WalletUnexpectedMnemonicAccount,
+  #[error("Unexpted multiple account entry for login")]
+  WalletUnexpectedMultipleAccounts,
   #[error("Failed to derive address from mnemonic")]
   FailedToDeriveAddress,
 }

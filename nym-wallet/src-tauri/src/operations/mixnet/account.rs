@@ -404,7 +404,7 @@ fn extract_first_mnemonic(
       accounts
         .get_accounts()
         .next()
-        .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+        .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
         .mnemonic()
         .clone()
     }
@@ -562,7 +562,7 @@ pub fn show_mnemonic_for_account_in_password(
       }
       accounts
         .get_account(&account_id)
-        .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?
+        .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
         .mnemonic()
         .clone()
     }
@@ -582,7 +582,7 @@ pub async fn sign_in_decrypted_account(
     let account = &state
       .get_all_accounts()
       .find(|a| a.id().as_ref() == account_id)
-      .ok_or(BackendError::NoSuchIdInWalletLoginEntry)?;
+      .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?;
     account.mnemonic().clone()
   };
 

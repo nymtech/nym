@@ -16,7 +16,7 @@ use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use cosmrs::bip32::DerivationPath;
 use std::fs::{self, create_dir_all, OpenOptions};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[cfg(test)]
 use self::account_data::MnemonicAccount;
@@ -44,7 +44,7 @@ pub(crate) fn wallet_login_filepath() -> Result<PathBuf, BackendError> {
   get_storage_directory().map(|dir| dir.join(WALLET_INFO_FILENAME))
 }
 
-fn write_to_file(filepath: &PathBuf, wallet: &StoredWallet) -> Result<(), BackendError> {
+fn write_to_file(filepath: &Path, wallet: &StoredWallet) -> Result<(), BackendError> {
   let file = OpenOptions::new()
     .create(true)
     .write(true)
@@ -62,7 +62,7 @@ pub(crate) fn load_existing_wallet() -> Result<StoredWallet, BackendError> {
   load_existing_wallet_at_file(&filepath)
 }
 
-fn load_existing_wallet_at_file(filepath: &PathBuf) -> Result<StoredWallet, BackendError> {
+fn load_existing_wallet_at_file(filepath: &Path) -> Result<StoredWallet, BackendError> {
   if !filepath.exists() {
     return Err(BackendError::WalletFileNotFound);
   }
@@ -83,7 +83,7 @@ pub(crate) fn load_existing_login(
 }
 
 pub(crate) fn load_existing_login_at_file(
-  filepath: &PathBuf,
+  filepath: &Path,
   id: &LoginId,
   password: &UserPassword,
 ) -> Result<StoredLogin, BackendError> {
@@ -110,7 +110,7 @@ pub(crate) fn store_login(
 // DEPRECATED: only used in tests, where it's used to test supporting older wallet formats
 #[cfg(test)]
 fn store_login_at_file(
-  filepath: &PathBuf,
+  filepath: &Path,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
   id: LoginId,
@@ -150,7 +150,7 @@ pub(crate) fn store_login_with_multiple_accounts(
 }
 
 fn store_login_with_multiple_accounts_at_file(
-  filepath: &PathBuf,
+  filepath: &Path,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
   id: LoginId,
@@ -197,7 +197,7 @@ pub(crate) fn append_account_to_login(
 }
 
 fn append_account_to_login_at_file(
-  filepath: &PathBuf,
+  filepath: &Path,
   mnemonic: bip39::Mnemonic,
   hd_path: DerivationPath,
   id: LoginId,
@@ -234,7 +234,7 @@ pub(crate) fn remove_login(id: &LoginId) -> Result<(), BackendError> {
   remove_login_at_file(&filepath, id)
 }
 
-fn remove_login_at_file(filepath: &PathBuf, id: &LoginId) -> Result<(), BackendError> {
+fn remove_login_at_file(filepath: &Path, id: &LoginId) -> Result<(), BackendError> {
   log::warn!("Removing wallet account with id: {id}. This includes all associated accounts!");
   let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
     Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
@@ -273,7 +273,7 @@ pub(crate) fn remove_account_from_login(
 }
 
 fn remove_account_from_login_at_file(
-  filepath: &PathBuf,
+  filepath: &Path,
   id: &LoginId,
   inner_id: &AccountId,
   password: &UserPassword,

@@ -6,7 +6,8 @@ use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
 use coconut_dkg_common::types::{
-    BlacklistedDealer, BlacklistingResponse, DealerDetails, Epoch as DkgEpoch,
+    BlacklistedDealer, BlacklistingResponse, Coin, DealerDetails, EncodedBTEPublicKeyWithProof,
+    EncodedEd25519PublicKey, Epoch as DkgEpoch,
 };
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::Interval;
@@ -477,6 +478,31 @@ where
         address: String,
     ) -> Result<BlacklistingResponse, NymdError> {
         self.0.read().await.nymd.get_blacklisting(address).await
+    }
+
+    pub(crate) async fn get_minimum_deposit(&self) -> Result<Coin, NymdError> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .get_deposit_amount()
+            .await
+            .map(|res| res.amount)
+    }
+
+    pub(crate) async fn register_dealer(
+        &self,
+        identity: EncodedEd25519PublicKey,
+        bte_key: EncodedBTEPublicKeyWithProof,
+        owner_signature: String,
+        listening_address: String,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.0
+            .write()
+            .await
+            .nymd
+            .register_dealer(identity, bte_key, owner_signature, listening_address, None)
+            .await
     }
 
     pub(crate) async fn submit_dealing_commitment(

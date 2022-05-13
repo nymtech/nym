@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::Client;
-use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch, NodeIndex};
+use coconut_dkg_common::types::{
+    Addr, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch,
+    NodeIndex,
+};
 use crypto::asymmetric::identity;
 use dkg::{bte, Dealing};
 use futures::lock::Mutex;
@@ -17,7 +20,7 @@ mod accessor;
 
 use crate::dkg::error::DkgError;
 pub(crate) use accessor::StateAccessor;
-use validator_client::nymd::SigningCosmWasmClient;
+use validator_client::nymd::{AccountId, SigningCosmWasmClient};
 
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
 
@@ -97,6 +100,13 @@ pub struct ReceivedDealing {
     epoch_id: u32,
     dealing: Box<Dealing>,
     signature: identity::Signature,
+}
+
+pub(crate) struct DealerRegistration {
+    pub(crate) identity: EncodedEd25519PublicKey,
+    pub(crate) bte_key: EncodedBTEPublicKeyWithProof,
+    pub(crate) owner_signature: String,
+    pub(crate) listening_address: String,
 }
 
 #[derive(Debug, Clone)]
@@ -284,6 +294,28 @@ impl DkgState {
                     dealer_address
                 ),
             }
+        }
+    }
+
+    pub(crate) fn prepare_dealer_registration(
+        &self,
+        chain_address: AccountId,
+        listening_address: String,
+    ) -> DealerRegistration {
+        let bte_key = bs58::encode(&self.keys.bte_public_key.to_bytes()).into_string();
+
+        // chain_address || host || bte_keys
+        let mut plaintext = chain_address.to_string();
+        plaintext.push_str(&listening_address);
+        plaintext.push_str(&bte_key);
+
+        let owner_signature = self.keys.identity.private_key().sign_text(&plaintext);
+
+        DealerRegistration {
+            identity: self.keys.identity.public_key().to_base58_string(),
+            bte_key,
+            owner_signature,
+            listening_address,
         }
     }
 }

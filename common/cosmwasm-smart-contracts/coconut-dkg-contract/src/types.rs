@@ -7,11 +7,13 @@ pub use crate::dealer::{
     BlacklistedDealer, Blacklisting, BlacklistingReason, BlacklistingResponse, DealerDetails,
     PagedBlacklistingResponse, PagedDealerResponse,
 };
-pub use cosmwasm_std::Addr;
+pub use cosmwasm_std::{Addr, Coin};
+
 pub type BlockHeight = u64;
 pub type EncodedEd25519PublicKey = String;
 pub type EncodedEd25519PublicKeyRef<'a> = &'a str;
 pub type EncodedBTEPublicKeyWithProof = String;
+pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
 pub type EpochId = u32;
 
@@ -119,4 +121,16 @@ pub enum EpochState {
         // not entirely sure about that one yet. we'll see how it works out when we get to epoch transition
         finish_by: Option<BlockHeight>,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct MinimumDepositResponse {
+    pub amount: Coin,
+}
+
+impl MinimumDepositResponse {
+    pub fn new(amount: Coin) -> Self {
+        MinimumDepositResponse { amount }
+    }
 }

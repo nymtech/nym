@@ -10,6 +10,8 @@ use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::{debug, info, trace};
+use std::net::SocketAddr;
+use validator_client::nymd::SigningCosmWasmClient;
 
 // essentially events originating from the contract watcher could only drive our state forward
 // (TODO: is it actually true? I guess we'll find out soon enough)
@@ -26,20 +28,28 @@ pub(crate) struct ProcessingLoop<C> {
 
     contract_publisher: Publisher<C>,
     // network_sender: Sender
+
+    // TODO: this HAS to go away from here as it doesn't fit. but I've put it here temporarily to validate dealer registration
+    network_host: SocketAddr,
 }
 
-impl<C> ProcessingLoop<C> {
+impl<C> ProcessingLoop<C>
+where
+    C: SigningCosmWasmClient + Send + Sync,
+{
     pub(crate) fn new(
         dkg_state: DkgState,
         dispatcher_sender: DispatcherSender,
         contract_events_receiver: ContractEventsReceiver,
         contract_publisher: Publisher<C>,
+        network_host: SocketAddr,
     ) -> Self {
         ProcessingLoop {
             dkg_state,
             dispatcher_sender,
             contract_events_receiver,
             contract_publisher,
+            network_host,
         }
     }
 
@@ -106,7 +116,26 @@ impl<C> ProcessingLoop<C> {
 
     async fn process_new_key_submission(&self, height: BlockHeight) {
         debug!("attempting to register our own dealer keys for this round of dkg");
-        info!(".... but that's not implemented yet....");
+
+        let chain_address = self.contract_publisher.get_address().await;
+        let registration = self
+            .dkg_state
+            .prepare_dealer_registration(chain_address, self.network_host.to_string());
+
+        if let Err(err) = self
+            .contract_publisher
+            .register_dealer(
+                registration.identity,
+                registration.bte_key,
+                registration.owner_signature,
+                registration.listening_address,
+            )
+            .await
+        {
+            error!("failed to register our dealer - {}", err)
+        } else {
+            info!("registered our dealer for this DKG round")
+        }
     }
 
     async fn process_dealer_changes(&self, changes: Vec<DealerChange>, height: BlockHeight) {

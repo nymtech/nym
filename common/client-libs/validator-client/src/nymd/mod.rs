@@ -1378,7 +1378,7 @@ impl<C> NymdClient<C> {
     // }
 }
 
-fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
+pub(crate) fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
     CosmosCoin {
         denom: coin.denom.parse().unwrap(),
         // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64

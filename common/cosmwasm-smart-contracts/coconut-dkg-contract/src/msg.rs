@@ -53,6 +53,7 @@ pub enum QueryMsg {
     GetBlacklisting {
         dealer: String,
     },
+    GetDepositAmount {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

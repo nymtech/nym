@@ -3,11 +3,14 @@
 
 use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
-use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
+use crate::nymd::{cosmwasm_coin_to_cosmos_coin, Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch, BlacklistingResponse, PagedBlacklistingResponse, PagedDealerResponse};
+use coconut_dkg_common::types::{
+    BlacklistingResponse, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch,
+    MinimumDepositResponse, PagedBlacklistingResponse, PagedDealerResponse,
+};
 
 #[async_trait]
 pub trait DkgClient {
@@ -30,6 +33,7 @@ pub trait DkgClient {
     ) -> Result<PagedBlacklistingResponse, NymdError>;
 
     async fn get_blacklisting(&self, dealer: String) -> Result<BlacklistingResponse, NymdError>;
+    async fn get_deposit_amount(&self) -> Result<MinimumDepositResponse, NymdError>;
 
     async fn register_dealer(
         &self,
@@ -107,6 +111,13 @@ where
             .await
     }
 
+    async fn get_deposit_amount(&self) -> Result<MinimumDepositResponse, NymdError> {
+        let request = DkgQueryMsg::GetDepositAmount {};
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
+            .await
+    }
+
     async fn register_dealer(
         &self,
         identity: EncodedEd25519PublicKey,
@@ -121,6 +132,7 @@ where
             owner_signature,
             host: listening_address,
         };
+        let deposit = self.get_deposit_amount().await?;
 
         self.client
             .execute(
@@ -129,7 +141,7 @@ where
                 &req,
                 fee.unwrap_or_default(),
                 format!("registering {} as a dealer", self.address()),
-                Vec::new(),
+                vec![cosmwasm_coin_to_cosmos_coin(deposit.amount)],
             )
             .await
     }

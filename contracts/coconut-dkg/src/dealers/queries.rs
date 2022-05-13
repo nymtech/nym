@@ -6,7 +6,6 @@ use crate::dealers::storage::{IndexedDealersMap, BLACKLISTED_DEALERS};
 use coconut_dkg_common::dealer::{
     BlacklistedDealer, BlacklistingResponse, PagedBlacklistingResponse, PagedDealerResponse,
 };
-use coconut_dkg_common::types::Blacklisting;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 

@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::MINIMUM_DEPOSIT;
 use crate::dealers::queries::{
     query_blacklisted_dealers_paged, query_blacklisting, query_current_dealers_paged,
     query_past_dealers_paged,
@@ -8,9 +9,10 @@ use crate::dealers::queries::{
 use crate::epoch::queries::query_current_epoch;
 use crate::error::ContractError;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use coconut_dkg_common::types::{Epoch, EpochState};
+use coconut_dkg_common::types::{Epoch, EpochState, MinimumDepositResponse};
+use config::defaults::STAKE_DENOM;
 use cosmwasm_std::{
-    entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    entry_point, to_binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use epoch::storage as epoch_storage;
 
@@ -139,6 +141,10 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             to_binary(&query_blacklisted_dealers_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetBlacklisting { dealer } => to_binary(&query_blacklisting(deps, dealer)?)?,
+        QueryMsg::GetDepositAmount {} => to_binary(&MinimumDepositResponse::new(Coin::new(
+            MINIMUM_DEPOSIT.u128(),
+            STAKE_DENOM,
+        )))?,
     };
 
     Ok(response)

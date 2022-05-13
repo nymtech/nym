@@ -72,13 +72,14 @@ where
         config.contract_polling_interval,
     );
     let publisher = smart_contract::Publisher::new(nyxd_client);
-    let mut net_listener = Listener::new(config.network_address, state_accessor);
+    let mut net_listener = Listener::new(config.network_address.clone(), state_accessor);
 
     let mut processing_loop = ProcessingLoop::new(
         state,
         dispatcher_sender,
         contracts_events_receiver,
         publisher,
+        config.network_address,
     );
 
     tokio::spawn(async move { event_dispatcher.run().await });

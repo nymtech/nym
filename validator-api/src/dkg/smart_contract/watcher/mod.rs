@@ -133,6 +133,9 @@ where
                         .await;
                 }
             }
+        } else {
+            // TODO: change to trace
+            debug!("our dkg key is already registered in the dkg contract")
         }
 
         Ok(())

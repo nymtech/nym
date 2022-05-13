@@ -29,13 +29,17 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    if msg.public_key_submission_end_height < env.block.height {
+        return Err(ContractError::EpochStateFinishInPast);
+    }
+
     epoch_storage::CURRENT_EPOCH.save(
         deps.storage,
         &Epoch {
             id: 0,
             state: EpochState::PublicKeySubmission {
                 begun_at: env.block.height,
-                finish_by: msg.dealing_exchange_beginning_height,
+                finish_by: msg.public_key_submission_end_height,
             },
         },
     )?;
@@ -150,7 +154,7 @@ mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            dealing_exchange_beginning_height: env.block.height + 123,
+            public_key_submission_end_height: env.block.height + 123,
         };
         let info = mock_info("creator", &[]);
 

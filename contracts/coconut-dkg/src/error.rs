@@ -47,4 +47,7 @@ pub enum ContractError {
 
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,
+
+    #[error("Attempted to set the current epoch state to finish in the past")]
+    EpochStateFinishInPast,
 }

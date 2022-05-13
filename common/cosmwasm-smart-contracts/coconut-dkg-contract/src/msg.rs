@@ -4,12 +4,11 @@
 use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
-    pub dealing_exchange_beginning_height: BlockHeight,
+    pub public_key_submission_end_height: BlockHeight,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -30,7 +29,9 @@ pub enum ExecuteMsg {
     },
 
     // only exists for debugging purposes on local network to reset the entire state of the contract
-    UnsafeResetAll {init_msg: InstantiateMsg},
+    UnsafeResetAll {
+        init_msg: InstantiateMsg,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

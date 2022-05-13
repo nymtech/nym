@@ -22,10 +22,9 @@ use crate::nymd::{
 };
 
 #[cfg(feature = "dkg")]
-use crate::nymd::traits::DkgClient;
-use crate::nymd::SigningCosmWasmClient;
+use crate::nymd::{traits::DkgClient, SigningCosmWasmClient};
 #[cfg(feature = "dkg")]
-use coconut_dkg_common::types::DealerDetails;
+use coconut_dkg_common::types::{DealerDetails, BlacklistedDealer};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     mixnode::DelegationEvent, ContractStateParams, Delegation, IdentityKey, Interval,
@@ -812,6 +811,31 @@ where
                 .get_past_dealers_paged(start_after.take(), self.dealers_page_limit)
                 .await?;
             dealers.append(&mut paged_response.dealers);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(dealers)
+    }
+
+    pub async fn get_all_nymd_blacklisted_dealers(
+        &self,
+    ) -> Result<Vec<BlacklistedDealer>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut dealers = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_blacklisted_dealers_paged(start_after.take(), self.dealers_page_limit)
+                .await?;
+            dealers.append(&mut paged_response.blacklisted_dealers);
 
             if let Some(start_after_res) = paged_response.start_next_after {
                 start_after = Some(start_after_res.into_string())

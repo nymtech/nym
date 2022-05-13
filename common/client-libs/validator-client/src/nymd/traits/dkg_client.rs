@@ -5,10 +5,9 @@ use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
 use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::PagedDealerResponse;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::Epoch;
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch, BlacklistingResponse, PagedBlacklistingResponse, PagedDealerResponse};
 
 #[async_trait]
 pub trait DkgClient {
@@ -24,6 +23,22 @@ pub trait DkgClient {
         page_limit: Option<u32>,
     ) -> Result<PagedDealerResponse, NymdError>;
 
+    async fn get_blacklisted_dealers_paged(
+        &self,
+        start_after: Option<String>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedBlacklistingResponse, NymdError>;
+
+    async fn get_blacklisting(&self, dealer: String) -> Result<BlacklistingResponse, NymdError>;
+
+    async fn register_dealer(
+        &self,
+        identity: EncodedEd25519PublicKey,
+        bte_key: EncodedBTEPublicKeyWithProof,
+        owner_signature: String,
+        listening_address: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
     async fn submit_dealing_commitment(
         &self,
         epoch_id: u32,
@@ -68,6 +83,54 @@ where
         };
         self.client
             .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
+            .await
+    }
+
+    async fn get_blacklisted_dealers_paged(
+        &self,
+        start_after: Option<String>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedBlacklistingResponse, NymdError> {
+        let request = DkgQueryMsg::GetBlacklistedDealers {
+            start_after,
+            limit: page_limit,
+        };
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
+            .await
+    }
+
+    async fn get_blacklisting(&self, dealer: String) -> Result<BlacklistingResponse, NymdError> {
+        let request = DkgQueryMsg::GetBlacklisting { dealer };
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
+            .await
+    }
+
+    async fn register_dealer(
+        &self,
+        identity: EncodedEd25519PublicKey,
+        bte_key: EncodedBTEPublicKeyWithProof,
+        owner_signature: String,
+        listening_address: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let req = DkgExecuteMsg::RegisterDealer {
+            ed25519_key: identity,
+            bte_key_with_proof: bte_key,
+            owner_signature,
+            host: listening_address,
+        };
+
+        self.client
+            .execute(
+                self.address(),
+                self.coconut_dkg_contract_address()?,
+                &req,
+                fee.unwrap_or_default(),
+                format!("registering {} as a dealer", self.address()),
+                Vec::new(),
+            )
             .await
     }
 

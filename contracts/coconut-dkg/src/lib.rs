@@ -1,7 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealers::queries::{query_current_dealers_paged, query_past_dealers_paged};
+use crate::dealers::queries::{
+    query_blacklisted_dealers_paged, query_blacklisting, query_current_dealers_paged,
+    query_past_dealers_paged,
+};
 use crate::epoch::queries::query_current_epoch;
 use crate::error::ContractError;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -132,6 +135,10 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetPastDealers { limit, start_after } => {
             to_binary(&query_past_dealers_paged(deps, start_after, limit)?)?
         }
+        QueryMsg::GetBlacklistedDealers { limit, start_after } => {
+            to_binary(&query_blacklisted_dealers_paged(deps, start_after, limit)?)?
+        }
+        QueryMsg::GetBlacklisting { dealer } => to_binary(&query_blacklisting(deps, dealer)?)?,
     };
 
     Ok(response)

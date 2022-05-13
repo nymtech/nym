@@ -89,6 +89,7 @@ impl Display for BlacklistingReason {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct PagedDealerResponse {
     pub dealers: Vec<DealerDetails>,
     pub per_page: usize,
@@ -105,6 +106,60 @@ impl PagedDealerResponse {
             dealers,
             per_page,
             start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct PagedBlacklistingResponse {
+    pub blacklisted_dealers: Vec<BlacklistedDealer>,
+    pub per_page: usize,
+    pub start_next_after: Option<Addr>,
+}
+
+impl PagedBlacklistingResponse {
+    pub fn new(
+        blacklisted_dealers: Vec<BlacklistedDealer>,
+        per_page: usize,
+        start_next_after: Option<Addr>,
+    ) -> Self {
+        PagedBlacklistingResponse {
+            blacklisted_dealers,
+            per_page,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct BlacklistedDealer {
+    pub dealer: Addr,
+    pub blacklisting: Blacklisting,
+}
+
+impl BlacklistedDealer {
+    pub fn new(dealer: Addr, blacklisting: Blacklisting) -> Self {
+        BlacklistedDealer {
+            dealer,
+            blacklisting,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct BlacklistingResponse {
+    pub dealer: Addr,
+    pub blacklisting: Option<Blacklisting>,
+}
+
+impl BlacklistingResponse {
+    pub fn new(dealer: Addr, blacklisting: Option<Blacklisting>) -> Self {
+        BlacklistingResponse {
+            dealer,
+            blacklisting,
         }
     }
 }

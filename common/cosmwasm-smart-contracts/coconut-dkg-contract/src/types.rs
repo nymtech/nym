@@ -3,7 +3,10 @@
 
 use serde::{Deserialize, Serialize};
 
-pub use crate::dealer::{Blacklisting, BlacklistingReason, DealerDetails};
+pub use crate::dealer::{
+    BlacklistedDealer, Blacklisting, BlacklistingReason, BlacklistingResponse, DealerDetails,
+    PagedBlacklistingResponse, PagedDealerResponse,
+};
 pub use cosmwasm_std::Addr;
 pub type BlockHeight = u64;
 pub type EncodedEd25519PublicKey = String;

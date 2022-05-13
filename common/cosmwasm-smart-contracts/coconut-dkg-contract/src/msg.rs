@@ -46,6 +46,13 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+    GetBlacklistedDealers {
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+    GetBlacklisting {
+        dealer: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

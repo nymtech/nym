@@ -145,7 +145,7 @@ impl Client<SigningNymdClient> {
         mnemonic: bip39::Mnemonic,
     ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
-        let nymd_client = NymdClient::connect_with_mnemonic(
+        let mut nymd_client = NymdClient::connect_with_mnemonic(
             config.network,
             config.nymd_url.as_str(),
             config.mixnet_contract_address.clone(),
@@ -154,6 +154,9 @@ impl Client<SigningNymdClient> {
             mnemonic.clone(),
             None,
         )?;
+
+        #[cfg(feature = "dkg")]
+        nymd_client.set_coconut_dkg_contract_address(config.coconut_dkg_contract_address.clone());
 
         Ok(Client {
             network: config.network,
@@ -196,7 +199,7 @@ impl Client<SigningNymdClient> {
 impl Client<QueryNymdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
-        let nymd_client = NymdClient::connect(
+        let mut nymd_client = NymdClient::connect(
             config.nymd_url.as_str(),
             Some(config.mixnet_contract_address.clone().unwrap_or_else(|| {
                 cosmrs::AccountId::from_str(DEFAULT_NETWORK.mixnet_contract_address()).unwrap()
@@ -216,6 +219,9 @@ impl Client<QueryNymdClient> {
                     }),
             ),
         )?;
+
+        #[cfg(feature = "dkg")]
+        nymd_client.set_coconut_dkg_contract_address(config.coconut_dkg_contract_address.clone());
 
         Ok(Client {
             network: config.network,

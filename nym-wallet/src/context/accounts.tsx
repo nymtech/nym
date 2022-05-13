@@ -60,9 +60,9 @@ export const AccountsProvider: React.FC = ({ children }) => {
       });
       setAccounts((accs) => [...accs, newAccount]);
       enqueueSnackbar('New account created', { variant: 'success' });
-      setDialogToDisplay('Accounts');
     } catch (e) {
       setError(`Error adding account: ${e}`);
+      throw new Error();
     } finally {
       setIsLoading(false);
     }

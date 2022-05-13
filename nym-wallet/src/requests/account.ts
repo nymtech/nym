@@ -44,7 +44,7 @@ export const addAccount = async ({
   password: string;
   accountName: string;
 }) => {
-  const res: AccountEntry = await invoke('add_account_for_password', { mnemonic, password, innerId: accountName });
+  const res: AccountEntry = await invoke('add_account_for_password', { mnemonic, password, accountId: accountName });
   return res;
 };
 

@@ -14,10 +14,12 @@ import {
 } from '@mui/material';
 import { ArrowBackSharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
-import { createMnemonic } from 'src/requests';
+import { createMnemonic, validateMnemonic } from 'src/requests';
 import { AccountsContext } from 'src/context';
 import { PasswordInput } from 'src/components';
 import { Mnemonic } from '../Mnemonic';
+import { Console } from 'src/utils/console';
+import { match } from 'assert';
 
 const createAccountSteps = [
   'Copy and save mnemonic for your new account',
@@ -54,41 +56,81 @@ const ImportMnemonic = ({
   value: string;
   onChange: (value: string) => void;
   onNext: () => void;
-}) => (
-  <Box sx={{ mt: 1 }}>
-    <DialogContent>
-      <Stack spacing={2} alignItems="center">
-        <TextField
-          multiline
-          rows={3}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          fullWidth
-          type="password"
-        />
-      </Stack>
-    </DialogContent>
-    <DialogActions sx={{ p: 3, pt: 0 }}>
-      <Button
-        disabled={value.length === 0}
-        fullWidth
-        disableElevation
-        variant="contained"
-        size="large"
-        onClick={onNext}
-      >
-        Next
-      </Button>
-    </DialogActions>
-  </Box>
-);
+}) => {
+  const [error, setError] = useState<string>();
 
-const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
-  const [value, setValue] = useState('');
+  const handleOnNext = async () => {
+    const isValid = await validateMnemonic(value);
+    if (!isValid) setError('Please enter a valid mnemonic. Mnemonic must have a word count that is a multiple of 6.');
+    else onNext();
+  };
+
   return (
     <Box sx={{ mt: 1 }}>
       <DialogContent>
-        <TextField value={value} onChange={(e) => setValue(e.target.value)} fullWidth />
+        <Stack spacing={2} alignItems="center">
+          {error && (
+            <Typography variant="body1" sx={{ color: 'error.main', mb: 2 }}>
+              {error}
+            </Typography>
+          )}
+          <TextField
+            multiline
+            placeholder="Mnemonic to import"
+            rows={3}
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setError(undefined);
+            }}
+            fullWidth
+            type="password"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button
+          disabled={value.length === 0}
+          fullWidth
+          disableElevation
+          variant="contained"
+          size="large"
+          onClick={handleOnNext}
+        >
+          Next
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string>();
+
+  const nameValidation = /^([a-zA-Z0-9\s]){1,20}$/;
+
+  const handleNext = (value: string) => {
+    if (!nameValidation.test(value))
+      [setError('Account name must  contain only letters and numbers and be between 1 and 20 characters')];
+    else onNext(value);
+  };
+
+  return (
+    <Box sx={{ mt: 1 }}>
+      <DialogContent>
+        <Typography variant="body1" sx={{ color: 'error.main', mb: 2 }}>
+          {error}
+        </Typography>
+        <TextField
+          placeholder="Account name"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setError(undefined);
+          }}
+          fullWidth
+        />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button
@@ -97,7 +139,7 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
           disableElevation
           variant="contained"
           size="large"
-          onClick={() => onNext(value)}
+          onClick={() => handleNext(value)}
         >
           Next
         </Button>
@@ -158,6 +200,10 @@ export const AddAccountModal = () => {
 
   const handleClose = () => {
     setDialogToDisplay('Accounts');
+    resetState();
+  };
+
+  const resetState = () => {
     setData({ mnemonic: '', accountName: '' });
     setStep(0);
     setError(undefined);
@@ -165,7 +211,7 @@ export const AddAccountModal = () => {
 
   useEffect(() => {
     if (dialogToDisplay === 'Add') generateMnemonic();
-    if (dialogToDisplay === 'Accounts') setStep(0);
+    if (dialogToDisplay === 'Accounts') resetState();
   }, [dialogToDisplay]);
 
   useEffect(() => {
@@ -216,7 +262,13 @@ export const AddAccountModal = () => {
               <ConfirmPassword
                 onConfirm={async (password) => {
                   if (data.accountName && data.mnemonic) {
-                    await handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                    try {
+                      await handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                      setStep(0);
+                      setDialogToDisplay('Accounts');
+                    } catch (e) {
+                      Console.error(e as string);
+                    }
                   }
                 }}
               />

@@ -82,16 +82,18 @@ where
             }
         }
 
-        trace!(
-            "pushing {} dealer set changes onto the event queue",
-            changes.len()
-        );
-        self.state_accessor
-            .push_contract_change_event(Event::new(
-                current_height,
-                EventType::DealerSetChange { changes },
-            ))
-            .await;
+        if !changes.is_empty() {
+            trace!(
+                "pushing {} dealer set changes onto the event queue",
+                changes.len()
+            );
+            self.state_accessor
+                .push_contract_change_event(Event::new(
+                    current_height,
+                    EventType::DealerSetChange { changes },
+                ))
+                .await;
+        }
 
         Ok(())
     }

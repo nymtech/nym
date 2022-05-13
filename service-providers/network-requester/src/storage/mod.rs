@@ -10,10 +10,12 @@ use crate::statistics::StatsMessage;
 use crate::storage::error::NetworkRequesterStorageError;
 use crate::storage::manager::StorageManager;
 use crate::storage::models::MixnetStatistics;
+pub(crate) use crate::storage::routes::post_mixnet_statistics;
 
 mod error;
 mod manager;
 mod models;
+mod routes;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]

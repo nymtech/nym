@@ -20,7 +20,7 @@ const STATS_PROVIDER_CLIENT_IDENTITY: &str = "HqYWvCcB4sswYiyMj5Q8H5oc71kLf96vfr
 const STATS_PROVIDER_ENCRYPTION_KEY: &str = "CoeC5dcqurgdxr5zcgU77nZBSBCc8ntCiwUivQ9TX3KT";
 const STATS_PROVIDER_GATEWAY_IDENTITY: &str = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
     pub description: String,
     pub request_data: StatsData,
@@ -46,6 +46,11 @@ pub struct StatsData {
 }
 
 impl StatsData {
+    pub fn new(total_processed_bytes: u32) -> Self {
+        StatsData {
+            total_processed_bytes,
+        }
+    }
     pub fn processed(&mut self, bytes: u32) {
         self.total_processed_bytes += bytes;
     }
@@ -80,12 +85,8 @@ impl Statistics {
         );
         Statistics {
             description,
-            request_data: Arc::new(RwLock::new(StatsData {
-                total_processed_bytes: 0,
-            })),
-            response_data: Arc::new(RwLock::new(StatsData {
-                total_processed_bytes: 0,
-            })),
+            request_data: Arc::new(RwLock::new(StatsData::new(0))),
+            response_data: Arc::new(RwLock::new(StatsData::new(0))),
             timestamp: Utc::now(),
             interval_seconds: interval_seconds.as_secs() as u32,
             timer_receiver,

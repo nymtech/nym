@@ -303,6 +303,20 @@ impl ServiceProvider {
             .await
             .expect("Could not create network requester storage");
 
+        #[cfg(feature = "stats-service")]
+        tokio::spawn(
+            rocket::build()
+                .mount(
+                    "/v1",
+                    rocket::routes![crate::storage::post_mixnet_statistics],
+                )
+                .manage(storage.clone())
+                .ignite()
+                .await
+                .expect("Could not ignite stats api service")
+                .launch(),
+        );
+
         // start the listener for mix messages
         tokio::spawn(async move {
             Self::mixnet_response_listener(

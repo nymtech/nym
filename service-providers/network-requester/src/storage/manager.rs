@@ -3,6 +3,8 @@
 
 use sqlx::types::chrono::{DateTime, Utc};
 
+use crate::storage::models::MixnetStatistics;
+
 #[derive(Clone)]
 pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,
@@ -35,5 +37,26 @@ impl StorageManager {
                 timestamp,
             ).execute(&self.connection_pool).await?;
         Ok(())
+    }
+
+    /// Returns data submitted within the provided time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: indicates the lower bound timestamp for the data
+    /// * `until`: indicates the upper bound timestamp for the data
+    pub(super) async fn get_service_statistics_in_interval(
+        &self,
+        since: DateTime<Utc>,
+        until: DateTime<Utc>,
+    ) -> Result<Vec<MixnetStatistics>, sqlx::Error> {
+        sqlx::query_as!(
+            MixnetStatistics,
+            "SELECT * FROM mixnet_statistics WHERE timestamp BETWEEN ? AND ?",
+            since,
+            until
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 }

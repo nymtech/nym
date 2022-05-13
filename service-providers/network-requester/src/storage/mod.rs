@@ -9,9 +9,11 @@ use std::path::PathBuf;
 use crate::statistics::StatsMessage;
 use crate::storage::error::NetworkRequesterStorageError;
 use crate::storage::manager::StorageManager;
+use crate::storage::models::MixnetStatistics;
 
 mod error;
 mod manager;
+mod models;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -48,7 +50,7 @@ impl NetworkRequesterStorage {
         &self,
         msg: StatsMessage,
     ) -> Result<(), NetworkRequesterStorageError> {
-        let timestamp: DateTime<Utc> = DateTime::parse_from_rfc2822(&msg.timestamp)
+        let timestamp: DateTime<Utc> = DateTime::parse_from_rfc3339(&msg.timestamp)
             .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
             .into();
         Ok(self
@@ -60,6 +62,29 @@ impl NetworkRequesterStorage {
                 msg.interval_seconds,
                 timestamp,
             )
+            .await?)
+    }
+
+    /// Returns data submitted within the provided time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: indicates the lower bound timestamp for the data, RFC 3339 format
+    /// * `until`: indicates the upper bound timestamp for the data, RFC 3339 format
+    pub(super) async fn get_service_statistics_in_interval(
+        &self,
+        since: &str,
+        until: &str,
+    ) -> Result<Vec<MixnetStatistics>, NetworkRequesterStorageError> {
+        let since = DateTime::parse_from_rfc3339(since)
+            .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
+            .into();
+        let until = DateTime::parse_from_rfc3339(until)
+            .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
+            .into();
+        Ok(self
+            .manager
+            .get_service_statistics_in_interval(since, until)
             .await?)
     }
 }

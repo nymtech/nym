@@ -111,7 +111,7 @@ impl Statistics {
                     request_data: self.request_data.read().await.clone(),
                     response_data: self.response_data.read().await.clone(),
                     interval_seconds: self.interval_seconds,
-                    timestamp: self.timestamp.to_rfc2822(),
+                    timestamp: self.timestamp.to_rfc3339(),
                 };
                 match stats_message.to_bytes() {
                     Ok(data) => {

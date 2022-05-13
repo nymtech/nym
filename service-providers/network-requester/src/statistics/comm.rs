@@ -16,6 +16,10 @@ use socks5_requests::Response;
 
 use super::error::StatsError;
 
+const STATS_PROVIDER_CLIENT_IDENTITY: &str = "HqYWvCcB4sswYiyMj5Q8H5oc71kLf96vfrLK3npM7stH";
+const STATS_PROVIDER_ENCRYPTION_KEY: &str = "CoeC5dcqurgdxr5zcgU77nZBSBCc8ntCiwUivQ9TX3KT";
+const STATS_PROVIDER_GATEWAY_IDENTITY: &str = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
     pub description: String,
@@ -59,6 +63,7 @@ pub struct Statistics {
     interval_seconds: u32,
     timestamp: DateTime<Utc>,
     timer_receiver: mpsc::Receiver<()>,
+    stats_provider_addr: Recipient,
 }
 
 impl Statistics {
@@ -67,6 +72,12 @@ impl Statistics {
         interval_seconds: Duration,
         timer_receiver: mpsc::Receiver<()>,
     ) -> Self {
+        // those unwraps are ok because we set the strings in the constants above
+        let stats_provider_addr = Recipient::new(
+            ClientIdentity::from_base58_string(STATS_PROVIDER_CLIENT_IDENTITY).unwrap(),
+            ClientEncryptionKey::from_base58_string(STATS_PROVIDER_ENCRYPTION_KEY).unwrap(),
+            NodeIdentity::from_base58_string(STATS_PROVIDER_GATEWAY_IDENTITY).unwrap(),
+        );
         Statistics {
             description,
             request_data: Arc::new(RwLock::new(StatsData {
@@ -78,6 +89,7 @@ impl Statistics {
             timestamp: Utc::now(),
             interval_seconds: interval_seconds.as_secs() as u32,
             timer_receiver,
+            stats_provider_addr,
         }
     }
 
@@ -107,20 +119,7 @@ impl Statistics {
                         mix_input_sender
                             .unbounded_send((
                                 Response::new(0, data, false),
-                                Recipient::new(
-                                    ClientIdentity::from_base58_string(
-                                        "HqYWvCcB4sswYiyMj5Q8H5oc71kLf96vfrLK3npM7stH",
-                                    )
-                                    .unwrap(),
-                                    ClientEncryptionKey::from_base58_string(
-                                        "CoeC5dcqurgdxr5zcgU77nZBSBCc8ntCiwUivQ9TX3KT",
-                                    )
-                                    .unwrap(),
-                                    NodeIdentity::from_base58_string(
-                                        "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
-                                    )
-                                    .unwrap(),
-                                ),
+                                self.stats_provider_addr,
                             ))
                             .unwrap();
                     }

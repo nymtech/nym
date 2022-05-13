@@ -3,6 +3,7 @@ import { Alert, AlertTitle, Box, Button, CircularProgress, Grid, IconButton } fr
 import { ArrowDropDown, ArrowDropUp } from '@mui/icons-material';
 import { EnumRequestStatus, NymCard, RequestStatus } from '../../components';
 import { UndelegateForm } from './UndelegateForm';
+import { AppContext } from '../../context/main';
 import {
   getCurrentEpoch,
   getPendingDelegations,
@@ -10,7 +11,6 @@ import {
   getReverseMixDelegations,
 } from '../../requests';
 import { DelegationResult, Epoch, PendingUndelegate, TPagedDelegations } from '../../types';
-import { ClientContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 import { removeObjectDuplicates } from '../../utils';
 import { PendingEvents } from './PendingEvents';
@@ -25,7 +25,7 @@ export const Undelegate = () => {
   const [currentEndEpoch, setCurrentEndEpoch] = useState<Epoch['end']>();
   const [showPendingDelegations, setShowPendingDelegations] = useState(false);
 
-  const { clientDetails } = useContext(ClientContext);
+  const { clientDetails } = useContext(AppContext);
 
   const refresh = async () => {
     const mixnodeDelegations = await getReverseMixDelegations();

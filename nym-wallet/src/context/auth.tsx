@@ -1,11 +1,10 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import { createMnemonic } from 'src/requests';
-import { TMnemonicWords } from '../types';
+import { TMnemonicWords } from 'src/pages/auth/types';
 
-export const SignInContext = createContext({} as TSignInContent);
+export const AuthContext = createContext({} as TAuthContext);
 
-export type TSignInContent = {
+export type TAuthContext = {
   error?: string;
   password: string;
   mnemonic: string;
@@ -22,22 +21,16 @@ const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
     .split(' ')
     .reduce((a, c: string, index) => [...a, { name: c, index: index + 1, disabled: false }], [] as TMnemonicWords);
 
-export const SignInProvider: React.FC = ({ children }) => {
+export const AuthProvider: React.FC = ({ children }) => {
   const [password, setPassword] = useState('');
   const [mnemonic, setMnemonic] = useState('');
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>([]);
   const [error, setError] = useState<string>();
 
-  const history = useHistory();
-
   const generateMnemonic = async () => {
     const mnemonicPhrase = await createMnemonic();
     setMnemonic(mnemonicPhrase);
   };
-
-  useEffect(() => {
-    history.push('/welcome');
-  }, []);
 
   useEffect(() => {
     if (mnemonic.length > 0) {
@@ -54,7 +47,7 @@ export const SignInProvider: React.FC = ({ children }) => {
   };
 
   return (
-    <SignInContext.Provider
+    <AuthContext.Provider
       value={useMemo(
         () => ({
           error,
@@ -71,6 +64,6 @@ export const SignInProvider: React.FC = ({ children }) => {
       )}
     >
       {children}
-    </SignInContext.Provider>
+    </AuthContext.Provider>
   );
 };

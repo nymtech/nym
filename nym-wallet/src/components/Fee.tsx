@@ -2,11 +2,11 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Typography } from '@mui/material';
 import { Operation } from '../types';
 import { getGasFee } from '../requests';
-import { ClientContext } from '../context/main';
+import { AppContext } from '../context/main';
 
 export const Fee = ({ feeType }: { feeType: Operation }) => {
   const [fee, setFee] = useState<string>();
-  const { currency } = useContext(ClientContext);
+  const { currency } = useContext(AppContext);
 
   const getFee = async () => {
     const res = await getGasFee(feeType);

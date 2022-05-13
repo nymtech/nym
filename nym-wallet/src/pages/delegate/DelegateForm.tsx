@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
 import { DelegationResult, EnumNodeType, TDelegateArgs } from '../../types';
 import { validationSchema } from './validationSchema';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests';
 import { Fee, TokenPoolSelector } from '../../components';
 import { Console } from '../../utils/console';
@@ -41,7 +41,7 @@ export const DelegateForm = ({
     resolver: yupResolver(validationSchema),
   });
 
-  const { userBalance, currency, clientDetails } = useContext(ClientContext);
+  const { userBalance, currency, clientDetails } = useContext(AppContext);
 
   useEffect(() => {
     reset();

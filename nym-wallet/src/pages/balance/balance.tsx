@@ -2,10 +2,10 @@ import React, { useContext, useEffect } from 'react';
 import { Alert, Button, Grid, Link, Typography } from '@mui/material';
 import { OpenInNew } from '@mui/icons-material';
 import { NymCard, ClientAddress } from '../../components';
-import { ClientContext, urls } from '../../context/main';
+import { AppContext, urls } from '../../context/main';
 
 export const BalanceCard = () => {
-  const { userBalance, clientDetails, network } = useContext(ClientContext);
+  const { userBalance, clientDetails, network } = useContext(AppContext);
 
   useEffect(() => {
     userBalance.fetchBalance();

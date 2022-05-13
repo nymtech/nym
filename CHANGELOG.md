@@ -4,6 +4,7 @@
 
 ### Added
 
+- wallet: added support for multiple accounts ([#1265])
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
 - validator-api: add Swagger to document the REST API ([#1249]).
@@ -20,6 +21,7 @@
 [#1256]: https://github.com/nymtech/nym/pull/1256
 [#1257]: https://github.com/nymtech/nym/pull/1257
 [#1260]: https://github.com/nymtech/nym/pull/1260
+[#1265]: https://github.com/nymtech/nym/pull/1265
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

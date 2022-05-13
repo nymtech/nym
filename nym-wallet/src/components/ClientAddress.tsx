@@ -1,6 +1,6 @@
 import React, { FC, useContext } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { ClientContext } from '../context/main';
+import { AppContext } from '../context/main';
 import { CopyToClipboard } from './CopyToClipboard';
 import { splice } from '../utils';
 
@@ -53,6 +53,6 @@ export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }>
 );
 
 export const ClientAddress: FC<ClientAddressProps> = ({ ...props }) => {
-  const { clientDetails } = useContext(ClientContext);
+  const { clientDetails } = useContext(AppContext);
   return <ClientAddressDisplay {...props} address={clientDetails?.client_address} />;
 };

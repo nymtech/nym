@@ -1,4 +1,4 @@
-export * from './Error';
+export * from './ErrorFallback';
 export * from './CopyToClipboard';
 export * from './NymCard';
 export * from './Nav';
@@ -15,3 +15,5 @@ export * from './ClientAddress';
 export * from './InfoToolTip';
 export * from './Title';
 export * from './TokenPoolSelector';
+export * from './LoadingPage';
+export * from './textfields';

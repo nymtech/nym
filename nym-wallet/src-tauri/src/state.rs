@@ -1,5 +1,6 @@
 use crate::error::BackendError;
 use crate::network::Network;
+use crate::wallet_storage::account_data::WalletAccount;
 use crate::{config, network_config};
 
 use strum::IntoEnumIterator;
@@ -45,6 +46,10 @@ pub struct State {
   config: config::Config,
   signing_clients: HashMap<Network, Client<SigningNymdClient>>,
   current_network: Network,
+
+  // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
+  // switch accounts on-the-fly
+  all_accounts: Vec<WalletAccount>,
 
   /// Validators that have been fetched dynamically, probably during startup.
   fetched_validators: config::OptionalValidators,
@@ -110,6 +115,14 @@ impl State {
 
   pub fn current_network(&self) -> Network {
     self.current_network
+  }
+
+  pub(crate) fn set_all_accounts(&mut self, all_accounts: Vec<WalletAccount>) {
+    self.all_accounts = all_accounts
+  }
+
+  pub(crate) fn get_all_accounts(&self) -> impl Iterator<Item = &WalletAccount> {
+    self.all_accounts.iter()
   }
 
   pub fn logout(&mut self) {

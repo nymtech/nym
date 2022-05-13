@@ -2,11 +2,12 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
 import { validateMnemonic } from 'src/requests';
-import { MnemonicInput, Subtitle } from '../components';
-import { SignInContext } from '../context';
+import { MnemonicInput } from 'src/components';
+import { AuthContext } from 'src/context/auth';
+import { Subtitle } from '../components';
 
 export const ConfirmMnemonic = () => {
-  const { error, setError, setMnemonic, mnemonic } = useContext(SignInContext);
+  const { error, setError, setMnemonic, mnemonic } = useContext(AuthContext);
   const [localMnemonic, setLocalMnemonic] = useState(mnemonic);
   const history = useHistory();
 

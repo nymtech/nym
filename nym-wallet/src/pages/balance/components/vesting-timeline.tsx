@@ -2,7 +2,7 @@
 import React, { useContext } from 'react';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { format } from 'date-fns';
-import { ClientContext } from '../../../context/main';
+import { AppContext } from '../../../context/main';
 
 const calculateMarkerPosition = (arrLength: number, index: number) => (1 / arrLength) * 100 * index;
 
@@ -19,7 +19,7 @@ const Marker: React.FC<{ tooltipText: string; color: string; position: string }>
 export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ percentageComplete }) => {
   const {
     userBalance: { currentVestingPeriod, vestingAccountInfo },
-  } = useContext(ClientContext);
+  } = useContext(AppContext);
 
   const nextPeriod =
     typeof currentVestingPeriod === 'object' && !!vestingAccountInfo?.periods

@@ -42,7 +42,9 @@
     "react-hook-form": "^7.14.2",
     "react-router-dom": "^5.2.0",
     "semver": "^6.3.0",
+    "string-to-color": "^2.2.2",
     "use-clipboard-copy": "^0.2.0",
+    "uuid": "^8.3.2",
     "yup": "^0.32.9"
   },
   "devDependencies": {
@@ -71,6 +73,7 @@
     "@types/react-router": "^5.1.18",
     "@types/react-router-dom": "^5.1.8",
     "@types/semver": "^7.3.8",
+    "@types/uuid": "^8.3.4",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
     "babel-loader": "^8.2.2",

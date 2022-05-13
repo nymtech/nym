@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { getDesignTokens } from './theme';
-import { ClientContext } from '../context/main';
+import { AppContext } from '../context/main';
 import { NymWalletThemeWithMode } from './NymWalletTheme';
 
 /**
@@ -10,11 +10,11 @@ import { NymWalletThemeWithMode } from './NymWalletTheme';
  */
 
 export const NymWalletTheme: React.FC = ({ children }) => {
-  const { mode } = useContext(ClientContext);
+  const { mode } = useContext(AppContext);
   return <NymWalletThemeWithMode mode={mode}>{children}</NymWalletThemeWithMode>;
 };
 
-export const WelcomeTheme: React.FC = ({ children }) => {
+export const AuthTheme: React.FC = ({ children }) => {
   const theme = createTheme(getDesignTokens('dark'));
   return (
     <ThemeProvider theme={theme}>

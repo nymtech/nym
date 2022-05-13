@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Card, Divider, Grid, Typography } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 
 const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => (
   <>
@@ -14,7 +14,7 @@ const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: 
 
 export const SendReview = ({ transferFee }: { transferFee?: string }) => {
   const { getValues } = useFormContext();
-  const { clientDetails, currency } = useContext(ClientContext);
+  const { clientDetails, currency } = useContext(AppContext);
 
   const values = getValues();
 

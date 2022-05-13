@@ -16,7 +16,7 @@ import { NodeTypeSelector } from '../../components/NodeTypeSelector';
 import { bond, vestingBond, majorToMinor } from '../../requests';
 import { validationSchema } from './validationSchema';
 import { Gateway, MixNode, TBondArgs, EnumNodeType } from '../../types';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { Fee, TokenPoolSelector } from '../../components';
 
 type TBondFormFields = {
@@ -96,7 +96,7 @@ export const BondForm = ({
     defaultValues,
   });
 
-  const { userBalance, currency, clientDetails } = useContext(ClientContext);
+  const { userBalance, currency, clientDetails } = useContext(AppContext);
 
   useEffect(() => {
     reset();

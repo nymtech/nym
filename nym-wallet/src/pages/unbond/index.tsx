@@ -3,14 +3,14 @@ import { Alert, Box, Button, CircularProgress } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { Fee, NymCard } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { unbond, vestingUnbond } from '../../requests';
 import { PageLayout } from '../../layouts';
 
 export const Unbond = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { checkOwnership, ownership } = useCheckOwnership();
-  const { userBalance, getBondDetails } = useContext(ClientContext);
+  const { userBalance, getBondDetails } = useContext(AppContext);
 
   const { enqueueSnackbar } = useSnackbar();
 

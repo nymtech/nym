@@ -6,7 +6,7 @@ use crate::dealers::storage as dealers_storage;
 use crate::ContractError;
 use coconut_dkg_common::types::{
     BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
-    EncodedEd25519PublicKey, EncodedEd25519PublicKeyRef,
+    EncodedBTEPublicKeyWithProofRef, EncodedEd25519PublicKey, EncodedEd25519PublicKeyRef,
 };
 use config::defaults::STAKE_DENOM;
 use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Env, MessageInfo, Response};
@@ -81,6 +81,7 @@ pub(crate) fn validate_key_possession_signature(
     owner: &Addr,
     signature: String,
     encoded_key: EncodedEd25519PublicKeyRef<'_>,
+    encoded_bte_key: EncodedBTEPublicKeyWithProofRef<'_>,
     host: &str,
 ) -> Result<(), ContractError> {
     let mut key_bytes = [0u8; 32];
@@ -95,6 +96,7 @@ pub(crate) fn validate_key_possession_signature(
 
     let mut plaintext = owner.to_string();
     plaintext.push_str(host);
+    plaintext.push_str(encoded_bte_key);
 
     let res = deps
         .api
@@ -128,6 +130,7 @@ pub fn try_add_dealer(
         owner_signature,
         &ed25519_key,
         &host,
+        &bte_key_with_proof,
     ) {
         dealers_storage::blacklist_dealer(
             deps.storage,

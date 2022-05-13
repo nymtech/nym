@@ -204,10 +204,7 @@ fn append_account_to_login_at_file(
   inner_id: AccountId,
   password: &UserPassword,
 ) -> Result<(), BackendError> {
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
-    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
-    result => result?,
-  };
+  let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
 
   let decrypted_login = stored_wallet.decrypt_login(&id, password)?;
 
@@ -236,10 +233,7 @@ pub(crate) fn remove_login(id: &LoginId) -> Result<(), BackendError> {
 
 fn remove_login_at_file(filepath: &Path, id: &LoginId) -> Result<(), BackendError> {
   log::warn!("Removing wallet account with id: {id}. This includes all associated accounts!");
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
-    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
-    result => result?,
-  };
+  let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
 
   if stored_wallet.is_empty() {
     log::info!("Removing file: {:#?}", filepath);
@@ -279,10 +273,7 @@ fn remove_account_from_login_at_file(
   password: &UserPassword,
 ) -> Result<(), BackendError> {
   log::info!("Removing associated account from login account: {id}");
-  let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
-    Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
-    result => result?,
-  };
+  let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
 
   let mut decrypted_login = stored_wallet.decrypt_login(id, password)?;
 

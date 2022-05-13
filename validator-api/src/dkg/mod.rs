@@ -39,7 +39,7 @@ pub(crate) struct Config {
     identity: identity::KeyPair,
 }
 
-async fn run_dkg<C>(config: Config, nyxd_client: Client<C>)
+async fn run_dkg<C>(config: Config, nyxd_client: Client<C>) -> anyhow::Result<()>
 where
     C: SigningCosmWasmClient + Send + Sync + 'static,
 {
@@ -48,8 +48,19 @@ where
     let (contracts_events_sender, contracts_events_receiver) = mpsc::unbounded();
     let (dealing_sender, dealing_receiver) = mpsc::unbounded();
 
-    // TODO: change to attempt to load first
-    let state = DkgState::new_fresh();
+    // TODO: change it to attempt to load from a file first
+    let state = DkgState::initialise_fresh(
+        &nyxd_client,
+        config.identity,
+        config.decryption_key,
+        config.public_key,
+    )
+    .await
+    .map_err(|err| {
+        error!("failed to initialise dkg state - {}", err);
+        err
+    })?;
+
     let state_accessor = StateAccessor::new(state.clone(), dispatcher_sender.clone());
 
     let mut event_dispatcher =
@@ -73,8 +84,10 @@ where
     tokio::spawn(async move { event_dispatcher.run().await });
     tokio::spawn(async move { net_listener.run().await });
     tokio::spawn(async move { dealing_processor.run().await });
-    tokio::spawn(async move { processing_loop.run().await });
     tokio::spawn(async move { contract_watcher.run().await });
+    processing_loop.run().await;
+
+    Ok(())
 }
 
 // upon startup, the following tasks will need to be spawned:

@@ -39,3 +39,6 @@ rand = "0.7"
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+
+[features]
+stats-service = []

@@ -30,6 +30,7 @@ impl StatsMessage {
         Ok(bincode::serialize(self)?)
     }
 
+    #[cfg(feature = "stats-service")]
     pub fn from_bytes(b: &[u8]) -> Result<Self, StatsError> {
         Ok(bincode::deserialize(b)?)
     }
@@ -45,6 +46,7 @@ impl StatsData {
         self.total_processed_bytes += bytes;
     }
 
+    #[cfg(feature = "stats-service")]
     pub fn total_processed_bytes(&self) -> u32 {
         self.total_processed_bytes
     }

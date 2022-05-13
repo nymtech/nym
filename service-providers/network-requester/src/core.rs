@@ -3,8 +3,7 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
-use crate::statistics::{Statistics, StatsData, StatsMessage, Timer};
-use crate::storage::NetworkRequesterStorage;
+use crate::statistics::{Statistics, StatsData, Timer};
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
@@ -29,6 +28,7 @@ static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 pub struct ServiceProvider {
     listening_address: String,
     description: String,
+    #[cfg(feature = "stats-service")]
     db_path: PathBuf,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
@@ -50,6 +50,7 @@ impl ServiceProvider {
             PathBuf::from("unknown.list"),
         );
 
+        #[cfg(feature = "stats-service")]
         let db_path = HostsStore::default_base_dir()
             .join("service-providers")
             .join("network-requester")
@@ -59,6 +60,7 @@ impl ServiceProvider {
         ServiceProvider {
             listening_address,
             description,
+            #[cfg(feature = "stats-service")]
             db_path,
             outbound_request_filter,
             open_proxy,
@@ -219,7 +221,7 @@ impl ServiceProvider {
 
     async fn handle_proxy_message(
         &mut self,
-        storage: &NetworkRequesterStorage,
+        #[cfg(feature = "stats-service")] storage: &crate::storage::NetworkRequesterStorage,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
@@ -250,8 +252,10 @@ impl ServiceProvider {
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
-            Socks5Message::Response(deserialized_response) => {
-                match StatsMessage::from_bytes(&deserialized_response.data) {
+            Socks5Message::Response(_deserialized_response) =>
+            {
+                #[cfg(feature = "stats-service")]
+                match crate::statistics::StatsMessage::from_bytes(&_deserialized_response.data) {
                     Ok(data) => {
                         if let Err(e) = storage.insert_service_statistics(data).await {
                             error!("Could not store received statistics: {}", e);
@@ -294,7 +298,8 @@ impl ServiceProvider {
             stats.run(&mix_input_sender_clone).await;
         });
 
-        let storage = NetworkRequesterStorage::init(&self.db_path)
+        #[cfg(feature = "stats-service")]
+        let storage = crate::storage::NetworkRequesterStorage::init(&self.db_path)
             .await
             .expect("Could not create network requester storage");
 
@@ -323,6 +328,7 @@ impl ServiceProvider {
             // TODO: here be potential SURB (i.e. received.reply_SURB)
 
             self.handle_proxy_message(
+                #[cfg(feature = "stats-service")]
                 &storage,
                 &raw_message,
                 &mut controller_sender,

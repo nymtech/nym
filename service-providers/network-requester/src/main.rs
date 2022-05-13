@@ -9,6 +9,7 @@ mod allowed_hosts;
 mod connection;
 mod core;
 mod statistics;
+#[cfg(feature = "stats-service")]
 mod storage;
 mod websocket;
 

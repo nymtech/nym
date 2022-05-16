@@ -9,6 +9,7 @@
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
 - validator-api: add Swagger to document the REST API ([#1249]).
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
+- network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267]).
 
 ### Fixed
 
@@ -22,6 +23,7 @@
 [#1257]: https://github.com/nymtech/nym/pull/1257
 [#1260]: https://github.com/nymtech/nym/pull/1260
 [#1265]: https://github.com/nymtech/nym/pull/1265
+[#1267]: https://github.com/nymtech/nym/pull/1267
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

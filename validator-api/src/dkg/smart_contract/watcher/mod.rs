@@ -57,8 +57,8 @@ where
             .keys()
             .chain(known_dealers.values().map(|dealer| &dealer.chain_address))
         {
-            debug!("detected dealer that should get removed - {}", dealer);
             if !contract_dealers.contains_key(dealer) {
+                debug!("detected dealer that should get removed - {}", dealer);
                 changes.push(DealerChange::Removal {
                     address: dealer.clone(),
                 });

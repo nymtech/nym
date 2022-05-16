@@ -142,8 +142,8 @@ pub fn try_add_dealer(
         &info.sender,
         owner_signature,
         &ed25519_key,
-        &host,
         &bte_key_with_proof,
+        &host,
     ) {
         dealers_storage::blacklist_dealer(
             deps.storage,

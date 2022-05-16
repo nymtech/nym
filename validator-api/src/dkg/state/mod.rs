@@ -309,7 +309,12 @@ impl DkgState {
         plaintext.push_str(&listening_address);
         plaintext.push_str(&bte_key);
 
-        let owner_signature = self.keys.identity.private_key().sign_text(&plaintext);
+        let owner_signature = self
+            .keys
+            .identity
+            .private_key()
+            .sign(plaintext.as_bytes())
+            .to_base58_string();
 
         DealerRegistration {
             identity: self.keys.identity.public_key().to_base58_string(),

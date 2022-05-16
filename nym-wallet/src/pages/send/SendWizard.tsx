@@ -6,7 +6,7 @@ import { Box, Button, Step, StepLabel, Stepper } from '@mui/material';
 import { SendForm } from './SendForm';
 import { SendReview } from './SendReview';
 import { SendConfirmation } from './SendConfirmation';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { validationSchema } from './validationSchema';
 import { TauriTxResult, TransactionDetails } from '../../types';
 import { getGasFee, majorToMinor, send } from '../../requests';
@@ -32,7 +32,7 @@ export const SendWizard = () => {
   const [transferFee, setTransferFee] = useState<string>();
   const [confirmedData, setConfirmedData] = useState<TransactionDetails & { tx_hash: string }>();
 
-  const { userBalance } = useContext(ClientContext);
+  const { userBalance } = useContext(AppContext);
 
   useEffect(() => {
     const getFee = async () => {

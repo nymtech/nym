@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useSnackbar } from 'notistack';
-import { ClientContext } from '../../context/main';
 import { getMixnodeStakeSaturation, getMixnodeStatus, getInclusionProbability } from '../../requests';
+import { AppContext } from '../../context/main';
 import { MixnodeStatus, InclusionProbabilityResponse } from '../../types';
 
 export const useSettingsState = (shouldUpdate: boolean) => {
@@ -13,7 +13,7 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     in_reserve: 'Low',
   });
 
-  const { mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(AppContext);
 
   const { enqueueSnackbar } = useSnackbar();
 

@@ -694,6 +694,7 @@ dependencies = [
 name = "config"
 version = "0.1.0"
 dependencies = [
+ "cfg-if",
  "handlebars",
  "humantime-serde",
  "log",
@@ -2965,6 +2966,7 @@ dependencies = [
  "itertools",
  "log",
  "mixnet-contract-common",
+ "once_cell",
  "pretty_env_logger",
  "rand 0.6.5",
  "reqwest",

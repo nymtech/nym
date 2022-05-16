@@ -1,13 +1,13 @@
 import React, { useContext, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Alert, Button, Stack, Typography } from '@mui/material';
+import { AuthContext } from 'src/context/auth';
 import { Check, ContentCopySharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { WordTiles } from '../components';
-import { SignInContext } from '../context';
 
 export const CreateMnemonic = () => {
-  const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(SignInContext);
+  const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(AuthContext);
   const history = useHistory();
 
   useEffect(() => {

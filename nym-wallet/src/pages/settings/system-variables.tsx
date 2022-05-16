@@ -10,7 +10,7 @@ import { Fee, InfoTooltip } from '../../components';
 import { InclusionProbabilityResponse } from '../../types';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnode, vestingUpdateMixnode } from '../../requests';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { Console } from '../../utils/console';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
@@ -70,7 +70,6 @@ const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean
 
 export const SystemVariables = ({
   saturation,
-  rewardEstimation,
   inclusionProbability,
 }: {
   saturation: number;
@@ -78,7 +77,7 @@ export const SystemVariables = ({
   inclusionProbability: InclusionProbabilityResponse;
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
-  const { mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(AppContext);
   const { ownership } = useCheckOwnership();
 
   const {

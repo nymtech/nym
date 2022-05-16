@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Table, TableCell, TableHead, TableRow } from '@mui/material';
 import { minorToMajor } from 'src/requests';
 import { DelegationResult } from 'src/types';
-import { ClientContext } from 'src/context/main';
+import { AppContext } from 'src/context';
 
 export const PendingEvents = ({
   pendingDelegations,
@@ -12,7 +12,7 @@ export const PendingEvents = ({
   show: boolean;
 }) => {
   const [mapped, setMapped] = useState<Array<DelegationResult & { majorValue: string }>>([]);
-  const { currency } = useContext(ClientContext);
+  const { currency } = useContext(AppContext);
 
   const mapToMajorValue = useCallback(async () => {
     const mappedToMajor = await Promise.all(

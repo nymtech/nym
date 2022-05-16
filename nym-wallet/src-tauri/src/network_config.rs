@@ -9,18 +9,30 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
 use tokio::sync::RwLock;
 
+// When the UI queries validator urls we use this type
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ValidatorUrls {
-  pub urls: Vec<String>,
+  pub urls: Vec<ValidatorUrl>,
 }
 
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurl.ts"))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ValidatorUrl {
+  pub url: String,
+  pub name: Option<String>,
+}
+
+// The type used when adding or removing validators, effectively the input.
+// NOTE: we should consider if we want to split this up
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/validatorurls.ts"))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Validator {
   pub nymd_url: String,
+  pub nymd_name: Option<String>,
   pub api_url: Option<String>,
 }
 
@@ -42,10 +54,7 @@ pub async fn get_validator_nymd_urls(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<ValidatorUrls, BackendError> {
   let state = state.read().await;
-  let urls: Vec<String> = state
-    .get_nymd_urls(network)
-    .map(|url| url.to_string())
-    .collect();
+  let urls: Vec<ValidatorUrl> = state.get_nymd_urls(network).collect();
   Ok(ValidatorUrls { urls })
 }
 
@@ -55,10 +64,7 @@ pub async fn get_validator_api_urls(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<ValidatorUrls, BackendError> {
   let state = state.read().await;
-  let urls: Vec<String> = state
-    .get_api_urls(network)
-    .map(|url| url.to_string())
-    .collect();
+  let urls: Vec<ValidatorUrl> = state.get_api_urls(network).collect();
   Ok(ValidatorUrls { urls })
 }
 

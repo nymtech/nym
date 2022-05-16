@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, IconButton, Stack, TextField } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Error } from './error';
+import { Error } from './Error';
 
 export const MnemonicInput: React.FC<{
   mnemonic: string;

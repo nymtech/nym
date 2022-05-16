@@ -112,7 +112,7 @@ fn make_client() -> Client<SigningNymdClient> {
     // this one is irrelevant as we don't need to call it
     let api_url = "http://localhost:8080".parse().unwrap();
 
-    let contract_address = "nymt14hj2tavq8fpesdwxxcu44rty3hh90vhuysqrsr"
+    let contract_address = "nymt1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrqf95z3q"
         .parse()
         .unwrap();
 

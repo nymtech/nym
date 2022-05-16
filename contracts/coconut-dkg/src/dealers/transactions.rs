@@ -37,11 +37,24 @@ fn verify_dealer(
         return Err(ContractError::AlreadyADealer);
     }
 
+    // validator addresses are using a different prefix, so we need to check if their underlying
+    // data is the same as the senders address
+    // for example, for sender `nymt1qs3k39g2sw7qcqn0u2eedkpszl02hu605uymu2`, where bech32 prefix is "nymt",
+    // the associated validator address is `nymtvaloper1qs3k39g2sw7qcqn0u2eedkpszl02hu60jph657`
+
+    // this is impossible to fail as the address has been validated by the validator's api,
+    // but catch it with an error just in case anyway...
+    let (_, data, _) =
+        bech32::decode(dealer.as_ref()).map_err(|_| ContractError::InvalidValidatedAddress {
+            address: dealer.clone(),
+        })?;
+
     let all_validators = deps.querier.query_all_validators()?;
-    if !all_validators
-        .iter()
-        .any(|validator| validator.address == dealer.as_ref())
-    {
+    if !all_validators.iter().any(|validator| {
+        bech32::decode(&validator.address)
+            .map(|(_, validator_data, _)| validator_data == data)
+            .unwrap_or_default()
+    }) {
         return Err(ContractError::NotAValidator);
     }
 

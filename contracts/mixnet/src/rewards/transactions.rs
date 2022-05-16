@@ -115,9 +115,8 @@ pub fn calculate_operator_reward(
     let accumulated_rewards = mixnodes()
         .changelog()
         .prefix(bond.identity())
-        .keys(storage, None, None, Order::Ascending)
+        .keys(storage, Some(Bound::exclusive(last_claimed_height)), None, Order::Ascending)
         .filter_map(|height| height.ok())
-        .filter(|height| last_claimed_height <= *height)
         .fold(
             Ok(Uint128::zero()),
             |acc, height| -> Result<Uint128, ContractError> {

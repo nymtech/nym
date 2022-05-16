@@ -76,7 +76,7 @@ where
                 .any(|known_dealer| known_dealer.chain_address == dealer);
 
             // we had absolutely no idea about this dealer existing
-            if !is_bad || !is_known {
+            if !is_bad && !is_known {
                 debug!("detected dealer that should get added - {}", dealer);
                 changes.push(DealerChange::Addition { details });
             }

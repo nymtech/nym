@@ -231,6 +231,23 @@ export const PageMixnodes: React.FC = () => {
         </MuiLink>
       ),
     },
+    {
+      field: 'avg_uptime',
+      headerName: 'Average Uptime',
+      renderHeader: () => <CustomColumnHeading headingTitle="Average Uptime" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 140,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
   ];
 
   const handlePageSize = (event: SelectChangeEvent<string>) => {

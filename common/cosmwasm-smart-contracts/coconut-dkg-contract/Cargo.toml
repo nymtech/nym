@@ -9,3 +9,5 @@ edition = "2021"
 cosmwasm-std = "1.0.0-beta8"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+
+contracts-common = { path = "../contracts-common" }

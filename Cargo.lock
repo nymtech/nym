@@ -626,6 +626,7 @@ dependencies = [
 name = "coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "schemars",
  "serde",
@@ -731,7 +732,9 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "contracts-common"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "cosmwasm-std",
+ "digest 0.10.3",
 ]
 
 [[package]]
@@ -3248,6 +3251,7 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
+ "contracts-common",
  "credential-storage",
  "credentials",
  "crypto",
@@ -6209,6 +6213,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "contracts-common",
  "cosmrs 0.4.1 (git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation)",
  "cosmwasm-std",
  "flate2",

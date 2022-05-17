@@ -11,6 +11,7 @@ use coconut_dkg_common::types::{
     EncodedEd25519PublicKey, Epoch as DkgEpoch,
 };
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use contracts_common::commitment::ContractSafeCommitment;
 use mixnet_contract_common::Interval;
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
@@ -521,14 +522,13 @@ where
     pub(crate) async fn submit_dealing_commitment(
         &self,
         epoch_id: u32,
-        dealing_digest: [u8; 32],
-        receivers: u32,
+        commitment: ContractSafeCommitment,
     ) -> Result<ExecuteResult, NymdError> {
         self.0
             .write()
             .await
             .nymd
-            .submit_dealing_commitment(epoch_id, dealing_digest, receivers, None)
+            .submit_dealing_commitment(epoch_id, commitment, None)
             .await
     }
 }

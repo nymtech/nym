@@ -13,6 +13,7 @@ use log::debug;
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -26,7 +27,7 @@ type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
 
 // note: each dealer is also a receiver which simplifies some logic significantly
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Dealer {
+pub(crate) struct DkgParticipant {
     pub(crate) chain_address: Addr,
     pub(crate) node_index: NodeIndex,
     pub(crate) bte_public_key: bte::PublicKeyWithProof,
@@ -34,7 +35,16 @@ pub(crate) struct Dealer {
     pub(crate) remote_address: SocketAddr,
 }
 
-impl Dealer {
+impl DkgParticipant {
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(self.chain_address.as_bytes());
+        bytes.extend_from_slice(&self.node_index.to_be_bytes());
+        bytes.extend_from_slice(&self.bte_public_key.to_bytes());
+        bytes.extend_from_slice(&self.identity.to_bytes());
+        bytes.extend_from_slice(&self.remote_address.to_string().as_bytes());
+        bytes
+    }
     pub(crate) fn map_key(&self) -> IdentityBytes {
         self.identity.to_bytes()
     }
@@ -49,7 +59,7 @@ pub enum Malformation {
     InvalidHostInformation,
 }
 
-impl Dealer {
+impl DkgParticipant {
     pub(crate) fn try_parse_from_raw(contract_value: &DealerDetails) -> Result<Self, Malformation> {
         // this should be impossible as the contract must have used this key for signature verification
         let identity = identity::PublicKey::from_base58_string(&contract_value.ed25519_public_key)
@@ -70,7 +80,7 @@ impl Dealer {
             .parse()
             .map_err(|_| Malformation::InvalidHostInformation)?;
 
-        Ok(Dealer {
+        Ok(DkgParticipant {
             chain_address: contract_value.address.clone(),
             node_index: contract_value.assigned_index,
             bte_public_key,
@@ -83,7 +93,7 @@ impl Dealer {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum MalformedDealer {
     Raw(DealerDetails),
-    Parsed(Dealer),
+    Parsed(DkgParticipant),
 }
 
 impl MalformedDealer {
@@ -139,7 +149,7 @@ struct DkgStateInner {
     // we need to keep track of all bad dealers as well so that we wouldn't attempt to complaint about them
     // repeatedly
     bad_dealers: HashMap<Addr, MalformedDealer>,
-    current_epoch_dealers: HashMap<IdentityBytes, Dealer>,
+    current_epoch_dealers: HashMap<IdentityBytes, DkgParticipant>,
     verified_epoch_dealings: HashMap<IdentityBytes, ReceivedDealing>,
     unconfirmed_dealings: HashMap<IdentityBytes, ReceivedDealing>,
 }
@@ -193,6 +203,11 @@ impl DkgState {
         todo!()
     }
 
+    // TODO: obviously this would need to get changed in the future in order to account for having to generate MULTIPLE dealings
+    pub(crate) async fn generate_dealing(&self) {
+        //
+    }
+
     pub(crate) async fn post_key_submission(&self, assigned_index: NodeIndex) {
         let mut guard = self.inner_state.lock().await;
         guard.submitted_keys = true;
@@ -232,7 +247,7 @@ impl DkgState {
             .cloned()
     }
 
-    pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, Dealer> {
+    pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, DkgParticipant> {
         self.inner_state.lock().await.current_epoch_dealers.clone()
     }
 
@@ -244,7 +259,7 @@ impl DkgState {
         self.inner_state.lock().await.last_seen_height = new_last_seen;
     }
 
-    pub(crate) async fn try_add_new_dealer(&self, dealer: Dealer) {
+    pub(crate) async fn try_add_new_dealer(&self, dealer: DkgParticipant) {
         // TODO: perhaps we should panic or something instead since this should have never occurred in the first place?
         if let Some(old_dealer) = self
             .inner_state

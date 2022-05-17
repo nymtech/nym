@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey};
+use contracts_common::commitment::ContractSafeCommitment;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -22,10 +23,8 @@ pub enum ExecuteMsg {
     },
     CommitDealing {
         epoch_id: u32,
-        dealing_digest: [u8; 32],
-        // todo: or maybe list them explicitly, produce digest, etc?
-        receivers: u32,
-        // need to think if anything else is required
+        // the commitment shall be constructed on the epoch, dealing and all receivers (as a BTreeMap)
+        commitment: ContractSafeCommitment,
     },
 
     // only exists for debugging purposes on local network to reset the entire state of the contract

@@ -18,6 +18,7 @@ use epoch::storage as epoch_storage;
 
 mod constants;
 mod dealers;
+mod dealings;
 mod epoch;
 mod error;
 mod support;

@@ -5,13 +5,15 @@ use crate::dkg::events::DispatcherSender;
 use crate::dkg::smart_contract::publisher::Publisher;
 use crate::dkg::smart_contract::watcher;
 use crate::dkg::smart_contract::watcher::{DealerChange, EventType};
-use crate::dkg::state::{Dealer, DkgState, Malformation, MalformedDealer};
+use crate::dkg::state::{DkgParticipant, DkgState, Malformation, MalformedDealer};
 use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::{debug, info, trace};
 use std::net::SocketAddr;
 use validator_client::nymd::SigningCosmWasmClient;
+
+mod dealing_commitment;
 
 // essentially events originating from the contract watcher could only drive our state forward
 // (TODO: is it actually true? I guess we'll find out soon enough)
@@ -65,7 +67,7 @@ where
         // todo!()
     }
 
-    async fn deal_with_new_dealer(&self, dealer: Dealer) {
+    async fn deal_with_new_dealer(&self, dealer: DkgParticipant) {
         if dealer.bte_public_key.verify() {
             self.dkg_state.try_add_new_dealer(dealer).await
         } else {
@@ -100,7 +102,7 @@ where
 
     async fn process_new_dealer(&self, dealer_details: DealerDetails) {
         trace!("processing new dealer ({})", dealer_details.address);
-        match Dealer::try_parse_from_raw(&dealer_details) {
+        match DkgParticipant::try_parse_from_raw(&dealer_details) {
             Ok(dealer) => self.deal_with_new_dealer(dealer).await,
             Err(malformed_dealer) => {
                 self.deal_with_malformed_dealer(dealer_details, malformed_dealer)

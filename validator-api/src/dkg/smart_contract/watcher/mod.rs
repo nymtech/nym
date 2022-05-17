@@ -98,7 +98,7 @@ where
         Ok(())
     }
 
-    async fn check_for_own_submission(
+    async fn check_for_own_key_submission(
         &self,
         contract_dealers: &HashMap<Addr, DealerDetails>,
         current_height: BlockHeight,
@@ -151,16 +151,34 @@ where
             .map(|dealer| (dealer.address.clone(), dealer))
             .collect::<HashMap<_, _>>();
 
-        self.check_for_own_submission(&contract_dealers, current_height)
+        self.check_for_own_key_submission(&contract_dealers, current_height)
             .await?;
         self.check_for_dealers(contract_dealers, current_height)
             .await
     }
 
+    async fn dealing_exchange_actions(&self) -> Result<(), DkgError> {
+        let current_height = self.client.current_block_height().await?.value();
+        // let contract_dealers = self
+        //     .client
+        //     .get_current_dealers()
+        //     .await?
+        //     .into_iter()
+        //     .map(|dealer| (dealer.address.clone(), dealer))
+        //     .collect::<HashMap<_, _>>();
+        //
+        // self.check_for_own_submission(&contract_dealers, current_height)
+        //     .await?;
+        // self.check_for_dealers(contract_dealers, current_height)
+        //     .await
+        
+        todo!()
+    }
+
     async fn perform_epoch_state_based_actions(&self, state: EpochState) -> Result<(), DkgError> {
         match state {
             EpochState::PublicKeySubmission { .. } => self.public_key_submission_actions().await,
-            EpochState::DealingExchange { .. } => todo!(),
+            EpochState::DealingExchange { .. } => self.dealing_exchange_actions().await,
             EpochState::ComplaintSubmission { .. } => todo!(),
             EpochState::ComplaintVoting { .. } => todo!(),
             EpochState::VerificationKeySubmission { .. } => todo!(),

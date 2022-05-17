@@ -248,6 +248,7 @@ dependencies = [
 name = "coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "schemars",
  "serde",

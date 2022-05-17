@@ -12,6 +12,7 @@ use coconut_dkg_common::types::{
     BlacklistingResponse, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch,
     MinimumDepositResponse, PagedBlacklistingResponse, PagedDealerResponse,
 };
+use contracts_common::commitment::ContractSafeCommitment;
 use cosmrs::AccountId;
 
 #[async_trait]
@@ -52,8 +53,7 @@ pub trait DkgClient {
     async fn submit_dealing_commitment(
         &self,
         epoch_id: u32,
-        dealing_digest: [u8; 32],
-        receivers: u32,
+        commitment: ContractSafeCommitment,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -169,14 +169,12 @@ where
     async fn submit_dealing_commitment(
         &self,
         epoch_id: u32,
-        dealing_digest: [u8; 32],
-        receivers: u32,
+        commitment: ContractSafeCommitment,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         let req = DkgExecuteMsg::CommitDealing {
             epoch_id,
-            dealing_digest,
-            receivers,
+            commitment,
         };
 
         self.client

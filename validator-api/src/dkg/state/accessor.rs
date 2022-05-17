@@ -3,7 +3,9 @@
 
 use crate::dkg::events::{DispatcherSender, Event};
 use crate::dkg::smart_contract::watcher;
-use crate::dkg::state::{Dealer, DkgState, IdentityBytes, MalformedDealer, ReceivedDealing};
+use crate::dkg::state::{
+    DkgParticipant, DkgState, IdentityBytes, MalformedDealer, ReceivedDealing,
+};
 use coconut_dkg_common::types::{Addr, BlockHeight, Epoch};
 use crypto::asymmetric::identity;
 use std::collections::HashMap;
@@ -66,7 +68,7 @@ impl StateAccessor {
         self.dkg_state.is_dealers_remote_address(remote).await
     }
 
-    pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, Dealer> {
+    pub(crate) async fn get_known_dealers(&self) -> HashMap<IdentityBytes, DkgParticipant> {
         self.dkg_state.get_known_dealers().await
     }
 

@@ -115,7 +115,12 @@ pub fn calculate_operator_reward(
     let accumulated_rewards = mixnodes()
         .changelog()
         .prefix(bond.identity())
-        .keys(storage, Some(Bound::exclusive(last_claimed_height)), None, Order::Ascending)
+        .keys(
+            storage,
+            Some(Bound::exclusive(last_claimed_height)),
+            None,
+            Order::Ascending,
+        )
         .filter_map(|height| height.ok())
         .fold(
             Ok(Uint128::zero()),

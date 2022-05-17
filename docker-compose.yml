@@ -1,106 +1,122 @@
 version: '3.7'
-x-bech32-prefix: &BECH32_PREFIX
-        nymt
-x-wasmd-version: &WASMD_VERSION
-        v0.21.0
-x-wasmd-commit-hash: &WASMD_COMMIT_HASH
-        1d436638af7cacb5aeeb7248b57b085c64f3ae35
+
+x-network: &NETWORK
+  BECH32_PREFIX: nymt
+  DENOM: nymt
+  STAKE_DENOM: nyxt
+  WASMD_VERSION: v0.26.0
+  WASMD_COMMIT_HASH: dc5ef6fe84f0a5e3b0894692a18cc48fb5b00adf
 
 services:
-        genesis_validator:
-                build:
-                        context: docker/validator
-                        args:
-                                BECH32_PREFIX: *BECH32_PREFIX
-                                WASMD_VERSION: *WASMD_VERSION
-                                WASMD_COMMIT_HASH: *WASMD_COMMIT_HASH
-                image: validator:latest
-                ports:
-                        - "26657:26657"
-                        - "1317:1317"
-                container_name: genesis_validator
-                volumes:
-                        - "genesis_volume:/genesis_volume"
-                environment:
-                        BECH32_PREFIX: *BECH32_PREFIX
-                        WASMD_VERSION: *WASMD_VERSION
-                command: ["genesis"]
-        secondary_validator:
-                build:
-                        context: docker/validator
-                        args:
-                                BECH32_PREFIX: *BECH32_PREFIX
-                                WASMD_VERSION: *WASMD_VERSION
-                image: validator:latest
-                volumes:
-                        - "genesis_volume:/genesis_volume:ro"
-                environment:
-                        BECH32_PREFIX: *BECH32_PREFIX
-                        WASMD_VERSION: *WASMD_VERSION
-                depends_on:
-                        - "genesis_validator"
-                command: ["secondary"]
-        mixnet_contract:
-                build: docker/mixnet_contract
-                image: contract:latest
-                volumes:
-                        - ".:/nym"
-        vesting_contract:
-                build: docker/vesting_contract
-                image: vesting_contract:latest
-                volumes:
-                - ".:/nym"
-        contract_uploader:
-                build: docker/typescript_client
-                image: contract_uploader:typescript
-                volumes:
-                        - "genesis_volume:/genesis_volume:ro"
-                        - "contract_volume:/contract_volume"
-                        - ".:/nym"
-                depends_on:
-                        - "genesis_validator"
-                        - "secondary_validator"
-                        - "mixnet_contract"
-                environment:
-                        BECH32_PREFIX: *BECH32_PREFIX
-        mnemonic_echo:
-                build: docker/mnemonic_echo
-                image: mnemonic_echo:latest
-                volumes:
-                        - "genesis_volume:/genesis_volume:ro"
-                depends_on:
-                        - "genesis_validator"
+  genesis_validator:
+    build:
+      context: docker/validator
+      args: *NETWORK
+    image: validator:latest
+    ports:
+      - "26657:26657"
+      - "1317:1317"
+    container_name: genesis_validator
+    volumes:
+      - "genesis_volume:/genesis_volume"
+      - "genesis_nymd:/root/.nymd"
+    environment: *NETWORK
+    networks:
+      localnet:
+        ipv4_address: 172.168.10.2
+    command: [ "genesis" ]
+  secondary_validator:
+    build:
+      context: docker/validator
+      args: *NETWORK
+    image: validator:latest
+    ports:
+      - "36657:26657"
+      - "2317:1317"
+    volumes:
+      - "genesis_volume:/genesis_volume"
+      - "secondary_nymd:/root/.nymd"
+    environment: *NETWORK
+    networks:
+      localnet:
+        ipv4_address: 172.168.10.3
+    depends_on:
+      - "genesis_validator"
+    command: [ "secondary" ]
+  #        mixnet_contract:
+  #                build: docker/mixnet_contract
+  #                image: contract:latest
+  #                volumes:
+  #                        - ".:/nym"
+  #        vesting_contract:
+  #                build: docker/vesting_contract
+  #                image: vesting_contract:latest
+  #                volumes:
+  #                - ".:/nym"
+  #        contract_uploader:
+  #                build: docker/typescript_client
+  #                image: contract_uploader:typescript
+  #                volumes:
+  #                        - "genesis_volume:/genesis_volume:ro"
+  #                        - "contract_volume:/contract_volume"
+  #                        - ".:/nym"
+  #                depends_on:
+  #                        - "genesis_validator"
+  #                        - "secondary_validator"
+  #                        - "mixnet_contract"
+  #                environment:
+  #                        BECH32_PREFIX: *BECH32_PREFIX
+  mnemonic_echo:
+    build: docker/mnemonic_echo
+    image: mnemonic_echo:latest
+    volumes:
+      - "genesis_volume:/genesis_volume:ro"
+    depends_on:
+      - "genesis_validator"
+      - "secondary_validator"
 
-        mongo:
-                image: mongo:latest
-                command:
-                        - --storageEngine=wiredTiger
-                volumes:
-                        - mongo_data:/data/db
-        block_explorer:
-                build:
-                        context: https://github.com/forbole/big-dipper.git#v0.41.x-7
-                image: block_explorer:v0.41.x-7
-                ports:
-                        - "3080:3000"
-                depends_on:
-                        - "mongo"
-                environment:
-                        ROOT_URL: ${APP_ROOT_URL:-http://localhost}
-                        MONGO_URL: mongodb://mongo:27017/meteor
-                        PORT: 3000
-                        METEOR_SETTINGS: ${METEOR_SETTINGS}
-        explorer:
-                build:
-                        context: docker/explorer
-                image: explorer:latest
-                ports:
-                        - "3040:3000"
-                depends_on:
-                        - "genesis_validator"
-                        - "block_explorer"
+#        mongo:
+#                image: mongo:latest
+#                command:
+#                        - --storageEngine=wiredTiger
+#                volumes:
+#                        - mongo_data:/data/db
+#        block_explorer:
+#                build:
+#                        context: https://github.com/forbole/big-dipper.git#v0.41.x-7
+#                image: block_explorer:v0.41.x-7
+#                ports:
+#                        - "3080:3000"
+#                depends_on:
+#                        - "mongo"
+#                environment:
+#                        ROOT_URL: ${APP_ROOT_URL:-http://localhost}
+#                        MONGO_URL: mongodb://mongo:27017/meteor
+#                        PORT: 3000
+#                        METEOR_SETTINGS: ${METEOR_SETTINGS}
+#        explorer:
+#                build:
+#                        context: docker/explorer
+#                image: explorer:latest
+#                ports:
+#                        - "3040:3000"
+#                depends_on:
+#                        - "genesis_validator"
+#                        - "block_explorer"
 
 volumes:
-        genesis_volume:
-        contract_volume:
-        mongo_data:
+  genesis_volume:
+  genesis_nymd:
+  secondary_nymd:
+
+#        contract_volume:
+#        mongo_data:
+
+
+networks:
+  localnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.168.10.0/25

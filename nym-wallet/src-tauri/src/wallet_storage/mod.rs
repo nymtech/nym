@@ -1422,7 +1422,77 @@ mod tests {
   }
 
   #[test]
-  fn decrypt_stored_wallet_with_multiple_accounts() {
-    // WIP(JON)
+  fn decrypt_stored_wallet_1_0_4() {
+    const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet-1.0.4.json";
+    let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+
+    let wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
+
+    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let password = UserPassword::new("password11!".to_string());
+    let bad_password = UserPassword::new("bad-password".to_string());
+    let login_id = LoginId::new("default".to_string());
+
+    assert!(!wallet.password_can_decrypt_all(&bad_password));
+    assert!(wallet.password_can_decrypt_all(&password));
+
+    let acc1 = wallet.decrypt_login(&login_id, &password).unwrap();
+
+    assert!(matches!(acc1, StoredLogin::Mnemonic(_)));
+
+    let expected_acc1 = bip39::Mnemonic::from_str("arrow capable abstract industry elevator nominee december piece hotel feed lounge web faint sword veteran bundle hour page actual laptop horror gold test warrior").unwrap();
+
+    assert_eq!(
+      acc1.as_mnemonic_account().unwrap().mnemonic(),
+      &expected_acc1
+    );
+    assert_eq!(acc1.as_mnemonic_account().unwrap().hd_path(), &hd_path,);
+  }
+
+  #[test]
+  fn decrypt_stored_wallet_1_0_5_with_multiple_accounts() {
+    const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet-1.0.5.json";
+    let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+
+    let wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
+
+    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let password = UserPassword::new("password11!".to_string());
+    let bad_password = UserPassword::new("bad-password".to_string());
+    let login_id = LoginId::new("default".to_string());
+
+    assert!(!wallet.password_can_decrypt_all(&bad_password));
+    assert!(wallet.password_can_decrypt_all(&password));
+
+    let login = wallet.decrypt_login(&login_id, &password).unwrap();
+
+    assert!(matches!(login, StoredLogin::Multiple(_)));
+
+    let login = login.as_multiple_accounts().unwrap();
+    assert_eq!(login.len(), 4);
+
+    let expected_mn1 = bip39::Mnemonic::from_str("arrow capable abstract industry elevator nominee december piece hotel feed lounge web faint sword veteran bundle hour page actual laptop horror gold test warrior").unwrap();
+    let expected_mn2 = bip39::Mnemonic::from_str("border hurt skull lunar goddess second danger game dismiss exhaust oven thumb dog drama onion false orchard spice tent next predict invite cherry green").unwrap();
+    let expected_mn3 = bip39::Mnemonic::from_str("gentle crowd rule snap girl urge flat jump winner cluster night sand museum stock grunt quick tree acquire traffic major awake tag rack peasant").unwrap();
+    let expected_mn4 = bip39::Mnemonic::from_str("debris blue skin annual inhale text border rigid spatial lesson coconut yard horn crystal control survey version vote hawk neck frame arrive oblige width").unwrap();
+
+    let expected = vec![
+      WalletAccount::new(
+        "default".into(),
+        MnemonicAccount::new(expected_mn1, hd_path.clone()),
+      ),
+      WalletAccount::new(
+        "account2".into(),
+        MnemonicAccount::new(expected_mn2, hd_path.clone()),
+      ),
+      WalletAccount::new(
+        "foobar".into(),
+        MnemonicAccount::new(expected_mn3, hd_path.clone()),
+      ),
+      WalletAccount::new("42".into(), MnemonicAccount::new(expected_mn4, hd_path)),
+    ]
+    .into();
+
+    assert_eq!(login, &expected);
   }
 }

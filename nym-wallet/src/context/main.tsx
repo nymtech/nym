@@ -55,7 +55,7 @@ type TAppContext = {
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
-  onAccountChange: (accountId: string) => void;
+  onAccountChange: ({ accountId, password }: { accountId: string; password: string }) => void;
 };
 
 export const AppContext = createContext({} as TAppContext);
@@ -165,15 +165,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     enqueueSnackbar('Successfully logged out', { variant: 'success' });
   };
 
-  const onAccountChange = async (accountId: string) => {
+  const onAccountChange = async ({ accountId, password }: { accountId: string; password: string }) => {
     if (network) {
       setIsLoading(true);
       try {
-        await switchAccount(accountId);
+        await switchAccount({ accountId, password });
         await loadAccount(network);
         enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
       } catch (e) {
-        enqueueSnackbar(`Error swtiching account: ${e}`, { variant: 'error' });
+        throw new Error(`Error swtiching account: ${e}`);
       } finally {
         setIsLoading(false);
       }

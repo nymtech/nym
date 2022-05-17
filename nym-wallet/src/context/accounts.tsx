@@ -16,11 +16,11 @@ type TAccounts = {
   setAccountMnemonic: Dispatch<SetStateAction<TAccountMnemonic>>;
   handleAddAccount: (data: { accountName: string; mnemonic: string; password: string }) => void;
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
-  handleSelectAccount: (accountId: string) => void;
+  handleSelectAccount: (data: { accountName: string; password: string }) => Promise<boolean>;
   handleAccountToEdit: (accountId: string) => void;
   handleEditAccount: (account: AccountEntry) => void;
   handleImportAccount: (account: AccountEntry) => void;
-  handleGetAcccountMnemonic: (data: { password: string; accountName: string }) => void;
+  handleGetAccountMnemonic: (data: { password: string; accountName: string }) => void;
 };
 
 export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Import' | 'Mnemonic';
@@ -75,15 +75,19 @@ export const AccountsProvider: React.FC = ({ children }) => {
   const handleAccountToEdit = (accountName: string) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
-  const handleSelectAccount = async (accountName: string) => {
-    if (accountName !== selectedAccount?.id) {
-      await onAccountChange(accountName);
+  const handleSelectAccount = async ({ accountName, password }: { accountName: string; password: string }) => {
+    try {
+      await onAccountChange({ accountId: accountName, password });
       const match = accounts?.find((acc) => acc.id === accountName);
       setSelectedAccount(match);
+      return true;
+    } catch (e) {
+      setError('Error switching account. Please check your password');
+      return false;
     }
   };
 
-  const handleGetAcccountMnemonic = async ({ password, accountName }: { password: string; accountName: string }) => {
+  const handleGetAccountMnemonic = async ({ password, accountName }: { password: string; accountName: string }) => {
     try {
       setIsLoading(true);
       const mnemonic = await showMnemonicForAccount({ password, accountName });
@@ -124,7 +128,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
           handleAccountToEdit,
           handleSelectAccount,
           handleImportAccount,
-          handleGetAcccountMnemonic,
+          handleGetAccountMnemonic,
         }),
         [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error, accountMnemonic],
       )}

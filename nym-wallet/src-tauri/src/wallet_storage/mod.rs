@@ -1422,6 +1422,34 @@ mod tests {
   }
 
   #[test]
+  fn decrypt_stored_wallet_1_0_4() {
+    const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet-1.0.4.json";
+    let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+
+    let wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
+
+    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let password = UserPassword::new("password11!".to_string());
+    let bad_password = UserPassword::new("bad-password".to_string());
+    let login_id = LoginId::new("default".to_string());
+
+    assert!(!wallet.password_can_decrypt_all(&bad_password));
+    assert!(wallet.password_can_decrypt_all(&password));
+
+    let acc1 = wallet.decrypt_login(&login_id, &password).unwrap();
+
+    assert!(matches!(acc1, StoredLogin::Mnemonic(_)));
+
+    let expected_acc1 = bip39::Mnemonic::from_str("arrow capable abstract industry elevator nominee december piece hotel feed lounge web faint sword veteran bundle hour page actual laptop horror gold test warrior").unwrap();
+
+    assert_eq!(
+      acc1.as_mnemonic_account().unwrap().mnemonic(),
+      &expected_acc1
+    );
+    assert_eq!(acc1.as_mnemonic_account().unwrap().hd_path(), &hd_path,);
+  }
+
+  #[test]
   fn decrypt_stored_wallet_with_multiple_accounts() {
     // WIP(JON)
   }

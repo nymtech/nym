@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "accounts": [
+    {
+      "id": "default",
+      "account": {
+        "ciphertext": "cq5w4W5ex5eFFRcqLG+824XyUAUoYmrRY3NGw/rue6/mLoQKQE/07+BxzRuKjyYFasC1HBPg41KJwp2IY+/7+80rB9aXPpaKVLUcG9U40qgCw66WhgxTrXOnrt5toefpSTBL7f9N/PVwpuumfAgD9CS0ioB7/9Qoea7nYKkextGX15ex26B/ndQddvUkQ4gx+Vq7OLymv4l+nkdZ2nKMja349zd/BjnzPBB68/iIjyYlivVjtQ7FRbvpNRj6Mjg4905wGlO7bTpkw+RGiaGK4pK8fTWz8gAKr8GYoXPD",
+        "salt": "SPVGdbVyoEayD4ZzM4I+Jg==",
+        "iv": "tjpn/tRjD1gty+fQ"
+      }
+    }
+  ]
+}

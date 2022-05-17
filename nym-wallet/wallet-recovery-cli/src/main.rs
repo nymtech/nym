@@ -2,6 +2,10 @@
 //!
 //! Can decrypted wallet files saved by nym-wallet.
 
+// Implementation notes: this utility deliberately doesn't reuse any of the structs in the wallet
+// code. Furthermore we don't to strongly typed json parsing, all with the intention of being a
+// little more flexible when interpreting the results.
+
 use std::fs::File;
 
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, NewAead, Nonce};
@@ -15,6 +19,12 @@ const MEMORY_COST: u32 = 16 * 1024; // 4096 is default
 const ITERATIONS: u32 = 3; // This appears to be the default
 const PARALLELISM: u32 = 1; // 1 thread. Default
 const OUTPUT_LENGTH: usize = 32; // Default
+
+#[derive(Debug)]
+enum DecryptedAccount {
+    Mnemonic((String, String)),
+    Multiple(Vec<(String, String, String)>),
+}
 
 /// Simple utility to decrypt wallet file used by `nym-wallet` to store encrypted mnemonics.
 #[derive(Parser, Debug)]
@@ -94,13 +104,26 @@ fn decrypt_login(login: &Value, passwords: &[String]) -> Result<bool> {
 
     for (i, password) in passwords.iter().enumerate() {
         print!("Trying to decrypt with password {i}:");
-        if let Ok((mnemonic, hd_path)) = decrypt_password(password, &ciphertext, &iv, &salt) {
-            println!(" success!");
-            println!("  mnemonic: {mnemonic}");
-            println!("  hd_path: {hd_path}");
-            return Ok(true);
+        match decrypt_password(password, &ciphertext, &iv, &salt).and_then(|r| parse_results(&r)) {
+            Ok(DecryptedAccount::Mnemonic((mnemonic, hd_path))) => {
+                println!(" success!");
+                println!("  mnemonic: {mnemonic}");
+                println!("  hd_path: {hd_path}");
+                return Ok(true);
+            }
+            Ok(DecryptedAccount::Multiple(accounts)) => {
+                println!(" success!");
+                println!();
+                for (id, mnemonic, hd_path) in accounts {
+                    println!("  account_id: {id}");
+                    println!("  mnemonic: {mnemonic}");
+                    println!("  hd_path: {hd_path}");
+                    println!();
+                }
+                return Ok(true);
+            }
+            Err(err) => println!(" failed\n{}", err),
         }
-        println!(" failed")
     }
 
     Ok(false)
@@ -131,12 +154,7 @@ fn base64_decode(ciphertext: &str, iv: &str, salt: &str) -> Result<(Vec<u8>, Vec
     Ok((ciphertext, iv, salt))
 }
 
-fn decrypt_password(
-    password: &str,
-    ciphertext: &[u8],
-    iv: &[u8],
-    salt: &[u8],
-) -> Result<(String, String)> {
+fn decrypt_password(password: &str, ciphertext: &[u8], iv: &[u8], salt: &[u8]) -> Result<Value> {
     let params = Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap();
 
     // Argon2id is default, V0x13 is default
@@ -155,18 +173,53 @@ fn decrypt_password(
     let plaintext = cipher
         .decrypt(nonce, ciphertext.as_ref())
         .map_err(|_| anyhow!("Unable to decrypt"))?;
-
     let plaintext = String::from_utf8(plaintext)?;
 
     let json_data: Value = serde_json::from_str(&plaintext)?;
+    Ok(json_data)
+}
 
+fn parse_results(json_data: &Value) -> Result<DecryptedAccount> {
+    try_parse_mnemonic_account(json_data).or_else(|_| try_parse_multiple_account(json_data))
+}
+
+fn try_parse_mnemonic_account(json_data: &Value) -> Result<DecryptedAccount> {
     let mnemonic = json_data["mnemonic"]
         .as_str()
         .ok_or_else(|| anyhow!("No mnemonic entry after decrypting"))?;
     let hd_path = json_data["hd_path"]
         .as_str()
         .ok_or_else(|| anyhow!("No hd_path entry after decrypting"))?;
-    Ok((mnemonic.to_string(), hd_path.to_string()))
+    Ok(DecryptedAccount::Mnemonic((
+        mnemonic.to_string(),
+        hd_path.to_string(),
+    )))
+}
+
+fn try_parse_multiple_account(json_data: &Value) -> Result<DecryptedAccount> {
+    let accounts = json_data["accounts"]
+        .as_array()
+        .ok_or_else(|| anyhow!("No accounts decrypting"))?;
+
+    let mut found_accounts = Vec::new();
+
+    for account in accounts {
+        let id = account["id"].to_string();
+        let account = &account["account"];
+        match try_parse_mnemonic_account(account) {
+            Ok(DecryptedAccount::Mnemonic((mnemonic, hd_path))) => {
+                found_accounts.push((id, mnemonic, hd_path));
+            }
+            Ok(DecryptedAccount::Multiple(_)) => {
+                println!("Error: double nested accounts not supported")
+            }
+            Err(err) => {
+                println!("Error: {err}");
+            }
+        };
+    }
+
+    Ok(DecryptedAccount::Multiple(found_accounts))
 }
 
 #[cfg(test)]
@@ -175,22 +228,34 @@ mod tests {
 
     use std::path::PathBuf;
 
+    fn try_decrypt(file: &str, passwords: Vec<&str>) -> bool {
+        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(file);
+        let file = File::open(wallet_file).unwrap();
+        let passwords: Vec<_> = passwords.into_iter().map(ToString::to_string).collect();
+        decrypt_file(file, &passwords).is_ok()
+    }
+
     #[test]
     fn decrypt_saved_file() {
-        const SAVED_WALLET: &str = "../src-tauri/src/wallet_storage/test-data/saved-wallet.json";
-        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
-        let file = File::open(wallet_file).unwrap();
-        let passwords = vec!["password".to_string()];
-        assert!(decrypt_file(file, &passwords).is_ok());
+        assert!(try_decrypt(
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet.json",
+            vec!["password"],
+        ));
     }
 
     #[test]
     fn decrypt_saved_file_1_0_4() {
-        const SAVED_WALLET: &str =
-            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.4.json";
-        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
-        let file = File::open(wallet_file).unwrap();
-        let passwords = vec!["password11!".to_string()];
-        assert!(decrypt_file(file, &passwords).is_ok());
+        assert!(try_decrypt(
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.4.json",
+            vec!["password11!"],
+        ));
+    }
+
+    #[test]
+    fn decrypt_saved_file_1_0_5() {
+        assert!(try_decrypt(
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.5.json",
+            vec!["password11!"],
+        ));
     }
 }

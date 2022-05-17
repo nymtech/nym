@@ -186,7 +186,8 @@ mod tests {
 
     #[test]
     fn decrypt_saved_file_1_0_4() {
-        const SAVED_WALLET: &str = "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.4.json";
+        const SAVED_WALLET: &str =
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.4.json";
         let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
         let file = File::open(wallet_file).unwrap();
         let passwords = vec!["password11!".to_string()];

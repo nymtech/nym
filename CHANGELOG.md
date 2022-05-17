@@ -4,6 +4,7 @@
 
 ### Added
 
+- wallet: add simple CLI tool for decrypting and recovering the wallet file.
 - wallet: added support for multiple accounts ([#1265])
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.

@@ -36,14 +36,13 @@ export const MockAccountsProvider: React.FC = ({ children }) => {
   const handleAccountToEdit = (accountName: string) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
-  const handleSelectAccount = async (accountName: string) => {
-    if (accountName !== selectedAccount?.id) {
-      const match = accounts?.find((acc) => acc.id === accountName);
-      setSelectedAccount(match);
-    }
+  const handleSelectAccount = async ({ accountName }: { accountName: string; password: string }) => {
+    const match = accounts?.find((acc) => acc.id === accountName);
+    setSelectedAccount(match);
+    return true;
   };
 
-  const handleGetAcccountMnemonic = async ({ accountName }: { password: string; accountName: string }) => {
+  const handleGetAccountMnemonic = async ({ accountName }: { password: string; accountName: string }) => {
     try {
       setIsLoading(true);
       const mnemonic = 'test mnemonic';
@@ -73,7 +72,7 @@ export const MockAccountsProvider: React.FC = ({ children }) => {
           handleAccountToEdit,
           handleSelectAccount,
           handleImportAccount,
-          handleGetAcccountMnemonic,
+          handleGetAccountMnemonic,
         }),
         [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error, accountMnemonic],
       )}

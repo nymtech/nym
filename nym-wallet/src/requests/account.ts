@@ -62,6 +62,6 @@ export const showMnemonicForAccount = async ({ password, accountName }: { passwo
   return res;
 };
 
-export const switchAccount = async (accountId: string) => {
-  await invoke('sign_in_decrypted_account', { accountId });
+export const switchAccount = async ({ accountId, password }: { accountId: string; password: string }) => {
+  await invoke('sign_in_with_password_and_account_id', { accountId, password });
 };

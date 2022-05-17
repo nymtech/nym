@@ -38,6 +38,9 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetCurrentEpoch {},
+    GetDealerDetails {
+        dealer_address: String,
+    },
     GetCurrentDealers {
         limit: Option<u32>,
         start_after: Option<String>,

@@ -320,6 +320,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
+        println!("height: {}", tx_res.height);
+
         let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
 
         Ok(ExecuteResult {

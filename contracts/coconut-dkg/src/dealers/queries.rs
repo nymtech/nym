@@ -4,7 +4,8 @@
 use crate::dealers::storage;
 use crate::dealers::storage::{IndexedDealersMap, BLACKLISTED_DEALERS};
 use coconut_dkg_common::dealer::{
-    BlacklistedDealer, BlacklistingResponse, PagedBlacklistingResponse, PagedDealerResponse,
+    BlacklistedDealer, BlacklistingResponse, DealerDetailsResponse, DealerType,
+    PagedBlacklistingResponse, PagedDealerResponse,
 };
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
@@ -34,6 +35,23 @@ fn query_dealers(
     let start_next_after = dealers.last().map(|dealer| dealer.address.clone());
 
     Ok(PagedDealerResponse::new(dealers, limit, start_next_after))
+}
+
+pub fn query_dealer_details(
+    deps: Deps<'_>,
+    dealer_address: String,
+) -> StdResult<DealerDetailsResponse> {
+    let addr = deps.api.addr_validate(&dealer_address)?;
+    if let Some(current) = storage::current_dealers().may_load(deps.storage, &addr)? {
+        return Ok(DealerDetailsResponse::new(
+            Some(current),
+            DealerType::Current,
+        ));
+    }
+    if let Some(past) = storage::past_dealers().may_load(deps.storage, &addr)? {
+        return Ok(DealerDetailsResponse::new(Some(past), DealerType::Past));
+    }
+    Ok(DealerDetailsResponse::new(None, DealerType::Unknown))
 }
 
 pub fn query_current_dealers_paged(

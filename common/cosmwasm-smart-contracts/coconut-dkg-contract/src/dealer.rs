@@ -88,6 +88,36 @@ impl Display for BlacklistingReason {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DealerType {
+    Current,
+    Past,
+    Unknown,
+}
+
+impl DealerType {
+    pub fn is_current(&self) -> bool {
+        matches!(&self, DealerType::Current)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct DealerDetailsResponse {
+    pub details: Option<DealerDetails>,
+    pub dealer_type: DealerType,
+}
+
+impl DealerDetailsResponse {
+    pub fn new(details: Option<DealerDetails>, dealer_type: DealerType) -> Self {
+        DealerDetailsResponse {
+            details,
+            dealer_type,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PagedDealerResponse {

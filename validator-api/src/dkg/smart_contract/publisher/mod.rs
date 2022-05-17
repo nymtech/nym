@@ -3,7 +3,7 @@
 
 use crate::dkg::error::DkgError;
 use crate::Client;
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, NodeIndex};
 use validator_client::nymd::{AccountId, SigningCosmWasmClient};
 
 pub(crate) struct Publisher<C> {
@@ -28,11 +28,21 @@ where
         bte_key: EncodedBTEPublicKeyWithProof,
         owner_signature: String,
         listening_address: String,
-    ) -> Result<(), DkgError> {
+    ) -> Result<NodeIndex, DkgError> {
         self.client
             .register_dealer(identity, bte_key, owner_signature, listening_address)
             .await?;
-        Ok(())
+
+        // once we figure out how to properly deserialize `data` field from the response use that
+        // instead of this query
+        let self_details = self.client.get_self_registered_dealer_details().await?;
+        if let Some(details) = self_details.details {
+            if self_details.dealer_type.is_current() {
+                return Ok(details.assigned_index);
+            }
+        }
+
+        Err(DkgError::NodeIndexRecoveryError)
     }
 
     pub(crate) async fn submit_dealing_commitment(&self) {

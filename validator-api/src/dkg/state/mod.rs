@@ -193,6 +193,12 @@ impl DkgState {
         todo!()
     }
 
+    pub(crate) async fn post_key_submission(&self, assigned_index: NodeIndex) {
+        let mut guard = self.inner_state.lock().await;
+        guard.submitted_keys = true;
+        guard.assigned_index = assigned_index;
+    }
+
     pub(crate) async fn is_dealers_remote_address(&self, remote: SocketAddr) -> (bool, Epoch) {
         let guard = self.inner_state.lock().await;
         let epoch = guard.current_epoch;

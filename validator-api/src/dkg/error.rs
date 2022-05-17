@@ -23,9 +23,12 @@ pub enum DkgError {
     #[error("Failed to serialize message - {0}")]
     SerializationError(#[from] bincode::Error),
 
+    #[error("Failed to recover assigned node index")]
+    NodeIndexRecoveryError,
+
     #[error("todo")]
     MalformedDealerDetails,
-    
+
     #[error("todo")]
     DeserializationError,
 }

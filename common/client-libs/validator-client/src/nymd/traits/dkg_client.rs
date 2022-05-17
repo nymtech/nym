@@ -5,16 +5,22 @@ use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
 use crate::nymd::{cosmwasm_coin_to_cosmos_coin, Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
+use coconut_dkg_common::dealer::DealerDetailsResponse;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
 use coconut_dkg_common::types::{
     BlacklistingResponse, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch,
     MinimumDepositResponse, PagedBlacklistingResponse, PagedDealerResponse,
 };
+use cosmrs::AccountId;
 
 #[async_trait]
 pub trait DkgClient {
     async fn get_current_dkg_epoch(&self) -> Result<Epoch, NymdError>;
+    async fn get_dealer_details(
+        &self,
+        address: &AccountId,
+    ) -> Result<DealerDetailsResponse, NymdError>;
     async fn get_current_dealers_paged(
         &self,
         start_after: Option<String>,
@@ -63,6 +69,19 @@ where
             .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
             .await
     }
+
+    async fn get_dealer_details(
+        &self,
+        address: &AccountId,
+    ) -> Result<DealerDetailsResponse, NymdError> {
+        let request = DkgQueryMsg::GetDealerDetails {
+            dealer_address: address.to_string(),
+        };
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
+            .await
+    }
+
     async fn get_current_dealers_paged(
         &self,
         start_after: Option<String>,
@@ -76,6 +95,7 @@ where
             .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
             .await
     }
+
     async fn get_past_dealers_paged(
         &self,
         start_after: Option<String>,

@@ -122,7 +122,7 @@ where
             .dkg_state
             .prepare_dealer_registration(chain_address, self.network_host.to_string());
 
-        if let Err(err) = self
+        match self
             .contract_publisher
             .register_dealer(
                 registration.identity,
@@ -132,9 +132,14 @@ where
             )
             .await
         {
-            error!("failed to register our dealer - {}", err)
-        } else {
-            info!("registered our dealer for this DKG round")
+            Err(err) => error!("failed to register our dealer - {}", err),
+            Ok(node_index) => {
+                info!(
+                    "registered our dealer for this DKG round and got assigned index: {}",
+                    node_index
+                );
+                self.dkg_state.post_key_submission(node_index).await
+            }
         }
     }
 

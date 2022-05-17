@@ -5,6 +5,7 @@ use crate::config::Config;
 use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
+use coconut_dkg_common::dealer::DealerDetailsResponse;
 use coconut_dkg_common::types::{
     BlacklistedDealer, BlacklistingResponse, Coin, DealerDetails, EncodedBTEPublicKeyWithProof,
     EncodedEd25519PublicKey, Epoch as DkgEpoch,
@@ -453,6 +454,18 @@ where
 {
     pub(crate) async fn get_dkg_epoch(&self) -> Result<DkgEpoch, NymdError> {
         self.0.read().await.nymd.get_current_dkg_epoch().await
+    }
+
+    pub(crate) async fn get_self_registered_dealer_details(
+        &self,
+    ) -> Result<DealerDetailsResponse, NymdError> {
+        let self_address = &self.address().await;
+        self.0
+            .read()
+            .await
+            .nymd
+            .get_dealer_details(self_address)
+            .await
     }
 
     pub(crate) async fn get_current_dealers(

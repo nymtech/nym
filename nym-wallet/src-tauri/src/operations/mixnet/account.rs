@@ -518,7 +518,7 @@ async fn set_state_with_all_accounts(
     .collect();
 
   for account in &all_accounts {
-    log::trace!("account: {:?}", account);
+    log::trace!("account: {:?}", account.id());
   }
 
   let all_account_ids: Vec<WalletAccountIds> = all_accounts

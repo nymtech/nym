@@ -1,9 +1,9 @@
 import React, { useContext, useState } from 'react';
 import { AccountsContext, AppContext } from 'src/context';
-import { EditAccountModal } from './EditAccountModal';
-import { AddAccountModal } from './AddAccountModal';
-import { AccountsModal } from './AccountsModal';
-import { MnemonicModal } from './MnemonicModal';
+import { EditAccountModal } from './modals/EditAccountModal';
+import { AddAccountModal } from './modals/AddAccountModal';
+import { AccountsModal } from './modals/AccountsModal';
+import { MnemonicModal } from './modals/MnemonicModal';
 import { AccountOverview } from './AccountOverview';
 import { MultiAccountHowTo } from './MultiAccountHowTo';
 

@@ -228,32 +228,34 @@ mod tests {
 
     use std::path::PathBuf;
 
+    fn try_decrypt(file: &str, passwords: Vec<&str>) -> bool {
+        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(file);
+        let file = File::open(wallet_file).unwrap();
+        let passwords: Vec<_> = passwords.into_iter().map(ToString::to_string).collect();
+        decrypt_file(file, &passwords).is_ok()
+    }
+
     #[test]
     fn decrypt_saved_file() {
-        const SAVED_WALLET: &str = "../src-tauri/src/wallet_storage/test-data/saved-wallet.json";
-        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
-        let file = File::open(wallet_file).unwrap();
-        let passwords = vec!["password".to_string()];
-        assert!(decrypt_file(file, &passwords).is_ok());
+        assert!(try_decrypt(
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet.json",
+            vec!["password"],
+        ));
     }
 
     #[test]
     fn decrypt_saved_file_1_0_4() {
-        const SAVED_WALLET: &str =
-            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.4.json";
-        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
-        let file = File::open(wallet_file).unwrap();
-        let passwords = vec!["password11!".to_string()];
-        assert!(decrypt_file(file, &passwords).is_ok());
+        assert!(try_decrypt(
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.4.json",
+            vec!["password11!"],
+        ));
     }
 
     #[test]
     fn decrypt_saved_file_1_0_5() {
-        const SAVED_WALLET: &str =
-            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.5.json";
-        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
-        let file = File::open(wallet_file).unwrap();
-        let passwords = vec!["password11!".to_string()];
-        assert!(decrypt_file(file, &passwords).is_ok());
+        assert!(try_decrypt(
+            "../src-tauri/src/wallet_storage/test-data/saved-wallet-1.0.5.json",
+            vec!["password11!"],
+        ));
     }
 }

@@ -1,6 +1,5 @@
 use crate::error::BackendError;
 use crate::network::Network;
-use crate::wallet_storage::account_data::WalletAccount;
 use crate::{config, network_config};
 
 use strum::IntoEnumIterator;
@@ -49,13 +48,20 @@ pub struct State {
 
   // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
   // switch accounts on-the-fly
-  all_accounts: Vec<WalletAccount>,
+  all_accounts: Vec<WalletAccountIds>,
 
   /// Validators that have been fetched dynamically, probably during startup.
   fetched_validators: config::OptionalValidators,
 
   /// We fetch (and cache) some metadata, such as names, when available
   validator_metadata: HashMap<Url, ValidatorMetadata>,
+}
+
+pub(crate) struct WalletAccountIds {
+  // The wallet account id
+  pub id: crate::wallet_storage::AccountId,
+  // The set of corresponding network identities derived from the mnemonic
+  pub addresses: HashMap<Network, cosmrs::AccountId>,
 }
 
 impl State {
@@ -117,11 +123,11 @@ impl State {
     self.current_network
   }
 
-  pub(crate) fn set_all_accounts(&mut self, all_accounts: Vec<WalletAccount>) {
+  pub(crate) fn set_all_accounts(&mut self, all_accounts: Vec<WalletAccountIds>) {
     self.all_accounts = all_accounts
   }
 
-  pub(crate) fn get_all_accounts(&self) -> impl Iterator<Item = &WalletAccount> {
+  pub(crate) fn get_all_accounts(&self) -> impl Iterator<Item = &WalletAccountIds> {
     self.all_accounts.iter()
   }
 

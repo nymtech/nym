@@ -4,8 +4,16 @@ import { useClipboard } from 'use-clipboard-copy';
 import { AccountsContext } from 'src/context';
 import { AccountAvatar } from './AccountAvatar';
 
-export const AccountItem = ({ name, address }: { name: string; address: string }) => {
-  const { selectedAccount, handleSelectAccount, setDialogToDisplay, setAccountMnemonic } = useContext(AccountsContext);
+export const AccountItem = ({
+  name,
+  address,
+  onSelectAccount,
+}: {
+  name: string;
+  address: string;
+  onSelectAccount: () => void;
+}) => {
+  const { selectedAccount, setDialogToDisplay, setAccountMnemonic } = useContext(AccountsContext);
   const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   return (
     <ListItem
@@ -13,7 +21,7 @@ export const AccountItem = ({ name, address }: { name: string; address: string }
       disableGutters
       sx={selectedAccount?.id === name ? { bgcolor: 'rgba(33, 208, 115, 0.1)' } : {}}
     >
-      <ListItemButton disableRipple onClick={() => handleSelectAccount(name)}>
+      <ListItemButton disableRipple onClick={onSelectAccount}>
         <ListItemAvatar sx={{ minWidth: 0, mr: 2 }}>
           <AccountAvatar name={name} />
         </ListItemAvatar>

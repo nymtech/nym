@@ -13,8 +13,7 @@ import {
 import { ArrowBackSharp } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
 import { useClipboard } from 'use-clipboard-copy';
-import { Mnemonic } from '../Mnemonic';
-import { PasswordInput } from '../textfields';
+import { PasswordInput, Mnemonic } from 'src/components';
 
 export const MnemonicModal = () => {
   const [password, setPassword] = useState('');
@@ -26,7 +25,7 @@ export const MnemonicModal = () => {
     setDialogToDisplay,
     accountMnemonic,
     setAccountMnemonic,
-    handleGetAcccountMnemonic,
+    handleGetAccountMnemonic,
     error,
     setError,
     isLoading,
@@ -86,7 +85,7 @@ export const MnemonicModal = () => {
             onClick={async () => {
               if (accountMnemonic?.accountName) {
                 setError(undefined);
-                await handleGetAcccountMnemonic({ password, accountName: accountMnemonic?.accountName });
+                await handleGetAccountMnemonic({ password, accountName: accountMnemonic?.accountName });
               }
             }}
             endIcon={isLoading && <CircularProgress size={20} />}

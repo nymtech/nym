@@ -36,10 +36,11 @@ export const MnemonicInput: React.FC<{
 export const PasswordInput: React.FC<{
   password: string;
   error?: string;
-  label: string;
+  label?: string;
+  placeholder?: string;
   autoFocus?: boolean;
   onUpdatePassword: (password: string) => void;
-}> = ({ password, label, error, autoFocus, onUpdatePassword }) => {
+}> = ({ password, label, placeholder, error, autoFocus, onUpdatePassword }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -47,6 +48,7 @@ export const PasswordInput: React.FC<{
       <Box>
         <TextField
           label={label}
+          placeholder={placeholder}
           fullWidth
           value={password}
           onChange={(e) => onUpdatePassword(e.target.value)}

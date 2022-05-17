@@ -2,24 +2,21 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
-  Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { ArrowBackSharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic, validateMnemonic } from 'src/requests';
-import { AccountsContext } from 'src/context';
-import { PasswordInput } from 'src/components';
-import { Mnemonic } from '../Mnemonic';
 import { Console } from 'src/utils/console';
-import { match } from 'assert';
+import { AccountsContext } from 'src/context';
+import { ConfirmPassword, Mnemonic } from 'src/components';
+import { MnemonicInput } from 'src/components/textfields';
 
 const createAccountSteps = [
   'Copy and save mnemonic for your new account',
@@ -66,27 +63,18 @@ const ImportMnemonic = ({
   };
 
   return (
-    <Box sx={{ mt: 1 }}>
+    <>
       <DialogContent>
-        <Stack spacing={2} alignItems="center">
-          {error && (
-            <Typography variant="body1" sx={{ color: 'error.main', mb: 2 }}>
-              {error}
-            </Typography>
-          )}
-          <TextField
-            multiline
-            placeholder="Mnemonic to import"
-            rows={3}
-            value={value}
-            onChange={(e) => {
-              onChange(e.target.value);
-              setError(undefined);
-            }}
-            fullWidth
-            type="password"
-          />
-        </Stack>
+        <Typography variant="body1" sx={{ color: 'error.main', my: 2 }}>
+          {error}
+        </Typography>
+        <MnemonicInput
+          mnemonic={value}
+          onUpdateMnemonic={(mnemon) => {
+            onChange(mnemon);
+            setError(undefined);
+          }}
+        />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button
@@ -100,7 +88,7 @@ const ImportMnemonic = ({
           Next
         </Button>
       </DialogActions>
-    </Box>
+    </>
   );
 };
 
@@ -110,16 +98,16 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
 
   const nameValidation = /^([a-zA-Z0-9\s]){1,20}$/;
 
-  const handleNext = (value: string) => {
-    if (!nameValidation.test(value))
-      [setError('Account name must  contain only letters and numbers and be between 1 and 20 characters')];
-    else onNext(value);
+  const handleNext = (accountName: string) => {
+    if (!nameValidation.test(accountName)) {
+      setError('Account name must  contain only letters and numbers and be between 1 and 20 characters');
+    } else onNext(value);
   };
 
   return (
-    <Box sx={{ mt: 1 }}>
+    <>
       <DialogContent>
-        <Typography variant="body1" sx={{ color: 'error.main', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: 'error.main', my: 2 }}>
           {error}
         </Typography>
         <TextField
@@ -144,43 +132,7 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
           Next
         </Button>
       </DialogActions>
-    </Box>
-  );
-};
-
-const ConfirmPassword = ({ onConfirm }: { onConfirm: (password: string) => void }) => {
-  const [value, setValue] = useState('');
-  const { isLoading, error } = useContext(AccountsContext);
-
-  return (
-    <Box sx={{ mt: 1 }}>
-      <DialogContent>
-        {error && (
-          <Typography variant="body1" sx={{ color: 'error.main', mb: 2 }}>
-            {error}
-          </Typography>
-        )}
-        <PasswordInput
-          password={value}
-          onUpdatePassword={(pswrd) => setValue(pswrd)}
-          label="Confirm password"
-          autoFocus
-        />
-      </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 0 }}>
-        <Button
-          disabled={!value.length || isLoading}
-          fullWidth
-          disableElevation
-          variant="contained"
-          size="large"
-          onClick={() => onConfirm(value)}
-          endIcon={isLoading && <CircularProgress size={20} />}
-        >
-          Add account
-        </Button>
-      </DialogActions>
-    </Box>
+    </>
   );
 };
 
@@ -191,22 +143,23 @@ export const AddAccountModal = () => {
     accountName: '',
   });
 
-  const { dialogToDisplay, setDialogToDisplay, handleAddAccount, setError } = useContext(AccountsContext);
+  const { dialogToDisplay, setDialogToDisplay, handleAddAccount, setError, isLoading, error } =
+    useContext(AccountsContext);
 
   const generateMnemonic = async () => {
     const mnemon = await createMnemonic();
     setData((d) => ({ ...d, mnemonic: mnemon }));
   };
 
-  const handleClose = () => {
-    setDialogToDisplay('Accounts');
-    resetState();
-  };
-
   const resetState = () => {
     setData({ mnemonic: '', accountName: '' });
     setStep(0);
     setError(undefined);
+  };
+
+  const handleClose = () => {
+    setDialogToDisplay('Accounts');
+    resetState();
   };
 
   useEffect(() => {
@@ -260,6 +213,7 @@ export const AddAccountModal = () => {
           case 2:
             return (
               <ConfirmPassword
+                buttonTitle="Add account"
                 onConfirm={async (password) => {
                   if (data.accountName && data.mnemonic) {
                     try {
@@ -271,6 +225,8 @@ export const AddAccountModal = () => {
                     }
                   }
                 }}
+                isLoading={isLoading}
+                error={error}
               />
             );
           default:

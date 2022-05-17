@@ -4,7 +4,7 @@ use crate::error::BackendError;
 use crate::network::Network as WalletNetwork;
 use crate::network_config;
 use crate::nymd_client;
-use crate::state::State;
+use crate::state::{State, WalletAccountIds};
 use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 
 use bip39::{Language, Mnemonic};
@@ -229,6 +229,10 @@ async fn _connect_with_mnemonic(
   };
 
   // Register all the clients
+  {
+    let mut w_state = state.write().await;
+    w_state.logout();
+  }
   for client in clients {
     let network: WalletNetwork = client.network.into();
     let mut w_state = state.write().await;
@@ -395,9 +399,9 @@ pub async fn sign_in_with_password(
 }
 
 fn extract_first_mnemonic(
-  stored_account: &wallet_storage::StoredLogin,
+  stored_login: &wallet_storage::StoredLogin,
 ) -> Result<Mnemonic, BackendError> {
-  let mnemonic = match stored_account {
+  let mnemonic = match stored_login {
     wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
     wallet_storage::StoredLogin::Multiple(ref accounts) => {
       // Login using the first account in the list
@@ -410,6 +414,44 @@ fn extract_first_mnemonic(
     }
   };
 
+  Ok(mnemonic)
+}
+
+#[tauri::command]
+pub async fn sign_in_with_password_and_account_id(
+  account_id: &str,
+  password: &str,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Account, BackendError> {
+  log::info!("Signing in with password");
+
+  // Currently we only support a single, default, id in the wallet
+  let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
+  let account_id = wallet_storage::AccountId::new(account_id.to_string());
+  let password = wallet_storage::UserPassword::new(password.to_string());
+  let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;
+
+  let mnemonic = extract_mnemonic(&stored_login, &account_id)?;
+  let first_login_id_when_converting = login_id.into();
+  set_state_with_all_accounts(stored_login, first_login_id_when_converting, state.clone()).await?;
+
+  _connect_with_mnemonic(mnemonic, state).await
+}
+
+fn extract_mnemonic(
+  stored_login: &wallet_storage::StoredLogin,
+  account_id: &wallet_storage::AccountId,
+) -> Result<Mnemonic, BackendError> {
+  let mnemonic = match stored_login {
+    wallet_storage::StoredLogin::Mnemonic(_) => {
+      return Err(BackendError::WalletNoSuchAccountIdInWalletLogin);
+    }
+    wallet_storage::StoredLogin::Multiple(ref accounts) => accounts
+      .get_account(account_id)
+      .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
+      .mnemonic()
+      .clone(),
+  };
   Ok(mnemonic)
 }
 
@@ -476,11 +518,31 @@ async fn set_state_with_all_accounts(
     .collect();
 
   for account in &all_accounts {
-    log::trace!("account: {:?}", account);
+    log::trace!("account: {:?}", account.id());
   }
 
+  let all_account_ids: Vec<WalletAccountIds> = all_accounts
+    .iter()
+    .map(|account| {
+      let mnemonic = account.mnemonic();
+      let addresses: HashMap<WalletNetwork, cosmrs::AccountId> = WalletNetwork::iter()
+        .map(|network| {
+          let config_network: Network = network.into();
+          (
+            network,
+            derive_address(mnemonic.clone(), config_network.bech32_prefix()).unwrap(),
+          )
+        })
+        .collect();
+      WalletAccountIds {
+        id: account.id().clone(),
+        addresses,
+      }
+    })
+    .collect();
+
   let mut w_state = state.write().await;
-  w_state.set_all_accounts(all_accounts);
+  w_state.set_all_accounts(all_account_ids);
   Ok(())
 }
 
@@ -523,16 +585,13 @@ pub async fn list_accounts(
 ) -> Result<Vec<AccountEntry>, BackendError> {
   log::trace!("Listing accounts");
   let state = state.read().await;
-  let network: Network = state.current_network().into();
-  let prefix = network.bech32_prefix();
+  let network = state.current_network();
 
   let all_accounts = state
     .get_all_accounts()
     .map(|account| AccountEntry {
-      id: account.id().to_string(),
-      address: derive_address(account.mnemonic().clone(), prefix)
-        .unwrap()
-        .to_string(),
+      id: account.id.to_string(),
+      address: account.addresses[&network].to_string(),
     })
     .map(|account| {
       log::trace!("{:?}", account);
@@ -552,8 +611,16 @@ pub fn show_mnemonic_for_account_in_password(
   let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
   let account_id = wallet_storage::AccountId::new(account_id);
   let password = wallet_storage::UserPassword::new(password);
-  let stored_account = wallet_storage::load_existing_login(&login_id, &password)?;
+  let mnemonic = _show_mnemonic_for_account_in_password(&login_id, &account_id, &password)?;
+  Ok(mnemonic.to_string())
+}
 
+fn _show_mnemonic_for_account_in_password(
+  login_id: &wallet_storage::LoginId,
+  account_id: &wallet_storage::AccountId,
+  password: &wallet_storage::UserPassword,
+) -> Result<bip39::Mnemonic, BackendError> {
+  let stored_account = wallet_storage::load_existing_login(login_id, password)?;
   let mnemonic = match stored_account {
     wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
     wallet_storage::StoredLogin::Multiple(ref accounts) => {
@@ -561,36 +628,13 @@ pub fn show_mnemonic_for_account_in_password(
         log::debug!("{:?}", account);
       }
       accounts
-        .get_account(&account_id)
+        .get_account(account_id)
         .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
         .mnemonic()
         .clone()
     }
   };
-
-  Ok(mnemonic.to_string())
-}
-
-#[tauri::command]
-pub async fn sign_in_decrypted_account(
-  account_id: &str,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Account, BackendError> {
-  log::info!("Signing in to already decrypted account: {account_id}");
-  let mnemonic = {
-    let state = state.read().await;
-    let account = &state
-      .get_all_accounts()
-      .find(|a| a.id().as_ref() == account_id)
-      .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?;
-    account.mnemonic().clone()
-  };
-
-  {
-    state.write().await.logout();
-  }
-
-  _connect_with_mnemonic(mnemonic, state).await
+  Ok(mnemonic)
 }
 
 #[cfg(test)]

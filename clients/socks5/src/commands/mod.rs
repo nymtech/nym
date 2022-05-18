@@ -5,7 +5,7 @@ use crate::client::config::Config;
 use clap::ArgMatches;
 use url::Url;
 
-pub(crate) mod init;
+pub mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 

@@ -2553,6 +2553,7 @@ dependencies = [
  "nym-network-requester",
  "nym-socks5-client",
  "nymsphinx",
+ "pretty_env_logger",
  "rand 0.7.3",
  "serde",
  "serde_json",

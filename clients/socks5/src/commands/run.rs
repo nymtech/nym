@@ -106,5 +106,6 @@ pub async fn execute(matches: ArgMatches<'static>) {
         return;
     }
 
+    dbg!(&config);
     NymClient::new(config).run_forever().await;
 }

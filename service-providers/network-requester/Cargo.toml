@@ -7,10 +7,6 @@ version = "1.0.0-rc.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 
-[lib]
-name = "nym_network_requester"
-path = "src/lib.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

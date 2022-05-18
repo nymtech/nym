@@ -5,7 +5,7 @@ use clap::{App, Arg, ArgMatches};
 
 mod allowed_hosts;
 mod connection;
-pub mod core;
+mod core;
 mod websocket;
 
 const OPEN_PROXY_ARG: &str = "open-proxy";

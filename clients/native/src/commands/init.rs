@@ -88,7 +88,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     app
 }
 
-pub async fn register_with_gateway(
+async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
 ) -> Arc<SharedKeys> {
@@ -110,7 +110,7 @@ pub async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-pub async fn gateway_details(
+async fn gateway_details(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
@@ -144,7 +144,7 @@ pub async fn gateway_details(
     }
 }
 
-pub fn show_address(config: &Config) {
+fn show_address(config: &Config) {
     fn load_identity_keys(pathfinder: &ClientKeyPathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(

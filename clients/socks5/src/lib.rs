@@ -3,3 +3,4 @@
 
 pub mod client;
 pub mod socks;
+pub mod commands;

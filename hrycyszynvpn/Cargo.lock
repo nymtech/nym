@@ -1367,6 +1367,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
+name = "doc-comment"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1540,6 +1546,15 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "error-chain"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d2f06b9cac1506ece98fe3231e3cc9c4410ec3d5b1f24ae1c8946f0742cdefc"
+dependencies = [
+ "version_check",
 ]
 
 [[package]]
@@ -2522,13 +2537,23 @@ dependencies = [
  "argon2",
  "base64",
  "bip39",
+ "client-core",
+ "coconut-interface",
+ "config",
  "cosmrs",
  "cosmwasm-std",
+ "credentials",
  "dirs 4.0.0",
  "eyre",
  "fix-path-env",
+ "log",
+ "mixnet-contract-common",
+ "network-defaults",
  "nym-client",
- "rand 0.6.5",
+ "nym-network-requester",
+ "nym-socks5-client",
+ "nymsphinx",
+ "rand 0.7.3",
  "serde",
  "serde_json",
  "strum 0.23.0",
@@ -2542,6 +2567,8 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
+ "validator-client",
+ "version-checker",
  "zeroize",
 ]
 
@@ -2851,6 +2878,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 
 [[package]]
+name = "ipnetwork"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02c3eaab3ac0ede60ffa41add21970a7df7d91772c03383aac6c2c3d53cc716b"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3103,9 +3139,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.14"
+version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
+checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
 ]
@@ -3498,6 +3534,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-requester"
+version = "1.0.0-rc.2"
+dependencies = [
+ "clap",
+ "dirs 3.0.2",
+ "futures",
+ "ipnetwork",
+ "log",
+ "nymsphinx",
+ "ordered-buffer",
+ "pretty_env_logger",
+ "proxy-helpers",
+ "publicsuffix",
+ "socks5-requests",
+ "tokio",
+ "tokio-tungstenite",
+ "websocket-requests",
+]
+
+[[package]]
+name = "nym-socks5-client"
+version = "1.0.0-rc.2"
+dependencies = [
+ "clap",
+ "client-core",
+ "config",
+ "credential-storage",
+ "crypto",
+ "dirs 3.0.2",
+ "dotenv",
+ "futures",
+ "gateway-client",
+ "gateway-requests",
+ "log",
+ "network-defaults",
+ "nymsphinx",
+ "ordered-buffer",
+ "pemstore",
+ "pin-project",
+ "pretty_env_logger",
+ "proxy-helpers",
+ "rand 0.7.3",
+ "serde",
+ "snafu",
+ "socks5-requests",
+ "tokio",
+ "topology",
+ "url",
+ "validator-client",
+ "vergen",
+ "version-checker",
+]
+
+[[package]]
 name = "nymcoconut"
 version = "0.5.0"
 dependencies = [
@@ -3718,6 +3808,13 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "ordered-buffer"
+version = "0.1.0"
+dependencies = [
+ "log",
 ]
 
 [[package]]
@@ -4283,6 +4380,33 @@ checksum = "534b7a0e836e3c482d2693070f982e39e7611da9695d4d1f5a4b186b51faef0a"
 dependencies = [
  "bytes",
  "prost",
+]
+
+[[package]]
+name = "proxy-helpers"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "log",
+ "ordered-buffer",
+ "socks5-requests",
+ "tokio",
+ "tokio-util 0.6.9",
+]
+
+[[package]]
+name = "publicsuffix"
+version = "1.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bbaa49075179162b49acac1c6aa45fb4dafb5f13cf6794276d77bc7fd95757b"
+dependencies = [
+ "error-chain",
+ "idna",
+ "lazy_static",
+ "native-tls",
+ "regex",
+ "url",
 ]
 
 [[package]]
@@ -5169,6 +5293,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 
 [[package]]
+name = "snafu"
+version = "0.6.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eab12d3c261b2308b0d80c26fffb58d17eba81a4be97890101f416b478c79ca7"
+dependencies = [
+ "doc-comment",
+ "snafu-derive",
+]
+
+[[package]]
+name = "snafu-derive"
+version = "0.6.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1508efa03c362e23817f96cde18abed596a25219a8b2c66e8db33c03543d315b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "socket2"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5176,6 +5321,14 @@ checksum = "66d72b759436ae32898a2af0a14218dbf55efde3feeb170eb623637db85ee1e0"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "socks5-requests"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-addressing",
+ "ordered-buffer",
 ]
 
 [[package]]

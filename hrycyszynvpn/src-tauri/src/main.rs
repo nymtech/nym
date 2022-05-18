@@ -16,7 +16,7 @@ use crate::menu::{create_tray_menu, tray_menu_event_handler};
 use crate::state::State;
 use crate::window::window_toggle;
 
-// mod config;
+mod config;
 mod error;
 mod menu;
 mod models;

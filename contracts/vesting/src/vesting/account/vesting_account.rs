@@ -14,24 +14,22 @@ impl VestingAccount for Account {
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
-        // Returns 0 in case of underflow.
+        // Returns 0 in case of underflow. Which is fine, as the amount of pledged and delegated tokens can be larger then vesting_coins due to rewards and vesting periods expiring
         Ok(Coin {
             amount: Uint128::new(
                 self.get_vesting_coins(block_time, env)?
                     .amount
                     .u128()
-                    .checked_sub(
+                    .saturating_sub(
                         self.get_delegated_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
                     )
-                    .ok_or(ContractError::Underflow)?
-                    .checked_sub(
+                    .saturating_sub(
                         self.get_pledged_vesting(block_time, env, storage)?
                             .amount
                             .u128(),
-                    )
-                    .ok_or(ContractError::Underflow)?,
+                    ),
             ),
             denom: DENOM.to_string(),
         })

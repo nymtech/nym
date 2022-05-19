@@ -11,15 +11,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-use nymsphinx::addressing::clients::{ClientEncryptionKey, ClientIdentity, Recipient};
-use nymsphinx::addressing::nodes::NodeIdentity;
+use network_defaults::DEFAULT_NETWORK;
+use nymsphinx::addressing::clients::{ClientIdentity, Recipient};
 use socks5_requests::Response;
 
 use super::error::StatsError;
-
-const STATS_PROVIDER_CLIENT_IDENTITY: &str = "HqYWvCcB4sswYiyMj5Q8H5oc71kLf96vfrLK3npM7stH";
-const STATS_PROVIDER_ENCRYPTION_KEY: &str = "CoeC5dcqurgdxr5zcgU77nZBSBCc8ntCiwUivQ9TX3KT";
-const STATS_PROVIDER_GATEWAY_IDENTITY: &str = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
@@ -96,12 +92,10 @@ impl Statistics {
         interval_seconds: Duration,
         timer_receiver: mpsc::Receiver<()>,
     ) -> Self {
-        // those unwraps are ok because we set the strings in the constants above
-        let stats_provider_addr = Recipient::new(
-            ClientIdentity::from_base58_string(STATS_PROVIDER_CLIENT_IDENTITY).unwrap(),
-            ClientEncryptionKey::from_base58_string(STATS_PROVIDER_ENCRYPTION_KEY).unwrap(),
-            NodeIdentity::from_base58_string(STATS_PROVIDER_GATEWAY_IDENTITY).unwrap(),
-        );
+        // this unwrap is ok because we set the string in a constant
+        let stats_provider_addr =
+            Recipient::try_from_base58_string(DEFAULT_NETWORK.stats_provider_network_address())
+                .unwrap();
         Statistics {
             description,
             request_data: Arc::new(RwLock::new(StatsData::new())),

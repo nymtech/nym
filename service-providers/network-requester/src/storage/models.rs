@@ -8,6 +8,7 @@ pub(crate) struct MixnetStatistics {
     #[allow(dead_code)]
     pub(crate) id: i64,
     pub(crate) service_description: String,
+    pub(crate) client_identity: String,
     pub(crate) request_processed_bytes: i64,
     pub(crate) response_processed_bytes: i64,
     pub(crate) interval_seconds: i64,

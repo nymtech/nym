@@ -5,7 +5,6 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::{Deserialize, Serialize};
 
-use crate::statistics::{StatsData, StatsMessage};
 use crate::storage::NetworkRequesterStorage;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -18,14 +17,19 @@ pub struct MixnetStatisticsRequest {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct MixnetStatisticsResponse {
-    data: Vec<StatsMessage>,
+    pub service_description: String,
+    pub client_identity: String,
+    pub request_processed_bytes: u32,
+    pub response_processed_bytes: u32,
+    pub interval_seconds: u32,
+    pub timestamp: String,
 }
 
 #[rocket::post("/mixnet-statistics", data = "<mixnet_statistics_request>")]
 pub(crate) async fn post_mixnet_statistics(
     mixnet_statistics_request: Json<MixnetStatisticsRequest>,
     storage: &State<NetworkRequesterStorage>,
-) -> Json<MixnetStatisticsResponse> {
+) -> Json<Vec<MixnetStatisticsResponse>> {
     let mixnet_statistics = storage
         .get_service_statistics_in_interval(
             &mixnet_statistics_request.since,
@@ -34,16 +38,15 @@ pub(crate) async fn post_mixnet_statistics(
         .await
         .unwrap()
         .into_iter()
-        .map(|data| StatsMessage {
-            description: data.service_description,
-            request_data: StatsData::new(data.request_processed_bytes as u32),
-            response_data: StatsData::new(data.response_processed_bytes as u32),
+        .map(|data| MixnetStatisticsResponse {
+            service_description: data.service_description,
+            client_identity: data.client_identity,
+            request_processed_bytes: data.request_processed_bytes as u32,
+            response_processed_bytes: data.response_processed_bytes as u32,
             interval_seconds: data.interval_seconds as u32,
             timestamp: data.timestamp.to_string(),
         })
         .collect();
 
-    Json(MixnetStatisticsResponse {
-        data: mixnet_statistics,
-    })
+    Json(mixnet_statistics)
 }

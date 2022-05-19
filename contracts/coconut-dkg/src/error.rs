@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::types::Blacklisting;
+use coconut_dkg_common::types::{Blacklisting, EpochId};
 use config::defaults::STAKE_DENOM;
 use cosmwasm_std::{Addr, StdError, VerificationError};
 use thiserror::Error;
@@ -55,4 +55,16 @@ pub enum ContractError {
     // explicitly declare it so that when we ultimate do see it, it's gonna be more informative over "normal" panic
     #[error("Somehow our validated address {address} is not using correct bech32 encoding")]
     InvalidValidatedAddress { address: Addr },
+
+    #[error("This sender is not a dealer for the current epoch")]
+    NotADealer,
+
+    #[error("The current epoch does not match the one present in the request. Current: {current}, in request: {request_for}")]
+    MismatchedEpoch {
+        current: EpochId,
+        request_for: EpochId,
+    },
+
+    #[error("This dealer has already commited dealing for this epoch")]
+    AlreadyCommitted,
 }

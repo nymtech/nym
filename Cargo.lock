@@ -733,6 +733,7 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "blake3",
+ "bs58",
  "cosmwasm-std",
  "digest 0.10.3",
  "schemars",

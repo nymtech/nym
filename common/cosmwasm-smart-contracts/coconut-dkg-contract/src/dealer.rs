@@ -1,7 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, NodeIndex};
+use crate::types::{
+    BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, EpochId, NodeIndex,
+};
+use contracts_common::commitment::ContractSafeCommitment;
 use cosmwasm_std::Addr;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -204,5 +207,45 @@ impl BlacklistingResponse {
         self.blacklisting
             .as_ref()
             .expect("dealer is not blacklisted")
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ContractDealingCommitment {
+    pub commitment: ContractSafeCommitment,
+    pub dealer: Addr,
+    pub epoch_id: EpochId,
+}
+
+impl ContractDealingCommitment {
+    pub fn new(commitment: ContractSafeCommitment, dealer: Addr, epoch_id: EpochId) -> Self {
+        ContractDealingCommitment {
+            commitment,
+            dealer,
+            epoch_id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct PagedCommitmentsResponse {
+    pub commitments: Vec<ContractDealingCommitment>,
+    pub per_page: usize,
+    pub start_next_after: Option<Addr>,
+}
+
+impl PagedCommitmentsResponse {
+    pub fn new(
+        commitments: Vec<ContractDealingCommitment>,
+        per_page: usize,
+        start_next_after: Option<Addr>,
+    ) -> Self {
+        PagedCommitmentsResponse {
+            commitments,
+            per_page,
+            start_next_after,
+        }
     }
 }

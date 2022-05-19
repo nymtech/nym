@@ -5,11 +5,11 @@ use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
 use crate::nymd::{cosmwasm_coin_to_cosmos_coin, Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::DealerDetailsResponse;
+use coconut_dkg_common::dealer::{DealerDetailsResponse, PagedCommitmentsResponse};
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
 use coconut_dkg_common::types::{
-    BlacklistingResponse, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch,
+    BlacklistingResponse, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch, EpochId,
     MinimumDepositResponse, PagedBlacklistingResponse, PagedDealerResponse,
 };
 use contracts_common::commitment::ContractSafeCommitment;
@@ -41,6 +41,12 @@ pub trait DkgClient {
 
     async fn get_blacklisting(&self, dealer: String) -> Result<BlacklistingResponse, NymdError>;
     async fn get_deposit_amount(&self) -> Result<MinimumDepositResponse, NymdError>;
+    async fn get_epoch_dealings_commitments_paged(
+        &self,
+        epoch: EpochId,
+        start_after: Option<String>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedCommitmentsResponse, NymdError>;
 
     async fn register_dealer(
         &self,
@@ -133,6 +139,22 @@ where
 
     async fn get_deposit_amount(&self) -> Result<MinimumDepositResponse, NymdError> {
         let request = DkgQueryMsg::GetDepositAmount {};
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
+            .await
+    }
+
+    async fn get_epoch_dealings_commitments_paged(
+        &self,
+        epoch: EpochId,
+        start_after: Option<String>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedCommitmentsResponse, NymdError> {
+        let request = DkgQueryMsg::GetEpochDealingsCommitments {
+            limit: page_limit,
+            start_after,
+            epoch,
+        };
         self.client
             .query_contract_smart(self.coconut_dkg_contract_address()?, &request)
             .await

@@ -23,6 +23,8 @@ use crate::nymd::{
 
 #[cfg(feature = "dkg")]
 use crate::nymd::{traits::DkgClient, SigningCosmWasmClient};
+use coconut_dkg_common::dealer::ContractDealingCommitment;
+use coconut_dkg_common::types::EpochId;
 #[cfg(feature = "dkg")]
 use coconut_dkg_common::types::{BlacklistedDealer, DealerDetails};
 #[cfg(feature = "nymd-client")]
@@ -845,5 +847,35 @@ where
         }
 
         Ok(dealers)
+    }
+
+    pub async fn get_all_nymd_epoch_dealings_commitments(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Vec<ContractDealingCommitment>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let mut commitments = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_epoch_dealings_commitments_paged(
+                    epoch_id,
+                    start_after.take(),
+                    self.dealers_page_limit,
+                )
+                .await?;
+            commitments.append(&mut paged_response.commitments);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(commitments)
     }
 }

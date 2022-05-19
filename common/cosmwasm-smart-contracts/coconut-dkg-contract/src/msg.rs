@@ -1,7 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Threshold};
+use crate::types::{
+    BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, EpochId, Threshold,
+};
 use contracts_common::commitment::ContractSafeCommitment;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -57,6 +59,11 @@ pub enum QueryMsg {
         dealer: String,
     },
     GetDepositAmount {},
+    GetEpochDealingsCommitments {
+        limit: Option<u32>,
+        start_after: Option<String>,
+        epoch: EpochId,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

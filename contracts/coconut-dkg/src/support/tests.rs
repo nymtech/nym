@@ -13,6 +13,7 @@ pub mod helpers {
         let env = mock_env();
         let msg = InstantiateMsg {
             public_key_submission_end_height: env.block.height + 123,
+            system_threshold: None,
         };
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env, info, msg).unwrap();

@@ -4,7 +4,7 @@
 #[cfg(feature = "committable_trait")]
 pub use digest::{Digest, Output};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 #[cfg(feature = "committable_trait")]
 use std::marker::PhantomData;
@@ -16,9 +16,7 @@ pub const MAX_COMMITMENT_SIZE: usize = 128;
 
 // TODO: if we are to use commitments for different types, it might make sense to introduce something like
 // CommitmentTypeId field on the below for distinguishing different ones. it would somehow become part of the trait
-#[derive(
-    Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, JsonSchema,
-)]
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, JsonSchema)]
 pub struct ContractSafeCommitment(Vec<u8>);
 
 impl Deref for ContractSafeCommitment {
@@ -42,6 +40,35 @@ impl Display for ContractSafeCommitment {
             write!(f, "...")?;
         }
         Ok(())
+    }
+}
+
+// since cosmwasm stores everything with byte representation of stringified json, it's actually more efficient
+// to serialize this as a string as opposed to keeping it as vector of bytes.
+// for example vec![255,255] would have string representation of "[255,255]" and will be serialized to
+// [91, 50, 53, 53, 44, 50, 53, 53, 93]. the equivalent base58 encoded string `"LUv"` will be serialized to
+// [34, 76, 85, 118, 34]
+//
+// the difference between base58 and base64 is rather minimal and I've gone with base58 for consistency sake
+impl Serialize for ContractSafeCommitment {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&bs58::encode(&self.0).into_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ContractSafeCommitment {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = <String>::deserialize(deserializer)?;
+        let bytes = bs58::decode(&s)
+            .into_vec()
+            .map_err(serde::de::Error::custom)?;
+        Ok(ContractSafeCommitment(bytes))
     }
 }
 

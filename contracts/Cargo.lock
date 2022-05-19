@@ -277,6 +277,7 @@ checksum = "9d6f2aa4d0537bcc1c74df8755072bd31c1ef1a3a1b85a68e8404a8c353b7b8b"
 name = "contracts-common"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "cosmwasm-std",
  "schemars",
  "serde",

@@ -5,9 +5,8 @@ use crate::constants::{INVALID_ED25519_BLACKLISTING_EXPIRATION, MINIMUM_DEPOSIT}
 use crate::dealers::storage as dealers_storage;
 use crate::ContractError;
 use coconut_dkg_common::types::{
-    BlacklistingReason, BlockHeight, ContractSafeCommitment, DealerDetails,
-    EncodedBTEPublicKeyWithProof, EncodedBTEPublicKeyWithProofRef, EncodedEd25519PublicKey,
-    EncodedEd25519PublicKeyRef,
+    BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
+    EncodedBTEPublicKeyWithProofRef, EncodedEd25519PublicKey, EncodedEd25519PublicKeyRef,
 };
 use config::defaults::STAKE_DENOM;
 use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Env, MessageInfo, Response};
@@ -132,6 +131,9 @@ pub fn try_add_dealer(
     owner_signature: String,
     host: String,
 ) -> Result<Response, ContractError> {
+    // TODO: check if we're in correct epoch state
+    
+    
     // check whether this sender is eligible to become a dealer
     verify_dealer(deps.branch(), env.block.height, &info.sender)?;
 
@@ -189,14 +191,4 @@ pub fn try_add_dealer(
     dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
 
     Ok(Response::new().set_data(node_index.to_be_bytes()))
-}
-
-pub fn try_commit_dealing(
-    mut deps: DepsMut<'_>,
-    env: Env,
-    info: MessageInfo,
-    epoch_id: u32,
-    commitment: ContractSafeCommitment,
-) -> Result<Response, ContractError> {
-    todo!()
 }

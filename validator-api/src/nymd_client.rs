@@ -5,10 +5,10 @@ use crate::config::Config;
 use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::DealerDetailsResponse;
+use coconut_dkg_common::dealer::{ContractDealingCommitment, DealerDetailsResponse};
 use coconut_dkg_common::types::{
     BlacklistedDealer, BlacklistingResponse, Coin, DealerDetails, EncodedBTEPublicKeyWithProof,
-    EncodedEd25519PublicKey, Epoch as DkgEpoch,
+    EncodedEd25519PublicKey, Epoch as DkgEpoch, EpochId,
 };
 use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
 use contracts_common::commitment::ContractSafeCommitment;
@@ -502,6 +502,17 @@ where
             .get_deposit_amount()
             .await
             .map(|res| res.amount)
+    }
+
+    pub(crate) async fn get_epoch_dealings_commitments(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Vec<ContractDealingCommitment>, ValidatorClientError> {
+        self.0
+            .read()
+            .await
+            .get_all_nymd_epoch_dealings_commitments(epoch_id)
+            .await
     }
 
     pub(crate) async fn register_dealer(

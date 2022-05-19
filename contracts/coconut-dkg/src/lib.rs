@@ -6,6 +6,7 @@ use crate::dealers::queries::{
     query_blacklisted_dealers_paged, query_blacklisting, query_current_dealers_paged,
     query_dealer_details, query_past_dealers_paged,
 };
+use crate::dealings::queries::query_epoch_dealings_commitments_paged;
 use crate::epoch::queries::query_current_epoch;
 use crate::error::ContractError;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -88,7 +89,7 @@ pub fn execute(
         ExecuteMsg::CommitDealing {
             epoch_id,
             commitment,
-        } => dealers::transactions::try_commit_dealing(deps, env, info, epoch_id, commitment),
+        } => dealings::transactions::try_commit_dealing(deps, info, epoch_id, commitment),
         ExecuteMsg::UnsafeResetAll { init_msg } => reset_contract_state(deps, env, info, init_msg),
     }
 }
@@ -151,6 +152,16 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             MINIMUM_DEPOSIT.u128(),
             STAKE_DENOM,
         )))?,
+        QueryMsg::GetEpochDealingsCommitments {
+            limit,
+            epoch,
+            start_after,
+        } => to_binary(&query_epoch_dealings_commitments_paged(
+            deps,
+            epoch,
+            start_after,
+            limit,
+        )?)?,
     };
 
     Ok(response)
@@ -174,6 +185,7 @@ mod tests {
         let env = mock_env();
         let msg = InstantiateMsg {
             public_key_submission_end_height: env.block.height + 123,
+            system_threshold: None,
         };
         let info = mock_info("creator", &[]);
 

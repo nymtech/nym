@@ -236,7 +236,7 @@ export const PageMixnodes: React.FC = () => {
       headerName: 'Average Uptime',
       renderHeader: () => <CustomColumnHeading headingTitle="Average Uptime" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 140,
+      width: 160,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink

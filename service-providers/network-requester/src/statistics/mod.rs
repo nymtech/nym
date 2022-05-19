@@ -5,5 +5,5 @@ mod comm;
 mod error;
 mod timer;
 
-pub use comm::{Statistics, StatsData, StatsMessage};
+pub use comm::{Statistics, StatsClientData, StatsData, StatsMessage};
 pub use timer::Timer;

@@ -10,10 +10,11 @@ use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::clients::{ClientIdentity, Recipient};
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -79,7 +80,7 @@ impl ServiceProvider {
             response_stats_data
                 .write()
                 .await
-                .processed(response.data.len() as u32);
+                .processed(return_address.identity(), response.data.len() as u32);
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
@@ -226,6 +227,7 @@ impl ServiceProvider {
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
         request_stats_data: &Arc<RwLock<StatsData>>,
+        connected_clients: &mut HashMap<ConnectionId, ClientIdentity>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -236,19 +238,24 @@ impl ServiceProvider {
         };
         match deserialized_msg {
             Socks5Message::Request(deserialized_request) => match deserialized_request {
-                Request::Connect(req) => self.handle_proxy_connect(
-                    controller_sender,
-                    mix_input_sender,
-                    req.conn_id,
-                    req.remote_addr,
-                    req.return_address,
-                ),
+                Request::Connect(req) => {
+                    connected_clients.insert(req.conn_id, *req.return_address.identity());
+                    self.handle_proxy_connect(
+                        controller_sender,
+                        mix_input_sender,
+                        req.conn_id,
+                        req.remote_addr,
+                        req.return_address,
+                    )
+                }
 
                 Request::Send(conn_id, data, closed) => {
-                    request_stats_data
-                        .write()
-                        .await
-                        .processed(data.len() as u32);
+                    if let Some(client_identity) = connected_clients.get(&conn_id) {
+                        request_stats_data
+                            .write()
+                            .await
+                            .processed(client_identity, data.len() as u32);
+                    }
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
@@ -329,6 +336,7 @@ impl ServiceProvider {
 
         println!("\nAll systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
+        let mut connected_clients = HashMap::new();
         loop {
             let received = match Self::read_websocket_message(&mut websocket_reader).await {
                 Some(msg) => msg,
@@ -348,6 +356,7 @@ impl ServiceProvider {
                 &mut controller_sender,
                 &mix_input_sender,
                 &request_stats_data,
+                &mut connected_clients,
             )
             .await;
         }

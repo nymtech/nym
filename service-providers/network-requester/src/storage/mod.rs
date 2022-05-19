@@ -55,16 +55,20 @@ impl NetworkRequesterStorage {
         let timestamp: DateTime<Utc> = DateTime::parse_from_rfc3339(&msg.timestamp)
             .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
             .into();
-        Ok(self
-            .manager
-            .insert_service_statistics(
-                msg.description,
-                msg.request_data.total_processed_bytes(),
-                msg.response_data.total_processed_bytes(),
-                msg.interval_seconds,
-                timestamp,
-            )
-            .await?)
+        for client_data in msg.stats_data {
+            self.manager
+                .insert_service_statistics(
+                    msg.description.clone(),
+                    client_data.client_identity.clone(),
+                    client_data.request_bytes,
+                    client_data.response_bytes,
+                    msg.interval_seconds,
+                    timestamp,
+                )
+                .await?;
+        }
+
+        Ok(())
     }
 
     /// Returns data submitted within the provided time interval.

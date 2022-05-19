@@ -56,6 +56,10 @@ impl Network {
         self.details().rewarding_validator_address
     }
 
+    pub fn stats_provider_network_address(&self) -> &str {
+        self.details().stats_provider_network_address
+    }
+
     pub fn validators(&self) -> impl Iterator<Item = &ValidatorDetails> {
         self.details().validators.iter()
     }

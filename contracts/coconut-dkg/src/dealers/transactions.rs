@@ -5,8 +5,9 @@ use crate::constants::{INVALID_ED25519_BLACKLISTING_EXPIRATION, MINIMUM_DEPOSIT}
 use crate::dealers::storage as dealers_storage;
 use crate::ContractError;
 use coconut_dkg_common::types::{
-    BlacklistingReason, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof,
-    EncodedBTEPublicKeyWithProofRef, EncodedEd25519PublicKey, EncodedEd25519PublicKeyRef,
+    BlacklistingReason, BlockHeight, ContractSafeCommitment, DealerDetails,
+    EncodedBTEPublicKeyWithProof, EncodedBTEPublicKeyWithProofRef, EncodedEd25519PublicKey,
+    EncodedEd25519PublicKeyRef,
 };
 use config::defaults::STAKE_DENOM;
 use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Env, MessageInfo, Response};
@@ -195,8 +196,7 @@ pub fn try_commit_dealing(
     env: Env,
     info: MessageInfo,
     epoch_id: u32,
-    dealing_digest: [u8; 32],
-    receivers: u32,
+    commitment: ContractSafeCommitment,
 ) -> Result<Response, ContractError> {
     todo!()
 }

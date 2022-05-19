@@ -12,10 +12,10 @@ const MAX_ALLOWED_MESSAGE_LEN: usize = 2 * 1024 * 1024;
 #[derive(Debug)]
 pub struct DkgCodec;
 
-impl Encoder<OffchainDkgMessage> for DkgCodec {
+impl<'a> Encoder<&'a OffchainDkgMessage> for DkgCodec {
     type Error = DkgError;
 
-    fn encode(&mut self, item: OffchainDkgMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: &OffchainDkgMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
         item.encode(dst)
     }
 }

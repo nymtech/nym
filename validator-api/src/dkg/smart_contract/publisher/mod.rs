@@ -3,7 +3,10 @@
 
 use crate::dkg::error::DkgError;
 use crate::Client;
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, NodeIndex};
+use coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, EpochId, NodeIndex,
+};
+use contracts_common::commitment::ContractSafeCommitment;
 use validator_client::nymd::{AccountId, SigningCosmWasmClient};
 
 pub(crate) struct Publisher<C> {
@@ -45,8 +48,18 @@ where
         Err(DkgError::NodeIndexRecoveryError)
     }
 
-    pub(crate) async fn submit_dealing_commitment(&self) {
-        // self.client.submit_dealing_commitment().await;
-        //
+    pub(crate) async fn submit_dealing_commitment(
+        &self,
+        epoch_id: EpochId,
+        commitment: ContractSafeCommitment,
+    ) -> Result<(), DkgError> {
+        info!(
+            "submitting dealing commitment for epoch {} to the chain. Commitment is: {}",
+            epoch_id, commitment
+        );
+        self.client
+            .submit_dealing_commitment(epoch_id, commitment)
+            .await?;
+        Ok(())
     }
 }

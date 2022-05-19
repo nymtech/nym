@@ -44,6 +44,8 @@ where
     C: SigningCosmWasmClient + Send + Sync + 'static,
 {
     info!("initialising dkg...");
+    let rng = OsRng;
+
     let (dispatcher_sender, dispatcher_receiver) = mpsc::unbounded();
     let (contracts_events_sender, contracts_events_receiver) = mpsc::unbounded();
     let (dealing_sender, dealing_receiver) = mpsc::unbounded();
@@ -51,6 +53,7 @@ where
     // TODO: change it to attempt to load from a file first
     let state = DkgState::initialise_fresh(
         &nyxd_client,
+        config.network_address,
         config.identity,
         config.decryption_key,
         config.public_key,
@@ -72,14 +75,14 @@ where
         config.contract_polling_interval,
     );
     let publisher = smart_contract::Publisher::new(nyxd_client);
-    let mut net_listener = Listener::new(config.network_address.clone(), state_accessor);
+    let mut net_listener = Listener::new(config.network_address, state_accessor);
 
     let mut processing_loop = ProcessingLoop::new(
+        rng,
         state,
         dispatcher_sender,
         contracts_events_receiver,
         publisher,
-        config.network_address,
     );
 
     tokio::spawn(async move { event_dispatcher.run().await });

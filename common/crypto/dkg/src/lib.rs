@@ -3,16 +3,13 @@
 
 // forward-secure public key encryption scheme
 pub mod bte;
+pub mod dealing;
 pub mod error;
 pub mod interpolation;
-
-// this entire module is a big placeholder for whatever scheme we decide to use for the
-// secure channel encryption scheme, but I would assume that the top-level API would
-// remain more or less the same
-pub mod dealing;
 pub(crate) mod share;
 pub(crate) mod utils;
 
+pub use bte::{Epoch, Params};
 pub use dealing::*;
 pub use share::*;
 

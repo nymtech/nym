@@ -3,8 +3,12 @@
 
 #[cfg(feature = "committable_trait")]
 pub use digest::{Digest, Output};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 #[cfg(feature = "committable_trait")]
 use std::marker::PhantomData;
+use std::ops::Deref;
 
 // some sane upper-bound size on commitment sizes
 // currently set to 1024bits
@@ -12,7 +16,34 @@ pub const MAX_COMMITMENT_SIZE: usize = 128;
 
 // TODO: if we are to use commitments for different types, it might make sense to introduce something like
 // CommitmentTypeId field on the below for distinguishing different ones. it would somehow become part of the trait
-pub type ContractSafeCommitment = Vec<u8>;
+#[derive(
+    Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize, JsonSchema,
+)]
+pub struct ContractSafeCommitment(Vec<u8>);
+
+impl Deref for ContractSafeCommitment {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Display for ContractSafeCommitment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if !self.0.is_empty() {
+            write!(f, "0x")?;
+        }
+        for byte in self.0.iter().take(MAX_COMMITMENT_SIZE) {
+            write!(f, "{:02X}", byte)?;
+        }
+        // just some sanity safeguards
+        if self.0.len() > MAX_COMMITMENT_SIZE {
+            write!(f, "...")?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct UnsupportedCommitmentSize;
@@ -87,7 +118,7 @@ where
     T: ?Sized + Committable,
 {
     fn from(commitment: &'a MessageCommitment<T>) -> Self {
-        ContractSafeCommitment::from(commitment.value())
+        ContractSafeCommitment(commitment.value().to_vec())
     }
 }
 

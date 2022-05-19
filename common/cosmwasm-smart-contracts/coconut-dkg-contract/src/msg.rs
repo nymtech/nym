@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey};
+use crate::types::{BlockHeight, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Threshold};
 use contracts_common::commitment::ContractSafeCommitment;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
     pub public_key_submission_end_height: BlockHeight,
+    pub system_threshold: Option<Threshold>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

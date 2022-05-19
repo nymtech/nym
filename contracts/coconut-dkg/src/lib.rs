@@ -39,6 +39,15 @@ pub fn instantiate(
         return Err(ContractError::EpochStateFinishInPast);
     }
 
+    // if threshold was not provided in arguments, use ceil(2/3 of validators)
+    let system_threshold = if let Some(system_threshold) = msg.system_threshold {
+        system_threshold
+    } else {
+        let validators = deps.querier.query_all_validators()?.len() as u64;
+        // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
+        (2 * validators + 3 - 1) / 3
+    };
+
     epoch_storage::CURRENT_EPOCH.save(
         deps.storage,
         &Epoch {
@@ -47,6 +56,7 @@ pub fn instantiate(
                 begun_at: env.block.height,
                 finish_by: msg.public_key_submission_end_height,
             },
+            system_threshold,
         },
     )?;
     Ok(Response::default())
@@ -77,16 +87,8 @@ pub fn execute(
         ),
         ExecuteMsg::CommitDealing {
             epoch_id,
-            dealing_digest,
-            receivers,
-        } => dealers::transactions::try_commit_dealing(
-            deps,
-            env,
-            info,
-            epoch_id,
-            dealing_digest,
-            receivers,
-        ),
+            commitment,
+        } => dealers::transactions::try_commit_dealing(deps, env, info, epoch_id, commitment),
         ExecuteMsg::UnsafeResetAll { init_msg } => reset_contract_state(deps, env, info, init_msg),
     }
 }

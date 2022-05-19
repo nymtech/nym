@@ -157,21 +157,64 @@ where
             .await
     }
 
+    // async fn check_for_dealing_commitment(
+    //     &self,
+    //     contract_dealers: &HashMap<Addr, DealerDetails>,
+    //     current_height: BlockHeight,
+    // ) -> Result<(), DkgError> {
+    //     // note: normally we want to avoid the unchecked API, however, in this case it's fine as the
+    //     // `AccountId` is coming from the client is valid as it has been derived directly from the provided mnemonic,
+    //     // and hence we are certain it is valid
+    //     let address = Addr::unchecked(self.client.address().await.as_ref());
+    //     if !contract_dealers.contains_key(&address) {
+    //         // our key is not present in contract dealers, check if we think we have submitted it
+    //         if !self.state_accessor.has_submitted_keys().await {
+    //             // if we just transitioned into `PublicKeySubmission` and we haven't submitted our own keys
+    //             // we should emit event to do just that
+    //             debug!("we never registered our own dkg keys");
+    //             self.state_accessor
+    //                 .push_new_key_submission_event(current_height)
+    //                 .await;
+    //         } else {
+    //             // check if we got blacklisted, since we think we have submitted our own key...
+    //             let blacklisting = self.client.get_blacklisting(address.into_string()).await?;
+    //
+    //             if blacklisting.is_blacklisted(current_height) {
+    //                 warn!("our dealer is blacklisted - {}. We cannot participate in this round of DKG", blacklisting.unchecked_get_blacklisting());
+    //                 // TODO: what to do about it? can we do anything about it?
+    //             } else {
+    //                 // we've been blacklisted in the past, but it has already expired
+    //                 debug!(
+    //                     "our dealer has been blacklisted in the past, but it has already expired"
+    //                 );
+    //                 self.state_accessor
+    //                     .push_new_key_submission_event(current_height)
+    //                     .await;
+    //             }
+    //         }
+    //     } else {
+    //         // TODO: change to trace
+    //         debug!("our dkg key is already registered in the dkg contract")
+    //     }
+    //
+    //     Ok(())
+    // }
+
     async fn dealing_exchange_actions(&self) -> Result<(), DkgError> {
         let current_height = self.client.current_block_height().await?.value();
-        // let contract_dealers = self
-        //     .client
-        //     .get_current_dealers()
-        //     .await?
-        //     .into_iter()
-        //     .map(|dealer| (dealer.address.clone(), dealer))
-        //     .collect::<HashMap<_, _>>();
+        let contract_dealers = self
+            .client
+            .get_current_dealers()
+            .await?
+            .into_iter()
+            .map(|dealer| (dealer.address.clone(), dealer))
+            .collect::<HashMap<_, _>>();
         //
         // self.check_for_own_submission(&contract_dealers, current_height)
         //     .await?;
         // self.check_for_dealers(contract_dealers, current_height)
         //     .await
-        
+
         todo!()
     }
 

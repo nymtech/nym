@@ -5,6 +5,7 @@ use crate::dkg::error::DkgError;
 use crate::dkg::networking::PROTOCOL_VERSION;
 use crate::dkg::state::ReceivedDealing;
 use bytes::{BufMut, BytesMut};
+use coconut_dkg_common::types::EpochId;
 use crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -13,7 +14,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OffchainDkgMessage {
     NewDealing {
         id: u64,
@@ -33,7 +34,27 @@ pub enum OffchainDkgMessage {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl Display for OffchainDkgMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "OffchainDkgMessage ")?;
+        match self {
+            OffchainDkgMessage::NewDealing { id, message } => {
+                write!(f, "with id {} and message: {}", id, message)
+            }
+            OffchainDkgMessage::RemoteDealingRequest { id, message } => {
+                write!(f, "with id {} and message: {}", id, message)
+            }
+            OffchainDkgMessage::RemoteDealingResponse { id, message } => {
+                write!(f, "with id {} and message: {}", id, message)
+            }
+            OffchainDkgMessage::ErrorResponse { id, message } => {
+                write!(f, "with id {:?} and message: {}", id, message)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewDealingMessage {
     pub epoch_id: u32,
     // we keep the dealing in its serialized state as that's what is being signed (and hashed)
@@ -53,19 +74,39 @@ impl Display for NewDealingMessage {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteDealingRequestMessage {
     pub epoch_id: u32,
     pub dealer: identity::PublicKey,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl Display for RemoteDealingRequestMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "RemoteDealingRequestMessage for epoch {} for dealer {}",
+            self.epoch_id, self.dealer
+        )
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RemoteDealingResponseMessage {
     Available { dealing: ReceivedDealing },
     Unavailable,
 }
 
-#[derive(Debug, Serialize, Deserialize, Error)]
+impl Display for RemoteDealingResponseMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RemoteDealingResponseMessage - ")?;
+        match self {
+            RemoteDealingResponseMessage::Available { .. } => write!(f, "Available"),
+            RemoteDealingResponseMessage::Unavailable => write!(f, "Unavailable"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Error)]
 pub enum ErrorResponseMessage {
     #[error("Received request for epoch: {requested}, while the current epoch is {current}")]
     InvalidEpoch { current: u32, requested: u32 },
@@ -84,17 +125,27 @@ pub enum ErrorResponseMessage {
 }
 
 impl OffchainDkgMessage {
-    pub(crate) fn new_error_response(
-        id: Option<u64>,
-        message: ErrorResponseMessage,
-    ) -> OffchainDkgMessage {
+    pub(crate) fn new_error_response(id: Option<u64>, message: ErrorResponseMessage) -> Self {
         OffchainDkgMessage::ErrorResponse { id, message }
     }
 
-    pub(crate) fn new_remote_dealing_response(
+    pub(crate) fn new_dealing_message(
         id: u64,
-        dealing: Option<ReceivedDealing>,
-    ) -> OffchainDkgMessage {
+        epoch_id: EpochId,
+        dealing_bytes: Vec<u8>,
+        dealer_signature: identity::Signature,
+    ) -> Self {
+        OffchainDkgMessage::NewDealing {
+            id,
+            message: NewDealingMessage {
+                epoch_id,
+                dealing_bytes,
+                dealer_signature,
+            },
+        }
+    }
+
+    pub(crate) fn new_remote_dealing_response(id: u64, dealing: Option<ReceivedDealing>) -> Self {
         let message = match dealing {
             Some(dealing) => RemoteDealingResponseMessage::Available { dealing },
             None => RemoteDealingResponseMessage::Unavailable,
@@ -111,7 +162,7 @@ impl OffchainDkgMessage {
         Ok(bincode::serialize(&self)?)
     }
 
-    fn frame(self) -> Result<FramedOffchainDkgMessage, DkgError> {
+    fn frame(&self) -> Result<FramedOffchainDkgMessage, DkgError> {
         let payload = self.try_to_bytes()?;
         Ok(FramedOffchainDkgMessage {
             header: Header {
@@ -122,7 +173,7 @@ impl OffchainDkgMessage {
         })
     }
 
-    pub(crate) fn encode(self, dst: &mut BytesMut) -> Result<(), DkgError> {
+    pub(crate) fn encode(&self, dst: &mut BytesMut) -> Result<(), DkgError> {
         dst.put(self.frame()?.into_bytes().as_ref());
         Ok(())
     }

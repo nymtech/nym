@@ -302,6 +302,12 @@ pub struct Params {
     _h_prepared: G2Prepared,
 }
 
+impl Default for Params {
+    fn default() -> Self {
+        setup()
+    }
+}
+
 pub fn setup() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
 

@@ -7,6 +7,7 @@ pub use crate::dealer::{
     BlacklistedDealer, Blacklisting, BlacklistingReason, BlacklistingResponse, DealerDetails,
     PagedBlacklistingResponse, PagedDealerResponse,
 };
+pub use contracts_common::commitment::ContractSafeCommitment;
 pub use cosmwasm_std::{Addr, Coin};
 
 pub type BlockHeight = u64;
@@ -15,6 +16,7 @@ pub type EncodedEd25519PublicKeyRef<'a> = &'a str;
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
+pub type Threshold = u64;
 pub type EpochId = u32;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -22,6 +24,9 @@ pub type EpochId = u32;
 pub struct Epoch {
     pub id: EpochId,
     pub state: EpochState,
+
+    // TODO: need to ponder a bit whether it's actually a property of a particular epoch
+    pub system_threshold: Threshold,
 }
 
 impl Epoch {
@@ -71,7 +76,11 @@ impl Epoch {
             },
         };
 
-        Some(Epoch { id: self.id, state })
+        Some(Epoch {
+            id: self.id,
+            state,
+            system_threshold: self.system_threshold,
+        })
     }
 }
 

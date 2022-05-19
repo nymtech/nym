@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails};
+use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -34,9 +34,10 @@ pub(crate) enum DealerChange {
 
 #[derive(Debug)]
 pub(crate) enum EventType {
+    NoChange,
     NewKeySubmission,
     DealerSetChange { changes: Vec<DealerChange> },
-    NewDealingCommitment,
+    NewDealingCommitment { epoch: Epoch },
 }
 
 impl Display for EventType {
@@ -47,7 +48,10 @@ impl Display for EventType {
             EventType::DealerSetChange { changes } => {
                 write!(f, "DealerSetChange with {} changes", changes.len())
             }
-            EventType::NewDealingCommitment => write!(f, "NewDealingCommitment"),
+            EventType::NewDealingCommitment { epoch } => {
+                write!(f, "NewDealingCommitment for epoch {}", epoch.id)
+            }
+            EventType::NoChange => write!(f, "NoChange"),
         }
     }
 }

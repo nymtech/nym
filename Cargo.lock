@@ -735,6 +735,8 @@ dependencies = [
  "blake3",
  "cosmwasm-std",
  "digest 0.10.3",
+ "schemars",
+ "serde",
 ]
 
 [[package]]

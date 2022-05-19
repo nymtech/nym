@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dkg::networking::message::{NewDealingMessage, RemoteDealingRequestMessage};
+use crate::dkg::networking::message::NewDealingMessage;
 use crate::dkg::smart_contract::watcher;
 use std::fmt::{Display, Formatter};
 

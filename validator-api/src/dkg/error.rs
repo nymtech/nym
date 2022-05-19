@@ -26,6 +26,9 @@ pub enum DkgError {
     #[error("Failed to recover assigned node index")]
     NodeIndexRecoveryError,
 
+    #[error("Failed to broadcast our message to every specified receiver ({total} receivers were specified)")]
+    FullBroadcastFailure { total: usize },
+
     #[error("todo")]
     MalformedDealerDetails,
 

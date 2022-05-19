@@ -36,7 +36,7 @@ impl ConnectionHandler {
     }
 
     async fn send_response(&mut self, response_message: OffchainDkgMessage) {
-        if let Err(err) = self.conn.send(response_message).await {
+        if let Err(err) = self.conn.send(&response_message).await {
             warn!("Failed to send response back to {} - {}", self.remote, err)
         }
     }

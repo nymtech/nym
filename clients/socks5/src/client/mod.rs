@@ -48,12 +48,8 @@ pub struct NymClient {
 
 impl NymClient {
     pub fn new(config: Config) -> Self {
-        info!("NymClient::new() 1");
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        info!("NymClient::new() 2");
-        dbg!(&pathfinder);
         let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
-        info!("NymClient::new() 3");
 
         NymClient {
             config,

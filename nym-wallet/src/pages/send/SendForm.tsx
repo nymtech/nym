@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Grid, InputAdornment, TextField } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { Fee } from '../../components';
 
 export const SendForm = () => {
@@ -9,7 +9,7 @@ export const SendForm = () => {
     register,
     formState: { errors },
   } = useFormContext();
-  const { currency } = useContext(ClientContext);
+  const { currency } = useContext(AppContext);
 
   return (
     <Grid container spacing={3}>

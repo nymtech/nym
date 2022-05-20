@@ -1,2 +1,7 @@
 [workspace]
-members = ["src-tauri"]
+
+resolver = "2"
+members = [
+    "src-tauri",
+    "wallet-recovery-cli",
+]

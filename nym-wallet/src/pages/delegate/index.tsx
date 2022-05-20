@@ -4,7 +4,7 @@ import { DelegateForm } from './DelegateForm';
 import { NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
 import { SuccessView } from './SuccessView';
-import { urls, ClientContext } from '../../context/main';
+import { urls, AppContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 
 export const Delegate = () => {
@@ -12,7 +12,7 @@ export const Delegate = () => {
   const [error, setError] = useState<string>();
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
-  const { network } = useContext(ClientContext);
+  const { network } = useContext(AppContext);
 
   return (
     <PageLayout>

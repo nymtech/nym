@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { Box, Button, Divider, Stack, TextField, Typography } from '@mui/material';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 
 export const Profile = () => {
-  const { mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(AppContext);
 
   if (!mixnodeDetails) return null;
 

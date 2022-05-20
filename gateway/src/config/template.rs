@@ -19,9 +19,9 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
-# Indicates whether this gateway is running in a testnet mode, thus allowing clients
+# Indicates whether this gateway is running in a disabled credentials mode, thus allowing clients
 # to claim bandwidth without presenting bandwidth credentials.
-testnet_mode = {{ gateway.testnet_mode }}
+disabled_credentials_mode = {{ gateway.disabled_credentials_mode }}
 
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'

@@ -133,20 +133,14 @@ impl Client {
         if current_attempt == 0 {
             None
         } else {
-            // according to https://github.com/tokio-rs/tokio/issues/1953 there's an undocumented
-            // limit of tokio delay of about 2 years.
-            // let's ensure our delay is always on a sane side of being maximum 1 hour.
-            let maximum_sane_delay = Duration::from_secs(60 * 60);
+            let exp = 2_u32.checked_pow(current_attempt);
+            let backoff = exp
+                .and_then(|exp| self.config.initial_reconnection_backoff.checked_mul(exp))
+                .unwrap_or(self.config.maximum_reconnection_backoff);
 
             Some(std::cmp::min(
-                maximum_sane_delay,
-                std::cmp::min(
-                    self.config
-                        .initial_reconnection_backoff
-                        .checked_mul(2_u32.pow(current_attempt))
-                        .unwrap_or(self.config.maximum_reconnection_backoff),
-                    self.config.maximum_reconnection_backoff,
-                ),
+                backoff,
+                self.config.maximum_reconnection_backoff,
             ))
         }
     }
@@ -252,5 +246,47 @@ impl SendWithoutResponse for Client {
                 "connection is in progress",
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dummy_client() -> Client {
+        Client::new(Config {
+            initial_reconnection_backoff: Duration::from_millis(10_000),
+            maximum_reconnection_backoff: Duration::from_millis(300_000),
+            initial_connection_timeout: Duration::from_millis(1_500),
+            maximum_connection_buffer_size: 128,
+        })
+    }
+
+    #[test]
+    fn determining_backoff_works_regardless_of_attempt() {
+        let client = dummy_client();
+        assert!(client.determine_backoff(0).is_none());
+        assert!(client.determine_backoff(1).is_some());
+        assert!(client.determine_backoff(2).is_some());
+        assert_eq!(
+            client.determine_backoff(16).unwrap(),
+            client.config.maximum_reconnection_backoff
+        );
+        assert_eq!(
+            client.determine_backoff(32).unwrap(),
+            client.config.maximum_reconnection_backoff
+        );
+        assert_eq!(
+            client.determine_backoff(1024).unwrap(),
+            client.config.maximum_reconnection_backoff
+        );
+        assert_eq!(
+            client.determine_backoff(65536).unwrap(),
+            client.config.maximum_reconnection_backoff
+        );
+        assert_eq!(
+            client.determine_backoff(u32::MAX).unwrap(),
+            client.config.maximum_reconnection_backoff
+        );
     }
 }

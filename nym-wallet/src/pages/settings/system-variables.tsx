@@ -1,15 +1,16 @@
 /* eslint-disable no-nested-ternary */
 import React, { useContext, useState } from 'react';
-import { Box, Button, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
+import { useForm } from 'react-hook-form';
+import { Box, Button, Chip, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { PercentOutlined } from '@mui/icons-material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { useForm } from 'react-hook-form';
+import { SelectionChance } from 'src/types/rust/selectionchance';
 import { validationSchema } from './validationSchema';
 import { Fee, InfoTooltip } from '../../components';
 import { InclusionProbabilityResponse } from '../../types';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnode, vestingUpdateMixnode } from '../../requests';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { Console } from '../../utils/console';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
@@ -27,6 +28,26 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
       </Box>
     </Grid>
   </Grid>
+);
+
+const colorMap: { [key in SelectionChance]: string } = {
+  VeryLow: 'error.main',
+  Low: 'error.main',
+  Moderate: 'warning.main',
+  High: 'success.main',
+  VeryHigh: 'success.main',
+};
+
+const textMap: { [key in SelectionChance]: string } = {
+  VeryLow: 'Very low',
+  Low: 'Low',
+  Moderate: 'Moderate',
+  High: 'High',
+  VeryHigh: 'Very high',
+};
+
+const InclusionProbability = ({ probability }: { probability: SelectionChance }) => (
+  <Typography sx={{ color: colorMap[probability] }}>{textMap[probability]}</Typography>
 );
 
 const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean }) => (
@@ -49,7 +70,6 @@ const PercentIndicator = ({ value, warning }: { value: number; warning?: boolean
 
 export const SystemVariables = ({
   saturation,
-  rewardEstimation,
   inclusionProbability,
 }: {
   saturation: number;
@@ -57,7 +77,7 @@ export const SystemVariables = ({
   inclusionProbability: InclusionProbabilityResponse;
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
-  const { currency, mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(AppContext);
   const { ownership } = useCheckOwnership();
 
   const {
@@ -105,22 +125,18 @@ export const SystemVariables = ({
           <DataField
             title="Estimated reward"
             info="Estimated reward per epoch for this profit margin if your node is selected in the active set."
-            Indicator={
-              <Typography sx={{ color: (theme) => theme.palette.nym.fee, fontWeight: '600' }}>
-                {rewardEstimation} {currency?.major}
-              </Typography>
-            }
+            Indicator={<Chip label="Coming soon" />}
           />
 
           <DataField
             title="Estimated chance of being in the active set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<PercentIndicator value={inclusionProbability.in_active} />}
+            Indicator={<InclusionProbability probability={inclusionProbability.in_active} />}
           />
           <DataField
             title="Estimated chance of being in the standby set"
             info="Probability of getting selected in the reward set (active and standby nodes) in the next epoch. The more your stake, the higher the chances to be selected"
-            Indicator={<PercentIndicator value={inclusionProbability.in_reserve} />}
+            Indicator={<InclusionProbability probability={inclusionProbability.in_reserve} />}
           />
 
           <DataField

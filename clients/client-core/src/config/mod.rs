@@ -110,8 +110,8 @@ impl<T: NymConfig> Config<T> {
         self.client.id = id;
     }
 
-    pub fn with_testnet_mode(&mut self, testnet_mode: bool) {
-        self.client.testnet_mode = testnet_mode;
+    pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
+        self.client.disabled_credentials_mode = disabled_credentials_mode;
     }
 
     pub fn with_gateway_endpoint<S: Into<String>>(&mut self, id: S, owner: S, listener: S) {
@@ -154,8 +154,8 @@ impl<T: NymConfig> Config<T> {
         self.client.id.clone()
     }
 
-    pub fn get_testnet_mode(&self) -> bool {
-        self.client.testnet_mode
+    pub fn get_disabled_credentials_mode(&self) -> bool {
+        self.client.disabled_credentials_mode
     }
 
     pub fn get_nym_root_directory(&self) -> PathBuf {
@@ -294,10 +294,10 @@ pub struct Client<T> {
     /// ID specifies the human readable ID of this particular client.
     id: String,
 
-    /// Indicates whether this client is running in a testnet mode, thus attempting
+    /// Indicates whether this client is running in a disabled credentials mode, thus attempting
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
-    testnet_mode: bool,
+    disabled_credentials_mode: bool,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     validator_api_urls: Vec<Url>,
@@ -355,7 +355,7 @@ impl<T: NymConfig> Default for Client<T> {
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            testnet_mode: false,
+            disabled_credentials_mode: true,
             validator_api_urls: default_api_endpoints(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),

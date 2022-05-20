@@ -11,6 +11,8 @@ export type MixnodeRowType = {
   self_percentage: string;
   host: string;
   layer: string;
+  profit_percentage: string;
+  avg_uptime: string;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -22,6 +24,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const delegations = Number(item.total_delegation.amount) || 0;
   const totalBond = pledge + delegations;
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
+  const profitPercentage = item.mix_node.profit_margin_percent || 0;
   return {
     id: item.owner,
     status: item.status,
@@ -32,5 +35,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     self_percentage: selfPercentage,
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
+    profit_percentage: `${profitPercentage}%`,
+    avg_uptime: `${item.avg_uptime}%` || '-',
   };
 }

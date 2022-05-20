@@ -49,6 +49,7 @@ pub struct DefaultNetworkDetails<'a> {
     vesting_contract_address: &'a str,
     bandwidth_claim_contract_address: &'a str,
     rewarding_validator_address: &'a str,
+    stats_provider_network_address: &'a str,
     validators: Vec<ValidatorDetails>,
 }
 
@@ -60,6 +61,7 @@ static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
         vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
         bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
         rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
+        stats_provider_network_address: mainnet::STATS_PROVIDER_CLIENT_ADDRESS,
         validators: mainnet::validators(),
     });
 
@@ -71,6 +73,7 @@ static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
         vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
         bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
         rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
+        stats_provider_network_address: sandbox::STATS_PROVIDER_CLIENT_ADDRESS,
         validators: sandbox::validators(),
     });
 
@@ -81,6 +84,7 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
     vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
     bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
     rewarding_validator_address: qa::REWARDING_VALIDATOR_ADDRESS,
+    stats_provider_network_address: qa::STATS_PROVIDER_CLIENT_ADDRESS,
     validators: qa::validators(),
 });
 
@@ -95,6 +99,13 @@ pub struct ValidatorDetails {
 
 impl ValidatorDetails {
     pub fn new(nymd_url: &str, api_url: Option<&str>) -> Self {
+        ValidatorDetails {
+            nymd_url: nymd_url.to_string(),
+            api_url: api_url.map(ToString::to_string),
+        }
+    }
+
+    pub fn new_with_name(nymd_url: &str, api_url: Option<&str>) -> Self {
         ValidatorDetails {
             nymd_url: nymd_url.to_string(),
             api_url: api_url.map(ToString::to_string),

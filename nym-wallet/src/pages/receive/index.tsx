@@ -2,11 +2,11 @@ import React, { useContext } from 'react';
 import QRCode from 'qrcode.react';
 import { Alert, Box, Stack } from '@mui/material';
 import { ClientAddress, NymCard } from '../../components';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 
 export const Receive = () => {
-  const { clientDetails, currency } = useContext(ClientContext);
+  const { clientDetails, currency } = useContext(AppContext);
 
   return (
     <PageLayout>

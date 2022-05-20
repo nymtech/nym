@@ -5,7 +5,7 @@ export * from './delegate';
 export * from './internal-docs';
 export * from './receive';
 export * from './send';
-export * from './sign-in';
+export * from './auth';
 export * from './settings';
 export * from './unbond';
 export * from './undelegate';

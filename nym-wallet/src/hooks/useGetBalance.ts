@@ -92,9 +92,7 @@ export const useGetBalance = (address?: string): TUseuserBalance => {
     } catch (err) {
       setError(err as string);
     } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
+      setIsLoading(false);
     }
   }, []);
 

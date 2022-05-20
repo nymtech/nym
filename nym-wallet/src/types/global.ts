@@ -74,3 +74,9 @@ export type TCurrency = {
 };
 
 export type Period = 'Before' | { In: number } | 'After';
+
+export type TAccount = {
+  name: string;
+  address: string;
+  mnemonic: string;
+};

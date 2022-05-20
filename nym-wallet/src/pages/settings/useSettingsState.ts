@@ -1,12 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
-import { ClientContext } from '../../context/main';
-import {
-//  getMixnodeRewardEstimation,
-  getMixnodeStakeSaturation,
-  getMixnodeStatus,
-  minorToMajor,
-  getInclusionProbability,
-} from '../../requests';
+import { useSnackbar } from 'notistack';
+import { getMixnodeStakeSaturation, getMixnodeStatus, getInclusionProbability } from '../../requests';
+import { AppContext } from '../../context/main';
 import { MixnodeStatus, InclusionProbabilityResponse } from '../../types';
 
 export const useSettingsState = (shouldUpdate: boolean) => {
@@ -14,11 +9,13 @@ export const useSettingsState = (shouldUpdate: boolean) => {
   const [saturation, setSaturation] = useState<number>(0);
   const [rewardEstimation, setRewardEstimation] = useState<number>(0);
   const [inclusionProbability, setInclusionProbability] = useState<InclusionProbabilityResponse>({
-    in_active: 0,
-    in_reserve: 0,
+    in_active: 'Low',
+    in_reserve: 'Low',
   });
 
-  const { mixnodeDetails } = useContext(ClientContext);
+  const { mixnodeDetails } = useContext(AppContext);
+
+  const { enqueueSnackbar } = useSnackbar();
 
   const getStatus = async (mixnodeKey: string) => {
     const newStatus = await getMixnodeStatus(mixnodeKey);
@@ -37,10 +34,8 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     const probability = await getInclusionProbability(mixnodeKey);
     if (probability) {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const in_active = Math.round(probability.in_active * 100);
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const in_reserve = Math.round(probability.in_reserve * 100);
-      setInclusionProbability({ in_active, in_reserve });
+
+      setInclusionProbability({ in_active: probability.in_active, in_reserve: probability.in_reserve });
     }
   };
 
@@ -48,15 +43,19 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     setStatus('not_found');
     setSaturation(0);
     setRewardEstimation(0);
-    setInclusionProbability({ in_active: 0, in_reserve: 0 });
+    setInclusionProbability({ in_active: 'Low', in_reserve: 'Low' });
   };
 
   useEffect(() => {
     if (shouldUpdate && mixnodeDetails?.mix_node.identity_key) {
       (async () => {
-        await getStatus(mixnodeDetails?.mix_node.identity_key);
-        await getStakeSaturation(mixnodeDetails?.mix_node.identity_key);
-        await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key);
+        try {
+          await getStatus(mixnodeDetails?.mix_node.identity_key);
+          await getStakeSaturation(mixnodeDetails?.mix_node.identity_key);
+          await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key);
+        } catch (e) {
+          enqueueSnackbar(e as string, { variant: 'error', preventDuplicate: true });
+        }
       })();
     } else {
       reset();

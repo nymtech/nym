@@ -12,12 +12,13 @@ export type ColumnsType = {
   headerAlign: string;
   flex?: number;
   width?: number;
+  tooltipInfo?: string;
 };
 
-export interface UniversalTableProps {
+export interface UniversalTableProps<T = any> {
   tableName: string;
   columnsData: ColumnsType[];
-  rows: any[];
+  rows: T[];
 }
 
 function formatCellValues(val: string | number, field: string) {

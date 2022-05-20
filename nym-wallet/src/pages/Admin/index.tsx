@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material';
 
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import { getContractParams, setContractParams } from '../../requests';
 import { TauriContractStateParams } from '../../types';
@@ -99,7 +99,7 @@ const AdminForm: React.FC<{
 };
 
 export const Admin: React.FC = () => {
-  const { showAdmin, handleShowAdmin } = useContext(ClientContext);
+  const { showAdmin, handleShowAdmin } = useContext(AppContext);
   const [isLoading, setIsLoading] = useState(false);
   const [params, setParams] = useState<TauriContractStateParams>();
 

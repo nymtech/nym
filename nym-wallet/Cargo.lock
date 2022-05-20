@@ -75,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.55"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "159bb86af3a200e19a068f4224eae4c8bb2d0fa054c7e5d1cacd5cef95e684cd"
+checksum = "08f9b8508dccb7687a1d6c4ce66b2b0ecef467c94667de27d8d7fe1f8d2a9cdc"
 
 [[package]]
 name = "argon2"
@@ -87,7 +87,18 @@ checksum = "25df3c03f1040d0069fcd3907e24e36d59f9b6fa07ba49be0eb25a794f036ba7"
 dependencies = [
  "base64ct",
  "blake2",
- "password-hash",
+ "password-hash 0.3.2",
+]
+
+[[package]]
+name = "argon2"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a27e27b63e4a34caee411ade944981136fdfa535522dc9944d6700196cbd899f"
+dependencies = [
+ "base64ct",
+ "blake2",
+ "password-hash 0.4.1",
 ]
 
 [[package]]
@@ -620,6 +631,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap"
+version = "3.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2dbdf4bdacb33466e854ce889eee8dfd5729abf7ccd7664d0a2d60cd384440b"
+dependencies = [
+ "atty",
+ "bitflags",
+ "clap_derive",
+ "clap_lex",
+ "indexmap",
+ "lazy_static",
+ "strsim 0.10.0",
+ "termcolor",
+ "textwrap",
+]
+
+[[package]]
+name = "clap_derive"
+version = "3.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25320346e922cffe59c0bbc5410c8d8784509efb321488971081313cb1e1a33c"
+dependencies = [
+ "heck 0.4.0",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a37c35f1112dad5e6e0b1adaff798507497a18fceeb30cceb3bae7d1427b9213"
+dependencies = [
+ "os_str_bytes",
+]
+
+[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -694,6 +744,7 @@ dependencies = [
 name = "config"
 version = "0.1.0"
 dependencies = [
+ "cfg-if",
  "handlebars",
  "humantime-serde",
  "log",
@@ -2401,6 +2452,7 @@ checksum = "282a6247722caba404c065016bbfa522806e51714c34f5dfc3e4a3a46fcb4223"
 dependencies = [
  "autocfg 1.1.0",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]
@@ -2945,10 +2997,10 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "aes-gcm",
- "argon2",
+ "argon2 0.3.4",
  "base64",
  "bip39",
  "cfg-if",
@@ -2964,6 +3016,7 @@ dependencies = [
  "itertools",
  "log",
  "mixnet-contract-common",
+ "once_cell",
  "pretty_env_logger",
  "rand 0.6.5",
  "reqwest",
@@ -3106,6 +3159,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "os_str_bytes"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
+
+[[package]]
 name = "pairing"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3175,6 +3234,17 @@ name = "password-hash"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d791538a6dcc1e7cb7fe6f6b58aca40e7f79403c45b2bc274008b5e647af1d8"
+dependencies = [
+ "base64ct",
+ "rand_core 0.6.3",
+ "subtle",
+]
+
+[[package]]
+name = "password-hash"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e029e94abc8fb0065241c308f1ac6bc8d20f450e8f7c5f0b25cd9b8d526ba294"
 dependencies = [
  "base64ct",
  "rand_core 0.6.3",
@@ -4088,6 +4158,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6b5a3c80cea1ab61f4260238409510e814e38b4b563c06044edf91e7dc070e3"
 dependencies = [
  "dyn-clone",
+ "indexmap",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -4258,9 +4329,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.79"
+version = "1.0.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e8d9fa5c3b304765ce1fd9c4c8a3de2c8db365a5b91be52f186efc675681d95"
+checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
 dependencies = [
  "itoa 1.0.1",
  "ryu",
@@ -5048,6 +5119,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "textwrap"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
+
+[[package]]
 name = "thin-slice"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5388,6 +5465,7 @@ name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
  "mixnet-contract-common",
+ "schemars",
  "serde",
 ]
 
@@ -5493,6 +5571,21 @@ dependencies = [
  "same-file",
  "winapi",
  "winapi-util",
+]
+
+[[package]]
+name = "wallet-recovery-cli"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "argon2 0.4.0",
+ "base64",
+ "bip39",
+ "clap",
+ "log",
+ "pretty_env_logger",
+ "serde_json",
 ]
 
 [[package]]

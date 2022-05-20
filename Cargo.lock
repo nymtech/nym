@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "config",
  "crypto",
@@ -648,6 +648,7 @@ dependencies = [
 name = "config"
 version = "0.1.0"
 dependencies = [
+ "cfg-if 1.0.0",
  "handlebars",
  "humantime-serde",
  "log",
@@ -1594,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "humantime-serde",
@@ -3043,7 +3044,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "clap 2.34.0",
  "client-core",
@@ -3078,7 +3079,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3124,7 +3125,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "bs58",
@@ -3162,20 +3163,26 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
+ "bincode",
  "clap 2.34.0",
  "dirs",
  "futures",
  "ipnetwork",
  "log",
+ "network-defaults",
  "nymsphinx",
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
  "publicsuffix",
  "rand 0.7.3",
+ "rocket",
+ "serde",
  "socks5-requests",
+ "sqlx",
+ "thiserror",
  "tokio",
  "tokio-tungstenite",
  "websocket-requests",
@@ -3183,7 +3190,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "clap 2.34.0",
  "client-core",
@@ -3219,7 +3226,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "1.0.0-rc.2"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3243,6 +3250,7 @@ dependencies = [
  "mixnet-contract-common",
  "nymcoconut",
  "nymsphinx",
+ "okapi",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3250,7 +3258,9 @@ dependencies = [
  "reqwest",
  "rocket",
  "rocket_cors",
+ "rocket_okapi",
  "rocket_sync_db_pools",
+ "schemars",
  "serde",
  "serde_json",
  "sqlx",
@@ -5215,6 +5225,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -6169,6 +6180,7 @@ name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
  "mixnet-contract-common",
+ "schemars",
  "serde",
  "ts-rs",
 ]

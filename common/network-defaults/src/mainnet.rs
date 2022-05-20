@@ -18,9 +18,11 @@ pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
+pub(crate) const STATS_PROVIDER_CLIENT_ADDRESS: &str = "3V3me68qkEYNNShSQ5yLkrzC8rUJmcmtrTFbLKPqytEZ.7dGmnRAheEozNeGAsp9LXM8oPgS5YgJraNmYguj2t7Bn@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv";
+
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://rpc.nyx.nodes.guru/",
-        Some("https://validator.nymtech.net/api"),
+        Some("https://validator.nymtech.net/api/"),
     )]
 }

@@ -9,6 +9,10 @@ overflow-checks = true
 [profile.dev]
 panic = "abort"
 
+[profile.test]
+# equivalent of running in `--release` (but since we're in test profile we're keeping overflow checks and all of those by default)
+opt-level = 3
+
 [workspace]
 
 resolver = "2"
@@ -18,7 +22,6 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-#    "clients/tauri-client/src-tauri",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",

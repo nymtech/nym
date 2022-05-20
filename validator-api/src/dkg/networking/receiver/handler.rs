@@ -132,6 +132,8 @@ impl ConnectionHandler {
         }
 
         while let Some(framed_dkg_request) = self.conn.next().await {
+            // TODO: change to trace
+            debug!("got new message from {}", self.remote);
             match framed_dkg_request {
                 Ok(framed_dkg_request) => self.handle_request(framed_dkg_request).await,
                 Err(err) => {

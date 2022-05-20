@@ -35,6 +35,7 @@ impl Epoch {
         current_time: Option<BlockHeight>,
         end_time: Option<BlockHeight>,
     ) -> Option<Self> {
+        let mut advance_epoch = false;
         let state = match self.state {
             EpochState::PublicKeySubmission { finish_by, .. } => EpochState::DealingExchange {
                 begun_at: finish_by,
@@ -70,14 +71,19 @@ impl Epoch {
                 begun_at: finish_by,
                 finish_by: end_time,
             },
-            EpochState::InProgress { .. } => EpochState::PublicKeySubmission {
-                begun_at: current_time?,
-                finish_by: end_time?,
-            },
+            EpochState::InProgress { .. } => {
+                advance_epoch = true;
+                EpochState::PublicKeySubmission {
+                    begun_at: current_time?,
+                    finish_by: end_time?,
+                }
+            }
         };
 
+        let id = if advance_epoch { self.id + 1 } else { self.id };
+
         Some(Epoch {
-            id: self.id,
+            id,
             state,
             system_threshold: self.system_threshold,
         })

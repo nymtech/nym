@@ -27,7 +27,7 @@ impl Processor {
     }
 
     async fn process_dealing(&self, dealing: NewDealingMessage) {
-        todo!()
+        info!("here we would be handling new dealing!\n{}", dealing);
     }
 
     pub(crate) async fn run(&mut self) {

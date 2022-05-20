@@ -132,8 +132,7 @@ pub fn try_add_dealer(
     host: String,
 ) -> Result<Response, ContractError> {
     // TODO: check if we're in correct epoch state
-    
-    
+
     // check whether this sender is eligible to become a dealer
     verify_dealer(deps.branch(), env.block.height, &info.sender)?;
 

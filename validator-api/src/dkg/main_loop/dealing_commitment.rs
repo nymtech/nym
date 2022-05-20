@@ -11,6 +11,7 @@ type ReceiversDigest = Vec<u8>;
 
 // not sure if this is the best place for it, but we can just move it later
 // note that its an ephemeral type and thus the references in here rather than owned types
+#[derive(Debug)]
 pub(crate) struct CommittableEpochDealing<'a> {
     epoch_id: EpochId,
     system_threshold: Threshold,

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dkg::error::DkgError;
+use crate::dkg::main_loop::dealing_commitment::CommittableEpochDealing;
 use crate::Client;
 use coconut_dkg_common::types::{
     Addr, BlockHeight, DealerDetails, EncodedBTEPublicKeyWithProof, EncodedEd25519PublicKey, Epoch,
     EpochId, NodeIndex,
 };
+use contracts_common::commitment::MessageCommitment;
 use crypto::asymmetric::identity;
 use dkg::bte::Ciphertexts;
 use dkg::{bte, Dealing, Share};
@@ -24,6 +26,7 @@ mod accessor;
 pub(crate) use accessor::StateAccessor;
 
 type IdentityBytes = [u8; identity::PUBLIC_KEY_LENGTH];
+pub(crate) type KnownCommitment = MessageCommitment<CommittableEpochDealing<'static>>;
 
 // note: each dealer is also a receiver which simplifies some logic significantly
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,7 +180,7 @@ struct DkgStateInner {
     last_seen_height: BlockHeight,
     current_epoch: Epoch,
 
-    expected_epoch_dealing_digests: HashMap<IdentityBytes, [u8; 32]>,
+    expected_epoch_dealing_commitments: HashMap<Addr, KnownCommitment>,
 
     self_share: Option<StateShare>,
 
@@ -217,7 +220,7 @@ impl DkgState {
                 assigned_index: 0,
                 last_seen_height: 0,
                 current_epoch,
-                expected_epoch_dealing_digests: HashMap::new(),
+                expected_epoch_dealing_commitments: HashMap::new(),
                 self_share: None,
                 bad_dealers: HashMap::new(),
                 current_epoch_dealers: HashMap::new(),
@@ -293,6 +296,10 @@ impl DkgState {
         self.inner_state.lock().await.submitted_keys
     }
 
+    pub(crate) async fn has_submitted_dealings_commitment(&self) -> bool {
+        self.inner_state.lock().await.submitted_commitment
+    }
+
     pub(crate) async fn current_epoch(&self) -> Epoch {
         self.inner_state.lock().await.current_epoch
     }
@@ -319,6 +326,14 @@ impl DkgState {
 
     pub(crate) async fn update_last_seen_height(&self, new_last_seen: BlockHeight) {
         self.inner_state.lock().await.last_seen_height = new_last_seen;
+    }
+
+    pub(crate) async fn get_known_commitments(&self) -> HashMap<Addr, KnownCommitment> {
+        self.inner_state
+            .lock()
+            .await
+            .expected_epoch_dealing_commitments
+            .clone()
     }
 
     pub(crate) async fn try_add_new_dealer(&self, dealer: DkgParticipant) {
@@ -377,6 +392,26 @@ impl DkgState {
                     dealer_address
                 ),
             }
+        }
+    }
+
+    pub(crate) async fn try_add_new_dealing_commitment(
+        &self,
+        dealer: &Addr,
+        commitment: MessageCommitment<CommittableEpochDealing<'static>>,
+    ) {
+        // TODO: perhaps we should panic or something instead since this should have never occurred in the first place?
+        if let Some(old_commitment) = self
+            .inner_state
+            .lock()
+            .await
+            .expected_epoch_dealing_commitments
+            .insert(dealer.clone(), commitment)
+        {
+            error!(
+                "We have overwritten {} dealer commitment for the current epoch",
+                dealer
+            )
         }
     }
 

@@ -8,10 +8,10 @@ use crate::dkg::networking::message::OffchainDkgMessage;
 use crate::dkg::networking::sender::Broadcaster;
 use crate::dkg::smart_contract::publisher::Publisher;
 use crate::dkg::smart_contract::watcher;
-use crate::dkg::smart_contract::watcher::{DealerChange, EventType};
+use crate::dkg::smart_contract::watcher::{CommitmentChange, DealerChange, EventType};
 use crate::dkg::state::{DkgParticipant, DkgState, Malformation, MalformedDealer, StateShare};
 use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch, EpochId};
-use contracts_common::commitment::Committable;
+use contracts_common::commitment::{Committable, ContractSafeCommitment, MessageCommitment};
 use dkg::bte::encrypt_shares;
 use dkg::{Dealing, Params};
 use futures::channel::mpsc;
@@ -21,7 +21,7 @@ use rand::RngCore;
 use std::net::SocketAddr;
 use validator_client::nymd::SigningCosmWasmClient;
 
-mod dealing_commitment;
+pub(crate) mod dealing_commitment;
 
 // essentially events originating from the contract watcher could only drive our state forward
 // (TODO: is it actually true? I guess we'll find out soon enough)
@@ -286,6 +286,33 @@ where
         }
     }
 
+    async fn process_commitments_changes(
+        &self,
+        changes: Vec<CommitmentChange>,
+        height: BlockHeight,
+    ) {
+        debug!(
+            "processing known commitments change event with {} changes at height {}",
+            changes.len(),
+            height
+        );
+        for change in changes {
+            match change {
+                CommitmentChange::Addition {
+                    address,
+                    commitment,
+                } => info!("here we would add known commitment"),
+                CommitmentChange::Removal { address } => {
+                    info!("here we would remove known commitment")
+                }
+                CommitmentChange::Update {
+                    address,
+                    commitment,
+                } => info!("here we would update known commitment"),
+            }
+        }
+    }
+
     async fn process_event(&mut self, event: watcher::Event) {
         match event.event_type {
             EventType::NewKeySubmission => self.process_new_key_submission(event.height).await,
@@ -297,6 +324,10 @@ where
             }
             EventType::NoChange => {
                 trace!("no change in the contract, going to only update the last seen height");
+            }
+            EventType::KnownCommitmentsChange { changes } => {
+                self.process_commitments_changes(changes, event.height)
+                    .await
             }
         }
         self.dkg_state.update_last_seen_height(event.height).await

@@ -23,10 +23,10 @@ use crate::nymd::{
 
 #[cfg(feature = "dkg")]
 use crate::nymd::{traits::DkgClient, SigningCosmWasmClient};
-use coconut_dkg_common::dealer::ContractDealingCommitment;
-use coconut_dkg_common::types::EpochId;
 #[cfg(feature = "dkg")]
-use coconut_dkg_common::types::{BlacklistedDealer, DealerDetails};
+use coconut_dkg_common::dealer::ContractDealingCommitment;
+#[cfg(feature = "dkg")]
+use coconut_dkg_common::types::{BlacklistedDealer, DealerDetails, EpochId};
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     mixnode::DelegationEvent, ContractStateParams, Delegation, IdentityKey, Interval,

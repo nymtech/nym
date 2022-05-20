@@ -106,12 +106,28 @@ pub trait Committable {
 }
 
 #[cfg(feature = "committable_trait")]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MessageCommitment<T>
 where
     T: ?Sized + Committable,
 {
     commitment: Output<T::DigestAlgorithm>,
-    _message_type: PhantomData<*const T>,
+
+    #[serde(skip)]
+    _message_type: PhantomData<T>,
+}
+
+#[cfg(feature = "committable_trait")]
+impl<T> Clone for MessageCommitment<T>
+where
+    T: ?Sized + Committable,
+{
+    fn clone(&self) -> Self {
+        MessageCommitment {
+            commitment: self.commitment.clone(),
+            _message_type: Default::default(),
+        }
+    }
 }
 
 #[cfg(feature = "committable_trait")]
@@ -136,6 +152,10 @@ where
 
     pub fn contract_safe_commitment(&self) -> ContractSafeCommitment {
         self.into()
+    }
+
+    pub fn is_same_as(&self, other: &ContractSafeCommitment) -> bool {
+        self.commitment.as_slice() == other.0
     }
 }
 

@@ -90,8 +90,26 @@ pub fn execute(
             epoch_id,
             commitment,
         } => dealings::transactions::try_commit_dealing(deps, info, epoch_id, commitment),
-        ExecuteMsg::UnsafeResetAll { init_msg } => reset_contract_state(deps, env, info, init_msg),
+        ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
+            reset_contract_state(deps, env, info, init_msg)
+        }
+        ExecuteMsg::DebugAdvanceEpochState {} => advance_epoch_state(deps, env),
     }
+}
+
+fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
+    const STATE_LENGTH: u64 = 1000;
+
+    let epoch = epoch_storage::CURRENT_EPOCH.load(deps.storage)?;
+    let next = epoch
+        .next_state(
+            Some(env.block.height),
+            Some(env.block.height + STATE_LENGTH),
+        )
+        .unwrap();
+
+    epoch_storage::CURRENT_EPOCH.save(deps.storage, &next)?;
+    Ok(Response::default())
 }
 
 fn reset_contract_state(
@@ -113,6 +131,9 @@ fn reset_contract_state(
     let blacklisted = crate::dealers::storage::BLACKLISTED_DEALERS
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<Result<Vec<_>, _>>()?;
+    let commitments = crate::dealings::storage::DEALING_COMMITMENTS
+        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
 
     for dealer in current {
         dealers::storage::current_dealers().remove(deps.storage, &dealer)?;
@@ -124,6 +145,10 @@ fn reset_contract_state(
 
     for dealer in blacklisted {
         dealers::storage::BLACKLISTED_DEALERS.remove(deps.storage, &dealer);
+    }
+
+    for (epoch, addr) in commitments {
+        dealings::storage::DEALING_COMMITMENTS.remove(deps.storage, (epoch, &addr));
     }
 
     crate::dealers::storage::NODE_INDEX_COUNTER.save(deps.storage, &0u64)?;

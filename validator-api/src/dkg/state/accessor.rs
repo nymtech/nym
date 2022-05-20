@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dkg::events::{DispatcherSender, Event};
+use crate::dkg::main_loop::dealing_commitment::CommittableEpochDealing;
 use crate::dkg::smart_contract::watcher;
 use crate::dkg::state::{
-    DkgParticipant, DkgState, IdentityBytes, MalformedDealer, ReceivedDealing,
+    DkgParticipant, DkgState, IdentityBytes, KnownCommitment, MalformedDealer, ReceivedDealing,
 };
 use coconut_dkg_common::types::{Addr, BlockHeight, Epoch};
+use contracts_common::commitment::MessageCommitment;
 use crypto::asymmetric::identity;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -49,8 +51,24 @@ impl StateAccessor {
         .await
     }
 
+    pub(crate) async fn push_new_dealing_commitment_submission_event(
+        &self,
+        block_height: BlockHeight,
+        epoch: Epoch,
+    ) {
+        self.push_event(Event::new_contract_change_event(watcher::Event::new(
+            block_height,
+            watcher::EventType::NewDealingCommitment { epoch },
+        )))
+        .await
+    }
+
     pub(crate) async fn has_submitted_keys(&self) -> bool {
         self.dkg_state.has_submitted_keys().await
+    }
+
+    pub(crate) async fn has_submitted_dealings_commitment(&self) -> bool {
+        self.dkg_state.has_submitted_dealings_commitment().await
     }
 
     pub(crate) async fn current_epoch(&self) -> Epoch {
@@ -74,5 +92,9 @@ impl StateAccessor {
 
     pub(crate) async fn get_malformed_dealers(&self) -> HashMap<Addr, MalformedDealer> {
         self.dkg_state.get_malformed_dealers().await
+    }
+
+    pub(crate) async fn get_known_commitments(&self) -> HashMap<Addr, KnownCommitment> {
+        self.dkg_state.get_known_commitments().await
     }
 }

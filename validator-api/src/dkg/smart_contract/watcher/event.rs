@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_dkg_common::types::{Addr, BlockHeight, DealerDetails, Epoch};
+use contracts_common::commitment::ContractSafeCommitment;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -27,6 +28,21 @@ impl Display for Event {
 }
 
 #[derive(Debug)]
+pub(crate) enum CommitmentChange {
+    Addition {
+        address: Addr,
+        commitment: ContractSafeCommitment,
+    },
+    Removal {
+        address: Addr,
+    },
+    Update {
+        address: Addr,
+        commitment: ContractSafeCommitment,
+    },
+}
+
+#[derive(Debug)]
 pub(crate) enum DealerChange {
     Addition { details: DealerDetails },
     Removal { address: Addr },
@@ -37,6 +53,7 @@ pub(crate) enum EventType {
     NoChange,
     NewKeySubmission,
     DealerSetChange { changes: Vec<DealerChange> },
+    KnownCommitmentsChange { changes: Vec<CommitmentChange> },
     NewDealingCommitment { epoch: Epoch },
 }
 
@@ -47,6 +64,9 @@ impl Display for EventType {
             EventType::NewKeySubmission => write!(f, "NewKeySubmission"),
             EventType::DealerSetChange { changes } => {
                 write!(f, "DealerSetChange with {} changes", changes.len())
+            }
+            EventType::KnownCommitmentsChange { changes } => {
+                write!(f, "KnownCommitmentsChange with {} changes", changes.len())
             }
             EventType::NewDealingCommitment { epoch } => {
                 write!(f, "NewDealingCommitment for epoch {}", epoch.id)

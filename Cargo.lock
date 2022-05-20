@@ -736,6 +736,7 @@ dependencies = [
  "bs58",
  "cosmwasm-std",
  "digest 0.10.3",
+ "generic-array 0.14.5",
  "schemars",
  "serde",
 ]
@@ -2039,6 +2040,7 @@ version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
 dependencies = [
+ "serde",
  "typenum",
  "version_check",
 ]

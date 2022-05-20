@@ -30,10 +30,13 @@ pub enum ExecuteMsg {
         commitment: ContractSafeCommitment,
     },
 
+    // DEBUG ONLY TXs. THEY SHALL BE REMOVED BEFORE FINALISING THE CODE
     // only exists for debugging purposes on local network to reset the entire state of the contract
-    UnsafeResetAll {
+    DebugUnsafeResetAll {
         init_msg: InstantiateMsg,
     },
+
+    DebugAdvanceEpochState {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

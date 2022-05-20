@@ -284,7 +284,7 @@ impl DkgState {
         (
             dealers
                 .values()
-                .any(|dealer| dealer.remote_address == remote),
+                .any(|dealer| dealer.remote_address.ip() == remote.ip()),
             epoch,
         )
     }

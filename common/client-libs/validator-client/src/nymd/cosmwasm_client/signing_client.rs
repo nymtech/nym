@@ -324,6 +324,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            data: tx_res.tx_result.data,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -364,6 +365,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            data: tx_res.tx_result.data,
             transaction_hash: tx_res.hash,
             gas_info,
         })

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::fmt::{Display, Formatter};
 
 pub use crate::dealer::{
     BlacklistedDealer, Blacklisting, BlacklistingReason, BlacklistingResponse, DealerDetails,
@@ -19,14 +21,38 @@ pub type NodeIndex = u64;
 pub type Threshold = u64;
 pub type EpochId = u32;
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct Epoch {
     pub id: EpochId,
     pub state: EpochState,
+    pub state_duration: EpochStateDuration,
 
     // TODO: need to ponder a bit whether it's actually a property of a particular epoch
     pub system_threshold: Threshold,
+}
+
+impl Ord for Epoch {
+    // we don't care about `system_threshold` when ordering
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.id != other.id {
+            self.id.cmp(&other.id)
+        } else {
+            self.state.cmp(&other.state)
+        }
+    }
+}
+
+impl PartialOrd for Epoch {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Display for Epoch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Epoch {} at state {}", self.id, self.state)
+    }
 }
 
 impl Epoch {
@@ -36,55 +62,25 @@ impl Epoch {
         end_time: Option<BlockHeight>,
     ) -> Option<Self> {
         let mut advance_epoch = false;
-        let state = match self.state {
-            EpochState::PublicKeySubmission { finish_by, .. } => EpochState::DealingExchange {
-                begun_at: finish_by,
-                finish_by: end_time?,
-            },
-            EpochState::DealingExchange { finish_by, .. } => EpochState::ComplaintSubmission {
-                begun_at: finish_by,
-                finish_by: end_time?,
-            },
-            EpochState::ComplaintSubmission { finish_by, .. } => EpochState::ComplaintVoting {
-                begun_at: finish_by,
-                finish_by: end_time?,
-            },
-            EpochState::ComplaintVoting { finish_by, .. } => {
-                EpochState::VerificationKeySubmission {
-                    begun_at: finish_by,
-                    finish_by: end_time?,
-                }
-            }
-            EpochState::VerificationKeySubmission { finish_by, .. } => {
-                EpochState::VerificationKeyMismatchSubmission {
-                    begun_at: finish_by,
-                    finish_by: end_time?,
-                }
-            }
-            EpochState::VerificationKeyMismatchSubmission { finish_by, .. } => {
-                EpochState::VerificationKeyMismatchVoting {
-                    begun_at: finish_by,
-                    finish_by: end_time?,
-                }
-            }
-            EpochState::VerificationKeyMismatchVoting { finish_by, .. } => EpochState::InProgress {
-                begun_at: finish_by,
-                finish_by: end_time,
-            },
-            EpochState::InProgress { .. } => {
+        let state = match self.state.next() {
+            Some(next_state) => next_state,
+            None => {
                 advance_epoch = true;
-                EpochState::PublicKeySubmission {
-                    begun_at: current_time?,
-                    finish_by: end_time?,
-                }
+                EpochState::PublicKeySubmission
             }
         };
 
         let id = if advance_epoch { self.id + 1 } else { self.id };
 
+        let new_state_start = current_time.unwrap_or(self.state_duration.finish_by?);
+
         Some(Epoch {
             id,
             state,
+            state_duration: EpochStateDuration {
+                begun_at: new_state_start,
+                finish_by: end_time,
+            },
             system_threshold: self.system_threshold,
         })
     }
@@ -100,42 +96,73 @@ impl Epoch {
 // 6. VerificationKeyMismatchSubmission -> receivers / watchers raising issue that the submitted VK are mismatched with their local derivations
 // 7. VerificationKeyMismatchVoting -> (if any complaints were submitted) receivers voting on received mismatches
 // 8. InProgress -> all receivers have all their secrets derived and all is good
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+//
+// Note: It's important that the variant ordering is not changed otherwise it would mess up the derived `PartialOrd`
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
 pub enum EpochState {
-    PublicKeySubmission {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    DealingExchange {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    ComplaintSubmission {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    ComplaintVoting {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    VerificationKeySubmission {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    VerificationKeyMismatchSubmission {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    VerificationKeyMismatchVoting {
-        begun_at: BlockHeight,
-        finish_by: BlockHeight,
-    },
-    InProgress {
-        begun_at: BlockHeight,
-        // not entirely sure about that one yet. we'll see how it works out when we get to epoch transition
-        finish_by: Option<BlockHeight>,
-    },
+    PublicKeySubmission,
+    DealingExchange,
+    ComplaintSubmission,
+    ComplaintVoting,
+    VerificationKeySubmission,
+    VerificationKeyMismatchSubmission,
+    VerificationKeyMismatchVoting,
+    InProgress,
+}
+
+impl Display for EpochState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EpochState::PublicKeySubmission => write!(f, "PublicKeySubmission"),
+            EpochState::DealingExchange => write!(f, "DealingExchange"),
+            EpochState::ComplaintSubmission => write!(f, "ComplaintSubmission"),
+            EpochState::ComplaintVoting => write!(f, "ComplaintVoting"),
+            EpochState::VerificationKeySubmission => write!(f, "VerificationKeySubmission"),
+            EpochState::VerificationKeyMismatchSubmission => {
+                write!(f, "VerificationKeyMismatchSubmission")
+            }
+            EpochState::VerificationKeyMismatchVoting => {
+                write!(f, "VerificationKeyMismatchVoting")
+            }
+            EpochState::InProgress => write!(f, "InProgress"),
+        }
+    }
+}
+
+impl EpochState {
+    pub fn next(self) -> Option<Self> {
+        match self {
+            EpochState::PublicKeySubmission => Some(EpochState::DealingExchange),
+            EpochState::DealingExchange => Some(EpochState::ComplaintSubmission),
+            EpochState::ComplaintSubmission => Some(EpochState::ComplaintVoting),
+            EpochState::ComplaintVoting => Some(EpochState::VerificationKeySubmission),
+            EpochState::VerificationKeySubmission => {
+                Some(EpochState::VerificationKeyMismatchSubmission)
+            }
+            EpochState::VerificationKeyMismatchSubmission => {
+                Some(EpochState::VerificationKeyMismatchVoting)
+            }
+            EpochState::VerificationKeyMismatchVoting => Some(EpochState::InProgress),
+            EpochState::InProgress => None,
+        }
+    }
+
+    pub fn all_until(&self, end: Self) -> Vec<Self> {
+        let mut states = vec![*self];
+        while states.last().unwrap() != &end {
+            let next_state = states.last().unwrap().next().expect("somehow reached the end of state diff -> this should be impossible under any circumstances!");
+            states.push(next_state);
+        }
+
+        states
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
+pub struct EpochStateDuration {
+    pub begun_at: BlockHeight,
+    pub finish_by: Option<BlockHeight>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

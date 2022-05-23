@@ -311,6 +311,26 @@ where
         }
     }
 
+    // TODO: this is not entirely accurate as for example if the epoch is already in the 'dealings exchange'
+    // state, the dealer is not going to be allowed to submit its public keys
+    fn determine_required_actions(
+        &self,
+        stored_epoch: Epoch,
+        current_epoch: Epoch,
+    ) -> Vec<EpochState> {
+        // if the current epoch has higher id than the one we have stored, we have to "start from scratch"
+        if current_epoch.id > stored_epoch.id {
+            let mut states = vec![EpochState::PublicKeySubmission];
+            // unwrap is fine as we always have a non-empty vec
+            while states.last().unwrap() != &current_epoch.state {
+                let next_state = states.last().unwrap().next().expect("somehow reached the end of state diff -> this should be impossible under any circumstances!");
+                states.push(next_state);
+            }
+            return states;
+        }
+        todo!()
+    }
+
     async fn poll_contract(&self) -> Result<(), DkgError> {
         trace!("polling the dkg smart contract for any changes");
 
@@ -335,6 +355,11 @@ where
             "contract epoch is in {:?} state, while our stored epoch is in {:?}",
             current_epoch.state, prior_epoch.state
         );
+
+        if prior_epoch > current_epoch {
+            error!("Somehow our stored epoch is more advanced than the one in the smart contract. Skipping this polling interval. Stored: {}, public in contract: {}", prior_epoch, current_epoch);
+            return Ok(());
+        }
 
         // this is not entirely true, but for time being let's just use it to test basic event propagation
         self.perform_epoch_state_based_actions(current_epoch)

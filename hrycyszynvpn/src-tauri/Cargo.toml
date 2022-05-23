@@ -40,10 +40,10 @@ argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
 zeroize = "1.4.3"
 
-cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
-cosmwasm-std = "1.0.0-beta3"
+#cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
+#cosmwasm-std = "1.0.0-beta3"
 
-nym-client = { path = "../../clients/native" }
+#nym-client = { path = "../../clients/native" }
 client-core = { path = "../../clients/client-core" }
 nym-socks5-client = { path = "../../clients/socks5" }
 #nym-network-requester = { path = "../../service-providers/network-requester"}
@@ -55,8 +55,8 @@ nym-socks5-client = { path = "../../clients/socks5" }
 config = { path = "../../common/config" }
 #coconut-interface = { path = "../../common/coconut-interface" }
 #credentials = { path = "../../common/credentials" }
-version-checker = { path = "../../common/version-checker" }
-network-defaults = { path = "../../common/network-defaults" }
+#version-checker = { path = "../../common/version-checker" }
+#network-defaults = { path = "../../common/network-defaults" }
 
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
 log = "0.4"

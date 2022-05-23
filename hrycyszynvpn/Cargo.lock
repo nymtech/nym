@@ -2531,15 +2531,11 @@ dependencies = [
  "bip39",
  "client-core",
  "config",
- "cosmrs",
- "cosmwasm-std",
  "dirs 4.0.0",
  "eyre",
  "fix-path-env",
  "futures",
  "log",
- "network-defaults",
- "nym-client",
  "nym-socks5-client",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -2556,7 +2552,6 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
- "version-checker",
  "zeroize",
 ]
 
@@ -3479,38 +3474,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71a1eb3a36534514077c1e079ada2fb170ef30c47d203aa6916138cf882ecd52"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "nym-client"
-version = "1.0.1"
-dependencies = [
- "clap",
- "client-core",
- "config",
- "credential-storage",
- "crypto",
- "dirs 3.0.2",
- "dotenv",
- "futures",
- "gateway-client",
- "gateway-requests",
- "log",
- "network-defaults",
- "nymsphinx",
- "pemstore",
- "pretty_env_logger",
- "rand 0.7.3",
- "serde",
- "sled",
- "tokio",
- "tokio-tungstenite",
- "topology",
- "url",
- "validator-client",
- "vergen",
- "version-checker",
- "websocket-requests",
 ]
 
 [[package]]
@@ -6855,15 +6818,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aabe153544e473b775453675851ecc86863d2a81d786d741f6b76778f2a48940"
 dependencies = [
  "webpki",
-]
-
-[[package]]
-name = "websocket-requests"
-version = "0.1.0"
-dependencies = [
- "nymsphinx",
- "serde",
- "serde_json",
 ]
 
 [[package]]

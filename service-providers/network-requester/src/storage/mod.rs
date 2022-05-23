@@ -4,7 +4,7 @@
 use log::*;
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::statistics::StatsMessage;
 use crate::storage::error::NetworkRequesterStorageError;
@@ -24,7 +24,7 @@ pub(crate) struct NetworkRequesterStorage {
 }
 
 impl NetworkRequesterStorage {
-    pub async fn init(database_path: &PathBuf) -> Result<Self, NetworkRequesterStorageError> {
+    pub async fn init(database_path: &Path) -> Result<Self, NetworkRequesterStorageError> {
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true);

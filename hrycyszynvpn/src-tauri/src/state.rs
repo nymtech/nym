@@ -1,8 +1,15 @@
+use std::time::Duration;
+
+use futures::SinkExt;
 use log::info;
+//use tokio::sync::mpsc;
+use futures::channel::mpsc;
 
 use config::NymConfig;
 #[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
+use nym_socks5::client::{ClientControlMessageReceiver, ClientControlMessageSender, ClientControlMessage};
+use tokio::time::sleep;
 
 use crate::config::SOCKS5_CONFIG_ID;
 use crate::models::{
@@ -13,6 +20,7 @@ use tauri::Manager;
 pub struct State {
   status: ConnectionStatusKind,
   //socks5_client: Arc<RwLock<Option<Socks5NymClient>>>,
+  socks5_client_sender: Option<ClientControlMessageSender>,
 }
 
 impl State {
@@ -20,6 +28,7 @@ impl State {
     State {
       status: ConnectionStatusKind::Disconnected,
       //socks5_client: Arc::new(RwLock::new(None)),
+      socks5_client_sender: None,
     }
   }
 
@@ -47,8 +56,9 @@ impl State {
     self.set_state(ConnectionStatusKind::Connecting, window);
     self.status = ConnectionStatusKind::Connecting;
 
-    Self::init_config().await;
-    tokio::spawn(async move { start_nym_socks5_client().await });
+    //Self::init_config().await;
+    let sender = start_nym_socks5_client();
+    self.socks5_client_sender = Some(sender);
 
     self.status = ConnectionStatusKind::Connected;
     self.set_state(ConnectionStatusKind::Connected, window);
@@ -59,16 +69,17 @@ impl State {
     self.set_state(ConnectionStatusKind::Disconnecting, window);
     self.status = ConnectionStatusKind::Disconnecting;
 
-    // TODO: implement
-    // socks5_client_guard.unwrap().stop().await;
-    // *socks5_client_guard = None;
+    // Send shutdown message
+    if let Some(ref mut sender) = self.socks5_client_sender {
+        sender.send(ClientControlMessage::Stop).await.unwrap();
+    }
 
     self.status = ConnectionStatusKind::Disconnected;
     self.set_state(ConnectionStatusKind::Disconnected, window);
   }
 }
 
-async fn start_nym_socks5_client() {
+fn start_nym_socks5_client() -> ClientControlMessageSender {
   let id = SOCKS5_CONFIG_ID;
 
   info!("Loading config from file");
@@ -76,5 +87,12 @@ async fn start_nym_socks5_client() {
 
   let mut socks5_client = Socks5NymClient::new(config);
   info!("Starting socks5 client");
-  socks5_client.start().await;
+
+  let (sender, receiver) = mpsc::unbounded();
+
+  tokio::spawn(async move {
+    socks5_client.run_and_listen(receiver).await;
+  });
+
+  sender
 }

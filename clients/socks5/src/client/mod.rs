@@ -20,6 +20,7 @@ use client_core::client::topology_control::{
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
@@ -36,6 +37,14 @@ use crate::socks::{
 };
 
 pub mod config;
+
+pub type ClientControlMessageSender = mpsc::UnboundedSender<ClientControlMessage>;
+pub type ClientControlMessageReceiver = mpsc::UnboundedReceiver<ClientControlMessage>;
+
+#[derive(Debug)]
+pub enum ClientControlMessage {
+    Stop,
+}
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -270,6 +279,20 @@ impl NymClient {
         println!(
             "Received SIGINT - the client will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
+    }
+
+    // Variant of `run_forever` that listends for message to shutdown
+    pub async fn run_and_listen(&mut self, mut receiver: ClientControlMessageReceiver) {
+        self.start().await;
+        tokio::select! {
+            message = receiver.next() =>  match message {
+                Some(ClientControlMessage::Stop) => {
+                    info!("Received: {:?}", message);
+                    info!("Shutting down");
+                }
+                None => info!("none"),
+            }
+        }
     }
 
     pub async fn start(&mut self) {

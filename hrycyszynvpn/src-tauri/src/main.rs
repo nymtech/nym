@@ -25,6 +25,8 @@ mod state;
 mod window;
 
 fn main() {
+  //console_subscriber::init();
+  //tracing_subscriber::fmt::init();
   setup_logging();
   println!("Starting up...");
 

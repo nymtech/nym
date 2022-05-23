@@ -21,18 +21,19 @@ tauri-macros = "=1.0.0-rc.5"
 
 [dependencies]
 
-serde_json = "1.0"
+bip39 = "1.0"
+dirs = "4.0"
+eyre = "0.6.5"
+futures = "0.3"
+rand = "0.7"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.0.0-rc.8", features = ["ayatana-tray", "shell-open", "system-tray"] }
-tokio = { version = "1.10", features = ["sync"] }
-dirs = "4.0"
-bip39 = "1.0"
-thiserror = "1.0"
 tendermint-rpc = "0.23.0"
+thiserror = "1.0"
+tokio = { version = "1.10", features = ["sync"] }
 url = "2.2"
-rand = "0.7"
-eyre = "0.6.5"
 
 aes-gcm = "0.9.4"
 argon2 = { version = "0.3.2", features = ["std"] }
@@ -45,15 +46,15 @@ cosmwasm-std = "1.0.0-beta3"
 nym-client = { path = "../../clients/native" }
 client-core = { path = "../../clients/client-core" }
 nym-socks5-client = { path = "../../clients/socks5" }
-nym-network-requester = { path = "../../service-providers/network-requester"}
-nymsphinx = { path = "../../common/nymsphinx" }
-validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nymd-client",
-] }
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+#nym-network-requester = { path = "../../service-providers/network-requester"}
+#nymsphinx = { path = "../../common/nymsphinx" }
+#validator-client = { path = "../../common/client-libs/validator-client", features = [
+#    "nymd-client",
+#] }
+#mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 config = { path = "../../common/config" }
-coconut-interface = { path = "../../common/coconut-interface" }
-credentials = { path = "../../common/credentials" }
+#coconut-interface = { path = "../../common/coconut-interface" }
+#credentials = { path = "../../common/credentials" }
 version-checker = { path = "../../common/version-checker" }
 network-defaults = { path = "../../common/network-defaults" }
 

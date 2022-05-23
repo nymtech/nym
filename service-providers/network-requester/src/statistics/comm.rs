@@ -17,6 +17,9 @@ use socks5_requests::Response;
 
 use super::error::StatsError;
 
+const REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG: &str =
+    "https://nymtech.net/.wellknown/network-requester/stats-provider.json";
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
     pub description: String,
@@ -76,6 +79,30 @@ impl StatsData {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct StatsProviderConfigEntry {
+    stats_client_address: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OptionalStatsProviderConfig {
+    mainnet: Option<StatsProviderConfigEntry>,
+    sandbox: Option<StatsProviderConfigEntry>,
+    qa: Option<StatsProviderConfigEntry>,
+}
+
+impl OptionalStatsProviderConfig {
+    pub fn stats_client_address(&self) -> Option<String> {
+        let entry_config = match DEFAULT_NETWORK {
+            network_defaults::all::Network::MAINNET => self.mainnet.clone(),
+            network_defaults::all::Network::SANDBOX => self.sandbox.clone(),
+            network_defaults::all::Network::QA => self.qa.clone(),
+        };
+        entry_config.map(|e| e.stats_client_address)
+    }
+}
+
 pub struct Statistics {
     description: String,
     request_data: Arc<RwLock<StatsData>>,
@@ -87,16 +114,28 @@ pub struct Statistics {
 }
 
 impl Statistics {
-    pub fn new(
+    pub async fn new(
         description: String,
         interval_seconds: Duration,
         timer_receiver: mpsc::Receiver<()>,
-    ) -> Self {
-        // this unwrap is ok because we set the string in a constant
-        let stats_provider_addr =
-            Recipient::try_from_base58_string(DEFAULT_NETWORK.stats_provider_network_address())
-                .unwrap();
-        Statistics {
+    ) -> Result<Self, StatsError> {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(3))
+            .build()?;
+        let stats_provider_config: OptionalStatsProviderConfig = client
+            .get(REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG.to_string())
+            .send()
+            .await?
+            .json()
+            .await?;
+        let stats_provider_addr = Recipient::try_from_base58_string(
+            stats_provider_config
+                .stats_client_address()
+                .ok_or(StatsError::InvalidClientAddress)?,
+        )
+        .map_err(|_| StatsError::InvalidClientAddress)?;
+
+        Ok(Statistics {
             description,
             request_data: Arc::new(RwLock::new(StatsData::new())),
             response_data: Arc::new(RwLock::new(StatsData::new())),
@@ -104,7 +143,7 @@ impl Statistics {
             interval_seconds: interval_seconds.as_secs() as u32,
             timer_receiver,
             stats_provider_addr,
-        }
+        })
     }
 
     pub fn request_data(&self) -> &Arc<RwLock<StatsData>> {

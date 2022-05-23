@@ -3178,6 +3178,7 @@ dependencies = [
  "proxy-helpers",
  "publicsuffix",
  "rand 0.7.3",
+ "reqwest",
  "rocket",
  "serde",
  "socks5-requests",

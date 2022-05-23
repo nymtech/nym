@@ -297,7 +297,9 @@ impl ServiceProvider {
             active_connections_controller.run().await;
         });
 
-        let mut stats = Statistics::new(self.description.clone(), interval, timer_receiver);
+        let mut stats = Statistics::new(self.description.clone(), interval, timer_receiver)
+            .await
+            .expect("Statistics controller could not be bootstrapped");
         let request_stats_data = Arc::clone(stats.request_data());
         let response_stats_data = Arc::clone(stats.response_data());
         let mix_input_sender_clone = mix_input_sender.clone();

@@ -45,6 +45,9 @@ mod rewarded_set_updater;
 pub(crate) mod storage;
 mod swagger;
 
+#[allow(dead_code)]
+mod networking;
+
 #[cfg(feature = "coconut")]
 mod coconut;
 

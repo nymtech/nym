@@ -91,6 +91,8 @@ pub enum BackendError {
   WalletLoginIdAlreadyExists,
   #[error("Account ID already found in wallet login")]
   WalletAccountIdAlreadyExistsInWalletLogin,
+  #[error("Mnemonic already found in wallet login, was it already imported?")]
+  WalletMnemonicAlreadyExistsInWalletLogin,
   #[error("Adding a different password to the wallet not currently supported")]
   WalletDifferentPasswordDetected,
   #[error("Unexpted mnemonic account for login")]

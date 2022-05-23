@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
+use ed25519_dalek::SecretKey;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
@@ -9,6 +10,13 @@ use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
+
+#[cfg(feature = "serde")]
+use serde::de::Error as SerdeError;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 
 #[derive(Debug)]
 pub enum Ed25519RecoveryError {
@@ -40,6 +48,7 @@ impl fmt::Display for Ed25519RecoveryError {
 impl std::error::Error for Ed25519RecoveryError {}
 
 /// Keypair for usage in ed25519 EdDSA.
+#[derive(Debug)]
 pub struct KeyPair {
     private_key: PrivateKey,
     public_key: PublicKey,
@@ -135,6 +144,28 @@ impl PublicKey {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'d> Deserialize<'d> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        Ok(PublicKey(ed25519_dalek::PublicKey::deserialize(
+            deserializer,
+        )?))
+    }
+}
+
 impl PemStorableKey for PublicKey {
     type Error = Ed25519RecoveryError;
 
@@ -200,6 +231,26 @@ impl PrivateKey {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for PrivateKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'d> Deserialize<'d> for PrivateKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        Ok(PrivateKey(SecretKey::deserialize(deserializer)?))
+    }
+}
+
 impl PemStorableKey for PrivateKey {
     type Error = Ed25519RecoveryError;
 
@@ -216,7 +267,7 @@ impl PemStorableKey for PrivateKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Signature(ed25519_dalek::Signature);
 
 impl Signature {
@@ -235,5 +286,26 @@ impl Signature {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Ed25519RecoveryError> {
         Ok(Signature(ed25519_dalek::Signature::from_bytes(bytes)?))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for Signature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        SerdeBytes::new(&self.to_bytes()).serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'d> Deserialize<'d> for Signature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
+        Signature::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }

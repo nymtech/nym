@@ -4,6 +4,8 @@
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Display, Formatter};
 
 /// Size of a X25519 private key
@@ -127,6 +129,28 @@ impl PublicKey {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'d> Deserialize<'d> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        Ok(PublicKey(x25519_dalek::PublicKey::deserialize(
+            deserializer,
+        )?))
+    }
+}
+
 impl PemStorableKey for PublicKey {
     type Error = KeyRecoveryError;
 
@@ -143,7 +167,6 @@ impl PemStorableKey for PublicKey {
     }
 }
 
-#[derive(Clone)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
 impl Display for PrivateKey {
@@ -184,6 +207,28 @@ impl PrivateKey {
     /// Perform a key exchange with another public key
     pub fn diffie_hellman(&self, remote_public: &PublicKey) -> [u8; SHARED_SECRET_SIZE] {
         *self.0.diffie_hellman(&remote_public.0).as_bytes()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for PrivateKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'d> Deserialize<'d> for PrivateKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'d>,
+    {
+        Ok(PrivateKey(x25519_dalek::StaticSecret::deserialize(
+            deserializer,
+        )?))
     }
 }
 

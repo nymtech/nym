@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
-use ed25519_dalek::SecretKey;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
@@ -247,7 +246,9 @@ impl<'d> Deserialize<'d> for PrivateKey {
     where
         D: Deserializer<'d>,
     {
-        Ok(PrivateKey(SecretKey::deserialize(deserializer)?))
+        Ok(PrivateKey(ed25519_dalek::SecretKey::deserialize(
+            deserializer,
+        )?))
     }
 }
 

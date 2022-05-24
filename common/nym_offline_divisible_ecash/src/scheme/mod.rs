@@ -1,7 +1,8 @@
 use std::cell::Cell;
+use std::ops::Neg;
 
 use bls12_381::{G1Projective, G2Prepared, G2Projective, pairing, Scalar};
-use group::Curve;
+use group::{Curve, GroupEncoding};
 
 use crate::Attribute;
 use crate::constants::L;
@@ -36,9 +37,26 @@ pub fn compute_kappa(
 #[derive(Debug, Clone, Copy)]
 pub struct Phi(pub(crate) G1Projective, pub(crate) G1Projective);
 
+impl Phi {
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(48 + 48);
+        bytes.extend_from_slice(self.0.to_bytes().as_ref());
+        bytes.extend_from_slice(self.1.to_bytes().as_ref());
+        bytes
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct VarPhi(pub(crate) G1Projective, pub(crate) G1Projective);
 
+impl VarPhi {
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(48 + 48);
+        bytes.extend_from_slice(self.0.to_bytes().as_ref());
+        bytes.extend_from_slice(self.1.to_bytes().as_ref());
+        bytes
+    }
+}
 
 pub struct PayInfo {
     pub info: [u8; 32],
@@ -51,7 +69,7 @@ pub struct Payment {
     phi: Phi,
     varphi: VarPhi,
     rr: Scalar,
-    zkproof: SpendProof,
+    zk_proof: SpendProof,
     vv: u64,
 }
 
@@ -135,69 +153,72 @@ impl Wallet {
         let r_tt = grp.random_scalar();
 
         // compute blinded bases
-        let psi0 = params_u.get_psi0();
-        let psi1 = params_u.get_psi1();
-        let varsig_prime1 = params_u.get_ith_sigma(self.l() as usize) + (psi0 * r_varsig1);
-        let theta_prime1 = params_u.get_ith_theta(self.l() as usize) + (psi0 * r_theta1);
-        let varsig_prime2 = params_u.get_ith_sigma(self.l() as usize + vv as usize - 1) + (psi0 * r_varsig2);
-        let theta_prime2 = params_u.get_ith_sigma(self.l() as usize + vv as usize - 1) + (psi0 * r_theta2);
-        let rr_prime = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1).rr + (psi0 * r_rr);
-        let ss_prime = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1).ss + (psi0 * r_ss);
-        let tt_prime = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1).tt + (psi1 * r_tt);
+        let psi_g1 = params_u.get_psi_g1();
+        let psi_g2 = params_u.get_psi_g2();
+        let varsig_prime1 = params_u.get_ith_sigma(self.l() as usize) + (psi_g1 * r_varsig1);
+        let theta_prime1 = params_u.get_ith_theta(self.l() as usize) + (psi_g1 * r_theta1);
+        let varsig_prime2 = params_u.get_ith_sigma(self.l() as usize + vv as usize - 1) + (psi_g1 * r_varsig2);
+        let theta_prime2 = params_u.get_ith_sigma(self.l() as usize + vv as usize - 1) + (psi_g1 * r_theta2);
+        let rr_prime = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1).rr + (psi_g1 * r_rr);
+        let ss_prime = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1).ss + (psi_g1 * r_ss);
+        let tt_prime = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1).tt + (psi_g2 * r_tt);
 
         let rho1 = self.v.neg() * r_varsig1;
         let rho2 = self.v.neg() * r_theta1;
         let rho3 = r_rr * r_tt;
 
         let pg_varsigpr1_delta = pairing(&varsig_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
-        let pg_psi0_delta = pairing(&psi0.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
+        let pg_psi0_delta = pairing(&psi_g1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
         let pg_varsigpr2_gen2 = pairing(&varsig_prime2.to_affine(), grp.gen2());
-        let pg_psi0_gen2 = pairing(&psi0.to_affine(), grp.gen2());
+        let pg_psi0_gen2 = pairing(&psi_g1.to_affine(), grp.gen2());
         let pg_thetapr1_delta = pairing(&theta_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
-        let pg_thetapr2_gen2 = pairing(&theta_prime1.to_affine(), grp.gen2());
+        let pg_thetapr2_gen2 = pairing(&theta_prime2.to_affine(), grp.gen2());
         let yy = params_u.get_sps_pk().get_yy();
-        let pg_rr_yy = pairing(&rr_prime.to_affine(), &yy.to_affine());
-        let pg_psi0_yy = pairing(&psi0.to_affine(), &yy.to_affine());
+        let pg_rrprime_yy = pairing(&rr_prime.to_affine(), &yy.to_affine());
+        let pg_psi0_yy = pairing(&psi_g1.to_affine(), &yy.to_affine());
         let pg_ssprime_gen2 = pairing(&ss_prime.to_affine(), grp.gen2());
         let ww1 = params_u.get_sps_pk().get_ith_ww(0);
         let ww2 = params_u.get_sps_pk().get_ith_ww(1);
         let pg_varsigpr2_ww1 = pairing(&varsig_prime2.to_affine(), &ww1.to_affine());
-        let pg_psi0_ww1 = pairing(&psi0.to_affine(), &ww1.to_affine());
+        let pg_psi0_ww1 = pairing(&psi_g1.to_affine(), &ww1.to_affine());
         let pg_thetapr2_ww2 = pairing(&theta_prime1.to_affine(), &ww2.to_affine());
-        let pg_psi0_ww2 = pairing(&psi0.to_affine(), &ww2.to_affine());
+        let pg_psi0_ww2 = pairing(&psi_g1.to_affine(), &ww2.to_affine());
         let pg_gen1_zz = pairing(grp.gen1(), &params_u.get_sps_pk().get_zz().to_affine());
         let pg_rr_tt = pairing(&rr_prime.to_affine(), &tt_prime.to_affine());
-        let pg_rr_psi1 = pairing(&rr_prime.to_affine(), &psi1.to_affine());
-        let pg_psi0_tt = pairing(&psi0.to_affine(), &tt_prime.to_affine());
-        let pg_psi0_psi1 = pairing(&psi0.to_affine(), &psi1.to_affine());
+        let pg_rr_psi1 = pairing(&rr_prime.to_affine(), &psi_g2.to_affine());
+        let pg_psi0_tt = pairing(&psi_g1.to_affine(), &tt_prime.to_affine());
+        let pg_psi0_psi1 = pairing(&psi_g1.to_affine(), &psi_g2.to_affine());
         let pg_gen1_gen2 = pairing(grp.gen1(), grp.gen2());
+
+        let pg_eq1 = pg_varsigpr1_delta - pg_varsigpr2_gen2;
+        let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
+        let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
+        let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
 
         let instance = SpendInstance {
             kappa,
             phi,
             varphi,
-            rr: rr_prime,
+            rr,
+            rr_prime,
             ss: ss_prime,
             tt: tt_prime,
-            pg_varsigpr1_delta,
+            varsig_prime1,
+            theta_prime1,
+            pg_eq1,
+            pg_eq2,
+            pg_eq3,
+            pg_eq4,
+            psi_g1: *psi_g1,
+            psi_g2: *psi_g2,
             pg_psi0_delta,
-            pg_varsigpr2_gen2,
             pg_psi0_gen2,
-            pg_thetapr1_delta,
-            pg_thetapr2_gen2,
-            pg_rr_yy,
             pg_psi0_yy,
-            pg_ssprime_gen2,
-            pg_varsigpr2_ww1,
             pg_psi0_ww1,
-            pg_thetapr2_ww2,
             pg_psi0_ww2,
-            pg_gen1_zz,
-            pg_rr_tt,
             pg_rr_psi1,
             pg_psi0_tt,
             pg_psi0_psi1,
-            pg_gen1_gen2,
         };
 
         let witness = SpendWitness {
@@ -219,7 +240,7 @@ impl Wallet {
         };
 
         // compute the zk proof
-        let zkproof = SpendProof::construct(params, &instance, &witness);
+        let zk_proof = SpendProof::construct(params, &instance, &witness, &verification_key, vv);
 
         // output pay and updated wallet
         let pay = Payment {
@@ -228,7 +249,7 @@ impl Wallet {
             phi,
             varphi,
             rr,
-            zkproof,
+            zk_proof,
             vv,
         };
 

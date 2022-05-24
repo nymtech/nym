@@ -37,8 +37,8 @@ impl SPSSecretKey {
         let r = grp.random_scalar();
         let rr = grp.gen1() * r;
         let ss: G1Projective = match messages_a {
-            Some(msgsA) => {
-                let prodS: Vec<G1Projective> = msgsA
+            Some(msgs_a) => {
+                let prodS: Vec<G1Projective> = msgs_a
                     .iter()
                     .zip(self.ws.iter())
                     .map(|(m_i, w_i)| m_i * w_i.neg())
@@ -48,8 +48,8 @@ impl SPSSecretKey {
             None => grp.gen1() * (self.z() - r * self.y())
         };
         let tt = match messages_b {
-            Some(msgsB) => {
-                let prodT: Vec<G2Projective> = msgsB
+            Some(msgs_b) => {
+                let prodT: Vec<G2Projective> = msgs_b
                     .iter()
                     .zip(self.us.iter())
                     .map(|(m_i, u_i)| m_i * u_i.neg())

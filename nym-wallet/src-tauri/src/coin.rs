@@ -2,8 +2,6 @@
 
 use crate::error::BackendError;
 use crate::network::Network;
-use cosmrs::Decimal;
-use cosmrs::Denom as CosmosDenom;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
@@ -11,6 +9,8 @@ use std::convert::TryFrom;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
+use validator_client::nymd::Decimal;
+use validator_client::nymd::Denom as CosmosDenom;
 use validator_client::nymd::{CosmosCoin, GasPrice};
 
 #[cfg_attr(test, derive(ts_rs::TS))]

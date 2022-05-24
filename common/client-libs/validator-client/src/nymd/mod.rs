@@ -42,7 +42,7 @@ pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::{AccountId, Decimal, Denom};
+pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 

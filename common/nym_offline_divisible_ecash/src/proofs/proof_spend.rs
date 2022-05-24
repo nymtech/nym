@@ -284,7 +284,7 @@ impl SpendProof {
 mod tests {
     use std::ops::Neg;
 
-    use bls12_381::{G2Projective, pairing};
+    use bls12_381::{G2Projective, Gt, pairing};
     use group::Curve;
     use rand::thread_rng;
 
@@ -390,6 +390,16 @@ mod tests {
         let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
         let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
+
+        assert_eq!(pg_varsigpr1_delta + pg_psi0_delta * r_varsig1.neg(), pg_varsigpr2_gen2 + pg_psi0_gen2 * r_varsig2.neg());
+        println!("--------------Check1---------------");
+
+        assert_eq!(pg_thetapr1_delta + pg_psi0_delta * r_theta1.neg(), pg_thetapr2_gen2 + pg_psi0_gen2 * r_theta2.neg());
+        println!("--------------Check2---------------");
+
+        assert_eq!(pg_rrprime_yy + pg_psi0_yy * r_rr.neg() + pg_ssprime_gen2 + pg_psi0_gen2 * r_ss.neg() + pg_varsigpr2_ww1 + pg_psi0_ww1 * r_varsig2.neg()
+                       + pg_thetapr2_ww2 + pg_psi0_ww2 * r_theta2 - pg_gen1_zz, Gt::identity());
+        println!("--------------Check2---------------");
 
         let instance = SpendInstance {
             kappa,

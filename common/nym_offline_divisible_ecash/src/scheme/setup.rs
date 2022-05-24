@@ -83,12 +83,12 @@ impl Parameters {
         let sigma = g1 * z;
         let theta = eta * z;
 
-        let sigmas_u: Vec<G1Projective> = (1..=L)
-            .map(|i| sigma * (y * Scalar::from(i)))
+        let sigmas_u: Vec<G1Projective> = (0..=L - 1)
+            .map(|i| sigma * (y * Scalar::from(i + 1)))
             .collect();
 
-        let thetas_u: Vec<G1Projective> = (1..=L)
-            .map(|i| theta * (y * Scalar::from(i)))
+        let thetas_u: Vec<G1Projective> = (0..=L - 1)
+            .map(|i| theta * (y * Scalar::from(i + 1)))
             .collect();
 
         let deltas_a: Vec<G2Projective> = (0..=L - 1)

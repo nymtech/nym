@@ -452,7 +452,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount: Some(amount),
+            amount,
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;

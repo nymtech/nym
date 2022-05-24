@@ -17,6 +17,7 @@ pub struct GroupParameters {
     _g2_prepared_miller: G2Prepared,
 }
 
+
 impl GroupParameters {
     pub fn new() -> Result<GroupParameters> {
         Ok(GroupParameters {
@@ -66,8 +67,9 @@ impl Parameters {
     pub fn new(grp: GroupParameters) -> Parameters {
         let g1 = grp.gen1();
         let g2 = grp.gen2();
-        let psi1 = hash_g1("psi1");
-        let psi2 = hash_g2("psi2");
+
+        let psi_g1 = hash_g1("psi1");
+        let psi_g2 = hash_g2("psi2");
         let gamma1 = hash_g1("gamma1");
         let gamma2 = hash_g1("gamma2");
         let eta = hash_g1("eta");
@@ -96,9 +98,7 @@ impl Parameters {
 
         let mut etas_a: Vec<G2Projective> = Default::default();
         for l in 1..=L {
-            println!("l = {:?}", l);
             for k in 0..=l - 1 {
-                println!("k = {:?}", k);
                 etas_a.push(g2 * (vec_a[l as usize - 1].neg() * (y * Scalar::from(k))));
             }
         }
@@ -115,8 +115,8 @@ impl Parameters {
         // Compute signature for each pair sigma, theta
         let params_u = ParametersUser {
             gammas: vec![gamma1, gamma2],
-            psi1,
-            psi2,
+            psi_g1,
+            psi_g2,
             eta,
             omega,
             etas: etas_u,
@@ -142,8 +142,8 @@ impl Parameters {
 #[derive(Debug, Clone)]
 pub struct ParametersUser {
     gammas: Vec<G1Projective>,
-    psi1: G1Projective,
-    psi2: G2Projective,
+    psi_g1: G1Projective,
+    psi_g2: G2Projective,
     eta: G1Projective,
     omega: G1Projective,
     etas: Vec<G1Projective>,
@@ -156,9 +156,9 @@ pub struct ParametersUser {
 impl ParametersUser {
     pub(crate) fn get_gammas(&self) -> &Vec<G1Projective> { &self.gammas }
 
-    pub(crate) fn get_psi0(&self) -> &G1Projective { &self.psi1 }
+    pub(crate) fn get_psi_g1(&self) -> &G1Projective { &self.psi_g1 }
 
-    pub(crate) fn get_psi1(&self) -> &G2Projective { &self.psi2 }
+    pub(crate) fn get_psi_g2(&self) -> &G2Projective { &self.psi_g2 }
 
     pub(crate) fn get_eta(&self) -> &G1Projective { &self.eta }
 

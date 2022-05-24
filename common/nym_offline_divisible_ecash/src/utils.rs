@@ -36,7 +36,7 @@ impl Polynomial {
             Scalar::zero()
             // if x is zero then we can ignore most of the expensive computation and
             // just return the last term of the polynomial
-        } else if x.is_zero() {
+        } else if x.is_zero().unwrap_u8() == 1 {
             // we checked that coefficients are not empty so unwrap here is fine
             *self.coefficients.first().unwrap()
         } else {

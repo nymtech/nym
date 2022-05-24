@@ -995,7 +995,11 @@ dependencies = [
  "ff 0.10.1",
  "group 0.10.0",
  "pairing 0.20.0",
+<<<<<<< HEAD
  "rand_core 0.6.4",
+=======
+ "rand_core 0.6.3",
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
  "subtle 2.4.1",
 ]
 
@@ -1005,15 +1009,23 @@ version = "0.6.0"
 source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
 dependencies = [
  "digest 0.9.0",
+<<<<<<< HEAD
  "ff 0.11.1",
  "group 0.11.0",
  "pairing 0.21.0",
  "rand_core 0.6.4",
+=======
+ "ff 0.11.0",
+ "group 0.11.0",
+ "pairing 0.21.0",
+ "rand_core 0.6.3",
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
  "subtle 2.4.1",
  "zeroize",
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "bnum"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1041,6 +1053,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
 name = "bs58"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1812,6 +1826,22 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "credentials"
+version = "0.1.0"
+dependencies = [
+ "bls12_381 0.5.0",
+ "coconut-interface",
+ "crypto",
+ "network-defaults",
+ "thiserror",
+ "url",
+ "validator-client",
+]
+
+[[package]]
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
 name = "criterion"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3606,6 +3636,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5ac374b108929de78460075f3dc439fa66df9d8fc77e8f12caa5165fcf0c89"
 dependencies = [
  "byteorder",
+<<<<<<< HEAD
  "ff 0.11.1",
  "rand_core 0.6.4",
  "subtle 2.4.1",
@@ -3630,6 +3661,10 @@ checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
  "ff 0.13.0",
  "rand_core 0.6.4",
+=======
+ "ff 0.11.0",
+ "rand_core 0.6.3",
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
  "subtle 2.4.1",
 ]
 
@@ -7686,8 +7721,13 @@ name = "nym_compact_ecash"
 version = "0.1.0"
 dependencies = [
  "bls12_381 0.5.0",
+<<<<<<< HEAD
  "bs58 0.4.0",
  "criterion 0.3.6",
+=======
+ "bs58",
+ "criterion",
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
  "digest 0.9.0",
  "ff 0.10.1",
  "group 0.10.0",
@@ -7704,12 +7744,12 @@ name = "nymvisor"
 name = "nym_offline_divisible_ecash"
 version = "0.1.0"
 dependencies = [
- "bls12_381",
+ "bls12_381 0.6.0",
  "bs58",
  "criterion",
  "digest 0.9.0",
- "ff 0.10.1",
- "group 0.10.0",
+ "ff 0.11.0",
+ "group 0.11.0",
  "itertools",
  "rand 0.8.5",
  "sha2",
@@ -7720,7 +7760,7 @@ dependencies = [
 name = "nym_online_divisible_ecash"
 version = "0.1.0"
 dependencies = [
- "bls12_381",
+ "bls12_381 0.5.0",
  "bs58",
  "criterion",
  "digest 0.9.0",
@@ -7737,7 +7777,7 @@ name = "nymcoconut"
 version = "0.5.0"
 dependencies = [
  "bincode",
- "bls12_381",
+ "bls12_381 0.5.0",
  "bs58",
  "criterion",
  "digest 0.9.0",
@@ -8145,6 +8185,18 @@ dependencies = [
 [[package]]
 name = "pairing"
 version = "0.21.0"
+<<<<<<< HEAD
+=======
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2e415e349a3006dd7d9482cdab1c980a845bed1377777d768cb693a44540b42"
+dependencies = [
+ "group 0.11.0",
+]
+
+[[package]]
+name = "parity-scale-codec"
+version = "2.3.1"
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2e415e349a3006dd7d9482cdab1c980a845bed1377777d768cb693a44540b42"
 dependencies = [
@@ -12945,9 +12997,15 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
+<<<<<<< HEAD
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
+=======
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+>>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
 dependencies = [
  "zeroize_derive",
 ]

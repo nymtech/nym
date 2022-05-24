@@ -204,6 +204,15 @@ impl MultipleAccounts {
     self.accounts.iter().find(|account| &account.id == id)
   }
 
+  pub(crate) fn get_account_with_mnemonic(
+    &self,
+    mnemonic: &bip39::Mnemonic,
+  ) -> Option<&WalletAccount> {
+    self
+      .get_accounts()
+      .find(|account| account.mnemonic() == mnemonic)
+  }
+
   pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
     self.accounts.into_iter()
   }
@@ -225,6 +234,8 @@ impl MultipleAccounts {
   ) -> Result<(), BackendError> {
     if self.get_account(&id).is_some() {
       Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
+    } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
+      Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
     } else {
       self.accounts.push(WalletAccount::new(
         id,

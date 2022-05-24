@@ -1069,6 +1069,31 @@ mod tests {
   }
 
   #[test]
+  fn append_the_same_mnemonic_twice_fails() {
+    let store_dir = tempdir().unwrap();
+    let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+    let account1 = bip39::Mnemonic::generate(24).unwrap();
+    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let password = UserPassword::new("password".to_string());
+    let id1 = LoginId::new("first".to_string());
+    let id2 = AccountId::new("second".to_string());
+
+    store_login_with_multiple_accounts_at_file(
+      &wallet_file,
+      account1.clone(),
+      hd_path.clone(),
+      id1.clone(),
+      &password,
+    )
+    .unwrap();
+
+    assert!(matches!(
+      append_account_to_login_at_file(&wallet_file, account1, hd_path, id1, id2, &password,),
+      Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin),
+    ))
+  }
+
+  #[test]
   fn delete_the_same_account_twice_for_a_login_fails() {
     let store_dir = tempdir().unwrap();
     let wallet = store_dir.path().join(WALLET_INFO_FILENAME);

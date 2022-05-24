@@ -83,12 +83,12 @@ impl Parameters {
         let sigma = g1 * z;
         let theta = eta * z;
 
-        let sigmas_u: Vec<G1Projective> = (0..=L - 1)
-            .map(|i| sigma * (y * Scalar::from(i + 1)))
+        let sigmas_u: Vec<G1Projective> = (1..=L)
+            .map(|i| sigma * (y * Scalar::from(i)))
             .collect();
 
-        let thetas_u: Vec<G1Projective> = (0..=L - 1)
-            .map(|i| theta * (y * Scalar::from(i + 1)))
+        let thetas_u: Vec<G1Projective> = (1..=L)
+            .map(|i| theta * (y * Scalar::from(i)))
             .collect();
 
         let deltas_a: Vec<G2Projective> = (0..=L - 1)
@@ -99,17 +99,16 @@ impl Parameters {
         let mut etas_a: Vec<G2Projective> = Default::default();
         for l in 1..=L {
             for k in 0..=l - 1 {
-                etas_a.push(g2 * (vec_a[l as usize - 1].neg() * (y * Scalar::from(k))));
+                etas_a.push(g2 * ([l as usize - 1].neg() * (y * Scalar::from(k))));
             }
         }
 
         let sps_keypair = SPSKeyPair::new(grp.clone(), 2, 0);
-        let messages_a = vec![sigma, theta];
 
         let sps_signatures: Vec<SPSSignature> = sigmas_u
             .iter()
             .zip(thetas_u.iter())
-            .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&messages_a), None))
+            .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&vec![*sigma, *theta]), None))
             .collect();
 
         // Compute signature for each pair sigma, theta
@@ -166,15 +165,15 @@ impl ParametersUser {
 
     pub(crate) fn get_etas(&self) -> &[G1Projective] { &self.etas }
 
-    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G1Projective { self.etas.get(idx).unwrap() }
+    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G1Projective { self.etas.get(idx - 1).unwrap() }
 
     pub(crate) fn get_sigmas(&self) -> &[G1Projective] { &self.sigmas }
 
-    pub(crate) fn get_ith_sigma(&self, idx: usize) -> &G1Projective { self.sigmas.get(idx).unwrap() }
+    pub(crate) fn get_ith_sigma(&self, idx: usize) -> &G1Projective { self.sigmas.get(idx - 1).unwrap() }
 
     pub(crate) fn get_thetas(&self) -> &[G1Projective] { &self.thetas }
 
-    pub(crate) fn get_ith_theta(&self, idx: usize) -> &G1Projective { self.thetas.get(idx).unwrap() }
+    pub(crate) fn get_ith_theta(&self, idx: usize) -> &G1Projective { self.thetas.get(idx - 1).unwrap() }
 
     pub(crate) fn get_sps_signs(&self) -> &[SPSSignature] { &self.sps_signatures }
 
@@ -196,5 +195,5 @@ impl ParametersAuthority {
 
     pub(crate) fn get_etas(&self) -> &[G2Projective] { &self.etas }
 
-    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G2Projective { self.etas.get(idx).unwrap() }
+    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G2Projective { self.etas.get(idx - 1).unwrap() }
 }

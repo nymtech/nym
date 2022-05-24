@@ -308,7 +308,7 @@ impl ServiceProvider {
         });
 
         #[cfg(feature = "stats-service")]
-        let storage = crate::storage::NetworkRequesterStorage::init(&self.db_path)
+        let storage = crate::storage::NetworkRequesterStorage::init(self.db_path.as_path())
             .await
             .expect("Could not create network requester storage");
 

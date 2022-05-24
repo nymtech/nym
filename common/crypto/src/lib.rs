@@ -29,5 +29,5 @@ pub use blake3;
 #[cfg(feature = "symmetric")]
 pub use ctr;
 
-// TODO: this function uses all three modules: asymmetric crypto, symmetric crypto and derives key...,
-// so I don't know where to put it...
+#[cfg(feature = "serde")]
+extern crate serde_crate as serde;

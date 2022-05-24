@@ -146,7 +146,10 @@ async fn signed_before() {
                 .to_base58_string(),
         )
         .unwrap(),
-        encryption::KeyPair::new(&mut rng).private_key().clone(),
+        encryption::PrivateKey::from_bytes(
+            &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
+        )
+        .unwrap(),
     );
     let (_, blind_sign_req) = prepare_blind_sign(
         &params,
@@ -342,7 +345,10 @@ async fn blind_sign_correct() {
                 .to_base58_string(),
         )
         .unwrap(),
-        encryption::KeyPair::new(&mut rng).private_key().clone(),
+        encryption::PrivateKey::from_bytes(
+            &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
+        )
+        .unwrap(),
     );
 
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);

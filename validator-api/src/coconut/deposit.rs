@@ -121,7 +121,10 @@ mod test {
                     .to_base58_string(),
             )
             .unwrap(),
-            encryption::KeyPair::new(&mut rng).private_key().clone(),
+            encryption::PrivateKey::from_bytes(
+                &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
+            )
+            .unwrap(),
         );
         let (_, blind_sign_req) = prepare_blind_sign(
             &params,

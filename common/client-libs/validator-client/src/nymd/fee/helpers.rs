@@ -61,42 +61,14 @@ pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
 
 impl fmt::Display for Operation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // so far literally every single variant uses the same output as if it was produced by debug
+        // so unless it's explicitly required by some specific case, just use debug impl directly
+        // note: I've used the match explicitly here, even though it's not required,
+        // so that we'd remember to handle any future "special" cases explicitly
+        // (or at least think about what we're doing when we add new Operation variant)
+        #[allow(clippy::match_single_binding)]
         match *self {
-            Operation::Upload => f.write_str("Upload"),
-            Operation::Init => f.write_str("Init"),
-            Operation::Migrate => f.write_str("Migrate"),
-            Operation::ChangeAdmin => f.write_str("ChangeAdmin"),
-            Operation::Send => f.write_str("Send"),
-            Operation::BondMixnode => f.write_str("BondMixnode"),
-            Operation::BondMixnodeOnBehalf => f.write_str("BondMixnodeOnBehalf"),
-            Operation::UnbondMixnode => f.write_str("UnbondMixnode"),
-            Operation::UpdateMixnodeConfig => f.write_str("UpdateMixnodeConfig"),
-            Operation::UnbondMixnodeOnBehalf => f.write_str("UnbondMixnodeOnBehalf"),
-            Operation::BondGateway => f.write_str("BondGateway"),
-            Operation::BondGatewayOnBehalf => f.write_str("BondGatewayOnBehalf"),
-            Operation::UnbondGateway => f.write_str("UnbondGateway"),
-            Operation::UnbondGatewayOnBehalf => f.write_str("UnbondGatewayOnBehalf"),
-            Operation::DelegateToMixnode => f.write_str("DelegateToMixnode"),
-            Operation::DelegateToMixnodeOnBehalf => f.write_str("DelegateToMixnodeOnBehalf"),
-            Operation::UndelegateFromMixnode => f.write_str("UndelegateFromMixnode"),
-            Operation::UndelegateFromMixnodeOnBehalf => {
-                f.write_str("UndelegateFromMixnodeOnBehalf")
-            }
-            Operation::UpdateContractSettings => f.write_str("UpdateContractSettings"),
-            Operation::BeginMixnodeRewarding => f.write_str("BeginMixnodeRewarding"),
-            Operation::FinishMixnodeRewarding => f.write_str("FinishMixnodeRewarding"),
-            Operation::TrackUnbondGateway => f.write_str("TrackUnbondGateway"),
-            Operation::TrackUnbondMixnode => f.write_str("TrackUnbondMixnode"),
-            Operation::WithdrawVestedCoins => f.write_str("WithdrawVestedCoins"),
-            Operation::TrackUndelegation => f.write_str("TrackUndelegation"),
-            Operation::CreatePeriodicVestingAccount => f.write_str("CreatePeriodicVestingAccount"),
-            Operation::AdvanceCurrentInterval => f.write_str("AdvanceCurrentInterval"),
-            Operation::WriteRewardedSet => f.write_str("WriteRewardedSet"),
-            Operation::ClearRewardedSet => f.write_str("ClearRewardedSet"),
-            Operation::UpdateMixnetAddress => f.write_str("UpdateMixnetAddress"),
-            Operation::CheckpointMixnodes => f.write_str("CheckpointMixnodes"),
-            Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
-            Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
+            _ => <Self as std::fmt::Debug>::fmt(self, f),
         }
     }
 }

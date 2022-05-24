@@ -427,20 +427,31 @@ impl MixNodeBond {
     pub fn estimate_reward(
         &self,
         params: &RewardParams,
-    ) -> Result<(u64, u64, u64), MixnetContractError> {
+    ) -> Result<(u64, u64, u64, u64, u64), MixnetContractError> {
         let total_node_reward = self
             .reward(params)
             .reward()
             .checked_to_num::<u128>()
             .unwrap_or_default();
+        let node_profit = self
+            .node_profit(params)
+            .checked_to_num::<u128>()
+            .unwrap_or_default();
+        let operator_cost = params
+            .node
+            .operator_cost()
+            .checked_to_num::<u128>()
+            .unwrap_or_default();
         let operator_reward = self.operator_reward(params);
         // Total reward has to be the sum of operator and delegator rewards
-        let delegators_reward = total_node_reward - operator_reward;
+        let delegators_reward = node_profit - operator_reward;
 
         Ok((
             total_node_reward.try_into()?,
             operator_reward.try_into()?,
             delegators_reward.try_into()?,
+            node_profit.try_into()?,
+            operator_cost.try_into()?,
         ))
     }
 

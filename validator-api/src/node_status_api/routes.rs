@@ -152,11 +152,15 @@ pub(crate) async fn get_mixnode_reward_estimation(
                 estimated_total_node_reward,
                 estimated_operator_reward,
                 estimated_delegators_reward,
+                estimated_node_profit,
+                estimated_operator_cost,
             )) => {
                 let reponse = RewardEstimationResponse {
                     estimated_total_node_reward,
                     estimated_operator_reward,
                     estimated_delegators_reward,
+                    estimated_node_profit,
+                    estimated_operator_cost,
                     reward_params,
                     as_at,
                 };

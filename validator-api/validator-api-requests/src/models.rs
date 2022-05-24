@@ -58,6 +58,8 @@ pub struct RewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,
     pub estimated_delegators_reward: u64,
+    pub estimated_node_profit: u64,
+    pub estimated_operator_cost: u64,
 
     pub reward_params: RewardParams,
     pub as_at: i64,

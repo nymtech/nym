@@ -1381,7 +1381,7 @@ pub mod tests {
         let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity)
             .unwrap()
             .unwrap();
-        let mix_1_uptime = 100;
+        let mix_1_uptime = 90;
 
         let epoch = Interval::init_epoch(env.clone());
         save_epoch(&mut deps.storage, &epoch).unwrap();
@@ -1395,7 +1395,7 @@ pub mod tests {
 
         params.set_reward_blockstamp(env.block.height);
 
-        assert_eq!(params.performance(), U128::from_num(1u32));
+        assert_eq!(params.performance(), U128::from_num(0.8999999999999999));
 
         let mix_1_reward_result = mix_1.reward(&params);
 
@@ -1407,9 +1407,14 @@ pub mod tests {
             mix_1_reward_result.lambda(),
             U128::from_num(0.0000133333333333f64)
         );
-        assert_eq!(mix_1_reward_result.reward().int(), 259114u128);
+        assert_eq!(mix_1_reward_result.reward().int(), 233202u128);
 
-        assert_eq!(mix_1.node_profit(&params).int(), 203558u128);
+        assert_eq!(mix_1.node_profit(&params).int(), 183207u128);
+
+        assert_ne!(
+            mix_1_reward_result.reward(),
+            mix_1.node_profit(&params).int()
+        );
 
         let mix1_operator_reward = mix_1.operator_reward(&params);
 
@@ -1417,9 +1422,9 @@ pub mod tests {
 
         let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
-        assert_eq!(mix1_operator_reward, 167513);
-        assert_eq!(mix1_delegator1_reward, 73280);
-        assert_eq!(mix1_delegator2_reward, 18320);
+        assert_eq!(mix1_operator_reward, 150759);
+        assert_eq!(mix1_delegator1_reward, 65954);
+        assert_eq!(mix1_delegator2_reward, 16488);
 
         assert_eq!(
             mix_1_reward_result.reward().int(),

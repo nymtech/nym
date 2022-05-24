@@ -473,11 +473,9 @@ impl MixNodeBond {
     }
 
     pub fn node_profit(&self, params: &RewardParams) -> U128 {
-        if self.reward(params).reward() < params.node.operator_cost() {
-            U128::from_num(0u128)
-        } else {
-            self.reward(params).reward() - params.node.operator_cost()
-        }
+        self.reward(params)
+            .reward()
+            .saturating_sub(params.node.operator_cost())
     }
 
     pub fn operator_reward(&self, params: &RewardParams) -> u128 {
@@ -485,11 +483,9 @@ impl MixNodeBond {
         if reward.sigma == 0 {
             return 0;
         }
-        let profit = if reward.reward < params.node.operator_cost() {
-            U128::from_num(0u128)
-        } else {
-            reward.reward - params.node.operator_cost()
-        };
+
+        let profit = reward.reward.saturating_sub(params.node.operator_cost());
+
         let operator_base_reward = reward.reward.min(params.node.operator_cost());
         // Div by zero checked above
         let operator_reward = (self.profit_margin()

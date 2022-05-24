@@ -178,7 +178,7 @@ impl NodeRewardParams {
     }
 
     pub fn operator_cost(&self) -> U128 {
-        // Due to integer division anythign less the 100 would be rounded to 0 if we divided by hundred,
+        // Due to integer division anything less the 100 would be rounded to 0 if we divided by hundred,
         // Dividing both sides by 10 gives us more granularity, with a known rounding error
         // Inner parenthasis are for readability only
         U128::from_num(

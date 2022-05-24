@@ -33,7 +33,9 @@ pub(crate) fn node_status_routes(
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
             routes::get_mixnode_avg_uptime,
-            routes::get_mixnode_avg_uptimes,
+            routes::get_all_mixnode_avg_uptimes,
+            routes::get_all_mixnode_stake_saturations,
+            routes::get_all_mixnode_stake_stats,
         ]
     } else {
         // in the minimal variant we would not have access to endpoints relying on existence
@@ -42,6 +44,7 @@ pub(crate) fn node_status_routes(
             routes::get_mixnode_status,
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
+            routes::get_all_mixnode_stake_saturations,
         ]
     }
 }

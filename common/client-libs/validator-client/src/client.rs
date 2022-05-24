@@ -10,7 +10,7 @@ use url::Url;
 use validator_api_requests::models::UptimeResponse;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    StakeSaturationResponse, StakeSaturationResponseWithId, StakeStats,
 };
 
 #[cfg(feature = "nymd-client")]
@@ -589,6 +589,16 @@ impl<C> Client<C> {
         &self,
     ) -> Result<Vec<UptimeResponse>, ValidatorClientError> {
         Ok(self.validator_api.get_mixnode_avg_uptimes().await?)
+    }
+
+    pub async fn get_mixnode_stake_saturations(
+        &self,
+    ) -> Result<Vec<StakeSaturationResponseWithId>, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnode_stake_saturations().await?)
+    }
+
+    pub async fn get_mixnode_stake_stats(&self) -> Result<Vec<StakeStats>, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnode_stake_stats().await?)
     }
 
     pub async fn blind_sign(

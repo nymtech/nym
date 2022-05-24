@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    RewardEstimationResponse, StakeSaturationResponse, StakeSaturationResponseWithId, StakeStats,
+    UptimeResponse,
 };
 
 pub mod error;
@@ -230,6 +231,34 @@ impl Client {
                 routes::MIXNODE,
                 identity,
                 routes::STAKE_SATURATION,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_stake_saturations(
+        &self,
+    ) -> Result<Vec<StakeSaturationResponseWithId>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODES,
+                routes::STAKE_SATURATION,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_stake_stats(&self) -> Result<Vec<StakeStats>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODES,
+                routes::STAKE_STATS,
             ],
             NO_PARAMS,
         )

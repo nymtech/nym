@@ -8,14 +8,15 @@ use crate::node_status_api::models::{
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
 use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
-use mixnet_contract_common::Interval;
+use mixnet_contract_common::{Interval, MixNodeBond};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    RewardEstimationResponse, StakeSaturationResponse, StakeSaturationResponseWithId, StakeStats,
+    UptimeResponse,
 };
 
 use super::models::Uptime;
@@ -175,6 +176,25 @@ pub(crate) async fn get_mixnode_reward_estimation(
     }
 }
 
+async fn get_state_saturation(
+    bond: &MixNodeBond,
+    cache: &State<ValidatorCache>,
+) -> StakeSaturationResponse {
+    let interval_reward_params = cache.epoch_reward_params().await;
+    let as_at = interval_reward_params.timestamp();
+    let interval_reward_params = interval_reward_params.into_inner();
+
+    let saturation = bond.stake_saturation(
+        interval_reward_params.circulating_supply(),
+        interval_reward_params.rewarded_set_size() as u32,
+    );
+
+    StakeSaturationResponse {
+        saturation: saturation.to_num(),
+        as_at,
+    }
+}
+
 #[openapi(tag = "status")]
 #[get("/mixnode/<identity>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
@@ -183,25 +203,55 @@ pub(crate) async fn get_mixnode_stake_saturation(
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     let (bond, _) = cache.mixnode_details(&identity).await;
     if let Some(bond) = bond {
-        let interval_reward_params = cache.epoch_reward_params().await;
-        let as_at = interval_reward_params.timestamp();
-        let interval_reward_params = interval_reward_params.into_inner();
-
-        let saturation = bond.stake_saturation(
-            interval_reward_params.circulating_supply(),
-            interval_reward_params.rewarded_set_size() as u32,
-        );
-
-        Ok(Json(StakeSaturationResponse {
-            saturation: saturation.to_num(),
-            as_at,
-        }))
+        Ok(Json(get_state_saturation(&bond, cache).await))
     } else {
         Err(ErrorResponse::new(
             "mixnode bond not found",
             Status::NotFound,
         ))
     }
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnodes/stake-saturation")]
+pub(crate) async fn get_all_mixnode_stake_saturations(
+    cache: &State<ValidatorCache>,
+) -> Result<Json<Vec<StakeSaturationResponseWithId>>, ErrorResponse> {
+    let mixnode_bonds = cache.mixnodes().await;
+    let mut stake_saturations = Vec::new();
+    for bond in mixnode_bonds {
+        let stake_saturation = get_state_saturation(&bond, cache).await;
+        stake_saturations.push(StakeSaturationResponseWithId {
+            identity: bond.identity().to_string(),
+            saturation: stake_saturation.saturation,
+            as_at: stake_saturation.as_at,
+        });
+    }
+    Ok(Json(stake_saturations))
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnodes/staking-stats")]
+pub(crate) async fn get_all_mixnode_stake_stats(
+    cache: &State<ValidatorCache>,
+    storage: &State<ValidatorApiStorage>,
+) -> Result<Json<Vec<StakeStats>>, ErrorResponse> {
+    let mixnode_bonds = cache.mixnodes().await;
+    let current_epoch = cache.current_epoch().await.into_inner();
+
+    let mut response = Vec::new();
+    for bond in mixnode_bonds {
+        let uptime = average_mixnode_uptime(bond.identity(), current_epoch, storage).await?;
+        let stake_saturation = get_state_saturation(&bond, cache).await;
+
+        response.push(StakeStats {
+            identity: bond.identity().to_string(),
+            avg_uptime: uptime.u8(),
+            saturation: stake_saturation.saturation,
+            as_at: stake_saturation.as_at,
+        });
+    }
+    Ok(Json(response))
 }
 
 #[openapi(tag = "status")]
@@ -272,7 +322,7 @@ pub(crate) async fn get_mixnode_avg_uptime(
 
 #[openapi(tag = "status")]
 #[get("/mixnodes/avg_uptime")]
-pub(crate) async fn get_mixnode_avg_uptimes(
+pub(crate) async fn get_all_mixnode_avg_uptimes(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
 ) -> Result<Json<Vec<UptimeResponse>>, ErrorResponse> {

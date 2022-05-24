@@ -4,7 +4,7 @@
 use std::future::Future;
 
 use mixnet_contract_common::{GatewayBond, MixNodeBond};
-use validator_client::models::UptimeResponse;
+use validator_client::models::StakeStats;
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
 use validator_client::ValidatorClientError;
@@ -89,14 +89,14 @@ impl ExplorerApiTasks {
             .await
     }
 
-    async fn retrieve_all_mixnode_avg_uptimes(
+    async fn retrieve_all_mixnode_stake_stats(
         &self,
-    ) -> Result<Vec<UptimeResponse>, ValidatorClientError> {
+    ) -> Result<Vec<StakeStats>, ValidatorClientError> {
         self.state
             .inner
             .validator_client
             .0
-            .get_mixnode_avg_uptimes()
+            .get_mixnode_stake_stats()
             .await
     }
 
@@ -122,18 +122,19 @@ impl ExplorerApiTasks {
     }
 
     async fn update_mixnode_health_cache(&self) {
-        match self.retrieve_all_mixnode_avg_uptimes().await {
-            Ok(response) => {
-                self.state
-                    .inner
-                    .mixnodes
-                    .update_health_cache(response)
-                    .await
-            }
+        let response = match self.retrieve_all_mixnode_stake_stats().await {
+            Ok(response) => response,
             Err(e) => {
-                error!("Failed to get mixnode avg uptimes: {:?}", e)
+                error!("Failed to get mixnode stake stats: {:?}", e);
+                return;
             }
-        }
+        };
+
+        self.state
+            .inner
+            .mixnodes
+            .update_health_cache(response)
+            .await
     }
 
     async fn update_validators_cache(&self) {

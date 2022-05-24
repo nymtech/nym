@@ -4,7 +4,8 @@
 
 ### Added
 
-- wallet: require password to switch accounts
+- explorer-api and validator-api: endpoints for getting stake saturation for all mixnodes.
+- wallet: require password to switch accounts.
 - wallet: add simple CLI tool for decrypting and recovering the wallet file.
 - wallet: added support for multiple accounts ([#1265])
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.

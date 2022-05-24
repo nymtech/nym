@@ -28,4 +28,5 @@ pub const STATUS: &str = "status";
 pub const REWARD_ESTIMATION: &str = "reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
+pub const STAKE_STATS: &str = "stake-stats";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";

@@ -9,7 +9,7 @@ use serde::Serialize;
 use tokio::sync::RwLock;
 
 use mixnet_contract_common::MixNodeBond;
-use validator_client::models::UptimeResponse;
+use validator_client::models::StakeStats;
 
 use crate::cache::Cache;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
@@ -81,6 +81,7 @@ impl MixNodesResult {
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodeHealth {
     avg_uptime: u8,
+    stake_saturation: f32,
 }
 
 #[derive(Clone)]
@@ -157,7 +158,8 @@ impl ThreadsafeMixNodesCache {
                 owner: bond.owner,
                 layer: bond.layer,
                 mix_node: bond.mix_node,
-                avg_uptime: health.map(|m| m.avg_uptime),
+                avg_uptime: health.as_ref().map(|m| m.avg_uptime),
+                stake_saturation: health.map(|m| m.stake_saturation),
             }),
             None => None,
         }
@@ -183,7 +185,8 @@ impl ThreadsafeMixNodesCache {
                     owner: copy.owner,
                     layer: copy.layer,
                     mix_node: copy.mix_node,
-                    avg_uptime: health.map(|m| m.avg_uptime),
+                    avg_uptime: health.as_ref().map(|m| m.avg_uptime),
+                    stake_saturation: health.map(|m| m.stake_saturation),
                 }
             })
             .collect()
@@ -205,13 +208,14 @@ impl ThreadsafeMixNodesCache {
         guard.valid_until = SystemTime::now() + CACHE_ENTRY_TTL;
     }
 
-    pub(crate) async fn update_health_cache(&self, all_uptimes: Vec<UptimeResponse>) {
+    pub(crate) async fn update_health_cache(&self, stake_stats: Vec<StakeStats>) {
         let mut mixnode_health = self.mixnode_health.write().await;
-        for uptime in all_uptimes {
+        for stat in stake_stats {
             let health = MixNodeHealth {
-                avg_uptime: uptime.avg_uptime,
+                avg_uptime: stat.avg_uptime,
+                stake_saturation: stat.saturation,
             };
-            mixnode_health.set(&uptime.identity, health);
+            mixnode_health.set(&stat.identity, health);
         }
     }
 }

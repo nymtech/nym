@@ -84,6 +84,21 @@ pub struct StakeSaturationResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct StakeSaturationResponseWithId {
+    pub identity: String,
+    pub saturation: f32,
+    pub as_at: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct StakeStats {
+    pub identity: String,
+    pub avg_uptime: u8,
+    pub saturation: f32,
+    pub as_at: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(
     test,

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
-import { ClientContext } from '../context/main';
+import { AppContext } from '../context/main';
 
 type TPoolOption = 'balance' | 'locked';
 
@@ -12,7 +12,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
   const {
     userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
     currency,
-  } = useContext(ClientContext);
+  } = useContext(AppContext);
 
   useEffect(() => {
     (async () => {

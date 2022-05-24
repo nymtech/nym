@@ -1,8 +1,7 @@
 import React, { useMemo, createContext, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { TLoginType } from 'src/pages/sign-in/types';
-import { Account, AppEnv, Network, TCurrency, TMixnodeBondDetails } from '../types';
+import { Account, Network, TCurrency, TMixnodeBondDetails, AccountEntry, AppEnv } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import {
   getMixnodeBondDetails,
@@ -10,7 +9,9 @@ import {
   signInWithMnemonic,
   signInWithPassword,
   signOut,
+  switchAccount,
   getEnv,
+  listAccounts,
 } from '../requests';
 import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
@@ -26,10 +27,13 @@ export const urls = (networkName?: Network) =>
         networkExplorer: `https://${networkName}-explorer.nymtech.net`,
       };
 
-type TClientContext = {
+type TLoginType = 'mnemonic' | 'password';
+
+type TAppContext = {
   mode: 'light' | 'dark';
   appEnv?: AppEnv;
   clientDetails?: Account;
+  storedAccounts?: AccountEntry[];
   mixnodeDetails?: TMixnodeBondDetails | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
@@ -40,36 +44,49 @@ type TClientContext = {
   isLoading: boolean;
   isAdminAddress: boolean;
   error?: string;
+  loginType?: TLoginType;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
   handleShowSettings: () => void;
   handleShowAdmin: () => void;
+  logIn: (opts: { type: TLoginType; value: string }) => void;
   handleShowTerminal: () => void;
-  logIn: (opts: { type: 'mnemonic' | 'password'; value: string }) => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
+  onAccountChange: ({ accountId, password }: { accountId: string; password: string }) => void;
 };
 
-export const ClientContext = createContext({} as TClientContext);
+export const AppContext = createContext({} as TAppContext);
 
-export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const [appEnv, setAppEnv] = useState<AppEnv>();
+export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
+  const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
   const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
   const [network, setNetwork] = useState<Network | undefined>();
+  const [appEnv, setAppEnv] = useState<AppEnv>();
   const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
+  const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
 
   const userBalance = useGetBalance(clientDetails?.client_address);
   const history = useHistory();
   const { enqueueSnackbar } = useSnackbar();
+
+  const clearState = () => {
+    userBalance.clearAll();
+    setStoredAccounts(undefined);
+    setNetwork(undefined);
+    setError(undefined);
+    setIsLoading(false);
+    setMixnodeDetails(undefined);
+  };
 
   const loadAccount = async (n: Network) => {
     try {
@@ -83,6 +100,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
+  const loadStoredAccounts = async () => {
+    const accounts = await listAccounts();
+    setStoredAccounts(accounts);
+  };
+
   const getBondDetails = async () => {
     setMixnodeDetails(undefined);
     try {
@@ -93,19 +115,25 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
-  useEffect(() => {
-    getEnv().then(setAppEnv);
-  }, []);
+  const refreshAccount = async (_network: Network) => {
+    await loadAccount(_network);
+    if (loginType === 'password') {
+      await loadStoredAccounts();
+    }
+  };
 
   useEffect(() => {
-    const refreshAccount = async () => {
-      if (network) {
-        await loadAccount(network);
-        await getBondDetails();
-        await userBalance.fetchBalance();
-      }
-    };
-    refreshAccount();
+    if (!clientDetails) {
+      clearState();
+      history.push('/');
+    }
+  }, [clientDetails]);
+
+  useEffect(() => {
+    if (network) {
+      refreshAccount(network);
+      getEnv().then(setAppEnv);
+    }
   }, [network]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
@@ -117,8 +145,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setIsLoading(true);
       if (type === 'mnemonic') {
         await signInWithMnemonic(value);
+        setLoginType('mnemonic');
       } else {
         await signInWithPassword(value);
+        setLoginType('password');
       }
       setNetwork('MAINNET');
       history.push('/balance');
@@ -130,14 +160,24 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   };
 
   const logOut = async () => {
-    userBalance.clearAll();
-    setClientDetails(undefined);
-    setNetwork(undefined);
-    setError(undefined);
-    setIsLoading(false);
-    setMixnodeDetails(undefined);
     await signOut();
+    setClientDetails(undefined);
     enqueueSnackbar('Successfully logged out', { variant: 'success' });
+  };
+
+  const onAccountChange = async ({ accountId, password }: { accountId: string; password: string }) => {
+    if (network) {
+      setIsLoading(true);
+      try {
+        await switchAccount({ accountId, password });
+        await loadAccount(network);
+        enqueueSnackbar('Account switch success', { variant: 'success', preventDuplicate: true });
+      } catch (e) {
+        throw new Error(`Error swtiching account: ${e}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
@@ -153,6 +193,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       isLoading,
       error,
       clientDetails,
+      storedAccounts,
       mixnodeDetails,
       userBalance,
       showAdmin,
@@ -160,6 +201,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       showTerminal,
       network,
       currency,
+      loginType,
       setIsLoading,
       setError,
       signInWithPassword,
@@ -170,8 +212,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       handleShowTerminal,
       logIn,
       logOut,
+      onAccountChange,
     }),
     [
+      loginType,
       mode,
       appEnv,
       isLoading,
@@ -181,11 +225,12 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       userBalance,
       showAdmin,
       showSettings,
-      showTerminal,
       network,
       currency,
+      storedAccounts,
+      showTerminal,
     ],
   );
 
-  return <ClientContext.Provider value={memoizedValue}>{children}</ClientContext.Provider>;
+  return <AppContext.Provider value={memoizedValue}>{children}</AppContext.Provider>;
 };

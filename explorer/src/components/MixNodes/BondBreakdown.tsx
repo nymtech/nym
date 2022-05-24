@@ -98,7 +98,7 @@ export const BondBreakdownTable: React.FC = () => {
             </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell align="left">Pledge total</TableCell>
+            <TableCell align="left">Self</TableCell>
             <TableCell align="left" data-testid="pledge-total-amount">
               {bonds.pledges}
             </TableCell>

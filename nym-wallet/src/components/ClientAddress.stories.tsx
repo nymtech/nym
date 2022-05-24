@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { ClientAddressDisplay } from './ClientAddress';
 
 export default {

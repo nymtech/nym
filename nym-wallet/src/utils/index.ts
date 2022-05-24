@@ -119,15 +119,15 @@ export const randomNumberBetween = (min: number, max: number) => {
 
 export const currencyMap = (network?: Network): TCurrency => {
   switch (network) {
-    case 'MAINNET':
-      return {
-        minor: 'UNYM',
-        major: 'NYM',
-      };
-    default:
+    case 'SANDBOX':
       return {
         minor: 'UNYMT',
         major: 'NYMT',
+      };
+    default:
+      return {
+        minor: 'UNYM',
+        major: 'NYM',
       };
   }
 };

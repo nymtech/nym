@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Console } from '../utils/console';
-import { ClientContext } from '../context/main';
+import { AppContext } from '../context/main';
 import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests';
 import { EnumNodeType, TNodeOwnership } from '../types';
 
@@ -11,7 +11,7 @@ const initial = {
 };
 
 export const useCheckOwnership = () => {
-  const { clientDetails } = useContext(ClientContext);
+  const { clientDetails } = useContext(AppContext);
 
   const [ownership, setOwnership] = useState<TNodeOwnership>(initial);
   const [isLoading, setIsLoading] = useState(true);

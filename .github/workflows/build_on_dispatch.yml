@@ -1,0 +1,72 @@
+name: Continuous integration on dispatch
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: [ self-hosted, custom-linux-exoscale ]
+    # Enable sccache via environment variable
+    env:
+      RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
+    steps:
+      - name: Install Dependencies (Linux)
+        run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev squashfs-tools
+
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Build all binaries
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace
+
+      - name: Run all tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-features
+
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - uses: actions-rs/clippy-check@v1
+        name: Clippy checks
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
+
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --workspace -- -D warnings
+
+      - name: Build all binaries with coconut enabled
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --features=coconut
+
+      - name: Run all tests with coconut enabled
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --features=coconut
+
+      - name: Run clippy with coconut enabled
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --features=coconut -- -D warnings

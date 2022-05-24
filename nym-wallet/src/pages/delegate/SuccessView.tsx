@@ -1,10 +1,10 @@
 import React, { useContext } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { SuccessReponse, TransactionDetails } from '../../components';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
-  const { userBalance, currency } = useContext(ClientContext);
+  const { userBalance, currency } = useContext(AppContext);
   return (
     <>
       <SuccessReponse

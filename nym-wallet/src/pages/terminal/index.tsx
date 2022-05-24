@@ -4,7 +4,7 @@ import TerminalIcon from '@mui/icons-material/Terminal';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import {
   getCurrentEpoch,
@@ -37,7 +37,7 @@ const TerminalSection: React.FC<{
 };
 
 const TerminalInner: React.FC = () => {
-  const { network, userBalance, clientDetails, handleShowTerminal, appEnv } = useContext(ClientContext);
+  const { network, userBalance, clientDetails, handleShowTerminal, appEnv } = useContext(AppContext);
   const { balance, vestingAccountInfo, currentVestingPeriod, originalVesting, fetchBalance, fetchTokenAllocation } =
     useGetBalance(clientDetails?.client_address);
   const [mixnodeDelegations, setMixnodeDelegations] = useState<any>();
@@ -184,7 +184,7 @@ const TerminalInner: React.FC = () => {
 };
 
 export const Terminal: React.FC = () => {
-  const { showTerminal } = useContext(ClientContext);
+  const { showTerminal } = useContext(AppContext);
 
   // this is a guard component, that only mounts the terminal component when shown
   if (!showTerminal) {

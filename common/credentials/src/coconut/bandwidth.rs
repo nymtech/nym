@@ -204,7 +204,10 @@ mod test {
                     .to_base58_string(),
             )
             .unwrap(),
-            encryption::KeyPair::new(&mut rng).private_key().clone(),
+            encryption::PrivateKey::from_bytes(
+                &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
+            )
+            .unwrap(),
         );
         assert!(!BandwidthVoucher::verify_against_plain(
             &[],

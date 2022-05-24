@@ -5,6 +5,7 @@ use crate::ValidatorDetails;
 
 pub(crate) const BECH32_PREFIX: &str = "n";
 pub const DENOM: &str = "unym";
+pub const STAKE_DENOM: &str = "unyx";
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
     "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
@@ -24,6 +25,6 @@ pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hh
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://rpc.nyx.nodes.guru/",
-        Some("https://validator.nymtech.net/api"),
+        Some("https://validator.nymtech.net/api/"),
     )]
 }

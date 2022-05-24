@@ -16,7 +16,7 @@ use proxy_helpers::connection_controller::{
 };
 use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
-use socks5_requests::{ConnectionId, RemoteAddress, Request};
+use socks5_requests::{ConnectionId, Message, RemoteAddress, Request};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -224,8 +224,9 @@ impl SocksClient {
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
+        let msg = Message::Request(req);
 
-        let input_message = InputMessage::new_fresh(self.service_provider, req.into_bytes(), false);
+        let input_message = InputMessage::new_fresh(self.service_provider, msg.into_bytes(), false);
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 
@@ -252,7 +253,8 @@ impl SocksClient {
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
-            InputMessage::new_fresh(recipient, provider_request.into_bytes(), false)
+            let provider_message = Message::Request(provider_request);
+            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false)
         })
         .await
         .into_inner();

@@ -16,6 +16,7 @@ use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
+use cw_storage_plus::Bound;
 use mixnet_contract_common::events::{
     new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
@@ -114,9 +115,13 @@ pub fn calculate_operator_reward(
     let accumulated_rewards = mixnodes()
         .changelog()
         .prefix(bond.identity())
-        .keys(storage, None, None, Order::Ascending)
+        .keys(
+            storage,
+            Some(Bound::exclusive(last_claimed_height)),
+            None,
+            Order::Ascending,
+        )
         .filter_map(|height| height.ok())
-        .filter(|height| last_claimed_height <= *height)
         .fold(
             Ok(Uint128::zero()),
             |acc, height| -> Result<Uint128, ContractError> {
@@ -284,32 +289,46 @@ pub fn calculate_delegator_reward(
 
     // Get delegations newer then last_claimed_height, it would be nice to also fold this into the iteration bellow but it should be ok for now, as
     // I doubt folks refresh their delegations often
-    let delegations = delegations_storage::delegations()
+    let mut delegations = delegations_storage::delegations()
         .prefix((mix_identity.to_string(), key))
-        .range(storage, None, None, Order::Descending)
+        .range(
+            storage,
+            Some(Bound::exclusive(last_claimed_height)),
+            None,
+            Order::Descending,
+        )
         .filter_map(|record| record.ok())
-        .filter(|(height, _)| last_claimed_height <= *height)
         .map(|(_, delegation)| delegation)
         .collect::<Vec<Delegation>>();
+
+    // Accumulate outside of the loop to gain some speed, on a log of checkpoints
+    let mut delegation_at_height = Uint128::zero();
 
     // This is a bit gnarly, but we want to avoid loading all heights, the loading mixnodes, so we're doing it all in the iterator
     let accumulated_rewards = mixnodes()
         .changelog()
         .prefix(mix_identity)
-        .keys(storage, None, None, Order::Ascending)
+        .keys(
+            storage,
+            Some(Bound::exclusive(last_claimed_height)),
+            None,
+            Order::Ascending,
+        )
         .filter_map(|height| height.ok())
         // Get all checkpoints greater then last claimed delegation height
-        .filter(|height| last_claimed_height <= *height)
         .fold(
             Ok(Uint128::zero()),
             |acc, height| -> Result<Uint128, ContractError> {
                 let accumulated_reward = acc?;
-                let delegation_at_height = delegations
+                delegation_at_height = delegations
                     .iter()
                     .filter(|d| d.block_height <= height)
-                    .fold(Uint128::zero(), |total, delegation| {
+                    .fold(delegation_at_height, |total, delegation| {
                         total + delegation.amount.amount
                     });
+                // Drop what we've processed
+                // This should be replaced with drain_filter once it stabilizes
+                delegations.retain(|d| d.block_height > height);
                 // debug_with_visibility(
                 //     api,
                 //     format!("delegation at height {} - {}", height, delegation_at_height),

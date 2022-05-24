@@ -622,6 +622,7 @@ dependencies = [
 name = "config"
 version = "0.1.0"
 dependencies = [
+ "cfg-if 1.0.0",
  "handlebars",
  "humantime-serde",
  "log",
@@ -1035,6 +1036,8 @@ dependencies = [
  "pemstore",
  "rand 0.7.3",
  "rand_chacha 0.2.2",
+ "serde",
+ "serde_bytes",
  "subtle-encoding",
  "x25519-dalek",
 ]
@@ -1378,6 +1381,7 @@ version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d5c4b5e5959dc2c2b89918d8e2cc40fcdd623cef026ed09d2f0ee05199dc8e4"
 dependencies = [
+ "serde",
  "signature",
 ]
 
@@ -1391,6 +1395,7 @@ dependencies = [
  "ed25519",
  "rand 0.7.3",
  "serde",
+ "serde_bytes",
  "sha2",
  "zeroize",
 ]
@@ -3109,18 +3114,25 @@ dependencies = [
 name = "nym-network-requester"
 version = "1.0.1"
 dependencies = [
+ "bincode",
  "clap 2.34.0",
  "dirs",
  "futures",
  "ipnetwork",
  "log",
+ "network-defaults",
  "nymsphinx",
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
  "publicsuffix",
  "rand 0.7.3",
+ "reqwest",
+ "rocket",
+ "serde",
  "socks5-requests",
+ "sqlx",
+ "thiserror",
  "tokio",
  "tokio-tungstenite",
  "websocket-requests",
@@ -4757,9 +4769,9 @@ dependencies = [
 
 [[package]]
 name = "serde_bytes"
-version = "0.11.5"
+version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16ae07dd2f88a366f15bd0632ba725227018c69a1c8550a927324f8eb8368bb9"
+checksum = "212e73464ebcde48d723aa02eb270ba62eff38a9b732df31f33f1b4e145f3a54"
 dependencies = [
  "serde",
 ]
@@ -5148,6 +5160,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "either",

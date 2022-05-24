@@ -25,6 +25,7 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
+use cosmrs::tendermint::abci::Data;
 use cosmrs::tendermint::{abci, chain};
 use cosmrs::tx::{AccountNumber, Gas, SequenceNumber};
 use cosmrs::{tx, AccountId, Any, Coin};
@@ -671,6 +672,8 @@ pub struct MigrateResult {
 #[derive(Debug)]
 pub struct ExecuteResult {
     pub logs: Vec<Log>,
+
+    pub data: Data,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,

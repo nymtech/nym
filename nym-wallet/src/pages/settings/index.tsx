@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, Dialog } from '@mui/material';
 import { NymCard } from '../../components';
-import { ClientContext } from '../../context/main';
+import { AppContext } from '../../context/main';
 import { Tabs } from './tabs';
 import { Profile } from './profile';
 import { SystemVariables } from './system-variables';
@@ -15,7 +15,7 @@ const tabs = ['Profile', 'System variables', 'Node stats'];
 export const Settings = () => {
   const [selectedTab, setSelectedTab] = useState(0);
 
-  const { mixnodeDetails, showSettings, getBondDetails, handleShowSettings } = useContext(ClientContext);
+  const { mixnodeDetails, showSettings, getBondDetails, handleShowSettings } = useContext(AppContext);
   const { status, saturation, rewardEstimation, inclusionProbability } = useSettingsState(showSettings);
 
   const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab);

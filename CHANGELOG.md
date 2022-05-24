@@ -4,19 +4,31 @@
 
 ### Added
 
+- wallet: require password to switch accounts
+- wallet: add simple CLI tool for decrypting and recovering the wallet file.
+- wallet: added support for multiple accounts ([#1265])
+- wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
 - validator-api: add Swagger to document the REST API ([#1249]).
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
+- network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267], [#1278]).
 
 ### Fixed
 
+- vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - mixnet-contract: removed `expect` in `query_delegator_reward` and queries containing invalid proxy address should now return a more human-readable error ([#1257])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
+- mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
 
 [#1258]: https://github.com/nymtech/nym/pull/1258
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
 [#1257]: https://github.com/nymtech/nym/pull/1257
+[#1260]: https://github.com/nymtech/nym/pull/1260
+[#1265]: https://github.com/nymtech/nym/pull/1265
+[#1267]: https://github.com/nymtech/nym/pull/1267
+[#1275]: https://github.com/nymtech/nym/pull/1275
+[#1278]: https://github.com/nymtech/nym/pull/1278
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

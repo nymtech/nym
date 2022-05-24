@@ -35,15 +35,20 @@ fn main() {
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::default())))
     .invoke_handler(tauri::generate_handler![
+      mixnet::account::add_account_for_password,
       mixnet::account::connect_with_mnemonic,
       mixnet::account::create_new_account,
       mixnet::account::create_new_mnemonic,
       mixnet::account::create_password,
       mixnet::account::does_password_file_exist,
       mixnet::account::get_balance,
+      mixnet::account::list_accounts,
       mixnet::account::logout,
+      mixnet::account::remove_account_for_password,
       mixnet::account::remove_password,
+      mixnet::account::show_mnemonic_for_account_in_password,
       mixnet::account::sign_in_with_password,
+      mixnet::account::sign_in_with_password_and_account_id,
       mixnet::account::switch_network,
       mixnet::account::validate_mnemonic,
       mixnet::admin::get_contract_settings,

@@ -1,6 +1,19 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// The wallet storage is a single json file, containing multiple entries. These are referred to as
+// Logins, and has a plaintext id tag attached.
+//
+// Each encrypted login contains either a single account, or a list of multiple accounts.
+//
+// NOTE: A not insignificant amount of complexity comes from being able to handle both these cases,
+// instead of, for example, converting a single account to a list of multiple accounts with a single
+// entry. This also avoids resaving the wallet file when opening a file created with an earlier
+// version of the wallet.
+//
+// In the future we might want to simplify by dropping the support for a single account entry,
+// instead treating as muliple accounts with one entry.
+
 use cosmrs::bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -8,15 +21,16 @@ use zeroize::Zeroize;
 use crate::error::BackendError;
 
 use super::encryption::EncryptedData;
-use super::password::WalletAccountId;
+use super::password::{AccountId, LoginId};
 use super::UserPassword;
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 
+/// The wallet, stored as a serialized json file.
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct StoredWallet {
   version: u32,
-  accounts: Vec<EncryptedAccount>,
+  accounts: Vec<EncryptedLogin>,
 }
 
 impl StoredWallet {
@@ -25,16 +39,52 @@ impl StoredWallet {
     self.version
   }
 
-  pub fn is_empty(&self) -> bool {
-    self.accounts.is_empty()
-  }
-
   #[allow(unused)]
   pub fn len(&self) -> usize {
     self.accounts.len()
   }
 
-  pub fn remove_account(&mut self, id: &WalletAccountId) -> Option<EncryptedAccount> {
+  pub fn is_empty(&self) -> bool {
+    self.accounts.is_empty()
+  }
+
+  pub fn add_encrypted_login(&mut self, new_login: EncryptedLogin) -> Result<(), BackendError> {
+    if self.get_encrypted_login(&new_login.id).is_ok() {
+      return Err(BackendError::WalletLoginIdAlreadyExists);
+    }
+    self.accounts.push(new_login);
+    Ok(())
+  }
+
+  fn get_encrypted_login(&self, id: &LoginId) -> Result<&EncryptedData<StoredLogin>, BackendError> {
+    self
+      .accounts
+      .iter()
+      .find(|account| &account.id == id)
+      .map(|account| &account.account)
+      .ok_or(BackendError::WalletNoSuchLoginId)
+  }
+
+  fn get_encrypted_login_mut(&mut self, id: &LoginId) -> Result<&mut EncryptedLogin, BackendError> {
+    self
+      .accounts
+      .iter_mut()
+      .find(|account| &account.id == id)
+      .ok_or(BackendError::WalletNoSuchLoginId)
+  }
+
+  #[cfg(test)]
+  pub fn get_encrypted_login_by_index(&self, index: usize) -> Option<&EncryptedLogin> {
+    self.accounts.get(index)
+  }
+
+  pub fn replace_encrypted_login(&mut self, new_login: EncryptedLogin) -> Result<(), BackendError> {
+    let login = self.get_encrypted_login_mut(&new_login.id)?;
+    *login = new_login;
+    Ok(())
+  }
+
+  pub fn remove_encrypted_login(&mut self, id: &LoginId) -> Option<EncryptedLogin> {
     if let Some(index) = self.accounts.iter().position(|account| &account.id == id) {
       log::info!("Removing from wallet file: {id}");
       Some(self.accounts.remove(index))
@@ -44,43 +94,15 @@ impl StoredWallet {
     }
   }
 
-  #[allow(unused)]
-  pub fn encrypted_account_by_index(&self, index: usize) -> Option<&EncryptedAccount> {
-    self.accounts.get(index)
-  }
-
-  fn encrypted_account(
+  pub fn decrypt_login(
     &self,
-    id: &WalletAccountId,
-  ) -> Result<&EncryptedData<StoredAccount>, BackendError> {
-    self
-      .accounts
-      .iter()
-      .find(|account| &account.id == id)
-      .map(|account| &account.account)
-      .ok_or(BackendError::NoSuchIdInWallet)
-  }
-
-  pub fn add_encrypted_account(
-    &mut self,
-    new_account: EncryptedAccount,
-  ) -> Result<(), BackendError> {
-    if self.encrypted_account(&new_account.id).is_ok() {
-      return Err(BackendError::IdAlreadyExistsInWallet);
-    }
-    self.accounts.push(new_account);
-    Ok(())
-  }
-
-  pub fn decrypt_account(
-    &self,
-    id: &WalletAccountId,
+    id: &LoginId,
     password: &UserPassword,
-  ) -> Result<StoredAccount, BackendError> {
-    self.encrypted_account(id)?.decrypt_struct(password)
+  ) -> Result<StoredLogin, BackendError> {
+    self.get_encrypted_login(id)?.decrypt_struct(password)
   }
 
-  pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredAccount>, BackendError> {
+  pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredLogin>, BackendError> {
     self
       .accounts
       .iter()
@@ -102,39 +124,187 @@ impl Default for StoredWallet {
   }
 }
 
+/// Each entry in the stored wallet file. An id field in plaintext and an encrypted stored login.
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct EncryptedAccount {
-  pub id: WalletAccountId,
-  pub account: EncryptedData<StoredAccount>,
+pub(crate) struct EncryptedLogin {
+  pub id: LoginId,
+  pub account: EncryptedData<StoredLogin>,
 }
 
-// future-proofing
+impl EncryptedLogin {
+  pub(crate) fn encrypt(
+    id: LoginId,
+    login: &StoredLogin,
+    password: &UserPassword,
+  ) -> Result<Self, BackendError> {
+    Ok(EncryptedLogin {
+      id,
+      account: super::encryption::encrypt_struct(login, password)?,
+    })
+  }
+}
+
+/// A stored login is either a account, such as a mnemonic, or a list of multiple accounts where
+/// each has an inner id. Future proofed for having private key backed accounts.
 #[derive(Serialize, Deserialize, Debug, Zeroize)]
 #[serde(untagged)]
 #[zeroize(drop)]
-pub(crate) enum StoredAccount {
+pub(crate) enum StoredLogin {
   Mnemonic(MnemonicAccount),
   // PrivateKey(PrivateKeyAccount)
+  Multiple(MultipleAccounts),
 }
 
-impl StoredAccount {
-  pub(crate) fn new_mnemonic_backed_account(
-    mnemonic: bip39::Mnemonic,
-    hd_path: DerivationPath,
-  ) -> StoredAccount {
-    StoredAccount::Mnemonic(MnemonicAccount { mnemonic, hd_path })
+impl StoredLogin {
+  #[cfg(test)]
+  pub(crate) fn as_mnemonic_account(&self) -> Option<&MnemonicAccount> {
+    match self {
+      StoredLogin::Mnemonic(mn) => Some(mn),
+      StoredLogin::Multiple(_) => None,
+    }
   }
 
-  // If we add accounts backed by something that is not a mnemonic, this should probably be changed
-  // to return `Option<..>`.
-  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+  #[cfg(test)]
+  pub(crate) fn as_multiple_accounts(&self) -> Option<&MultipleAccounts> {
     match self {
-      StoredAccount::Mnemonic(account) => account.mnemonic(),
+      StoredLogin::Mnemonic(_) => None,
+      StoredLogin::Multiple(accounts) => Some(accounts),
+    }
+  }
+
+  // Return the login as multiple accounts, and if there is only a single mnemonic backed account,
+  // return a set containing only the single account paired with the account id passed as function
+  // argument.
+  pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
+    match self {
+      StoredLogin::Mnemonic(ref account) => vec![WalletAccount::new(id, account.clone())].into(),
+      StoredLogin::Multiple(ref accounts) => accounts.clone(),
     }
   }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Multiple stored accounts, each entry having an id and a data field.
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+pub(crate) struct MultipleAccounts {
+  accounts: Vec<WalletAccount>,
+}
+
+impl MultipleAccounts {
+  pub(crate) fn new() -> Self {
+    MultipleAccounts {
+      accounts: Vec::new(),
+    }
+  }
+
+  pub(crate) fn get_accounts(&self) -> impl Iterator<Item = &WalletAccount> {
+    self.accounts.iter()
+  }
+
+  pub(crate) fn get_account(&self, id: &AccountId) -> Option<&WalletAccount> {
+    self.accounts.iter().find(|account| &account.id == id)
+  }
+
+  pub(crate) fn get_account_with_mnemonic(
+    &self,
+    mnemonic: &bip39::Mnemonic,
+  ) -> Option<&WalletAccount> {
+    self
+      .get_accounts()
+      .find(|account| account.mnemonic() == mnemonic)
+  }
+
+  pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
+    self.accounts.into_iter()
+  }
+
+  #[allow(unused)]
+  pub(crate) fn len(&self) -> usize {
+    self.accounts.len()
+  }
+
+  pub(crate) fn is_empty(&self) -> bool {
+    self.accounts.is_empty()
+  }
+
+  pub(crate) fn add(
+    &mut self,
+    id: AccountId,
+    mnemonic: bip39::Mnemonic,
+    hd_path: DerivationPath,
+  ) -> Result<(), BackendError> {
+    if self.get_account(&id).is_some() {
+      Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
+    } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
+      Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
+    } else {
+      self.accounts.push(WalletAccount::new(
+        id,
+        MnemonicAccount::new(mnemonic, hd_path),
+      ));
+      Ok(())
+    }
+  }
+
+  pub(crate) fn remove(&mut self, id: &AccountId) -> Result<(), BackendError> {
+    if self.get_account(id).is_none() {
+      return Err(BackendError::WalletNoSuchAccountIdInWalletLogin);
+    }
+    self.accounts.retain(|accounts| &accounts.id != id);
+    Ok(())
+  }
+}
+
+impl From<Vec<WalletAccount>> for MultipleAccounts {
+  fn from(accounts: Vec<WalletAccount>) -> MultipleAccounts {
+    Self { accounts }
+  }
+}
+
+/// An entry in the list of stored accounts
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+pub(crate) struct WalletAccount {
+  id: AccountId,
+  account: AccountData,
+}
+
+impl WalletAccount {
+  pub(crate) fn new(id: AccountId, mnemonic_account: MnemonicAccount) -> Self {
+    Self {
+      id,
+      account: AccountData::Mnemonic(mnemonic_account),
+    }
+  }
+
+  pub(crate) fn id(&self) -> &AccountId {
+    &self.id
+  }
+
+  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+    match self.account {
+      AccountData::Mnemonic(ref account) => account.mnemonic(),
+    }
+  }
+
+  #[cfg(test)]
+  pub(crate) fn hd_path(&self) -> &DerivationPath {
+    match self.account {
+      AccountData::Mnemonic(ref account) => account.hd_path(),
+    }
+  }
+}
+
+/// An account usually is a mnemonic account, but in the future it might be backed by a private
+/// key.
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[serde(untagged)]
+#[zeroize(drop)]
+enum AccountData {
+  Mnemonic(MnemonicAccount),
+  // PrivateKey(PrivateKeyAccount)
+}
+
+/// An account backed by a unique mnemonic.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MnemonicAccount {
   mnemonic: bip39::Mnemonic,
   #[serde(with = "display_hd_path")]
@@ -142,11 +312,15 @@ pub(crate) struct MnemonicAccount {
 }
 
 impl MnemonicAccount {
+  pub(crate) fn new(mnemonic: bip39::Mnemonic, hd_path: DerivationPath) -> Self {
+    Self { mnemonic, hd_path }
+  }
+
   pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
     &self.mnemonic
   }
 
-  #[allow(unused)]
+  #[cfg(test)]
   pub(crate) fn hd_path(&self) -> &DerivationPath {
     &self.hd_path
   }

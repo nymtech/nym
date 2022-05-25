@@ -15,9 +15,12 @@ use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
+use cosmwasm_std::{
+    coins, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128,
+};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::events::{
+    new_claim_delegator_reward_event, new_claim_operator_reward_event,
     new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
     new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
@@ -27,6 +30,159 @@ use mixnet_contract_common::reward_params::{NodeEpochRewards, NodeRewardParams, 
 use mixnet_contract_common::{Delegation, IdentityKey, RewardingStatus};
 
 use mixnet_contract_common::RewardingResult;
+
+// All four of the below methods need to do the following things:
+// 1. Calculate currently available rewards
+// 2. Send the rewards back to whoever claimed them
+// 3. Set the LAST_CLAIMED_HEIGHT to the current height
+pub fn try_claim_operator_reward(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+) -> Result<Response, ContractError> {
+    _try_claim_operator_reward(deps.storage, deps.api, env, &info.sender.to_string(), None)
+}
+
+pub fn try_claim_operator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+    owner: String,
+) -> Result<Response, ContractError> {
+    _try_claim_operator_reward(
+        deps.storage,
+        deps.api,
+        env,
+        &owner,
+        Some(info.sender.clone()),
+    )
+}
+
+fn _try_claim_operator_reward(
+    storage: &mut dyn Storage,
+    api: &dyn Api,
+    env: &Env,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = api.addr_validate(owner)?;
+
+    let bond = match crate::mixnodes::storage::mixnodes()
+        .idx
+        .owner
+        .item(storage, owner.clone())?
+    {
+        Some(record) => record.1,
+        None => return Err(ContractError::NoAssociatedMixNodeBond { owner }),
+    };
+
+    if proxy != bond.proxy {
+        return Err(ContractError::ProxyMismatch {
+            existing: bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
+
+    let reward = calculate_operator_reward(storage, api, &owner, &bond)?;
+
+    OPERATOR_REWARD_CLAIMED_HEIGHT.save(
+        storage,
+        (owner.to_string(), bond.identity().to_string()),
+        &env.block.height,
+    )?;
+
+    if reward.is_zero() {
+        return Err(ContractError::NoRewardsToClaim {
+            identity: bond.identity().to_string(),
+            address: owner.to_string(),
+        });
+    }
+
+    let return_tokens = BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        amount: coins(reward.u128(), DENOM),
+    };
+
+    Ok(Response::default()
+        .add_message(return_tokens)
+        .add_event(new_claim_operator_reward_event(&owner, reward)))
+}
+
+pub fn _try_claim_delegator_reward(
+    storage: &mut dyn Storage,
+    api: &dyn Api,
+    env: &Env,
+    owner: &str,
+    mix_identity: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = api.addr_validate(owner)?;
+
+    let key = mixnet_contract_common::delegation::generate_storage_key(&owner, proxy.as_ref());
+    let reward = calculate_delegator_reward(storage, api, key.clone(), mix_identity)?;
+
+    DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
+        storage,
+        (key, mix_identity.to_string()),
+        &env.block.height,
+    )?;
+
+    if reward.is_zero() {
+        return Err(ContractError::NoRewardsToClaim {
+            identity: mix_identity.to_string(),
+            address: owner.to_string(),
+        });
+    }
+
+    let return_tokens = BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        amount: coins(reward.u128(), DENOM),
+    };
+
+    Ok(Response::default()
+        .add_message(return_tokens)
+        .add_event(new_claim_delegator_reward_event(
+            &owner,
+            &proxy,
+            reward,
+            mix_identity,
+        )))
+}
+
+pub fn try_claim_delegator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+    owner: String,
+    mix_identity: &str,
+) -> Result<Response, ContractError> {
+    _try_claim_delegator_reward(
+        deps.storage,
+        deps.api,
+        env,
+        &owner,
+        mix_identity,
+        Some(info.sender.clone()),
+    )
+}
+
+pub fn try_claim_delegator_reward(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+    mix_identity: &str,
+) -> Result<Response, ContractError> {
+    _try_claim_delegator_reward(
+        deps.storage,
+        deps.api,
+        env,
+        &info.sender.to_string(),
+        mix_identity,
+        None,
+    )
+}
 
 pub fn try_compound_operator_reward_on_behalf(
     deps: DepsMut,

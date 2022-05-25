@@ -9,9 +9,9 @@ use std::convert::TryFrom;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
+use validator_client::nymd::CosmosCoin;
 use validator_client::nymd::Decimal;
 use validator_client::nymd::Denom as CosmosDenom;
-use validator_client::nymd::{CosmosCoin, GasPrice};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export, export_to = "../src/types/rust/denom.ts"))]
@@ -211,9 +211,6 @@ impl From<CosmWasmCoin> for Coin {
 mod test {
   use super::*;
   use crate::error::BackendError;
-  use cosmrs::Coin as CosmosCoin;
-  use cosmrs::Decimal;
-  use cosmrs::Denom as CosmosDenom;
   use cosmwasm_std::Coin as CosmWasmCoin;
   use serde_json::json;
   use std::convert::TryFrom;

@@ -318,6 +318,14 @@ impl NodeRewardResult {
     }
 }
 
+pub struct RewardEstimate {
+    pub total_node_reward: u64,
+    pub operator_reward: u64,
+    pub delegators_reward: u64,
+    pub node_profit: u64,
+    pub operator_cost: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     pub pledge_amount: Coin,
@@ -427,7 +435,7 @@ impl MixNodeBond {
     pub fn estimate_reward(
         &self,
         params: &RewardParams,
-    ) -> Result<(u64, u64, u64, u64, u64), MixnetContractError> {
+    ) -> Result<RewardEstimate, MixnetContractError> {
         let total_node_reward = self
             .reward(params)
             .reward()
@@ -446,13 +454,13 @@ impl MixNodeBond {
         // Total reward has to be the sum of operator and delegator rewards
         let delegators_reward = node_profit - operator_reward;
 
-        Ok((
-            total_node_reward.try_into()?,
-            operator_reward.try_into()?,
-            delegators_reward.try_into()?,
-            node_profit.try_into()?,
-            operator_cost.try_into()?,
-        ))
+        Ok(RewardEstimate {
+            total_node_reward: total_node_reward.try_into()?,
+            operator_reward: operator_reward.try_into()?,
+            delegators_reward: delegators_reward.try_into()?,
+            node_profit: node_profit.try_into()?,
+            operator_cost: operator_cost.try_into()?,
+        })
     }
 
     pub fn reward(&self, params: &RewardParams) -> NodeRewardResult {

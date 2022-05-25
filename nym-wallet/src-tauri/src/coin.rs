@@ -56,17 +56,6 @@ pub struct Coin {
   denom: Denom,
 }
 
-impl TryFrom<GasPrice> for Coin {
-  type Error = BackendError;
-
-  fn try_from(g: GasPrice) -> Result<Self, Self::Error> {
-    Ok(Coin {
-      amount: g.amount.to_string(),
-      denom: Denom::from_str(&g.denom.to_string())?,
-    })
-  }
-}
-
 // Allows adding minor and major denominations, output will have the LHS denom.
 impl Add for Coin {
   type Output = Self;
@@ -429,24 +418,5 @@ mod test {
     assert_eq!(Coin::major("1") - Coin::major("1"), Coin::major("0"));
     assert_eq!(Coin::minor("1") - Coin::major("1"), Coin::minor("-999999"));
     assert_eq!(Coin::major("1") - Coin::minor("1"), Coin::major("0.999999"));
-  }
-
-  #[test]
-  fn coin_from_gas_price() {
-    assert_eq!(
-      Coin::try_from(GasPrice::from_str("42unym").unwrap()).unwrap(),
-      Coin {
-        amount: "42".to_string(),
-        denom: Denom::Minor,
-      }
-    );
-
-    assert_eq!(
-      Coin::try_from(GasPrice::from_str("42nym").unwrap()).unwrap(),
-      Coin {
-        amount: "42".to_string(),
-        denom: Denom::Major,
-      }
-    );
   }
 }

@@ -49,6 +49,14 @@ impl Credential {
         .collect::<Vec<Attribute>>();
         nymcoconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
     }
+
+    pub fn as_bytes(&self) -> Result<Vec<u8>, CoconutInterfaceError> {
+        Ok(bincode::serialize(self)?)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutInterfaceError> {
+        Ok(bincode::deserialize(bytes)?)
+    }
 }
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters)]

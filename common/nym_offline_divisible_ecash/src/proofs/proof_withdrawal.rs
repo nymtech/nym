@@ -203,7 +203,7 @@ impl WithdrawalReqProof {
     ) -> bool {
         let grp = params.get_grp();
         let g1 = grp.gen1();
-        let paramsU = params.get_params_u();
+        let params_u = params.get_params_u();
 
         // recompute zk commitments for each instance
         let zkcm_com = instance.com * self.challenge
@@ -211,7 +211,7 @@ impl WithdrawalReqProof {
             + self
             .response_attributes
             .iter()
-            .zip(paramsU.get_gammas().iter())
+            .zip(params_u.get_gammas().iter())
             .map(|(m_i, gamma_i)| gamma_i * m_i)
             .sum::<G1Projective>();
 
@@ -229,7 +229,7 @@ impl WithdrawalReqProof {
             instance.pk_user.pk * self.challenge + g1 * self.response_attributes[0];
 
         // covert to bytes
-        let gammas_bytes = paramsU
+        let gammas_bytes = params_u
             .get_gammas()
             .iter()
             .map(|gamma| gamma.to_bytes())

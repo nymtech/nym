@@ -29,6 +29,7 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 pub use cosmrs::bank::MsgSend;
+use cosmrs::cosmwasm;
 pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
@@ -168,6 +169,24 @@ impl<C> NymdClient<C> {
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.simulated_gas_multiplier = multiplier;
+    }
+
+    pub fn wrap_contract_execute_message<M>(
+        &self,
+        contract_address: &AccountId,
+        msg: &M,
+        funds: Vec<CosmosCoin>,
+    ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
+    where
+        C: SigningCosmWasmClient,
+        M: ?Sized + Serialize,
+    {
+        Ok(cosmwasm::MsgExecuteContract {
+            sender: self.address().clone(),
+            contract: contract_address.clone(),
+            msg: serde_json::to_vec(msg)?,
+            funds,
+        })
     }
 
     pub fn address(&self) -> &AccountId

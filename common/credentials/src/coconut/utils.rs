@@ -181,7 +181,7 @@ pub fn prepare_credential_for_spending(
     Ok(Credential::new(
         PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
         theta,
-        voucher_value.to_string(),
+        voucher_value,
         voucher_info,
     ))
 }

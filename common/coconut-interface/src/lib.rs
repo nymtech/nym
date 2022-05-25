@@ -5,7 +5,6 @@ pub mod error;
 
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 use error::CoconutInterfaceError;
 
@@ -17,44 +16,37 @@ pub struct Credential {
     n_params: u32,
     #[getset(get = "pub")]
     theta: Theta,
-    public_attributes: Vec<Vec<u8>>,
+    voucher_value: u64,
+    voucher_info: String,
 }
 impl Credential {
     pub fn new(
         n_params: u32,
         theta: Theta,
-        voucher_value: String,
+        voucher_value: u64,
         voucher_info: String,
     ) -> Credential {
-        let public_attributes = vec![voucher_value.into_bytes(), voucher_info.into_bytes()];
         Credential {
             n_params,
             theta,
-            public_attributes,
+            voucher_value,
+            voucher_info,
         }
     }
 
-    pub fn voucher_value(&self) -> Result<u64, CoconutInterfaceError> {
-        let bandwidth_vec = self
-            .public_attributes
-            .get(0)
-            .ok_or(CoconutInterfaceError::NotEnoughPublicAttributes)?
-            .to_owned();
-        let bandwidth_str = String::from_utf8(bandwidth_vec)
-            .map_err(|_| CoconutInterfaceError::InvalidBandwidth)?;
-        let value =
-            u64::from_str(&bandwidth_str).map_err(|_| CoconutInterfaceError::InvalidBandwidth)?;
-
-        Ok(value)
+    pub fn voucher_value(&self) -> u64 {
+        self.voucher_value
     }
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        let public_attributes = self
-            .public_attributes
-            .iter()
-            .map(hash_to_scalar)
-            .collect::<Vec<Attribute>>();
+        let public_attributes = vec![
+            self.voucher_value.to_string().as_bytes(),
+            self.voucher_info.as_bytes(),
+        ]
+        .iter()
+        .map(hash_to_scalar)
+        .collect::<Vec<Attribute>>();
         nymcoconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
     }
 }

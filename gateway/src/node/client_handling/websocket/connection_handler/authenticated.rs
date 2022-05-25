@@ -65,10 +65,6 @@ pub(crate) enum RequestHandlingError {
     NymdError(#[from] validator_client::nymd::error::NymdError),
 
     #[cfg(feature = "coconut")]
-    #[error("Provided coconut bandwidth credential did not have expected structure - {0}")]
-    CoconutBandwidthCredentialError(#[from] credentials::error::Error),
-
-    #[cfg(feature = "coconut")]
     #[error("Validator API error")]
     APIError(#[from] validator_client::ValidatorClientError),
 }
@@ -237,7 +233,7 @@ where
             }
         }
 
-        let bandwidth = Bandwidth::try_from(credential)?;
+        let bandwidth = Bandwidth::from(credential);
         let bandwidth_value = bandwidth.value();
 
         if bandwidth_value > i64::MAX as u64 {

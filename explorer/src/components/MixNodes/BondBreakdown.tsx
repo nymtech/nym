@@ -91,14 +91,14 @@ export const BondBreakdownTable: React.FC = () => {
               }}
               align="left"
             >
-              Bond total
+              Stake total
             </TableCell>
             <TableCell align="left" data-testid="bond-total-amount">
               {bonds.bondsTotal}
             </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell align="left">Self</TableCell>
+            <TableCell align="left">Bond Total</TableCell>
             <TableCell align="left" data-testid="pledge-total-amount">
               {bonds.pledges}
             </TableCell>
@@ -187,7 +187,7 @@ export const BondBreakdownTable: React.FC = () => {
                   }}
                   align="left"
                 >
-                  Share from bond
+                  Share from stake
                 </TableCell>
               </TableRow>
             </TableHead>

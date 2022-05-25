@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use validator_client::nymd::cosmwasm_client::types::GasInfo;
 use validator_client::nymd::{tx, CosmosCoin, Fee, GasPrice};
 
+pub mod admin;
 pub mod cosmos;
 pub mod mixnet;
 pub mod vesting;

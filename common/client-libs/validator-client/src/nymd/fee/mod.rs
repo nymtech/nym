@@ -5,7 +5,6 @@ use cosmrs::tx;
 use serde::{Deserialize, Serialize};
 
 pub mod gas_price;
-pub mod helpers;
 
 pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
 

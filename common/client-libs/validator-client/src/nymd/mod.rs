@@ -662,11 +662,12 @@ impl<C> NymdClient<C> {
         recipient: &AccountId,
         amount: Vec<CosmosCoin>,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::Send);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .send_tokens(self.address(), recipient, amount, fee, memo)
             .await

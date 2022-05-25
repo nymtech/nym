@@ -198,23 +198,6 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'layer',
-      headerName: 'Layer',
-      renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 110,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {params.value}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'profit_percentage',
       headerName: 'Profit Margin',
       renderHeader: () => <CustomColumnHeading headingTitle="Profit Margin" />,

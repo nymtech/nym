@@ -127,8 +127,8 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'bond',
-      headerName: 'Bond',
-      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
+      headerName: 'Stake',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
       type: 'number',
       headerClassName: 'MuiDataGrid-header-override',
       width: 200,

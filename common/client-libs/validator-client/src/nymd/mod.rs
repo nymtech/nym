@@ -4,12 +4,14 @@
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
     Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
-    InstantiateResult, MigrateResult, SequenceResponse, UploadResult,
+    InstantiateResult, MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
+use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
+use cosmrs::tx::Msg;
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
 use fee::helpers::Operation;
@@ -28,7 +30,6 @@ use std::convert::TryInto;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
-use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 pub use cosmrs::bank::MsgSend;
 pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
@@ -631,6 +632,27 @@ impl<C> NymdClient<C> {
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .await
+    }
+
+    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+        I: IntoIterator<Item = M> + Send,
+        M: Msg,
+    {
+        self.client
+            .simulate(
+                self.address(),
+                messages
+                    .into_iter()
+                    .map(|msg| msg.into_any())
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| {
+                        NymdError::SerializationError("custom simulate messages".to_owned())
+                    })?,
+                "simulating execution of transactions",
+            )
             .await
     }
 

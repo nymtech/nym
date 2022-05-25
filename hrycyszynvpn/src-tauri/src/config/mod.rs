@@ -1,32 +1,40 @@
 use log::info;
+use once_cell::sync::Lazy;
 use rand::rngs::OsRng;
+use rand::Rng;
 
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
 
-pub static SOCKS5_CONFIG_ID: &str = "hrycyszynvpn";
+// Generate a random id used for the config, since we need to init a new configuration each time
+// due to not being able to reuse gateway registration. This is probably something we should
+// improve.
+pub static SOCKS5_CONFIG_ID: Lazy<String> = Lazy::new(|| {
+  let mut rng = rand::thread_rng();
+  format!("{}{:08}", "nym-connect-", rng.gen::<u64>())
+});
 
-// TODO
-pub static PROVIDER_ADDRESS: &str = "HL2ufyQ875JNkro17ubKQB4gJyy2ozG8SMrUvHbYXYca.E7iz8hixuWE763h6MdaSnXAXobDqEHuq3Bzvi9XLQhW@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv";
+// TODO: make this configurable from the UI
+pub static PROVIDER_ADDRESS: &str = "EWa8DgePKfuWSjqPo6NEdavBK6gpnK4TKb2npi2HWuC2.6PGVT9y83UMGbFrPKDnCvTP2jJjpXYpD87ZpiRsLo1YR@CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM";
 
-// TODO: move to config file
-//static GATEWAY_ID: &str = "83x9YyNkQ5QEY84ZU6Wmq8XHqfwf9SUtR7g5PAYB1FRY"; // sandbox
+const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
+const DEFAULT_ETH_PRIVATE_KEY: &str =
+  "0000000000000000000000000000000000000000000000000000000000000001";
 
 pub struct Config {}
 
 impl Config {
   pub async fn init() {
     info!("Initialising...");
-
     init_socks5(PROVIDER_ADDRESS, None).await;
-
     info!("Configuration saved 🚀");
   }
 }
 
 pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>) {
-  let id = SOCKS5_CONFIG_ID;
+  let id: &str = &SOCKS5_CONFIG_ID;
+  log::trace!("Creating config for id: {}", id);
   let mut config = nym_socks5::client::config::Config::new(id, provider_address);
 
   // create identity, encryption and ack keys.
@@ -64,6 +72,15 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
     .expect("Failed to generated keys");
   info!("Saved all generated keys");
 
+  // As far as I'm aware, these two are not used, they are only set because the socks5 init code
+  // requires them for initialising the bandwidth controller.
+  config
+    .get_base_mut()
+    .with_eth_endpoint(DEFAULT_ETH_ENDPOINT);
+  config
+    .get_base_mut()
+    .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
+
   let config_save_location = config.get_config_file_save_location();
   config
     .save_to_file(None)
@@ -72,5 +89,6 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
   info!("Using gateway: {}", config.get_base().get_gateway_id(),);
   info!("Client configuration completed.\n\n\n");
 
+  dbg!(&config);
   nym_socks5::commands::init::show_address(&config);
 }

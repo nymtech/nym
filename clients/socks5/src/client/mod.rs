@@ -38,11 +38,11 @@ use crate::socks::{
 
 pub mod config;
 
-pub type ClientControlMessageSender = mpsc::UnboundedSender<ClientControlMessage>;
-pub type ClientControlMessageReceiver = mpsc::UnboundedReceiver<ClientControlMessage>;
+pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage>;
+pub type Socks5ControlMessageReceiver = mpsc::UnboundedReceiver<Socks5ControlMessage>;
 
 #[derive(Debug)]
-pub enum ClientControlMessage {
+pub enum Socks5ControlMessage {
     Stop,
 }
 
@@ -282,11 +282,11 @@ impl NymClient {
     }
 
     // Variant of `run_forever` that listends for message to shutdown
-    pub async fn run_and_listen(&mut self, mut receiver: ClientControlMessageReceiver) {
+    pub async fn run_and_listen(&mut self, mut receiver: Socks5ControlMessageReceiver) {
         self.start().await;
         tokio::select! {
             message = receiver.next() =>  match message {
-                Some(ClientControlMessage::Stop) => {
+                Some(Socks5ControlMessage::Stop) => {
                     info!("Received: {:?}", message);
                     info!("Shutting down");
                 }

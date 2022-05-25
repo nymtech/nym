@@ -25,13 +25,14 @@ mod state;
 mod window;
 
 fn main() {
-  //console_subscriber::init();
-  //tracing_subscriber::fmt::init();
   setup_logging();
   println!("Starting up...");
 
-  // as per breaking change description here: https://github.com/tauri-apps/tauri/blob/feac1d193c6d618e49916ad0707201f43d5cdd36/tooling/bundler/CHANGELOG.md
-  fix_path_env::fix();
+  // As per breaking change description here
+  // https://github.com/tauri-apps/tauri/blob/feac1d193c6d618e49916ad0707201f43d5cdd36/tooling/bundler/CHANGELOG.md
+  if let Err(error) = fix_path_env::fix() {
+    log::warn!("Failed to fix PATH: {error}");
+  }
 
   tauri::Builder::default()
     .manage(Arc::new(RwLock::new(State::new())))

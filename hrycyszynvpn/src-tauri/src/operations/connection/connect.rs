@@ -14,6 +14,7 @@ pub async fn start_connecting(
   guard.start_connecting(&window).await;
 
   Ok(ConnectResult {
+    // WIP(JON): fixme
     address: "Test".to_string(),
   })
 }

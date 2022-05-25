@@ -14,6 +14,7 @@ pub async fn start_disconnecting(
   guard.start_disconnecting(&window).await;
 
   Ok(ConnectResult {
+    // WIP(JON): fixme
     address: "Test".to_string(),
   })
 }

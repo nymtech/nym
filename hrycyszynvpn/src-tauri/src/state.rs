@@ -8,7 +8,9 @@ use futures::channel::mpsc;
 use config::NymConfig;
 #[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
-use nym_socks5::client::{ClientControlMessageReceiver, ClientControlMessageSender, ClientControlMessage};
+use nym_socks5::client::{
+  Socks5ControlMessage, Socks5ControlMessageReceiver, Socks5ControlMessageSender,
+};
 use tokio::time::sleep;
 
 use crate::config::SOCKS5_CONFIG_ID;
@@ -19,15 +21,13 @@ use tauri::Manager;
 
 pub struct State {
   status: ConnectionStatusKind,
-  //socks5_client: Arc<RwLock<Option<Socks5NymClient>>>,
-  socks5_client_sender: Option<ClientControlMessageSender>,
+  socks5_client_sender: Option<Socks5ControlMessageSender>,
 }
 
 impl State {
   pub fn new() -> Self {
     State {
       status: ConnectionStatusKind::Disconnected,
-      //socks5_client: Arc::new(RwLock::new(None)),
       socks5_client_sender: None,
     }
   }
@@ -56,7 +56,10 @@ impl State {
     self.set_state(ConnectionStatusKind::Connecting, window);
     self.status = ConnectionStatusKind::Connecting;
 
-    //Self::init_config().await;
+    // Setup configuration by writing to file
+    Self::init_config().await;
+
+    // Kick of the main task and get the channel for controlling it
     let sender = start_nym_socks5_client();
     self.socks5_client_sender = Some(sender);
 
@@ -71,7 +74,7 @@ impl State {
 
     // Send shutdown message
     if let Some(ref mut sender) = self.socks5_client_sender {
-        sender.send(ClientControlMessage::Stop).await.unwrap();
+      sender.send(Socks5ControlMessage::Stop).await.unwrap();
     }
 
     self.status = ConnectionStatusKind::Disconnected;
@@ -79,8 +82,8 @@ impl State {
   }
 }
 
-fn start_nym_socks5_client() -> ClientControlMessageSender {
-  let id = SOCKS5_CONFIG_ID;
+fn start_nym_socks5_client() -> Socks5ControlMessageSender {
+  let id: &str = &SOCKS5_CONFIG_ID;
 
   info!("Loading config from file");
   let config = nym_socks5::client::config::Config::load_from_file(Some(id)).unwrap();
@@ -90,8 +93,13 @@ fn start_nym_socks5_client() -> ClientControlMessageSender {
 
   let (sender, receiver) = mpsc::unbounded();
 
-  tokio::spawn(async move {
-    socks5_client.run_and_listen(receiver).await;
+  // Spawn a separate runtime for the socks5 client so we can forcefully terminate.
+  // Once we can gracefully shutdown the socks5 client we can get rid of this.
+  std::thread::spawn(|| {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async move {
+      socks5_client.run_and_listen(receiver).await;
+    });
   });
 
   sender

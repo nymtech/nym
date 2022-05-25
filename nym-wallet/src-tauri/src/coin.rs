@@ -193,7 +193,7 @@ impl From<CosmosCoin> for Coin {
   fn from(c: CosmosCoin) -> Coin {
     Coin {
       amount: c.amount.to_string(),
-      denom: Denom::from_str(&c.denom.to_string()).unwrap(),
+      denom: Denom::from_str(c.denom.as_ref()).unwrap(),
     }
   }
 }

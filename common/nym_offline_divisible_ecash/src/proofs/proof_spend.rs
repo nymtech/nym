@@ -401,6 +401,7 @@ mod tests {
         //                + pg_thetapr2_ww2 + pg_psi0_ww2 * r_theta2 - pg_gen1_zz, Gt::identity());
         // println!("--------------Check2---------------");
 
+
         let instance = SpendInstance {
             kappa,
             phi,

@@ -1,5 +1,6 @@
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, pairing, Scalar};
 use ff::Field;
+use group::Curve;
 use rand::thread_rng;
 
 use crate::constants::L;
@@ -99,7 +100,7 @@ impl Parameters {
         let mut etas_a: Vec<G2Projective> = Default::default();
         for l in 1..=L {
             for k in 0..=l - 1 {
-                etas_a.push(g2 * ([l as usize - 1].neg() * (y * Scalar::from(k))));
+                etas_a.push(g2 * (vec_a[l as usize - 1].neg() * (y * Scalar::from(k))));
             }
         }
 
@@ -110,6 +111,20 @@ impl Parameters {
             .zip(thetas_u.iter())
             .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&vec![*sigma, *theta]), None))
             .collect();
+
+        let l = 10;
+        let vv = 20;
+
+        println!(".....Hello world.....");
+        let sl = sigmas_u.get(l).unwrap();
+        let dv = deltas_a.get(vv - 1).unwrap();
+        let sv = sigmas_u.get(l + vv - 1).unwrap();
+        let g2 = grp.gen2();
+
+        assert_eq!(
+            pairing(&sl.to_affine(), &dv.to_affine()),
+            pairing(&sv.to_affine(), g2));
+        println!(".....Hello world2.....");
 
         // Compute signature for each pair sigma, theta
         let params_u = ParametersUser {

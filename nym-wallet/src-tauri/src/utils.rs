@@ -2,7 +2,6 @@ use crate::coin::{Coin, Denom};
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
-use crate::Operation;
 use mixnet_contract_common::mixnode::DelegationEvent as ContractDelegationEvent;
 use mixnet_contract_common::mixnode::PendingUndelegate as ContractPendingUndelegate;
 use mixnet_contract_common::Delegation;
@@ -68,21 +67,6 @@ pub async fn owns_gateway(
       .await?
       .is_some(),
   )
-}
-
-// NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
-// as for the actual transaction, the gas cost is being simulated beforehand
-#[tauri::command]
-pub async fn outdated_get_approximate_fee(
-  operation: Operation,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Coin, BackendError> {
-  let approximate_fee = operation.default_fee(nymd_client!(state).gas_price());
-  let mut coin = Coin::new("0", &Denom::Major);
-  for f in approximate_fee.amount {
-    coin = coin + f.into();
-  }
-  Ok(coin)
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]

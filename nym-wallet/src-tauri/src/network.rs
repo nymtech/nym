@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmrs::Denom;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -9,6 +8,7 @@ use strum::EnumIter;
 
 use config::defaults::all::Network as ConfigNetwork;
 use config::defaults::{mainnet, qa, sandbox};
+use validator_client::nymd::Denom;
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(test, derive(ts_rs::TS))]

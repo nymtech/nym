@@ -5,6 +5,8 @@ use cosmwasm_std::{Coin, Timestamp};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+
 pub mod events;
 pub mod messages;
 

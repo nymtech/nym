@@ -60,8 +60,10 @@ export const checkGatewayOwnership = async (): Promise<boolean> => {
 // NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
 // as for the actual transaction, the gas cost is being simulated beforehand
 export const getGasFee = async (operation: Operation): Promise<Coin> => {
-  const res: Coin = await invoke('outdated_get_approximate_fee', { operation });
-  return res;
+  // THIS NO LONGER EXISTS : )
+  // const res: Coin = await invoke('outdated_get_approximate_fee', { operation });
+  // return res;
+  return new Promise(((resolve, reject) => reject()))
 };
 
 export const getInclusionProbability = async (identity: string): Promise<InclusionProbabilityResponse> => {

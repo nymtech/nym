@@ -8,6 +8,7 @@ use cosmwasm_std::{Coin as CosmWasmCoin, Uint128};
 use mixnet_contract_common::{IdentityKey, PagedDelegatorDelegationsResponse};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator_client::nymd::Fee;
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
@@ -27,12 +28,13 @@ pub async fn get_pending_delegation_events(
 pub async fn delegate_to_mixnode(
   identity: &str,
   amount: Coin,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
   let denom = state.read().await.current_network().denom();
   let delegation: CosmWasmCoin = amount.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .delegate_to_mixnode(identity, &delegation)
+    .delegate_to_mixnode(identity, &delegation, fee)
     .await?;
   Ok(DelegationResult::new(
     nymd_client!(state).address().as_ref(),
@@ -44,10 +46,11 @@ pub async fn delegate_to_mixnode(
 #[tauri::command]
 pub async fn undelegate_from_mixnode(
   identity: &str,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
   nymd_client!(state)
-    .remove_mixnode_delegation(identity)
+    .remove_mixnode_delegation(identity, fee)
     .await?;
   Ok(DelegationResult::new(
     nymd_client!(state).address().as_ref(),

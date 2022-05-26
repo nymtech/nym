@@ -7,35 +7,39 @@ use cosmwasm_std::Uint128;
 use mixnet_contract_common::{GatewayBond, MixNodeBond};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator_client::nymd::Fee;
 
 #[tauri::command]
 pub async fn bond_gateway(
   gateway: Gateway,
   pledge: Coin,
   owner_signature: String,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
   let denom = state.read().await.current_network().denom();
   let pledge = pledge.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .bond_gateway(gateway, owner_signature, pledge)
+    .bond_gateway(gateway, owner_signature, pledge, fee)
     .await?;
   Ok(())
 }
 
 #[tauri::command]
 pub async fn unbond_gateway(
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  nymd_client!(state).unbond_gateway().await?;
+  nymd_client!(state).unbond_gateway(fee).await?;
   Ok(())
 }
 
 #[tauri::command]
 pub async fn unbond_mixnode(
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  nymd_client!(state).unbond_mixnode().await?;
+  nymd_client!(state).unbond_mixnode(fee).await?;
   Ok(())
 }
 
@@ -44,12 +48,13 @@ pub async fn bond_mixnode(
   mixnode: MixNode,
   owner_signature: String,
   pledge: Coin,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
   let denom = state.read().await.current_network().denom();
   let pledge = pledge.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .bond_mixnode(mixnode, owner_signature, pledge)
+    .bond_mixnode(mixnode, owner_signature, pledge, fee)
     .await?;
   Ok(())
 }
@@ -57,10 +62,11 @@ pub async fn bond_mixnode(
 #[tauri::command]
 pub async fn update_mixnode(
   profit_margin_percent: u8,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
   nymd_client!(state)
-    .update_mixnode_config(profit_margin_percent)
+    .update_mixnode_config(profit_margin_percent, fee)
     .await?;
   Ok(())
 }

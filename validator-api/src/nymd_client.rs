@@ -272,7 +272,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.advance_current_epoch().await?;
+        self.0
+            .write()
+            .await
+            .nymd
+            .advance_current_epoch(None)
+            .await?;
         Ok(())
     }
 
@@ -281,7 +286,7 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.checkpoint_mixnodes().await?;
+        self.0.write().await.nymd.checkpoint_mixnodes(None).await?;
         Ok(())
     }
 
@@ -290,7 +295,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.reconcile_delegations().await?;
+        self.0
+            .write()
+            .await
+            .nymd
+            .reconcile_delegations(None)
+            .await?;
         Ok(())
     }
 
@@ -307,7 +317,7 @@ impl<C> Client<C> {
             .write()
             .await
             .nymd
-            .write_rewarded_set(rewarded_set, expected_active_set_size)
+            .write_rewarded_set(rewarded_set, expected_active_set_size, None)
             .await?;
         Ok(())
     }

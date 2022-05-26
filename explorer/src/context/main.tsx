@@ -81,6 +81,12 @@ export const MainContextProvider: React.FC = ({ children }) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
       const data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+      // TODO remove hard coded API response
+      data.map((item) => {
+        const node = item;
+        node.stake_saturation = 0.32;
+        return node;
+      });
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({

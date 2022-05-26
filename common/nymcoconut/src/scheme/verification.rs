@@ -10,6 +10,7 @@ use group::{Curve, Group};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofKappaZeta;
+use crate::scheme::double_use::BlindedSerialNumber;
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
@@ -78,6 +79,12 @@ impl Theta {
             &self.blinded_message,
             &self.blinded_serial_number,
         )
+    }
+
+    pub fn has_blinded_serial_number(&self, blinded_serial_number_bs58: &str) -> Result<bool> {
+        let blinded_serial_number = BlindedSerialNumber::try_from_bs58(blinded_serial_number_bs58)?;
+        let ret = self.blinded_serial_number.eq(&blinded_serial_number.inner);
+        Ok(ret)
     }
 
     // blinded message (kappa)  || blinded serial number (zeta) || credential || pi_v

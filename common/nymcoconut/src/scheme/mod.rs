@@ -19,6 +19,7 @@ use crate::utils::try_deserialize_g1_projective;
 use crate::Attribute;
 
 pub mod aggregation;
+pub mod double_use;
 pub mod issuance;
 pub mod keygen;
 pub mod setup;

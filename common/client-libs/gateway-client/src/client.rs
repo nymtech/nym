@@ -496,7 +496,6 @@ impl GatewayClient {
             self.shared_key.as_ref().unwrap(),
             iv,
         )
-        .ok_or(GatewayClientError::SerializeCredential)?
         .into();
         self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),

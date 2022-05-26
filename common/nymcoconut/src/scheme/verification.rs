@@ -19,8 +19,7 @@ use crate::Attribute;
 
 // TODO NAMING: this whole thing
 // Theta
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, PartialEq)]
 pub struct Theta {
     // blinded_message (kappa)
     pub blinded_message: G2Projective,

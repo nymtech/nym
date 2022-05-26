@@ -10,7 +10,4 @@ pub enum CoconutInterfaceError {
 
     #[error("Could not decode base 58 string - {0}")]
     MalformedString(#[from] bs58::decode::Error),
-
-    #[error("Bincode error - {0}")]
-    BincodeError(#[from] bincode::Error),
 }

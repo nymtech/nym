@@ -146,18 +146,13 @@ impl ClientControlRequest {
         credential: &Credential,
         shared_key: &SharedKeys,
         iv: IV,
-    ) -> Option<Self> {
-        match credential.as_bytes() {
-            Ok(serialized_credential) => {
-                let enc_credential =
-                    shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+    ) -> Self {
+        let serialized_credential = credential.as_bytes();
+        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-                Some(ClientControlRequest::BandwidthCredential {
-                    enc_credential,
-                    iv: iv.to_bytes(),
-                })
-            }
-            _ => None,
+        ClientControlRequest::BandwidthCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
         }
     }
 

@@ -600,7 +600,6 @@ dependencies = [
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "bs58",
  "getset",
  "nymcoconut",

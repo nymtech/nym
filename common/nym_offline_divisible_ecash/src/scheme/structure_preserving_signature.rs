@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::ops::Neg;
 
-use bls12_381::{G1Projective, G2Projective, Scalar};
+use bls12_381::{G1Projective, G2Projective, Gt, pairing, Scalar};
 use group::Curve;
 
 use crate::Attribute;
@@ -86,18 +86,18 @@ pub struct SPSKeyPair {
 }
 
 impl SPSKeyPair {
-    pub fn new(grparams: GroupParameters, a: usize, b: usize) -> SPSKeyPair {
-        let us = grparams.n_random_scalars(b);
-        let ws = grparams.n_random_scalars(a);
-        let y = grparams.random_scalar();
-        let z = grparams.random_scalar();
-        let uus: Vec<G1Projective> = us.iter().map(|u| grparams.gen1() * u).collect();
-        let yy = grparams.gen2() * y;
-        let wws: Vec<G2Projective> = ws.iter().map(|w| grparams.gen2() * w).collect();
-        let zz = grparams.gen2() * z;
+    pub fn new(grp: GroupParameters, a: usize, b: usize) -> SPSKeyPair {
+        let us = grp.n_random_scalars(b);
+        let ws = grp.n_random_scalars(a);
+        let y = grp.random_scalar();
+        let z = grp.random_scalar();
+        let uus: Vec<G1Projective> = us.iter().map(|u| grp.gen1() * u).collect();
+        let yy = grp.gen2() * y;
+        let wws: Vec<G2Projective> = ws.iter().map(|w| grp.gen2() * w).collect();
+        let zz = grp.gen2() * z;
 
         let sps_vk = SPSVerificationKey {
-            grp: grparams.clone(),
+            grp: grp.clone(),
             uus,
             wws,
             yy,

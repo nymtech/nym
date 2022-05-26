@@ -164,7 +164,7 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_varphi0.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_varphi1.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq1.to_compressed().as_ref()))
-                // .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
+                .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
                 // .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref()))
         );
@@ -271,7 +271,7 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_varphi0.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_varphi1.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq1.to_compressed().as_ref()))
-                // .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
+                .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
                 // .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref()))
         );
@@ -354,10 +354,11 @@ mod tests {
         let varsig_prime1 = params_u.get_ith_sigma(l as usize) + (psi_g1 * r_varsig1);
         let theta_prime1 = params_u.get_ith_theta(l as usize) + (psi_g1 * r_theta1);
         let varsig_prime2 = params_u.get_ith_sigma(l as usize + vv as usize - 1) + (psi_g1 * r_varsig2);
-        let theta_prime2 = params_u.get_ith_sigma(l as usize + vv as usize - 1) + (psi_g1 * r_theta2);
+        let theta_prime2 = params_u.get_ith_theta(l as usize + vv as usize - 1) + (psi_g1 * r_theta2);
         let rr_prime = params_u.get_ith_sps_sign(l as usize + vv as usize - 1).rr + (psi_g1 * r_rr);
         let ss_prime = params_u.get_ith_sps_sign(l as usize + vv as usize - 1).ss + (psi_g1 * r_ss);
         let tt_prime = params_u.get_ith_sps_sign(l as usize + vv as usize - 1).tt + (psi_g2 * r_tt);
+
 
         let rho1 = v.neg() * r_varsig1;
         let rho2 = v.neg() * r_theta1;
@@ -388,18 +389,8 @@ mod tests {
 
         let pg_eq1 = pg_varsigpr1_delta - pg_varsigpr2_gen2;
         let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
-        let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
+        let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 - pg_gen1_zz;
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
-
-        assert_eq!(pg_varsigpr1_delta + pg_psi0_delta * r_varsig1.neg(), pg_varsigpr2_gen2 + pg_psi0_gen2 * r_varsig2.neg());
-        println!("--------------Check1---------------");
-
-        assert_eq!(pg_thetapr1_delta + pg_psi0_delta * r_theta1.neg(), pg_thetapr2_gen2 + pg_psi0_gen2 * r_theta2.neg());
-        println!("--------------Check2---------------");
-
-        // assert_eq!(pg_rrprime_yy + pg_psi0_yy * r_rr.neg() + pg_ssprime_gen2 + pg_psi0_gen2 * r_ss.neg() + pg_varsigpr2_ww1 + pg_psi0_ww1 * r_varsig2.neg()
-        //                + pg_thetapr2_ww2 + pg_psi0_ww2 * r_theta2 - pg_gen1_zz, Gt::identity());
-        // println!("--------------Check2---------------");
 
 
         let instance = SpendInstance {

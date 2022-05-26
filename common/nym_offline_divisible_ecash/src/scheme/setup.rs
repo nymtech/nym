@@ -116,14 +116,6 @@ impl Parameters {
             .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&vec![*sigma, *theta]), None))
             .collect();
 
-        let l = 10;
-        let vv = 20;
-
-        let tl = thetas_u.get(l - 1).unwrap();
-        let dv = deltas_a.get(vv - 1).unwrap();
-        let tlv = thetas_u.get(l - 1 + vv - 1).unwrap();
-        assert_eq!(pairing(&tl.to_affine(), &dv.to_affine()), pairing(&tlv.to_affine(), g2));
-        println!("Hello world!!");
 
         // Compute signature for each pair sigma, theta
         let params_u = ParametersUser {

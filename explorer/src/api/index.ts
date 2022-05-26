@@ -60,8 +60,15 @@ export class Api {
     }
     const res = await fetch(MIXNODES_API);
     const json = await res.json();
-    storeInCache('mixnodes', JSON.stringify(json));
-    return json;
+    // TODO remove hard coded API response
+    const nodeArr = json.map((element: MixNodeResponseItem) => {
+      const node = element;
+      node.delegators_number = 2;
+      return node;
+    });
+
+    storeInCache('mixnodes', JSON.stringify(nodeArr));
+    return nodeArr;
   };
 
   static fetchMixnodesActiveSetByStatus = async (status: MixnodeStatus): Promise<MixNodeResponse> => {
@@ -71,8 +78,14 @@ export class Api {
     }
     const res = await fetch(`${MIXNODES_API}/active-set/${status}`);
     const json = await res.json();
-    storeInCache(`mixnodes-${status}`, JSON.stringify(json));
-    return json;
+    // TODO remove hard coded API response
+    const nodeArr = json.map((element: MixNodeResponseItem) => {
+      const node = element;
+      node.delegators_number = 2;
+      return node;
+    });
+    storeInCache(`mixnodes-${status}`, JSON.stringify(nodeArr));
+    return nodeArr;
   };
 
   static fetchMixnodeByID = async (id: string): Promise<MixNodeResponseItem | undefined> => {

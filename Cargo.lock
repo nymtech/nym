@@ -286,10 +286,22 @@ version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7774144344a4faa177370406a7ff5f1da24303817368584c6206c8303eb07848"
 dependencies = [
- "funty",
- "radium",
+ "funty 1.1.0",
+ "radium 0.6.2",
  "tap",
- "wyz",
+ "wyz 0.2.0",
+]
+
+[[package]]
+name = "bitvec"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1489fcb93a5bb47da0462ca93ad252ad6af2145cce58d10d46a83931ba9f016b"
+dependencies = [
+ "funty 2.0.0",
+ "radium 0.7.0",
+ "tap",
+ "wyz 0.5.0",
 ]
 
 [[package]]
@@ -373,9 +385,23 @@ dependencies = [
  "digest 0.9.0",
  "ff 0.10.1",
  "group 0.10.0",
- "pairing",
+ "pairing 0.20.0",
  "rand_core 0.6.3",
  "subtle 2.4.1",
+]
+
+[[package]]
+name = "bls12_381"
+version = "0.6.0"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
+dependencies = [
+ "digest 0.9.0",
+ "ff 0.11.0",
+ "group 0.11.0",
+ "pairing 0.21.0",
+ "rand_core 0.6.3",
+ "subtle 2.4.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -909,7 +935,7 @@ dependencies = [
 name = "credentials"
 version = "0.1.0"
 dependencies = [
- "bls12_381",
+ "bls12_381 0.5.0",
  "coconut-interface",
  "cosmrs 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crypto",
@@ -1333,6 +1359,27 @@ name = "discard"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
+
+[[package]]
+name = "dkg"
+version = "0.1.0"
+dependencies = [
+ "bitvec 1.0.0",
+ "bls12_381 0.6.0",
+ "bs58",
+ "criterion",
+ "ff 0.11.0",
+ "group 0.11.0",
+ "lazy_static",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.3",
+ "serde",
+ "serde_derive",
+ "sha2",
+ "thiserror",
+ "zeroize",
+]
 
 [[package]]
 name = "doc-comment"
@@ -1773,6 +1820,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fed34cd105917e91daa4da6b3728c47b068749d6a62c59811f06ed2ac71d9da7"
 
 [[package]]
+name = "funty"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
+
+[[package]]
 name = "futures"
 version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2061,6 +2114,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5ac374b108929de78460075f3dc439fa66df9d8fc77e8f12caa5165fcf0c89"
 dependencies = [
+ "byteorder",
  "ff 0.11.0",
  "rand_core 0.6.3",
  "subtle 2.4.1",
@@ -3231,7 +3285,7 @@ name = "nymcoconut"
 version = "0.5.0"
 dependencies = [
  "bincode",
- "bls12_381",
+ "bls12_381 0.5.0",
  "bs58",
  "criterion",
  "digest 0.9.0",
@@ -3460,13 +3514,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pairing"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2e415e349a3006dd7d9482cdab1c980a845bed1377777d768cb693a44540b42"
+dependencies = [
+ "group 0.11.0",
+]
+
+[[package]]
 name = "parity-scale-codec"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "373b1a4c1338d9cd3d1fa53b3a11bdab5ab6bd80a20f7f7becd76953ae2be909"
 dependencies = [
  "arrayvec 0.7.2",
- "bitvec",
+ "bitvec 0.20.4",
  "byte-slice-cast",
  "impl-trait-for-tuples",
  "parity-scale-codec-derive",
@@ -3984,6 +4047,12 @@ name = "radium"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
+
+[[package]]
+name = "radium"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
@@ -6541,6 +6610,15 @@ name = "wyz"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
+
+[[package]]
+name = "wyz"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30b31594f29d27036c383b53b59ed3476874d518f0efb151b27a4c275141390e"
+dependencies = [
+ "tap",
+]
 
 [[package]]
 name = "x25519-dalek"

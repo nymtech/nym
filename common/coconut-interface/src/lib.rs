@@ -63,7 +63,7 @@ impl Credential {
         bytes.extend_from_slice(&(theta_bytes_len as u64).to_be_bytes());
         bytes.extend_from_slice(&theta_bytes);
         bytes.extend_from_slice(&voucher_value_bytes);
-        bytes.extend_from_slice(&voucher_info_bytes);
+        bytes.extend_from_slice(voucher_info_bytes);
 
         bytes
     }

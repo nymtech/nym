@@ -260,7 +260,7 @@ export const PageMixnodes: React.FC = () => {
           sx={{
             ...getCellStyles(theme, params.row),
             textAlign: 'left',
-            colour: params.value > 100 ? theme.palette.warning.main : 'inherit',
+            color: params.value > 100 ? theme.palette.warning.main : 'inherit',
           }}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}

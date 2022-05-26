@@ -84,7 +84,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
       // TODO remove hard coded API response
       data.map((item) => {
         const node = item;
-        node.stake_saturation = 0.32;
+        node.stake_saturation = 3.2;
         return node;
       });
       setMixnodes({ data, isLoading: false });

@@ -226,6 +226,10 @@ impl<C> NymdClient<C> {
         &self.coconut_bandwidth_contract_address
     }
 
+    pub fn multisig_contract_address(&self) -> &AccountId {
+        &self.multisig_contract_address
+    }
+
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.simulated_gas_multiplier = multiplier;
     }

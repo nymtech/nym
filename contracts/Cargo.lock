@@ -502,6 +502,7 @@ dependencies = [
  "cw3-fixed-multisig",
  "cw4",
  "cw4-group",
+ "multisig-contract-common",
  "schemars",
  "serde",
  "thiserror",
@@ -1040,6 +1041,18 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.6",
+]
+
+[[package]]
+name = "multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw4",
+ "schemars",
+ "serde",
 ]
 
 [[package]]

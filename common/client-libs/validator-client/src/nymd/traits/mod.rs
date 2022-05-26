@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod coconut_bandwidth_signing_client;
+mod multisig_signing_client;
 mod vesting_query_client;
 mod vesting_signing_client;
 

@@ -121,6 +121,12 @@ pub enum NymdError {
 
     #[error("Transaction with ID {hash} has been submitted but not yet found on the chain. You might want to check for it later. There was a total wait of {} seconds", .timeout.as_secs())]
     BroadcastTimeout { hash: tx::Hash, timeout: Duration },
+
+    #[error("Cosmwasm std error: {0}")]
+    CosmwasmStdError(#[from] cosmwasm_std::StdError),
+
+    #[error("Coconut interface error: {0}")]
+    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 }
 
 impl NymdError {

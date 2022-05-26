@@ -55,6 +55,8 @@ pub enum Operation {
     ReconcileDelegations,
 
     BandwidthDeposit,
+
+    BandwidthProposal,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -100,6 +102,7 @@ impl fmt::Display for Operation {
             Operation::ReconcileDelegations => f.write_str("ReconcileDelegations"),
             Operation::AdvanceCurrentEpoch => f.write_str("AdvanceCurrentEpoch"),
             Operation::BandwidthDeposit => f.write_str("BandwidthDeposit"),
+            Operation::BandwidthProposal => f.write_str("BandwidthProposal"),
         }
     }
 }
@@ -146,6 +149,8 @@ impl Operation {
             Operation::AdvanceCurrentEpoch => 175_000u64.into(),
 
             Operation::BandwidthDeposit => 175_000u64.into(),
+
+            Operation::BandwidthProposal => 175_000u64.into(),
         }
     }
 

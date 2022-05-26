@@ -16,6 +16,7 @@ mod websocket;
 const OPEN_PROXY_ARG: &str = "open-proxy";
 const WS_PORT: &str = "websocket-port";
 const DESCRIPTION: &str = "description";
+const ENABLE_STATISTICS: &str = "enable-statistics";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
@@ -35,12 +36,17 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name(ENABLE_STATISTICS)
+                .help("enable mixnet statistics that get sent to a Nym server")
+                .long(ENABLE_STATISTICS)
+                .requires(DESCRIPTION),
+        )
+        .arg(
             Arg::with_name(DESCRIPTION)
                 .help("service description")
                 .long(DESCRIPTION)
                 .short("d")
-                .takes_value(true)
-                .default_value("undefined"),
+                .takes_value(true),
         )
         .get_matches()
 }
@@ -55,6 +61,11 @@ async fn main() {
         println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
     }
 
+    let enable_statistics = matches.is_present(ENABLE_STATISTICS);
+    if enable_statistics {
+        println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND STATISTICS TO A NYM SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {} FLAG .\n\n", ENABLE_STATISTICS);
+    }
+
     let uri = format!(
         "ws://localhost:{}",
         matches
@@ -62,9 +73,12 @@ async fn main() {
             .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
     );
 
-    let description = matches.value_of(DESCRIPTION).unwrap().to_string();
+    let description = matches
+        .value_of(DESCRIPTION)
+        .unwrap_or("undefined")
+        .to_string();
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri, description, open_proxy);
+    let mut server = core::ServiceProvider::new(uri, description, open_proxy, enable_statistics);
     server.run().await;
 }
 

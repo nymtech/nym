@@ -14,8 +14,8 @@
 // In the future we might want to simplify by dropping the support for a single account entry,
 // instead treating as muliple accounts with one entry.
 
-use cosmrs::bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
+use validator_client::nymd::bip32::DerivationPath;
 use zeroize::Zeroize;
 
 use crate::error::BackendError;
@@ -348,8 +348,8 @@ impl Drop for MnemonicAccount {
 }
 
 mod display_hd_path {
-  use cosmrs::bip32::DerivationPath;
   use serde::{Deserialize, Deserializer, Serializer};
+  use validator_client::nymd::bip32::DerivationPath;
 
   pub fn serialize<S: Serializer>(
     hd_path: &DerivationPath,

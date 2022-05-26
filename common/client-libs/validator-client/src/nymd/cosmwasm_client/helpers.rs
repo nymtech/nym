@@ -68,6 +68,7 @@ pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {
         offset: 0,
         limit: 0,
         count_total: false,
+        reverse: false,
     }
 }
 

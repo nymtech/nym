@@ -3,7 +3,7 @@ use crate::network::Network;
 use crate::{config, network_config};
 
 use strum::IntoEnumIterator;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nymd::{AccountId as CosmosAccountId, SigningNymdClient};
 use validator_client::Client;
 
 use itertools::Itertools;
@@ -61,7 +61,7 @@ pub(crate) struct WalletAccountIds {
   // The wallet account id
   pub id: crate::wallet_storage::AccountId,
   // The set of corresponding network identities derived from the mnemonic
-  pub addresses: HashMap<Network, cosmrs::AccountId>,
+  pub addresses: HashMap<Network, CosmosAccountId>,
 }
 
 impl State {

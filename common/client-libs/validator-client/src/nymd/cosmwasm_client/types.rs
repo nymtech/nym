@@ -489,7 +489,7 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct GasInfo {
     /// GasWanted is the maximum units of work we allow this tx to perform.
     pub gas_wanted: Gas,

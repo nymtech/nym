@@ -2,8 +2,6 @@
 
 use crate::error::BackendError;
 use crate::network::Network;
-use cosmrs::Decimal;
-use cosmrs::Denom as CosmosDenom;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
@@ -11,7 +9,9 @@ use std::convert::TryFrom;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
-use validator_client::nymd::{CosmosCoin, GasPrice};
+use validator_client::nymd::CosmosCoin;
+use validator_client::nymd::Decimal;
+use validator_client::nymd::Denom as CosmosDenom;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export, export_to = "../src/types/rust/denom.ts"))]
@@ -54,17 +54,6 @@ impl TryFrom<CosmosDenom> for Denom {
 pub struct Coin {
   amount: String,
   denom: Denom,
-}
-
-impl TryFrom<GasPrice> for Coin {
-  type Error = BackendError;
-
-  fn try_from(g: GasPrice) -> Result<Self, Self::Error> {
-    Ok(Coin {
-      amount: g.amount.to_string(),
-      denom: Denom::from_str(&g.denom.to_string())?,
-    })
-  }
 }
 
 // Allows adding minor and major denominations, output will have the LHS denom.
@@ -204,7 +193,7 @@ impl From<CosmosCoin> for Coin {
   fn from(c: CosmosCoin) -> Coin {
     Coin {
       amount: c.amount.to_string(),
-      denom: Denom::from_str(&c.denom.to_string()).unwrap(),
+      denom: Denom::from_str(c.denom.as_ref()).unwrap(),
     }
   }
 }
@@ -222,9 +211,6 @@ impl From<CosmWasmCoin> for Coin {
 mod test {
   use super::*;
   use crate::error::BackendError;
-  use cosmrs::Coin as CosmosCoin;
-  use cosmrs::Decimal;
-  use cosmrs::Denom as CosmosDenom;
   use cosmwasm_std::Coin as CosmWasmCoin;
   use serde_json::json;
   use std::convert::TryFrom;
@@ -429,24 +415,5 @@ mod test {
     assert_eq!(Coin::major("1") - Coin::major("1"), Coin::major("0"));
     assert_eq!(Coin::minor("1") - Coin::major("1"), Coin::minor("-999999"));
     assert_eq!(Coin::major("1") - Coin::minor("1"), Coin::major("0.999999"));
-  }
-
-  #[test]
-  fn coin_from_gas_price() {
-    assert_eq!(
-      Coin::try_from(GasPrice::from_str("42unym").unwrap()).unwrap(),
-      Coin {
-        amount: "42".to_string(),
-        denom: Denom::Minor,
-      }
-    );
-
-    assert_eq!(
-      Coin::try_from(GasPrice::from_str("42nym").unwrap()).unwrap(),
-      Coin {
-        amount: "42".to_string(),
-        denom: Denom::Major,
-      }
-    );
   }
 }

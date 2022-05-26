@@ -3,11 +3,13 @@
   windows_subsystem = "windows"
 )]
 
+use crate::menu::AddDefaultSubmenus;
+use crate::operations::{mixnet, simulate, validator_api, vesting};
+use crate::state::State;
 use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
-use validator_client::nymd::fee::helpers::Operation;
 
 mod coin;
 mod config;
@@ -20,13 +22,6 @@ mod platform_constants;
 mod state;
 mod utils;
 mod wallet_storage;
-
-use crate::menu::AddDefaultSubmenus;
-use crate::operations::mixnet;
-use crate::operations::validator_api;
-use crate::operations::vesting;
-
-use crate::state::State;
 
 fn main() {
   dotenv::dotenv().ok();
@@ -79,7 +74,6 @@ fn main() {
       state::save_config_to_files,
       utils::major_to_minor,
       utils::minor_to_major,
-      utils::outdated_get_approximate_fee,
       utils::owns_gateway,
       utils::owns_mixnode,
       utils::get_env,
@@ -111,6 +105,22 @@ fn main() {
       vesting::queries::vesting_get_gateway_pledge,
       vesting::queries::vesting_get_mixnode_pledge,
       vesting::queries::vesting_start_time,
+      // simulate endpoints
+      simulate::admin::simulate_update_contract_settings,
+      simulate::mixnet::simulate_bond_gateway,
+      simulate::mixnet::simulate_bond_mixnode,
+      simulate::mixnet::simulate_unbond_gateway,
+      simulate::mixnet::simulate_unbond_mixnode,
+      simulate::mixnet::simulate_update_mixnode,
+      simulate::mixnet::simulate_delegate_to_mixnode,
+      simulate::mixnet::simulate_undelegate_from_mixnode,
+      simulate::cosmos::simulate_send,
+      simulate::vesting::simulate_vesting_bond_gateway,
+      simulate::vesting::simulate_vesting_bond_mixnode,
+      simulate::vesting::simulate_vesting_unbond_gateway,
+      simulate::vesting::simulate_vesting_unbond_mixnode,
+      simulate::vesting::simulate_vesting_update_mixnode,
+      simulate::vesting::simulate_withdraw_vested_coins,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())

@@ -828,8 +828,9 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.9.0"
-source = "git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation#911fbe1236cfed591783ccef01018f7ccc97c496"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f109fe191e73898d74b8020c50f86018364ad19bc30318aa074616c382b52856"
 dependencies = [
  "prost",
  "prost-types",
@@ -838,8 +839,9 @@ dependencies = [
 
 [[package]]
 name = "cosmrs"
-version = "0.4.1"
-source = "git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation#911fbe1236cfed591783ccef01018f7ccc97c496"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8413275b23cb5a0734d9d1e3e33f0b5b94547c1e94776dbc3149dbf46588a533"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",
@@ -2355,11 +2357,12 @@ dependencies = [
  "headers",
  "http",
  "hyper",
- "hyper-tls",
- "native-tls",
+ "hyper-rustls",
+ "rustls-native-certs",
  "tokio",
- "tokio-native-tls",
+ "tokio-rustls",
  "tower-service",
+ "webpki",
 ]
 
 [[package]]
@@ -3007,7 +3010,6 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
- "cosmrs",
  "cosmwasm-std",
  "dirs",
  "dotenv",
@@ -3642,9 +3644,9 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.9.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "444879275cb4fd84958b1a1d5420d15e6fcf7c235fe47f053c9c2a80aceb6001"
+checksum = "bc03e116981ff7d8da8e5c220e374587b98d294af7ba7dd7fda761158f00086f"
 dependencies = [
  "bytes",
  "prost-derive",
@@ -3652,9 +3654,9 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.9.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9cc1a3263e07e0bf68e96268f37665207b49560d98739662cdfaae215c720fe"
+checksum = "7b670f45da57fb8542ebdbb6105a925fe571b67f9e7ed9f47a06a84e72b4e7cc"
 dependencies = [
  "anyhow",
  "itertools",
@@ -3665,9 +3667,9 @@ dependencies = [
 
 [[package]]
 name = "prost-types"
-version = "0.9.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "534b7a0e836e3c482d2693070f982e39e7611da9695d4d1f5a4b186b51faef0a"
+checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
 dependencies = [
  "bytes",
  "prost",
@@ -5004,9 +5006,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint"
-version = "0.23.3"
+version = "0.23.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9ef686b8ecd36550d0581f0989c9d8607090b23005df479d8e6ba348b5800b9"
+checksum = "3ca881fa4dedd2b46334f13be7fbc8cc1549ba4be5a833fe4e73d1a1baaf7949"
 dependencies = [
  "async-trait",
  "bytes",
@@ -5035,9 +5037,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-config"
-version = "0.23.3"
+version = "0.23.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc127f82e7a8c7337c1f293d65a821380d3407c4c44bc979ef4da0ebc3b31ed"
+checksum = "f6c56ee93f4e9b7e7daba86d171f44572e91b741084384d0ae00df7991873dfd"
 dependencies = [
  "flex-error",
  "serde",
@@ -5049,9 +5051,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-proto"
-version = "0.23.3"
+version = "0.23.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9e0a0251fd81bed7420bea0f4d91c2a58f6c9fa34d5b2f70bed0ba8890de5aa"
+checksum = "b71f925d74903f4abbdc4af0110635a307b3cb05b175fdff4a7247c14a4d0874"
 dependencies = [
  "bytes",
  "flex-error",
@@ -5067,9 +5069,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-rpc"
-version = "0.23.3"
+version = "0.23.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "626c493e9ced3a9de37583bbd929f4b6dbd49aa513ab9b4776aa44a9332ce9b5"
+checksum = "a13e63f57ee05a1e927887191c76d1b139de9fa40c180b9f8727ee44377242a6"
 dependencies = [
  "async-trait",
  "bytes",

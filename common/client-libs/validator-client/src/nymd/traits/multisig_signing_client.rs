@@ -7,7 +7,6 @@ use crate::nymd::error::NymdError;
 use crate::nymd::fee::helpers::Operation;
 use crate::nymd::NymdClient;
 use coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
-use coconut_interface::{Base58, Credential};
 use multisig_contract_common::msg::ExecuteMsg;
 
 use async_trait::async_trait;
@@ -18,7 +17,8 @@ use network_defaults::DEFAULT_NETWORK;
 pub trait MultisigSigningClient {
     async fn propose_release_funds(
         &self,
-        credential: &Credential,
+        voucher_value: u128,
+        blinded_serial_number: String,
     ) -> Result<ExecuteResult, NymdError>;
 }
 
@@ -26,11 +26,12 @@ pub trait MultisigSigningClient {
 impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClient<C> {
     async fn propose_release_funds(
         &self,
-        credential: &Credential,
+        voucher_value: u128,
+        blinded_serial_number: String,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::BandwidthProposal);
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
-            funds: Coin::new(credential.voucher_value() as u128, DEFAULT_NETWORK.denom()),
+            funds: Coin::new(voucher_value, DEFAULT_NETWORK.denom()),
         };
         let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.coconut_bandwidth_contract_address().to_string(),
@@ -39,7 +40,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
         });
         let req = ExecuteMsg::Propose {
             title: String::from("Bandwidth consumption request"),
-            description: credential.to_bs58(),
+            description: blinded_serial_number,
             msgs: vec![release_funds_msg],
             latest: None,
         };
@@ -49,7 +50,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
                 self.multisig_contract_address(),
                 &req,
                 fee,
-                "Multisig::Propose",
+                "Multisig::Propose::Execute::ReleaseFunds",
                 vec![],
             )
             .await

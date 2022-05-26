@@ -70,53 +70,31 @@ impl SPSSecretKey {
 
 impl SPSVerificationKey {
     pub fn verify(&self, grp: &GroupParameters, signature: SPSSignature, messages_a: &[G1Projective], messages_b: Option<&[G2Projective]>) -> bool {
-        // let pg_rr_yy = pairing(&signature.rr.to_affine(), &self.yy.to_affine());
-        // let pg_ss_g2 = pairing(&signature.ss.to_affine(), grp.gen2());
-        // let pg_g1_zz = pairing(grp.gen1(), &self.zz.to_affine());
-        // let prod_pg_ma_ww: Vec<Gt> = messages_a.iter()
-        //     .zip(self.wws.iter())
-        //     .map(|(m, ww)| pairing(&m.to_affine(), &ww.to_affine()))
-        //     .collect();
-        //
-        // let mut pg_m_ww = Gt::identity();
-        // for elem in prod_pg_ma_ww.iter() {
-        //     pg_m_ww = pg_m_ww + elem;
-        // }
-        // // let pg_m_ww = prod_pg_ma_ww.fold(Gt::identity() | acc, elem | acc + elem);
-        //
-        // // assert_eq!(pg_rr_yy + pg_ss_g2 + pg_m_ww, pg_g1_zz);
-        //
-        // let pg_rr_tt = pairing(&signature.rr.to_affine(), &signature.tt.to_affine());
-        // let pg_g1_g2 = pairing(grp.gen1(), grp.gen2());
-        // // assert_eq!(pg_rr_tt, pg_g1_g2);
-        //
-        // if pg_rr_yy + pg_ss_g2 + pg_m_ww == pg_g1_zz && pg_rr_tt == pg_g1_g2 {
-        //     return true;
-        // } else {
-        //     return false;
-        // }
-        // let o2 = match messages_b {
-        //     Some(messages_b) => {
-        //         let prod_pg_uu_mb = self.uus.iter()
-        //             .zip(messages_b.iter())
-        //             .map(|(uu, m)| pairing(&uu.to_affine(), &m.to_affine()))
-        //             .collect();
-        //         let pg_uu_m = prod_pg_uu_mb.fold(Gt::identity() | acc, elem | acc + elem);
-        //         if assert_eq!(pg_rr_tt + pg_uu_m, pg_g1_g2) {
-        //             true
-        //         } else {
-        //             false
-        //         }
-        //     }
-        //     None => {
-        //         if assert_eq!(pg_rr_tt, pg_g1_g2) {
-        //             true
-        //         } else {
-        //             false
-        //         }
-        //     }
-        // };
-        return true;
+        let pg_rr_yy = pairing(&signature.rr.to_affine(), &self.yy.to_affine());
+        let pg_ss_g2 = pairing(&signature.ss.to_affine(), grp.gen2());
+        let pg_g1_zz = pairing(grp.gen1(), &self.zz.to_affine());
+        let prod_pg_ma_ww: Vec<Gt> = messages_a.iter()
+            .zip(self.wws.iter())
+            .map(|(m, ww)| pairing(&m.to_affine(), &ww.to_affine()))
+            .collect();
+
+        let mut pg_m_ww = Gt::identity();
+        for elem in prod_pg_ma_ww.iter() {
+            pg_m_ww = pg_m_ww + elem;
+        }
+        // let pg_m_ww = prod_pg_ma_ww.fold(Gt::identity() | acc, elem | acc + elem);
+
+        // assert_eq!(pg_rr_yy + pg_ss_g2 + pg_m_ww, pg_g1_zz);
+
+        let pg_rr_tt = pairing(&signature.rr.to_affine(), &signature.tt.to_affine());
+        let pg_g1_g2 = pairing(grp.gen1(), grp.gen2());
+        // assert_eq!(pg_rr_tt, pg_g1_g2);
+
+        if pg_rr_yy + pg_ss_g2 + pg_m_ww == pg_g1_zz && pg_rr_tt == pg_g1_g2 {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     pub fn get_ith_ww(&self, idx: usize) -> &G2Projective { return self.wws.get(idx).unwrap(); }

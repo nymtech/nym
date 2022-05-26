@@ -183,7 +183,7 @@ impl ParametersUser {
 
     pub(crate) fn get_sps_signs(&self) -> &[SPSSignature] { &self.sps_signatures }
 
-    pub(crate) fn get_ith_sps_sign(&self, idx: usize) -> &SPSSignature { &self.sps_signatures.get(idx).unwrap() }
+    pub(crate) fn get_ith_sps_sign(&self, idx: usize) -> &SPSSignature { &self.sps_signatures.get(idx - 1).unwrap() }
 
     pub(crate) fn get_sps_pk(&self) -> &SPSVerificationKey { &self.sps_pk }
 }

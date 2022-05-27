@@ -56,6 +56,15 @@ impl super::client::Client for DummyClient {
             .cloned()
             .ok_or(CoconutError::TxHashParseError)
     }
+
+    async fn create_credential_proposal(
+        &self,
+        _title: String,
+        _blinded_serial_number: String,
+        _voucher_value: u128,
+    ) -> Result<u64> {
+        Ok(0)
+    }
 }
 
 pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {

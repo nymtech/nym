@@ -63,11 +63,17 @@ pub enum CoconutError {
     #[error("Error in coconut interface - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 
+    #[error("Could not create proposal for spending credential")]
+    CreateProposalError,
+
     #[error("Storage error - {0}")]
     StorageError(#[from] ValidatorApiStorageError),
 
     #[error("Credentials error - {0}")]
     CredentialsError(#[from] credentials::error::Error),
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

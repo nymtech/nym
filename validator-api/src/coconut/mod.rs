@@ -14,8 +14,8 @@ use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    KeyPair, Parameters, VerificationKey, VerificationKeyResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    CreateCredentialProposalRequestBody, CreateCredentialProposalResponse, KeyPair, Parameters,
+    VerificationKey, VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
@@ -33,11 +33,11 @@ use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 use url::Url;
 
 pub struct State {
-    client: Arc<RwLock<dyn LocalClient + Send + Sync>>,
+    client: Arc<dyn LocalClient + Send + Sync>,
     key_pair: KeyPair,
     validator_apis: Vec<Url>,
     storage: ValidatorApiStorage,
@@ -54,7 +54,7 @@ impl State {
     where
         C: LocalClient + Send + Sync + 'static,
     {
-        let client = Arc::new(RwLock::new(client));
+        let client = Arc::new(client);
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
             client,
@@ -170,7 +170,8 @@ impl InternalSignRequest {
                     post_blind_sign,
                     get_verification_key,
                     post_partial_bandwidth_credential,
-                    verify_bandwidth_credential
+                    verify_bandwidth_credential,
+                    post_create_credential_proposal
                 ],
             )
         })
@@ -203,8 +204,6 @@ pub async fn post_blind_sign(
     }
     let tx = state
         .client
-        .read()
-        .await
         .get_tx(blind_sign_request_body.tx_hash())
         .await?;
     let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
@@ -258,4 +257,34 @@ pub async fn verify_bandwidth_credential(
         .credential()
         .verify(&verification_key);
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
+}
+
+#[post(
+    "/post-create-credential-proposal",
+    data = "<create_credential_proposal>"
+)]
+pub async fn post_create_credential_proposal(
+    create_credential_proposal: Json<CreateCredentialProposalRequestBody>,
+    state: &RocketState<State>,
+) -> Result<Json<CreateCredentialProposalResponse>> {
+    let verification_key = state.verification_key().await?;
+    if !create_credential_proposal
+        .0
+        .credential()
+        .verify(&verification_key)
+    {
+        return Err(CoconutError::CreateProposalError);
+    }
+    let title = String::from("Create proposal to spend a coconut credential");
+    let blinded_serial_number = create_credential_proposal
+        .0
+        .credential()
+        .blinded_serial_number();
+    let voucher_value = create_credential_proposal.0.credential().voucher_value() as u128;
+    let proposal_id = state
+        .client
+        .create_credential_proposal(title, blinded_serial_number, voucher_value)
+        .await?;
+
+    Ok(Json(CreateCredentialProposalResponse::new(proposal_id)))
 }

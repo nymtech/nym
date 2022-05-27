@@ -34,6 +34,10 @@ impl Credential {
         }
     }
 
+    pub fn blinded_serial_number(&self) -> String {
+        self.theta.blinded_serial_number_bs58()
+    }
+
     pub fn voucher_value(&self) -> u64 {
         self.voucher_value
     }
@@ -236,6 +240,23 @@ pub struct VerificationKeyResponse {
 impl VerificationKeyResponse {
     pub fn new(key: VerificationKey) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
+    }
+}
+
+#[derive(Serialize, Deserialize, Getters, CopyGetters)]
+pub struct CreateCredentialProposalRequestBody {
+    #[getset(get = "pub")]
+    credential: Credential,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateCredentialProposalResponse {
+    pub proposal_id: u64,
+}
+
+impl CreateCredentialProposalResponse {
+    pub fn new(proposal_id: u64) -> Self {
+        CreateCredentialProposalResponse { proposal_id }
     }
 }
 

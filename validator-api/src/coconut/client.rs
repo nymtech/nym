@@ -7,4 +7,10 @@ use validator_client::nymd::TxResponse;
 #[async_trait]
 pub trait Client {
     async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse>;
+    async fn create_credential_proposal(
+        &self,
+        title: String,
+        blinded_serial_number: String,
+        voucher_value: u128,
+    ) -> Result<u64>;
 }

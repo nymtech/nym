@@ -106,6 +106,13 @@ impl Theta {
     pub fn from_bytes(bytes: &[u8]) -> Result<Theta> {
         Theta::try_from(bytes)
     }
+
+    pub fn blinded_serial_number_bs58(&self) -> String {
+        let blinded_serial_nuumber = BlindedSerialNumber {
+            inner: self.blinded_serial_number,
+        };
+        blinded_serial_nuumber.to_bs58()
+    }
 }
 
 impl Bytable for Theta {

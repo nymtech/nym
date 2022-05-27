@@ -17,8 +17,9 @@ use network_defaults::DEFAULT_NETWORK;
 pub trait MultisigSigningClient {
     async fn propose_release_funds(
         &self,
-        voucher_value: u128,
+        title: String,
         blinded_serial_number: String,
+        voucher_value: u128,
     ) -> Result<ExecuteResult, NymdError>;
 }
 
@@ -26,8 +27,9 @@ pub trait MultisigSigningClient {
 impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClient<C> {
     async fn propose_release_funds(
         &self,
-        voucher_value: u128,
+        title: String,
         blinded_serial_number: String,
+        voucher_value: u128,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = self.operation_fee(Operation::BandwidthProposal);
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
@@ -39,7 +41,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
             funds: vec![],
         });
         let req = ExecuteMsg::Propose {
-            title: String::from("Bandwidth consumption request"),
+            title,
             description: blinded_serial_number,
             msgs: vec![release_funds_msg],
             latest: None,

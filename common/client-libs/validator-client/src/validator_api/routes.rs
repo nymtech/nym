@@ -17,6 +17,7 @@ pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-credential";
 pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
 pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
+pub const COCONUT_PROPOSE_RELEASE_FUNDS: &str = "propose-release-funds";
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

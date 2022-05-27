@@ -67,6 +67,10 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Validator API error")]
     APIError(#[from] validator_client::ValidatorClientError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Not enough validator API endpoints provided. Needed {needed}, received {received}")]
+    NotEnoughValidatorAPIs { received: usize, needed: usize },
 }
 
 impl RequestHandlingError {
@@ -219,8 +223,22 @@ where
             ));
         }
 
-        let req = coconut_interface::VerifyCredentialBody::new(credential.clone());
-        for client in self.inner.coconut_verifier.api_clients() {
+        let req = coconut_interface::ProposeReleaseFundsRequestBody::new(credential.clone());
+        let proposal_id = self
+            .inner
+            .coconut_verifier
+            .api_clients()
+            .get(0)
+            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
+                needed: 1,
+                received: 0,
+            })?
+            .propose_release_funds(&req)
+            .await?
+            .proposal_id;
+
+        let req = coconut_interface::VerifyCredentialBody::new(credential.clone(), proposal_id);
+        for client in self.inner.coconut_verifier.api_clients().iter().skip(1) {
             if !client
                 .verify_bandwidth_credential(&req)
                 .await?

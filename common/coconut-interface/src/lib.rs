@@ -122,11 +122,16 @@ impl Base58 for Credential {}
 pub struct VerifyCredentialBody {
     #[getset(get = "pub")]
     credential: Credential,
+    #[getset(get = "pub")]
+    proposal_id: u64,
 }
 
 impl VerifyCredentialBody {
-    pub fn new(credential: Credential) -> VerifyCredentialBody {
-        VerifyCredentialBody { credential }
+    pub fn new(credential: Credential, proposal_id: u64) -> VerifyCredentialBody {
+        VerifyCredentialBody {
+            credential,
+            proposal_id,
+        }
     }
 }
 
@@ -244,19 +249,25 @@ impl VerificationKeyResponse {
 }
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters)]
-pub struct CreateCredentialProposalRequestBody {
+pub struct ProposeReleaseFundsRequestBody {
     #[getset(get = "pub")]
     credential: Credential,
 }
 
+impl ProposeReleaseFundsRequestBody {
+    pub fn new(credential: Credential) -> Self {
+        ProposeReleaseFundsRequestBody { credential }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateCredentialProposalResponse {
+pub struct ProposeReleaseFundsResponse {
     pub proposal_id: u64,
 }
 
-impl CreateCredentialProposalResponse {
+impl ProposeReleaseFundsResponse {
     pub fn new(proposal_id: u64) -> Self {
-        CreateCredentialProposalResponse { proposal_id }
+        ProposeReleaseFundsResponse { proposal_id }
     }
 }
 

@@ -14,7 +14,7 @@ use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    CreateCredentialProposalRequestBody, CreateCredentialProposalResponse, KeyPair, Parameters,
+    KeyPair, Parameters, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
     VerificationKey, VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
@@ -171,7 +171,7 @@ impl InternalSignRequest {
                     get_verification_key,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential,
-                    post_create_credential_proposal
+                    post_propose_release_funds
                 ],
             )
         })
@@ -259,32 +259,27 @@ pub async fn verify_bandwidth_credential(
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
 }
 
-#[post(
-    "/post-create-credential-proposal",
-    data = "<create_credential_proposal>"
-)]
-pub async fn post_create_credential_proposal(
-    create_credential_proposal: Json<CreateCredentialProposalRequestBody>,
+#[post("/post-propose-release-funds", data = "<propose_release_funds>")]
+pub async fn post_propose_release_funds(
+    propose_release_funds: Json<ProposeReleaseFundsRequestBody>,
     state: &RocketState<State>,
-) -> Result<Json<CreateCredentialProposalResponse>> {
+) -> Result<Json<ProposeReleaseFundsResponse>> {
     let verification_key = state.verification_key().await?;
-    if !create_credential_proposal
+    if !propose_release_funds
         .0
         .credential()
         .verify(&verification_key)
     {
         return Err(CoconutError::CreateProposalError);
     }
+
     let title = String::from("Create proposal to spend a coconut credential");
-    let blinded_serial_number = create_credential_proposal
-        .0
-        .credential()
-        .blinded_serial_number();
-    let voucher_value = create_credential_proposal.0.credential().voucher_value() as u128;
+    let blinded_serial_number = propose_release_funds.0.credential().blinded_serial_number();
+    let voucher_value = propose_release_funds.0.credential().voucher_value() as u128;
     let proposal_id = state
         .client
-        .create_credential_proposal(title, blinded_serial_number, voucher_value, None)
+        .propose_release_funds(title, blinded_serial_number, voucher_value, None)
         .await?;
 
-    Ok(Json(CreateCredentialProposalResponse::new(proposal_id)))
+    Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
 }

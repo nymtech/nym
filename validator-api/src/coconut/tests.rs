@@ -57,7 +57,7 @@ impl super::client::Client for DummyClient {
             .ok_or(CoconutError::TxHashParseError)
     }
 
-    async fn create_credential_proposal(
+    async fn propose_release_funds(
         &self,
         _title: String,
         _blinded_serial_number: String,

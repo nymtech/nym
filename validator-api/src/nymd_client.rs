@@ -424,7 +424,7 @@ where
         Ok(self.0.read().await.nymd.get_tx(tx_hash).await?)
     }
 
-    async fn create_credential_proposal(
+    async fn propose_release_funds(
         &self,
         title: String,
         blinded_serial_number: String,

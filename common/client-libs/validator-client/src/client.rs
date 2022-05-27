@@ -3,7 +3,8 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse, VerifyCredentialBody,
+    BlindSignRequestBody, BlindedSignatureResponse, ProposeReleaseFundsRequestBody,
+    ProposeReleaseFundsResponse, VerificationKeyResponse, VerifyCredentialBody,
     VerifyCredentialResponse,
 };
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
@@ -722,6 +723,16 @@ impl ApiClient {
         Ok(self
             .validator_api
             .verify_bandwidth_credential(request_body)
+            .await?)
+    }
+
+    pub async fn propose_release_funds(
+        &self,
+        request_body: &ProposeReleaseFundsRequestBody,
+    ) -> Result<ProposeReleaseFundsResponse, ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .propose_release_funds(request_body)
             .await?)
     }
 }

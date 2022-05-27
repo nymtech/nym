@@ -1,24 +1,23 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coin::Coin;
 use crate::error::BackendError;
-use crate::simulate::{FeeDetails, SimulateResult};
+use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::State;
 use mixnet_contract_common::{ExecuteMsg, Gateway, MixNode};
+use nym_types::currency::MajorCurrencyAmount;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[tauri::command]
 pub async fn simulate_bond_gateway(
   gateway: Gateway,
-  pledge: Coin,
+  pledge: MajorCurrencyAmount,
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let pledge = pledge.into_cosmos_coin(&network_denom)?;
+  let pledge = pledge.into_cosmos_coin()?;
 
   let client = guard.current_client()?;
   let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -62,12 +61,11 @@ pub async fn simulate_unbond_gateway(
 pub async fn simulate_bond_mixnode(
   mixnode: MixNode,
   owner_signature: String,
-  pledge: Coin,
+  pledge: MajorCurrencyAmount,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let pledge = pledge.into_cosmos_coin(&network_denom)?;
+  let pledge = pledge.into_cosmos_coin()?;
 
   let client = guard.current_client()?;
   let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -132,12 +130,11 @@ pub async fn simulate_update_mixnode(
 #[tauri::command]
 pub async fn simulate_delegate_to_mixnode(
   identity: &str,
-  amount: Coin,
+  amount: MajorCurrencyAmount,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let delegation = amount.into_cosmos_coin(&network_denom)?;
+  let delegation = amount.into_cosmos_coin()?;
 
   let client = guard.current_client()?;
   let mixnet_contract = client.nymd.mixnet_contract_address()?;

@@ -10,8 +10,8 @@ serde_json = "1.0"
 strum = { version = "0.23", features = ["derive"] }
 ts-rs = "6.1.2"
 
-cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
-cosmwasm-std = "1.0.0-beta3"
+cosmwasm-std = "1.0.0-beta8"
+cosmrs = "0.7.0"
 
 config = { path = "../../common/config" }
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }

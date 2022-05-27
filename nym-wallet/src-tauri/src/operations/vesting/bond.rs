@@ -86,11 +86,15 @@ pub async fn vesting_bond_mixnode(
 
 #[tauri::command]
 pub async fn vesting_unbond_mixnode(
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
   let denom_minor = state.read().await.current_network().denom();
-  log::info!(">>> Unbond mixnode bonded with locked tokens");
-  let res = nymd_client!(state).vesting_unbond_mixnode().await?;
+  log::info!(
+    ">>> Unbond mixnode bonded with locked tokens, fee = {:?}",
+    fee
+  );
+  let res = nymd_client!(state).vesting_unbond_mixnode(fee).await?;
   log::info!("<<< tx hash = {}", res.transaction_hash);
   log::trace!("<<< {:?}", res);
   Ok(TransactionExecuteResult::from_execute_result(
@@ -114,7 +118,7 @@ pub async fn withdraw_vested_coins(
     fee
   );
   let res = nymd_client!(state)
-    .withdraw_vested_coins(amount_minor)
+    .withdraw_vested_coins(amount_minor, fee)
     .await?;
   log::info!("<<< tx hash = {}", res.transaction_hash);
   log::trace!("<<< {:?}", res);

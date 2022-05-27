@@ -3206,7 +3206,7 @@ version = "1.0.0"
 dependencies = [
  "coconut-interface",
  "config",
- "cosmrs 0.4.1 (git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation)",
+ "cosmrs",
  "cosmwasm-std",
  "eyre",
  "itertools",
@@ -3284,7 +3284,7 @@ name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
  "config",
- "cosmrs 0.4.1 (git+https://github.com/nymtech/cosmos-rust?branch=bugfix/account-id-length-validation)",
+ "cosmrs",
  "cosmwasm-std",
  "mixnet-contract-common",
  "nym-types",

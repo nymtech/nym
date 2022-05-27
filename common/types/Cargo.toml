@@ -19,8 +19,8 @@ thiserror = "1.0"
 url = "2.2"
 ts-rs = "6.1.2"
 
-cosmrs = { git = "https://github.com/nymtech/cosmos-rust", branch = "bugfix/account-id-length-validation", features = ["rpc", "bip32", "cosmwasm"] }
-cosmwasm-std = "1.0.0-beta3"
+cosmwasm-std = "1.0.0-beta8"
+cosmrs = "0.7.0"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nymd-client",

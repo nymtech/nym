@@ -7,7 +7,6 @@ use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tauri::Menu;
 use tokio::sync::RwLock;
-use validator_client::nymd::fee::helpers::Operation;
 
 mod config;
 mod error;
@@ -76,7 +75,6 @@ fn main() {
       network_config::update_validator_urls,
       state::load_config_from_files,
       state::save_config_to_files,
-      utils::outdated_get_approximate_fee,
       utils::owns_gateway,
       utils::owns_mixnode,
       utils::get_env,

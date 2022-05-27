@@ -3054,6 +3054,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "cosmrs",
  "cosmwasm-std",
  "dirs",
  "dotenv",

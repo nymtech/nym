@@ -45,13 +45,14 @@ pub async fn delegate_to_mixnode(
   let denom_minor = state.read().await.current_network().denom();
   let delegation: CosmWasmCoin = amount.clone().into_minor_cosmwasm_coin()?;
   log::info!(
-    ">>> Delegate to mixnode: identity_key = {}, amount = {}, minor_amount = {}",
+    ">>> Delegate to mixnode: identity_key = {}, amount = {}, minor_amount = {}, fee = {:?}",
     identity,
     amount,
-    delegation
+    delegation,
+    fee,
   );
   let res = nymd_client!(state)
-    .delegate_to_mixnode(identity, &delegation)
+    .delegate_to_mixnode(identity, &delegation, fee)
     .await?;
   log::info!("<<< tx hash = {}", res.transaction_hash);
   log::trace!("<<< {:?}", res);
@@ -69,7 +70,7 @@ pub async fn undelegate_from_mixnode(
 ) -> Result<TransactionExecuteResult, BackendError> {
   let denom_minor = state.read().await.current_network().denom();
   log::info!(
-    ">>> Undelegate from mixnode: identity_key = {}, fee = {}",
+    ">>> Undelegate from mixnode: identity_key = {}, fee = {:?}",
     identity,
     fee
   );

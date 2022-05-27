@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coin::Coin;
 use crate::error::BackendError;
-use crate::simulate::{FeeDetails, SimulateResult};
+use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::State;
 use mixnet_contract_common::{Gateway, MixNode};
+use nym_types::currency::MajorCurrencyAmount;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use vesting_contract_common::ExecuteMsg;
@@ -13,13 +13,12 @@ use vesting_contract_common::ExecuteMsg;
 #[tauri::command]
 pub async fn simulate_vesting_bond_gateway(
   gateway: Gateway,
-  pledge: Coin,
+  pledge: MajorCurrencyAmount,
   owner_signature: String,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let pledge = pledge.into_cosmwasm_coin(&network_denom)?;
+  let pledge = pledge.into_cosmwasm_coin()?;
 
   let client = guard.current_client()?;
   let vesting_contract = client.nymd.vesting_contract_address()?;
@@ -63,12 +62,11 @@ pub async fn simulate_vesting_unbond_gateway(
 pub async fn simulate_vesting_bond_mixnode(
   mixnode: MixNode,
   owner_signature: String,
-  pledge: Coin,
+  pledge: MajorCurrencyAmount,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let pledge = pledge.into_cosmwasm_coin(&network_denom)?;
+  let pledge = pledge.into_cosmwasm_coin()?;
 
   let client = guard.current_client()?;
   let vesting_contract = client.nymd.vesting_contract_address()?;
@@ -133,12 +131,11 @@ pub async fn simulate_vesting_update_mixnode(
 
 #[tauri::command]
 pub async fn simulate_withdraw_vested_coins(
-  amount: Coin,
+  amount: MajorCurrencyAmount,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let amount = amount.into_cosmwasm_coin(&network_denom)?;
+  let amount = amount.into_cosmwasm_coin()?;
 
   let client = guard.current_client()?;
   let vesting_contract = client.nymd.vesting_contract_address()?;

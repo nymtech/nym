@@ -1,8 +1,6 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::sync::Arc;
 
-use cosmwasm_std::Uint128;
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use mixnet_contract_common::ContractStateParams;
@@ -13,7 +11,6 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 
-#[cfg_attr(test, derive(ts_rs::TS))]
 #[tauri::command]
 pub async fn get_contract_settings(
   state: tauri::State<'_, Arc<RwLock<State>>>,

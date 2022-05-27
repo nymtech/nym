@@ -22,7 +22,7 @@ pub async fn simulate_vesting_bond_gateway(
   let pledge = pledge.into_cosmwasm_coin(&network_denom)?;
 
   let client = guard.current_client()?;
-  let vesting_contract = client.nymd.vesting_contract_address()?;
+  let vesting_contract = client.nymd.vesting_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -46,7 +46,7 @@ pub async fn simulate_vesting_unbond_gateway(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let vesting_contract = client.nymd.vesting_contract_address()?;
+  let vesting_contract = client.nymd.vesting_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -71,7 +71,7 @@ pub async fn simulate_vesting_bond_mixnode(
   let pledge = pledge.into_cosmwasm_coin(&network_denom)?;
 
   let client = guard.current_client()?;
-  let vesting_contract = client.nymd.vesting_contract_address()?;
+  let vesting_contract = client.nymd.vesting_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -95,7 +95,7 @@ pub async fn simulate_vesting_unbond_mixnode(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let vesting_contract = client.nymd.vesting_contract_address()?;
+  let vesting_contract = client.nymd.vesting_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -116,7 +116,7 @@ pub async fn simulate_vesting_update_mixnode(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let vesting_contract = client.nymd.vesting_contract_address()?;
+  let vesting_contract = client.nymd.vesting_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -141,7 +141,7 @@ pub async fn simulate_withdraw_vested_coins(
   let amount = amount.into_cosmwasm_coin(&network_denom)?;
 
   let client = guard.current_client()?;
-  let vesting_contract = client.nymd.vesting_contract_address()?;
+  let vesting_contract = client.nymd.vesting_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(

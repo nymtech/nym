@@ -18,7 +18,7 @@ pub async fn simulate_update_contract_settings(
   let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(

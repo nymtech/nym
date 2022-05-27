@@ -21,7 +21,7 @@ pub async fn simulate_bond_gateway(
   let pledge = pledge.into_cosmos_coin(&network_denom)?;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   // TODO: I'm still not 100% convinced whether this should be exposed here or handled somewhere else in the client code
@@ -45,7 +45,7 @@ pub async fn simulate_unbond_gateway(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -70,7 +70,7 @@ pub async fn simulate_bond_mixnode(
   let pledge = pledge.into_cosmos_coin(&network_denom)?;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -93,7 +93,7 @@ pub async fn simulate_unbond_mixnode(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -114,7 +114,7 @@ pub async fn simulate_update_mixnode(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -140,7 +140,7 @@ pub async fn simulate_delegate_to_mixnode(
   let delegation = amount.into_cosmos_coin(&network_denom)?;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(
@@ -163,7 +163,7 @@ pub async fn simulate_undelegate_from_mixnode(
   let guard = state.read().await;
 
   let client = guard.current_client()?;
-  let mixnet_contract = client.nymd.mixnet_contract_address()?;
+  let mixnet_contract = client.nymd.mixnet_contract_address();
   let gas_price = client.nymd.gas_price().clone();
 
   let msg = client.nymd.wrap_contract_execute_message(

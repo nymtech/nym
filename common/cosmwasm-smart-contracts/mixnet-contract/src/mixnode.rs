@@ -418,18 +418,24 @@ impl MixNodeBond {
             / U128::from_num(circulating_supply)
     }
 
+    pub fn lambda_ticked(&self, params: &RewardParams) -> U128 {
+        // Ratio of a bond to the token circulating supply
+        self.lambda(params).min(params.one_over_k())
+    }
+
     pub fn lambda(&self, params: &RewardParams) -> U128 {
         // Ratio of a bond to the token circulating supply
-        let pledge_to_circulating_supply_ratio =
-            self.pledge_to_circulating_supply(params.circulating_supply());
-        pledge_to_circulating_supply_ratio.min(params.one_over_k())
+        self.pledge_to_circulating_supply(params.circulating_supply())
+    }
+
+    pub fn sigma_ticked(&self, params: &RewardParams) -> U128 {
+        // Ratio of a delegation to the the token circulating supply
+        self.sigma(params).min(params.one_over_k())
     }
 
     pub fn sigma(&self, params: &RewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
-        let total_bond_to_circulating_supply_ratio =
-            self.total_bond_to_circulating_supply(params.circulating_supply());
-        total_bond_to_circulating_supply_ratio.min(params.one_over_k())
+        self.total_bond_to_circulating_supply(params.circulating_supply())
     }
 
     pub fn estimate_reward(
@@ -463,20 +469,22 @@ impl MixNodeBond {
         })
     }
 
+    // keybase://chat/nymtech#dev-core/14473
     pub fn reward(&self, params: &RewardParams) -> NodeRewardResult {
-        let lambda = self.lambda(params);
-        let sigma = self.sigma(params);
+        let lambda_ticked = self.lambda_ticked(params);
+        let sigma_ticked = self.sigma_ticked(params);
 
         let reward = params.performance()
             * params.epoch_reward_pool()
-            * (sigma * params.omega()
-                + params.alpha() * lambda * sigma * params.rewarded_set_size())
+            * (sigma_ticked * params.omega()
+                + params.alpha() * lambda_ticked * sigma_ticked * params.rewarded_set_size())
             / (ONE + params.alpha());
 
+        // we only need regular lambda and sigma to calculate operator and delegator rewards
         NodeRewardResult {
             reward,
-            lambda,
-            sigma,
+            lambda: self.lambda(params),
+            sigma: self.sigma(params),
         }
     }
 

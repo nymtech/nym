@@ -44,7 +44,6 @@ export const Delegation: FC = () => {
   }, []);
 
   // TODO: replace with real operation
-  const getWalletBalance = async () => '1200 NYM';
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     setCurrentDelegationListActionItem(item);
@@ -105,15 +104,17 @@ export const Delegation: FC = () => {
     });
     setShowDelegateMoreModal(false);
     setCurrentDelegationListActionItem(undefined);
+
     try {
       const tx = await updateDelegation({
         ...currentDelegationListActionItem,
         amount,
       });
+      await userBalance.fetchBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        balance: await getWalletBalance(),
+        balance: userBalance.balance?.printable_balance || '-',
         transactionUrl: tx.transactionUrl,
       });
     } catch (e) {
@@ -133,12 +134,13 @@ export const Delegation: FC = () => {
     setShowUndelegateModal(false);
     setCurrentDelegationListActionItem(undefined);
     try {
-      await undelegate(identityKey);
+      const tx = await undelegate(identityKey);
+      await userBalance.fetchBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
-        balance: await getWalletBalance(),
-        transactionUrl: '',
+        balance: userBalance.balance?.printable_balance || '-',
+        transactionUrl: tx.transaction_hash,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -166,10 +168,11 @@ export const Delegation: FC = () => {
     if (clientDetails?.client_address) {
       try {
         const tx = await redeemRewards(identityKey);
+        await userBalance.fetchBalance();
         setConfirmationModalProps({
           status: 'success',
           action: 'redeem',
-          balance: await getWalletBalance(),
+          balance: userBalance.balance?.printable_balance || '-',
           recipient: clientDetails?.client_address,
           transactionUrl: tx.transactionUrl,
         });
@@ -192,10 +195,11 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
     try {
       const tx = await redeemAllRewards();
+      await userBalance.fetchBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem-all',
-        balance: await getWalletBalance(),
+        balance: userBalance.balance?.printable_balance || '-',
         recipient: clientDetails?.client_address,
         transactionUrl: tx.transactionUrl,
       });

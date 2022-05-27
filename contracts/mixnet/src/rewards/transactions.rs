@@ -449,7 +449,7 @@ pub(crate) fn try_reward_mixnode(
     let node_delegation = current_bond.total_delegation.amount;
 
     // check if it has non-zero uptime
-    if params.uptime() == 0 {
+    if params.uptime() == Uint128::zero() {
         storage::REWARDING_STATUS.save(
             deps.storage,
             (epoch.id(), mix_identity.clone()),
@@ -1409,7 +1409,7 @@ pub mod tests {
         );
         assert_eq!(mix_1_reward_result.reward().int(), 233202u128);
 
-        assert_eq!(mix_1.node_profit(&params).int(), 183207u128);
+        assert_eq!(mix_1.node_profit(&params).int(), 183202u128);
 
         assert_ne!(
             mix_1_reward_result.reward(),
@@ -1422,8 +1422,8 @@ pub mod tests {
 
         let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
-        assert_eq!(mix1_operator_reward, 150759);
-        assert_eq!(mix1_delegator1_reward, 65954);
+        assert_eq!(mix1_operator_reward, 150761);
+        assert_eq!(mix1_delegator1_reward, 65952);
         assert_eq!(mix1_delegator2_reward, 16488);
 
         assert_eq!(

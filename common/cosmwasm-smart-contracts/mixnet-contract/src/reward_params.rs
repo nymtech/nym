@@ -42,7 +42,7 @@ impl NodeEpochRewards {
     }
 
     pub fn operator_cost(&self) -> U128 {
-        U128::from_num(self.params.uptime.u128() / 100u128 * DEFAULT_OPERATOR_INTERVAL_COST as u128)
+        self.params.operator_cost()
     }
 
     pub fn node_profit(&self) -> U128 {
@@ -178,16 +178,15 @@ impl NodeRewardParams {
     }
 
     pub fn operator_cost(&self) -> U128 {
-        // Due to integer division anything less the 100 would be rounded to 0 if we divided by hundred,
-        // Dividing both sides by 10 gives us more granularity, with a known rounding error
-        // Inner parenthasis are for readability only
-        U128::from_num(
-            (self.uptime.u128() / 10u128) * (DEFAULT_OPERATOR_INTERVAL_COST / 10) as u128,
-        )
+        self.performance() * U128::from_num(DEFAULT_OPERATOR_INTERVAL_COST)
     }
 
-    pub fn uptime(&self) -> u128 {
-        self.uptime.u128()
+    pub fn uptime(&self) -> Uint128 {
+        self.uptime
+    }
+
+    pub fn performance(&self) -> U128 {
+        U128::from_num(self.uptime.u128()) / U128::from_num(100)
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
@@ -238,7 +237,7 @@ impl RewardParams {
     }
 
     pub fn performance(&self) -> U128 {
-        U128::from_num(self.node.uptime.u128()) / U128::from_num(100)
+        self.node.performance()
     }
 
     pub fn set_reward_blockstamp(&mut self, blockstamp: u64) {
@@ -261,8 +260,8 @@ impl RewardParams {
         self.node.reward_blockstamp
     }
 
-    pub fn uptime(&self) -> u128 {
-        self.node.uptime.u128()
+    pub fn uptime(&self) -> Uint128 {
+        self.node.uptime()
     }
 
     pub fn one_over_k(&self) -> U128 {

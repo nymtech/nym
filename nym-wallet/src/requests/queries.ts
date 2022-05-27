@@ -5,7 +5,6 @@ import {
   MixnodeStatusResponse,
   Operation,
   InclusionProbabilityResponse,
-  Balance,
   MajorCurrencyAmount,
   MixNodeBond,
 } from '@nymproject/types';
@@ -44,10 +43,11 @@ export const checkMixnodeOwnership = async () => invokeWrapper<boolean>('owns_mi
 
 export const checkGatewayOwnership = async () => invokeWrapper<boolean>('owns_gateway');
 
-// NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
-// as for the actual transaction, the gas cost is being simulated beforehand
-export const getGasFee = async (operation: Operation) =>
-  invokeWrapper<MajorCurrencyAmount>('outdated_get_approximate_fee', { operation });
+// TODO: remove this method
+export const getGasFee = async (operation: Operation): Promise<MajorCurrencyAmount> => ({
+  amount: '0',
+  denom: 'NYM',
+});
 
 export const getInclusionProbability = async (identity: string) =>
   invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { identity });

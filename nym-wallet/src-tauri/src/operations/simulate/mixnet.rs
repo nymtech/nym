@@ -34,7 +34,7 @@ pub async fn simulate_bond_gateway(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -54,7 +54,7 @@ pub async fn simulate_unbond_gateway(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -81,7 +81,7 @@ pub async fn simulate_bond_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -101,7 +101,7 @@ pub async fn simulate_unbond_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -124,7 +124,7 @@ pub async fn simulate_update_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -149,7 +149,7 @@ pub async fn simulate_delegate_to_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -172,5 +172,5 @@ pub async fn simulate_undelegate_from_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }

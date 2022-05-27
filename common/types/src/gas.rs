@@ -46,7 +46,7 @@ impl Gas {
     pub fn from_gas_price(value: ValidatorClientGasPrice) -> Result<Gas, TypesError> {
         // TODO: use simulator struct to do conversion to fee
         let gas_units_str = (value.amount / Uint128::from_str("0.0025")?).to_string();
-        let decimal_seperator_pos = gas_units_str.find(".").unwrap_or(gas_units_str.len());
+        let decimal_seperator_pos = gas_units_str.find('.').unwrap_or(gas_units_str.len());
         let gas_units = gas_units_str[..decimal_seperator_pos]
             .parse()
             .unwrap_or(0_u64);

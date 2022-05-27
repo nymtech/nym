@@ -20,6 +20,7 @@ mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;
+use crate::operations::simulate;
 use crate::operations::validator_api;
 use crate::operations::vesting;
 
@@ -106,6 +107,21 @@ fn main() {
       vesting::queries::vesting_get_gateway_pledge,
       vesting::queries::vesting_get_mixnode_pledge,
       vesting::queries::vesting_start_time,
+      simulate::admin::simulate_update_contract_settings,
+      simulate::cosmos::simulate_send,
+      simulate::mixnet::simulate_bond_gateway,
+      simulate::mixnet::simulate_unbond_gateway,
+      simulate::mixnet::simulate_bond_mixnode,
+      simulate::mixnet::simulate_unbond_mixnode,
+      simulate::mixnet::simulate_update_mixnode,
+      simulate::mixnet::simulate_delegate_to_mixnode,
+      simulate::mixnet::simulate_undelegate_from_mixnode,
+      simulate::vesting::simulate_vesting_bond_gateway,
+      simulate::vesting::simulate_vesting_unbond_gateway,
+      simulate::vesting::simulate_vesting_bond_mixnode,
+      simulate::vesting::simulate_vesting_unbond_mixnode,
+      simulate::vesting::simulate_vesting_update_mixnode,
+      simulate::vesting::simulate_withdraw_vested_coins,
     ])
     .menu(Menu::new().add_default_app_submenu_if_macos())
     .run(tauri::generate_context!())

@@ -1,3 +1,5 @@
+// TODO: remove this type
+
 export type Operation =
   | 'Upload'
   | 'Init'

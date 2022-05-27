@@ -33,5 +33,5 @@ pub async fn simulate_send(
   };
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }

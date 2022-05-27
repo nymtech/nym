@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_types::currency::MajorCurrencyAmount;
-use serde::{Deserialize, Serialize};
+use nym_types::error::TypesError;
+use nym_types::fees::FeeDetails;
 use validator_client::nymd::cosmwasm_client::types::GasInfo;
 use validator_client::nymd::{tx, CosmosCoin, Fee, GasPrice};
 
@@ -28,21 +29,16 @@ impl SimulateResult {
       gas_price,
     }
   }
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FeeDetails {
-  // expected to be used by the wallet in order to display detailed fee information to the user
-  pub amount: Option<MajorCurrencyAmount>,
-  pub fee: Fee,
-}
-
-impl SimulateResult {
-  pub fn detailed_fee(&self) -> FeeDetails {
-    FeeDetails {
-      amount: self.to_fee_amount().map(Into::into),
+  pub fn detailed_fee(&self) -> Result<FeeDetails, TypesError> {
+    let amount: Option<MajorCurrencyAmount> = match self.to_fee_amount() {
+      Some(a) => Some(a.try_into()?),
+      None => None,
+    };
+    Ok(FeeDetails {
+      amount,
       fee: self.to_fee(),
-    }
+    })
   }
 
   fn to_fee_amount(&self) -> Option<CosmosCoin> {

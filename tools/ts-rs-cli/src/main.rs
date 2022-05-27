@@ -9,6 +9,7 @@ use nym_types::delegation::{
     Delegation, DelegationEvent, DelegationEventKind, DelegationRecord, DelegationResult,
     DelegationWithEverything, DelegationsSummaryResponse, PendingUndelegate,
 };
+use nym_types::fees::FeeDetails;
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
 use nym_types::mixnode::{MixNode, MixNodeBond};
@@ -25,7 +26,6 @@ use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatus, MixnodeStatusResponse,
     SelectionChance, StakeSaturationResponse,
 };
-use validator_client::nymd::fee::helpers::Operation;
 use vesting_contract_common::Period;
 
 macro_rules! do_export {
@@ -49,8 +49,6 @@ fn main() {
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling
     //
 
-    // common/client-libs/validator-client/src/nymd/fee
-    do_export!(Operation);
     // common/cosmwasm-smart-contracts/mixnet-contract/src
     do_export!(RewardedSetNodeStatus);
     // common/cosmwasm-smart-contracts/vesting-contract/src
@@ -69,6 +67,7 @@ fn main() {
     do_export!(DelegationResult);
     do_export!(DelegationsSummaryResponse);
     do_export!(DelegationWithEverything);
+    do_export!(FeeDetails);
     do_export!(Gas);
     do_export!(GasInfo);
     do_export!(Gateway);

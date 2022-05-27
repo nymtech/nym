@@ -13,6 +13,7 @@ export * from './DelegationRecord';
 export * from './DelegationResult';
 export * from './DelegationSummaryResponse';
 export * from './DelegationWithEverything';
+export * from './FeeDetails';
 export * from './Gas';
 export * from './GasInfo';
 export * from './Gateway';

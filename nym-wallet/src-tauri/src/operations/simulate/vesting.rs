@@ -35,7 +35,7 @@ pub async fn simulate_vesting_bond_gateway(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -55,7 +55,7 @@ pub async fn simulate_vesting_unbond_gateway(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -83,7 +83,7 @@ pub async fn simulate_vesting_bond_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -103,7 +103,7 @@ pub async fn simulate_vesting_unbond_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -126,7 +126,7 @@ pub async fn simulate_vesting_update_mixnode(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }
 
 #[tauri::command]
@@ -148,5 +148,5 @@ pub async fn simulate_withdraw_vested_coins(
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
-  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+  Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
 }

@@ -269,7 +269,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.advance_current_epoch().await?;
+        self.0
+            .write()
+            .await
+            .nymd
+            .advance_current_epoch(None)
+            .await?;
         Ok(())
     }
 
@@ -278,7 +283,7 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.checkpoint_mixnodes().await?;
+        self.0.write().await.nymd.checkpoint_mixnodes(None).await?;
         Ok(())
     }
 
@@ -287,7 +292,12 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        self.0.write().await.nymd.reconcile_delegations().await?;
+        self.0
+            .write()
+            .await
+            .nymd
+            .reconcile_delegations(None)
+            .await?;
         Ok(())
     }
 
@@ -304,7 +314,7 @@ impl<C> Client<C> {
             .write()
             .await
             .nymd
-            .write_rewarded_set(rewarded_set, expected_active_set_size)
+            .write_rewarded_set(rewarded_set, expected_active_set_size, None)
             .await?;
         Ok(())
     }
@@ -419,13 +429,14 @@ where
         title: String,
         blinded_serial_number: String,
         voucher_value: u128,
+        fee: Option<Fee>,
     ) -> Result<u64, CoconutError> {
         let res = self
             .0
             .read()
             .await
             .nymd
-            .propose_release_funds(title, blinded_serial_number, voucher_value)
+            .propose_release_funds(title, blinded_serial_number, voucher_value, fee)
             .await?;
         let proposal_id = u64::from_str(
             &find_attribute(&res.logs, "wasm", "proposal_id")

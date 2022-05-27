@@ -18,7 +18,7 @@ use crypto::symmetric::stream_cipher;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
-use validator_client::nymd::{tx::Hash, DeliverTx, Event, Tag, TxResponse};
+use validator_client::nymd::{tx::Hash, DeliverTx, Event, Fee, Tag, TxResponse};
 use validator_client::validator_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
@@ -62,6 +62,7 @@ impl super::client::Client for DummyClient {
         _title: String,
         _blinded_serial_number: String,
         _voucher_value: u128,
+        _fee: Option<Fee>,
     ) -> Result<u64> {
         Ok(0)
     }

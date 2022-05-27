@@ -107,7 +107,6 @@ mod tests {
 
         assert!(".25upunk".parse::<GasPrice>().is_err());
         assert!("0.025 upunk".parse::<GasPrice>().is_err());
-        assert!("0.025UPUNK".parse::<GasPrice>().is_err());
     }
 
     #[test]

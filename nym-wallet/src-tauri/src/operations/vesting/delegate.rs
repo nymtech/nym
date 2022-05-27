@@ -6,7 +6,7 @@ use crate::utils::DelegationEvent;
 use crate::utils::DelegationResult;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::VestingSigningClient;
+use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn get_pending_vesting_delegation_events(
@@ -33,12 +33,13 @@ pub async fn get_pending_vesting_delegation_events(
 pub async fn vesting_delegate_to_mixnode(
   identity: &str,
   amount: Coin,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
   let denom = state.read().await.current_network().denom();
   let delegation = amount.into_cosmwasm_coin(&denom)?;
   nymd_client!(state)
-    .vesting_delegate_to_mixnode(identity, &delegation)
+    .vesting_delegate_to_mixnode(identity, &delegation, fee)
     .await?;
   Ok(DelegationResult::new(
     nymd_client!(state).address().as_ref(),
@@ -50,10 +51,11 @@ pub async fn vesting_delegate_to_mixnode(
 #[tauri::command]
 pub async fn vesting_undelegate_from_mixnode(
   identity: &str,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
   nymd_client!(state)
-    .vesting_undelegate_from_mixnode(identity)
+    .vesting_undelegate_from_mixnode(identity, fee)
     .await?;
   Ok(DelegationResult::new(
     nymd_client!(state).address().as_ref(),

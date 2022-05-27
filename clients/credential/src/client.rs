@@ -10,7 +10,7 @@ use crate::{MNEMONIC, NYMD_URL};
 
 use network_defaults::{DEFAULT_NETWORK, DENOM, VOUCHER_INFO};
 use validator_client::nymd::traits::CoconutBandwidthSigningClient;
-use validator_client::nymd::{CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient};
+use validator_client::nymd::{CosmosCoin, Decimal, Denom, Fee, NymdClient, SigningNymdClient};
 
 pub(crate) struct Client {
     nymd_client: NymdClient<SigningNymdClient>,
@@ -32,6 +32,7 @@ impl Client {
         amount: u64,
         verification_key: String,
         encryption_key: String,
+        fee: Option<Fee>,
     ) -> Result<String> {
         let amount = CosmosCoin {
             amount: Decimal::from(amount),
@@ -44,6 +45,7 @@ impl Client {
                 String::from(VOUCHER_INFO),
                 verification_key,
                 encryption_key,
+                fee,
             )
             .await?
             .transaction_hash

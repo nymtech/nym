@@ -33,6 +33,7 @@ pub struct ServiceProvider {
     db_path: PathBuf,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
+    enable_statistics: bool,
 }
 
 impl ServiceProvider {
@@ -40,6 +41,7 @@ impl ServiceProvider {
         listening_address: String,
         description: String,
         open_proxy: bool,
+        enable_statistics: bool,
     ) -> ServiceProvider {
         let allowed_hosts = HostsStore::new(
             HostsStore::default_base_dir(),
@@ -65,6 +67,7 @@ impl ServiceProvider {
             db_path,
             outbound_request_filter,
             open_proxy,
+            enable_statistics,
         }
     }
 
@@ -73,14 +76,16 @@ impl ServiceProvider {
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Response, Recipient)>,
-        response_stats_data: &Arc<RwLock<StatsData>>,
+        response_stats_data: &Option<Arc<RwLock<StatsData>>>,
     ) {
         // TODO: wire SURBs in here once they're available
         while let Some((response, return_address)) = mix_reader.next().await {
-            response_stats_data
-                .write()
-                .await
-                .processed(return_address.identity(), response.data.len() as u32);
+            if let Some(response_stats_data) = response_stats_data {
+                response_stats_data
+                    .write()
+                    .await
+                    .processed(return_address.identity(), response.data.len() as u32);
+            }
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
@@ -226,7 +231,7 @@ impl ServiceProvider {
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
-        request_stats_data: &Arc<RwLock<StatsData>>,
+        request_stats_data: &Option<Arc<RwLock<StatsData>>>,
         connected_clients: &mut HashMap<ConnectionId, ClientIdentity>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
@@ -239,7 +244,9 @@ impl ServiceProvider {
         match deserialized_msg {
             Socks5Message::Request(deserialized_request) => match deserialized_request {
                 Request::Connect(req) => {
-                    connected_clients.insert(req.conn_id, *req.return_address.identity());
+                    if self.enable_statistics {
+                        connected_clients.insert(req.conn_id, *req.return_address.identity());
+                    }
                     self.handle_proxy_connect(
                         controller_sender,
                         mix_input_sender,
@@ -250,11 +257,13 @@ impl ServiceProvider {
                 }
 
                 Request::Send(conn_id, data, closed) => {
-                    if let Some(client_identity) = connected_clients.get(&conn_id) {
-                        request_stats_data
-                            .write()
-                            .await
-                            .processed(client_identity, data.len() as u32);
+                    if let Some(request_stats_data) = request_stats_data {
+                        if let Some(client_identity) = connected_clients.get(&conn_id) {
+                            request_stats_data
+                                .write()
+                                .await
+                                .processed(client_identity, data.len() as u32);
+                        }
                     }
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
@@ -297,15 +306,20 @@ impl ServiceProvider {
             active_connections_controller.run().await;
         });
 
-        let mut stats = Statistics::new(self.description.clone(), interval, timer_receiver)
-            .await
-            .expect("Statistics controller could not be bootstrapped");
-        let request_stats_data = Arc::clone(stats.request_data());
-        let response_stats_data = Arc::clone(stats.response_data());
-        let mix_input_sender_clone = mix_input_sender.clone();
-        tokio::spawn(async move {
-            stats.run(&mix_input_sender_clone).await;
-        });
+        let mut request_stats_data = None;
+        let mut response_stats_data = None;
+
+        if self.enable_statistics {
+            let mut stats = Statistics::new(self.description.clone(), interval, timer_receiver)
+                .await
+                .expect("Statistics controller could not be bootstrapped");
+            request_stats_data = Some(Arc::clone(stats.request_data()));
+            response_stats_data = Some(Arc::clone(stats.response_data()));
+            let mix_input_sender_clone = mix_input_sender.clone();
+            tokio::spawn(async move {
+                stats.run(&mix_input_sender_clone).await;
+            });
+        }
 
         #[cfg(feature = "stats-service")]
         let storage = crate::storage::NetworkRequesterStorage::init(self.db_path.as_path())

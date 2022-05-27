@@ -10,7 +10,6 @@ use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
 use config::defaults::COSMOS_DERIVATION_PATH;
-use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
@@ -21,9 +20,10 @@ use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 use url::Url;
+use validator_client::nymd::bip32::DerivationPath;
 use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
-
-use validator_client::{nymd::SigningNymdClient, Client};
+use validator_client::nymd::{AccountId as CosmosAccountId, SigningNymdClient};
+use validator_client::Client;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
@@ -523,7 +523,7 @@ async fn set_state_with_all_accounts(
     .iter()
     .map(|account| {
       let mnemonic = account.mnemonic();
-      let addresses: HashMap<WalletNetwork, cosmrs::AccountId> = WalletNetwork::iter()
+      let addresses: HashMap<WalletNetwork, CosmosAccountId> = WalletNetwork::iter()
         .map(|network| {
           let config_network: Network = network.into();
           (
@@ -568,7 +568,7 @@ pub async fn remove_account_for_password(
 fn derive_address(
   mnemonic: bip39::Mnemonic,
   prefix: &str,
-) -> Result<cosmrs::AccountId, BackendError> {
+) -> Result<CosmosAccountId, BackendError> {
   DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?
     .try_derive_accounts()?
     .first()

@@ -21,8 +21,11 @@ pub enum NymdError {
     #[error("There was an issue with bip32 - {0}")]
     Bip32Error(#[from] bip32::Error),
 
-    #[error("There was an issue with bip32 - {0}")]
+    #[error("There was an issue with bip39 - {0}")]
     Bip39Error(#[from] bip39::Error),
+
+    #[error("There was an issue on the cosmrs side - {0}")]
+    CosmrsError(#[from] cosmrs::Error),
 
     #[error("Failed to derive account address")]
     AccountDerivationError,
@@ -39,10 +42,10 @@ pub enum NymdError {
     #[error("There was an issue with a tendermint RPC request - {0}")]
     TendermintError(#[from] TendermintRpcError),
 
-    #[error("There was an issue when attempting to serialize data")]
+    #[error("There was an issue when attempting to serialize data ({0})")]
     SerializationError(String),
 
-    #[error("There was an issue when attempting to deserialize data")]
+    #[error("There was an issue when attempting to deserialize data ({0})")]
     DeserializationError(String),
 
     #[error("There was an issue when attempting to encode our protobuf data - {0}")]

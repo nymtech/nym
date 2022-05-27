@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator_client::nymd::Fee;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/stateparams.ts"))]
@@ -52,11 +53,12 @@ pub async fn get_contract_settings(
 #[tauri::command]
 pub async fn update_contract_settings(
   params: TauriContractStateParams,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriContractStateParams, BackendError> {
   let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
   nymd_client!(state)
-    .update_contract_settings(mixnet_contract_settings_params.clone())
+    .update_contract_settings(mixnet_contract_settings_params.clone(), fee)
     .await?;
   Ok(mixnet_contract_settings_params.into())
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::error::Result;
-use validator_client::nymd::TxResponse;
+use validator_client::nymd::{Fee, TxResponse};
 
 #[async_trait]
 pub trait Client {
@@ -12,5 +12,6 @@ pub trait Client {
         title: String,
         blinded_serial_number: String,
         voucher_value: u128,
+        fee: Option<Fee>,
     ) -> Result<u64>;
 }

@@ -15,6 +15,7 @@ use std::str::FromStr;
 use std::{fs, io, path::PathBuf};
 use strum::IntoEnumIterator;
 use url::Url;
+use validator_client::nymd::AccountId as CosmosAccountId;
 
 pub const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
   "https://nymtech.net/.wellknown/wallet/validators.json";
@@ -211,7 +212,7 @@ impl Config {
       .flat_map(|c| c.validators().cloned())
   }
 
-  pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> cosmrs::AccountId {
+  pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
     self
       .base
       .networks
@@ -221,7 +222,7 @@ impl Config {
       .expect("Wrong format for mixnet contract address")
   }
 
-  pub fn get_vesting_contract_address(&self, network: WalletNetwork) -> cosmrs::AccountId {
+  pub fn get_vesting_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
     self
       .base
       .networks
@@ -231,7 +232,10 @@ impl Config {
       .expect("Wrong format for vesting contract address")
   }
 
-  pub fn get_bandwidth_claim_contract_address(&self, network: WalletNetwork) -> cosmrs::AccountId {
+  pub fn get_bandwidth_claim_contract_address(
+    &self,
+    network: WalletNetwork,
+  ) -> CosmosAccountId {
     self
       .base
       .networks

@@ -283,7 +283,7 @@ pub async fn post_create_credential_proposal(
     let voucher_value = create_credential_proposal.0.credential().voucher_value() as u128;
     let proposal_id = state
         .client
-        .create_credential_proposal(title, blinded_serial_number, voucher_value)
+        .create_credential_proposal(title, blinded_serial_number, voucher_value, None)
         .await?;
 
     Ok(Json(CreateCredentialProposalResponse::new(proposal_id)))

@@ -57,6 +57,7 @@ impl Execute for Deposit {
                 self.amount,
                 signing_keypair.public_key.clone(),
                 encryption_keypair.public_key.clone(),
+                None,
             )
             .await?;
 

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::{AccountId, CosmosCoin, TxResponse};
+use validator_client::nymd::{AccountId, CosmosCoin, Fee, TxResponse};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/tauritxresult.ts"))]
@@ -50,13 +50,14 @@ pub async fn send(
   address: &str,
   amount: Coin,
   memo: String,
+  fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TauriTxResult, BackendError> {
   let address = AccountId::from_str(address)?;
   let network_denom = state.read().await.current_network().denom();
   let cosmos_amount: CosmosCoin = amount.clone().into_cosmos_coin(&network_denom)?;
   let result = nymd_client!(state)
-    .send(&address, vec![cosmos_amount], memo)
+    .send(&address, vec![cosmos_amount], memo, fee)
     .await?;
   Ok(TauriTxResult::new(
     result,

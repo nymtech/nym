@@ -4,15 +4,16 @@
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
     Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
-    InstantiateResult, MigrateResult, SequenceResponse, UploadResult,
+    InstantiateResult, MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
 use crate::nymd::error::NymdError;
+use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
+use cosmrs::tx::Msg;
 use cosmwasm_std::{Coin, Uint128};
 pub use fee::gas_price::GasPrice;
-use fee::helpers::Operation;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
@@ -22,14 +23,13 @@ use mixnet_contract_common::{
     PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
 use serde::Serialize;
-use std::collections::HashMap;
 use std::convert::TryInto;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
-use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 pub use cosmrs::bank::MsgSend;
+use cosmrs::cosmwasm;
 pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
@@ -42,7 +42,7 @@ pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::{AccountId, Decimal, Denom};
+pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 use network_defaults::DEFAULT_NETWORK;
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
@@ -62,7 +62,6 @@ pub struct NymdClient<C> {
     coconut_bandwidth_contract_address: AccountId,
     multisig_contract_address: AccountId,
     client_address: Option<Vec<AccountId>>,
-    custom_gas_limits: HashMap<Operation, Gas>,
     simulated_gas_multiplier: f32,
 }
 
@@ -97,7 +96,6 @@ impl NymdClient<QueryNymdClient> {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
             client_address: None,
-            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
             mixnet_contract_address: DEFAULT_NETWORK
                 .mixnet_contract_address()
@@ -142,7 +140,6 @@ impl NymdClient<SigningNymdClient> {
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
             client_address: Some(client_address),
-            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
             mixnet_contract_address: DEFAULT_NETWORK
                 .mixnet_contract_address()
@@ -186,7 +183,6 @@ impl NymdClient<SigningNymdClient> {
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
             client_address: Some(client_address),
-            custom_gas_limits: HashMap::default(),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
             mixnet_contract_address: DEFAULT_NETWORK
                 .mixnet_contract_address()
@@ -234,6 +230,24 @@ impl<C> NymdClient<C> {
         self.simulated_gas_multiplier = multiplier;
     }
 
+    pub fn wrap_contract_execute_message<M>(
+        &self,
+        contract_address: &AccountId,
+        msg: &M,
+        funds: Vec<CosmosCoin>,
+    ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
+    where
+        C: SigningCosmWasmClient,
+        M: ?Sized + Serialize,
+    {
+        Ok(cosmwasm::MsgExecuteContract {
+            sender: self.address().clone(),
+            contract: contract_address.clone(),
+            msg: serde_json::to_vec(msg)?,
+            funds,
+        })
+    }
+
     pub fn address(&self) -> &AccountId
     where
         C: SigningCosmWasmClient,
@@ -247,39 +261,6 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient,
     {
         self.client.gas_price()
-    }
-
-    pub fn set_custom_gas_limit(&mut self, operation: Operation, limit: Gas)
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.custom_gas_limits.insert(operation, limit);
-    }
-
-    pub fn operation_fee(&self, operation: Operation) -> Fee
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        if let Some(&gas_limit) = self.custom_gas_limits.get(&operation) {
-            Operation::determine_custom_fee(self.client.gas_price(), gas_limit).into()
-        } else {
-            Fee::Auto(Some(self.simulated_gas_multiplier))
-        }
-    }
-
-    pub fn repeated_operation_fee(&self, operation: Operation, count: u64) -> Fee
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        if let Some(&gas_limit) = self.custom_gas_limits.get(&operation) {
-            Operation::determine_custom_fee(
-                self.client.gas_price(),
-                (gas_limit.value() * count).into(),
-            )
-            .into()
-        } else {
-            Fee::Auto(Some(self.simulated_gas_multiplier))
-        }
     }
 
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
@@ -693,17 +674,39 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+        I: IntoIterator<Item = M> + Send,
+        M: Msg,
+    {
+        self.client
+            .simulate(
+                self.address(),
+                messages
+                    .into_iter()
+                    .map(|msg| msg.into_any())
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| {
+                        NymdError::SerializationError("custom simulate messages".to_owned())
+                    })?,
+                "simulating execution of transactions",
+            )
+            .await
+    }
+
     /// Send funds from one address to another
     pub async fn send(
         &self,
         recipient: &AccountId,
         amount: Vec<CosmosCoin>,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::Send);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .send_tokens(self.address(), recipient, amount, fee, memo)
             .await
@@ -714,11 +717,12 @@ impl<C> NymdClient<C> {
         &self,
         msgs: Vec<(AccountId, Vec<CosmosCoin>)>,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.repeated_operation_fee(Operation::Send, msgs.len() as u64);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .send_tokens_multiple(self.address(), msgs, fee, memo)
             .await
@@ -762,11 +766,12 @@ impl<C> NymdClient<C> {
         &self,
         wasm_code: Vec<u8>,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<UploadResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::Upload);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .upload(self.address(), wasm_code, fee, memo)
             .await
@@ -779,12 +784,13 @@ impl<C> NymdClient<C> {
         label: String,
         memo: impl Into<String> + Send + 'static,
         options: Option<InstantiateOptions>,
+        fee: Option<Fee>,
     ) -> Result<InstantiateResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = self.operation_fee(Operation::Init);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .instantiate(self.address(), code_id, msg, label, fee, memo, options)
             .await
@@ -795,11 +801,12 @@ impl<C> NymdClient<C> {
         contract_address: &AccountId,
         new_admin: &AccountId,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<ChangeAdminResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::ChangeAdmin);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .update_admin(self.address(), contract_address, new_admin, fee, memo)
             .await
@@ -809,11 +816,12 @@ impl<C> NymdClient<C> {
         &self,
         contract_address: &AccountId,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<ChangeAdminResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::ChangeAdmin);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .clear_admin(self.address(), contract_address, fee, memo)
             .await
@@ -825,12 +833,13 @@ impl<C> NymdClient<C> {
         code_id: ContractCodeId,
         msg: &M,
         memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
     ) -> Result<MigrateResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = self.operation_fee(Operation::Migrate);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .migrate(self.address(), contract_address, code_id, fee, msg, memo)
             .await
@@ -842,11 +851,12 @@ impl<C> NymdClient<C> {
         mixnode: MixNode,
         owner_signature: String,
         pledge: Coin,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::BondMixnode);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::BondMixnode {
             mix_node: mixnode,
@@ -871,11 +881,12 @@ impl<C> NymdClient<C> {
         owner: String,
         owner_signature: String,
         pledge: Coin,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::BondMixnodeOnBehalf);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::BondMixnodeOnBehalf {
             mix_node: mixnode,
@@ -898,14 +909,12 @@ impl<C> NymdClient<C> {
     pub async fn bond_multiple_mixnodes_on_behalf(
         &self,
         mixnode_bonds_with_sigs: Vec<(MixNodeBond, String)>,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.repeated_operation_fee(
-            Operation::BondMixnodeOnBehalf,
-            mixnode_bonds_with_sigs.len() as u64,
-        );
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_bonds_with_sigs
             .into_iter()
@@ -933,11 +942,11 @@ impl<C> NymdClient<C> {
     }
 
     /// Unbond a mixnode, removing it from the network and reclaiming staked coins
-    pub async fn unbond_mixnode(&self) -> Result<ExecuteResult, NymdError>
+    pub async fn unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UnbondMixnode);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UnbondMixnode {};
         self.client
@@ -953,11 +962,15 @@ impl<C> NymdClient<C> {
     }
 
     /// Unbond a mixnode on behalf of the owner, removing it from the network and reclaiming staked coins
-    pub async fn unbond_mixnode_on_behalf(&self, owner: String) -> Result<ExecuteResult, NymdError>
+    pub async fn unbond_mixnode_on_behalf(
+        &self,
+        owner: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UnbondMixnodeOnBehalf);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UnbondMixnodeOnBehalf { owner };
         self.client
@@ -976,11 +989,12 @@ impl<C> NymdClient<C> {
     pub async fn update_mixnode_config(
         &self,
         profit_margin_percent: u8,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UpdateMixnodeConfig);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
@@ -1002,11 +1016,12 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: &str,
         amount: &Coin,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::DelegateToMixnode);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::DelegateToMixnode {
             mix_identity: mix_identity.to_string(),
@@ -1030,11 +1045,12 @@ impl<C> NymdClient<C> {
         mix_identity: &str,
         delegate: &str,
         amount: &Coin,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::DelegateToMixnodeOnBehalf);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_identity: mix_identity.to_string(),
@@ -1056,14 +1072,12 @@ impl<C> NymdClient<C> {
     pub async fn delegate_to_multiple_mixnodes_on_behalf(
         &self,
         mixnode_delegations: Vec<Delegation>,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.repeated_operation_fee(
-            Operation::DelegateToMixnodeOnBehalf,
-            mixnode_delegations.len() as u64,
-        );
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_delegations
             .into_iter()
@@ -1093,11 +1107,12 @@ impl<C> NymdClient<C> {
     pub async fn remove_mixnode_delegation(
         &self,
         mix_identity: &str,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UndelegateFromMixnode);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UndelegateFromMixnode {
             mix_identity: mix_identity.to_string(),
@@ -1119,11 +1134,12 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: &str,
         delegate: &str,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UndelegateFromMixnodeOnBehalf);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_identity: mix_identity.to_string(),
@@ -1147,11 +1163,12 @@ impl<C> NymdClient<C> {
         gateway: Gateway,
         owner_signature: String,
         pledge: Coin,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::BondGateway);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::BondGateway {
             gateway,
@@ -1176,11 +1193,12 @@ impl<C> NymdClient<C> {
         owner: String,
         owner_signature: String,
         pledge: Coin,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::BondGatewayOnBehalf);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::BondGatewayOnBehalf {
             gateway,
@@ -1203,14 +1221,12 @@ impl<C> NymdClient<C> {
     pub async fn bond_multiple_gateways_on_behalf(
         &self,
         gateway_bonds_with_sigs: Vec<(GatewayBond, String)>,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.repeated_operation_fee(
-            Operation::BondGatewayOnBehalf,
-            gateway_bonds_with_sigs.len() as u64,
-        );
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = gateway_bonds_with_sigs
             .into_iter()
@@ -1238,11 +1254,11 @@ impl<C> NymdClient<C> {
     }
 
     /// Unbond a gateway, removing it from the network and reclaiming staked coins
-    pub async fn unbond_gateway(&self) -> Result<ExecuteResult, NymdError>
+    pub async fn unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UnbondGateway);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UnbondGateway {};
         self.client
@@ -1259,11 +1275,15 @@ impl<C> NymdClient<C> {
 
     /// Unbond a gateway on behalf of the owner, removing it from the
     /// network and reclaiming staked coins
-    pub async fn unbond_gateway_on_behalf(&self, owner: String) -> Result<ExecuteResult, NymdError>
+    pub async fn unbond_gateway_on_behalf(
+        &self,
+        owner: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UnbondGatewayOnBehalf);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UnbondGatewayOnBehalf { owner };
         self.client
@@ -1281,11 +1301,12 @@ impl<C> NymdClient<C> {
     pub async fn update_contract_settings(
         &self,
         new_params: ContractStateParams,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::UpdateContractSettings);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::UpdateContractStateParams(new_params);
         self.client
@@ -1300,11 +1321,11 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn advance_current_epoch(&self) -> Result<ExecuteResult, NymdError>
+    pub async fn advance_current_epoch(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::AdvanceCurrentEpoch);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::AdvanceCurrentEpoch {};
         self.client
@@ -1319,11 +1340,11 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn reconcile_delegations(&self) -> Result<ExecuteResult, NymdError>
+    pub async fn reconcile_delegations(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::ReconcileDelegations);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::ReconcileDelegations {};
         self.client
@@ -1338,11 +1359,11 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn checkpoint_mixnodes(&self) -> Result<ExecuteResult, NymdError>
+    pub async fn checkpoint_mixnodes(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::CheckpointMixnodes);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::CheckpointMixnodes {};
         self.client
@@ -1361,11 +1382,12 @@ impl<C> NymdClient<C> {
         &self,
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = self.operation_fee(Operation::WriteRewardedSet);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
         let req = ExecuteMsg::WriteRewardedSet {
             rewarded_set,

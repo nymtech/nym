@@ -4,8 +4,7 @@
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
-use crate::nymd::fee::helpers::Operation;
-use crate::nymd::NymdClient;
+use crate::nymd::{Fee, NymdClient};
 use coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 use multisig_contract_common::msg::ExecuteMsg;
 
@@ -20,6 +19,7 @@ pub trait MultisigSigningClient {
         title: String,
         blinded_serial_number: String,
         voucher_value: u128,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
 
@@ -30,8 +30,9 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
         title: String,
         blinded_serial_number: String,
         voucher_value: u128,
+        fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
-        let fee = self.operation_fee(Operation::BandwidthProposal);
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
             funds: Coin::new(voucher_value, DEFAULT_NETWORK.denom()),
         };

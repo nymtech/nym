@@ -16,7 +16,8 @@ use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    coins, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128,
+    coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response,
+    Storage, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::events::{
@@ -30,6 +31,8 @@ use mixnet_contract_common::reward_params::{NodeEpochRewards, NodeRewardParams, 
 use mixnet_contract_common::{Delegation, IdentityKey, RewardingStatus};
 
 use mixnet_contract_common::RewardingResult;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::one_ucoin;
 
 // All four of the below methods need to do the following things:
 // 1. Calculate currently available rewards
@@ -105,9 +108,21 @@ fn _try_claim_operator_reward(
         amount: coins(reward.u128(), DENOM),
     };
 
-    Ok(Response::default()
+    let mut response = Response::default()
         .add_message(return_tokens)
-        .add_event(new_claim_operator_reward_event(&owner, reward)))
+        .add_event(new_claim_operator_reward_event(&owner, reward));
+
+    if let Some(proxy) = proxy {
+        let msg = Some(VestingContractExecuteMsg::TrackReward {
+            address: owner.to_string(),
+            amount: Coin::new(reward.u128(), DENOM),
+        });
+
+        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        response = response.add_message(wasm_msg);
+    }
+
+    Ok(response)
 }
 
 pub fn _try_claim_delegator_reward(
@@ -141,14 +156,27 @@ pub fn _try_claim_delegator_reward(
         amount: coins(reward.u128(), DENOM),
     };
 
-    Ok(Response::default()
-        .add_message(return_tokens)
-        .add_event(new_claim_delegator_reward_event(
-            &owner,
-            &proxy,
-            reward,
-            mix_identity,
-        )))
+    let mut response =
+        Response::default()
+            .add_message(return_tokens)
+            .add_event(new_claim_delegator_reward_event(
+                &owner,
+                &proxy,
+                reward,
+                mix_identity,
+            ));
+
+    if let Some(proxy) = proxy {
+        let msg = Some(VestingContractExecuteMsg::TrackReward {
+            address: owner.to_string(),
+            amount: Coin::new(reward.u128(), DENOM),
+        });
+
+        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        response = response.add_message(wasm_msg);
+    }
+
+    Ok(response)
 }
 
 pub fn try_claim_delegator_reward_on_behalf(

@@ -49,6 +49,10 @@ impl VestingSpecification {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    TrackReward {
+        amount: Coin,
+        address: String,
+    },
     ClaimOperatorReward {},
     ClaimDelegatorReward {
         mix_identity: String,

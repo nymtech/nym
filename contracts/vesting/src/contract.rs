@@ -13,7 +13,8 @@ use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
-    new_track_mixnode_unbond_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
+    new_track_mixnode_unbond_event, new_track_reward_event, new_track_undelegation_event,
+    new_vested_coins_withdraw_event,
 };
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
@@ -46,6 +47,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::TrackReward { amount, address } => {
+            try_track_reward(deps, info, amount, &address)
+        }
         ExecuteMsg::ClaimOperatorReward {} => try_claim_operator_reward(deps, info),
         ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
             try_claim_delegator_reward(deps, info, mix_identity)
@@ -280,6 +284,20 @@ pub fn try_track_unbond_mixnode(
     let account = account_from_address(owner, deps.storage, deps.api)?;
     account.try_track_unbond_mixnode(amount, deps.storage)?;
     Ok(Response::new().add_event(new_track_mixnode_unbond_event()))
+}
+
+fn try_track_reward(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    amount: Coin,
+    address: &str,
+) -> Result<Response, ContractError> {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
+        return Err(ContractError::NotMixnetContract(info.sender));
+    }
+    let account = account_from_address(address, deps.storage, deps.api)?;
+    account.track_reward(amount, deps.storage)?;
+    Ok(Response::new().add_event(new_track_reward_event()))
 }
 
 fn try_track_undelegation(

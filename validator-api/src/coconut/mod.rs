@@ -251,6 +251,11 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
+    let proposal = state
+        .client
+        .get_proposal(*verify_credential_body.0.proposal_id())
+        .await?;
+    println!("Title: {}", proposal.title);
     let verification_key = state.verification_key().await?;
     let verification_result = verify_credential_body
         .0

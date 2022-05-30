@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{CosmosMsg, Empty};
+pub use cw3::ProposalResponse;
 use cw3::Vote;
 use cw4::MemberChangedHookMsg;
 use cw_utils::{Duration, Expiration, Threshold};

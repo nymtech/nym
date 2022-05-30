@@ -5,6 +5,7 @@ pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
 use crate::nymd::{Fee, NymdClient};
+
 use coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 use multisig_contract_common::msg::ExecuteMsg;
 

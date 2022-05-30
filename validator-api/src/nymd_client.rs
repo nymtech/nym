@@ -16,10 +16,13 @@ use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
 };
+#[cfg(feature = "coconut")]
+use multisig_contract_common::msg::ProposalResponse;
 use validator_client::nymd::hash::{Hash, SHA256_HASH_SIZE};
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
-    cosmwasm_client::logs::find_attribute, traits::MultisigSigningClient,
+    cosmwasm_client::logs::find_attribute,
+    traits::{MultisigSigningClient, QueryClient},
 };
 use validator_client::nymd::{
     CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
@@ -422,6 +425,13 @@ where
             .parse::<validator_client::nymd::tx::Hash>()
             .map_err(|_| CoconutError::TxHashParseError)?;
         Ok(self.0.read().await.nymd.get_tx(tx_hash).await?)
+    }
+
+    async fn get_proposal(
+        &self,
+        proposal_id: u64,
+    ) -> crate::coconut::error::Result<ProposalResponse> {
+        Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
     }
 
     async fn propose_release_funds(

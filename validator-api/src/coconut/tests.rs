@@ -7,6 +7,7 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
+use coconut_bandwidth_contract_common::msg::ProposalResponse;
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
@@ -55,6 +56,10 @@ impl super::client::Client for DummyClient {
             .get(tx_hash)
             .cloned()
             .ok_or(CoconutError::TxHashParseError)
+    }
+
+    async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
+        todo!()
     }
 
     async fn propose_release_funds(

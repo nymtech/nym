@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use mixnet_contract_common::{reward_params::RewardParams, MixNodeBond, MixNode};
+use mixnet_contract_common::{reward_params::RewardParams, MixNode, MixNodeBond};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;

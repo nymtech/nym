@@ -38,7 +38,9 @@ pub async fn get_rewarded_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNode
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/rewarded/detailed")]
-pub async fn get_rewarded_set_detailed(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBondDetailed>> {
+pub async fn get_rewarded_set_detailed(
+    cache: &State<ValidatorCache>,
+) -> Json<Vec<MixNodeBondDetailed>> {
     Json(cache.rewarded_set_detailed().await)
 }
 
@@ -50,7 +52,9 @@ pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBo
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active/detailed")]
-pub async fn get_active_set_detailed(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBondDetailed>> {
+pub async fn get_active_set_detailed(
+    cache: &State<ValidatorCache>,
+) -> Json<Vec<MixNodeBondDetailed>> {
     Json(cache.active_set_detailed().await)
 }
 

@@ -14,6 +14,12 @@ pub struct Coin {
     pub denom: String,
 }
 
+impl Coin {
+    pub fn new(amount: u128, denom: String) -> Self {
+        Coin { amount, denom }
+    }
+}
+
 impl fmt::Display for Coin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}{}", self.amount, self.denom)
@@ -37,8 +43,30 @@ impl From<Coin> for CosmosCoin {
     }
 }
 
+impl From<CosmosCoin> for Coin {
+    fn from(coin: CosmosCoin) -> Self {
+        Coin {
+            amount: coin
+                .amount
+                .to_string()
+                .parse()
+                .expect("somehow failed to parse string representation of u64"),
+            denom: coin.denom.to_string(),
+        }
+    }
+}
+
 impl From<Coin> for CosmWasmCoin {
     fn from(coin: Coin) -> Self {
         CosmWasmCoin::new(coin.amount, coin.denom)
+    }
+}
+
+impl From<CosmWasmCoin> for Coin {
+    fn from(coin: CosmWasmCoin) -> Self {
+        Coin {
+            amount: coin.amount.u128(),
+            denom: coin.denom,
+        }
     }
 }

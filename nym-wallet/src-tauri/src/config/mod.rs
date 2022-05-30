@@ -232,10 +232,7 @@ impl Config {
       .expect("Wrong format for vesting contract address")
   }
 
-  pub fn get_bandwidth_claim_contract_address(
-    &self,
-    network: WalletNetwork,
-  ) -> CosmosAccountId {
+  pub fn get_bandwidth_claim_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
     self
       .base
       .networks

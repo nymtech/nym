@@ -22,9 +22,9 @@ export const DelegateModal: React.FC<{
   buttonText?: string;
   rewardInterval: string;
   accountBalance?: string;
-  estimatedMonthlyReward: number;
-  profitMarginPercentage: number | null;
-  nodeUptimePercentage: number | null;
+  estimatedReward?: number;
+  profitMarginPercentage?: number | null;
+  nodeUptimePercentage?: number | null;
   fee: number;
   currency: CurrencyDenom;
   initialAmount?: string;
@@ -41,7 +41,7 @@ export const DelegateModal: React.FC<{
   rewardInterval,
   accountBalance,
   fee,
-  estimatedMonthlyReward,
+  estimatedReward,
   currency,
   profitMarginPercentage,
   nodeUptimePercentage,
@@ -131,19 +131,21 @@ export const DelegateModal: React.FC<{
         <Typography fontWeight={600}>Account balance</Typography>
         <Typography fontWeight={600}>{accountBalance}</Typography>
       </Stack>
-      <ModalListItem label="Rewards payout interval" value={rewardInterval} />
-      <ModalDivider />
+      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
       <ModalListItem
         label="Node profit margin"
         value={`${profitMarginPercentage ? profitMarginPercentage + '%' : '-'}`}
+        hidden={profitMarginPercentage === undefined}
+        divider
       />
-      <ModalDivider />
-      <ModalListItem label="Node uptime" value={`${nodeUptimePercentage ? nodeUptimePercentage + '%' : '-'}`} />
-      <ModalDivider />
       <ModalListItem
-        label="Est. monthly reward for 10 NYM delegation"
-        value={`${estimatedMonthlyReward} ${currency}`}
+        label="Node uptime"
+        value={`${nodeUptimePercentage ? nodeUptimePercentage + '%' : '-'}`}
+        hidden={nodeUptimePercentage === undefined}
+        divider
       />
+
+      <ModalListItem label="Node est. reward per epoch" value={`${estimatedReward} ${currency}`} hidden divider />
       <Stack direction="row" justifyContent="space-between" mt={4}>
         <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
           Fee for this transaction:

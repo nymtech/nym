@@ -52,7 +52,7 @@ export const Delegate = () => {
         onOk={async () => setOpen(false)}
         currency="NYM"
         fee={0.004375}
-        estimatedMonthlyReward={50.423}
+        estimatedReward={50.423}
         accountBalance={'425.2345053'}
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
@@ -74,8 +74,7 @@ export const DelegateBelowMinimum = () => {
         onOk={async () => setOpen(false)}
         currency="NYM"
         fee={0.004375}
-        estimatedMonthlyReward={50.423}
-        accountBalance={'425.2345053'}
+        estimatedReward={425.2345053}
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
@@ -99,7 +98,7 @@ export const DelegateMore = () => {
         buttonText="Delegate more"
         currency="NYM"
         fee={0.004375}
-        estimatedMonthlyReward={50.423}
+        estimatedReward={50.423}
         accountBalance={'425.2345053'}
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
@@ -123,6 +122,7 @@ export const Undelegate = () => {
         fee={0.004375}
         amount={150}
         identityKey="AA6RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujyxx"
+        proxy={null}
       />
     </>
   );

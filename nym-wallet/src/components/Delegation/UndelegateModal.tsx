@@ -6,15 +6,16 @@ import { SimpleModal } from '../Modals/SimpleModal';
 export const UndelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string) => void;
+  onOk?: (identityKey: string, proxy: string | null) => void;
   identityKey: string;
   amount: number;
   fee: number;
   currency: string;
-}> = ({ identityKey, open, onClose, onOk, amount, fee, currency }) => {
+  proxy: string | null;
+}> = ({ identityKey, open, onClose, onOk, amount, fee, currency, proxy }) => {
   const handleOk = () => {
     if (onOk) {
-      onOk(identityKey);
+      onOk(identityKey, proxy);
     }
   };
   return (

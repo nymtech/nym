@@ -7,7 +7,6 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use coconut_bandwidth_contract_common::msg::ProposalResponse;
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
@@ -16,6 +15,7 @@ use credentials::coconut::params::{
 };
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
+use multisig_contract_common::msg::ProposalResponse;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
@@ -58,7 +58,7 @@ impl super::client::Client for DummyClient {
             .ok_or(CoconutError::TxHashParseError)
     }
 
-    async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
+    async fn get_proposal(&self, _proposal_id: u64) -> Result<ProposalResponse> {
         todo!()
     }
 
@@ -69,7 +69,11 @@ impl super::client::Client for DummyClient {
         _voucher_value: u128,
         _fee: Option<Fee>,
     ) -> Result<u64> {
-        Ok(0)
+        todo!()
+    }
+
+    async fn vote(&self, _proposal_id: u64, _vote_yes: bool, _fee: Option<Fee>) -> Result<()> {
+        todo!()
     }
 }
 

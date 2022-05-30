@@ -251,10 +251,8 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    let proposal = state
-        .client
-        .get_proposal(*verify_credential_body.0.proposal_id())
-        .await?;
+    let proposal_id = *verify_credential_body.0.proposal_id();
+    let proposal = state.client.get_proposal(proposal_id).await?;
     // Proposal description is the blinded serial number
     if !verify_credential_body
         .0
@@ -268,6 +266,13 @@ pub async fn verify_bandwidth_credential(
         .0
         .credential()
         .verify(&verification_key);
+
+    // Vote yes or no on the proposal based on the verification result
+    state
+        .client
+        .vote(proposal_id, verification_result, None)
+        .await?;
+
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
 }
 

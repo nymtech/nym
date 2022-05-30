@@ -11,6 +11,7 @@ use multisig_contract_common::msg::ExecuteMsg;
 
 use async_trait::async_trait;
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, WasmMsg};
+use cw3::Vote;
 use network_defaults::DEFAULT_NETWORK;
 
 #[async_trait]
@@ -20,6 +21,13 @@ pub trait MultisigSigningClient {
         title: String,
         blinded_serial_number: String,
         voucher_value: u128,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vote(
+        &self,
+        proposal_id: u64,
+        yes: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -55,6 +63,27 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
                 &req,
                 fee,
                 "Multisig::Propose::Execute::ReleaseFunds",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vote(
+        &self,
+        proposal_id: u64,
+        vote_yes: bool,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let vote = if vote_yes { Vote::Yes } else { Vote::No };
+        let req = ExecuteMsg::Vote { proposal_id, vote };
+        self.client
+            .execute(
+                self.address(),
+                self.multisig_contract_address(),
+                &req,
+                fee,
+                "Multisig::Vote",
                 vec![],
             )
             .await

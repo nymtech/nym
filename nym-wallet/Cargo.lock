@@ -5541,6 +5541,7 @@ dependencies = [
  "config",
  "cosmrs",
  "cosmwasm-std",
+ "cw3",
  "flate2",
  "futures",
  "itertools",

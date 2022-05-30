@@ -461,4 +461,19 @@ where
 
         Ok(proposal_id)
     }
+
+    async fn vote(
+        &self,
+        proposal_id: u64,
+        vote_yes: bool,
+        fee: Option<Fee>,
+    ) -> Result<(), CoconutError> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .vote(proposal_id, vote_yes, fee)
+            .await?;
+        Ok(())
+    }
 }

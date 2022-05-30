@@ -57,6 +57,7 @@ export const Delegate = () => {
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
+        hasVestingContract={false}
       />
     </>
   );
@@ -79,6 +80,7 @@ export const DelegateBelowMinimum = () => {
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
         initialAmount="0.1"
+        hasVestingContract={false}
       />
     </>
   );
@@ -102,6 +104,7 @@ export const DelegateMore = () => {
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
+        hasVestingContract={false}
       />
     </>
   );

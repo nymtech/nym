@@ -12,6 +12,7 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
+import { TPoolOption } from 'src/components';
 
 const explorerUrl = 'https://sandbox-explorer.nymtech.net';
 
@@ -39,7 +40,7 @@ export const Delegation: FC = () => {
 
   // Refresh the rewards and delegations periodically when page is mounted
   useEffect(() => {
-    const timer = setInterval(refresh, 5 * 60 * 1000); // every 5 minutes
+    const timer = setInterval(refresh, 1 * 60 * 1000); // every 5 minutes
     return () => clearInterval(timer);
   }, []);
 
@@ -61,7 +62,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleNewDelegation = async (identityKey: string, amount: MajorCurrencyAmount) => {
+  const handleNewDelegation = async (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'delegate',
@@ -69,10 +70,13 @@ export const Delegation: FC = () => {
     setShowNewDelegationModal(false);
     setCurrentDelegationListActionItem(undefined);
     try {
-      const tx = await addDelegation({
-        identity: identityKey,
-        amount,
-      });
+      const tx = await addDelegation(
+        {
+          identity: identityKey,
+          amount,
+        },
+        tokenPool,
+      );
       await userBalance.fetchBalance();
       setConfirmationModalProps({
         status: 'success',
@@ -89,7 +93,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleDelegateMore = async (identityKey: string, amount: MajorCurrencyAmount) => {
+  const handleDelegateMore = async (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => {
     if (currentDelegationListActionItem?.node_identity !== identityKey || !clientDetails) {
       setConfirmationModalProps({
         status: 'error',
@@ -106,16 +110,19 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const tx = await updateDelegation({
-        ...currentDelegationListActionItem,
-        amount,
-      });
+      const tx = await addDelegation(
+        {
+          identity: identityKey,
+          amount,
+        },
+        tokenPool,
+      );
       await userBalance.fetchBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
         balance: userBalance.balance?.printable_balance || '-',
-        transactionUrl: tx.transactionUrl,
+        transactionUrl: tx.transaction_hash,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -278,6 +285,7 @@ export const Delegation: FC = () => {
           nodeUptimePercentage={99.28394}
           profitMarginPercentage={11.12334234}
           rewardInterval="weekly"
+          hasVestingContract={Boolean(userBalance.originalVesting)}
         />
       )}
 
@@ -296,6 +304,7 @@ export const Delegation: FC = () => {
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
           rewardInterval="weekly"
+          hasVestingContract={Boolean(userBalance.originalVesting)}
         />
       )}
 

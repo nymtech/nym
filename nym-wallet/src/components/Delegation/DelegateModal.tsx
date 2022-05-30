@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
@@ -7,13 +7,14 @@ import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalDivider } from '../Modals/ModalDivider';
 import { ModalListItem } from './ModalListItem';
 import { validateKey } from '../../utils';
+import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
 export const DelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, amount: MajorCurrencyAmount) => Promise<void>;
+  onOk?: (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -27,6 +28,7 @@ export const DelegateModal: React.FC<{
   fee: number;
   currency: CurrencyDenom;
   initialAmount?: string;
+  hasVestingContract: boolean;
 }> = ({
   open,
   onIdentityKeyChanged,
@@ -44,11 +46,13 @@ export const DelegateModal: React.FC<{
   profitMarginPercentage,
   nodeUptimePercentage,
   initialAmount,
+  hasVestingContract,
 }) => {
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
+  const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
 
   const validate = () => {
     let newValidatedValue = true;
@@ -66,7 +70,7 @@ export const DelegateModal: React.FC<{
 
   const handleOk = () => {
     if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom: currency });
+      onOk(identityKey, { amount, denom: currency }, tokenPool);
     }
   };
 
@@ -109,16 +113,20 @@ export const DelegateModal: React.FC<{
           autoFocus: !initialIdentityKey,
         }}
       />
-      <CurrencyFormField
-        required
-        fullWidth
-        sx={{ mt: 2 }}
-        placeholder="Amount"
-        initialValue={initialAmount}
-        validationError={errorAmount}
-        autoFocus={Boolean(initialIdentityKey)}
-        onChanged={handleAmountChanged}
-      />
+      <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
+        {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
+        <CurrencyFormField
+          required
+          fullWidth
+          placeholder="Amount"
+          initialValue={initialAmount}
+          autoFocus={Boolean(initialIdentityKey)}
+          onChanged={handleAmountChanged}
+        />
+      </Box>
+      <Typography component="div" textAlign="right" variant="caption" sx={{ color: 'error.main' }}>
+        {errorAmount}
+      </Typography>
       <Stack direction="row" justifyContent="space-between" my={3}>
         <Typography fontWeight={600}>Account balance</Typography>
         <Typography fontWeight={600}>{accountBalance}</Typography>

@@ -7,7 +7,8 @@ import {
   TransactionExecuteResult,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
-import { delegateToMixnode, getAllPendingDelegations } from 'src/requests';
+import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
+import { TPoolOption } from 'src/components';
 
 export type TDelegationContext = {
   isLoading: boolean;
@@ -17,7 +18,10 @@ export type TDelegationContext = {
   totalDelegations?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
-  addDelegation: (data: { identity: string; amount: MajorCurrencyAmount }) => Promise<TransactionExecuteResult>;
+  addDelegation: (
+    data: { identity: string; amount: MajorCurrencyAmount },
+    tokenPool: TPoolOption,
+  ) => Promise<TransactionExecuteResult>;
   updateDelegation: (newDelegation: DelegationWithEverything) => Promise<TDelegationTransaction>;
   undelegate: (identity: string) => Promise<TransactionExecuteResult>;
 };
@@ -50,10 +54,18 @@ export const DelegationContextProvider: FC<{
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
 
-  const addDelegation = async (data: { identity: string; amount: MajorCurrencyAmount }) => {
-    const tx = await delegateToMixnode(data);
-    await refresh();
-    return tx;
+  const addDelegation = async (data: { identity: string; amount: MajorCurrencyAmount }, tokenPool: TPoolOption) => {
+    try {
+      let tx;
+
+      if (tokenPool === 'locked') tx = await vestingDelegateToMixnode(data);
+      else tx = await delegateToMixnode(data);
+
+      await refresh();
+      return tx;
+    } catch (e) {
+      throw new Error(e as string);
+    }
   };
 
   const updateDelegation = async (): Promise<TDelegationTransaction> => {

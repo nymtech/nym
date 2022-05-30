@@ -44,6 +44,7 @@ pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
+pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
@@ -173,21 +174,35 @@ impl<C> NymdClient<C> {
         self.simulated_gas_multiplier = multiplier;
     }
 
-    pub fn wrap_contract_execute_message<M>(
+    pub fn wrap_fundless_contract_execute_message<M>(
         &self,
         contract_address: &AccountId,
         msg: &M,
-        funds: Vec<CosmosCoin>,
     ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
     where
         C: SigningCosmWasmClient,
+        M: ?Sized + Serialize,
+    {
+        self.wrap_contract_execute_message::<_, CosmosCoin>(contract_address, msg, vec![])
+    }
+
+    pub fn wrap_contract_execute_message<M, T>(
+        &self,
+        contract_address: &AccountId,
+        msg: &M,
+        funds: Vec<T>,
+    ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
+    where
+        C: SigningCosmWasmClient,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
         M: ?Sized + Serialize,
     {
         Ok(cosmwasm::MsgExecuteContract {
             sender: self.address().clone(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
-            funds,
+            funds: funds.into_iter().map(Into::into).collect(),
         })
     }
 
@@ -639,15 +654,17 @@ impl<C> NymdClient<C> {
     }
 
     /// Send funds from one address to another
-    pub async fn send(
+    pub async fn send<T>(
         &self,
         recipient: &AccountId,
-        amount: Vec<CosmosCoin>,
+        amount: Vec<T>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
     ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
@@ -656,14 +673,16 @@ impl<C> NymdClient<C> {
     }
 
     /// Send funds from one address to multiple others
-    pub async fn send_multiple(
+    pub async fn send_multiple<T>(
         &self,
-        msgs: Vec<(AccountId, Vec<CosmosCoin>)>,
+        msgs: Vec<(AccountId, Vec<T>)>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
     ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
@@ -671,16 +690,18 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn execute<M>(
+    pub async fn execute<M, T>(
         &self,
         contract_address: &AccountId,
         msg: &M,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-        funds: Vec<CosmosCoin>,
+        funds: Vec<T>,
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
         M: ?Sized + Serialize + Sync,
     {
         self.client
@@ -688,7 +709,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn execute_multiple<I, M>(
+    pub async fn execute_multiple<I, M, T>(
         &self,
         contract_address: &AccountId,
         msgs: I,
@@ -697,6 +718,8 @@ impl<C> NymdClient<C> {
     ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
         I: IntoIterator<Item = (M, Vec<CosmosCoin>)> + Send,
         M: Serialize,
     {

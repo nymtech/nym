@@ -19,8 +19,7 @@ pub async fn simulate_send(
   let guard = state.read().await;
 
   let to_address = AccountId::from_str(address)?;
-  let network_denom = guard.current_network().denom();
-  let amount = vec![amount.clone().into_cosmos_coin(&network_denom)?];
+  let amount = amount.into_backend_coin(guard.current_network().denom())?;
 
   let client = guard.current_client()?;
   let from_address = client.nymd.address().clone();
@@ -30,7 +29,7 @@ pub async fn simulate_send(
   let msg = MsgSend {
     from_address,
     to_address,
-    amount,
+    amount: vec![amount.into()],
   };
 
   let result = client.nymd.simulate(vec![msg]).await?;

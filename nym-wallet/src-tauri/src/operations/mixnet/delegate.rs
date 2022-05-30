@@ -4,7 +4,7 @@ use crate::nymd_client;
 use crate::state::State;
 use crate::utils::DelegationEvent;
 use crate::utils::DelegationResult;
-use cosmwasm_std::{Coin as CosmWasmCoin, Uint128};
+use cosmwasm_std::Uint128;
 use mixnet_contract_common::{IdentityKey, PagedDelegatorDelegationsResponse};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -31,10 +31,9 @@ pub async fn delegate_to_mixnode(
   fee: Option<Fee>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
-  let denom = state.read().await.current_network().denom();
-  let delegation: CosmWasmCoin = amount.into_cosmwasm_coin(&denom)?;
+  let delegation = amount.into_backend_coin(state.read().await.current_network().denom())?;
   nymd_client!(state)
-    .delegate_to_mixnode(identity, &delegation, fee)
+    .delegate_to_mixnode(identity, delegation.clone(), fee)
     .await?;
   Ok(DelegationResult::new(
     nymd_client!(state).address().as_ref(),

@@ -20,8 +20,11 @@ pub struct Coin {
 }
 
 impl Coin {
-    pub fn new(amount: u128, denom: String) -> Self {
-        Coin { amount, denom }
+    pub fn new<S: Into<String>>(amount: u128, denom: S) -> Self {
+        Coin {
+            amount,
+            denom: denom.into(),
+        }
     }
 
     pub fn try_add(&self, other: &Self) -> Result<Self, MismatchedDenoms> {

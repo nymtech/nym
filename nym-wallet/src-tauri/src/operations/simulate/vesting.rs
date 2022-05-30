@@ -18,21 +18,19 @@ pub async fn simulate_vesting_bond_gateway(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let pledge = pledge.into_cosmwasm_coin(&network_denom)?;
+  let pledge = pledge.into_backend_coin(guard.current_network().denom())?;
 
   let client = guard.current_client()?;
   let vesting_contract = client.nymd.vesting_contract_address()?;
   let gas_price = client.nymd.gas_price().clone();
 
-  let msg = client.nymd.wrap_contract_execute_message(
+  let msg = client.nymd.wrap_fundless_contract_execute_message(
     vesting_contract,
     &ExecuteMsg::BondGateway {
       gateway,
       owner_signature,
-      amount: pledge,
+      amount: pledge.into(),
     },
-    vec![],
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
@@ -49,11 +47,9 @@ pub async fn simulate_vesting_unbond_gateway(
   let vesting_contract = client.nymd.vesting_contract_address()?;
   let gas_price = client.nymd.gas_price().clone();
 
-  let msg = client.nymd.wrap_contract_execute_message(
-    vesting_contract,
-    &ExecuteMsg::UnbondGateway {},
-    vec![],
-  )?;
+  let msg = client
+    .nymd
+    .wrap_fundless_contract_execute_message(vesting_contract, &ExecuteMsg::UnbondGateway {})?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
   Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
@@ -67,21 +63,19 @@ pub async fn simulate_vesting_bond_mixnode(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let pledge = pledge.into_cosmwasm_coin(&network_denom)?;
+  let pledge = pledge.into_backend_coin(guard.current_network().denom())?;
 
   let client = guard.current_client()?;
   let vesting_contract = client.nymd.vesting_contract_address()?;
   let gas_price = client.nymd.gas_price().clone();
 
-  let msg = client.nymd.wrap_contract_execute_message(
+  let msg = client.nymd.wrap_fundless_contract_execute_message(
     vesting_contract,
     &ExecuteMsg::BondMixnode {
       mix_node: mixnode,
       owner_signature,
-      amount: pledge,
+      amount: pledge.into(),
     },
-    vec![],
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
@@ -98,11 +92,9 @@ pub async fn simulate_vesting_unbond_mixnode(
   let vesting_contract = client.nymd.vesting_contract_address()?;
   let gas_price = client.nymd.gas_price().clone();
 
-  let msg = client.nymd.wrap_contract_execute_message(
-    vesting_contract,
-    &ExecuteMsg::UnbondMixnode {},
-    vec![],
-  )?;
+  let msg = client
+    .nymd
+    .wrap_fundless_contract_execute_message(vesting_contract, &ExecuteMsg::UnbondMixnode {})?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
   Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
@@ -119,12 +111,11 @@ pub async fn simulate_vesting_update_mixnode(
   let vesting_contract = client.nymd.vesting_contract_address()?;
   let gas_price = client.nymd.gas_price().clone();
 
-  let msg = client.nymd.wrap_contract_execute_message(
+  let msg = client.nymd.wrap_fundless_contract_execute_message(
     vesting_contract,
     &ExecuteMsg::UpdateMixnodeConfig {
       profit_margin_percent,
     },
-    vec![],
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;
@@ -137,17 +128,17 @@ pub async fn simulate_withdraw_vested_coins(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
   let guard = state.read().await;
-  let network_denom = guard.current_network().denom();
-  let amount = amount.into_cosmwasm_coin(&network_denom)?;
+  let amount = amount.into_backend_coin(guard.current_network().denom())?;
 
   let client = guard.current_client()?;
   let vesting_contract = client.nymd.vesting_contract_address()?;
   let gas_price = client.nymd.gas_price().clone();
 
-  let msg = client.nymd.wrap_contract_execute_message(
+  let msg = client.nymd.wrap_fundless_contract_execute_message(
     vesting_contract,
-    &ExecuteMsg::WithdrawVestedCoins { amount },
-    vec![],
+    &ExecuteMsg::WithdrawVestedCoins {
+      amount: amount.into(),
+    },
   )?;
 
   let result = client.nymd.simulate(vec![msg]).await?;

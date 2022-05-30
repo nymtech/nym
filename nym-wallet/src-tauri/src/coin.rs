@@ -2,16 +2,16 @@
 
 use crate::error::BackendError;
 use crate::network::Network;
-use cosmwasm_std::Coin as CosmWasmCoin;
-use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use validator_client::nymd::CosmosCoin;
-use validator_client::nymd::Decimal;
 use validator_client::nymd::Denom as CosmosDenom;
+use validator_client::nymd::{Coin as BackendCoin, CosmWasmCoin};
+
+const MINOR_IN_MAJOR: f64 = 1_000_000.;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export, export_to = "../src/types/rust/denom.ts"))]
@@ -21,8 +21,6 @@ pub enum Denom {
   Minor,
 }
 
-const MINOR_IN_MAJOR: f64 = 1_000_000.;
-
 impl FromStr for Denom {
   type Err = BackendError;
 
@@ -30,9 +28,9 @@ impl FromStr for Denom {
     let s = s.to_lowercase();
     for network in Network::iter() {
       let denom = network.denom();
-      if s == denom.as_ref().to_lowercase() || s == "minor" {
+      if s == denom.to_lowercase() || s == "minor" {
         return Ok(Denom::Minor);
-      } else if s == denom.as_ref()[1..].to_lowercase() || s == "major" {
+      } else if s == denom[1..].to_lowercase() || s == "major" {
         return Ok(Denom::Major);
       }
     }
@@ -64,8 +62,8 @@ impl Add for Coin {
     let denom = self.denom.clone();
     let lhs = self.to_minor();
     let rhs = rhs.to_minor();
-    let lhs_amount = lhs.amount.parse::<u64>().unwrap();
-    let rhs_amount = rhs.amount.parse::<u64>().unwrap();
+    let lhs_amount = lhs.amount.parse::<u128>().unwrap();
+    let rhs_amount = rhs.amount.parse::<u128>().unwrap();
     let amount = lhs_amount + rhs_amount;
     let coin = Coin {
       amount: amount.to_string(),
@@ -86,8 +84,8 @@ impl Sub for Coin {
     let denom = self.denom.clone();
     let lhs = self.to_minor();
     let rhs = rhs.to_minor();
-    let lhs_amount = lhs.amount.parse::<i64>().unwrap();
-    let rhs_amount = rhs.amount.parse::<i64>().unwrap();
+    let lhs_amount = lhs.amount.parse::<u128>().unwrap();
+    let rhs_amount = rhs.amount.parse::<u128>().unwrap();
     let amount = lhs_amount - rhs_amount;
     let coin = Coin {
       amount: amount.to_string(),
@@ -154,38 +152,51 @@ impl Coin {
   }
 
   // Helper function that returns the local denom in terms of the specified network denom.
-  fn denom_as_string(&self, network_denom: &CosmosDenom) -> Result<String, BackendError> {
-    // Currently there is the widespread assumption that network denomination is always in
-    // `Denom::Minor`, and starts with 'u'.
-    let network_denom = network_denom.to_string();
-    if !network_denom.starts_with('u') {
-      return Err(BackendError::InvalidNetworkDenom(network_denom));
-    }
+  // fn denom_as_string(&self, network_denom: &CosmosDenom) -> Result<String, BackendError> {
+  //   // Currently there is the widespread assumption that network denomination is always in
+  //   // `Denom::Minor`, and starts with 'u'.
+  //   let network_denom = network_denom.to_string();
+  //   if !network_denom.starts_with('u') {
+  //     return Err(BackendError::InvalidNetworkDenom(network_denom));
+  //   }
+  //
+  //   Ok(match &self.denom {
+  //     Denom::Minor => network_denom,
+  //     Denom::Major => network_denom[1..].to_string(),
+  //   })
+  // }
 
-    Ok(match &self.denom {
-      Denom::Minor => network_denom,
-      Denom::Major => network_denom[1..].to_string(),
-    })
+  pub fn into_backend_coin(self, network_denom: &str) -> Result<BackendCoin, BackendError> {
+    Ok(BackendCoin::new(self.amount.parse()?, network_denom))
   }
 
-  pub fn into_cosmos_coin(self, network_denom: &CosmosDenom) -> Result<CosmosCoin, BackendError> {
-    match Decimal::from_str(&self.amount) {
-      Ok(amount) => Ok(CosmosCoin {
-        amount,
-        denom: CosmosDenom::from_str(&self.denom_as_string(network_denom)?)?,
-      }),
-      Err(e) => Err(e.into()),
-    }
-  }
+  // pub fn into_cosmos_coin(self, network_denom: &CosmosDenom) -> Result<CosmosCoin, BackendError> {
+  //   match Decimal::from_str(&self.amount) {
+  //     Ok(amount) => Ok(CosmosCoin {
+  //       amount,
+  //       denom: CosmosDenom::from_str(&self.denom_as_string(network_denom)?)?,
+  //     }),
+  //     Err(e) => Err(e.into()),
+  //   }
+  // }
+  //
+  // pub fn into_cosmwasm_coin(
+  //   self,
+  //   network_denom: &CosmosDenom,
+  // ) -> Result<CosmWasmCoin, BackendError> {
+  //   Ok(CosmWasmCoin {
+  //     denom: self.denom_as_string(network_denom)?,
+  //     amount: Uint128::try_from(self.amount.as_str())?,
+  //   })
+  // }
+}
 
-  pub fn into_cosmwasm_coin(
-    self,
-    network_denom: &CosmosDenom,
-  ) -> Result<CosmWasmCoin, BackendError> {
-    Ok(CosmWasmCoin {
-      denom: self.denom_as_string(network_denom)?,
-      amount: Uint128::try_from(self.amount.as_str())?,
-    })
+impl From<BackendCoin> for Coin {
+  fn from(c: BackendCoin) -> Self {
+    Coin {
+      amount: c.amount.to_string(),
+      denom: Denom::from_str(c.denom.as_ref()).unwrap(),
+    }
   }
 }
 

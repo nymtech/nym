@@ -307,7 +307,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     where
         M: ?Sized + Serialize + Sync,
     {
-        // todo!()
         self.execute::<_, CosmosCoin, _>(sender_address, contract_address, msg, fee, memo, vec![])
             .await
     }

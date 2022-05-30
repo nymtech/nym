@@ -7,7 +7,12 @@ import {
   TransactionExecuteResult,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
-import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
+import {
+  delegateToMixnode,
+  getAllPendingDelegations,
+  vestingDelegateToMixnode,
+  vestingUndelegateFromMixnode,
+} from 'src/requests';
 import { TPoolOption } from 'src/components';
 
 export type TDelegationContext = {
@@ -22,8 +27,7 @@ export type TDelegationContext = {
     data: { identity: string; amount: MajorCurrencyAmount },
     tokenPool: TPoolOption,
   ) => Promise<TransactionExecuteResult>;
-  updateDelegation: (newDelegation: DelegationWithEverything) => Promise<TDelegationTransaction>;
-  undelegate: (identity: string) => Promise<TransactionExecuteResult>;
+  undelegate: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
 };
 
 export type TDelegationTransaction = {
@@ -34,9 +38,6 @@ export const DelegationContext = createContext<TDelegationContext>({
   isLoading: true,
   refresh: async () => undefined,
   addDelegation: async () => {
-    throw new Error('Not implemented');
-  },
-  updateDelegation: async () => {
     throw new Error('Not implemented');
   },
   undelegate: async () => {
@@ -68,12 +69,15 @@ export const DelegationContextProvider: FC<{
     }
   };
 
-  const updateDelegation = async (): Promise<TDelegationTransaction> => {
-    throw new Error('Not implemented');
-  };
-
-  const undelegate = async (identity: string) => {
-    const delegationResult = await undelegateFromMixnode(identity);
+  const undelegate = async (identity: string, proxy: string | null) => {
+    let delegationResult;
+    if ((proxy || '').trim().length === 0) {
+      // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
+      delegationResult = await undelegateFromMixnode(identity);
+    } else {
+      // the delegation is with locked tokens, so use the vesting contract
+      delegationResult = await vestingUndelegateFromMixnode(identity);
+    }
     await refresh();
     return delegationResult;
   };
@@ -101,7 +105,6 @@ export const DelegationContextProvider: FC<{
   }, [network]);
 
   useEffect(() => {
-    // reset state and refresh
     resetState();
     refresh();
   }, [network]);
@@ -116,7 +119,6 @@ export const DelegationContextProvider: FC<{
       totalRewards,
       refresh,
       addDelegation,
-      updateDelegation,
       undelegate,
     }),
     [isLoading, error, delegations, pendingDelegations, totalDelegations],

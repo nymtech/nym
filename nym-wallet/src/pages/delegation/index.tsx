@@ -1,8 +1,11 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Link, Paper, Stack, Typography } from '@mui/material';
 import { DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
-import { AppContext } from 'src/context/main';
+import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
+import { PendingEvents } from 'src/components/Delegation/PendingEvents';
+import { TPoolOption } from 'src/components';
+import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { useDelegationContext, DelegationContextProvider } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
@@ -11,8 +14,6 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { PendingEvents } from 'src/components/Delegation/PendingEvents';
-import { TPoolOption } from 'src/components';
 
 const explorerUrl = 'https://sandbox-explorer.nymtech.net';
 
@@ -25,7 +26,11 @@ export const Delegation: FC = () => {
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
 
-  const { clientDetails, userBalance } = useContext(AppContext);
+  const {
+    clientDetails,
+    network,
+    userBalance: { balance, originalVesting },
+  } = useContext(AppContext);
   const { redeemAllRewards, redeemRewards, totalRewards, isLoading: isLoadingRewards } = useRewardsContext();
   const {
     delegations,
@@ -33,7 +38,6 @@ export const Delegation: FC = () => {
     totalDelegations,
     isLoading: isLoadingDelegations,
     addDelegation,
-    updateDelegation,
     undelegate,
     refresh,
   } = useDelegationContext();
@@ -43,8 +47,6 @@ export const Delegation: FC = () => {
     const timer = setInterval(refresh, 1 * 60 * 1000); // every 5 minutes
     return () => clearInterval(timer);
   }, []);
-
-  // TODO: replace with real operation
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     setCurrentDelegationListActionItem(item);
@@ -77,12 +79,20 @@ export const Delegation: FC = () => {
         },
         tokenPool,
       );
-      await userBalance.fetchBalance();
+
+      const balance = await userBalance();
+      let spendableLocked;
+
+      if (tokenPool === 'locked') spendableLocked = await getSpendableCoins();
+
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        balance: userBalance.balance?.printable_balance || '-',
-        transactionUrl: tx.transaction_hash,
+        balance:
+          tokenPool === 'locked'
+            ? `${spendableLocked?.amount} ${spendableLocked?.denom}`
+            : balance?.printable_balance || '-',
+        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -117,12 +127,17 @@ export const Delegation: FC = () => {
         },
         tokenPool,
       );
-      await userBalance.fetchBalance();
+      let balance = await userBalance();
+      let spendableLocked;
+
+      if (originalVesting) spendableLocked = await getSpendableCoins();
+
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        balance: userBalance.balance?.printable_balance || '-',
-        transactionUrl: tx.transaction_hash,
+        balance:
+          tokenPool === 'locked' ? `${spendableLocked} ${clientDetails?.denom}` : balance?.printable_balance || '-',
+        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -133,21 +148,23 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleUndelegate = async (identityKey: string) => {
+  const handleUndelegate = async (identityKey: string, proxy: string | null) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'undelegate',
     });
     setShowUndelegateModal(false);
     setCurrentDelegationListActionItem(undefined);
+
     try {
-      const tx = await undelegate(identityKey);
-      await userBalance.fetchBalance();
+      const tx = await undelegate(identityKey, proxy);
+      const balance = await userBalance();
+
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
-        balance: userBalance.balance?.printable_balance || '-',
-        transactionUrl: tx.transaction_hash,
+        balance: balance?.printable_balance || '-',
+        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -175,13 +192,13 @@ export const Delegation: FC = () => {
     if (clientDetails?.client_address) {
       try {
         const tx = await redeemRewards(identityKey);
-        await userBalance.fetchBalance();
+        const balance = await userBalance();
         setConfirmationModalProps({
           status: 'success',
           action: 'redeem',
-          balance: userBalance.balance?.printable_balance || '-',
+          balance: balance?.printable_balance || '-',
           recipient: clientDetails?.client_address,
-          transactionUrl: tx.transactionUrl,
+          transactionUrl: `${urls(network).blockExplorer}/${tx}}`,
         });
       } catch (e) {
         setConfirmationModalProps({
@@ -202,11 +219,12 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
     try {
       const tx = await redeemAllRewards();
-      await userBalance.fetchBalance();
+      const balance = await userBalance();
+
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem-all',
-        balance: userBalance.balance?.printable_balance || '-',
+        balance: balance?.printable_balance || '-',
         recipient: clientDetails?.client_address,
         transactionUrl: tx.transactionUrl,
       });
@@ -226,7 +244,7 @@ export const Delegation: FC = () => {
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Delegations</Typography>
             <Link
-              href={`${explorerUrl}/network-components/mixnodes/`}
+              href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
               target="_blank"
               rel="noreferrer"
               underline="hover"
@@ -280,12 +298,9 @@ export const Delegation: FC = () => {
           buttonText="Delegate stake"
           currency={clientDetails!.denom}
           fee={0.004375}
-          estimatedMonthlyReward={50.123}
-          accountBalance={userBalance.balance?.printable_balance}
-          nodeUptimePercentage={99.28394}
-          profitMarginPercentage={11.12334234}
+          accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
-          hasVestingContract={Boolean(userBalance.originalVesting)}
+          hasVestingContract={Boolean(originalVesting)}
         />
       )}
 
@@ -299,12 +314,12 @@ export const Delegation: FC = () => {
           identityKey={currentDelegationListActionItem.node_identity}
           currency={clientDetails!.denom}
           fee={0.004375}
-          estimatedMonthlyReward={0}
-          accountBalance={userBalance.balance?.printable_balance}
+          estimatedReward={0}
+          accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
           rewardInterval="weekly"
-          hasVestingContract={Boolean(userBalance.originalVesting)}
+          hasVestingContract={Boolean(originalVesting)}
         />
       )}
 
@@ -313,6 +328,7 @@ export const Delegation: FC = () => {
           open={showUndelegateModal}
           onClose={() => setShowUndelegateModal(false)}
           onOk={handleUndelegate}
+          proxy={currentDelegationListActionItem.proxy}
           currency={currentDelegationListActionItem.amount.denom}
           fee={0.1}
           amount={+currentDelegationListActionItem.amount.amount}

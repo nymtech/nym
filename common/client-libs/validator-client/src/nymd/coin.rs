@@ -86,3 +86,42 @@ impl From<CosmWasmCoin> for Coin {
         }
     }
 }
+
+pub trait CoinConverter {
+    type Target;
+
+    fn convert_coin(&self) -> Self::Target;
+}
+
+impl CoinConverter for CosmosCoin {
+    type Target = CosmWasmCoin;
+
+    fn convert_coin(&self) -> Self::Target {
+        CosmWasmCoin::new(
+            self.amount
+                .to_string()
+                .parse()
+                .expect("cosmos coin had an invalid amount assigned"),
+            self.denom.to_string(),
+        )
+    }
+}
+
+impl CoinConverter for CosmWasmCoin {
+    type Target = CosmosCoin;
+
+    fn convert_coin(&self) -> Self::Target {
+        assert!(
+            self.amount.u128() <= u64::MAX as u128,
+            "the coin amount is higher than the maximum supported by cosmrs"
+        );
+
+        CosmosCoin {
+            denom: self
+                .denom
+                .parse()
+                .expect("cosmwasm coin had an invalid amount assigned"),
+            amount: (self.amount.u128() as u64).into(),
+        }
+    }
+}

@@ -126,24 +126,6 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'bond',
-      headerName: 'Stake',
-      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
-      type: 'number',
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 200,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {currencyToString(params.value)}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'location',
       headerName: 'Location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
@@ -160,6 +142,41 @@ export const PageMixnodes: React.FC = () => {
         >
           {params.value}
         </Button>
+      ),
+    },
+    {
+      field: 'host',
+      headerName: 'Host',
+      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 130,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={getCellStyles(theme, params.row)}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'bond',
+      headerName: 'Stake',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
+      type: 'number',
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 200,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={getCellStyles(theme, params.row)}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {currencyToString(params.value)}
+        </MuiLink>
       ),
     },
     {
@@ -181,15 +198,15 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'host',
-      headerName: 'Host',
-      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
+      field: 'delegators_number',
+      headerName: 'Delegators',
+      renderHeader: () => <CustomColumnHeading headingTitle="Delegators" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 130,
+      width: 185,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={getCellStyles(theme, params.row)}
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
         >
@@ -220,23 +237,6 @@ export const PageMixnodes: React.FC = () => {
       renderHeader: () => <CustomColumnHeading headingTitle="Average Uptime" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 160,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {params.value}
-        </MuiLink>
-      ),
-    },
-    {
-      field: 'delegators_number',
-      headerName: 'Delegators Number',
-      renderHeader: () => <CustomColumnHeading headingTitle="Delegators Number" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 185,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink

@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_api_requests::models::MixnodeStatus;
+use validator_api_requests::models::{MixNodeBondDetailed, MixnodeStatus, StakeSaturationResponse};
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -184,6 +184,7 @@ impl<C> ValidatorCacheRefresher<C> {
 pub(crate) fn validator_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: routes::get_mixnodes,
+        routes::get_mixnodes_detailed,
         routes::get_gateways,
         routes::get_active_set,
         routes::get_rewarded_set,
@@ -332,6 +333,33 @@ impl ValidatorCache {
         } else {
             mixnodes.value
         }
+    }
+
+    pub async fn mixnodes_detailed(&self) -> Vec<MixNodeBondDetailed> {
+        let mixnodes = self.mixnodes().await;
+
+        let interval_reward_params = self.epoch_reward_params().await;
+        let as_at = interval_reward_params.timestamp();
+        let interval_reward_params = interval_reward_params.into_inner();
+
+        let mut mixnodes_detailed = Vec::new();
+        for mixnode_bond in mixnodes {
+            let stake_saturation = StakeSaturationResponse {
+                saturation: mixnode_bond
+                    .stake_saturation(
+                        interval_reward_params.circulating_supply(),
+                        interval_reward_params.rewarded_set_size() as u32,
+                    )
+                    .to_num(),
+                as_at,
+            };
+            mixnodes_detailed.push(MixNodeBondDetailed {
+                mixnode_bond,
+                stake_saturation,
+            });
+        }
+
+        mixnodes_detailed
     }
 
     pub async fn mixnodes_all(&self) -> Vec<MixNodeBond> {

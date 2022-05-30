@@ -8,11 +8,20 @@ use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
 use std::collections::HashSet;
+use validator_api_requests::models::MixNodeBondDetailed;
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes")]
 pub async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
     Json(cache.mixnodes().await)
+}
+
+#[openapi(tag = "contract-cache")]
+#[get("/mixnodes-detailed")]
+pub async fn get_mixnodes_detailed(
+    cache: &State<ValidatorCache>,
+) -> Json<Vec<MixNodeBondDetailed>> {
+    Json(cache.mixnodes_detailed().await)
 }
 
 #[openapi(tag = "contract-cache")]

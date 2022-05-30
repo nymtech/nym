@@ -187,7 +187,9 @@ pub(crate) fn validator_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>,
         routes::get_mixnodes_detailed,
         routes::get_gateways,
         routes::get_active_set,
+        routes::get_active_set_detailed,
         routes::get_rewarded_set,
+        routes::get_rewarded_set_detailed,
         routes::get_blacklisted_mixnodes,
         routes::get_blacklisted_gateways,
         routes::get_epoch_reward_params,
@@ -231,6 +233,31 @@ impl ValidatorCache {
                 error!("{}", e);
             }
         }
+    }
+
+    async fn annotate_with_details(&self, mixnodes: Vec<MixNodeBond>) -> Vec<MixNodeBondDetailed> {
+        let interval_reward_params = self.epoch_reward_params().await;
+        let as_at = interval_reward_params.timestamp();
+        let interval_reward_params = interval_reward_params.into_inner();
+
+        let mut mixnodes_detailed = Vec::new();
+        for mixnode_bond in mixnodes {
+            let stake_saturation = StakeSaturationResponse {
+                saturation: mixnode_bond
+                    .stake_saturation(
+                        interval_reward_params.circulating_supply(),
+                        interval_reward_params.rewarded_set_size() as u32,
+                    )
+                    .to_num(),
+                as_at,
+            };
+            mixnodes_detailed.push(MixNodeBondDetailed {
+                mixnode_bond,
+                stake_saturation,
+            });
+        }
+
+        mixnodes_detailed
     }
 
     pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
@@ -337,29 +364,7 @@ impl ValidatorCache {
 
     pub async fn mixnodes_detailed(&self) -> Vec<MixNodeBondDetailed> {
         let mixnodes = self.mixnodes().await;
-
-        let interval_reward_params = self.epoch_reward_params().await;
-        let as_at = interval_reward_params.timestamp();
-        let interval_reward_params = interval_reward_params.into_inner();
-
-        let mut mixnodes_detailed = Vec::new();
-        for mixnode_bond in mixnodes {
-            let stake_saturation = StakeSaturationResponse {
-                saturation: mixnode_bond
-                    .stake_saturation(
-                        interval_reward_params.circulating_supply(),
-                        interval_reward_params.rewarded_set_size() as u32,
-                    )
-                    .to_num(),
-                as_at,
-            };
-            mixnodes_detailed.push(MixNodeBondDetailed {
-                mixnode_bond,
-                stake_saturation,
-            });
-        }
-
-        mixnodes_detailed
+        self.annotate_with_details(mixnodes).await
     }
 
     pub async fn mixnodes_all(&self) -> Vec<MixNodeBond> {
@@ -414,6 +419,11 @@ impl ValidatorCache {
         }
     }
 
+    pub async fn rewarded_set_detailed(&self) -> Vec<MixNodeBondDetailed> {
+        let rewarded_set = self.rewarded_set().await.value;
+        self.annotate_with_details(rewarded_set).await
+    }
+
     pub async fn active_set(&self) -> Cache<Vec<MixNodeBond>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.active_set.clone(),
@@ -422,6 +432,11 @@ impl ValidatorCache {
                 Cache::new(Vec::new())
             }
         }
+    }
+
+    pub async fn active_set_detailed(&self) -> Vec<MixNodeBondDetailed> {
+        let active_set = self.active_set().await.value;
+        self.annotate_with_details(active_set).await
     }
 
     pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {

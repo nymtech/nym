@@ -8,7 +8,7 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::nymd::{GasPrice, TxResponse};
+use crate::nymd::{Coin, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -294,38 +294,17 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         })
     }
 
-    // a helper to automatically infer required types so that you wouldn't need the turbofish
-    // for normal `execute` if you're not sending any funds with your transaction
-    async fn fundless_execute<M>(
+    async fn execute<M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         msg: &M,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
+        funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NymdError>
     where
         M: ?Sized + Serialize + Sync,
-    {
-        self.execute::<_, CosmosCoin, _>(sender_address, contract_address, msg, fee, memo, vec![])
-            .await
-    }
-
-    // the memo had to be extracted into an explicit generic due to: https://github.com/rust-lang/rust/issues/83701
-    async fn execute<M, T, S>(
-        &self,
-        sender_address: &AccountId,
-        contract_address: &AccountId,
-        msg: &M,
-        fee: Fee,
-        memo: S,
-        funds: Vec<T>,
-    ) -> Result<ExecuteResult, NymdError>
-    where
-        M: ?Sized + Serialize + Sync,
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
-        S: Into<String> + Send + 'static,
     {
         let execute_msg = cosmwasm::MsgExecuteContract {
             sender: sender_address.clone(),
@@ -351,7 +330,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         })
     }
 
-    async fn execute_multiple<I, M, T>(
+    async fn execute_multiple<I, M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
@@ -360,9 +339,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ExecuteResult, NymdError>
     where
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
-        I: IntoIterator<Item = (M, Vec<T>)> + Send,
+        I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
         M: Serialize,
     {
         let messages = msgs
@@ -394,18 +371,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         })
     }
 
-    async fn send_tokens<T>(
+    async fn send_tokens(
         &self,
         sender_address: &AccountId,
         recipient_address: &AccountId,
-        amount: Vec<T>,
+        amount: Vec<Coin>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<TxResponse, NymdError>
-    where
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
-    {
+    ) -> Result<TxResponse, NymdError> {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
             to_address: recipient_address.clone(),
@@ -419,7 +392,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    async fn send_tokens_multiple<I, T>(
+    async fn send_tokens_multiple<I>(
         &self,
         sender_address: &AccountId,
         msgs: I,
@@ -427,9 +400,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         memo: impl Into<String> + Send + 'static,
     ) -> Result<TxResponse, NymdError>
     where
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
-        I: IntoIterator<Item = (AccountId, Vec<T>)> + Send,
+        I: IntoIterator<Item = (AccountId, Vec<Coin>)> + Send,
     {
         let messages = msgs
             .into_iter()

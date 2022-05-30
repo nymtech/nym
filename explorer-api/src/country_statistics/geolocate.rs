@@ -51,7 +51,7 @@ impl GeoLocateTask {
                 .state
                 .inner
                 .mixnodes
-                .is_location_valid(&cache_item.mix_node.identity_key)
+                .is_location_valid(&cache_item.mix_node().identity_key)
                 .await
             {
                 // when the cached location is valid, don't locate and continue to next mix node
@@ -59,14 +59,14 @@ impl GeoLocateTask {
             }
 
             // the mix node has not been located or is the cache time has expired
-            match locate(&cache_item.mix_node.host).await {
+            match locate(&cache_item.mix_node().host).await {
                 Ok(geo_location) => {
                     let location = Location::new(geo_location);
 
                     trace!(
                         "{} mix nodes already located. Ip {} is located in {:#?}",
                         i,
-                        cache_item.mix_node.host,
+                        cache_item.mix_node().host,
                         location.three_letter_iso_country_code,
                     );
 
@@ -80,7 +80,7 @@ impl GeoLocateTask {
                     self.state
                         .inner
                         .mixnodes
-                        .set_location(&cache_item.mix_node.identity_key, Some(location))
+                        .set_location(&cache_item.mix_node().identity_key, Some(location))
                         .await;
 
                     // one node has been located, so return out of the loop
@@ -89,22 +89,22 @@ impl GeoLocateTask {
                 Err(e) => match e {
                     LocateError::ReqwestError(e) => warn!(
                         "❌ Oh no! Location for {} failed {}",
-                        cache_item.mix_node.host, e
+                        cache_item.mix_node().host, e
                     ),
                     LocateError::NotFound(e) => {
                             warn!(
                             "❌ Location for {} not found. Response body: {}",
-                            cache_item.mix_node.host, e
+                            cache_item.mix_node().host, e
                         );
                         self.state
                             .inner
                             .mixnodes
-                            .set_location(&cache_item.mix_node.identity_key, None)
+                            .set_location(&cache_item.mix_node().identity_key, None)
                             .await;
                     },
                     LocateError::RateLimited(e) => warn!(
                         "❌ Oh no, we've been rate limited! Location for {} failed. Response body: {}",
-                        cache_item.mix_node.host, e
+                        cache_item.mix_node().host, e
                     ),
                 },
             }

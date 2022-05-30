@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use mixnet_contract_common::{reward_params::RewardParams, MixNodeBond};
+use mixnet_contract_common::{reward_params::RewardParams, MixNodeBond, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -57,6 +57,12 @@ pub struct MixnodeStatusResponse {
 pub struct MixNodeBondDetailed {
     pub mixnode_bond: MixNodeBond,
     pub stake_saturation: StakeSaturationResponse,
+}
+
+impl MixNodeBondDetailed {
+    pub fn mix_node(&self) -> &MixNode {
+        &self.mixnode_bond.mix_node
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]

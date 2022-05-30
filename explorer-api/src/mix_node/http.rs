@@ -70,8 +70,8 @@ pub(crate) async fn get_description(
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
                     match get_mix_node_description(
-                        &bond.mix_node.host,
-                        &bond.mix_node.http_api_port,
+                        &bond.mix_node().host,
+                        &bond.mix_node().http_api_port,
                     )
                     .await
                     {
@@ -87,7 +87,10 @@ pub(crate) async fn get_description(
                         Err(e) => {
                             error!(
                                 "Unable to get description for {} on {}:{} -> {}",
-                                pubkey, bond.mix_node.host, bond.mix_node.http_api_port, e
+                                pubkey,
+                                bond.mix_node().host,
+                                bond.mix_node().http_api_port,
+                                e
                             );
                             Option::None
                         }
@@ -114,7 +117,7 @@ pub(crate) async fn get_stats(
             trace!("No valid cache value for {}", pubkey);
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
-                    match get_mix_node_stats(&bond.mix_node.host, &bond.mix_node.http_api_port)
+                    match get_mix_node_stats(&bond.mix_node().host, &bond.mix_node().http_api_port)
                         .await
                     {
                         Ok(response) => {
@@ -129,7 +132,10 @@ pub(crate) async fn get_stats(
                         Err(e) => {
                             error!(
                                 "Unable to get description for {} on {}:{} -> {}",
-                                pubkey, bond.mix_node.host, bond.mix_node.http_api_port, e
+                                pubkey,
+                                bond.mix_node().host,
+                                bond.mix_node().http_api_port,
+                                e
                             );
                             Option::None
                         }

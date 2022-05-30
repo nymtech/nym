@@ -15,54 +15,54 @@ use validator_client::nymd::Denom;
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/network.ts"))]
 #[derive(Copy, Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
-  QA,
-  SANDBOX,
-  MAINNET,
+    QA,
+    SANDBOX,
+    MAINNET,
 }
 
 impl Network {
-  pub fn as_key(&self) -> String {
-    self.to_string().to_lowercase()
-  }
-
-  pub fn denom(&self) -> Denom {
-    match self {
-      // network defaults should be correctly formatted
-      Network::QA => Denom::from_str(qa::DENOM).unwrap(),
-      Network::SANDBOX => Denom::from_str(sandbox::DENOM).unwrap(),
-      Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
+    pub fn as_key(&self) -> String {
+        self.to_string().to_lowercase()
     }
-  }
+
+    pub fn denom(&self) -> Denom {
+        match self {
+            // network defaults should be correctly formatted
+            Network::QA => Denom::from_str(qa::DENOM).unwrap(),
+            Network::SANDBOX => Denom::from_str(sandbox::DENOM).unwrap(),
+            Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
+        }
+    }
 }
 
 impl Default for Network {
-  fn default() -> Self {
-    Network::MAINNET
-  }
+    fn default() -> Self {
+        Network::MAINNET
+    }
 }
 
 impl fmt::Display for Network {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{:?}", self)
-  }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl From<ConfigNetwork> for Network {
-  fn from(network: ConfigNetwork) -> Self {
-    match network {
-      ConfigNetwork::QA => Network::QA,
-      ConfigNetwork::SANDBOX => Network::SANDBOX,
-      ConfigNetwork::MAINNET => Network::MAINNET,
+    fn from(network: ConfigNetwork) -> Self {
+        match network {
+            ConfigNetwork::QA => Network::QA,
+            ConfigNetwork::SANDBOX => Network::SANDBOX,
+            ConfigNetwork::MAINNET => Network::MAINNET,
+        }
     }
-  }
 }
 
 impl From<Network> for ConfigNetwork {
-  fn from(network: Network) -> Self {
-    match network {
-      Network::QA => ConfigNetwork::QA,
-      Network::SANDBOX => ConfigNetwork::SANDBOX,
-      Network::MAINNET => ConfigNetwork::MAINNET,
+    fn from(network: Network) -> Self {
+        match network {
+            Network::QA => ConfigNetwork::QA,
+            Network::SANDBOX => ConfigNetwork::SANDBOX,
+            Network::MAINNET => ConfigNetwork::MAINNET,
+        }
     }
-  }
 }

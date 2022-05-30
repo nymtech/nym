@@ -29,119 +29,125 @@ const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 /// The wallet, stored as a serialized json file.
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct StoredWallet {
-  version: u32,
-  accounts: Vec<EncryptedLogin>,
+    version: u32,
+    accounts: Vec<EncryptedLogin>,
 }
 
 impl StoredWallet {
-  #[allow(unused)]
-  pub fn version(&self) -> u32 {
-    self.version
-  }
-
-  #[allow(unused)]
-  pub fn len(&self) -> usize {
-    self.accounts.len()
-  }
-
-  pub fn is_empty(&self) -> bool {
-    self.accounts.is_empty()
-  }
-
-  pub fn add_encrypted_login(&mut self, new_login: EncryptedLogin) -> Result<(), BackendError> {
-    if self.get_encrypted_login(&new_login.id).is_ok() {
-      return Err(BackendError::WalletLoginIdAlreadyExists);
+    #[allow(unused)]
+    pub fn version(&self) -> u32 {
+        self.version
     }
-    self.accounts.push(new_login);
-    Ok(())
-  }
 
-  fn get_encrypted_login(&self, id: &LoginId) -> Result<&EncryptedData<StoredLogin>, BackendError> {
-    self
-      .accounts
-      .iter()
-      .find(|account| &account.id == id)
-      .map(|account| &account.account)
-      .ok_or(BackendError::WalletNoSuchLoginId)
-  }
-
-  fn get_encrypted_login_mut(&mut self, id: &LoginId) -> Result<&mut EncryptedLogin, BackendError> {
-    self
-      .accounts
-      .iter_mut()
-      .find(|account| &account.id == id)
-      .ok_or(BackendError::WalletNoSuchLoginId)
-  }
-
-  #[cfg(test)]
-  pub fn get_encrypted_login_by_index(&self, index: usize) -> Option<&EncryptedLogin> {
-    self.accounts.get(index)
-  }
-
-  pub fn replace_encrypted_login(&mut self, new_login: EncryptedLogin) -> Result<(), BackendError> {
-    let login = self.get_encrypted_login_mut(&new_login.id)?;
-    *login = new_login;
-    Ok(())
-  }
-
-  pub fn remove_encrypted_login(&mut self, id: &LoginId) -> Option<EncryptedLogin> {
-    if let Some(index) = self.accounts.iter().position(|account| &account.id == id) {
-      log::info!("Removing from wallet file: {id}");
-      Some(self.accounts.remove(index))
-    } else {
-      log::debug!("Tried to remove non-existent id from wallet: {id}");
-      None
+    #[allow(unused)]
+    pub fn len(&self) -> usize {
+        self.accounts.len()
     }
-  }
 
-  pub fn decrypt_login(
-    &self,
-    id: &LoginId,
-    password: &UserPassword,
-  ) -> Result<StoredLogin, BackendError> {
-    self.get_encrypted_login(id)?.decrypt_struct(password)
-  }
+    pub fn is_empty(&self) -> bool {
+        self.accounts.is_empty()
+    }
 
-  pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredLogin>, BackendError> {
-    self
-      .accounts
-      .iter()
-      .map(|account| account.account.decrypt_struct(password))
-      .collect::<Result<Vec<_>, _>>()
-  }
+    pub fn add_encrypted_login(&mut self, new_login: EncryptedLogin) -> Result<(), BackendError> {
+        if self.get_encrypted_login(&new_login.id).is_ok() {
+            return Err(BackendError::WalletLoginIdAlreadyExists);
+        }
+        self.accounts.push(new_login);
+        Ok(())
+    }
 
-  pub fn password_can_decrypt_all(&self, password: &UserPassword) -> bool {
-    self.decrypt_all(password).is_ok()
-  }
+    fn get_encrypted_login(
+        &self,
+        id: &LoginId,
+    ) -> Result<&EncryptedData<StoredLogin>, BackendError> {
+        self.accounts
+            .iter()
+            .find(|account| &account.id == id)
+            .map(|account| &account.account)
+            .ok_or(BackendError::WalletNoSuchLoginId)
+    }
+
+    fn get_encrypted_login_mut(
+        &mut self,
+        id: &LoginId,
+    ) -> Result<&mut EncryptedLogin, BackendError> {
+        self.accounts
+            .iter_mut()
+            .find(|account| &account.id == id)
+            .ok_or(BackendError::WalletNoSuchLoginId)
+    }
+
+    #[cfg(test)]
+    pub fn get_encrypted_login_by_index(&self, index: usize) -> Option<&EncryptedLogin> {
+        self.accounts.get(index)
+    }
+
+    pub fn replace_encrypted_login(
+        &mut self,
+        new_login: EncryptedLogin,
+    ) -> Result<(), BackendError> {
+        let login = self.get_encrypted_login_mut(&new_login.id)?;
+        *login = new_login;
+        Ok(())
+    }
+
+    pub fn remove_encrypted_login(&mut self, id: &LoginId) -> Option<EncryptedLogin> {
+        if let Some(index) = self.accounts.iter().position(|account| &account.id == id) {
+            log::info!("Removing from wallet file: {id}");
+            Some(self.accounts.remove(index))
+        } else {
+            log::debug!("Tried to remove non-existent id from wallet: {id}");
+            None
+        }
+    }
+
+    pub fn decrypt_login(
+        &self,
+        id: &LoginId,
+        password: &UserPassword,
+    ) -> Result<StoredLogin, BackendError> {
+        self.get_encrypted_login(id)?.decrypt_struct(password)
+    }
+
+    pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredLogin>, BackendError> {
+        self.accounts
+            .iter()
+            .map(|account| account.account.decrypt_struct(password))
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    pub fn password_can_decrypt_all(&self, password: &UserPassword) -> bool {
+        self.decrypt_all(password).is_ok()
+    }
 }
 
 impl Default for StoredWallet {
-  fn default() -> Self {
-    StoredWallet {
-      version: CURRENT_WALLET_FILE_VERSION,
-      accounts: Vec::new(),
+    fn default() -> Self {
+        StoredWallet {
+            version: CURRENT_WALLET_FILE_VERSION,
+            accounts: Vec::new(),
+        }
     }
-  }
 }
 
 /// Each entry in the stored wallet file. An id field in plaintext and an encrypted stored login.
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct EncryptedLogin {
-  pub id: LoginId,
-  pub account: EncryptedData<StoredLogin>,
+    pub id: LoginId,
+    pub account: EncryptedData<StoredLogin>,
 }
 
 impl EncryptedLogin {
-  pub(crate) fn encrypt(
-    id: LoginId,
-    login: &StoredLogin,
-    password: &UserPassword,
-  ) -> Result<Self, BackendError> {
-    Ok(EncryptedLogin {
-      id,
-      account: super::encryption::encrypt_struct(login, password)?,
-    })
-  }
+    pub(crate) fn encrypt(
+        id: LoginId,
+        login: &StoredLogin,
+        password: &UserPassword,
+    ) -> Result<Self, BackendError> {
+        Ok(EncryptedLogin {
+            id,
+            account: super::encryption::encrypt_struct(login, password)?,
+        })
+    }
 }
 
 /// A stored login is either a account, such as a mnemonic, or a list of multiple accounts where
@@ -150,147 +156,148 @@ impl EncryptedLogin {
 #[serde(untagged)]
 #[zeroize(drop)]
 pub(crate) enum StoredLogin {
-  Mnemonic(MnemonicAccount),
-  // PrivateKey(PrivateKeyAccount)
-  Multiple(MultipleAccounts),
+    Mnemonic(MnemonicAccount),
+    // PrivateKey(PrivateKeyAccount)
+    Multiple(MultipleAccounts),
 }
 
 impl StoredLogin {
-  #[cfg(test)]
-  pub(crate) fn as_mnemonic_account(&self) -> Option<&MnemonicAccount> {
-    match self {
-      StoredLogin::Mnemonic(mn) => Some(mn),
-      StoredLogin::Multiple(_) => None,
+    #[cfg(test)]
+    pub(crate) fn as_mnemonic_account(&self) -> Option<&MnemonicAccount> {
+        match self {
+            StoredLogin::Mnemonic(mn) => Some(mn),
+            StoredLogin::Multiple(_) => None,
+        }
     }
-  }
 
-  #[cfg(test)]
-  pub(crate) fn as_multiple_accounts(&self) -> Option<&MultipleAccounts> {
-    match self {
-      StoredLogin::Mnemonic(_) => None,
-      StoredLogin::Multiple(accounts) => Some(accounts),
+    #[cfg(test)]
+    pub(crate) fn as_multiple_accounts(&self) -> Option<&MultipleAccounts> {
+        match self {
+            StoredLogin::Mnemonic(_) => None,
+            StoredLogin::Multiple(accounts) => Some(accounts),
+        }
     }
-  }
 
-  // Return the login as multiple accounts, and if there is only a single mnemonic backed account,
-  // return a set containing only the single account paired with the account id passed as function
-  // argument.
-  pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
-    match self {
-      StoredLogin::Mnemonic(ref account) => vec![WalletAccount::new(id, account.clone())].into(),
-      StoredLogin::Multiple(ref accounts) => accounts.clone(),
+    // Return the login as multiple accounts, and if there is only a single mnemonic backed account,
+    // return a set containing only the single account paired with the account id passed as function
+    // argument.
+    pub(crate) fn unwrap_into_multiple_accounts(self, id: AccountId) -> MultipleAccounts {
+        match self {
+            StoredLogin::Mnemonic(ref account) => {
+                vec![WalletAccount::new(id, account.clone())].into()
+            }
+            StoredLogin::Multiple(ref accounts) => accounts.clone(),
+        }
     }
-  }
 }
 
 /// Multiple stored accounts, each entry having an id and a data field.
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 pub(crate) struct MultipleAccounts {
-  accounts: Vec<WalletAccount>,
+    accounts: Vec<WalletAccount>,
 }
 
 impl MultipleAccounts {
-  pub(crate) fn new() -> Self {
-    MultipleAccounts {
-      accounts: Vec::new(),
+    pub(crate) fn new() -> Self {
+        MultipleAccounts {
+            accounts: Vec::new(),
+        }
     }
-  }
 
-  pub(crate) fn get_accounts(&self) -> impl Iterator<Item = &WalletAccount> {
-    self.accounts.iter()
-  }
-
-  pub(crate) fn get_account(&self, id: &AccountId) -> Option<&WalletAccount> {
-    self.accounts.iter().find(|account| &account.id == id)
-  }
-
-  pub(crate) fn get_account_with_mnemonic(
-    &self,
-    mnemonic: &bip39::Mnemonic,
-  ) -> Option<&WalletAccount> {
-    self
-      .get_accounts()
-      .find(|account| account.mnemonic() == mnemonic)
-  }
-
-  pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
-    self.accounts.into_iter()
-  }
-
-  #[allow(unused)]
-  pub(crate) fn len(&self) -> usize {
-    self.accounts.len()
-  }
-
-  pub(crate) fn is_empty(&self) -> bool {
-    self.accounts.is_empty()
-  }
-
-  pub(crate) fn add(
-    &mut self,
-    id: AccountId,
-    mnemonic: bip39::Mnemonic,
-    hd_path: DerivationPath,
-  ) -> Result<(), BackendError> {
-    if self.get_account(&id).is_some() {
-      Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
-    } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
-      Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
-    } else {
-      self.accounts.push(WalletAccount::new(
-        id,
-        MnemonicAccount::new(mnemonic, hd_path),
-      ));
-      Ok(())
+    pub(crate) fn get_accounts(&self) -> impl Iterator<Item = &WalletAccount> {
+        self.accounts.iter()
     }
-  }
 
-  pub(crate) fn remove(&mut self, id: &AccountId) -> Result<(), BackendError> {
-    if self.get_account(id).is_none() {
-      return Err(BackendError::WalletNoSuchAccountIdInWalletLogin);
+    pub(crate) fn get_account(&self, id: &AccountId) -> Option<&WalletAccount> {
+        self.accounts.iter().find(|account| &account.id == id)
     }
-    self.accounts.retain(|accounts| &accounts.id != id);
-    Ok(())
-  }
+
+    pub(crate) fn get_account_with_mnemonic(
+        &self,
+        mnemonic: &bip39::Mnemonic,
+    ) -> Option<&WalletAccount> {
+        self.get_accounts()
+            .find(|account| account.mnemonic() == mnemonic)
+    }
+
+    pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
+        self.accounts.into_iter()
+    }
+
+    #[allow(unused)]
+    pub(crate) fn len(&self) -> usize {
+        self.accounts.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.accounts.is_empty()
+    }
+
+    pub(crate) fn add(
+        &mut self,
+        id: AccountId,
+        mnemonic: bip39::Mnemonic,
+        hd_path: DerivationPath,
+    ) -> Result<(), BackendError> {
+        if self.get_account(&id).is_some() {
+            Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
+        } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
+            Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
+        } else {
+            self.accounts.push(WalletAccount::new(
+                id,
+                MnemonicAccount::new(mnemonic, hd_path),
+            ));
+            Ok(())
+        }
+    }
+
+    pub(crate) fn remove(&mut self, id: &AccountId) -> Result<(), BackendError> {
+        if self.get_account(id).is_none() {
+            return Err(BackendError::WalletNoSuchAccountIdInWalletLogin);
+        }
+        self.accounts.retain(|accounts| &accounts.id != id);
+        Ok(())
+    }
 }
 
 impl From<Vec<WalletAccount>> for MultipleAccounts {
-  fn from(accounts: Vec<WalletAccount>) -> MultipleAccounts {
-    Self { accounts }
-  }
+    fn from(accounts: Vec<WalletAccount>) -> MultipleAccounts {
+        Self { accounts }
+    }
 }
 
 /// An entry in the list of stored accounts
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
 pub(crate) struct WalletAccount {
-  id: AccountId,
-  account: AccountData,
+    id: AccountId,
+    account: AccountData,
 }
 
 impl WalletAccount {
-  pub(crate) fn new(id: AccountId, mnemonic_account: MnemonicAccount) -> Self {
-    Self {
-      id,
-      account: AccountData::Mnemonic(mnemonic_account),
+    pub(crate) fn new(id: AccountId, mnemonic_account: MnemonicAccount) -> Self {
+        Self {
+            id,
+            account: AccountData::Mnemonic(mnemonic_account),
+        }
     }
-  }
 
-  pub(crate) fn id(&self) -> &AccountId {
-    &self.id
-  }
-
-  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
-    match self.account {
-      AccountData::Mnemonic(ref account) => account.mnemonic(),
+    pub(crate) fn id(&self) -> &AccountId {
+        &self.id
     }
-  }
 
-  #[cfg(test)]
-  pub(crate) fn hd_path(&self) -> &DerivationPath {
-    match self.account {
-      AccountData::Mnemonic(ref account) => account.hd_path(),
+    pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+        match self.account {
+            AccountData::Mnemonic(ref account) => account.mnemonic(),
+        }
     }
-  }
+
+    #[cfg(test)]
+    pub(crate) fn hd_path(&self) -> &DerivationPath {
+        match self.account {
+            AccountData::Mnemonic(ref account) => account.hd_path(),
+        }
+    }
 }
 
 /// An account usually is a mnemonic account, but in the future it might be backed by a private
@@ -299,69 +306,69 @@ impl WalletAccount {
 #[serde(untagged)]
 #[zeroize(drop)]
 enum AccountData {
-  Mnemonic(MnemonicAccount),
-  // PrivateKey(PrivateKeyAccount)
+    Mnemonic(MnemonicAccount),
+    // PrivateKey(PrivateKeyAccount)
 }
 
 /// An account backed by a unique mnemonic.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MnemonicAccount {
-  mnemonic: bip39::Mnemonic,
-  #[serde(with = "display_hd_path")]
-  hd_path: DerivationPath,
+    mnemonic: bip39::Mnemonic,
+    #[serde(with = "display_hd_path")]
+    hd_path: DerivationPath,
 }
 
 impl MnemonicAccount {
-  pub(crate) fn new(mnemonic: bip39::Mnemonic, hd_path: DerivationPath) -> Self {
-    Self { mnemonic, hd_path }
-  }
+    pub(crate) fn new(mnemonic: bip39::Mnemonic, hd_path: DerivationPath) -> Self {
+        Self { mnemonic, hd_path }
+    }
 
-  pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
-    &self.mnemonic
-  }
+    pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {
+        &self.mnemonic
+    }
 
-  #[cfg(test)]
-  pub(crate) fn hd_path(&self) -> &DerivationPath {
-    &self.hd_path
-  }
+    #[cfg(test)]
+    pub(crate) fn hd_path(&self) -> &DerivationPath {
+        &self.hd_path
+    }
 }
 
 impl Zeroize for MnemonicAccount {
-  fn zeroize(&mut self) {
-    // in ideal world, Mnemonic would have had zeroize defined on it (there's an almost year old PR that introduces it)
-    // and the memory would have been filled with zeroes.
-    //
-    // we really don't want to keep our real mnemonic in memory, so let's do the semi-nasty thing
-    // of overwriting it with a fresh mnemonic that was never used before
-    //
-    // note: this function can only fail on an invalid word count, which clearly is not the case here
-    self.mnemonic = bip39::Mnemonic::generate(self.mnemonic.word_count()).unwrap();
+    fn zeroize(&mut self) {
+        // in ideal world, Mnemonic would have had zeroize defined on it (there's an almost year old PR that introduces it)
+        // and the memory would have been filled with zeroes.
+        //
+        // we really don't want to keep our real mnemonic in memory, so let's do the semi-nasty thing
+        // of overwriting it with a fresh mnemonic that was never used before
+        //
+        // note: this function can only fail on an invalid word count, which clearly is not the case here
+        self.mnemonic = bip39::Mnemonic::generate(self.mnemonic.word_count()).unwrap();
 
-    // further note: we don't really care about the hd_path, there's nothing secret about it.
-  }
+        // further note: we don't really care about the hd_path, there's nothing secret about it.
+    }
 }
 
 impl Drop for MnemonicAccount {
-  fn drop(&mut self) {
-    self.zeroize()
-  }
+    fn drop(&mut self) {
+        self.zeroize()
+    }
 }
 
 mod display_hd_path {
-  use serde::{Deserialize, Deserializer, Serializer};
-  use validator_client::nymd::bip32::DerivationPath;
+    use serde::{Deserialize, Deserializer, Serializer};
+    use validator_client::nymd::bip32::DerivationPath;
 
-  pub fn serialize<S: Serializer>(
-    hd_path: &DerivationPath,
-    serializer: S,
-  ) -> Result<S::Ok, S::Error> {
-    serializer.collect_str(hd_path)
-  }
+    pub fn serialize<S: Serializer>(
+        hd_path: &DerivationPath,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(hd_path)
+    }
 
-  pub fn deserialize<'de, D: Deserializer<'de>>(
-    deserializer: D,
-  ) -> Result<DerivationPath, D::Error> {
-    let s = <&str>::deserialize(deserializer)?;
-    s.parse().map_err(serde::de::Error::custom)
-  }
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<DerivationPath, D::Error> {
+        let s = <&str>::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
 }

@@ -17,7 +17,7 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin, Tx};
+use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin as CosmosCoin, Tx};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
@@ -294,23 +294,45 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         })
     }
 
-    async fn execute<M>(
+    // a helper to automatically infer required types so that you wouldn't need the turbofish
+    // for normal `execute` if you're not sending any funds with your transaction
+    async fn fundless_execute<M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         msg: &M,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-        funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NymdError>
     where
         M: ?Sized + Serialize + Sync,
+    {
+        // todo!()
+        self.execute::<_, CosmosCoin, _>(sender_address, contract_address, msg, fee, memo, vec![])
+            .await
+    }
+
+    // the memo had to be extracted into an explicit generic due to: https://github.com/rust-lang/rust/issues/83701
+    async fn execute<M, T, S>(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        msg: &M,
+        fee: Fee,
+        memo: S,
+        funds: Vec<T>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        M: ?Sized + Serialize + Sync,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
+        S: Into<String> + Send + 'static,
     {
         let execute_msg = cosmwasm::MsgExecuteContract {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
-            funds,
+            funds: funds.into_iter().map(Into::into).collect(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
@@ -330,7 +352,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         })
     }
 
-    async fn execute_multiple<I, M>(
+    async fn execute_multiple<I, M, T>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
@@ -339,7 +361,9 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ExecuteResult, NymdError>
     where
-        I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
+        I: IntoIterator<Item = (M, Vec<T>)> + Send,
         M: Serialize,
     {
         let messages = msgs
@@ -349,7 +373,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                     sender: sender_address.clone(),
                     contract: contract_address.clone(),
                     msg: serde_json::to_vec(&msg)?,
-                    funds,
+                    funds: funds.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
@@ -371,18 +395,22 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         })
     }
 
-    async fn send_tokens(
+    async fn send_tokens<T>(
         &self,
         sender_address: &AccountId,
         recipient_address: &AccountId,
-        amount: Vec<Coin>,
+        amount: Vec<T>,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<TxResponse, NymdError> {
+    ) -> Result<TxResponse, NymdError>
+    where
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
+    {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
             to_address: recipient_address.clone(),
-            amount,
+            amount: amount.into_iter().map(Into::into).collect(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
@@ -392,7 +420,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    async fn send_tokens_multiple<I>(
+    async fn send_tokens_multiple<I, T>(
         &self,
         sender_address: &AccountId,
         msgs: I,
@@ -400,7 +428,9 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         memo: impl Into<String> + Send + 'static,
     ) -> Result<TxResponse, NymdError>
     where
-        I: IntoIterator<Item = (AccountId, Vec<Coin>)> + Send,
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
+        I: IntoIterator<Item = (AccountId, Vec<T>)> + Send,
     {
         let messages = msgs
             .into_iter()
@@ -408,7 +438,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                 MsgSend {
                     from_address: sender_address.clone(),
                     to_address,
-                    amount,
+                    amount: amount.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
@@ -420,18 +450,22 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    async fn delegate_tokens(
+    async fn delegate_tokens<T>(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
-        amount: Coin,
+        amount: T,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<TxResponse, NymdError> {
+    ) -> Result<TxResponse, NymdError>
+    where
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
+    {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount,
+            amount: amount.into(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
@@ -441,18 +475,22 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    async fn undelegate_tokens(
+    async fn undelegate_tokens<T>(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
-        amount: Coin,
+        amount: T,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<TxResponse, NymdError> {
+    ) -> Result<TxResponse, NymdError>
+    where
+        // this allows you to use both CosmosCoin and Coin
+        T: Into<CosmosCoin> + Send,
+    {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount,
+            amount: amount.into(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;

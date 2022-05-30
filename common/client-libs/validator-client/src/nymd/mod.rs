@@ -9,10 +9,11 @@ use crate::nymd::cosmwasm_client::types::{
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
+use cosmrs::cosmwasm;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
-use cosmwasm_std::{Coin, Uint128};
+use cosmwasm_std::Uint128;
 pub use fee::gas_price::GasPrice;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
@@ -28,8 +29,8 @@ use std::convert::TryInto;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
+pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
-use cosmrs::cosmwasm;
 pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNymdClient;
@@ -266,7 +267,7 @@ impl<C> NymdClient<C> {
         &self,
         address: &AccountId,
         denom: Denom,
-    ) -> Result<Option<CosmosCoin>, NymdError>
+    ) -> Result<Option<Coin>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -811,7 +812,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding mixnode from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![pledge],
             )
             .await
     }
@@ -842,7 +843,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding mixnode on behalf from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![pledge],
             )
             .await
     }
@@ -858,7 +859,7 @@ impl<C> NymdClient<C> {
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
-        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_bonds_with_sigs
+        let reqs: Vec<(ExecuteMsg, Vec<Coin>)> = mixnode_bonds_with_sigs
             .into_iter()
             .map(|(bond, owner_signature)| {
                 (
@@ -867,7 +868,7 @@ impl<C> NymdClient<C> {
                         owner: bond.owner.to_string(),
                         owner_signature,
                     },
-                    vec![cosmwasm_coin_to_cosmos_coin(bond.pledge_amount)],
+                    vec![bond.pledge_amount.into()],
                 )
             })
             .collect();
@@ -892,13 +893,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::UnbondMixnode {};
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Unbonding mixnode from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -916,13 +916,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::UnbondMixnodeOnBehalf { owner };
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Unbonding mixnode on behalf from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -942,13 +941,12 @@ impl<C> NymdClient<C> {
             profit_margin_percent,
         };
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Updating mixnode configuration from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -957,7 +955,7 @@ impl<C> NymdClient<C> {
     pub async fn delegate_to_mixnode(
         &self,
         mix_identity: &str,
-        amount: &Coin,
+        amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
@@ -975,7 +973,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
-                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
+                vec![amount],
             )
             .await
     }
@@ -986,7 +984,7 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: &str,
         delegate: &str,
-        amount: &Coin,
+        amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>
     where
@@ -1005,7 +1003,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Delegating to mixnode on behalf from rust!",
-                vec![cosmwasm_coin_ptr_to_cosmos_coin(amount)],
+                vec![amount],
             )
             .await
     }
@@ -1021,7 +1019,7 @@ impl<C> NymdClient<C> {
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
-        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = mixnode_delegations
+        let reqs: Vec<(ExecuteMsg, Vec<Coin>)> = mixnode_delegations
             .into_iter()
             .map(|delegation| {
                 (
@@ -1029,7 +1027,7 @@ impl<C> NymdClient<C> {
                         mix_identity: delegation.node_identity(),
                         delegate: delegation.owner().to_string(),
                     },
-                    vec![cosmwasm_coin_to_cosmos_coin(delegation.amount().clone())],
+                    vec![delegation.amount().clone().into()],
                 )
             })
             .collect();
@@ -1060,13 +1058,12 @@ impl<C> NymdClient<C> {
             mix_identity: mix_identity.to_string(),
         };
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Removing mixnode delegation from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -1088,13 +1085,12 @@ impl<C> NymdClient<C> {
             delegate: delegate.to_string(),
         };
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Removing mixnode delegation on behalf from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -1123,7 +1119,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding gateway from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![pledge],
             )
             .await
     }
@@ -1154,7 +1150,7 @@ impl<C> NymdClient<C> {
                 &req,
                 fee,
                 "Bonding gateway on behalf from rust!",
-                vec![cosmwasm_coin_to_cosmos_coin(pledge)],
+                vec![pledge],
             )
             .await
     }
@@ -1170,7 +1166,7 @@ impl<C> NymdClient<C> {
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
 
-        let reqs: Vec<(ExecuteMsg, Vec<CosmosCoin>)> = gateway_bonds_with_sigs
+        let reqs: Vec<(ExecuteMsg, Vec<Coin>)> = gateway_bonds_with_sigs
             .into_iter()
             .map(|(bond, owner_signature)| {
                 (
@@ -1179,7 +1175,7 @@ impl<C> NymdClient<C> {
                         owner: bond.owner.to_string(),
                         owner_signature,
                     },
-                    vec![cosmwasm_coin_to_cosmos_coin(bond.pledge_amount)],
+                    vec![bond.pledge_amount.into()],
                 )
             })
             .collect();
@@ -1204,13 +1200,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::UnbondGateway {};
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Unbonding gateway from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -1229,13 +1224,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::UnbondGatewayOnBehalf { owner };
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Unbonding gateway on behalf from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -1252,13 +1246,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::UpdateContractStateParams(new_params);
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Updating contract state from rust!",
-                Vec::new(),
             )
             .await
     }
@@ -1271,13 +1264,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::AdvanceCurrentEpoch {};
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Advance current epoch",
-                Vec::new(),
             )
             .await
     }
@@ -1290,13 +1282,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::ReconcileDelegations {};
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Reconciling delegation events",
-                Vec::new(),
             )
             .await
     }
@@ -1309,13 +1300,12 @@ impl<C> NymdClient<C> {
 
         let req = ExecuteMsg::CheckpointMixnodes {};
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Snapshotting mixnodes",
-                Vec::new(),
             )
             .await
     }
@@ -1336,30 +1326,13 @@ impl<C> NymdClient<C> {
             expected_active_set_size,
         };
         self.client
-            .execute(
+            .fundless_execute(
                 self.address(),
                 self.mixnet_contract_address()?,
                 &req,
                 fee,
                 "Writing rewarded set",
-                Vec::new(),
             )
             .await
-    }
-}
-
-fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
-    CosmosCoin {
-        denom: coin.denom.parse().unwrap(),
-        // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64
-        amount: (coin.amount.u128() as u64).into(),
-    }
-}
-
-fn cosmwasm_coin_ptr_to_cosmos_coin(coin: &Coin) -> CosmosCoin {
-    CosmosCoin {
-        denom: coin.denom.parse().unwrap(),
-        // this might be a bit iffy, cosmwasm coin stores value as u128, while cosmos does it as u64
-        amount: (coin.amount.u128() as u64).into(),
     }
 }

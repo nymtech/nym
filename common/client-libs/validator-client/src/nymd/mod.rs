@@ -46,6 +46,7 @@ pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
+pub mod coin;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;

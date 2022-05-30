@@ -29,6 +29,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub layer: Layer,
     pub mix_node: MixNode,
     pub avg_uptime: Option<u8>,
+    pub stake_saturation: f32,
 }
 
 pub(crate) struct MixNodeCache {

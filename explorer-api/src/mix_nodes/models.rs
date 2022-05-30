@@ -159,6 +159,7 @@ impl ThreadsafeMixNodesCache {
                     layer: bond.mixnode_bond.layer,
                     mix_node,
                     avg_uptime: health.map(|m| m.avg_uptime),
+                    stake_saturation: bond.stake_saturation.saturation,
                 })
             }
             None => None,
@@ -186,6 +187,7 @@ impl ThreadsafeMixNodesCache {
                     layer: copy.layer,
                     mix_node: copy.mix_node,
                     avg_uptime: health.map(|m| m.avg_uptime),
+                    stake_saturation: bond.stake_saturation.saturation,
                 }
             })
             .collect()

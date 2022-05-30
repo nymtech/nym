@@ -255,7 +255,14 @@ pub async fn verify_bandwidth_credential(
         .client
         .get_proposal(*verify_credential_body.0.proposal_id())
         .await?;
-    println!("Title: {}", proposal.title);
+    // Proposal description is the blinded serial number
+    if !verify_credential_body
+        .0
+        .credential()
+        .has_blinded_serial_number(&proposal.description)?
+    {
+        return Err(CoconutError::IncorrectProposal);
+    }
     let verification_key = state.verification_key().await?;
     let verification_result = verify_credential_body
         .0
@@ -264,7 +271,7 @@ pub async fn verify_bandwidth_credential(
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
 }
 
-#[post("/post-propose-release-funds", data = "<propose_release_funds>")]
+#[post("/propose-release-funds", data = "<propose_release_funds>")]
 pub async fn post_propose_release_funds(
     propose_release_funds: Json<ProposeReleaseFundsRequestBody>,
     state: &RocketState<State>,

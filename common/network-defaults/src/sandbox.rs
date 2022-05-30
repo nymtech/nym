@@ -12,7 +12,7 @@ pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt14ejqjyq8um4p3xfqj74yld5w
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
-    "nymt1ghd753shjuwexxywmgs4xz7x2q732vcnstz02j";
+    "nymt10qt8wg0n7z740ssvf3urmvgtjhxpyp74p4hsm9";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("8e0DcFF7F3085235C32E845f3667aEB3f1e83133");

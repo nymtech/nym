@@ -38,6 +38,15 @@ impl Credential {
         self.theta.blinded_serial_number_bs58()
     }
 
+    pub fn has_blinded_serial_number(
+        &self,
+        blinded_serial_number_bs58: &str,
+    ) -> Result<bool, CoconutInterfaceError> {
+        Ok(self
+            .theta
+            .has_blinded_serial_number(blinded_serial_number_bs58)?)
+    }
+
     pub fn voucher_value(&self) -> u64 {
         self.voucher_value
     }

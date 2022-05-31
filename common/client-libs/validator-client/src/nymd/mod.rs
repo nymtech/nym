@@ -803,6 +803,89 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn compound_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = ExecuteMsg::CompoundOperatorReward {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "MixnetContract::CompoundOperatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    pub async fn claim_operator_reward(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = ExecuteMsg::ClaimOperatorReward {};
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "MixnetContract::ClaimOperatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    pub async fn compound_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = ExecuteMsg::CompoundDelegatorReward { mix_identity };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "MixnetContract::CompoundDelegatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    pub async fn claim_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = ExecuteMsg::ClaimDelegatorReward { mix_identity };
+        self.client
+            .execute(
+                self.address(),
+                self.mixnet_contract_address()?,
+                &req,
+                fee,
+                "MixnetContract::ClaimDelegatorReward",
+                vec![],
+            )
+            .await
+    }
+
     /// Announce a mixnode, paying a fee.
     pub async fn bond_mixnode(
         &self,

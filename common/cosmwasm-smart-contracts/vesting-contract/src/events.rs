@@ -20,6 +20,7 @@ pub const VESTING_UPDATE_MIXNODE_CONFIG_EVENT_TYPE: &str = "vesting_update_mixno
 pub const TRACK_MIXNODE_UNBOND_EVENT_TYPE: &str = "track_mixnode_unbond";
 pub const TRACK_GATEWAY_UNBOND_EVENT_TYPE: &str = "track_gateway_unbond";
 pub const TRACK_UNDELEGATION_EVENT_TYPE: &str = "track_undelegation";
+pub const TRACK_REWARD_EVENT_TYPE: &str = "track_reaward";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -135,4 +136,8 @@ pub fn new_track_gateway_unbond_event() -> Event {
 
 pub fn new_track_undelegation_event() -> Event {
     Event::new(TRACK_UNDELEGATION_EVENT_TYPE)
+}
+
+pub fn new_track_reward_event() -> Event {
+    Event::new(TRACK_REWARD_EVENT_TYPE)
 }

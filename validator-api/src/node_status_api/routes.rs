@@ -148,15 +148,13 @@ pub(crate) async fn get_mixnode_reward_estimation(
         let reward_params = RewardParams::new(reward_params, node_reward_params);
 
         match bond.estimate_reward(&reward_params) {
-            Ok((
-                estimated_total_node_reward,
-                estimated_operator_reward,
-                estimated_delegators_reward,
-            )) => {
+            Ok(reward_estimate) => {
                 let reponse = RewardEstimationResponse {
-                    estimated_total_node_reward,
-                    estimated_operator_reward,
-                    estimated_delegators_reward,
+                    estimated_total_node_reward: reward_estimate.total_node_reward,
+                    estimated_operator_reward: reward_estimate.operator_reward,
+                    estimated_delegators_reward: reward_estimate.delegators_reward,
+                    estimated_node_profit: reward_estimate.node_profit,
+                    estimated_operator_cost: reward_estimate.operator_cost,
                     reward_params,
                     as_at,
                 };

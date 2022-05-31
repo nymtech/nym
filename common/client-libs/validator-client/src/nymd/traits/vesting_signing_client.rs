@@ -11,6 +11,28 @@ use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, Vesting
 
 #[async_trait]
 pub trait VestingSigningClient {
+    async fn vesting_claim_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vesting_claim_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vesting_compound_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vesting_compound_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
     async fn vesting_update_mixnode_config(
         &self,
         profix_margin_percent: u8,
@@ -372,6 +394,80 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 fee,
                 "VestingContract::CreatePeriodicVestingAccount",
                 vec![amount],
+            )
+            .await
+    }
+
+    async fn vesting_claim_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::ClaimOperatorReward {};
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::ClaimOperatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_compound_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::CompoundOperatorReward {};
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::CompoundOperatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_claim_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::ClaimDelegatorReward { mix_identity };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::ClaimDelegatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_compound_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::CompoundDelegatorReward { mix_identity };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::CompoundDelegatorReward",
+                vec![],
             )
             .await
     }

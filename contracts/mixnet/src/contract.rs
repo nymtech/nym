@@ -283,6 +283,32 @@ pub fn execute(
                 info,
             )
         }
+        ExecuteMsg::ClaimOperatorReward {} => {
+            crate::rewards::transactions::try_claim_operator_reward(deps, &env, &info)
+        }
+        ExecuteMsg::ClaimOperatorRewardOnBehalf { owner } => {
+            crate::rewards::transactions::try_claim_operator_reward_on_behalf(
+                deps, &env, &info, owner,
+            )
+        }
+        ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
+            crate::rewards::transactions::try_claim_delegator_reward(
+                deps,
+                &env,
+                &info,
+                &mix_identity,
+            )
+        }
+        ExecuteMsg::ClaimDelegatorRewardOnBehalf {
+            mix_identity,
+            owner,
+        } => crate::rewards::transactions::try_claim_delegator_reward_on_behalf(
+            deps,
+            &env,
+            &info,
+            owner,
+            &mix_identity,
+        ),
     }
 }
 

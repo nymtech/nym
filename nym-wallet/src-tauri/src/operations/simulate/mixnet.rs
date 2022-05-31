@@ -47,9 +47,11 @@ pub async fn simulate_unbond_gateway(
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
     let gas_price = client.nymd.gas_price().clone();
 
-    let msg = client
-        .nymd
-        .wrap_fundless_contract_execute_message(mixnet_contract, &ExecuteMsg::UnbondGateway {})?;
+    let msg = client.nymd.wrap_contract_execute_message(
+        mixnet_contract,
+        &ExecuteMsg::UnbondGateway {},
+        vec![],
+    )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
     Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
@@ -92,9 +94,11 @@ pub async fn simulate_unbond_mixnode(
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
     let gas_price = client.nymd.gas_price().clone();
 
-    let msg = client
-        .nymd
-        .wrap_fundless_contract_execute_message(mixnet_contract, &ExecuteMsg::UnbondMixnode {})?;
+    let msg = client.nymd.wrap_contract_execute_message(
+        mixnet_contract,
+        &ExecuteMsg::UnbondMixnode {},
+        vec![],
+    )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
     Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
@@ -111,11 +115,12 @@ pub async fn simulate_update_mixnode(
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
     let gas_price = client.nymd.gas_price().clone();
 
-    let msg = client.nymd.wrap_fundless_contract_execute_message(
+    let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
         &ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
         },
+        vec![],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
@@ -158,11 +163,12 @@ pub async fn simulate_undelegate_from_mixnode(
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
     let gas_price = client.nymd.gas_price().clone();
 
-    let msg = client.nymd.wrap_fundless_contract_execute_message(
+    let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
         &ExecuteMsg::UndelegateFromMixnode {
             mix_identity: identity.to_string(),
         },
+        vec![],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;

@@ -174,28 +174,14 @@ impl<C> NymdClient<C> {
         self.simulated_gas_multiplier = multiplier;
     }
 
-    pub fn wrap_fundless_contract_execute_message<M>(
+    pub fn wrap_contract_execute_message<M>(
         &self,
         contract_address: &AccountId,
         msg: &M,
+        funds: Vec<Coin>,
     ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
     where
         C: SigningCosmWasmClient,
-        M: ?Sized + Serialize,
-    {
-        self.wrap_contract_execute_message::<_, CosmosCoin>(contract_address, msg, vec![])
-    }
-
-    pub fn wrap_contract_execute_message<M, T>(
-        &self,
-        contract_address: &AccountId,
-        msg: &M,
-        funds: Vec<T>,
-    ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
-    where
-        C: SigningCosmWasmClient,
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
         M: ?Sized + Serialize,
     {
         Ok(cosmwasm::MsgExecuteContract {

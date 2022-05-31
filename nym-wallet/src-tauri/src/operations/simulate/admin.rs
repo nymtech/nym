@@ -21,9 +21,10 @@ pub async fn simulate_update_contract_settings(
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
     let gas_price = client.nymd.gas_price().clone();
 
-    let msg = client.nymd.wrap_fundless_contract_execute_message(
+    let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
         &ExecuteMsg::UpdateContractStateParams(mixnet_contract_settings_params),
+        vec![],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;

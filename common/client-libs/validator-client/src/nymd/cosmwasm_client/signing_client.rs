@@ -17,7 +17,7 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin as CosmosCoin, Tx};
+use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
@@ -420,18 +420,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    async fn delegate_tokens<T>(
+    async fn delegate_tokens(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
-        amount: T,
+        amount: Coin,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<TxResponse, NymdError>
-    where
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
-    {
+    ) -> Result<TxResponse, NymdError> {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
@@ -445,18 +441,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    async fn undelegate_tokens<T>(
+    async fn undelegate_tokens(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
-        amount: T,
+        amount: Coin,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<TxResponse, NymdError>
-    where
-        // this allows you to use both CosmosCoin and Coin
-        T: Into<CosmosCoin> + Send,
-    {
+    ) -> Result<TxResponse, NymdError> {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),

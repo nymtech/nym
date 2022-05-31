@@ -99,6 +99,17 @@ pub enum ExecuteMsg {
     },
     // AdvanceCurrentInterval {},
     AdvanceCurrentEpoch {},
+    ClaimOperatorReward {},
+    ClaimOperatorRewardOnBehalf {
+        owner: String,
+    },
+    ClaimDelegatorReward {
+        mix_identity: IdentityKey,
+    },
+    ClaimDelegatorRewardOnBehalf {
+        mix_identity: IdentityKey,
+        owner: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

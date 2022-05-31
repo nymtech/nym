@@ -318,6 +318,14 @@ impl NodeRewardResult {
     }
 }
 
+pub struct RewardEstimate {
+    pub total_node_reward: u64,
+    pub operator_reward: u64,
+    pub delegators_reward: u64,
+    pub node_profit: u64,
+    pub operator_cost: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     pub pledge_amount: Coin,
@@ -410,63 +418,80 @@ impl MixNodeBond {
             / U128::from_num(circulating_supply)
     }
 
+    pub fn lambda_ticked(&self, params: &RewardParams) -> U128 {
+        // Ratio of a bond to the token circulating supply
+        self.lambda(params).min(params.one_over_k())
+    }
+
     pub fn lambda(&self, params: &RewardParams) -> U128 {
         // Ratio of a bond to the token circulating supply
-        let pledge_to_circulating_supply_ratio =
-            self.pledge_to_circulating_supply(params.circulating_supply());
-        pledge_to_circulating_supply_ratio.min(params.one_over_k())
+        self.pledge_to_circulating_supply(params.circulating_supply())
+    }
+
+    pub fn sigma_ticked(&self, params: &RewardParams) -> U128 {
+        // Ratio of a delegation to the the token circulating supply
+        self.sigma(params).min(params.one_over_k())
     }
 
     pub fn sigma(&self, params: &RewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
-        let total_bond_to_circulating_supply_ratio =
-            self.total_bond_to_circulating_supply(params.circulating_supply());
-        total_bond_to_circulating_supply_ratio.min(params.one_over_k())
+        self.total_bond_to_circulating_supply(params.circulating_supply())
     }
 
     pub fn estimate_reward(
         &self,
         params: &RewardParams,
-    ) -> Result<(u64, u64, u64), MixnetContractError> {
+    ) -> Result<RewardEstimate, MixnetContractError> {
         let total_node_reward = self
             .reward(params)
             .reward()
             .checked_to_num::<u128>()
             .unwrap_or_default();
+        let node_profit = self
+            .node_profit(params)
+            .checked_to_num::<u128>()
+            .unwrap_or_default();
+        let operator_cost = params
+            .node
+            .operator_cost()
+            .checked_to_num::<u128>()
+            .unwrap_or_default();
         let operator_reward = self.operator_reward(params);
         // Total reward has to be the sum of operator and delegator rewards
-        let delegators_reward = total_node_reward - operator_reward;
+        let delegators_reward = node_profit - operator_reward;
 
-        Ok((
-            total_node_reward.try_into()?,
-            operator_reward.try_into()?,
-            delegators_reward.try_into()?,
-        ))
+        Ok(RewardEstimate {
+            total_node_reward: total_node_reward.try_into()?,
+            operator_reward: operator_reward.try_into()?,
+            delegators_reward: delegators_reward.try_into()?,
+            node_profit: node_profit.try_into()?,
+            operator_cost: operator_cost.try_into()?,
+        })
     }
 
+    // keybase://chat/nymtech#dev-core/14473
     pub fn reward(&self, params: &RewardParams) -> NodeRewardResult {
-        let lambda = self.lambda(params);
-        let sigma = self.sigma(params);
+        let lambda_ticked = self.lambda_ticked(params);
+        let sigma_ticked = self.sigma_ticked(params);
 
         let reward = params.performance()
             * params.epoch_reward_pool()
-            * (sigma * params.omega()
-                + params.alpha() * lambda * sigma * params.rewarded_set_size())
+            * (sigma_ticked * params.omega()
+                + params.alpha() * lambda_ticked * sigma_ticked * params.rewarded_set_size())
             / (ONE + params.alpha());
 
+        // we only need regular lambda and sigma to calculate operator and delegator rewards
         NodeRewardResult {
             reward,
-            lambda,
-            sigma,
+            lambda: self.lambda(params),
+            sigma: self.sigma(params),
         }
     }
 
     pub fn node_profit(&self, params: &RewardParams) -> U128 {
-        if self.reward(params).reward() < params.node.operator_cost() {
-            U128::from_num(0u128)
-        } else {
-            self.reward(params).reward() - params.node.operator_cost()
-        }
+        self.reward(params)
+            .reward()
+            .saturating_sub(params.node.operator_cost())
     }
 
     pub fn operator_reward(&self, params: &RewardParams) -> u128 {
@@ -474,11 +499,9 @@ impl MixNodeBond {
         if reward.sigma == 0 {
             return 0;
         }
-        let profit = if reward.reward < params.node.operator_cost() {
-            U128::from_num(0u128)
-        } else {
-            reward.reward - params.node.operator_cost()
-        };
+
+        let profit = reward.reward.saturating_sub(params.node.operator_cost());
+
         let operator_base_reward = reward.reward.min(params.node.operator_cost());
         // Div by zero checked above
         let operator_reward = (self.profit_margin()

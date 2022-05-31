@@ -8,6 +8,8 @@ pub trait MixnodeBondingAccount {
         storage: &dyn Storage,
     ) -> Result<Response, ContractError>;
 
+    fn try_claim_operator_reward(&self, storage: &dyn Storage) -> Result<Response, ContractError>;
+
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,

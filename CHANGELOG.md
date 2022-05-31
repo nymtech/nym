@@ -10,12 +10,18 @@
 - wallet: added support for multiple accounts ([#1265])
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
+- mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - validator-api: add Swagger to document the REST API ([#1249]).
+- validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267], [#1278]).
 
 ### Fixed
 
+- mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
+- mixnet-contract: delegator and operator rewards use lambda and sigma instead of lambda_ticked and sigma_ticked ([#1284])
+- mixnet-contract: `estimated_delegator_reward` calculation ([#1284])
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - mixnet-contract: removed `expect` in `query_delegator_reward` and queries containing invalid proxy address should now return a more human-readable error ([#1257])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
@@ -30,6 +36,8 @@
 [#1267]: https://github.com/nymtech/nym/pull/1267
 [#1275]: https://github.com/nymtech/nym/pull/1275
 [#1278]: https://github.com/nymtech/nym/pull/1278
+[#1284]: https://github.com/nymtech/nym/pull/1284
+[#1292]: https://github.com/nymtech/nym/pull/1292
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

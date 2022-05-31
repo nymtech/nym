@@ -60,10 +60,10 @@ export const checkGatewayOwnership = async (): Promise<boolean> => {
 // NOTE: this uses OUTDATED defaults that might have no resemblance with the reality
 // as for the actual transaction, the gas cost is being simulated beforehand
 export const getGasFee = async (operation: Operation): Promise<Coin> => {
-  // THIS NO LONGER EXISTS : )
-  // const res: Coin = await invoke('outdated_get_approximate_fee', { operation });
-  // return res;
-  return new Promise(((resolve, reject) => reject()))
+  // current bandaid until `simulation` is properly implemented on the frontend.
+  // This essentially moves the usage of hardcoded values closer to the point of use.
+  const res: Coin = await invoke('get_old_and_incorrect_hardcoded_fee', { operation });
+  return res;
 };
 
 export const getInclusionProbability = async (identity: string): Promise<InclusionProbabilityResponse> => {

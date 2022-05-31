@@ -8,6 +8,7 @@ use mixnet_contract_common::Delegation;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator_client::nymd::{tx, CosmosCoin, Gas, GasPrice};
 
 #[allow(non_snake_case)]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -63,6 +64,57 @@ pub async fn owns_gateway(
         .owns_gateway(nymd_client!(state).address())
         .await?
         .is_some())
+}
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum Operation {
+    Send,
+    BondMixnode,
+    UnbondMixnode,
+    BondGateway,
+    UnbondGateway,
+    DelegateToMixnode,
+    UndelegateFromMixnode,
+}
+
+impl Operation {
+    fn default_gas_limit(&self) -> Gas {
+        match self {
+            Operation::Send => 80_000u64.into(),
+            Operation::BondMixnode => 175_000u64.into(),
+            Operation::UnbondMixnode => 175_000u64.into(),
+            Operation::DelegateToMixnode => 175_000u64.into(),
+            Operation::UndelegateFromMixnode => 175_000u64.into(),
+            Operation::BondGateway => 175_000u64.into(),
+            Operation::UnbondGateway => 175_000u64.into(),
+        }
+    }
+
+    fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> CosmosCoin {
+        gas_price * gas_limit
+    }
+
+    fn determine_custom_fee(gas_price: &GasPrice, gas_limit: Gas) -> tx::Fee {
+        let fee = Self::calculate_fee(gas_price, gas_limit);
+        tx::Fee::from_amount_and_gas(fee, gas_limit)
+    }
+
+    fn default_fee(&self, gas_price: &GasPrice) -> tx::Fee {
+        Self::determine_custom_fee(gas_price, self.default_gas_limit())
+    }
+}
+
+#[tauri::command]
+pub async fn get_old_and_incorrect_hardcoded_fee(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+    operation: Operation,
+) -> Result<Coin, BackendError> {
+    let mut approximate_fee = operation.default_fee(nymd_client!(state).gas_price());
+    // on all our chains it should only ever contain a single type of currency
+    assert_eq!(approximate_fee.amount.len(), 1);
+    let coin: Coin = approximate_fee.amount.pop().unwrap().into();
+    log::info!("hardcoded fee for {:?} is {:?}", operation, coin);
+    Ok(coin.to_major())
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]

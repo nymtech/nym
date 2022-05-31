@@ -62,7 +62,6 @@ export const DelegationContextProvider: FC<{
       if (tokenPool === 'locked') tx = await vestingDelegateToMixnode(data);
       else tx = await delegateToMixnode(data);
 
-      await refresh();
       return tx;
     } catch (e) {
       throw new Error(e as string);
@@ -78,7 +77,6 @@ export const DelegationContextProvider: FC<{
       // the delegation is with locked tokens, so use the vesting contract
       delegationResult = await vestingUndelegateFromMixnode(identity);
     }
-    await refresh();
     return delegationResult;
   };
 
@@ -94,6 +92,7 @@ export const DelegationContextProvider: FC<{
     try {
       const data = await getDelegationSummary();
       const pending = await getAllPendingDelegations();
+
       setPendingDelegations(pending);
       setDelegations(data.delegations);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);

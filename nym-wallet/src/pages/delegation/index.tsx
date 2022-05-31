@@ -48,6 +48,10 @@ export const Delegation: FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    refresh();
+  }, [network, clientDetails, confirmationModalProps]);
+
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     setCurrentDelegationListActionItem(item);
     // eslint-disable-next-line default-case

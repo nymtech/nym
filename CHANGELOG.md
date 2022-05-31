@@ -9,6 +9,8 @@
 - wallet: added support for multiple accounts ([#1265])
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
+- mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
@@ -34,6 +36,7 @@
 [#1275]: https://github.com/nymtech/nym/pull/1275
 [#1278]: https://github.com/nymtech/nym/pull/1278
 [#1284]: https://github.com/nymtech/nym/pull/1284
+[#1292]: https://github.com/nymtech/nym/pull/1292
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

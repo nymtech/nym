@@ -153,8 +153,8 @@ pub enum ContractError {
         #[from]
         source: MixnetContractError,
     },
-    #[error("No rewards to claim for mixnode {identity} for delegate {delegate}")]
-    NoRewardsToClaim { identity: String, delegate: String },
+    #[error("No rewards to claim for mixnode {identity} for {address}")]
+    NoRewardsToClaim { identity: String, address: String },
 
     #[error("Epoch not initialized yet!")]
     EpochNotInitialized,

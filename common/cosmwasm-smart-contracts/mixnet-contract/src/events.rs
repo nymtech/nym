@@ -23,7 +23,9 @@ pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_INTERVAL_EVENT_TYPE: &str = "advance_interval";
 pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
 pub const COMPOUND_DELEGATOR_REWARD_EVENT_TYPE: &str = "compound_delegator_reward";
+pub const CLAIM_DELEGATOR_REWARD_EVENT_TYPE: &str = "claim_delegator_reward";
 pub const COMPOUND_OPERATOR_REWARD_EVENT_TYPE: &str = "compound_operator_reward";
+pub const CLAIM_OPERATOR_REWARD_EVENT_TYPE: &str = "claim_operator_reward";
 pub const SNAPSHOT_MIXNODES_EVENT: &str = "snapshot_mixnodes";
 
 // attributes that are used in multiple places
@@ -151,6 +153,11 @@ pub fn new_compound_operator_reward_event(owner: &Addr, amount: Uint128) -> Even
     event.add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
+pub fn new_claim_operator_reward_event(owner: &Addr, amount: Uint128) -> Event {
+    let event = Event::new(CLAIM_OPERATOR_REWARD_EVENT_TYPE).add_attribute(OWNER_KEY, owner);
+    event.add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
 pub fn new_compound_delegator_reward_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
@@ -159,6 +166,26 @@ pub fn new_compound_delegator_reward_event(
 ) -> Event {
     let mut event =
         Event::new(COMPOUND_DELEGATOR_REWARD_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+
+    if let Some(proxy) = proxy {
+        event = event.add_attribute(PROXY_KEY, proxy)
+    }
+
+    // coin implements Display trait and we use that implementation here
+    event
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+        .add_attribute(DELEGATOR_KEY, delegator)
+}
+
+pub fn new_claim_delegator_reward_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: Uint128,
+    mix_identity: IdentityKeyRef<'_>,
+) -> Event {
+    let mut event =
+        Event::new(CLAIM_DELEGATOR_REWARD_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
 
     if let Some(proxy) = proxy {
         event = event.add_attribute(PROXY_KEY, proxy)

@@ -1,5 +1,6 @@
 use serde::{Serialize, Serializer};
 use std::io;
+use std::num::ParseIntError;
 use thiserror::Error;
 use validator_client::validator_api::error::ValidatorAPIError;
 use validator_client::{nymd::error::NymdError, ValidatorClientError};
@@ -101,6 +102,8 @@ pub enum BackendError {
     WalletUnexpectedMultipleAccounts,
     #[error("Failed to derive address from mnemonic")]
     FailedToDeriveAddress,
+    #[error("{0}")]
+    ValueParseError(#[from] ParseIntError),
 }
 
 impl Serialize for BackendError {

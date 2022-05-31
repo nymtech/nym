@@ -18,7 +18,7 @@ use tokio::sync::RwLock;
 use tokio::time::sleep;
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
 };
 use validator_client::ValidatorClientError;
@@ -326,7 +326,7 @@ impl<C> Client<C> {
         &self,
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
-        reward_msgs: Vec<(ExecuteMsg, Vec<CosmosCoin>)>,
+        reward_msgs: Vec<(ExecuteMsg, Vec<Coin>)>,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -358,7 +358,7 @@ impl<C> Client<C> {
 
     async fn execute_multiple_with_retry<M>(
         &self,
-        msgs: Vec<(M, Vec<CosmosCoin>)>,
+        msgs: Vec<(M, Vec<Coin>)>,
         fee: Fee,
         memo: String,
     ) -> Result<(), RewardingError>

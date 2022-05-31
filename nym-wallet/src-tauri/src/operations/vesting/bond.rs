@@ -15,8 +15,7 @@ pub async fn vesting_bond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-    let denom = state.read().await.current_network().denom();
-    let pledge = pledge.into_cosmwasm_coin(&denom)?;
+    let pledge = pledge.into_backend_coin(state.read().await.current_network().denom())?;
     nymd_client!(state)
         .vesting_bond_gateway(gateway, &owner_signature, pledge, fee)
         .await?;
@@ -49,8 +48,7 @@ pub async fn vesting_bond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-    let denom = state.read().await.current_network().denom();
-    let pledge = pledge.into_cosmwasm_coin(&denom)?;
+    let pledge = pledge.into_backend_coin(state.read().await.current_network().denom())?;
     nymd_client!(state)
         .vesting_bond_mixnode(mixnode, &owner_signature, pledge, fee)
         .await?;
@@ -63,8 +61,7 @@ pub async fn withdraw_vested_coins(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-    let denom = state.read().await.current_network().denom();
-    let amount = amount.into_cosmwasm_coin(&denom)?;
+    let amount = amount.into_backend_coin(state.read().await.current_network().denom())?;
     nymd_client!(state)
         .withdraw_vested_coins(amount, fee)
         .await?;

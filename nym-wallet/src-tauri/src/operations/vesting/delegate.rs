@@ -34,10 +34,9 @@ pub async fn vesting_delegate_to_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationResult, BackendError> {
-    let denom = state.read().await.current_network().denom();
-    let delegation = amount.into_cosmwasm_coin(&denom)?;
+    let delegation = amount.into_backend_coin(state.read().await.current_network().denom())?;
     nymd_client!(state)
-        .vesting_delegate_to_mixnode(identity, &delegation, fee)
+        .vesting_delegate_to_mixnode(identity, delegation.clone(), fee)
         .await?;
     Ok(DelegationResult::new(
         nymd_client!(state).address().as_ref(),

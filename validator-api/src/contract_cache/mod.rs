@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_api_requests::models::{MixNodeBondDetailed, MixnodeStatus, StakeSaturationResponse};
+use validator_api_requests::models::{MixNodeBondResponse, MixnodeStatus};
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -235,23 +235,19 @@ impl ValidatorCache {
         }
     }
 
-    async fn annotate_with_details(&self, mixnodes: Vec<MixNodeBond>) -> Vec<MixNodeBondDetailed> {
+    async fn annotate_with_details(&self, mixnodes: Vec<MixNodeBond>) -> Vec<MixNodeBondResponse> {
         let interval_reward_params = self.epoch_reward_params().await;
-        let as_at = interval_reward_params.timestamp();
         let interval_reward_params = interval_reward_params.into_inner();
 
         let mut mixnodes_detailed = Vec::new();
         for mixnode_bond in mixnodes {
-            let stake_saturation = StakeSaturationResponse {
-                saturation: mixnode_bond
-                    .stake_saturation(
-                        interval_reward_params.circulating_supply(),
-                        interval_reward_params.rewarded_set_size() as u32,
-                    )
-                    .to_num(),
-                as_at,
-            };
-            mixnodes_detailed.push(MixNodeBondDetailed {
+            let stake_saturation = mixnode_bond
+                .stake_saturation(
+                    interval_reward_params.circulating_supply(),
+                    interval_reward_params.rewarded_set_size() as u32,
+                )
+                .to_num();
+            mixnodes_detailed.push(MixNodeBondResponse {
                 mixnode_bond,
                 stake_saturation,
             });
@@ -362,7 +358,7 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn mixnodes_detailed(&self) -> Vec<MixNodeBondDetailed> {
+    pub async fn mixnodes_detailed(&self) -> Vec<MixNodeBondResponse> {
         let mixnodes = self.mixnodes().await;
         self.annotate_with_details(mixnodes).await
     }
@@ -419,7 +415,7 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn rewarded_set_detailed(&self) -> Vec<MixNodeBondDetailed> {
+    pub async fn rewarded_set_detailed(&self) -> Vec<MixNodeBondResponse> {
         let rewarded_set = self.rewarded_set().await.value;
         self.annotate_with_details(rewarded_set).await
     }
@@ -434,7 +430,7 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn active_set_detailed(&self) -> Vec<MixNodeBondDetailed> {
+    pub async fn active_set_detailed(&self) -> Vec<MixNodeBondResponse> {
         let active_set = self.active_set().await.value;
         self.annotate_with_details(active_set).await
     }

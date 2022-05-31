@@ -54,12 +54,12 @@ pub struct MixnodeStatusResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct MixNodeBondDetailed {
+pub struct MixNodeBondResponse {
     pub mixnode_bond: MixNodeBond,
-    pub stake_saturation: StakeSaturationResponse,
+    pub stake_saturation: StakeSaturation,
 }
 
-impl MixNodeBondDetailed {
+impl MixNodeBondResponse {
     pub fn mix_node(&self) -> &MixNode {
         &self.mixnode_bond.mix_node
     }
@@ -91,9 +91,11 @@ pub struct UptimeResponse {
     )
 )]
 pub struct StakeSaturationResponse {
-    pub saturation: f32,
+    pub saturation: StakeSaturation,
     pub as_at: i64,
 }
+
+pub type StakeSaturation = f32;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(test, derive(ts_rs::TS))]

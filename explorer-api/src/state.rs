@@ -6,7 +6,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::client::ThreadsafeValidatorClient;
-use validator_client::models::MixNodeBondDetailed;
+use validator_client::models::MixNodeBondResponse;
 
 use crate::country_statistics::country_nodes_distribution::{
     CountryNodesDistribution, ThreadsafeCountryNodesDistribution,
@@ -35,7 +35,7 @@ pub struct ExplorerApiState {
 }
 
 impl ExplorerApiState {
-    pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBondDetailed> {
+    pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBondResponse> {
         self.mixnodes.get_mixnode(pubkey).await
     }
 }

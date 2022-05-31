@@ -4,7 +4,7 @@
 use std::future::Future;
 
 use mixnet_contract_common::GatewayBond;
-use validator_client::models::{MixNodeBondDetailed, UptimeResponse};
+use validator_client::models::{MixNodeBondResponse, UptimeResponse};
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
 use validator_client::ValidatorClientError;
@@ -22,10 +22,10 @@ impl ExplorerApiTasks {
     }
 
     // a helper to remove duplicate code when grabbing active/rewarded/all mixnodes
-    async fn retrieve_mixnodes<'a, F, Fut>(&'a self, f: F) -> Vec<MixNodeBondDetailed>
+    async fn retrieve_mixnodes<'a, F, Fut>(&'a self, f: F) -> Vec<MixNodeBondResponse>
     where
         F: FnOnce(&'a validator_client::Client<QueryNymdClient>) -> Fut,
-        Fut: Future<Output = Result<Vec<MixNodeBondDetailed>, ValidatorClientError>>,
+        Fut: Future<Output = Result<Vec<MixNodeBondResponse>, ValidatorClientError>>,
     {
         let bonds = match f(&self.state.inner.validator_client.0).await {
             Ok(result) => result,
@@ -39,7 +39,7 @@ impl ExplorerApiTasks {
         bonds
     }
 
-    async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBondDetailed> {
+    async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBondResponse> {
         info!("About to retrieve all mixnode bonds...");
         self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes_detailed)
             .await
@@ -77,13 +77,13 @@ impl ExplorerApiTasks {
         Ok(response)
     }
 
-    async fn retrieve_rewarded_mixnodes(&self) -> Vec<MixNodeBondDetailed> {
+    async fn retrieve_rewarded_mixnodes(&self) -> Vec<MixNodeBondResponse> {
         info!("About to retrieve rewarded mixnode bonds...");
         self.retrieve_mixnodes(validator_client::Client::get_cached_rewarded_mixnodes_detailed)
             .await
     }
 
-    async fn retrieve_active_mixnodes(&self) -> Vec<MixNodeBondDetailed> {
+    async fn retrieve_active_mixnodes(&self) -> Vec<MixNodeBondResponse> {
         info!("About to retrieve active mixnode bonds...");
         self.retrieve_mixnodes(validator_client::Client::get_cached_active_mixnodes_detailed)
             .await

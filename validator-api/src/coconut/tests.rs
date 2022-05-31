@@ -72,7 +72,20 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
-    async fn vote(&self, _proposal_id: u64, _vote_yes: bool, _fee: Option<Fee>) -> Result<()> {
+    async fn vote_proposal(
+        &self,
+        _proposal_id: u64,
+        _vote_yes: bool,
+        _fee: Option<Fee>,
+    ) -> Result<()> {
+        todo!()
+    }
+
+    async fn execute(
+        &self,
+        proposal_id: u64,
+        fee: Option<Fee>,
+    ) -> crate::coconut::error::Result<()> {
         todo!()
     }
 }

@@ -24,10 +24,16 @@ pub trait MultisigSigningClient {
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
-    async fn vote(
+    async fn vote_proposal(
         &self,
         proposal_id: u64,
         yes: bool,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn execute_proposal(
+        &self,
+        proposal_id: u64,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -68,7 +74,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
             .await
     }
 
-    async fn vote(
+    async fn vote_proposal(
         &self,
         proposal_id: u64,
         vote_yes: bool,
@@ -84,6 +90,25 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
                 &req,
                 fee,
                 "Multisig::Vote",
+                vec![],
+            )
+            .await
+    }
+
+    async fn execute_proposal(
+        &self,
+        proposal_id: u64,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = ExecuteMsg::Execute { proposal_id };
+        self.client
+            .execute(
+                self.address(),
+                self.multisig_contract_address(),
+                &req,
+                fee,
+                "Multisig::Execute",
                 vec![],
             )
             .await

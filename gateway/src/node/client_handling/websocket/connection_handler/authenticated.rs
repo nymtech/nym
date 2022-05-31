@@ -219,7 +219,7 @@ where
                 .aggregated_verification_key(),
         ) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("gateway"),
+                String::from("credential failed to verify on gateway"),
             ));
         }
 
@@ -244,12 +244,21 @@ where
                 .await?
                 .verification_result
             {
-                return Err(RequestHandlingError::InvalidBandwidthCredential(format!(
-                    "validator {}",
-                    client.validator_api.current_url()
-                )));
+                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.validator_api.current_url());
             }
         }
+
+        let req = coconut_interface::ExecuteReleaseFundsRequestBody::new(proposal_id);
+        self.inner
+            .coconut_verifier
+            .api_clients()
+            .get(0)
+            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
+                needed: 1,
+                received: 0,
+            })?
+            .execute_release_funds(&req)
+            .await?;
 
         let bandwidth = Bandwidth::from(credential);
         let bandwidth_value = bandwidth.value();

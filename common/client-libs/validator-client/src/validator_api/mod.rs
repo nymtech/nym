@@ -4,9 +4,9 @@
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use coconut_interface::{
-    BlindSignRequestBody, BlindedSignatureResponse, ProposeReleaseFundsRequestBody,
-    ProposeReleaseFundsResponse, VerificationKeyResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
@@ -363,6 +363,23 @@ impl Client {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::COCONUT_PROPOSE_RELEASE_FUNDS,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    pub async fn execute_release_funds(
+        &self,
+        request_body: &ExecuteReleaseFundsRequestBody,
+    ) -> Result<(), ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_EXECUTE_RELEASE_FUNDS,
             ],
             NO_PARAMS,
             request_body,

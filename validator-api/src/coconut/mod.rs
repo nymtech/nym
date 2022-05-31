@@ -14,8 +14,9 @@ use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    KeyPair, Parameters, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
-    VerificationKey, VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    ExecuteReleaseFundsRequestBody, KeyPair, Parameters, ProposeReleaseFundsRequestBody,
+    ProposeReleaseFundsResponse, VerificationKey, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
@@ -171,7 +172,8 @@ impl InternalSignRequest {
                     get_verification_key,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential,
-                    post_propose_release_funds
+                    post_propose_release_funds,
+                    post_execute_release_funds
                 ],
             )
         })
@@ -270,7 +272,7 @@ pub async fn verify_bandwidth_credential(
     // Vote yes or no on the proposal based on the verification result
     state
         .client
-        .vote(proposal_id, verification_result, None)
+        .vote_proposal(proposal_id, verification_result, None)
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
@@ -299,4 +301,15 @@ pub async fn post_propose_release_funds(
         .await?;
 
     Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
+}
+
+#[post("/execute-release-funds", data = "<execute_release_funds>")]
+pub async fn post_execute_release_funds(
+    execute_release_funds: Json<ExecuteReleaseFundsRequestBody>,
+    state: &RocketState<State>,
+) -> Result<Json<()>> {
+    let proposal_id = *execute_release_funds.0.proposal_id();
+    state.client.execute_proposal(proposal_id, None).await?;
+
+    Ok(Json(()))
 }

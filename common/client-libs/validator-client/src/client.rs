@@ -3,9 +3,9 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_interface::{
-    BlindSignRequestBody, BlindedSignatureResponse, ProposeReleaseFundsRequestBody,
-    ProposeReleaseFundsResponse, VerificationKeyResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
@@ -733,6 +733,16 @@ impl ApiClient {
         Ok(self
             .validator_api
             .propose_release_funds(request_body)
+            .await?)
+    }
+
+    pub async fn execute_release_funds(
+        &self,
+        request_body: &ExecuteReleaseFundsRequestBody,
+    ) -> Result<(), ValidatorClientError> {
+        Ok(self
+            .validator_api
+            .execute_release_funds(request_body)
             .await?)
     }
 }

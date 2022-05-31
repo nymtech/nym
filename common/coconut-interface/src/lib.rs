@@ -280,6 +280,18 @@ impl ProposeReleaseFundsResponse {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Getters, CopyGetters)]
+pub struct ExecuteReleaseFundsRequestBody {
+    #[getset(get = "pub")]
+    proposal_id: u64,
+}
+
+impl ExecuteReleaseFundsRequestBody {
+    pub fn new(proposal_id: u64) -> Self {
+        ExecuteReleaseFundsRequestBody { proposal_id }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

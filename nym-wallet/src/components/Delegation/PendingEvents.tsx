@@ -10,6 +10,7 @@ import {
   TableRow,
   TableSortLabel,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationEvent, DelegationWithEverything } from '@nymproject/types';
@@ -85,6 +86,8 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
   };
+
+  if (pendingEvents.length === 0) return <Typography>No pending events</Typography>;
 
   return (
     <TableContainer>

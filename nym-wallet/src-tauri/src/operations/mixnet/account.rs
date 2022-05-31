@@ -472,7 +472,7 @@ pub async fn add_account_for_password(
     account_id: &str,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<AccountEntry, BackendError> {
-    log::info!("Adding account for the current password: {account_id}");
+    log::info!("Adding account: {account_id}");
     let mnemonic = Mnemonic::from_str(mnemonic)?;
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet

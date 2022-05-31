@@ -86,10 +86,7 @@ pub async fn get_balance(
     .await
   {
     Ok(Some(coin)) => {
-      let coin = Coin::new(
-        &coin.amount.to_string(),
-        &Denom::from_str(&coin.denom.to_string())?,
-      );
+      let coin = Coin::new(&coin.amount.to_string(), &Denom::from_str(&coin.denom)?);
       Ok(Balance {
         coin: coin.clone(),
         // haha, that's so junky : )

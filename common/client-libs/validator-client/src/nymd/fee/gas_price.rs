@@ -67,9 +67,7 @@ impl FromStr for GasPrice {
             .parse()
             .map_err(|_| NymdError::MalformedGasPrice)?;
         let possible_denom = s.chars().skip(amount_len).collect::<String>();
-        let denom = possible_denom
-            .parse()
-            .map_err(|_| NymdError::MalformedGasPrice)?;
+        let denom = possible_denom.trim().to_string();
 
         Ok(GasPrice { amount, denom })
     }
@@ -110,7 +108,14 @@ mod tests {
         );
 
         assert!(".25upunk".parse::<GasPrice>().is_err());
-        assert!("0.025 upunk".parse::<GasPrice>().is_err());
+
+        assert_eq!(
+            "0.025upunk".parse::<GasPrice>().unwrap(),
+            "0.025 upunk".parse().unwrap()
+        );
+
+        let gas: GasPrice = "0.025   upunk    ".parse().unwrap();
+        assert_eq!("upunk", gas.denom);
     }
 
     #[test]

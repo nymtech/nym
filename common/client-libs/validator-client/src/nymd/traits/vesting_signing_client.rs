@@ -371,7 +371,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::CreatePeriodicVestingAccount",
-                vec![amount.into()],
+                vec![amount],
             )
             .await
     }

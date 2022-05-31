@@ -152,43 +152,26 @@ impl Coin {
   }
 
   // Helper function that returns the local denom in terms of the specified network denom.
-  // fn denom_as_string(&self, network_denom: &CosmosDenom) -> Result<String, BackendError> {
-  //   // Currently there is the widespread assumption that network denomination is always in
-  //   // `Denom::Minor`, and starts with 'u'.
-  //   let network_denom = network_denom.to_string();
-  //   if !network_denom.starts_with('u') {
-  //     return Err(BackendError::InvalidNetworkDenom(network_denom));
-  //   }
-  //
-  //   Ok(match &self.denom {
-  //     Denom::Minor => network_denom,
-  //     Denom::Major => network_denom[1..].to_string(),
-  //   })
-  // }
+  fn denom_as_string(&self, network_denom: &str) -> Result<String, BackendError> {
+    // Currently there is the widespread assumption that network denomination is always in
+    // `Denom::Minor`, and starts with 'u'.
+    let network_denom = network_denom.to_owned();
+    if !network_denom.starts_with('u') {
+      return Err(BackendError::InvalidNetworkDenom(network_denom));
+    }
 
-  pub fn into_backend_coin(self, network_denom: &str) -> Result<BackendCoin, BackendError> {
-    Ok(BackendCoin::new(self.amount.parse()?, network_denom))
+    Ok(match &self.denom {
+      Denom::Minor => network_denom,
+      Denom::Major => network_denom[1..].to_string(),
+    })
   }
 
-  // pub fn into_cosmos_coin(self, network_denom: &CosmosDenom) -> Result<CosmosCoin, BackendError> {
-  //   match Decimal::from_str(&self.amount) {
-  //     Ok(amount) => Ok(CosmosCoin {
-  //       amount,
-  //       denom: CosmosDenom::from_str(&self.denom_as_string(network_denom)?)?,
-  //     }),
-  //     Err(e) => Err(e.into()),
-  //   }
-  // }
-  //
-  // pub fn into_cosmwasm_coin(
-  //   self,
-  //   network_denom: &CosmosDenom,
-  // ) -> Result<CosmWasmCoin, BackendError> {
-  //   Ok(CosmWasmCoin {
-  //     denom: self.denom_as_string(network_denom)?,
-  //     amount: Uint128::try_from(self.amount.as_str())?,
-  //   })
-  // }
+  pub fn into_backend_coin(self, network_denom: &str) -> Result<BackendCoin, BackendError> {
+    Ok(BackendCoin::new(
+      self.amount.parse()?,
+      self.denom_as_string(network_denom)?,
+    ))
+  }
 }
 
 impl From<BackendCoin> for Coin {
@@ -222,7 +205,6 @@ impl From<CosmWasmCoin> for Coin {
 mod test {
   use super::*;
   use crate::error::BackendError;
-  use cosmwasm_std::Coin as CosmWasmCoin;
   use serde_json::json;
   use std::convert::TryFrom;
   use std::str::FromStr;
@@ -275,10 +257,10 @@ mod test {
 
   #[test]
   fn network_denom_is_assumed_to_be_in_minor_denom() {
-    let network_denom = CosmosDenom::from_str("nym").unwrap();
+    let network_denom = "nym";
     assert!(matches!(
       Coin::minor("42")
-        .denom_as_string(&network_denom)
+        .denom_as_string(network_denom)
         .unwrap_err(),
       BackendError::InvalidNetworkDenom { .. }
     ));
@@ -286,51 +268,33 @@ mod test {
 
   #[test]
   fn local_denom_to_interpreted_using_network_denom() {
-    let network_denom = CosmosDenom::from_str("unym").unwrap();
+    let network_denom = "unym";
     assert_eq!(
-      Coin::minor("42").denom_as_string(&network_denom).unwrap(),
+      Coin::minor("42").denom_as_string(network_denom).unwrap(),
       "unym",
     );
     assert_eq!(
-      Coin::major("42").denom_as_string(&network_denom).unwrap(),
+      Coin::major("42").denom_as_string(network_denom).unwrap(),
       "nym",
     );
   }
 
   #[test]
   fn coin_to_coin_minor() {
-    let network_denom = CosmosDenom::from_str("unym").unwrap();
+    let network_denom = "unym";
     let coin = Coin::minor("42");
 
-    let cosmoswasm_coin = coin.clone().into_cosmwasm_coin(&network_denom).unwrap();
-    assert_eq!(cosmoswasm_coin, CosmWasmCoin::new(42, "unym"),);
-
-    let cosmos_coin = coin.into_cosmos_coin(&network_denom).unwrap();
-    assert_eq!(
-      cosmos_coin,
-      CosmosCoin {
-        denom: CosmosDenom::from_str("unym").unwrap(),
-        amount: Decimal::from_str("42").unwrap(),
-      },
-    );
+    let backend_coin = coin.clone().into_backend_coin(&network_denom).unwrap();
+    assert_eq!(backend_coin, BackendCoin::new(42, "unym"));
   }
 
   #[test]
   fn coin_to_coin_major() {
-    let network_denom = CosmosDenom::from_str("unym").unwrap();
+    let network_denom = "unym";
     let coin = Coin::major("52");
 
-    let cosmoswasm_coin = coin.clone().into_cosmwasm_coin(&network_denom).unwrap();
-    assert_eq!(cosmoswasm_coin, CosmWasmCoin::new(52, "nym"),);
-
-    let cosmos_coin = coin.into_cosmos_coin(&network_denom).unwrap();
-    assert_eq!(
-      cosmos_coin,
-      CosmosCoin {
-        denom: CosmosDenom::from_str("nym").unwrap(),
-        amount: Decimal::from_str("52").unwrap(),
-      },
-    );
+    let backend_coin = coin.clone().into_backend_coin(network_denom).unwrap();
+    assert_eq!(backend_coin, BackendCoin::new(52, "nym"));
   }
 
   fn amounts() -> Vec<&'static str> {
@@ -357,74 +321,24 @@ mod test {
   }
 
   #[test]
-  fn coin_to_cosmoswasm() {
-    let network_denom = CosmosDenom::from_str("unym").unwrap();
+  fn coin_to_backend() {
+    let network_denom = "unym";
     for amount in amounts() {
       let coin = Coin::minor(amount);
-      let cosmoswasm_coin: CosmWasmCoin = coin.into_cosmwasm_coin(&network_denom).unwrap();
+      let backend_coin = coin.into_backend_coin(network_denom).unwrap();
       assert_eq!(
-        cosmoswasm_coin,
-        CosmWasmCoin::new(amount.parse::<u128>().unwrap(), "unym")
+        backend_coin,
+        BackendCoin::new(amount.parse::<u128>().unwrap(), "unym")
       );
-      assert_eq!(
-        Coin::try_from(cosmoswasm_coin).unwrap(),
-        Coin::minor(amount)
-      );
+      assert_eq!(Coin::try_from(backend_coin).unwrap(), Coin::minor(amount));
 
       let coin = Coin::major(amount);
-      let cosmoswasm_coin: CosmWasmCoin = coin.into_cosmwasm_coin(&network_denom).unwrap();
+      let backend_coin = coin.into_backend_coin(network_denom).unwrap();
       assert_eq!(
-        cosmoswasm_coin,
-        CosmWasmCoin::new(amount.parse::<u128>().unwrap(), "nym")
+        backend_coin,
+        BackendCoin::new(amount.parse::<u128>().unwrap(), "nym")
       );
-      assert_eq!(
-        Coin::try_from(cosmoswasm_coin).unwrap(),
-        Coin::major(amount)
-      );
+      assert_eq!(Coin::try_from(backend_coin).unwrap(), Coin::major(amount));
     }
-  }
-
-  #[test]
-  fn coin_to_cosmos() {
-    let network_denom = CosmosDenom::from_str("unym").unwrap();
-    for amount in amounts() {
-      let coin = Coin::minor(amount);
-      let cosmos_coin: CosmosCoin = coin.into_cosmos_coin(&network_denom).unwrap();
-      assert_eq!(
-        cosmos_coin,
-        CosmosCoin {
-          amount: Decimal::from_str(amount).unwrap(),
-          denom: CosmosDenom::from_str("unym").unwrap()
-        }
-      );
-      assert_eq!(Coin::try_from(cosmos_coin).unwrap(), Coin::minor(amount));
-
-      let coin = Coin::major(amount);
-      let cosmos_coin: CosmosCoin = coin.into_cosmos_coin(&network_denom).unwrap();
-      assert_eq!(
-        cosmos_coin,
-        CosmosCoin {
-          amount: Decimal::from_str(amount).unwrap(),
-          denom: CosmosDenom::from_str("nym").unwrap()
-        }
-      );
-      assert_eq!(Coin::try_from(cosmos_coin).unwrap(), Coin::major(amount));
-    }
-  }
-
-  #[test]
-  fn test_add() {
-    assert_eq!(Coin::minor("1") + Coin::minor("1"), Coin::minor("2"));
-    assert_eq!(Coin::major("1") + Coin::major("1"), Coin::major("2"));
-    assert_eq!(Coin::minor("1") + Coin::major("1"), Coin::minor("1000001"));
-    assert_eq!(Coin::major("1") + Coin::minor("1"), Coin::major("1.000001"));
-  }
-
-  #[test]
-  fn test_sub() {
-    assert_eq!(Coin::minor("1") - Coin::minor("1"), Coin::minor("0"));
-    assert_eq!(Coin::major("1") - Coin::major("1"), Coin::major("0"));
-    assert_eq!(Coin::minor("1") - Coin::major("1"), Coin::minor("-999999"));
-    assert_eq!(Coin::major("1") - Coin::minor("1"), Coin::major("0.999999"));
   }
 }

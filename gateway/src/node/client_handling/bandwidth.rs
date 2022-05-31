@@ -19,8 +19,10 @@ impl Bandwidth {
 #[cfg(feature = "coconut")]
 impl From<Credential> for Bandwidth {
     fn from(credential: Credential) -> Self {
+        let token_value = credential.voucher_value();
+        let bandwidth_bytes = token_value * network_defaults::BYTES_PER_UTOKEN;
         Bandwidth {
-            value: credential.voucher_value(),
+            value: bandwidth_bytes,
         }
     }
 }

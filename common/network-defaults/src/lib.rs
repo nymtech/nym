@@ -154,7 +154,7 @@ pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 
 // Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
-const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
+pub const BYTES_PER_UTOKEN: u64 = 1024;
 
 /// Threshold for claiming more bandwidth: 1 MB
 pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
@@ -163,7 +163,7 @@ pub const TOKENS_TO_BURN: u64 = 1;
 /// How many ERC20 utokens should be burned to buy bandwidth
 pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
-pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
+pub const BANDWIDTH_VALUE: u64 = UTOKENS_TO_BURN * BYTES_PER_UTOKEN;
 
 pub const VOUCHER_INFO: &str = "BandwidthVoucher";
 

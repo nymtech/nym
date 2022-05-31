@@ -68,25 +68,86 @@ pub async fn owns_gateway(
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Operation {
+    Upload,
+    Init,
+    Migrate,
+    ChangeAdmin,
     Send,
+
     BondMixnode,
+    BondMixnodeOnBehalf,
     UnbondMixnode,
-    BondGateway,
-    UnbondGateway,
+    UnbondMixnodeOnBehalf,
+    UpdateMixnodeConfig,
     DelegateToMixnode,
+    DelegateToMixnodeOnBehalf,
     UndelegateFromMixnode,
+    UndelegateFromMixnodeOnBehalf,
+
+    BondGateway,
+    BondGatewayOnBehalf,
+    UnbondGateway,
+    UnbondGatewayOnBehalf,
+
+    UpdateContractSettings,
+
+    BeginMixnodeRewarding,
+    FinishMixnodeRewarding,
+
+    TrackUnbondGateway,
+    TrackUnbondMixnode,
+    WithdrawVestedCoins,
+    TrackUndelegation,
+    CreatePeriodicVestingAccount,
+
+    AdvanceCurrentInterval,
+    AdvanceCurrentEpoch,
+    WriteRewardedSet,
+    ClearRewardedSet,
+    UpdateMixnetAddress,
+    CheckpointMixnodes,
+    ReconcileDelegations,
 }
 
 impl Operation {
     fn default_gas_limit(&self) -> Gas {
         match self {
+            Operation::Upload => 3_000_000u64.into(),
+            Operation::Init => 500_000u64.into(),
+            Operation::Migrate => 200_000u64.into(),
+            Operation::ChangeAdmin => 80_000u64.into(),
             Operation::Send => 80_000u64.into(),
+
             Operation::BondMixnode => 175_000u64.into(),
+            Operation::BondMixnodeOnBehalf => 200_000u64.into(),
             Operation::UnbondMixnode => 175_000u64.into(),
+            Operation::UnbondMixnodeOnBehalf => 175_000u64.into(),
+            Operation::UpdateMixnodeConfig => 175_000u64.into(),
             Operation::DelegateToMixnode => 175_000u64.into(),
+            Operation::DelegateToMixnodeOnBehalf => 175_000u64.into(),
             Operation::UndelegateFromMixnode => 175_000u64.into(),
+            Operation::UndelegateFromMixnodeOnBehalf => 175_000u64.into(),
+
             Operation::BondGateway => 175_000u64.into(),
+            Operation::BondGatewayOnBehalf => 200_000u64.into(),
             Operation::UnbondGateway => 175_000u64.into(),
+            Operation::UnbondGatewayOnBehalf => 200_000u64.into(),
+
+            Operation::UpdateContractSettings => 175_000u64.into(),
+            Operation::BeginMixnodeRewarding => 175_000u64.into(),
+            Operation::FinishMixnodeRewarding => 175_000u64.into(),
+            Operation::TrackUnbondGateway => 175_000u64.into(),
+            Operation::TrackUnbondMixnode => 175_000u64.into(),
+            Operation::WithdrawVestedCoins => 175_000u64.into(),
+            Operation::TrackUndelegation => 175_000u64.into(),
+            Operation::CreatePeriodicVestingAccount => 175_000u64.into(),
+            Operation::AdvanceCurrentInterval => 175_000u64.into(),
+            Operation::WriteRewardedSet => 175_000u64.into(),
+            Operation::ClearRewardedSet => 175_000u64.into(),
+            Operation::UpdateMixnetAddress => 80_000u64.into(),
+            Operation::CheckpointMixnodes => 175_000u64.into(),
+            Operation::ReconcileDelegations => 500_000u64.into(),
+            Operation::AdvanceCurrentEpoch => 175_000u64.into(),
         }
     }
 

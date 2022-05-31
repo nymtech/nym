@@ -26,6 +26,10 @@
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
 
+### Changed
+
+- validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
+
 [#1258]: https://github.com/nymtech/nym/pull/1258
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -37,6 +41,7 @@
 [#1278]: https://github.com/nymtech/nym/pull/1278
 [#1284]: https://github.com/nymtech/nym/pull/1284
 [#1292]: https://github.com/nymtech/nym/pull/1292
+[#1295]: https://github.com/nymtech/nym/pull/1295
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

@@ -4,7 +4,6 @@ use crate::error::BackendError;
 use crate::network::Network;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
-use std::ops::{Add, Sub};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use validator_client::nymd::CosmosCoin;
@@ -52,50 +51,6 @@ impl TryFrom<CosmosDenom> for Denom {
 pub struct Coin {
     amount: String,
     denom: Denom,
-}
-
-// Allows adding minor and major denominations, output will have the LHS denom.
-impl Add for Coin {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        let denom = self.denom.clone();
-        let lhs = self.to_minor();
-        let rhs = rhs.to_minor();
-        let lhs_amount = lhs.amount.parse::<u128>().unwrap();
-        let rhs_amount = rhs.amount.parse::<u128>().unwrap();
-        let amount = lhs_amount + rhs_amount;
-        let coin = Coin {
-            amount: amount.to_string(),
-            denom: Denom::Minor,
-        };
-        match denom {
-            Denom::Major => coin.to_major(),
-            Denom::Minor => coin,
-        }
-    }
-}
-
-// Allows adding minor and major denominations, output will have the LHS denom.
-impl Sub for Coin {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self {
-        let denom = self.denom.clone();
-        let lhs = self.to_minor();
-        let rhs = rhs.to_minor();
-        let lhs_amount = lhs.amount.parse::<u128>().unwrap();
-        let rhs_amount = rhs.amount.parse::<u128>().unwrap();
-        let amount = lhs_amount - rhs_amount;
-        let coin = Coin {
-            amount: amount.to_string(),
-            denom: Denom::Minor,
-        };
-        match denom {
-            Denom::Major => coin.to_major(),
-            Denom::Minor => coin,
-        }
-    }
 }
 
 impl Coin {

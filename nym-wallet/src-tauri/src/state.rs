@@ -1,21 +1,20 @@
 use crate::config;
 use crate::error::BackendError;
+use ::config::defaults::all::Network as ConfigNetwork;
+use itertools::Itertools;
+use nym_types::currency::{try_convert_decimal_to_u128, CoinMetadata, DecCoin, Denom};
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
-
-use strum::IntoEnumIterator;
-use validator_client::nymd::{AccountId as CosmosAccountId, SigningNymdClient};
-use validator_client::Client;
-
-use itertools::Itertools;
 use once_cell::sync::Lazy;
-use tokio::sync::RwLock;
-use url::Url;
-
-// use nym_types::currency::{CoinMetadata, Denom};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use strum::IntoEnumIterator;
+use tokio::sync::RwLock;
+use url::Url;
+use validator_client::nymd::{AccountId as CosmosAccountId, Coin, SigningNymdClient};
+use validator_client::Client;
 
 // Some hardcoded metadata overrides
 static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {
@@ -57,7 +56,7 @@ pub struct State {
 
     /// We fetch (and cache) some metadata, such as names, when available
     validator_metadata: HashMap<Url, ValidatorMetadata>,
-    // registered_coins: HashMap<Network, HashMap<Denom, CoinMetadata>>,
+    registered_coins: HashMap<Network, HashMap<Denom, CoinMetadata>>,
 }
 
 pub(crate) struct WalletAccountIds {
@@ -68,6 +67,71 @@ pub(crate) struct WalletAccountIds {
 }
 
 impl State {
+    // note that `Coin` is ALWAYS the base coin
+    pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, BackendError> {
+        let registered_coins = self
+            .registered_coins
+            .get(&self.current_network)
+            .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
+
+        // check if this is already in the base denom
+        if registered_coins.contains_key(&coin.denom) {
+            // if we're converting a base DecCoin it CANNOT fail, unless somebody is providing
+            // bullshit data on purpose : )
+            return Ok(coin.try_into()?);
+        } else {
+            // TODO: this kinda suggests we may need a better data structure
+            for registered_coin in registered_coins.values() {
+                if let Some(exponent) = registered_coin.get_exponent(&coin.denom) {
+                    let amount = try_convert_decimal_to_u128(coin.try_scale_up_value(exponent)?)?;
+                    return Ok(Coin::new(amount, &registered_coin.base));
+                }
+            }
+        }
+        Err(BackendError::UnknownCoinDenom(coin.denom))
+    }
+
+    pub fn attempt_convert_to_display_dec_coin(&self, coin: Coin) -> Result<DecCoin, BackendError> {
+        let registered_coins = self
+            .registered_coins
+            .get(&self.current_network)
+            .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
+
+        for registered_coin in registered_coins.values() {
+            if let Some(exponent) = registered_coin.get_exponent(&coin.denom) {
+                // if this fails it means we haven't registered our display denom which honestly should never be the case
+                // unless somebody is rocking their own custom network
+                let display_exponent = registered_coin
+                    .get_exponent(&registered_coin.display)
+                    .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
+
+                return match exponent.cmp(&display_exponent) {
+                    Ordering::Greater => {
+                        // we need to scale down, unlikely to ever be needed but included for completion sake,
+                        // for example if we decided to created knym with exponent 9 and wanted to convert to nym with exponent 6
+                        Ok(DecCoin::new_scaled_down(
+                            coin.amount,
+                            &registered_coin.display,
+                            exponent - display_exponent,
+                        )?)
+                    }
+                    // we're already in the display denom
+                    Ordering::Equal => Ok(coin.into()),
+                    Ordering::Less => {
+                        // we need to scale up, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
+                        Ok(DecCoin::new_scaled_up(
+                            coin.amount,
+                            &registered_coin.display,
+                            display_exponent - exponent,
+                        )?)
+                    }
+                };
+            }
+        }
+
+        Err(BackendError::UnknownCoinDenom(coin.denom))
+    }
+
     pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {
         self.signing_clients
             .get(&network)
@@ -112,6 +176,14 @@ impl State {
 
     pub fn add_client(&mut self, network: Network, client: Client<SigningNymdClient>) {
         self.signing_clients.insert(network, client);
+    }
+
+    pub fn register_default_denoms(&mut self, network: Network) {
+        let net: ConfigNetwork = network.into();
+        let mut network_coins = HashMap::new();
+        network_coins.insert(net.mix_denom().base.into(), (*net.mix_denom()).into());
+        network_coins.insert(net.stake_denom().base.into(), (*net.stake_denom()).into());
+        self.registered_coins.insert(network, network_coins);
     }
 
     pub fn set_network(&mut self, network: Network) {

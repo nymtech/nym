@@ -178,6 +178,7 @@ async fn _connect_with_mnemonic(
         let network: WalletNetwork = client.network.into();
         let mut w_state = state.write().await;
         w_state.add_client(network, client);
+        w_state.register_default_denoms(network);
     }
 
     account_for_default_network

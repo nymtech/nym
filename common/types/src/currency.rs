@@ -1,6 +1,7 @@
 use crate::error::TypesError;
+use config::defaults::DenomDetails;
 use cosmrs::Denom as CosmosDenom;
-use cosmwasm_std::Coin as CosmWasmCoin;
+use cosmwasm_std::{Coin as CosmWasmCoin, Fraction};
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -114,6 +115,26 @@ impl CoinMetadata {
             display,
         }
     }
+
+    pub fn get_exponent(&self, denom: &str) -> Option<u32> {
+        self.denom_units
+            .iter()
+            .find(|denom_unit| denom_unit.denom == denom)
+            .map(|denom_unit| denom_unit.exponent)
+    }
+}
+
+impl From<DenomDetails> for CoinMetadata {
+    fn from(denom_details: DenomDetails) -> Self {
+        CoinMetadata::new(
+            vec![
+                DenomUnit::new(denom_details.base.into(), 0),
+                DenomUnit::new(denom_details.display.into(), denom_details.display_exponent),
+            ],
+            denom_details.base.into(),
+            denom_details.display.into(),
+        )
+    }
 }
 
 // tries to semi-replicate cosmos-sdk's DecCoin for being able to handle tokens with decimal amounts
@@ -132,12 +153,107 @@ pub struct DecCoin {
     pub amount: Decimal,
 }
 
+impl DecCoin {
+    pub fn new_base<S: Into<String>>(amount: impl Into<Uint128>, denom: S) -> Self {
+        DecCoin {
+            denom: denom.into(),
+            amount: Decimal::from_atomics(amount, 0).unwrap(),
+        }
+    }
+
+    pub fn new_scaled_up<S: Into<String>>(
+        base_amount: impl Into<Uint128>,
+        denom: S,
+        exponent: u32,
+    ) -> Result<Self, TypesError> {
+        let base_amount = Decimal::from_atomics(base_amount, 0).unwrap();
+        Ok(DecCoin {
+            denom: denom.into(),
+            amount: try_scale_up_decimal(base_amount, exponent)?,
+        })
+    }
+
+    pub fn new_scaled_down<S: Into<String>>(
+        base_amount: impl Into<Uint128>,
+        denom: S,
+        exponent: u32,
+    ) -> Result<Self, TypesError> {
+        let base_amount = Decimal::from_atomics(base_amount, 0).unwrap();
+        Ok(DecCoin {
+            denom: denom.into(),
+            amount: try_scale_down_decimal(base_amount, exponent)?,
+        })
+    }
+
+    pub fn try_scale_down_value(&self, exponent: u32) -> Result<Decimal, TypesError> {
+        try_scale_down_decimal(self.amount, exponent)
+    }
+
+    pub fn try_scale_up_value(&self, exponent: u32) -> Result<Decimal, TypesError> {
+        try_scale_up_decimal(self.amount, exponent)
+    }
+}
+
+// TODO: should thoese live here?
+pub fn try_scale_down_decimal(dec: Decimal, exponent: u32) -> Result<Decimal, TypesError> {
+    let rhs = 10u128
+        .checked_pow(exponent)
+        .ok_or(TypesError::UnsupportedExponent(exponent))?;
+    let denominator = dec
+        .denominator()
+        .checked_mul(rhs.into())
+        .map_err(|_| TypesError::UnsupportedExponent(exponent))?;
+
+    Ok(Decimal::from_ratio(dec.numerator(), denominator))
+}
+
+pub fn try_scale_up_decimal(dec: Decimal, exponent: u32) -> Result<Decimal, TypesError> {
+    let rhs = 10u128
+        .checked_pow(exponent)
+        .ok_or(TypesError::UnsupportedExponent(exponent))?;
+    let denominator = dec
+        .denominator()
+        .checked_div(rhs.into())
+        .map_err(|_| TypesError::UnsupportedExponent(exponent))?;
+
+    Ok(Decimal::from_ratio(dec.numerator(), denominator))
+}
+
+pub fn try_convert_decimal_to_u128(dec: Decimal) -> Result<u128, TypesError> {
+    let whole = dec.numerator() / dec.denominator();
+
+    // unwrap is fine as we're not dividing by zero here
+    let fractional = (dec.numerator()).checked_rem(dec.denominator()).unwrap();
+
+    // we cannot convert as we'd lose our decimal places
+    // (for example if somebody attempted to represent our gas price (WHICH YOU SHOULDN'T DO) as DecCoin)
+    if fractional != Uint128::zero() {
+        return Err(TypesError::LossyCoinConversion);
+    }
+    Ok(whole.u128())
+}
+
+impl Display for DecCoin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.amount, self.denom)
+    }
+}
+
 impl From<Coin> for DecCoin {
     fn from(coin: Coin) -> Self {
-        DecCoin {
-            denom: coin.denom,
-            amount: Decimal::from_atomics(coin.amount, 0).unwrap(),
-        }
+        DecCoin::new_base(coin.amount, coin.denom)
+    }
+}
+
+// this conversion assumes same denomination
+impl TryFrom<DecCoin> for Coin {
+    type Error = TypesError;
+
+    fn try_from(value: DecCoin) -> Result<Self, Self::Error> {
+        Ok(Coin {
+            amount: try_convert_decimal_to_u128(value.try_scale_down_value(0)?)?,
+            denom: value.denom,
+        })
     }
 }
 
@@ -435,5 +551,127 @@ mod test {
             "100000000000000000",
             "1000000000000000000",
         ]
+    }
+
+    #[test]
+    fn dec_value_scale_down() {
+        let dec = DecCoin {
+            denom: "foo".to_string(),
+            amount: "1234007000".parse().unwrap(),
+        };
+
+        assert_eq!(
+            "1234007000".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(0).unwrap()
+        );
+        assert_eq!(
+            "123400700".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(1).unwrap()
+        );
+        assert_eq!(
+            "12340070".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(2).unwrap()
+        );
+        assert_eq!(
+            "123400.7".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(4).unwrap()
+        );
+
+        let dec = DecCoin {
+            denom: "foo".to_string(),
+            amount: "10000000000".parse().unwrap(),
+        };
+
+        assert_eq!(
+            "100".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(8).unwrap()
+        );
+        assert_eq!(
+            "1".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(10).unwrap()
+        );
+        assert_eq!(
+            "0.01".parse::<Decimal>().unwrap(),
+            dec.try_scale_down_value(12).unwrap()
+        );
+    }
+
+    #[test]
+    fn dec_value_scale_up() {
+        let dec = DecCoin {
+            denom: "foo".to_string(),
+            amount: "1234.56".parse().unwrap(),
+        };
+
+        assert_eq!(
+            "1234.56".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(0).unwrap()
+        );
+        assert_eq!(
+            "12345.6".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(1).unwrap()
+        );
+        assert_eq!(
+            "123456".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(2).unwrap()
+        );
+        assert_eq!(
+            "1234560".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(3).unwrap()
+        );
+        assert_eq!(
+            "12345600".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(4).unwrap()
+        );
+
+        let dec = DecCoin {
+            denom: "foo".to_string(),
+            amount: "0.00000123".parse().unwrap(),
+        };
+
+        assert_eq!(
+            "0.0000123".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(1).unwrap()
+        );
+        assert_eq!(
+            "0.000123".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(2).unwrap()
+        );
+        assert_eq!(
+            "123".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(8).unwrap()
+        );
+        assert_eq!(
+            "1230".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(9).unwrap()
+        );
+        assert_eq!(
+            "12300".parse::<Decimal>().unwrap(),
+            dec.try_scale_up_value(10).unwrap()
+        );
+    }
+
+    #[test]
+    fn dec_to_u128() {
+        todo!()
+    }
+
+    #[test]
+    fn coin_to_dec_coin() {
+        let coin = Coin::new(123, "foo");
+        let dec = DecCoin::from(coin.clone());
+        assert_eq!(coin.denom, dec.denom);
+        assert_eq!(dec.amount, Decimal::from_atomics(coin.amount, 0).unwrap());
+    }
+
+    #[test]
+    fn dec_coin_to_coin() {
+        let dec = DecCoin {
+            denom: "foo".to_string(),
+            amount: "123".parse().unwrap(),
+        };
+        let coin = Coin::try_from(dec.clone()).unwrap();
+        assert_eq!(dec.denom, coin.denom);
+        assert_eq!(coin.amount, 123u128);
     }
 }

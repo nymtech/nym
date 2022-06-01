@@ -28,6 +28,7 @@ impl Network {
         self.to_string().to_lowercase()
     }
 
+    #[deprecated]
     pub fn denom(&self) -> Denom {
         match self {
             // network defaults should be correctly formatted

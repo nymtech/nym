@@ -104,6 +104,8 @@ pub enum BackendError {
     FailedToDeriveAddress,
     #[error("{0}")]
     ValueParseError(#[from] ParseIntError),
+    #[error("The provided coin has an unknown denomination - {0}")]
+    UnknownCoinDenom(String),
 }
 
 impl Serialize for BackendError {

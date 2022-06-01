@@ -17,8 +17,7 @@ pub async fn simulate_bond_gateway(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let network_denom = guard.current_network().denom();
-    let pledge = pledge.into_cosmos_coin(&network_denom)?;
+    let pledge = pledge.into_backend_coin(guard.current_network().denom())?;
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -66,8 +65,7 @@ pub async fn simulate_bond_mixnode(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let network_denom = guard.current_network().denom();
-    let pledge = pledge.into_cosmos_coin(&network_denom)?;
+    let pledge = pledge.into_backend_coin(guard.current_network().denom())?;
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -136,8 +134,7 @@ pub async fn simulate_delegate_to_mixnode(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let network_denom = guard.current_network().denom();
-    let delegation = amount.into_cosmos_coin(&network_denom)?;
+    let delegation = amount.into_backend_coin(guard.current_network().denom())?;
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address()?;

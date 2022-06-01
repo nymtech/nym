@@ -14,7 +14,6 @@ use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
@@ -81,19 +80,17 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-    let denom = state.read().await.current_network().denom();
+    let denom = state.read().await.current_network().denom().to_owned();
     match nymd_client!(state)
-        .get_balance(nymd_client!(state).address(), denom.clone())
+        .get_balance(nymd_client!(state).address(), denom.parse()?)
         .await
     {
         Ok(Some(coin)) => {
-            let coin = Coin::new(
-                &coin.amount.to_string(),
-                &Denom::from_str(&coin.denom.to_string())?,
-            );
+            let coin = Coin::new(&coin.amount.to_string(), &Denom::from_str(&coin.denom)?);
             Ok(Balance {
                 coin: coin.clone(),
-                printable_balance: format!("{} {}", coin.to_major().amount(), &denom.as_ref()[1..]),
+                // haha, that's so junky : )
+                printable_balance: format!("{} {}", coin.to_major().amount(), &denom[1..]),
             })
         }
         Ok(None) => Err(BackendError::NoBalance(
@@ -138,7 +135,7 @@ pub async fn switch_network(
         Account::new(
             client.nymd.mixnet_contract_address()?.to_string(),
             client.nymd.address().to_string(),
-            denom.try_into()?,
+            denom.parse()?,
         )
     };
 
@@ -221,7 +218,7 @@ async fn _connect_with_mnemonic(
         Some(client) => Ok(Account::new(
             client.nymd.mixnet_contract_address()?.to_string(),
             client.nymd.address().to_string(),
-            default_network.denom().try_into()?,
+            default_network.denom().parse()?,
         )),
         None => Err(BackendError::NetworkNotSupported(
             config::defaults::DEFAULT_NETWORK,

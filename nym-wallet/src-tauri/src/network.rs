@@ -1,14 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::str::FromStr;
-use strum::EnumIter;
-
 use config::defaults::all::Network as ConfigNetwork;
 use config::defaults::{mainnet, qa, sandbox};
-use validator_client::nymd::Denom;
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use strum::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -25,12 +22,12 @@ impl Network {
         self.to_string().to_lowercase()
     }
 
-    pub fn denom(&self) -> Denom {
+    pub fn denom(&self) -> &str {
         match self {
             // network defaults should be correctly formatted
-            Network::QA => Denom::from_str(qa::DENOM).unwrap(),
-            Network::SANDBOX => Denom::from_str(sandbox::DENOM).unwrap(),
-            Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
+            Network::QA => qa::DENOM,
+            Network::SANDBOX => sandbox::DENOM,
+            Network::MAINNET => mainnet::DENOM,
         }
     }
 }

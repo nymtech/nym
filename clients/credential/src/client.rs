@@ -1,19 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bip39::Mnemonic;
-use coconut_bandwidth_contract_common::deposit::DepositData;
-use std::str::FromStr;
-use url::Url;
-
 use crate::error::Result;
 use crate::{CONTRACT_ADDRESS, MNEMONIC, NYMD_URL};
-
+use bip39::Mnemonic;
+use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::msg::ExecuteMsg;
 use network_defaults::DEFAULT_NETWORK;
-use validator_client::nymd::{
-    AccountId, CosmosCoin, Decimal, Denom, NymdClient, SigningNymdClient,
-};
+use std::str::FromStr;
+use url::Url;
+use validator_client::nymd::{AccountId, Coin, Denom, NymdClient, SigningNymdClient};
 
 pub(crate) struct Client {
     nymd_client: NymdClient<SigningNymdClient>,
@@ -55,10 +51,7 @@ impl Client {
         let req = ExecuteMsg::DepositFunds {
             data: DepositData::new(info.to_string(), verification_key, encryption_key),
         };
-        let funds = vec![CosmosCoin {
-            denom: self.denom.clone(),
-            amount: Decimal::from(amount),
-        }];
+        let funds = vec![Coin::new(amount as u128, self.denom.to_string())];
         Ok(self
             .nymd_client
             .execute(&self.contract_address, &req, Default::default(), "", funds)

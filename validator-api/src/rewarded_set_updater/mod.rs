@@ -25,7 +25,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use validator_client::nymd::{CosmosCoin, SigningNymdClient};
+use validator_client::nymd::{Coin, SigningNymdClient};
 
 pub(crate) mod error;
 
@@ -120,7 +120,7 @@ impl RewardedSetUpdater {
 
     async fn reward_current_rewarded_set(
         &self,
-    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
+    ) -> Result<Vec<(ExecuteMsg, Vec<Coin>)>, RewardingError> {
         let to_reward = self.nodes_to_reward().await?;
         let epoch = self.epoch().await?;
 
@@ -143,7 +143,7 @@ impl RewardedSetUpdater {
     async fn generate_reward_messages(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
-    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
+    ) -> Result<Vec<(ExecuteMsg, Vec<Coin>)>, RewardingError> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "no-reward")] {
                 Ok(vec![])

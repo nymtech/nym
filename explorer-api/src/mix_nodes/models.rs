@@ -148,19 +148,17 @@ impl ThreadsafeMixNodesCache {
         let health = mixnode_health_guard.get(identity_key);
 
         match bond {
-            Some(bond) => {
-                Some(PrettyDetailedMixNodeBond {
-                    location: location.and_then(|l| l.location.clone()),
-                    status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
-                    pledge_amount: bond.mixnode_bond.pledge_amount,
-                    total_delegation: bond.mixnode_bond.total_delegation,
-                    owner: bond.mixnode_bond.owner,
-                    layer: bond.mixnode_bond.layer,
-                    mix_node: bond.mixnode_bond.mix_node,
-                    avg_uptime: health.map(|m| m.avg_uptime),
-                    stake_saturation: bond.stake_saturation,
-                })
-            }
+            Some(bond) => Some(PrettyDetailedMixNodeBond {
+                location: location.and_then(|l| l.location.clone()),
+                status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
+                pledge_amount: bond.mixnode_bond.pledge_amount,
+                total_delegation: bond.mixnode_bond.total_delegation,
+                owner: bond.mixnode_bond.owner,
+                layer: bond.mixnode_bond.layer,
+                mix_node: bond.mixnode_bond.mix_node,
+                avg_uptime: health.map(|m| m.avg_uptime),
+                stake_saturation: bond.stake_saturation,
+            }),
             None => None,
         }
     }

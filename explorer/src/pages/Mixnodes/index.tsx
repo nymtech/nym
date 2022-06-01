@@ -258,9 +258,9 @@ export const PageMixnodes: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{
-            ...getCellStyles(theme, params.row),
             textAlign: 'left',
             color: params.value > 100 ? theme.palette.warning.main : 'inherit',
+            ...getCellStyles(theme, params.row),
           }}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}

@@ -4,6 +4,7 @@
 
 ### Added
 
+- validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
 - wallet: require password to switch accounts
 - wallet: add simple CLI tool for decrypting and recovering the wallet file.
 - wallet: added support for multiple accounts ([#1265])

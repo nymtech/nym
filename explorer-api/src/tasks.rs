@@ -3,8 +3,8 @@
 
 use std::future::Future;
 
-use mixnet_contract_common::{GatewayBond, MixNodeBond};
-use validator_client::models::UptimeResponse;
+use mixnet_contract_common::GatewayBond;
+use validator_client::models::{MixNodeBondAnnotated, UptimeResponse};
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
 use validator_client::ValidatorClientError;
@@ -22,10 +22,10 @@ impl ExplorerApiTasks {
     }
 
     // a helper to remove duplicate code when grabbing active/rewarded/all mixnodes
-    async fn retrieve_mixnodes<'a, F, Fut>(&'a self, f: F) -> Vec<MixNodeBond>
+    async fn retrieve_mixnodes<'a, F, Fut>(&'a self, f: F) -> Vec<MixNodeBondAnnotated>
     where
         F: FnOnce(&'a validator_client::Client<QueryNymdClient>) -> Fut,
-        Fut: Future<Output = Result<Vec<MixNodeBond>, ValidatorClientError>>,
+        Fut: Future<Output = Result<Vec<MixNodeBondAnnotated>, ValidatorClientError>>,
     {
         let bonds = match f(&self.state.inner.validator_client.0).await {
             Ok(result) => result,
@@ -39,9 +39,9 @@ impl ExplorerApiTasks {
         bonds
     }
 
-    async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBond> {
+    async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBondAnnotated> {
         info!("About to retrieve all mixnode bonds...");
-        self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes)
+        self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes_detailed)
             .await
     }
 
@@ -77,15 +77,15 @@ impl ExplorerApiTasks {
         Ok(response)
     }
 
-    async fn retrieve_rewarded_mixnodes(&self) -> Vec<MixNodeBond> {
+    async fn retrieve_rewarded_mixnodes(&self) -> Vec<MixNodeBondAnnotated> {
         info!("About to retrieve rewarded mixnode bonds...");
-        self.retrieve_mixnodes(validator_client::Client::get_cached_rewarded_mixnodes)
+        self.retrieve_mixnodes(validator_client::Client::get_cached_rewarded_mixnodes_detailed)
             .await
     }
 
-    async fn retrieve_active_mixnodes(&self) -> Vec<MixNodeBond> {
+    async fn retrieve_active_mixnodes(&self) -> Vec<MixNodeBondAnnotated> {
         info!("About to retrieve active mixnode bonds...");
-        self.retrieve_mixnodes(validator_client::Client::get_cached_active_mixnodes)
+        self.retrieve_mixnodes(validator_client::Client::get_cached_active_mixnodes_detailed)
             .await
     }
 
@@ -106,13 +106,13 @@ impl ExplorerApiTasks {
             .retrieve_rewarded_mixnodes()
             .await
             .into_iter()
-            .map(|bond| bond.mix_node.identity_key)
+            .map(|bond| bond.mix_node().identity_key.clone())
             .collect();
         let active_nodes = self
             .retrieve_active_mixnodes()
             .await
             .into_iter()
-            .map(|bond| bond.mix_node.identity_key)
+            .map(|bond| bond.mix_node().identity_key.clone())
             .collect();
         self.state
             .inner

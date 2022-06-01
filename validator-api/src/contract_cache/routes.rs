@@ -8,11 +8,20 @@ use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
 use std::collections::HashSet;
+use validator_api_requests::models::MixNodeBondAnnotated;
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes")]
 pub async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
     Json(cache.mixnodes().await)
+}
+
+#[openapi(tag = "contract-cache")]
+#[get("/mixnodes/detailed")]
+pub async fn get_mixnodes_detailed(
+    cache: &State<ValidatorCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(cache.mixnodes_detailed().await)
 }
 
 #[openapi(tag = "contract-cache")]
@@ -24,13 +33,29 @@ pub async fn get_gateways(cache: &State<ValidatorCache>) -> Json<Vec<GatewayBond
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/rewarded")]
 pub async fn get_rewarded_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
-    Json(cache.rewarded_set().await.value)
+    Json(cache.rewarded_set().await)
+}
+
+#[openapi(tag = "contract-cache")]
+#[get("/mixnodes/rewarded/detailed")]
+pub async fn get_rewarded_set_detailed(
+    cache: &State<ValidatorCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(cache.rewarded_set_detailed().await.value)
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active")]
 pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
-    Json(cache.active_set().await.value)
+    Json(cache.active_set().await)
+}
+
+#[openapi(tag = "contract-cache")]
+#[get("/mixnodes/active/detailed")]
+pub async fn get_active_set_detailed(
+    cache: &State<ValidatorCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(cache.active_set_detailed().await.value)
 }
 
 #[openapi(tag = "contract-cache")]

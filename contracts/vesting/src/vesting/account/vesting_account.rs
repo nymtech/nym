@@ -1,7 +1,7 @@
 use crate::errors::ContractError;
 use crate::storage::{delete_account, save_account, DELEGATIONS};
 use crate::traits::VestingAccount;
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
 use vesting_contract_common::{OriginalVestingResponse, Period};
 
@@ -38,7 +38,7 @@ impl VestingAccount for Account {
                             .u128(),
                     ),
             ),
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         })
     }
 
@@ -54,7 +54,7 @@ impl VestingAccount for Account {
                     .u128()
                     .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128()),
             ),
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         })
     }
 
@@ -69,15 +69,15 @@ impl VestingAccount for Account {
         let amount = match period {
             Period::Before => Coin {
                 amount: Uint128::new(0),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             Period::In(idx) => Coin {
                 amount: Uint128::new(self.tokens_per_period()? * idx as u128),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             Period::After => Coin {
                 amount: self.coin.amount,
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
         };
         Ok(amount)
@@ -91,7 +91,7 @@ impl VestingAccount for Account {
         Ok(Coin {
             amount: self.get_original_vesting().amount().amount
                 - self.get_vested_coins(block_time, env)?.amount,
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         })
     }
 
@@ -143,7 +143,7 @@ impl VestingAccount for Account {
 
         Ok(Coin {
             amount,
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         })
     }
 
@@ -161,7 +161,7 @@ impl VestingAccount for Account {
 
         Ok(Coin {
             amount,
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         })
     }
 
@@ -197,7 +197,7 @@ impl VestingAccount for Account {
 
         Ok(Coin {
             amount,
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         })
     }
 
@@ -217,12 +217,12 @@ impl VestingAccount for Account {
             let amount = bond.amount().amount - bonded_free.amount;
             Ok(Coin {
                 amount,
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             })
         } else {
             Ok(Coin {
                 amount: Uint128::zero(),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             })
         }
     }

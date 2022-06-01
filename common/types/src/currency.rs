@@ -11,6 +11,8 @@ use std::str::FromStr;
 use strum::{Display, EnumString, EnumVariantNames};
 use validator_client::nymd::{Coin, CosmosCoin};
 
+pub type Denom = String;
+
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -76,31 +78,67 @@ pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-r
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Currency.ts")
 )]
-// #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MajorCurrencyAmount {
-    // temporarly going back to original impl to speed up merge
     pub amount: MajorAmountString,
     pub denom: CurrencyDenom,
-    // // temporary...
-    // #[cfg_attr(feature = "generate-ts", ts(skip))]
-    // pub coin: Coin,
 }
 
-// impl JsonSchema for MajorCurrencyAmount {
-//     fn schema_name() -> String {
-//         todo!()
-//     }
-//
-//     fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-//         todo!()
-//     }
-// }
+// TODO: should this live here?
+// attempts to replicate cosmos-sdk's coin metadata
+// https://docs.cosmos.network/master/architecture/adr-024-coin-metadata.html
+// this way we could more easily handle multiple coin types simultaneously (like nym/nyx/nymt/nyx + local currencies)
+pub struct DenomUnit {
+    pub denom: Denom,
+    pub exponent: u32,
+    // pub aliases: Vec<String>,
+}
+
+impl DenomUnit {
+    pub fn new(denom: Denom, exponent: u32) -> Self {
+        DenomUnit { denom, exponent }
+    }
+}
+
+pub struct CoinMetadata {
+    pub denom_units: Vec<DenomUnit>,
+    pub base: Denom,
+    pub display: Denom,
+}
+
+impl CoinMetadata {
+    pub fn new(denom_units: Vec<DenomUnit>, base: Denom, display: Denom) -> Self {
+        CoinMetadata {
+            denom_units,
+            base,
+            display,
+        }
+    }
+}
 
 // tries to semi-replicate cosmos-sdk's DecCoin for being able to handle tokens with decimal amounts
 // https://github.com/cosmos/cosmos-sdk/blob/v0.45.4/types/dec_coin.go
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/DecCoin.ts")
+)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct DecCoin {
-    //
+    pub denom: Denom,
+    // Decimal is already serialized to string and using string in its schema, so lets also go straight to string for ts_rs
+    // todo: is `Decimal` the correct type to use? Do we want to depend on cosmwasm_std here?
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    pub amount: Decimal,
+}
+
+impl From<Coin> for DecCoin {
+    fn from(coin: Coin) -> Self {
+        DecCoin {
+            denom: coin.denom,
+            amount: Decimal::from_atomics(coin.amount, 0).unwrap(),
+        }
+    }
 }
 
 impl MajorCurrencyAmount {
@@ -114,120 +152,6 @@ impl MajorCurrencyAmount {
     pub fn zero(denom: &CurrencyDenom) -> MajorCurrencyAmount {
         MajorCurrencyAmount::new("0", denom.clone())
     }
-    //
-    // pub fn from_cosmrs_coin(coin: &CosmosCoin) -> Result<MajorCurrencyAmount, TypesError> {
-    //     MajorCurrencyAmount::from_cosmrs_decimal_and_denom(coin.amount, coin.denom.to_string())
-    // }
-    //
-    // pub fn from_minor_uint128_and_denom(
-    //     amount_minor: Uint128,
-    //     denom_minor: &str,
-    // ) -> Result<MajorCurrencyAmount, TypesError> {
-    //     MajorCurrencyAmount::from_minor_decimal_and_denom(
-    //         Decimal::from_atomics(amount_minor, 0)?,
-    //         denom_minor,
-    //     )
-    // }
-    //
-    // pub fn from_minor_decimal_and_denom(
-    //     amount_minor: Decimal,
-    //     denom_minor: &str,
-    // ) -> Result<MajorCurrencyAmount, TypesError> {
-    //     if !(denom_minor.starts_with('u') || denom_minor.starts_with('U')) {
-    //         return Err(TypesError::InvalidDenom(denom_minor.to_string()));
-    //     }
-    //     let major = amount_minor / Uint128::from(1_000_000u64);
-    //     if let Ok(denom) = CurrencyDenom::from_str(&denom_minor[1..].to_string()) {
-    //         return Ok(MajorCurrencyAmount {
-    //             amount: MajorAmountString(major.to_string()),
-    //             denom,
-    //         });
-    //     }
-    //     Err(TypesError::InvalidDenom(denom_minor.to_string()))
-    // }
-    // pub fn from_decimal_and_denom(
-    //     amount: Decimal,
-    //     denom: String,
-    // ) -> Result<MajorCurrencyAmount, TypesError> {
-    //     if denom.starts_with('u') || denom.starts_with('U') {
-    //         return MajorCurrencyAmount::from_minor_decimal_and_denom(amount, &denom);
-    //     }
-    //     if let Ok(denom) = CurrencyDenom::from_str(denom.as_str()) {
-    //         return Ok(MajorCurrencyAmount {
-    //             amount: MajorAmountString(amount.to_string()),
-    //             denom,
-    //         });
-    //     }
-    //     Err(TypesError::InvalidDenom(denom))
-    // }
-    // pub fn from_cosmrs_decimal_and_denom(
-    //     amount: CosmosDecimal,
-    //     denom: String,
-    // ) -> Result<MajorCurrencyAmount, TypesError> {
-    //     if denom.starts_with('u') || denom.starts_with('U') {
-    //         return match Decimal::from_str(&amount.to_string()) {
-    //             Ok(amount) => MajorCurrencyAmount::from_minor_decimal_and_denom(amount, &denom),
-    //             Err(_e) => Err(TypesError::InvalidAmount(amount.to_string())),
-    //         };
-    //     }
-    //
-    //     if let Ok(denom) = CurrencyDenom::from_str(denom.as_str()) {
-    //         return Ok(MajorCurrencyAmount {
-    //             amount: MajorAmountString(amount.to_string()),
-    //             denom,
-    //         });
-    //     }
-    //     Err(TypesError::InvalidDenom(denom))
-    // }
-    //
-    // pub fn into_cosmos_coin(self) -> CosmosCoin {
-    //     self.coin.into()
-    // }
-    //
-    // pub fn to_minor_uint128(&self) -> Result<Uint128, TypesError> {
-    //     if self.amount.0.contains('.') {
-    //         // has a decimal point (Cosmos assumes "." is the decimal separator)
-    //         let parts = self.amount.0.split('.');
-    //         let str = parts.collect_vec();
-    //         if str.is_empty() || str.len() > 2 {
-    //             return Err(TypesError::InvalidAmount("Amount is invalid".to_string()));
-    //         }
-    //         if str.len() == 2 {
-    //             // has a decimal, so check decimal places first
-    //             if str[1].len() > 6 {
-    //                 return Err(TypesError::InvalidDenom(
-    //                     "Amount is invalid, only 6 decimal places of precision are allowed"
-    //                         .to_string(),
-    //                 ));
-    //             }
-    //
-    //             // so multiple whole part by 1e6 and add decimal part
-    //             let whole_part = Uint128::from_str(str[0])? * Uint128::from(1_000_000u64);
-    //
-    //             // TODO: has Rust got anything that deals with fixed point values, or parsing from format strings? Leading zeroes are causing issues
-    //             return match format!("0.{}", str[1]).parse::<f64>() {
-    //                 Ok(decimal_part_float) => {
-    //                     // this makes an assumption that 6 decimal places of f64 can never lose precision
-    //                     let truncated = (decimal_part_float * 1_000_000.).trunc() as u32;
-    //                     let decimal_part = Uint128::from(truncated);
-    //                     let sum = whole_part + decimal_part;
-    //                     Ok(sum)
-    //                 }
-    //                 Err(_e) => Err(TypesError::InvalidAmount(
-    //                     "Amount decimal part is invalid".to_string(),
-    //                 )),
-    //             };
-    //         }
-    //     }
-    //
-    //     let major = Uint128::from_str(&self.amount.0)?;
-    //     let scaled = major * Uint128::new(1_000_000u128);
-    //     Ok(scaled)
-    // }
-
-    // pub fn denom_to_string(&self) -> String {
-    //     self.denom.to_string()
-    // }
 }
 
 impl Display for MajorCurrencyAmount {

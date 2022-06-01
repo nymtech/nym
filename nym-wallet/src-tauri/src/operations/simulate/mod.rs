@@ -31,10 +31,7 @@ impl SimulateResult {
     }
 
     pub fn detailed_fee(&self) -> Result<FeeDetails, TypesError> {
-        let amount: Option<MajorCurrencyAmount> = match self.to_fee_amount() {
-            Some(a) => Some(a.into()),
-            None => None,
-        };
+        let amount: Option<MajorCurrencyAmount> = self.to_fee_amount().map(Into::into);
         Ok(FeeDetails {
             amount,
             fee: self.to_fee(),

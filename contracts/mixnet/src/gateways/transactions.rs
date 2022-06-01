@@ -5,7 +5,7 @@ use super::storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
@@ -203,7 +203,7 @@ fn validate_gateway_pledge(
     }
 
     // check that the denomination is correct
-    if pledge[0].denom != DENOM {
+    if pledge[0].denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom {});
     }
 
@@ -226,7 +226,7 @@ pub mod tests {
     use crate::gateways::transactions::validate_gateway_pledge;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
@@ -238,7 +238,7 @@ pub mod tests {
 
         // if we fail validation (by say not sending enough funds
         let insufficient_bond = Into::<u128>::into(INITIAL_GATEWAY_PLEDGE) - 1;
-        let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
+        let info = mock_info("anyone", &coins(insufficient_bond, MIX_DENOM.base));
         let (msg, _) = tests::messages::valid_bond_gateway_msg("anyone");
 
         // we are informed that we didn't send enough funds

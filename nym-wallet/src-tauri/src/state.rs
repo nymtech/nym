@@ -12,6 +12,7 @@ use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
 use url::Url;
 
+// use nym_types::currency::{CoinMetadata, Denom};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -56,6 +57,7 @@ pub struct State {
 
     /// We fetch (and cache) some metadata, such as names, when available
     validator_metadata: HashMap<Url, ValidatorMetadata>,
+    // registered_coins: HashMap<Network, HashMap<Denom, CoinMetadata>>,
 }
 
 pub(crate) struct WalletAccountIds {

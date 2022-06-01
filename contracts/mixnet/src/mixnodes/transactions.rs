@@ -7,7 +7,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };
@@ -364,7 +364,7 @@ fn validate_mixnode_pledge(
     }
 
     // check that the denomination is correct
-    if pledge[0].denom != DENOM {
+    if pledge[0].denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom {});
     }
 

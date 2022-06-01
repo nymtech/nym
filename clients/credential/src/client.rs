@@ -31,7 +31,7 @@ impl Client {
             None,
         )
         .unwrap();
-        let denom = Denom::from_str(network_defaults::DENOM).unwrap();
+        let denom = Denom::from_str(network_defaults::MIX_DENOM.base).unwrap();
         let contract_address = AccountId::from_str(CONTRACT_ADDRESS).unwrap();
 
         Client {

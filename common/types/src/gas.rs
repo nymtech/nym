@@ -14,9 +14,6 @@ use validator_client::nymd::GasPrice;
 pub struct Gas {
     /// units of gas used
     pub gas_units: u64,
-    //
-    // /// gas units converted to fee as major coin amount
-    // pub amount: MajorCurrencyAmount,
 }
 
 impl Gas {

@@ -2,6 +2,7 @@ use crate::config;
 use crate::error::BackendError;
 use ::config::defaults::all::Network as ConfigNetwork;
 use itertools::Itertools;
+use log::warn;
 use nym_types::currency::{try_convert_decimal_to_u128, CoinMetadata, DecCoin, Denom};
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
@@ -13,7 +14,7 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 use url::Url;
-use validator_client::nymd::{AccountId as CosmosAccountId, Coin, SigningNymdClient};
+use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, SigningNymdClient};
 use validator_client::Client;
 
 // Some hardcoded metadata overrides
@@ -130,6 +131,22 @@ impl State {
         }
 
         Err(BackendError::UnknownCoinDenom(coin.denom))
+    }
+
+    pub(crate) fn convert_tx_fee(&self, fee: Option<&Fee>) -> Option<DecCoin> {
+        let mut fee_amount = fee?.try_get_manual_amount()?;
+        if fee_amount.len() > 1 {
+            warn!(
+            "our tx fee contained more than a single denomination. using the first one for display"
+        )
+        }
+        if fee_amount.is_empty() {
+            warn!("our tx has had an unknown fee set");
+            None
+        } else {
+            self.attempt_convert_to_display_dec_coin(fee_amount.pop().unwrap())
+                .ok()
+        }
     }
 
     pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {

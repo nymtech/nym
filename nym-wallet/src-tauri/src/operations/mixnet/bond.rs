@@ -2,39 +2,42 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
-use nym_types::currency::MajorCurrencyAmount;
+use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::MixNodeBond;
 use nym_types::transaction::TransactionExecuteResult;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::{CosmWasmCoin, Fee};
+use validator_client::nymd::{Coin, Fee};
 
 #[tauri::command]
 pub async fn bond_gateway(
     gateway: Gateway,
-    pledge: MajorCurrencyAmount,
+    pledge: DecCoin,
     owner_signature: String,
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
-    let pledge_minor = pledge.clone().into();
+    let guard = state.read().await;
+    let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
     log::info!(
-        ">>> Bond gateway: identity_key = {}, pledge = {}, pledge_minor = {}, fee = {:?}",
-        &gateway.identity_key,
+        ">>> Bond gateway: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
+        gateway.identity_key,
         pledge,
-        &pledge_minor,
+        pledge_base,
         fee,
     );
-    let res = nymd_client!(state)
-        .bond_gateway(gateway, owner_signature, pledge_minor, fee)
+    let res = guard
+        .current_client()?
+        .nymd
+        .bond_gateway(gateway, owner_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -43,14 +46,14 @@ pub async fn unbond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(">>> Unbond gateway, fee = {:?}", fee);
-    let res = nymd_client!(state).unbond_gateway(fee).await?;
+    let res = guard.current_client()?.nymd.unbond_gateway(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -58,27 +61,30 @@ pub async fn unbond_gateway(
 pub async fn bond_mixnode(
     mixnode: MixNode,
     owner_signature: String,
-    pledge: MajorCurrencyAmount,
+    pledge: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
-    let pledge_minor = pledge.clone().into();
+    let guard = state.read().await;
+    let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
     log::info!(
-        ">>> Bond mixnode: identity_key = {}, pledge = {}, pledge_minor = {}, fee = {:?}",
+        ">>> Bond mixnode: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
         mixnode.identity_key,
         pledge,
-        pledge_minor,
+        pledge_base,
         fee,
     );
-    let res = nymd_client!(state)
-        .bond_mixnode(mixnode, owner_signature, pledge_minor, fee)
+    let res = guard
+        .current_client()?
+        .nymd
+        .bond_mixnode(mixnode, owner_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -87,14 +93,14 @@ pub async fn unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(">>> Unbond mixnode, fee = {:?}", fee);
-    let res = nymd_client!(state).unbond_mixnode(fee).await?;
+    let res = guard.current_client()?.nymd.unbond_mixnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -104,20 +110,21 @@ pub async fn update_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
         ">>> Update mixnode: profit_margin_percent = {}, fee {:?}",
         profit_margin_percent,
         fee,
     );
-    let res = nymd_client!(state)
+    let res = guard
+        .current_client()?
+        .nymd
         .update_mixnode_config(profit_margin_percent, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -159,16 +166,22 @@ pub async fn gateway_bond_details(
 pub async fn get_operator_rewards(
     address: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Get operator rewards for {}", address);
-    let denom = state.read().await.current_network().denom();
-    let rewards_as_minor = nymd_client!(state).get_operator_rewards(address).await?;
-    let coin = CosmWasmCoin::new(rewards_as_minor.u128(), denom.as_ref());
-    let amount: MajorCurrencyAmount = coin.into();
+    let guard = state.read().await;
+    let network = guard.current_network();
+    let denom = network.base_mix_denom();
+    let reward_amount = guard
+        .current_client()?
+        .nymd
+        .get_operator_rewards(address)
+        .await?;
+    let base_coin = Coin::new(reward_amount.u128(), denom);
+    let display_coin: DecCoin = guard.attempt_convert_to_display_dec_coin(base_coin.clone())?;
     log::info!(
-        "<<< rewards_as_minor = {}, amount = {}",
-        rewards_as_minor,
-        amount
+        "<<< rewards_base = {}, rewards_display = {}",
+        base_coin,
+        display_coin
     );
-    Ok(amount)
+    Ok(display_coin)
 }

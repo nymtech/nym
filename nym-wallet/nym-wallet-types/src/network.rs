@@ -37,6 +37,14 @@ impl Network {
             Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
         }
     }
+
+    pub fn base_mix_denom(&self) -> &str {
+        match self {
+            Network::QA => qa::MIX_DENOM.base,
+            Network::SANDBOX => sandbox::MIX_DENOM.base,
+            Network::MAINNET => mainnet::MIX_DENOM.base,
+        }
+    }
 }
 
 impl Default for Network {

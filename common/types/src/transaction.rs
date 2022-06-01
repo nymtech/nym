@@ -1,7 +1,6 @@
 use crate::currency::{DecCoin, MajorCurrencyAmount};
 use crate::error::TypesError;
 use crate::gas::{Gas, GasInfo};
-use log::warn;
 use serde::{Deserialize, Serialize};
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::{Coin, TxResponse};
@@ -23,21 +22,7 @@ pub struct SendTxResult {
 }
 
 impl SendTxResult {
-    pub fn new(t: TxResponse, details: TransactionDetails, fee: Option<Vec<Coin>>) -> SendTxResult {
-        let fee = match fee {
-            None => None,
-            Some(mut fee) => {
-                if fee.len() > 1 {
-                    warn!("our tx fee contained more than a single denomination. using the first one for display")
-                }
-                if fee.is_empty() {
-                    warn!("our tx has had an unknown fee set");
-                    None
-                } else {
-                    Some(fee.pop().unwrap().into())
-                }
-            }
-        };
+    pub fn new(t: TxResponse, details: TransactionDetails, fee: Option<DecCoin>) -> SendTxResult {
         SendTxResult {
             block_height: t.height.value(),
             code: t.tx_result.code.value(),
@@ -83,19 +68,16 @@ pub struct TransactionExecuteResult {
     pub data_json: String,
     pub transaction_hash: String,
     pub gas_info: GasInfo,
-    pub fee: MajorCurrencyAmount,
+    pub fee: Option<DecCoin>,
 }
 
 impl TransactionExecuteResult {
     pub fn from_execute_result(
         value: ExecuteResult,
-        denom_minor: &str,
+        fee: Option<DecCoin>,
     ) -> Result<TransactionExecuteResult, TypesError> {
-        let gas_info = GasInfo::from(value.gas_info);
-        // let fee = gas_info.fee.clone();
-        let fee = todo!();
         Ok(TransactionExecuteResult {
-            gas_info,
+            gas_info: value.gas_info.into(),
             transaction_hash: value.transaction_hash.to_string(),
             data_json: ::serde_json::to_string_pretty(&value.data)?,
             logs_json: ::serde_json::to_string_pretty(&value.logs)?,

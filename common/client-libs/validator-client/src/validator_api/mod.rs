@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondResponse,
+    CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
     MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
@@ -87,7 +87,7 @@ impl Client {
 
     pub async fn get_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondResponse>, ValidatorAPIError> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::DETAILED],
             NO_PARAMS,
@@ -110,7 +110,7 @@ impl Client {
 
     pub async fn get_active_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondResponse>, ValidatorAPIError> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
@@ -133,7 +133,7 @@ impl Client {
 
     pub async fn get_rewarded_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondResponse>, ValidatorAPIError> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
         self.query_validator_api(
             &[
                 routes::API_VERSION,

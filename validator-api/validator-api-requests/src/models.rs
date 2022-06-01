@@ -54,12 +54,12 @@ pub struct MixnodeStatusResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct MixNodeBondResponse {
+pub struct MixNodeBondAnnotated {
     pub mixnode_bond: MixNodeBond,
     pub stake_saturation: StakeSaturation,
 }
 
-impl MixNodeBondResponse {
+impl MixNodeBondAnnotated {
     pub fn mix_node(&self) -> &MixNode {
         &self.mixnode_bond.mix_node
     }

@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime};
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use validator_client::models::{MixNodeBondResponse, UptimeResponse};
+use validator_client::models::{MixNodeBondAnnotated, UptimeResponse};
 
 use crate::cache::Cache;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
@@ -31,7 +31,7 @@ pub(crate) struct MixNodeSummary {
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodesResult {
     pub(crate) valid_until: SystemTime,
-    pub(crate) all_mixnodes: HashMap<String, MixNodeBondResponse>,
+    pub(crate) all_mixnodes: HashMap<String, MixNodeBondAnnotated>,
     active_mixnodes: HashSet<String>,
     rewarded_mixnodes: HashSet<String>,
 }
@@ -60,7 +60,7 @@ impl MixNodesResult {
         self.valid_until >= SystemTime::now()
     }
 
-    fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBondResponse> {
+    fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBondAnnotated> {
         if self.is_valid() {
             self.all_mixnodes.get(pubkey).cloned()
         } else {
@@ -68,7 +68,7 @@ impl MixNodesResult {
         }
     }
 
-    fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBondResponse>> {
+    fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBondAnnotated>> {
         if self.is_valid() {
             Some(self.all_mixnodes.clone())
         } else {
@@ -127,11 +127,11 @@ impl ThreadsafeMixNodesCache {
         );
     }
 
-    pub(crate) async fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBondResponse> {
+    pub(crate) async fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBondAnnotated> {
         self.mixnodes.read().await.get_mixnode(pubkey)
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBondResponse>> {
+    pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBondAnnotated>> {
         self.mixnodes.read().await.get_mixnodes()
     }
 
@@ -195,7 +195,7 @@ impl ThreadsafeMixNodesCache {
 
     pub(crate) async fn update_cache(
         &self,
-        all_bonds: Vec<MixNodeBondResponse>,
+        all_bonds: Vec<MixNodeBondAnnotated>,
         rewarded_nodes: HashSet<String>,
         active_nodes: HashSet<String>,
     ) {

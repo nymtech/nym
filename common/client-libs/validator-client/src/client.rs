@@ -9,7 +9,7 @@ use url::Url;
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::UptimeResponse;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, MixNodeBondResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    CoreNodeStatusResponse, MixNodeBondAnnotated, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
 
@@ -235,7 +235,7 @@ impl<C> Client<C> {
 
     pub async fn get_cached_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondResponse>, ValidatorClientError> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.validator_api.get_mixnodes_detailed().await?)
     }
 
@@ -247,7 +247,7 @@ impl<C> Client<C> {
 
     pub async fn get_cached_rewarded_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondResponse>, ValidatorClientError> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.validator_api.get_rewarded_mixnodes_detailed().await?)
     }
 
@@ -259,7 +259,7 @@ impl<C> Client<C> {
 
     pub async fn get_cached_active_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondResponse>, ValidatorClientError> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.validator_api.get_active_mixnodes_detailed().await?)
     }
 

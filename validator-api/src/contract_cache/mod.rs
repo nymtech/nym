@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_api_requests::models::{MixNodeBondResponse, MixnodeStatus};
+use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -40,14 +40,14 @@ pub struct ValidatorCache {
 }
 
 struct ValidatorCacheInner {
-    mixnodes: Cache<Vec<MixNodeBondResponse>>,
+    mixnodes: Cache<Vec<MixNodeBondAnnotated>>,
     gateways: Cache<Vec<GatewayBond>>,
 
     mixnodes_blacklist: Cache<HashSet<IdentityKey>>,
     gateways_blacklist: Cache<HashSet<IdentityKey>>,
 
-    rewarded_set: Cache<Vec<MixNodeBondResponse>>,
-    active_set: Cache<Vec<MixNodeBondResponse>>,
+    rewarded_set: Cache<Vec<MixNodeBondAnnotated>>,
+    active_set: Cache<Vec<MixNodeBondAnnotated>>,
 
     current_reward_params: Cache<EpochRewardParams>,
     current_epoch: Cache<Option<Interval>>,
@@ -102,7 +102,7 @@ impl<C> ValidatorCacheRefresher<C> {
     fn annotate_bond_with_details(
         mixnodes: Vec<MixNodeBond>,
         interval_reward_params: EpochRewardParams,
-    ) -> Vec<MixNodeBondResponse> {
+    ) -> Vec<MixNodeBondAnnotated> {
         mixnodes
             .into_iter()
             .map(|mixnode_bond| {
@@ -112,7 +112,7 @@ impl<C> ValidatorCacheRefresher<C> {
                         interval_reward_params.rewarded_set_size() as u32,
                     )
                     .to_num();
-                MixNodeBondResponse {
+                MixNodeBondAnnotated {
                     mixnode_bond,
                     stake_saturation,
                 }
@@ -122,9 +122,9 @@ impl<C> ValidatorCacheRefresher<C> {
 
     fn collect_rewarded_and_active_set_details(
         &self,
-        all_mixnodes: &[MixNodeBondResponse],
+        all_mixnodes: &[MixNodeBondAnnotated],
         rewarded_set_identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
-    ) -> (Vec<MixNodeBondResponse>, Vec<MixNodeBondResponse>) {
+    ) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
         let mut active_set = Vec::new();
         let mut rewarded_set = Vec::new();
         let rewarded_set_identities = rewarded_set_identities
@@ -236,10 +236,10 @@ impl ValidatorCache {
 
     async fn update_cache(
         &self,
-        mixnodes: Vec<MixNodeBondResponse>,
+        mixnodes: Vec<MixNodeBondAnnotated>,
         gateways: Vec<GatewayBond>,
-        rewarded_set: Vec<MixNodeBondResponse>,
-        active_set: Vec<MixNodeBondResponse>,
+        rewarded_set: Vec<MixNodeBondAnnotated>,
+        active_set: Vec<MixNodeBondAnnotated>,
         epoch_rewarding_params: EpochRewardParams,
         current_epoch: Interval,
     ) {
@@ -338,7 +338,7 @@ impl ValidatorCache {
         error!("Failed to update gateways blacklist");
     }
 
-    pub async fn mixnodes_detailed(&self) -> Vec<MixNodeBondResponse> {
+    pub async fn mixnodes_detailed(&self) -> Vec<MixNodeBondAnnotated> {
         let blacklist = self.mixnodes_blacklist().await;
         let mixnodes = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.mixnodes.clone(),
@@ -416,7 +416,7 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn rewarded_set_detailed(&self) -> Cache<Vec<MixNodeBondResponse>> {
+    pub async fn rewarded_set_detailed(&self) -> Cache<Vec<MixNodeBondAnnotated>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.rewarded_set.clone(),
             Err(e) => {
@@ -435,7 +435,7 @@ impl ValidatorCache {
             .collect()
     }
 
-    pub async fn active_set_detailed(&self) -> Cache<Vec<MixNodeBondResponse>> {
+    pub async fn active_set_detailed(&self) -> Cache<Vec<MixNodeBondAnnotated>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.active_set.clone(),
             Err(e) => {
@@ -477,7 +477,7 @@ impl ValidatorCache {
     pub async fn mixnode_details(
         &self,
         identity: IdentityKeyRef<'_>,
-    ) -> (Option<MixNodeBondResponse>, MixnodeStatus) {
+    ) -> (Option<MixNodeBondAnnotated>, MixnodeStatus) {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
 

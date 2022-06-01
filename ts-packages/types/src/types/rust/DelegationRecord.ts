@@ -1,7 +1,3 @@
-import type { MajorCurrencyAmount } from './Currency';
+import type { DecCoin } from "./DecCoin";
 
-export interface DelegationRecord {
-  amount: MajorCurrencyAmount;
-  block_height: bigint;
-  delegated_on_iso_datetime: string;
-}
+export interface DelegationRecord { amount: DecCoin, block_height: bigint, delegated_on_iso_datetime: string, }

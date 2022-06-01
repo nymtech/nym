@@ -134,7 +134,7 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let denom = network.denom();
+        let denom = network.mix_denom().base;
         let client_address = signer
             .try_derive_accounts()?
             .into_iter()
@@ -176,7 +176,7 @@ impl NymdClient<SigningNymdClient> {
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         let prefix = network.bech32_prefix();
-        let denom = network.denom();
+        let denom = network.mix_denom().base;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
@@ -338,7 +338,7 @@ impl<C> NymdClient<C> {
     pub async fn get_balance(
         &self,
         address: &AccountId,
-        denom: Denom,
+        denom: String,
     ) -> Result<Option<Coin>, NymdError>
     where
         C: CosmWasmClient + Sync,

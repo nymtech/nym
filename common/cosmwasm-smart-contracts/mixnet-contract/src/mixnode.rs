@@ -37,6 +37,16 @@ pub enum DelegationEvent {
     Undelegate(PendingUndelegate),
 }
 
+impl DelegationEvent {
+    pub fn delegation_amount(&self) -> Option<Coin> {
+        match self {
+            DelegationEvent::Delegate(delegation) => Some(delegation.amount.clone()),
+            // I think it would be nice to also expose an amount here to know how much we're undelegating
+            DelegationEvent::Undelegate(_) => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 pub struct PendingUndelegate {
     mix_identity: IdentityKey,

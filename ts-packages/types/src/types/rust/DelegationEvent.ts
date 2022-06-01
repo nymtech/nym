@@ -1,10 +1,4 @@
-import type { DelegationEventKind } from './DelegationEventKind';
-import type { MajorCurrencyAmount } from './Currency';
+import type { DecCoin } from "./DecCoin";
+import type { DelegationEventKind } from "./DelegationEventKind";
 
-export interface DelegationEvent {
-  kind: DelegationEventKind;
-  node_identity: string;
-  address: string;
-  amount: MajorCurrencyAmount | null;
-  block_height: bigint;
-}
+export interface DelegationEvent { kind: DelegationEventKind, node_identity: string, address: string, amount: DecCoin | null, block_height: bigint, }

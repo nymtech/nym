@@ -17,7 +17,7 @@ pub mod test_helpers {
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::support::tests;
-    use config::defaults::{DEFAULT_NETWORK, DENOM};
+    use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -111,7 +111,7 @@ pub mod test_helpers {
         let delegation = Delegation {
             owner: Addr::unchecked(owner.into()),
             node_identity: mix.into(),
-            amount: coin(12345, DENOM),
+            amount: coin(12345, MIX_DENOM.base),
             block_height: block_height,
             proxy: None,
         };

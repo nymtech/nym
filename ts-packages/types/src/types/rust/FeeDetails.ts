@@ -1,5 +1,3 @@
-import type { MajorCurrencyAmount } from './Currency';
+import type { DecCoin } from "./DecCoin";
 
-export interface FeeDetails {
-  amount: MajorCurrencyAmount | null;
-}
+export interface FeeDetails { amount: DecCoin | null, }

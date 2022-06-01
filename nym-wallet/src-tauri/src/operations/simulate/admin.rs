@@ -3,16 +3,14 @@
 
 use crate::error::BackendError;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
-use crate::State;
+use crate::WalletState;
 use mixnet_contract_common::{ContractStateParams, ExecuteMsg};
 use nym_wallet_types::admin::TauriContractStateParams;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[tauri::command]
 pub async fn simulate_update_contract_settings(
     params: TauriContractStateParams,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
@@ -28,5 +26,5 @@ pub async fn simulate_update_contract_settings(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }

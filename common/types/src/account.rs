@@ -1,4 +1,4 @@
-use crate::currency::{CurrencyDenom, MajorCurrencyAmount};
+use crate::currency::{DecCoin, Denom};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -9,13 +9,16 @@ use serde::{Deserialize, Serialize};
 )]
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Account {
+    // TODO: discuss with @MS whether it makes sense:
+    // 1. why are we restricting to single denom here? What if user holds both stake and mix currencies?
+    // 2. what's the `contract_address`? is it mixnet? vesting? coconut? why does it relate to an account anyway?
     pub contract_address: String,
     pub client_address: String,
-    pub denom: CurrencyDenom,
+    pub denom: Denom,
 }
 
 impl Account {
-    pub fn new(contract_address: String, client_address: String, denom: CurrencyDenom) -> Self {
+    pub fn new(contract_address: String, client_address: String, denom: Denom) -> Self {
         Account {
             contract_address,
             client_address,
@@ -53,6 +56,15 @@ pub struct AccountEntry {
 )]
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
-    pub amount: MajorCurrencyAmount,
+    pub amount: DecCoin,
     pub printable_balance: String,
+}
+
+impl Balance {
+    pub fn new(amount: DecCoin) -> Self {
+        Balance {
+            printable_balance: amount.to_string(),
+            amount,
+        }
+    }
 }

@@ -1,8 +1,6 @@
+use crate::currency::DecCoin;
 use serde::{Deserialize, Serialize};
-
 use validator_client::nymd::Fee;
-
-use crate::currency::MajorCurrencyAmount;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -12,7 +10,13 @@ use crate::currency::MajorCurrencyAmount;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeeDetails {
     // expected to be used by the wallet in order to display detailed fee information to the user
-    pub amount: Option<MajorCurrencyAmount>,
+    pub amount: Option<DecCoin>,
     #[cfg_attr(feature = "generate-ts", ts(skip))]
     pub fee: Fee,
+}
+
+impl FeeDetails {
+    pub fn new(amount: Option<DecCoin>, fee: Fee) -> Self {
+        FeeDetails { amount, fee }
+    }
 }

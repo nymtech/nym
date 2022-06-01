@@ -28,12 +28,29 @@ impl Network {
         self.to_string().to_lowercase()
     }
 
+    #[deprecated]
     pub fn denom(&self) -> Denom {
         match self {
             // network defaults should be correctly formatted
             Network::QA => Denom::from_str(qa::DENOM).unwrap(),
             Network::SANDBOX => Denom::from_str(sandbox::DENOM).unwrap(),
             Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
+        }
+    }
+
+    pub fn base_mix_denom(&self) -> &str {
+        match self {
+            Network::QA => qa::MIX_DENOM.base,
+            Network::SANDBOX => sandbox::MIX_DENOM.base,
+            Network::MAINNET => mainnet::MIX_DENOM.base,
+        }
+    }
+
+    pub fn display_mix_denom(&self) -> &str {
+        match self {
+            Network::QA => qa::MIX_DENOM.display,
+            Network::SANDBOX => sandbox::MIX_DENOM.display,
+            Network::MAINNET => mainnet::MIX_DENOM.display,
         }
     }
 }

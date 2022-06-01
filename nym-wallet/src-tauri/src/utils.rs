@@ -1,11 +1,9 @@
 use crate::error::BackendError;
 use crate::nymd_client;
-use crate::state::State;
-use nym_types::currency::MajorCurrencyAmount;
+use crate::state::WalletState;
+use nym_types::currency::DecCoin;
 use nym_wallet_types::app::AppEnv;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use validator_client::nymd::{tx, Coin, CosmosCoin, Gas, GasPrice};
 
 fn get_env_as_option(key: &str) -> Option<String> {
@@ -24,9 +22,7 @@ pub fn get_env() -> AppEnv {
 }
 
 #[tauri::command]
-pub async fn owns_mixnode(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<bool, BackendError> {
+pub async fn owns_mixnode(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
     Ok(nymd_client!(state)
         .owns_mixnode(nymd_client!(state).address())
         .await?
@@ -34,9 +30,7 @@ pub async fn owns_mixnode(
 }
 
 #[tauri::command]
-pub async fn owns_gateway(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<bool, BackendError> {
+pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
     Ok(nymd_client!(state)
         .owns_gateway(nymd_client!(state).address())
         .await?
@@ -144,13 +138,14 @@ impl Operation {
 
 #[tauri::command]
 pub async fn get_old_and_incorrect_hardcoded_fee(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
     operation: Operation,
-) -> Result<MajorCurrencyAmount, BackendError> {
-    let mut approximate_fee = operation.default_fee(nymd_client!(state).gas_price());
+) -> Result<DecCoin, BackendError> {
+    let guard = state.read().await;
+    let mut approximate_fee = operation.default_fee(guard.current_client()?.nymd.gas_price());
     // on all our chains it should only ever contain a single type of currency
     assert_eq!(approximate_fee.amount.len(), 1);
     let coin: Coin = approximate_fee.amount.pop().unwrap().into();
     log::info!("hardcoded fee for {:?} is {:?}", operation, coin);
-    Ok(coin.into())
+    guard.attempt_convert_to_display_dec_coin(coin)
 }

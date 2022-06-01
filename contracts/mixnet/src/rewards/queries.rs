@@ -79,7 +79,7 @@ pub(crate) mod tests {
         use crate::delegations::transactions::try_delegate_to_mixnode;
         use crate::interval::storage::{save_epoch, save_epoch_reward_params};
         use crate::rewards::transactions::try_reward_mixnode;
-        use config::defaults::DENOM;
+        use config::defaults::MIX_DENOM;
         use cosmwasm_std::{coin, Addr};
         use mixnet_contract_common::{
             Interval, RewardingResult, RewardingStatus, MIXNODE_DELEGATORS_PAGE_LIMIT,
@@ -181,7 +181,10 @@ pub(crate) mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
-                    mock_info(&*format!("delegator{:04}", i), &[coin(200_000000, DENOM)]),
+                    mock_info(
+                        &*format!("delegator{:04}", i),
+                        &[coin(200_000000, MIX_DENOM.base)],
+                    ),
                     node_identity.clone(),
                 )
                 .unwrap();

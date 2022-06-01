@@ -4,7 +4,7 @@ use walkdir::WalkDir;
 
 use mixnet_contract_common::mixnode::RewardedSetNodeStatus;
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
-use nym_types::currency::{CurrencyDenom, MajorAmountString, MajorCurrencyAmount};
+use nym_types::currency::{CurrencyDenom, DecCoin};
 use nym_types::delegation::{
     Delegation, DelegationEvent, DelegationEventKind, DelegationRecord, DelegationResult,
     DelegationWithEverything, DelegationsSummaryResponse, PendingUndelegate,
@@ -59,7 +59,6 @@ fn main() {
     do_export!(AccountEntry);
     do_export!(AccountWithMnemonic);
     do_export!(Balance);
-    do_export!(CurrencyDenom);
     do_export!(Delegation);
     do_export!(DelegationEvent);
     do_export!(DelegationEventKind);
@@ -72,8 +71,8 @@ fn main() {
     do_export!(GasInfo);
     do_export!(Gateway);
     do_export!(GatewayBond);
-    do_export!(MajorAmountString);
-    do_export!(MajorCurrencyAmount);
+    do_export!(CurrencyDenom);
+    do_export!(DecCoin);
     do_export!(MixNode);
     do_export!(MixNodeBond);
     do_export!(OriginalVestingResponse);

@@ -1,11 +1,11 @@
-use crate::currency::MajorCurrencyAmount;
+use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use mixnet_contract_common::{
-    Coin as CosmWasmCoin, MixNode as MixnetContractMixNode,
-    MixNodeBond as MixnetContractMixNodeBond,
+    MixNode as MixnetContractMixNode, MixNodeBond as MixnetContractMixNodeBond,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use validator_client::nymd::Coin;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -58,67 +58,39 @@ impl From<MixnetContractMixNode> for MixNode {
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
-    pub pledge_amount: MajorCurrencyAmount,
-    pub total_delegation: MajorCurrencyAmount,
+    pub pledge_amount: DecCoin,
+    pub total_delegation: DecCoin,
     pub owner: String,
     pub layer: String,
     pub block_height: u64,
     pub mix_node: MixNode,
     pub proxy: Option<String>,
-    pub accumulated_rewards: Option<MajorCurrencyAmount>,
+    pub accumulated_rewards: Option<DecCoin>,
 }
 
 impl MixNodeBond {
     pub fn from_mixnet_contract_mixnode_bond(
-        bond: Option<MixnetContractMixNodeBond>,
-    ) -> Result<Option<MixNodeBond>, TypesError> {
-        match bond {
-            Some(bond) => {
-                let bond: MixNodeBond = bond.try_into()?;
-                Ok(Some(bond))
-            }
-            None => Ok(None),
-        }
-    }
-}
-
-impl TryFrom<MixnetContractMixNodeBond> for MixNodeBond {
-    type Error = TypesError;
-
-    fn try_from(value: MixnetContractMixNodeBond) -> Result<Self, Self::Error> {
-        let MixnetContractMixNodeBond {
-            pledge_amount,
-            total_delegation,
-            owner,
-            layer,
-            block_height,
-            mix_node,
-            proxy,
-            accumulated_rewards,
-        } = value;
-
-        if pledge_amount.denom != total_delegation.denom {
-            return Err(TypesError::InvalidDenom(
-                "The pledge and delegation denominations do not match".to_string(),
-            ));
-        }
-
-        let denom = total_delegation.denom.clone();
-
-        let pledge_amount: MajorCurrencyAmount = pledge_amount.into();
-        let total_delegation: MajorCurrencyAmount = total_delegation.into();
-        let accumulated_rewards: Option<MajorCurrencyAmount> =
-            accumulated_rewards.map(|r| CosmWasmCoin::new(r.u128(), denom).into());
-
+        bond: MixnetContractMixNodeBond,
+        reg: &RegisteredCoins,
+    ) -> Result<MixNodeBond, TypesError> {
+        let denom = bond.pledge_amount.denom.clone();
         Ok(MixNodeBond {
-            pledge_amount,
-            total_delegation,
-            owner: owner.into_string(),
-            layer: layer.into(),
-            block_height,
-            mix_node: mix_node.into(),
-            proxy: proxy.map(|p| p.into_string()),
-            accumulated_rewards,
+            pledge_amount: reg.attempt_convert_to_display_dec_coin(bond.pledge_amount.into())?,
+            total_delegation: reg
+                .attempt_convert_to_display_dec_coin(bond.total_delegation.into())?,
+            owner: bond.owner.into_string(),
+            layer: bond.layer.into(),
+            block_height: bond.block_height,
+            mix_node: bond.mix_node.into(),
+            proxy: bond.proxy.map(|p| p.to_string()),
+            accumulated_rewards: bond
+                .accumulated_rewards
+                .map(|reward| {
+                    // here we're making an assumption that rewards always use the same denom as the pledge
+                    // (which I think is a reasonable assumption)
+                    reg.attempt_convert_to_display_dec_coin(Coin::new(reward.u128(), denom))
+                })
+                .transpose()?,
         })
     }
 }

@@ -4,7 +4,7 @@ use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp,
@@ -147,8 +147,11 @@ pub fn try_withdraw_vested_coins(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    if amount.denom != DENOM {
-        return Err(ContractError::WrongDenom(amount.denom, DENOM.to_string()));
+    if amount.denom != MIX_DENOM.base {
+        return Err(ContractError::WrongDenom(
+            amount.denom,
+            MIX_DENOM.base.to_string(),
+        ));
     }
 
     let address = info.sender.clone();
@@ -611,10 +614,10 @@ fn validate_funds(funds: &[Coin]) -> Result<Coin, ContractError> {
         return Err(ContractError::MultipleDenoms);
     }
 
-    if funds[0].denom != DENOM {
+    if funds[0].denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom(
             funds[0].denom.clone(),
-            DENOM.to_string(),
+            MIX_DENOM.base.to_string(),
         ));
     }
 

@@ -475,7 +475,8 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
 pub mod tests {
     use super::*;
     use crate::support::tests;
-    use config::defaults::{DEFAULT_NETWORK, DENOM};
+    use config::defaults::DEFAULT_NETWORK;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract_common::PagedMixnodeResponse;
@@ -507,7 +508,7 @@ pub mod tests {
 
         // Contract balance should match what we initialized it as
         assert_eq!(
-            coins(0, DENOM),
+            coins(0, MIX_DENOM.base),
             tests::queries::query_contract_balance(env.contract.address, deps)
         );
     }

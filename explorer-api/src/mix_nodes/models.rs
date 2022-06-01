@@ -149,7 +149,6 @@ impl ThreadsafeMixNodesCache {
 
         match bond {
             Some(bond) => {
-                let mix_node = bond.mix_node().clone();
                 Some(PrettyDetailedMixNodeBond {
                     location: location.and_then(|l| l.location.clone()),
                     status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
@@ -157,7 +156,7 @@ impl ThreadsafeMixNodesCache {
                     total_delegation: bond.mixnode_bond.total_delegation,
                     owner: bond.mixnode_bond.owner,
                     layer: bond.mixnode_bond.layer,
-                    mix_node,
+                    mix_node: bond.mixnode_bond.mix_node,
                     avg_uptime: health.map(|m| m.avg_uptime),
                     stake_saturation: bond.stake_saturation,
                 })

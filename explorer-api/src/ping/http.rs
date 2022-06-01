@@ -42,7 +42,7 @@ pub(crate) async fn index(
                     state.inner.ping.set_pending(pubkey).await;
 
                     // do the check
-                    let ports = Some(port_check(&bond).await);
+                    let ports = Some(port_check(&bond.mixnode_bond).await);
                     trace!("Tested mix node {}: {:?}", pubkey, ports);
                     let response = PingResponse {
                         ports,

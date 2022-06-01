@@ -8,8 +8,7 @@ use std::time::{Duration, SystemTime};
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use mixnet_contract_common::MixNodeBond;
-use validator_client::models::UptimeResponse;
+use validator_client::models::{MixNodeBondAnnotated, UptimeResponse};
 
 use crate::cache::Cache;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
@@ -32,7 +31,7 @@ pub(crate) struct MixNodeSummary {
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodesResult {
     pub(crate) valid_until: SystemTime,
-    pub(crate) all_mixnodes: HashMap<String, MixNodeBond>,
+    pub(crate) all_mixnodes: HashMap<String, MixNodeBondAnnotated>,
     active_mixnodes: HashSet<String>,
     rewarded_mixnodes: HashSet<String>,
 }
@@ -61,7 +60,7 @@ impl MixNodesResult {
         self.valid_until >= SystemTime::now()
     }
 
-    fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBond> {
+    fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBondAnnotated> {
         if self.is_valid() {
             self.all_mixnodes.get(pubkey).cloned()
         } else {
@@ -69,7 +68,7 @@ impl MixNodesResult {
         }
     }
 
-    fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBond>> {
+    fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBondAnnotated>> {
         if self.is_valid() {
             Some(self.all_mixnodes.clone())
         } else {
@@ -128,11 +127,11 @@ impl ThreadsafeMixNodesCache {
         );
     }
 
-    pub(crate) async fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBond> {
+    pub(crate) async fn get_mixnode(&self, pubkey: &str) -> Option<MixNodeBondAnnotated> {
         self.mixnodes.read().await.get_mixnode(pubkey)
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBond>> {
+    pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<String, MixNodeBondAnnotated>> {
         self.mixnodes.read().await.get_mixnodes()
     }
 
@@ -151,13 +150,14 @@ impl ThreadsafeMixNodesCache {
         match bond {
             Some(bond) => Some(PrettyDetailedMixNodeBond {
                 location: location.and_then(|l| l.location.clone()),
-                status: mixnodes_guard.determine_node_status(&bond.mix_node.identity_key),
-                pledge_amount: bond.pledge_amount,
-                total_delegation: bond.total_delegation,
-                owner: bond.owner,
-                layer: bond.layer,
-                mix_node: bond.mix_node,
+                status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
+                pledge_amount: bond.mixnode_bond.pledge_amount,
+                total_delegation: bond.mixnode_bond.total_delegation,
+                owner: bond.mixnode_bond.owner,
+                layer: bond.mixnode_bond.layer,
+                mix_node: bond.mixnode_bond.mix_node,
                 avg_uptime: health.map(|m| m.avg_uptime),
+                stake_saturation: bond.stake_saturation,
             }),
             None => None,
         }
@@ -172,18 +172,19 @@ impl ThreadsafeMixNodesCache {
             .all_mixnodes
             .values()
             .map(|bond| {
-                let location = location_guard.get(&bond.mix_node.identity_key);
-                let copy = bond.clone();
-                let health = mixnode_health_guard.get(&bond.mix_node.identity_key);
+                let location = location_guard.get(&bond.mix_node().identity_key);
+                let copy = bond.mixnode_bond.clone();
+                let health = mixnode_health_guard.get(&bond.mix_node().identity_key);
                 PrettyDetailedMixNodeBond {
                     location: location.and_then(|l| l.location.clone()),
-                    status: mixnodes_guard.determine_node_status(&bond.mix_node.identity_key),
+                    status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
                     pledge_amount: copy.pledge_amount,
                     total_delegation: copy.total_delegation,
                     owner: copy.owner,
                     layer: copy.layer,
                     mix_node: copy.mix_node,
                     avg_uptime: health.map(|m| m.avg_uptime),
+                    stake_saturation: bond.stake_saturation,
                 }
             })
             .collect()
@@ -191,14 +192,14 @@ impl ThreadsafeMixNodesCache {
 
     pub(crate) async fn update_cache(
         &self,
-        all_bonds: Vec<MixNodeBond>,
+        all_bonds: Vec<MixNodeBondAnnotated>,
         rewarded_nodes: HashSet<String>,
         active_nodes: HashSet<String>,
     ) {
         let mut guard = self.mixnodes.write().await;
         guard.all_mixnodes = all_bonds
             .into_iter()
-            .map(|bond| (bond.mix_node.identity_key.to_string(), bond))
+            .map(|bond| (bond.mix_node().identity_key.to_string(), bond))
             .collect();
         guard.rewarded_mixnodes = rewarded_nodes;
         guard.active_mixnodes = active_nodes;

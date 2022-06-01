@@ -52,6 +52,7 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../common/config" }
+cosmwasm-std = "1.0.0-beta8"
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }

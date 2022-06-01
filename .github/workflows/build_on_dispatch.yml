@@ -4,7 +4,7 @@ on: workflow_dispatch
 
 jobs:
   build:
-    runs-on: [ self-hosted, custom-linux-exoscale ]
+    runs-on: [ self-hosted, custom-linux ]
     # Enable sccache via environment variable
     env:
       RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache

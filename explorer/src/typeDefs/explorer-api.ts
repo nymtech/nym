@@ -84,6 +84,7 @@ export interface MixNodeResponseItem {
   };
   mix_node: MixNode;
   avg_uptime: number;
+  stake_saturation: number;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];

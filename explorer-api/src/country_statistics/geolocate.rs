@@ -129,7 +129,7 @@ enum LocateError {
 async fn locate(ip: &str) -> Result<GeoLocation, LocateError> {
     let api_key = ::std::env::var("GEO_IP_SERVICE_API_KEY")
         .expect("Env var GEO_IP_SERVICE_API_KEY is not set");
-    let uri = format!("{}/{}?apikey={}", crate::GEO_IP_SERVICE, ip, api_key);
+    let uri = format!("{}/?apikey={}&ip={}", crate::GEO_IP_SERVICE, api_key, ip);
     match reqwest::get(uri.clone()).await {
         Ok(response) => {
             if response.status() == 429 {

@@ -1,19 +1,15 @@
 use crate::error::TypesError;
-use cosmrs::Decimal as CosmosDecimal;
 use cosmrs::Denom as CosmosDenom;
 use cosmwasm_std::Coin as CosmWasmCoin;
 use cosmwasm_std::{Decimal, Uint128};
-use itertools::Itertools;
-use schemars::gen::SchemaGenerator;
-use schemars::schema::Schema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
-use std::ops::Add;
+use std::ops::{Add, Mul};
 use std::str::FromStr;
 use strum::{Display, EnumString, EnumVariantNames};
-use validator_client::nymd::{Coin, CosmosCoin, GasPrice};
+use validator_client::nymd::{Coin, CosmosCoin};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -34,6 +30,7 @@ use validator_client::nymd::{Coin, CosmosCoin, GasPrice};
 )]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
+// TODO: this shouldn't be an enum...
 pub enum CurrencyDenom {
     #[strum(ascii_case_insensitive)]
     Nym,
@@ -80,34 +77,43 @@ pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-r
     ts(export_to = "ts-packages/types/src/types/rust/Currency.ts")
 )]
 // #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MajorCurrencyAmount {
-    // temporary...
-    #[cfg_attr(feature = "generate-ts", ts(skip))]
-    pub coin: Coin,
+    // temporarly going back to original impl to speed up merge
+    pub amount: MajorAmountString,
+    pub denom: CurrencyDenom,
+    // // temporary...
+    // #[cfg_attr(feature = "generate-ts", ts(skip))]
+    // pub coin: Coin,
 }
 
-impl JsonSchema for MajorCurrencyAmount {
-    fn schema_name() -> String {
-        todo!()
-    }
+// impl JsonSchema for MajorCurrencyAmount {
+//     fn schema_name() -> String {
+//         todo!()
+//     }
+//
+//     fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+//         todo!()
+//     }
+// }
 
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-        todo!()
-    }
+// tries to semi-replicate cosmos-sdk's DecCoin for being able to handle tokens with decimal amounts
+// https://github.com/cosmos/cosmos-sdk/blob/v0.45.4/types/dec_coin.go
+pub struct DecCoin {
+    //
 }
 
 impl MajorCurrencyAmount {
-    // pub fn new(amount: &str, denom: CurrencyDenom) -> MajorCurrencyAmount {
-    //     MajorCurrencyAmount {
-    //         amount: MajorAmountString(amount.to_string()),
-    //         denom,
-    //     }
-    // }
-    //
-    // pub fn zero(denom: &CurrencyDenom) -> MajorCurrencyAmount {
-    //     MajorCurrencyAmount::new("0", denom.clone())
-    // }
+    pub fn new(amount: &str, denom: CurrencyDenom) -> MajorCurrencyAmount {
+        MajorCurrencyAmount {
+            amount: MajorAmountString(amount.to_string()),
+            denom,
+        }
+    }
+
+    pub fn zero(denom: &CurrencyDenom) -> MajorCurrencyAmount {
+        MajorCurrencyAmount::new("0", denom.clone())
+    }
     //
     // pub fn from_cosmrs_coin(coin: &CosmosCoin) -> Result<MajorCurrencyAmount, TypesError> {
     //     MajorCurrencyAmount::from_cosmrs_decimal_and_denom(coin.amount, coin.denom.to_string())
@@ -173,11 +179,11 @@ impl MajorCurrencyAmount {
     //     }
     //     Err(TypesError::InvalidDenom(denom))
     // }
-
-    pub fn into_cosmos_coin(self) -> CosmosCoin {
-        self.coin.into()
-    }
-
+    //
+    // pub fn into_cosmos_coin(self) -> CosmosCoin {
+    //     self.coin.into()
+    // }
+    //
     // pub fn to_minor_uint128(&self) -> Result<Uint128, TypesError> {
     //     if self.amount.0.contains('.') {
     //         // has a decimal point (Cosmos assumes "." is the decimal separator)
@@ -226,371 +232,284 @@ impl MajorCurrencyAmount {
 
 impl Display for MajorCurrencyAmount {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.coin)
+        write!(f, "{} {}", self.amount.0, self.denom)
     }
 }
 
 // TODO: cleanup after merge
-
 impl From<CosmosCoin> for MajorCurrencyAmount {
     fn from(c: CosmosCoin) -> Self {
-        MajorCurrencyAmount { coin: c.into() }
+        MajorCurrencyAmount::from(Coin::from(c))
     }
 }
 
 impl From<CosmWasmCoin> for MajorCurrencyAmount {
     fn from(c: CosmWasmCoin) -> Self {
-        MajorCurrencyAmount { coin: c.into() }
+        MajorCurrencyAmount::from(Coin::from(c))
     }
 }
 
 impl From<Coin> for MajorCurrencyAmount {
     fn from(coin: Coin) -> Self {
-        MajorCurrencyAmount { coin }
+        // current assumption: MajorCurrencyAmount is represented as decimal with 6 decimal points
+        // unwrap is fine as we haven't exceeded decimal range since our coins are at max 1B in value
+        // (this is a weak assumption, but for solving this merge conflict it's good enough temporary workaround)
+        let amount = Decimal::from_atomics(coin.amount, 6).unwrap();
+        MajorCurrencyAmount {
+            amount: MajorAmountString(amount.to_string()),
+            denom: CurrencyDenom::parse(&coin.denom).expect("this will go away after the merge..."),
+        }
     }
 }
 
 // temporary...
 impl From<MajorCurrencyAmount> for CosmosCoin {
     fn from(c: MajorCurrencyAmount) -> CosmosCoin {
-        c.coin.into()
+        let c: Coin = c.into();
+        c.into()
     }
 }
 
 impl From<MajorCurrencyAmount> for CosmWasmCoin {
     fn from(c: MajorCurrencyAmount) -> CosmWasmCoin {
-        c.coin.into()
+        let c: Coin = c.into();
+        c.into()
     }
 }
 
 impl From<MajorCurrencyAmount> for Coin {
     fn from(c: MajorCurrencyAmount) -> Coin {
-        c.coin
+        let decimal: Decimal = c
+            .amount
+            .0
+            .parse()
+            .expect("stringified amount should have been a valid decimal");
+
+        // again, temporary
+        let exp = Uint128::new(1000000);
+        let val = decimal.mul(exp);
+
+        // again, terrible assumption for denom, but it works temporarily...
+        Coin {
+            amount: val.u128(),
+            denom: format!("u{}", c.denom).to_lowercase(),
+        }
     }
 }
 
-//
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use cosmrs::Coin as CosmosCoin;
-//     use cosmrs::Decimal;
-//     use cosmrs::Denom as CosmosDenom;
-//     use cosmwasm_std::Coin as CosmWasmCoin;
-//     use cosmwasm_std::Decimal as CosmWasmDecimal;
-//     use serde_json::json;
-//     use std::convert::TryFrom;
-//     use std::str::FromStr;
-//     use std::string::ToString;
-//
-//     #[test]
-//     fn json_to_major_currency_amount() {
-//         let nym = json!({
-//             "amount": "1",
-//             "denom": "NYM"
-//         });
-//         let nymt = json!({
-//             "amount": "1",
-//             "denom": "NYMT"
-//         });
-//
-//         let test_nym_amount = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
-//         let test_nymt_amount = MajorCurrencyAmount::new("1", CurrencyDenom::Nymt);
-//
-//         let nym_amount = serde_json::from_value::<MajorCurrencyAmount>(nym).unwrap();
-//         let nymt_amount = serde_json::from_value::<MajorCurrencyAmount>(nymt).unwrap();
-//
-//         assert_eq!(nym_amount, test_nym_amount);
-//         assert_eq!(nymt_amount, test_nymt_amount);
-//     }
-//
-//     #[test]
-//     fn minor_amount_json_to_major_currency_amount() {
-//         let one_micro_nym = json!({
-//             "amount": "0.000001",
-//             "denom": "NYM"
-//         });
-//
-//         let expected_nym_amount = MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym);
-//         let actual_nym_amount =
-//             serde_json::from_value::<MajorCurrencyAmount>(one_micro_nym).unwrap();
-//
-//         assert_eq!(expected_nym_amount, actual_nym_amount);
-//     }
-//
-//     #[test]
-//     fn denom_from_str() {
-//         assert_eq!(CurrencyDenom::from_str("nym").unwrap(), CurrencyDenom::Nym);
-//         assert_eq!(
-//             CurrencyDenom::from_str("nymt").unwrap(),
-//             CurrencyDenom::Nymt
-//         );
-//         assert_eq!(CurrencyDenom::from_str("NYM").unwrap(), CurrencyDenom::Nym);
-//         assert_eq!(
-//             CurrencyDenom::from_str("NYMT").unwrap(),
-//             CurrencyDenom::Nymt
-//         );
-//         assert_eq!(CurrencyDenom::from_str("NyM").unwrap(), CurrencyDenom::Nym);
-//         assert_eq!(
-//             CurrencyDenom::from_str("NYmt").unwrap(),
-//             CurrencyDenom::Nymt
-//         );
-//
-//         assert!(matches!(
-//             CurrencyDenom::from_str("foo").unwrap_err(),
-//             strum::ParseError::VariantNotFound,
-//         ));
-//
-//         // denominations must all be major
-//         assert!(matches!(
-//             CurrencyDenom::from_str("unym").unwrap_err(),
-//             strum::ParseError::VariantNotFound,
-//         ));
-//         assert!(matches!(
-//             CurrencyDenom::from_str("unymt").unwrap_err(),
-//             strum::ParseError::VariantNotFound,
-//         ));
-//     }
-//
-//     #[test]
-//     fn to_string() {
-//         assert_eq!(
-//             MajorCurrencyAmount::new("1", CurrencyDenom::Nym).to_string(),
-//             "1 NYM"
-//         );
-//         assert_eq!(
-//             MajorCurrencyAmount::new("1", CurrencyDenom::Nymt).to_string(),
-//             "1 NYMT"
-//         );
-//         assert_eq!(
-//             MajorCurrencyAmount::new("1000000000000", CurrencyDenom::Nym).to_string(),
-//             "1000000000000 NYM"
-//         );
-//     }
-//
-//     #[test]
-//     fn minor_cosmos_coin_to_major_currency() {
-//         let cosmos_coin = CosmosCoin {
-//             amount: CosmosDecimal::from(1u64),
-//             denom: CosmosDenom::from_str("unym").unwrap(),
-//         };
-//         let c = MajorCurrencyAmount::from_cosmrs_coin(&cosmos_coin).unwrap();
-//         assert_eq!(c, MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym));
-//     }
-//
-//     #[test]
-//     fn minor_cosmwasm_coin_to_major_currency() {
-//         let coin = CosmWasmCoin {
-//             amount: Uint128::from(1u64),
-//             denom: "unym".to_string(),
-//         };
-//         println!(
-//             "from_atomics = {}",
-//             CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
-//                 .unwrap()
-//                 .to_string()
-//         );
-//         let c: MajorCurrencyAmount = coin.try_into().unwrap();
-//         assert_eq!(c, MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym));
-//     }
-//
-//     #[test]
-//     fn minor_cosmwasm_coin_to_major_currency_2() {
-//         let coin = CosmWasmCoin {
-//             amount: Uint128::from(1_000_000u64),
-//             denom: "unym".to_string(),
-//         };
-//         println!(
-//             "from_atomics = {:?}",
-//             CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
-//                 .unwrap()
-//                 .to_string()
-//         );
-//         let c: MajorCurrencyAmount = coin.try_into().unwrap();
-//         assert_eq!(c, MajorCurrencyAmount::new("1", CurrencyDenom::Nym));
-//     }
-//
-//     #[test]
-//     fn major_cosmwasm_coin_to_major_currency() {
-//         let coin = CosmWasmCoin {
-//             amount: Uint128::from(1u64),
-//             denom: "nym".to_string(),
-//         };
-//         println!(
-//             "from_atomics = {:?}",
-//             CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
-//                 .unwrap()
-//                 .to_string()
-//         );
-//         let c: MajorCurrencyAmount = coin.try_into().unwrap();
-//         assert_eq!(c, MajorCurrencyAmount::new("1", CurrencyDenom::Nym));
-//     }
-//
-//     #[test]
-//     fn major_currency_to_minor_cosmos_coin() {
-//         let expected_cosmos_coin = CosmosCoin {
-//             amount: CosmosDecimal::from(1u64),
-//             denom: CosmosDenom::from_str("unym").unwrap(),
-//         };
-//         let c = MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym);
-//         let minor_cosmos_coin = c.into_minor_cosmos_coin().unwrap();
-//         assert_eq!(expected_cosmos_coin, minor_cosmos_coin);
-//         assert_eq!("unym", minor_cosmos_coin.denom.to_string());
-//     }
-//
-//     #[test]
-//     fn major_currency_to_minor_cosmos_coin_2() {
-//         let expected_cosmos_coin = CosmosCoin {
-//             amount: CosmosDecimal::from(1000000u64),
-//             denom: CosmosDenom::from_str("unym").unwrap(),
-//         };
-//         let c = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
-//         let minor_cosmos_coin = c.into_minor_cosmos_coin().unwrap();
-//         assert_eq!(expected_cosmos_coin, minor_cosmos_coin);
-//         assert_eq!("unym", minor_cosmos_coin.denom.to_string());
-//     }
-//
-//     #[test]
-//     fn minor_cosmos_coin_to_major_currency_string() {
-//         // check minor cosmos coin is converted to major value
-//         let cosmos_coin = CosmosCoin {
-//             amount: CosmosDecimal::from(1u64),
-//             denom: CosmosDenom::from_str("unym").unwrap(),
-//         };
-//         let c = MajorCurrencyAmount::from_cosmrs_coin(&cosmos_coin).unwrap();
-//         assert_eq!(c.to_string(), "0.000001 NYM");
-//     }
-//
-//     #[test]
-//     fn denom_to_string() {
-//         let c = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
-//         let denom = c.denom_to_string();
-//         assert_eq!(denom, "NYM".to_string());
-//     }
-//
-//     #[test]
-//     fn to_minor_one_unym() {
-//         let c = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
-//         let minor = c.to_minor_uint128().unwrap();
-//         assert_eq!("1000000", minor.to_string());
-//     }
-//
-//     #[test]
-//     fn to_minor() {
-//         let amounts = vec![
-//             ("1000000", "1000000000000"),
-//             ("1", "1000000"),
-//             ("0.000001", "1"),
-//         ];
-//
-//         for amount in amounts {
-//             let c = MajorCurrencyAmount::new(amount.0, CurrencyDenom::Nym);
-//             let minor = c.to_minor_uint128().unwrap();
-//             assert_eq!(amount.1, minor.to_string());
-//         }
-//     }
-//
-//     #[test]
-//     fn to_minor_errors_expected() {
-//         let bad_amounts = vec![
-//             "0.0000001", // because there are more than 6 decimals, it gets truncated
-//             "0.0000009999999999999999999999999999999999", // would overflow
-//         ];
-//
-//         for bad_amount in bad_amounts {
-//             let c = MajorCurrencyAmount::new(bad_amount, CurrencyDenom::Nym);
-//             assert!(matches!(
-//                 c.to_minor_uint128().unwrap_err(),
-//                 TypesError::InvalidDenom { .. }
-//             ));
-//         }
-//     }
-//
-//     fn amounts() -> Vec<&'static str> {
-//         vec![
-//             "1",
-//             "10",
-//             "100",
-//             "1000",
-//             "10000",
-//             "100000",
-//             "10000000",
-//             "100000000",
-//             "1000000000",
-//             "10000000000",
-//             "100000000000",
-//             "1000000000000",
-//             "10000000000000",
-//             "100000000000000",
-//             "1000000000000000",
-//             "10000000000000000",
-//             "100000000000000000",
-//             "1000000000000000000",
-//         ]
-//     }
-//
-//     #[test]
-//     fn major_currency_amount_into_cosmos_coin() {
-//         for amount in amounts() {
-//             let c = MajorCurrencyAmount::new(amount, CurrencyDenom::Nym);
-//             let coin: CosmosCoin = c.into_cosmos_coin().unwrap();
-//             assert_eq!(
-//                 coin,
-//                 CosmosCoin {
-//                     amount: Decimal::from_str(amount).unwrap(),
-//                     denom: CosmosDenom::from_str("nym").unwrap()
-//                 }
-//             );
-//         }
-//     }
-//
-//     #[test]
-//     fn major_currency_amount_into_cosmwasm_coin() {
-//         for amount in amounts() {
-//             let c = MajorCurrencyAmount::new(amount, CurrencyDenom::Nym);
-//             let coin: CosmWasmCoin = c.into_cosmwasm_coin().unwrap();
-//             assert_eq!(
-//                 coin,
-//                 CosmWasmCoin {
-//                     amount: Uint128::try_from(amount).unwrap(),
-//                     denom: "nym".to_string(),
-//                 }
-//             );
-//         }
-//     }
-//
-//     #[test]
-//     fn major_currency_amount_from_gas_price() {
-//         assert_eq!(
-//             MajorCurrencyAmount::try_from(GasPrice::from_str("42unym").unwrap()).unwrap(),
-//             MajorCurrencyAmount {
-//                 amount: MajorAmountString("0.000042".to_string()),
-//                 denom: CurrencyDenom::Nym,
-//             }
-//         );
-//
-//         assert_eq!(
-//             MajorCurrencyAmount::try_from(GasPrice::from_str("42nym").unwrap()).unwrap(),
-//             MajorCurrencyAmount {
-//                 amount: MajorAmountString("42".to_string()),
-//                 denom: CurrencyDenom::Nym,
-//             }
-//         );
-//
-//         assert_eq!(
-//             MajorCurrencyAmount::try_from(GasPrice::from_str("42unymt").unwrap()).unwrap(),
-//             MajorCurrencyAmount {
-//                 amount: MajorAmountString("0.000042".to_string()),
-//                 denom: CurrencyDenom::Nymt,
-//             }
-//         );
-//
-//         assert_eq!(
-//             MajorCurrencyAmount::try_from(GasPrice::from_str("42nymt").unwrap()).unwrap(),
-//             MajorCurrencyAmount {
-//                 amount: MajorAmountString("42".to_string()),
-//                 denom: CurrencyDenom::Nymt,
-//             }
-//         );
-//     }
-// }
+impl Add for MajorCurrencyAmount {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        // again, temporary workaround to help with merge
+        (Coin::from(self).try_add(&Coin::from(rhs)))
+            .expect("provided coins had different denoms")
+            .into()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use cosmrs::Coin as CosmosCoin;
+    use cosmrs::Decimal as CosmosDecimal;
+    use cosmrs::Denom as CosmosDenom;
+    use cosmwasm_std::Coin as CosmWasmCoin;
+    use cosmwasm_std::Decimal as CosmWasmDecimal;
+    use serde_json::json;
+    use std::convert::TryFrom;
+    use std::str::FromStr;
+    use std::string::ToString;
+
+    #[test]
+    fn json_to_major_currency_amount() {
+        let nym = json!({
+            "amount": "1",
+            "denom": "NYM"
+        });
+        let nymt = json!({
+            "amount": "1",
+            "denom": "NYMT"
+        });
+
+        let test_nym_amount = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
+        let test_nymt_amount = MajorCurrencyAmount::new("1", CurrencyDenom::Nymt);
+
+        let nym_amount = serde_json::from_value::<MajorCurrencyAmount>(nym).unwrap();
+        let nymt_amount = serde_json::from_value::<MajorCurrencyAmount>(nymt).unwrap();
+
+        assert_eq!(nym_amount, test_nym_amount);
+        assert_eq!(nymt_amount, test_nymt_amount);
+    }
+
+    #[test]
+    fn minor_amount_json_to_major_currency_amount() {
+        let one_micro_nym = json!({
+            "amount": "0.000001",
+            "denom": "NYM"
+        });
+
+        let expected_nym_amount = MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym);
+        let actual_nym_amount =
+            serde_json::from_value::<MajorCurrencyAmount>(one_micro_nym).unwrap();
+
+        assert_eq!(expected_nym_amount, actual_nym_amount);
+    }
+
+    #[test]
+    fn denom_from_str() {
+        assert_eq!(CurrencyDenom::from_str("nym").unwrap(), CurrencyDenom::Nym);
+        assert_eq!(
+            CurrencyDenom::from_str("nymt").unwrap(),
+            CurrencyDenom::Nymt
+        );
+        assert_eq!(CurrencyDenom::from_str("NYM").unwrap(), CurrencyDenom::Nym);
+        assert_eq!(
+            CurrencyDenom::from_str("NYMT").unwrap(),
+            CurrencyDenom::Nymt
+        );
+        assert_eq!(CurrencyDenom::from_str("NyM").unwrap(), CurrencyDenom::Nym);
+        assert_eq!(
+            CurrencyDenom::from_str("NYmt").unwrap(),
+            CurrencyDenom::Nymt
+        );
+
+        assert!(matches!(
+            CurrencyDenom::from_str("foo").unwrap_err(),
+            strum::ParseError::VariantNotFound,
+        ));
+
+        // denominations must all be major
+        assert!(matches!(
+            CurrencyDenom::from_str("unym").unwrap_err(),
+            strum::ParseError::VariantNotFound,
+        ));
+        assert!(matches!(
+            CurrencyDenom::from_str("unymt").unwrap_err(),
+            strum::ParseError::VariantNotFound,
+        ));
+    }
+
+    #[test]
+    fn to_string() {
+        assert_eq!(
+            MajorCurrencyAmount::new("1", CurrencyDenom::Nym).to_string(),
+            "1 NYM"
+        );
+        assert_eq!(
+            MajorCurrencyAmount::new("1", CurrencyDenom::Nymt).to_string(),
+            "1 NYMT"
+        );
+        assert_eq!(
+            MajorCurrencyAmount::new("1000000000000", CurrencyDenom::Nym).to_string(),
+            "1000000000000 NYM"
+        );
+    }
+
+    #[test]
+    fn minor_coin_to_major_currency() {
+        let cosmos_coin = CosmosCoin {
+            amount: CosmosDecimal::from(1u64),
+            denom: CosmosDenom::from_str("unym").unwrap(),
+        };
+        let c = MajorCurrencyAmount::from(cosmos_coin);
+        assert_eq!(c, MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym));
+    }
+
+    #[test]
+    fn minor_cosmwasm_coin_to_major_currency() {
+        let coin = CosmWasmCoin {
+            amount: Uint128::from(1u64),
+            denom: "unym".to_string(),
+        };
+        println!(
+            "from_atomics = {}",
+            CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
+                .unwrap()
+                .to_string()
+        );
+        let c: MajorCurrencyAmount = coin.into();
+        assert_eq!(c, MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym));
+    }
+
+    #[test]
+    fn minor_cosmwasm_coin_to_major_currency_2() {
+        let coin = CosmWasmCoin {
+            amount: Uint128::from(1_000_000u64),
+            denom: "unym".to_string(),
+        };
+        println!(
+            "from_atomics = {:?}",
+            CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
+                .unwrap()
+                .to_string()
+        );
+        let c: MajorCurrencyAmount = coin.into();
+        assert_eq!(c, MajorCurrencyAmount::new("1", CurrencyDenom::Nym));
+    }
+
+    #[test]
+    fn major_currency_to_minor_cosmos_coin() {
+        let expected_cosmos_coin = CosmosCoin {
+            amount: CosmosDecimal::from(1u64),
+            denom: CosmosDenom::from_str("unym").unwrap(),
+        };
+        let c = MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym);
+        let minor_cosmos_coin = c.into();
+        assert_eq!(expected_cosmos_coin, minor_cosmos_coin);
+        assert_eq!("unym", minor_cosmos_coin.denom.to_string());
+    }
+
+    #[test]
+    fn major_currency_to_minor_cosmos_coin_2() {
+        let expected_cosmos_coin = CosmosCoin {
+            amount: CosmosDecimal::from(1000000u64),
+            denom: CosmosDenom::from_str("unym").unwrap(),
+        };
+        let c = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
+        let minor_cosmos_coin = c.into();
+        assert_eq!(expected_cosmos_coin, minor_cosmos_coin);
+        assert_eq!("unym", minor_cosmos_coin.denom.to_string());
+    }
+
+    #[test]
+    fn minor_cosmos_coin_to_major_currency_string() {
+        // check minor cosmos coin is converted to major value
+        let cosmos_coin = CosmosCoin {
+            amount: CosmosDecimal::from(1u64),
+            denom: CosmosDenom::from_str("unym").unwrap(),
+        };
+        let c = MajorCurrencyAmount::from(cosmos_coin);
+        assert_eq!(c.to_string(), "0.000001 NYM");
+    }
+
+    #[test]
+    fn denom_to_string() {
+        let c = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
+        let denom = c.denom.to_string();
+        assert_eq!(denom, "NYM".to_string());
+    }
+
+    fn amounts() -> Vec<&'static str> {
+        vec![
+            "1",
+            "10",
+            "100",
+            "1000",
+            "10000",
+            "100000",
+            "10000000",
+            "100000000",
+            "1000000000",
+            "10000000000",
+            "100000000000",
+            "1000000000000",
+            "10000000000000",
+            "100000000000000",
+            "1000000000000000",
+            "10000000000000000",
+            "100000000000000000",
+            "1000000000000000000",
+        ]
+    }
+}

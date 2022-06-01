@@ -1,14 +1,9 @@
-use std::str::FromStr;
-
-use cosmrs::tx::Gas as CosmrsGas;
-use cosmwasm_std::{Decimal, Uint128};
-use serde::{Deserialize, Serialize};
-
-use validator_client::nymd::cosmwasm_client::types::GasInfo as ValidatorClientGasInfo;
-use validator_client::nymd::GasPrice as ValidatorClientGasPrice;
-
 use crate::currency::MajorCurrencyAmount;
 use crate::error::TypesError;
+use cosmrs::tx::Gas as CosmrsGas;
+use serde::{Deserialize, Serialize};
+use validator_client::nymd::cosmwasm_client::types::GasInfo as ValidatorClientGasInfo;
+use validator_client::nymd::GasPrice;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -19,14 +14,16 @@ use crate::error::TypesError;
 pub struct Gas {
     /// units of gas used
     pub gas_units: u64,
-
-    /// gas units converted to fee as major coin amount
-    pub amount: MajorCurrencyAmount,
+    //
+    // /// gas units converted to fee as major coin amount
+    // pub amount: MajorCurrencyAmount,
 }
 
 impl Gas {
-    pub fn from_cosmrs_gas(value: CosmrsGas, denom_minor: &str) -> Result<Gas, TypesError> {
-        todo!()
+    pub fn from_cosmrs_gas(value: CosmrsGas, _denom_minor: &str) -> Result<Gas, TypesError> {
+        Ok(Gas {
+            gas_units: value.value(),
+        })
 
         // // TODO: use simulator struct to do conversion to fee
         // let value_u128 = Uint128::from(value.value());
@@ -36,28 +33,15 @@ impl Gas {
         //     amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom_minor)?,
         // })
     }
-    pub fn from_u64(value: u64, denom_minor: &str) -> Result<Gas, TypesError> {
-        todo!()
+    pub fn from_u64(value: u64, _denom_minor: &str) -> Result<Gas, TypesError> {
+        Ok(Gas { gas_units: value })
+        // todo!()
         // // TODO: use simulator struct to do conversion to fee
         // let value_u128 = Uint128::from(value);
         // let amount = Decimal::new(value_u128) * Decimal::from_str("0.0025")?;
         // Ok(Gas {
         //     gas_units: value,
         //     amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom_minor)?,
-        // })
-    }
-    pub fn from_gas_price(value: ValidatorClientGasPrice) -> Result<Gas, TypesError> {
-        todo!()
-        // // TODO: use simulator struct to do conversion to fee
-        // let gas_units_str = (value.amount / Uint128::from_str("0.0025")?).to_string();
-        // let decimal_seperator_pos = gas_units_str.find('.').unwrap_or(gas_units_str.len());
-        // let gas_units = gas_units_str[..decimal_seperator_pos]
-        //     .parse()
-        //     .unwrap_or(0_u64);
-        // let ValidatorClientGasPrice { amount, denom } = value;
-        // Ok(Gas {
-        //     gas_units,
-        //     amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom.as_ref())?,
         // })
     }
 }
@@ -84,11 +68,13 @@ impl GasInfo {
         value: ValidatorClientGasInfo,
         denom_minor: &str,
     ) -> Result<GasInfo, TypesError> {
-        let fee = Gas::from_cosmrs_gas(value.gas_used, denom_minor)?.amount;
+        // terrible workaround, but I don't want to break the current flow (just yet)
+        let gas_price = GasPrice::new_with_default_price(denom_minor)?;
+        let fee = (&gas_price) * value.gas_used;
         Ok(GasInfo {
             gas_wanted: value.gas_wanted.value(),
             gas_used: value.gas_used.value(),
-            fee,
+            fee: fee.into(),
         })
     }
     pub fn from_u64(
@@ -96,11 +82,13 @@ impl GasInfo {
         gas_used: u64,
         denom_minor: &str,
     ) -> Result<GasInfo, TypesError> {
-        let fee = Gas::from_u64(gas_used, denom_minor)?.amount;
+        // terrible workaround, but I don't want to break the current flow (just yet)
+        let gas_price = GasPrice::new_with_default_price(denom_minor)?;
+        let fee = (&gas_price) * CosmrsGas::from(gas_used);
         Ok(GasInfo {
             gas_wanted,
             gas_used,
-            fee,
+            fee: fee.into(),
         })
     }
 }

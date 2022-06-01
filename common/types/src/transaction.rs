@@ -1,12 +1,9 @@
-use cosmwasm_std::{Decimal, Uint128};
-use serde::{Deserialize, Serialize};
-
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::TxResponse;
-
 use crate::currency::MajorCurrencyAmount;
 use crate::error::TypesError;
 use crate::gas::GasInfo;
+use serde::{Deserialize, Serialize};
+use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nymd::TxResponse;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -28,7 +25,7 @@ impl SendTxResult {
     pub fn new(
         t: TxResponse,
         details: TransactionDetails,
-        denom_minor: &str,
+        _denom_minor: &str,
     ) -> Result<SendTxResult, TypesError> {
         Ok(SendTxResult {
             block_height: t.height.value(),
@@ -37,7 +34,7 @@ impl SendTxResult {
             gas_used: t.tx_result.gas_used.value(),
             gas_wanted: t.tx_result.gas_wanted.value(),
             tx_hash: t.hash.to_string(),
-            // that is completely wrong: fee is what you told the validator to use beforehandn
+            // that is completely wrong: fee is what you told the validator to use beforehand
             // fee: MajorCurrencyAmount::from_decimal_and_denom(
             //     Decimal::new(Uint128::from(t.tx_result.gas_used.value())),
             //     denom_minor.to_string(),

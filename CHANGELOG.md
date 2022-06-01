@@ -4,6 +4,7 @@
 
 ### Added
 
+- explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
 - wallet: require password to switch accounts
 - wallet: add simple CLI tool for decrypting and recovering the wallet file.

@@ -1,11 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ValidatorDetails;
+use crate::{DenomDetails, ValidatorDetails};
 
 pub(crate) const BECH32_PREFIX: &str = "n";
 pub const DENOM: &str = "unym";
-pub const STAKE_DENOM: &str = "unyx";
+
+pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
+pub const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
     "n1suhgf5svhu4usrurvxzlgn54ksxmn8gljarjtxqnapv8kjnp4nrsd3qaep";

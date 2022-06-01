@@ -18,7 +18,7 @@ cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
         pub const DENOM: &str = mainnet::DENOM;
-        pub const STAKE_DENOM: &str = mainnet::STAKE_DENOM;
+        // pub const STAKE_DENOM: &str = mainnet::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -26,7 +26,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(network = "qa")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
         pub const DENOM: &str = qa::DENOM;
-        pub const STAKE_DENOM: &str = qa::STAKE_DENOM;
+        // pub const STAKE_DENOM: &str = qa::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -34,7 +34,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(network = "sandbox")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX;
         pub const DENOM: &str = sandbox::DENOM;
-        pub const STAKE_DENOM: &str = sandbox::STAKE_DENOM;
+        // pub const STAKE_DENOM: &str = sandbox::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -45,47 +45,85 @@ cfg_if::cfg_if! {
 // future. If we do this, and also get rid of the references we could potentially unify with
 // `NetworkDetails`.
 #[derive(Debug)]
-pub struct DefaultNetworkDetails<'a> {
-    bech32_prefix: &'a str,
-    denom: &'a str,
-    mixnet_contract_address: &'a str,
-    vesting_contract_address: &'a str,
-    bandwidth_claim_contract_address: &'a str,
-    rewarding_validator_address: &'a str,
+pub struct DefaultNetworkDetails {
+    bech32_prefix: &'static str,
+    mix_denom: DenomDetails,
+    stake_denom: DenomDetails,
+    mixnet_contract_address: &'static str,
+    vesting_contract_address: &'static str,
+    bandwidth_claim_contract_address: &'static str,
+    rewarding_validator_address: &'static str,
     validators: Vec<ValidatorDetails>,
 }
 
-static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
-    Lazy::new(|| DefaultNetworkDetails {
-        bech32_prefix: mainnet::BECH32_PREFIX,
-        denom: mainnet::DENOM,
-        mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
-        vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
-        bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-        rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
-        validators: mainnet::validators(),
-    });
+static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
+    bech32_prefix: mainnet::BECH32_PREFIX,
+    mix_denom: mainnet::MIX_DENOM,
+    stake_denom: mainnet::STAKE_DENOM,
+    mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
+    vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
+    bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
+    validators: mainnet::validators(),
+});
 
-static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
-    Lazy::new(|| DefaultNetworkDetails {
-        bech32_prefix: sandbox::BECH32_PREFIX,
-        denom: sandbox::DENOM,
-        mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
-        vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
-        bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-        rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
-        validators: sandbox::validators(),
-    });
+static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
+    bech32_prefix: sandbox::BECH32_PREFIX,
+    mix_denom: sandbox::MIX_DENOM,
+    stake_denom: sandbox::STAKE_DENOM,
+    mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
+    vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
+    bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
+    validators: sandbox::validators(),
+});
 
-static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultNetworkDetails {
+static QA_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
     bech32_prefix: qa::BECH32_PREFIX,
-    denom: qa::DENOM,
+    mix_denom: qa::MIX_DENOM,
+    stake_denom: qa::STAKE_DENOM,
     mixnet_contract_address: qa::MIXNET_CONTRACT_ADDRESS,
     vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
     bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
     rewarding_validator_address: qa::REWARDING_VALIDATOR_ADDRESS,
     validators: qa::validators(),
 });
+
+#[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct DenomDetails {
+    pub base: &'static str,
+    pub display: &'static str,
+    // i.e. display_amount * 10^display_exponent = base_amount
+    pub display_exponent: u32,
+}
+
+impl DenomDetails {
+    pub const fn new(base: &'static str, display: &'static str, display_exponent: u32) -> Self {
+        DenomDetails {
+            base,
+            display,
+            display_exponent,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct DenomDetailsOwned {
+    pub base: String,
+    pub display: String,
+    // i.e. display_amount * 10^display_exponent = base_amount
+    pub display_exponent: u32,
+}
+
+impl From<DenomDetails> for DenomDetailsOwned {
+    fn from(details: DenomDetails) -> Self {
+        DenomDetailsOwned {
+            base: details.base.to_owned(),
+            display: details.display.to_owned(),
+            display_exponent: details.display_exponent,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ValidatorDetails {

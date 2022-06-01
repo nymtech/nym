@@ -4,14 +4,35 @@
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
-use crate::nymd::{cosmwasm_coin_to_cosmos_coin, Fee, NymdClient};
+use crate::nymd::{Coin, Fee, NymdClient};
 use async_trait::async_trait;
-use cosmwasm_std::Coin;
 use mixnet_contract_common::{Gateway, IdentityKey, IdentityKeyRef, MixNode};
 use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, VestingSpecification};
 
 #[async_trait]
 pub trait VestingSigningClient {
+    async fn vesting_claim_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vesting_claim_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vesting_compound_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn vesting_compound_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
     async fn vesting_update_mixnode_config(
         &self,
         profix_margin_percent: u8,
@@ -74,7 +95,7 @@ pub trait VestingSigningClient {
     async fn vesting_delegate_to_mixnode<'a>(
         &self,
         mix_identity: IdentityKeyRef<'a>,
-        amount: &Coin,
+        amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
@@ -149,7 +170,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::BondGateway {
             gateway,
             owner_signature: owner_signature.to_string(),
-            amount: pledge,
+            amount: pledge.into(),
         };
         self.client
             .execute(
@@ -187,7 +208,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::TrackUnbondGateway {
             owner: owner.to_string(),
-            amount,
+            amount: amount.into(),
         };
         self.client
             .execute(
@@ -212,7 +233,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::BondMixnode {
             mix_node,
             owner_signature: owner_signature.to_string(),
-            amount: pledge,
+            amount: pledge.into(),
         };
         self.client
             .execute(
@@ -250,7 +271,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::TrackUnbondMixnode {
             owner: owner.to_string(),
-            amount,
+            amount: amount.into(),
         };
         self.client
             .execute(
@@ -269,7 +290,9 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
-        let req = VestingExecuteMsg::WithdrawVestedCoins { amount };
+        let req = VestingExecuteMsg::WithdrawVestedCoins {
+            amount: amount.into(),
+        };
         self.client
             .execute(
                 self.address(),
@@ -292,7 +315,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         let req = VestingExecuteMsg::TrackUndelegation {
             owner: address.to_string(),
             mix_identity,
-            amount,
+            amount: amount.into(),
         };
         self.client
             .execute(
@@ -308,13 +331,13 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
     async fn vesting_delegate_to_mixnode<'a>(
         &self,
         mix_identity: IdentityKeyRef<'a>,
-        amount: &Coin,
+        amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::DelegateToMixnode {
             mix_identity: mix_identity.into(),
-            amount: amount.clone(),
+            amount: amount.into(),
         };
         self.client
             .execute(
@@ -370,7 +393,81 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 &req,
                 fee,
                 "VestingContract::CreatePeriodicVestingAccount",
-                vec![cosmwasm_coin_to_cosmos_coin(amount)],
+                vec![amount],
+            )
+            .await
+    }
+
+    async fn vesting_claim_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::ClaimOperatorReward {};
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::ClaimOperatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_compound_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::CompoundOperatorReward {};
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::CompoundOperatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_claim_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::ClaimDelegatorReward { mix_identity };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::ClaimDelegatorReward",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_compound_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::CompoundDelegatorReward { mix_identity };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address()?,
+                &req,
+                fee,
+                "VestingContract::CompoundDelegatorReward",
+                vec![],
             )
             .await
     }

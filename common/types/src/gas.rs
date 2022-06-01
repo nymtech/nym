@@ -26,35 +26,39 @@ pub struct Gas {
 
 impl Gas {
     pub fn from_cosmrs_gas(value: CosmrsGas, denom_minor: &str) -> Result<Gas, TypesError> {
-        // TODO: use simulator struct to do conversion to fee
-        let value_u128 = Uint128::from(value.value());
-        let amount = Decimal::new(value_u128) * Decimal::from_str("0.0025")?;
-        Ok(Gas {
-            gas_units: value.value(),
-            amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom_minor)?,
-        })
+        todo!()
+
+        // // TODO: use simulator struct to do conversion to fee
+        // let value_u128 = Uint128::from(value.value());
+        // let amount = Decimal::new(value_u128) * Decimal::from_str("0.0025")?;
+        // Ok(Gas {
+        //     gas_units: value.value(),
+        //     amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom_minor)?,
+        // })
     }
     pub fn from_u64(value: u64, denom_minor: &str) -> Result<Gas, TypesError> {
-        // TODO: use simulator struct to do conversion to fee
-        let value_u128 = Uint128::from(value);
-        let amount = Decimal::new(value_u128) * Decimal::from_str("0.0025")?;
-        Ok(Gas {
-            gas_units: value,
-            amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom_minor)?,
-        })
+        todo!()
+        // // TODO: use simulator struct to do conversion to fee
+        // let value_u128 = Uint128::from(value);
+        // let amount = Decimal::new(value_u128) * Decimal::from_str("0.0025")?;
+        // Ok(Gas {
+        //     gas_units: value,
+        //     amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom_minor)?,
+        // })
     }
     pub fn from_gas_price(value: ValidatorClientGasPrice) -> Result<Gas, TypesError> {
-        // TODO: use simulator struct to do conversion to fee
-        let gas_units_str = (value.amount / Uint128::from_str("0.0025")?).to_string();
-        let decimal_seperator_pos = gas_units_str.find('.').unwrap_or(gas_units_str.len());
-        let gas_units = gas_units_str[..decimal_seperator_pos]
-            .parse()
-            .unwrap_or(0_u64);
-        let ValidatorClientGasPrice { amount, denom } = value;
-        Ok(Gas {
-            gas_units,
-            amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom.as_ref())?,
-        })
+        todo!()
+        // // TODO: use simulator struct to do conversion to fee
+        // let gas_units_str = (value.amount / Uint128::from_str("0.0025")?).to_string();
+        // let decimal_seperator_pos = gas_units_str.find('.').unwrap_or(gas_units_str.len());
+        // let gas_units = gas_units_str[..decimal_seperator_pos]
+        //     .parse()
+        //     .unwrap_or(0_u64);
+        // let ValidatorClientGasPrice { amount, denom } = value;
+        // Ok(Gas {
+        //     gas_units,
+        //     amount: MajorCurrencyAmount::from_minor_decimal_and_denom(amount, denom.as_ref())?,
+        // })
     }
 }
 

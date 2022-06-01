@@ -8,7 +8,7 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::nymd::{GasPrice, TxResponse};
+use crate::nymd::{Coin, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -17,7 +17,7 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin, Tx};
+use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
@@ -310,7 +310,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
-            funds,
+            funds: funds.into_iter().map(Into::into).collect(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
@@ -349,7 +349,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                     sender: sender_address.clone(),
                     contract: contract_address.clone(),
                     msg: serde_json::to_vec(&msg)?,
-                    funds,
+                    funds: funds.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
@@ -382,7 +382,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
             to_address: recipient_address.clone(),
-            amount,
+            amount: amount.into_iter().map(Into::into).collect(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
@@ -408,7 +408,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                 MsgSend {
                     from_address: sender_address.clone(),
                     to_address,
-                    amount,
+                    amount: amount.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
@@ -431,7 +431,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount,
+            amount: amount.into(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
@@ -452,7 +452,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount,
+            amount: amount.into(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;

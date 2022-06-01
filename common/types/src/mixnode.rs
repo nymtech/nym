@@ -1,7 +1,8 @@
 use crate::currency::MajorCurrencyAmount;
 use crate::error::TypesError;
 use mixnet_contract_common::{
-    MixNode as MixnetContractMixNode, MixNodeBond as MixnetContractMixNodeBond,
+    Coin as CosmWasmCoin, MixNode as MixnetContractMixNode,
+    MixNodeBond as MixnetContractMixNodeBond,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -102,12 +103,12 @@ impl TryFrom<MixnetContractMixNodeBond> for MixNodeBond {
             ));
         }
 
-        let pledge_amount: MajorCurrencyAmount = pledge_amount.try_into()?;
-        let total_delegation: MajorCurrencyAmount = total_delegation.try_into()?;
-        let accumulated_rewards: Option<MajorCurrencyAmount> = accumulated_rewards.and_then(|r| {
-            MajorCurrencyAmount::from_minor_uint128_and_denom(r, &pledge_amount.denom.to_string())
-                .ok()
-        });
+        let denom = total_delegation.denom.clone();
+
+        let pledge_amount: MajorCurrencyAmount = pledge_amount.into();
+        let total_delegation: MajorCurrencyAmount = total_delegation.into();
+        let accumulated_rewards: Option<MajorCurrencyAmount> =
+            accumulated_rewards.map(|r| CosmWasmCoin::new(r.u128(), denom).into());
 
         Ok(MixNodeBond {
             pledge_amount,

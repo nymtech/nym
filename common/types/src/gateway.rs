@@ -87,7 +87,7 @@ impl TryFrom<MixnetContractGatewayBond> for GatewayBond {
             proxy,
         } = value;
 
-        let pledge_amount: MajorCurrencyAmount = pledge_amount.try_into()?;
+        let pledge_amount: MajorCurrencyAmount = pledge_amount.into();
 
         Ok(GatewayBond {
             pledge_amount,

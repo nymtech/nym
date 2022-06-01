@@ -21,7 +21,7 @@ impl TryFrom<VestingPledgeData> for PledgeData {
     type Error = TypesError;
 
     fn try_from(data: VestingPledgeData) -> Result<Self, Self::Error> {
-        let amount: MajorCurrencyAmount = data.amount().try_into()?;
+        let amount: MajorCurrencyAmount = data.amount().into();
         Ok(Self {
             amount,
             block_time: data.block_time().seconds(),
@@ -51,7 +51,7 @@ impl TryFrom<VestingOriginalVestingResponse> for OriginalVestingResponse {
     type Error = TypesError;
 
     fn try_from(data: VestingOriginalVestingResponse) -> Result<Self, Self::Error> {
-        let amount = data.amount().try_into()?;
+        let amount = data.amount().into();
         Ok(Self {
             amount,
             number_of_periods: data.number_of_periods(),
@@ -82,7 +82,7 @@ impl TryFrom<VestingAccount> for VestingAccountInfo {
         for period in account.periods() {
             periods.push(period.into());
         }
-        let amount: MajorCurrencyAmount = account.coin().try_into()?;
+        let amount: MajorCurrencyAmount = account.coin().into();
         Ok(Self {
             owner_address: account.owner_address().to_string(),
             staking_address: account.staking_address().map(|a| a.to_string()),

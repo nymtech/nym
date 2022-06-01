@@ -35,7 +35,7 @@ impl TryFrom<MixnetContractDelegation> for Delegation {
             proxy,
         } = value;
 
-        let amount: MajorCurrencyAmount = amount.try_into()?;
+        let amount: MajorCurrencyAmount = amount.into();
 
         Ok(Delegation {
             owner: owner.into_string(),
@@ -112,7 +112,7 @@ impl TryFrom<MixnetContractDelegation> for DelegationResult {
     type Error = TypesError;
 
     fn try_from(delegation: MixnetContractDelegation) -> Result<Self, Self::Error> {
-        let amount: MajorCurrencyAmount = delegation.amount.clone().try_into()?;
+        let amount: MajorCurrencyAmount = delegation.amount.clone().into();
         Ok(DelegationResult {
             source_address: delegation.owner().to_string(),
             target_address: delegation.node_identity(),
@@ -152,7 +152,7 @@ impl TryFrom<ContractDelegationEvent> for DelegationEvent {
     fn try_from(event: ContractDelegationEvent) -> Result<Self, Self::Error> {
         match event {
             ContractDelegationEvent::Delegate(delegation) => {
-                let amount: MajorCurrencyAmount = delegation.amount.try_into()?;
+                let amount: MajorCurrencyAmount = delegation.amount.into();
                 Ok(DelegationEvent {
                     kind: DelegationEventKind::Delegate,
                     block_height: delegation.block_height,

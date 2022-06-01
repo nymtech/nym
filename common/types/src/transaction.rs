@@ -20,8 +20,8 @@ pub struct SendTxResult {
     pub details: TransactionDetails,
     pub gas_used: u64,
     pub gas_wanted: u64,
-    pub fee: MajorCurrencyAmount,
     pub tx_hash: String,
+    // pub fee: MajorCurrencyAmount,
 }
 
 impl SendTxResult {
@@ -37,10 +37,11 @@ impl SendTxResult {
             gas_used: t.tx_result.gas_used.value(),
             gas_wanted: t.tx_result.gas_wanted.value(),
             tx_hash: t.hash.to_string(),
-            fee: MajorCurrencyAmount::from_decimal_and_denom(
-                Decimal::new(Uint128::from(t.tx_result.gas_used.value())),
-                denom_minor.to_string(),
-            )?,
+            // that is completely wrong: fee is what you told the validator to use beforehandn
+            // fee: MajorCurrencyAmount::from_decimal_and_denom(
+            //     Decimal::new(Uint128::from(t.tx_result.gas_used.value())),
+            //     denom_minor.to_string(),
+            // )?,
         })
     }
 }
@@ -100,7 +101,7 @@ pub struct RpcTransactionResponse {
     pub block_height: u64,
     pub transaction_hash: String,
     pub gas_info: GasInfo,
-    pub fee: MajorCurrencyAmount,
+    // pub fee: MajorCurrencyAmount,
 }
 
 impl RpcTransactionResponse {
@@ -118,10 +119,11 @@ impl RpcTransactionResponse {
             transaction_hash: value.hash.to_string(),
             tx_result_json: ::serde_json::to_string_pretty(&value.tx_result)?,
             block_height: value.height.value(),
-            fee: MajorCurrencyAmount::from_decimal_and_denom(
-                Decimal::new(Uint128::from(value.tx_result.gas_used.value())),
-                denom_minor.to_string(),
-            )?,
+            // wrong
+            // fee: MajorCurrencyAmount::from_decimal_and_denom(
+            //     Decimal::new(Uint128::from(value.tx_result.gas_used.value())),
+            //     denom_minor.to_string(),
+            // )?,
         })
     }
 }

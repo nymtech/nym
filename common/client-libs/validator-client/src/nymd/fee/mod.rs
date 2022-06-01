@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd::Coin;
 use cosmrs::tx;
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +13,15 @@ pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
 pub enum Fee {
     Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
     Auto(Option<f32>),
+}
+
+impl Fee {
+    pub fn try_get_manual_amount(&self) -> Option<Vec<Coin>> {
+        match self {
+            Fee::Manual(tx_fee) => Some(tx_fee.amount.iter().cloned().map(Into::into).collect()),
+            Fee::Auto(_) => None,
+        }
+    }
 }
 
 impl From<tx::Fee> for Fee {

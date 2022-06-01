@@ -1,9 +1,10 @@
-use crate::currency::MajorCurrencyAmount;
+use crate::currency::{DecCoin, MajorCurrencyAmount};
 use crate::error::TypesError;
-use crate::gas::GasInfo;
+use crate::gas::{Gas, GasInfo};
+use log::warn;
 use serde::{Deserialize, Serialize};
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::TxResponse;
+use validator_client::nymd::{Coin, TxResponse};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -15,31 +16,37 @@ pub struct SendTxResult {
     pub block_height: u64,
     pub code: u32,
     pub details: TransactionDetails,
-    pub gas_used: u64,
-    pub gas_wanted: u64,
+    pub gas_used: Gas,
+    pub gas_wanted: Gas,
     pub tx_hash: String,
-    // pub fee: MajorCurrencyAmount,
+    pub fee: Option<DecCoin>,
 }
 
 impl SendTxResult {
-    pub fn new(
-        t: TxResponse,
-        details: TransactionDetails,
-        _denom_minor: &str,
-    ) -> Result<SendTxResult, TypesError> {
-        Ok(SendTxResult {
+    pub fn new(t: TxResponse, details: TransactionDetails, fee: Option<Vec<Coin>>) -> SendTxResult {
+        let fee = match fee {
+            None => None,
+            Some(mut fee) => {
+                if fee.len() > 1 {
+                    warn!("our tx fee contained more than a single denomination. using the first one for display")
+                }
+                if fee.is_empty() {
+                    warn!("our tx has had an unknown fee set");
+                    None
+                } else {
+                    Some(fee.pop().unwrap().into())
+                }
+            }
+        };
+        SendTxResult {
             block_height: t.height.value(),
             code: t.tx_result.code.value(),
             details,
-            gas_used: t.tx_result.gas_used.value(),
-            gas_wanted: t.tx_result.gas_wanted.value(),
+            gas_used: t.tx_result.gas_used.into(),
+            gas_wanted: t.tx_result.gas_wanted.into(),
             tx_hash: t.hash.to_string(),
-            // that is completely wrong: fee is what you told the validator to use beforehand
-            // fee: MajorCurrencyAmount::from_decimal_and_denom(
-            //     Decimal::new(Uint128::from(t.tx_result.gas_used.value())),
-            //     denom_minor.to_string(),
-            // )?,
-        })
+            fee,
+        }
     }
 }
 
@@ -50,9 +57,19 @@ impl SendTxResult {
 )]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TransactionDetails {
-    pub amount: MajorCurrencyAmount,
+    pub amount: DecCoin,
     pub from_address: String,
     pub to_address: String,
+}
+
+impl TransactionDetails {
+    pub fn new(amount: DecCoin, from_address: String, to_address: String) -> Self {
+        TransactionDetails {
+            amount,
+            from_address,
+            to_address,
+        }
+    }
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -74,8 +91,9 @@ impl TransactionExecuteResult {
         value: ExecuteResult,
         denom_minor: &str,
     ) -> Result<TransactionExecuteResult, TypesError> {
-        let gas_info = GasInfo::from_validator_client_gas_info(value.gas_info, denom_minor)?;
-        let fee = gas_info.fee.clone();
+        let gas_info = GasInfo::from(value.gas_info);
+        // let fee = gas_info.fee.clone();
+        let fee = todo!();
         Ok(TransactionExecuteResult {
             gas_info,
             transaction_hash: value.transaction_hash.to_string(),
@@ -97,25 +115,23 @@ pub struct RpcTransactionResponse {
     pub tx_result_json: String,
     pub block_height: u64,
     pub transaction_hash: String,
-    pub gas_info: GasInfo,
+    pub gas_used: Gas,
+    pub gas_wanted: Gas,
     // pub fee: MajorCurrencyAmount,
 }
 
 impl RpcTransactionResponse {
     pub fn from_tx_response(
-        value: &TxResponse,
+        t: &TxResponse,
         denom_minor: &str,
     ) -> Result<RpcTransactionResponse, TypesError> {
         Ok(RpcTransactionResponse {
-            index: value.index,
-            gas_info: GasInfo::from_u64(
-                value.tx_result.gas_wanted.value(),
-                value.tx_result.gas_used.value(),
-                denom_minor,
-            )?,
-            transaction_hash: value.hash.to_string(),
-            tx_result_json: ::serde_json::to_string_pretty(&value.tx_result)?,
-            block_height: value.height.value(),
+            index: t.index,
+            gas_used: t.tx_result.gas_used.into(),
+            gas_wanted: t.tx_result.gas_wanted.into(),
+            transaction_hash: t.hash.to_string(),
+            tx_result_json: ::serde_json::to_string_pretty(&t.tx_result)?,
+            block_height: t.height.value(),
             // wrong
             // fee: MajorCurrencyAmount::from_decimal_and_denom(
             //     Decimal::new(Uint128::from(value.tx_result.gas_used.value())),

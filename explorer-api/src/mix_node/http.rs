@@ -11,16 +11,19 @@ use rocket_okapi::settings::OpenApiSettings;
 
 use mixnet_contract_common::Delegation;
 
-use crate::mix_node::delegations::get_single_mixnode_delegations;
+use crate::mix_node::delegations::{
+    get_single_mixnode_delegations, get_single_mixnode_delegations_summed,
+};
 use crate::mix_node::econ_stats::retrieve_mixnode_econ_stats;
 use crate::mix_node::models::{
-    EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond,
+    EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: get_delegations,
+        get_delegations_summed,
         get_by_id,
         get_description,
         get_stats,
@@ -52,6 +55,15 @@ pub(crate) async fn get_delegations(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<Delegation>> {
     Json(get_single_mixnode_delegations(&state.inner.validator_client, pubkey).await)
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<pubkey>/delegations/summed")]
+pub(crate) async fn get_delegations_summed(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<SummedDelegations>> {
+    Json(get_single_mixnode_delegations_summed(&state.inner.validator_client, pubkey).await)
 }
 
 #[openapi(tag = "mix_node")]

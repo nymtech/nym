@@ -43,6 +43,7 @@ mixnode-common = { path="../common/mixnode-common" }
 nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
 nymsphinx = { path="../common/nymsphinx" }
 pemstore = { path="../common/pemstore" }
+task = { path = "../common/task" }
 topology = { path="../common/topology" }
 validator-client = { path="../common/client-libs/validator-client" }
 version-checker = { path="../common/version-checker" }

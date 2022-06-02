@@ -55,6 +55,7 @@ members = [
     "common/pemstore",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
+    "common/task",
     "common/topology",
     "common/wasm-utils",
     "explorer-api",

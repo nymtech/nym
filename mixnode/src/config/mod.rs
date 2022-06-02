@@ -26,8 +26,10 @@ const DEFAULT_TESTING_INTERVAL: Duration = Duration::from_secs(60 * 60 * 12);
 const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 
 // 'DEBUG'
-const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
-const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
+//const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
+//const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
+const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(6_000);
+const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(3_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);

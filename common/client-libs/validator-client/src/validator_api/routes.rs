@@ -7,6 +7,7 @@ pub const API_VERSION: &str = VALIDATOR_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 
+pub const DETAILED: &str = "detailed";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 

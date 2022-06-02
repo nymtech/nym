@@ -73,4 +73,5 @@ pub trait VestingAccount {
         to_address: Option<Addr>,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
+    fn track_reward(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError>;
 }

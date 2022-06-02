@@ -147,16 +147,14 @@ pub(crate) async fn get_mixnode_reward_estimation(
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
         let reward_params = RewardParams::new(reward_params, node_reward_params);
 
-        match bond.estimate_reward(&reward_params) {
-            Ok((
-                estimated_total_node_reward,
-                estimated_operator_reward,
-                estimated_delegators_reward,
-            )) => {
+        match bond.mixnode_bond.estimate_reward(&reward_params) {
+            Ok(reward_estimate) => {
                 let reponse = RewardEstimationResponse {
-                    estimated_total_node_reward,
-                    estimated_operator_reward,
-                    estimated_delegators_reward,
+                    estimated_total_node_reward: reward_estimate.total_node_reward,
+                    estimated_operator_reward: reward_estimate.operator_reward,
+                    estimated_delegators_reward: reward_estimate.delegators_reward,
+                    estimated_node_profit: reward_estimate.node_profit,
+                    estimated_operator_cost: reward_estimate.operator_cost,
                     reward_params,
                     as_at,
                 };
@@ -183,11 +181,13 @@ pub(crate) async fn get_mixnode_stake_saturation(
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     let (bond, _) = cache.mixnode_details(&identity).await;
     if let Some(bond) = bond {
+        // Recompute the stake saturation just so that we can confidentaly state that the `as_at`
+        // field is consistent and correct. Luckily this is very cheap.
         let interval_reward_params = cache.epoch_reward_params().await;
         let as_at = interval_reward_params.timestamp();
         let interval_reward_params = interval_reward_params.into_inner();
 
-        let saturation = bond.stake_saturation(
+        let saturation = bond.mixnode_bond.stake_saturation(
             interval_reward_params.circulating_supply(),
             interval_reward_params.rewarded_set_size() as u32,
         );

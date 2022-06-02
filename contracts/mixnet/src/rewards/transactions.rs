@@ -15,9 +15,13 @@ use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
 use crate::support::helpers::is_authorized;
 use config::defaults::DENOM;
-use cosmwasm_std::{Addr, Api, Coin, DepsMut, Env, MessageInfo, Order, Response, Storage, Uint128};
+use cosmwasm_std::{
+    coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response,
+    Storage, Uint128,
+};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::events::{
+    new_claim_delegator_reward_event, new_claim_operator_reward_event,
     new_compound_delegator_reward_event, new_compound_operator_reward_event,
     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
     new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
@@ -27,6 +31,186 @@ use mixnet_contract_common::reward_params::{NodeEpochRewards, NodeRewardParams, 
 use mixnet_contract_common::{Delegation, IdentityKey, RewardingStatus};
 
 use mixnet_contract_common::RewardingResult;
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+use vesting_contract_common::one_ucoin;
+
+// All four of the below methods need to do the following things:
+// 1. Calculate currently available rewards
+// 2. Send the rewards back to whoever claimed them
+// 3. Set the LAST_CLAIMED_HEIGHT to the current height
+pub fn try_claim_operator_reward(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+) -> Result<Response, ContractError> {
+    _try_claim_operator_reward(deps.storage, deps.api, env, &info.sender.to_string(), None)
+}
+
+pub fn try_claim_operator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+    owner: String,
+) -> Result<Response, ContractError> {
+    _try_claim_operator_reward(
+        deps.storage,
+        deps.api,
+        env,
+        &owner,
+        Some(info.sender.clone()),
+    )
+}
+
+fn _try_claim_operator_reward(
+    storage: &mut dyn Storage,
+    api: &dyn Api,
+    env: &Env,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = api.addr_validate(owner)?;
+
+    let bond = match crate::mixnodes::storage::mixnodes()
+        .idx
+        .owner
+        .item(storage, owner.clone())?
+    {
+        Some(record) => record.1,
+        None => return Err(ContractError::NoAssociatedMixNodeBond { owner }),
+    };
+
+    if proxy != bond.proxy {
+        return Err(ContractError::ProxyMismatch {
+            existing: bond
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
+
+    let reward = calculate_operator_reward(storage, api, &owner, &bond)?;
+
+    OPERATOR_REWARD_CLAIMED_HEIGHT.save(
+        storage,
+        (owner.to_string(), bond.identity().to_string()),
+        &env.block.height,
+    )?;
+
+    if reward.is_zero() {
+        return Err(ContractError::NoRewardsToClaim {
+            identity: bond.identity().to_string(),
+            address: owner.to_string(),
+        });
+    }
+
+    let return_tokens = BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        amount: coins(reward.u128(), DENOM),
+    };
+
+    let mut response = Response::default()
+        .add_message(return_tokens)
+        .add_event(new_claim_operator_reward_event(&owner, reward));
+
+    if let Some(proxy) = proxy {
+        let msg = Some(VestingContractExecuteMsg::TrackReward {
+            address: owner.to_string(),
+            amount: Coin::new(reward.u128(), DENOM),
+        });
+
+        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        response = response.add_message(wasm_msg);
+    }
+
+    Ok(response)
+}
+
+pub fn _try_claim_delegator_reward(
+    storage: &mut dyn Storage,
+    api: &dyn Api,
+    env: &Env,
+    owner: &str,
+    mix_identity: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, ContractError> {
+    let owner = api.addr_validate(owner)?;
+
+    let key = mixnet_contract_common::delegation::generate_storage_key(&owner, proxy.as_ref());
+    let reward = calculate_delegator_reward(storage, api, key.clone(), mix_identity)?;
+
+    DELEGATOR_REWARD_CLAIMED_HEIGHT.save(
+        storage,
+        (key, mix_identity.to_string()),
+        &env.block.height,
+    )?;
+
+    if reward.is_zero() {
+        return Err(ContractError::NoRewardsToClaim {
+            identity: mix_identity.to_string(),
+            address: owner.to_string(),
+        });
+    }
+
+    let return_tokens = BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        amount: coins(reward.u128(), DENOM),
+    };
+
+    let mut response =
+        Response::default()
+            .add_message(return_tokens)
+            .add_event(new_claim_delegator_reward_event(
+                &owner,
+                &proxy,
+                reward,
+                mix_identity,
+            ));
+
+    if let Some(proxy) = proxy {
+        let msg = Some(VestingContractExecuteMsg::TrackReward {
+            address: owner.to_string(),
+            amount: Coin::new(reward.u128(), DENOM),
+        });
+
+        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        response = response.add_message(wasm_msg);
+    }
+
+    Ok(response)
+}
+
+pub fn try_claim_delegator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+    owner: String,
+    mix_identity: &str,
+) -> Result<Response, ContractError> {
+    _try_claim_delegator_reward(
+        deps.storage,
+        deps.api,
+        env,
+        &owner,
+        mix_identity,
+        Some(info.sender.clone()),
+    )
+}
+
+pub fn try_claim_delegator_reward(
+    deps: DepsMut<'_>,
+    env: &Env,
+    info: &MessageInfo,
+    mix_identity: &str,
+) -> Result<Response, ContractError> {
+    _try_claim_delegator_reward(
+        deps.storage,
+        deps.api,
+        env,
+        &info.sender.to_string(),
+        mix_identity,
+        None,
+    )
+}
 
 pub fn try_compound_operator_reward_on_behalf(
     deps: DepsMut,
@@ -449,7 +633,7 @@ pub(crate) fn try_reward_mixnode(
     let node_delegation = current_bond.total_delegation.amount;
 
     // check if it has non-zero uptime
-    if params.uptime() == 0 {
+    if params.uptime() == Uint128::zero() {
         storage::REWARDING_STATUS.save(
             deps.storage,
             (epoch.id(), mix_identity.clone()),
@@ -1381,7 +1565,7 @@ pub mod tests {
         let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity)
             .unwrap()
             .unwrap();
-        let mix_1_uptime = 100;
+        let mix_1_uptime = 90;
 
         let epoch = Interval::init_epoch(env.clone());
         save_epoch(&mut deps.storage, &epoch).unwrap();
@@ -1395,7 +1579,7 @@ pub mod tests {
 
         params.set_reward_blockstamp(env.block.height);
 
-        assert_eq!(params.performance(), U128::from_num(1u32));
+        assert_eq!(params.performance(), U128::from_num(0.8999999999999999));
 
         let mix_1_reward_result = mix_1.reward(&params);
 
@@ -1407,9 +1591,14 @@ pub mod tests {
             mix_1_reward_result.lambda(),
             U128::from_num(0.0000133333333333f64)
         );
-        assert_eq!(mix_1_reward_result.reward().int(), 259114u128);
+        assert_eq!(mix_1_reward_result.reward().int(), 233202u128);
 
-        assert_eq!(mix_1.node_profit(&params).int(), 203558u128);
+        assert_eq!(mix_1.node_profit(&params).int(), 183202u128);
+
+        assert_ne!(
+            mix_1_reward_result.reward(),
+            mix_1.node_profit(&params).int()
+        );
 
         let mix1_operator_reward = mix_1.operator_reward(&params);
 
@@ -1417,9 +1606,9 @@ pub mod tests {
 
         let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
 
-        assert_eq!(mix1_operator_reward, 167513);
-        assert_eq!(mix1_delegator1_reward, 73280);
-        assert_eq!(mix1_delegator2_reward, 18320);
+        assert_eq!(mix1_operator_reward, 150761);
+        assert_eq!(mix1_delegator1_reward, 65952);
+        assert_eq!(mix1_delegator2_reward, 16488);
 
         assert_eq!(
             mix_1_reward_result.reward().int(),

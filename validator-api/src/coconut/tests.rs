@@ -81,7 +81,7 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
-    async fn execute(
+    async fn execute_proposal(
         &self,
         proposal_id: u64,
         fee: Option<Fee>,

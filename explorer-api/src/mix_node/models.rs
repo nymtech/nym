@@ -4,6 +4,7 @@
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
 use mixnet_contract_common::{Addr, Coin, Layer, MixNode};
+use mixnet_contract_common::{Delegation, IdentityKey};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -29,6 +30,35 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub layer: Layer,
     pub mix_node: MixNode,
     pub avg_uptime: Option<u8>,
+    pub stake_saturation: f32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+pub struct SummedDelegations {
+    pub owner: Addr,
+    pub node_identity: IdentityKey,
+    pub amount: Coin,
+}
+
+impl SummedDelegations {
+    pub fn from(delegations: &[Delegation]) -> Option<Self> {
+        let owner = get_common_owner(delegations)?;
+        let node_identity = get_common_node_identity(delegations)?;
+        let denom = get_common_denom(delegations)?;
+
+        let sum = delegations
+            .iter()
+            .map(|delegation| delegation.amount.amount)
+            .sum();
+
+        let amount = Coin { denom, amount: sum };
+
+        Some(SummedDelegations {
+            owner,
+            node_identity,
+            amount,
+        })
+    }
 }
 
 pub(crate) struct MixNodeCache {
@@ -136,4 +166,40 @@ pub(crate) struct EconomicDynamicsStats {
     pub(crate) estimated_delegators_reward: u64,
 
     pub(crate) current_interval_uptime: u8,
+}
+
+fn get_common_owner(delegations: &[Delegation]) -> Option<Addr> {
+    let owner = delegations.iter().next()?.owner();
+    if delegations
+        .iter()
+        .any(|delegation| delegation.owner() != owner)
+    {
+        log::warn!("Unexpected different owners when summing delegations");
+        return None;
+    }
+    Some(owner)
+}
+
+fn get_common_node_identity(delegations: &[Delegation]) -> Option<String> {
+    let node_identity = delegations.iter().next()?.node_identity();
+    if delegations
+        .iter()
+        .any(|delegation| delegation.node_identity() != node_identity)
+    {
+        log::warn!("Unexpected different node identities when summing delegations");
+        return None;
+    }
+    Some(node_identity)
+}
+
+fn get_common_denom(delegations: &[Delegation]) -> Option<String> {
+    let denom = delegations.iter().next()?.amount.denom.clone();
+    if delegations
+        .iter()
+        .any(|delegation| delegation.amount.denom != denom)
+    {
+        log::warn!("Unexpected different coin denom when summing delegations");
+        return None;
+    }
+    Some(denom)
 }

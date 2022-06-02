@@ -1,11 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd::coin::Coin;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::error::NymdError;
 use crate::nymd::NymdClient;
 use async_trait::async_trait;
-use cosmwasm_std::{Coin, Timestamp};
+use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{
     messages::QueryMsg as VestingQueryMsg, OriginalVestingResponse, Period, PledgeData,
@@ -83,8 +84,9 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
+            .map(Into::into)
     }
 
     async fn spendable_coins(
@@ -97,8 +99,9 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
+            .map(Into::into)
     }
     async fn vested_coins(
         &self,
@@ -110,8 +113,9 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
+            .map(Into::into)
     }
     async fn vesting_coins(
         &self,
@@ -123,8 +127,9 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
+            .map(Into::into)
     }
 
     async fn vesting_start_time(
@@ -173,8 +178,9 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
+            .map(Into::into)
     }
 
     async fn delegated_vesting(
@@ -187,8 +193,9 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
+            .map(Into::into)
     }
 
     async fn get_account(&self, address: &str) -> Result<Account, NymdError> {

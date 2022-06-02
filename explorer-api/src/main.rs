@@ -18,7 +18,7 @@ mod state;
 mod tasks;
 mod validators;
 
-const GEO_IP_SERVICE: &str = "https://api.freegeoip.app/json";
+const GEO_IP_SERVICE: &str = "https://api.ipbase.com/json";
 const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 
 #[tokio::main]

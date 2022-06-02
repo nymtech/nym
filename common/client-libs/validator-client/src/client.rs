@@ -10,12 +10,12 @@ use coconut_interface::{
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 
-#[cfg(feature = "nymd-client")]
-use validator_api_requests::models::UptimeResponse;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
+#[cfg(feature = "nymd-client")]
+use validator_api_requests::models::{MixNodeBondAnnotated, UptimeResponse};
 
 #[cfg(feature = "nymd-client")]
 use network_defaults::DEFAULT_NETWORK;
@@ -233,16 +233,34 @@ impl<C> Client<C> {
         Ok(self.validator_api.get_mixnodes().await?)
     }
 
+    pub async fn get_cached_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
+        Ok(self.validator_api.get_mixnodes_detailed().await?)
+    }
+
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_rewarded_mixnodes().await?)
     }
 
+    pub async fn get_cached_rewarded_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
+        Ok(self.validator_api.get_rewarded_mixnodes_detailed().await?)
+    }
+
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         Ok(self.validator_api.get_active_mixnodes().await?)
+    }
+
+    pub async fn get_cached_active_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
+        Ok(self.validator_api.get_active_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {

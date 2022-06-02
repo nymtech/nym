@@ -13,6 +13,25 @@ use vesting_contract_common::one_ucoin;
 use super::Account;
 
 impl DelegatingAccount for Account {
+    fn try_claim_delegator_reward(
+        &self,
+        mix_identity: IdentityKey,
+        storage: &dyn Storage,
+    ) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::ClaimDelegatorRewardOnBehalf {
+            owner: self.owner_address().to_string(),
+            mix_identity,
+        };
+
+        let compound_delegator_reward_msg = wasm_execute(
+            MIXNET_CONTRACT_ADDRESS.load(storage)?,
+            &msg,
+            vec![one_ucoin()],
+        )?;
+
+        Ok(Response::new().add_message(compound_delegator_reward_msg))
+    }
+
     fn try_compound_delegator_reward(
         &self,
         mix_identity: IdentityKey,

@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -89,6 +89,16 @@ impl Client {
             .await
     }
 
+    pub async fn get_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[routes::API_VERSION, routes::MIXNODES, routes::DETAILED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorAPIError> {
         self.query_validator_api(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
@@ -102,9 +112,39 @@ impl Client {
         .await
     }
 
+    pub async fn get_active_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODES,
+                routes::ACTIVE,
+                routes::DETAILED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_rewarded_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODES,
+                routes::REWARDED,
+                routes::DETAILED,
+            ],
             NO_PARAMS,
         )
         .await

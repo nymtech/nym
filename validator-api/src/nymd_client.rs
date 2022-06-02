@@ -18,14 +18,14 @@ use mixnet_contract_common::{
 };
 #[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
-use validator_client::nymd::hash::{Hash, SHA256_HASH_SIZE};
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
     cosmwasm_client::logs::find_attribute,
     traits::{MultisigSigningClient, QueryClient},
 };
 use validator_client::nymd::{
-    CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    hash::{Hash, SHA256_HASH_SIZE},
+    Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
 };
 use validator_client::ValidatorClientError;
@@ -326,7 +326,7 @@ impl<C> Client<C> {
         &self,
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
-        reward_msgs: Vec<(ExecuteMsg, Vec<CosmosCoin>)>,
+        reward_msgs: Vec<(ExecuteMsg, Vec<Coin>)>,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -358,7 +358,7 @@ impl<C> Client<C> {
 
     async fn execute_multiple_with_retry<M>(
         &self,
-        msgs: Vec<(M, Vec<CosmosCoin>)>,
+        msgs: Vec<(M, Vec<Coin>)>,
         fee: Fee,
         memo: String,
     ) -> Result<(), RewardingError>

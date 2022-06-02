@@ -19,6 +19,7 @@ use crate::utils::try_deserialize_g1_projective;
 use crate::Attribute;
 
 pub mod aggregation;
+pub mod double_use;
 pub mod issuance;
 pub mod keygen;
 pub mod setup;
@@ -27,8 +28,7 @@ pub mod verification;
 pub type SignerIndex = u64;
 
 // (h, s)
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Signature(pub(crate) G1Projective, pub(crate) G1Projective);
 
 pub type PartialSignature = Signature;

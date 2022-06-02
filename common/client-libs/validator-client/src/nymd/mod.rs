@@ -23,6 +23,7 @@ use mixnet_contract_common::{
     PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
     PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
+use network_defaults::DEFAULT_NETWORK;
 use serde::Serialize;
 use std::convert::TryInto;
 
@@ -58,30 +59,64 @@ pub mod wallet;
 #[derive(Debug)]
 pub struct NymdClient<C> {
     client: C,
-    mixnet_contract_address: Option<AccountId>,
-    vesting_contract_address: Option<AccountId>,
-    erc20_bridge_contract_address: Option<AccountId>,
+    mixnet_contract_address: AccountId,
+    vesting_contract_address: AccountId,
+    bandwidth_claim_contract_address: AccountId,
+    coconut_bandwidth_contract_address: AccountId,
+    multisig_contract_address: AccountId,
     client_address: Option<Vec<AccountId>>,
     simulated_gas_multiplier: f32,
 }
 
+impl<C> NymdClient<C> {
+    pub fn with_mixnet_contract_address(mut self, address: AccountId) -> Self {
+        self.mixnet_contract_address = address;
+        self
+    }
+    pub fn with_vesting_contract_address(mut self, address: AccountId) -> Self {
+        self.vesting_contract_address = address;
+        self
+    }
+    pub fn with_bandwidth_claim_contract_address(mut self, address: AccountId) -> Self {
+        self.bandwidth_claim_contract_address = address;
+        self
+    }
+    pub fn with_coconut_bandwidth_contract_address(mut self, address: AccountId) -> Self {
+        self.coconut_bandwidth_contract_address = address;
+        self
+    }
+    pub fn with_multisig_contract_address(mut self, address: AccountId) -> Self {
+        self.multisig_contract_address = address;
+        self
+    }
+}
+
 impl NymdClient<QueryNymdClient> {
-    pub fn connect<U>(
-        endpoint: U,
-        mixnet_contract_address: Option<AccountId>,
-        vesting_contract_address: Option<AccountId>,
-        erc20_bridge_contract_address: Option<AccountId>,
-    ) -> Result<NymdClient<QueryNymdClient>, NymdError>
+    pub fn connect<U>(endpoint: U) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
-            mixnet_contract_address,
-            vesting_contract_address,
-            erc20_bridge_contract_address,
             client_address: None,
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
+            mixnet_contract_address: DEFAULT_NETWORK
+                .mixnet_contract_address()
+                .parse()
+                .expect("Error parsing mixnet contract address"),
+            vesting_contract_address: DEFAULT_NETWORK
+                .vesting_contract_address()
+                .parse()
+                .expect("Error parsing vesting contract address"),
+            bandwidth_claim_contract_address: DEFAULT_NETWORK
+                .bandwidth_claim_contract_address()
+                .parse()
+                .expect("Error parsing bandwidth claim contract address"),
+            coconut_bandwidth_contract_address: DEFAULT_NETWORK
+                .coconut_bandwidth_contract_address()
+                .parse()
+                .unwrap(),
+            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 }
@@ -91,9 +126,6 @@ impl NymdClient<SigningNymdClient> {
     pub fn connect_with_signer<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
-        mixnet_contract_address: Option<AccountId>,
-        vesting_contract_address: Option<AccountId>,
-        erc20_bridge_contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
@@ -110,20 +142,31 @@ impl NymdClient<SigningNymdClient> {
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
-            mixnet_contract_address,
-            vesting_contract_address,
-            erc20_bridge_contract_address,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
+            mixnet_contract_address: DEFAULT_NETWORK
+                .mixnet_contract_address()
+                .parse()
+                .expect("Error parsing mixnet contract address"),
+            vesting_contract_address: DEFAULT_NETWORK
+                .vesting_contract_address()
+                .parse()
+                .expect("Error parsing vesting contract address"),
+            bandwidth_claim_contract_address: DEFAULT_NETWORK
+                .bandwidth_claim_contract_address()
+                .parse()
+                .expect("Error parsing bandwidth claim contract address"),
+            coconut_bandwidth_contract_address: DEFAULT_NETWORK
+                .coconut_bandwidth_contract_address()
+                .parse()
+                .unwrap(),
+            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 
     pub fn connect_with_mnemonic<U: Clone>(
         network: config::defaults::all::Network,
         endpoint: U,
-        mixnet_contract_address: Option<AccountId>,
-        vesting_contract_address: Option<AccountId>,
-        erc20_bridge_contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
         gas_price: Option<GasPrice>,
     ) -> Result<NymdClient<SigningNymdClient>, NymdError>
@@ -142,32 +185,48 @@ impl NymdClient<SigningNymdClient> {
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
-            mixnet_contract_address,
-            vesting_contract_address,
-            erc20_bridge_contract_address,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
+            mixnet_contract_address: DEFAULT_NETWORK
+                .mixnet_contract_address()
+                .parse()
+                .expect("Error parsing mixnet contract address"),
+            vesting_contract_address: DEFAULT_NETWORK
+                .vesting_contract_address()
+                .parse()
+                .expect("Error parsing vesting contract address"),
+            bandwidth_claim_contract_address: DEFAULT_NETWORK
+                .bandwidth_claim_contract_address()
+                .parse()
+                .expect("Error parsing bandwidth claim contract address"),
+            coconut_bandwidth_contract_address: DEFAULT_NETWORK
+                .coconut_bandwidth_contract_address()
+                .parse()
+                .unwrap(),
+            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 }
 
 impl<C> NymdClient<C> {
-    pub fn mixnet_contract_address(&self) -> Result<&AccountId, NymdError> {
-        self.mixnet_contract_address
-            .as_ref()
-            .ok_or(NymdError::NoContractAddressAvailable)
+    pub fn mixnet_contract_address(&self) -> &AccountId {
+        &self.mixnet_contract_address
     }
 
-    pub fn vesting_contract_address(&self) -> Result<&AccountId, NymdError> {
-        self.vesting_contract_address
-            .as_ref()
-            .ok_or(NymdError::NoContractAddressAvailable)
+    pub fn vesting_contract_address(&self) -> &AccountId {
+        &self.vesting_contract_address
     }
 
-    pub fn erc20_bridge_contract_address(&self) -> Result<&AccountId, NymdError> {
-        self.erc20_bridge_contract_address
-            .as_ref()
-            .ok_or(NymdError::NoContractAddressAvailable)
+    pub fn bandwidth_claim_contract_address(&self) -> &AccountId {
+        &self.bandwidth_claim_contract_address
+    }
+
+    pub fn coconut_bandwidth_contract_address(&self) -> &AccountId {
+        &self.coconut_bandwidth_contract_address
+    }
+
+    pub fn multisig_contract_address(&self) -> &AccountId {
+        &self.multisig_contract_address
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
@@ -295,7 +354,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::StateParams {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -305,7 +364,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::QueryOperatorReward { address };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -324,7 +383,7 @@ impl<C> NymdClient<C> {
             proxy,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -341,7 +400,7 @@ impl<C> NymdClient<C> {
             proxy_address,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -351,7 +410,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetCurrentEpoch {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -361,7 +420,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetContractVersion {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -378,7 +437,7 @@ impl<C> NymdClient<C> {
             interval_id,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -388,7 +447,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetCurrentRewardedSetHeight {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -400,7 +459,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetRewardedSetUpdateDetails {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -420,7 +479,7 @@ impl<C> NymdClient<C> {
         };
 
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -430,7 +489,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::LayerDistribution {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -440,7 +499,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetRewardPool {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -450,7 +509,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetCirculatingSupply {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -460,7 +519,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetSybilResistancePercent {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -470,7 +529,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetActiveSetWorkFactor {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -480,7 +539,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetIntervalRewardPercent {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -490,7 +549,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::GetEpochsInInterval {};
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -504,7 +563,7 @@ impl<C> NymdClient<C> {
         };
         let response: MixOwnershipResponse = self
             .client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await?;
         Ok(response.mixnode)
     }
@@ -519,7 +578,7 @@ impl<C> NymdClient<C> {
         };
         let response: GatewayOwnershipResponse = self
             .client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await?;
         Ok(response.gateway)
     }
@@ -537,7 +596,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -554,7 +613,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -574,7 +633,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -594,7 +653,7 @@ impl<C> NymdClient<C> {
             limit: page_limit,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -614,7 +673,7 @@ impl<C> NymdClient<C> {
             proxy,
         };
         self.client
-            .query_contract_smart(self.mixnet_contract_address()?, &request)
+            .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
     }
 
@@ -801,7 +860,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "MixnetContract::CompoundOperatorReward",
@@ -819,7 +878,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "MixnetContract::ClaimOperatorReward",
@@ -841,7 +900,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "MixnetContract::CompoundDelegatorReward",
@@ -863,7 +922,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "MixnetContract::ClaimDelegatorReward",
@@ -892,7 +951,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Bonding mixnode from rust!",
@@ -923,7 +982,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Bonding mixnode on behalf from rust!",
@@ -960,7 +1019,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute_multiple(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 reqs,
                 fee,
                 "Bonding multiple mixnodes on behalf from rust!",
@@ -979,7 +1038,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Unbonding mixnode from rust!",
@@ -1003,7 +1062,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Unbonding mixnode on behalf from rust!",
@@ -1029,7 +1088,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Updating mixnode configuration from rust!",
@@ -1056,7 +1115,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
@@ -1086,7 +1145,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Delegating to mixnode on behalf from rust!",
@@ -1122,7 +1181,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute_multiple(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 reqs,
                 fee,
                 "Delegating to multiple mixnodes on behalf from rust!",
@@ -1147,7 +1206,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Removing mixnode delegation from rust!",
@@ -1175,7 +1234,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Removing mixnode delegation on behalf from rust!",
@@ -1204,7 +1263,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Bonding gateway from rust!",
@@ -1235,7 +1294,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Bonding gateway on behalf from rust!",
@@ -1272,7 +1331,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute_multiple(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 reqs,
                 fee,
                 "Bonding multiple gateways on behalf from rust!",
@@ -1291,7 +1350,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Unbonding gateway from rust!",
@@ -1316,7 +1375,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Unbonding gateway on behalf from rust!",
@@ -1339,7 +1398,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Updating contract state from rust!",
@@ -1358,7 +1417,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Advance current epoch",
@@ -1377,7 +1436,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Reconciling delegation events",
@@ -1396,7 +1455,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Snapshotting mixnodes",
@@ -1423,7 +1482,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                self.mixnet_contract_address()?,
+                self.mixnet_contract_address(),
                 &req,
                 fee,
                 "Writing rewarded set",

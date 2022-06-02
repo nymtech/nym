@@ -51,6 +51,8 @@ pub struct DefaultNetworkDetails<'a> {
     mixnet_contract_address: &'a str,
     vesting_contract_address: &'a str,
     bandwidth_claim_contract_address: &'a str,
+    coconut_bandwidth_contract_address: &'a str,
+    multisig_contract_address: &'a str,
     rewarding_validator_address: &'a str,
     validators: Vec<ValidatorDetails>,
 }
@@ -62,6 +64,8 @@ static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
         mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
         vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
         bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+        coconut_bandwidth_contract_address: mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+        multisig_contract_address: mainnet::MULTISIG_CONTRACT_ADDRESS,
         rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
         validators: mainnet::validators(),
     });
@@ -73,6 +77,8 @@ static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
         mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
         vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
         bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+        coconut_bandwidth_contract_address: sandbox::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+        multisig_contract_address: sandbox::MULTISIG_CONTRACT_ADDRESS,
         rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
         validators: sandbox::validators(),
     });
@@ -83,6 +89,8 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
     mixnet_contract_address: qa::MIXNET_CONTRACT_ADDRESS,
     vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
     bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    coconut_bandwidth_contract_address: qa::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+    multisig_contract_address: qa::MULTISIG_CONTRACT_ADDRESS,
     rewarding_validator_address: qa::REWARDING_VALIDATOR_ADDRESS,
     validators: qa::validators(),
 });
@@ -146,7 +154,7 @@ pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 
 // Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
-const BYTES_PER_TOKEN: u64 = 1024 * 1024 * 1024;
+pub const BYTES_PER_UTOKEN: u64 = 1024;
 
 /// Threshold for claiming more bandwidth: 1 MB
 pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
@@ -155,7 +163,7 @@ pub const TOKENS_TO_BURN: u64 = 1;
 /// How many ERC20 utokens should be burned to buy bandwidth
 pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
-pub const BANDWIDTH_VALUE: u64 = TOKENS_TO_BURN * BYTES_PER_TOKEN;
+pub const BANDWIDTH_VALUE: u64 = UTOKENS_TO_BURN * BYTES_PER_UTOKEN;
 
 pub const VOUCHER_INFO: &str = "BandwidthVoucher";
 

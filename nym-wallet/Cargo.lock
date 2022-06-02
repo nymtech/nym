@@ -710,6 +710,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -1092,6 +1101,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9336ecef1e19d56cf6e3e932475fc6a3dee35eec5a386e07917a1d1ba6bb0e35"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-utils"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
  "schemars",
  "serde",
 ]
@@ -2798,6 +2843,18 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.7",
+]
+
+[[package]]
+name = "multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw4",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -5478,16 +5535,19 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "coconut-bandwidth-contract-common",
  "coconut-interface",
  "colored",
  "config",
  "cosmrs",
  "cosmwasm-std",
+ "cw3",
  "flate2",
  "futures",
  "itertools",
  "log",
  "mixnet-contract-common",
+ "multisig-contract-common",
  "network-defaults",
  "prost",
  "reqwest",

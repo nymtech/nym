@@ -84,7 +84,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address()?, &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
             .map(Into::into)
     }
@@ -99,7 +99,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address()?, &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
             .map(Into::into)
     }
@@ -113,7 +113,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address()?, &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
             .map(Into::into)
     }
@@ -127,7 +127,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address()?, &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
             .map(Into::into)
     }
@@ -140,7 +140,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             vesting_account_address: vesting_account_address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 
@@ -152,7 +152,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             vesting_account_address: vesting_account_address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 
@@ -164,7 +164,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             vesting_account_address: vesting_account_address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 
@@ -178,7 +178,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address()?, &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
             .map(Into::into)
     }
@@ -193,7 +193,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             block_time,
         };
         self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address()?, &request)
+            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
             .await
             .map(Into::into)
     }
@@ -203,7 +203,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             address: address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
     async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
@@ -211,7 +211,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             address: address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
     async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NymdError> {
@@ -219,7 +219,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             address: address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 
@@ -228,7 +228,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
             address: address.to_string(),
         };
         self.client
-            .query_contract_smart(self.vesting_contract_address()?, &request)
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 }

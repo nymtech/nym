@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
+#[cfg(feature = "coconut")]
+use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
@@ -26,9 +28,6 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-
-#[cfg(feature = "coconut")]
-use coconut_interface::VerificationKey;
 
 #[cfg(not(feature = "coconut"))]
 use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
@@ -77,11 +76,10 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
 
-    #[cfg(feature = "coconut")]
-    pub(crate) aggregated_verification_key: VerificationKey,
-
     #[cfg(not(feature = "coconut"))]
     pub(crate) erc20_bridge: Arc<ERC20Bridge>,
+    #[cfg(feature = "coconut")]
+    pub(crate) coconut_verifier: Arc<CoconutVerifier>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -102,7 +100,7 @@ where
         local_identity: Arc<identity::KeyPair>,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        #[cfg(feature = "coconut")] aggregated_verification_key: VerificationKey,
+        #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
         #[cfg(not(feature = "coconut"))] erc20_bridge: Arc<ERC20Bridge>,
     ) -> Self {
         FreshHandler {
@@ -114,7 +112,7 @@ where
             local_identity,
             storage,
             #[cfg(feature = "coconut")]
-            aggregated_verification_key,
+            coconut_verifier,
             #[cfg(not(feature = "coconut"))]
             erc20_bridge,
         }

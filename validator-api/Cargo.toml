@@ -54,6 +54,7 @@ cosmwasm-std = "1.0.0-beta8"
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
+multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymsphinx = { path="../common/nymsphinx" }
 topology = { path="../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }

@@ -17,6 +17,8 @@
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267], [#1278]).
+- gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
+- validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 
 ### Fixed
 
@@ -37,6 +39,7 @@
 [#1256]: https://github.com/nymtech/nym/pull/1256
 [#1257]: https://github.com/nymtech/nym/pull/1257
 [#1260]: https://github.com/nymtech/nym/pull/1260
+[#1261]: https://github.com/nymtech/nym/pull/1261
 [#1265]: https://github.com/nymtech/nym/pull/1265
 [#1267]: https://github.com/nymtech/nym/pull/1267
 [#1275]: https://github.com/nymtech/nym/pull/1275

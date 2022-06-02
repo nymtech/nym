@@ -129,7 +129,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::UpdateMixnetConfig",
@@ -150,7 +150,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::UpdateMixnetAddress",
@@ -175,7 +175,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::BondGateway",
@@ -190,7 +190,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::UnbondGateway",
@@ -213,7 +213,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::TrackUnbondGateway",
@@ -238,7 +238,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::BondMixnode",
@@ -253,7 +253,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::UnbondMixnode",
@@ -276,7 +276,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::TrackUnbondMixnode",
@@ -296,7 +296,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::WithdrawVested",
@@ -320,7 +320,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::TrackUndelegation",
@@ -342,7 +342,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::DelegateToMixnode",
@@ -363,7 +363,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::UndelegateFromMixnode",
@@ -389,7 +389,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::CreatePeriodicVestingAccount",
@@ -407,7 +407,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::ClaimOperatorReward",
@@ -425,7 +425,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::CompoundOperatorReward",
@@ -444,7 +444,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::ClaimDelegatorReward",
@@ -463,7 +463,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         self.client
             .execute(
                 self.address(),
-                self.vesting_contract_address()?,
+                self.vesting_contract_address(),
                 &req,
                 fee,
                 "VestingContract::CompoundDelegatorReward",

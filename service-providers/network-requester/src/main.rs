@@ -15,7 +15,6 @@ mod websocket;
 
 const OPEN_PROXY_ARG: &str = "open-proxy";
 const WS_PORT: &str = "websocket-port";
-const DESCRIPTION: &str = "description";
 const ENABLE_STATISTICS: &str = "enable-statistics";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
@@ -38,15 +37,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .arg(
             Arg::with_name(ENABLE_STATISTICS)
                 .help("enable mixnet statistics that get sent to a Nym server")
-                .long(ENABLE_STATISTICS)
-                .requires(DESCRIPTION),
-        )
-        .arg(
-            Arg::with_name(DESCRIPTION)
-                .help("service description")
-                .long(DESCRIPTION)
-                .short("d")
-                .takes_value(true),
+                .long(ENABLE_STATISTICS),
         )
         .get_matches()
 }
@@ -73,12 +64,8 @@ async fn main() {
             .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
     );
 
-    let description = matches
-        .value_of(DESCRIPTION)
-        .unwrap_or("undefined")
-        .to_string();
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri, description, open_proxy, enable_statistics);
+    let mut server = core::ServiceProvider::new(uri, open_proxy, enable_statistics);
     server.run().await;
 }
 

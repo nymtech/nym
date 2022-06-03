@@ -12,8 +12,8 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 
 use network_defaults::DEFAULT_NETWORK;
-use nymsphinx::addressing::clients::{ClientIdentity, Recipient};
-use socks5_requests::Response;
+use nymsphinx::addressing::clients::Recipient;
+use socks5_requests::{ConnectionId, RemoteAddress, Response};
 
 use super::error::StatsError;
 
@@ -22,8 +22,7 @@ const REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG: &str =
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
-    pub description: String,
-    pub stats_data: Vec<StatsClientData>,
+    pub stats_data: Vec<StatsServiceData>,
     pub interval_seconds: u32,
     pub timestamp: String,
 }
@@ -40,16 +39,16 @@ impl StatsMessage {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct StatsClientData {
-    pub client_identity: String,
+pub struct StatsServiceData {
+    pub requested_service: String,
     pub request_bytes: u32,
     pub response_bytes: u32,
 }
 
-impl StatsClientData {
-    pub fn new(client_identity: String, request_bytes: u32, response_bytes: u32) -> Self {
-        StatsClientData {
-            client_identity,
+impl StatsServiceData {
+    pub fn new(requested_service: String, request_bytes: u32, response_bytes: u32) -> Self {
+        StatsServiceData {
+            requested_service,
             request_bytes,
             response_bytes,
         }
@@ -68,13 +67,12 @@ impl StatsData {
         }
     }
 
-    pub fn processed(&mut self, client_identity: &ClientIdentity, bytes: u32) {
-        let client_identity_bs58 = client_identity.to_base58_string();
-        if let Some(curr_bytes) = self.client_processed_bytes.get_mut(&client_identity_bs58) {
+    pub fn processed(&mut self, remote_addr: &str, bytes: u32) {
+        if let Some(curr_bytes) = self.client_processed_bytes.get_mut(remote_addr) {
             *curr_bytes += bytes;
         } else {
             self.client_processed_bytes
-                .insert(client_identity_bs58, bytes);
+                .insert(remote_addr.to_string(), bytes);
         }
     }
 }
@@ -103,8 +101,24 @@ impl OptionalStatsProviderConfig {
     }
 }
 
-pub struct Statistics {
-    description: String,
+#[derive(Clone)]
+pub struct StatisticsCollector {
+    pub(crate) request_stats_data: Arc<RwLock<StatsData>>,
+    pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
+    pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
+}
+
+impl StatisticsCollector {
+    pub fn from(stats: &StatisticsSender) -> Self {
+        Self {
+            request_stats_data: Arc::clone(&stats.request_data),
+            response_stats_data: Arc::clone(&stats.response_data),
+            connected_services: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+pub struct StatisticsSender {
     request_data: Arc<RwLock<StatsData>>,
     response_data: Arc<RwLock<StatsData>>,
     interval_seconds: u32,
@@ -113,9 +127,8 @@ pub struct Statistics {
     stats_provider_addr: Recipient,
 }
 
-impl Statistics {
+impl StatisticsSender {
     pub async fn new(
-        description: String,
         interval_seconds: Duration,
         timer_receiver: mpsc::Receiver<()>,
     ) -> Result<Self, StatsError> {
@@ -135,8 +148,7 @@ impl Statistics {
         )
         .map_err(|_| StatsError::InvalidClientAddress)?;
 
-        Ok(Statistics {
-            description,
+        Ok(StatisticsSender {
             request_data: Arc::new(RwLock::new(StatsData::new())),
             response_data: Arc::new(RwLock::new(StatsData::new())),
             timestamp: Utc::now(),
@@ -144,14 +156,6 @@ impl Statistics {
             timer_receiver,
             stats_provider_addr,
         })
-    }
-
-    pub fn request_data(&self) -> &Arc<RwLock<StatsData>> {
-        &self.request_data
-    }
-
-    pub fn response_data(&self) -> &Arc<RwLock<StatsData>> {
-        &self.response_data
     }
 
     pub async fn run(&mut self, mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>) {
@@ -162,32 +166,31 @@ impl Statistics {
                 let stats_data = {
                     let request_data_bytes = self.request_data.read().await;
                     let response_data_bytes = self.response_data.read().await;
-                    let clients: HashSet<String> = request_data_bytes
+                    let services: HashSet<String> = request_data_bytes
                         .client_processed_bytes
                         .keys()
                         .chain(response_data_bytes.client_processed_bytes.keys())
                         .cloned()
                         .collect();
-                    clients
+                    services
                         .into_iter()
-                        .map(|client_identity| {
+                        .map(|requested_service| {
                             let request_bytes = request_data_bytes
                                 .client_processed_bytes
-                                .get(&client_identity)
+                                .get(&requested_service)
                                 .copied()
                                 .unwrap_or(0);
                             let response_bytes = response_data_bytes
                                 .client_processed_bytes
-                                .get(&client_identity)
+                                .get(&requested_service)
                                 .copied()
                                 .unwrap_or(0);
-                            StatsClientData::new(client_identity, request_bytes, response_bytes)
+                            StatsServiceData::new(requested_service, request_bytes, response_bytes)
                         })
                         .collect()
                 };
 
                 let stats_message = StatsMessage {
-                    description: self.description.clone(),
                     stats_data,
                     interval_seconds: self.interval_seconds,
                     timestamp: self.timestamp.to_rfc3339(),

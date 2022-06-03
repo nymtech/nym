@@ -55,13 +55,12 @@ impl NetworkRequesterStorage {
         let timestamp: DateTime<Utc> = DateTime::parse_from_rfc3339(&msg.timestamp)
             .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
             .into();
-        for client_data in msg.stats_data {
+        for service_data in msg.stats_data {
             self.manager
                 .insert_service_statistics(
-                    msg.description.clone(),
-                    client_data.client_identity.clone(),
-                    client_data.request_bytes,
-                    client_data.response_bytes,
+                    service_data.requested_service.clone(),
+                    service_data.request_bytes,
+                    service_data.response_bytes,
                     msg.interval_seconds,
                     timestamp,
                 )

@@ -332,6 +332,7 @@ impl MixNode {
             shutdown.subscribe(),
         );
 
+        // WIP(JON): these two also needs to be shutdown
         let atomic_verloc_results = self.start_verloc_measurements();
         self.start_http_api(atomic_verloc_results, node_stats_pointer);
 

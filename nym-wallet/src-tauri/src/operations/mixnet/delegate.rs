@@ -20,6 +20,7 @@ pub async fn get_pending_delegation_events(
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get pending delegation events");
     let guard = state.read().await;
+    let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
 
     let events = client
@@ -29,19 +30,10 @@ pub async fn get_pending_delegation_events(
     log::info!("<<< {} pending delegation events", events.len());
     log::trace!("<<< pending delegation events = {:?}", events);
 
-    events
+    Ok(events
         .into_iter()
-        .map(|event| {
-            if let Some(amount) = event.delegation_amount() {
-                guard
-                    .attempt_convert_to_display_dec_coin(amount.into())
-                    .map(Some)
-            } else {
-                Ok(None)
-            }
-            .map(|amount| DelegationEvent::from_mixnet_contract(event, amount))
-        })
-        .collect()
+        .map(|event| DelegationEvent::from_mixnet_contract(event, reg))
+        .collect::<Result<_, _>>()?)
 }
 
 #[tauri::command]
@@ -112,6 +104,7 @@ pub async fn get_all_mix_delegations(
 
     let guard = state.read().await;
     let client = guard.current_client()?;
+    let reg = guard.registered_coins()?;
 
     // TODO: add endpoint to validator API to get a single mix node bond
     let mixnodes = client.validator_api.get_mixnodes().await?;
@@ -183,7 +176,7 @@ pub async fn get_all_mix_delegations(
         let entry = map
             .entry(d.node_identity.clone())
             .or_insert(DelegationWithHistory {
-                delegation: Delegation::from_mixnet_contract(d, amount.clone()),
+                delegation: Delegation::from_mixnet_contract(d, reg)?,
                 history: vec![],
                 amount_sum: DecCoin::zero(display_mix_denom),
             });

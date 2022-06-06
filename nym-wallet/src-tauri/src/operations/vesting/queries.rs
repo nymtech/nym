@@ -134,6 +134,7 @@ pub async fn original_vesting(
 ) -> Result<OriginalVestingResponse, BackendError> {
     log::info!(">>> Query original vesting");
     let guard = state.read().await;
+    let reg = guard.registered_coins()?;
 
     let res = guard
         .current_client()?
@@ -141,11 +142,7 @@ pub async fn original_vesting(
         .original_vesting(vesting_account_address)
         .await?;
 
-    let res = OriginalVestingResponse::new(
-        guard.attempt_convert_to_display_dec_coin(res.amount.into())?,
-        res.number_of_periods,
-        res.period_duration,
-    );
+    let res = OriginalVestingResponse::from_vesting_contract(res, reg)?;
     log::info!("<<< {:?}", res);
     Ok(res)
 }
@@ -204,17 +201,14 @@ pub async fn vesting_get_mixnode_pledge(
 ) -> Result<Option<PledgeData>, BackendError> {
     log::info!(">>> Query vesting get mixnode pledge");
     let guard = state.read().await;
+    let reg = guard.registered_coins()?;
 
     let res = guard
         .current_client()?
         .nymd
         .get_mixnode_pledge(address)
         .await?
-        .map(|pledge| {
-            guard
-                .attempt_convert_to_display_dec_coin(pledge.amount().into())
-                .map(|amount| PledgeData::new(amount, pledge.block_time))
-        })
+        .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
         .transpose()?;
 
     log::info!("<<< {:?}", res);
@@ -228,17 +222,14 @@ pub async fn vesting_get_gateway_pledge(
 ) -> Result<Option<PledgeData>, BackendError> {
     log::info!(">>> Query vesting get gateway pledge");
     let guard = state.read().await;
+    let reg = guard.registered_coins()?;
 
     let res = guard
         .current_client()?
         .nymd
         .get_gateway_pledge(address)
         .await?
-        .map(|pledge| {
-            guard
-                .attempt_convert_to_display_dec_coin(pledge.amount().into())
-                .map(|amount| PledgeData::new(amount, pledge.block_time))
-        })
+        .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
         .transpose()?;
 
     log::info!("<<< {:?}", res);
@@ -265,13 +256,10 @@ pub async fn get_account_info(
 ) -> Result<VestingAccountInfo, BackendError> {
     log::info!(">>> Query account info");
     let guard = state.read().await;
+    let res = guard.registered_coins()?;
 
     let vesting_account = guard.current_client()?.nymd.get_account(address).await?;
-
-    let res = VestingAccountInfo::new(
-        guard.attempt_convert_to_display_dec_coin(vesting_account.coin().into())?,
-        vesting_account,
-    );
+    let res = VestingAccountInfo::from_vesting_contract(vesting_account, res)?;
 
     log::info!("<<< {:?}", res);
     Ok(res)

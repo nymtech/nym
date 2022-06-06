@@ -71,7 +71,6 @@ pub struct MixNodeBond {
 impl MixNodeBond {
     pub fn from_mixnet_contract_mixnode_bond(
         bond: MixnetContractMixNodeBond,
-        // TODO: other conversion methods should also be using that
         reg: &RegisteredCoins,
     ) -> Result<MixNodeBond, TypesError> {
         let denom = bond.pledge_amount.denom.clone();

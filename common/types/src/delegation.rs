@@ -1,4 +1,5 @@
-use crate::currency::DecCoin;
+use crate::currency::{DecCoin, RegisteredCoins};
+use crate::error::TypesError;
 use mixnet_contract_common::mixnode::DelegationEvent as ContractDelegationEvent;
 use mixnet_contract_common::mixnode::PendingUndelegate as ContractPendingUndelegate;
 use mixnet_contract_common::Delegation as MixnetContractDelegation;
@@ -22,15 +23,15 @@ pub struct Delegation {
 impl Delegation {
     pub fn from_mixnet_contract(
         delegation: MixnetContractDelegation,
-        display_amount: DecCoin,
-    ) -> Self {
-        Delegation {
+        reg: &RegisteredCoins,
+    ) -> Result<Self, TypesError> {
+        Ok(Delegation {
             owner: delegation.owner.to_string(),
             node_identity: delegation.node_identity,
-            amount: display_amount,
+            amount: reg.attempt_convert_to_display_dec_coin(delegation.amount.into())?,
             block_height: delegation.block_height,
             proxy: delegation.proxy.map(|d| d.to_string()),
-        }
+        })
     }
 }
 
@@ -81,20 +82,6 @@ pub struct DelegationResult {
     amount: Option<DecCoin>,
 }
 
-impl DelegationResult {
-    pub fn new(
-        source_address: &str,
-        target_address: &str,
-        amount: Option<DecCoin>,
-    ) -> DelegationResult {
-        DelegationResult {
-            source_address: source_address.to_string(),
-            target_address: target_address.to_string(),
-            amount,
-        }
-    }
-}
-
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -121,23 +108,26 @@ pub struct DelegationEvent {
 }
 
 impl DelegationEvent {
-    pub fn from_mixnet_contract(event: ContractDelegationEvent, amount: Option<DecCoin>) -> Self {
-        match event {
+    pub fn from_mixnet_contract(
+        event: ContractDelegationEvent,
+        reg: &RegisteredCoins,
+    ) -> Result<Self, TypesError> {
+        Ok(match event {
             ContractDelegationEvent::Delegate(delegation) => DelegationEvent {
                 kind: DelegationEventKind::Delegate,
                 block_height: delegation.block_height,
                 address: delegation.owner.into_string(),
                 node_identity: delegation.node_identity,
-                amount,
+                amount: Some(reg.attempt_convert_to_display_dec_coin(delegation.amount.into())?),
             },
             ContractDelegationEvent::Undelegate(pending_undelegate) => DelegationEvent {
                 kind: DelegationEventKind::Undelegate,
                 block_height: pending_undelegate.block_height(),
                 address: pending_undelegate.delegate().into_string(),
                 node_identity: pending_undelegate.mix_identity(),
-                amount,
+                amount: None,
             },
-        }
+        })
     }
 }
 

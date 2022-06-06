@@ -14,6 +14,7 @@ pub async fn get_pending_vesting_delegation_events(
     log::info!(">>> Get pending delegations from vesting contract");
 
     let guard = state.read().await;
+    let reg = guard.registered_coins()?;
     let client = &guard.current_client()?.nymd;
     let vesting_contract = client.vesting_contract_address()?;
 
@@ -27,19 +28,10 @@ pub async fn get_pending_vesting_delegation_events(
     log::info!("<<< {} events", events.len());
     log::trace!("<<< {:?}", events);
 
-    events
+    Ok(events
         .into_iter()
-        .map(|event| {
-            if let Some(amount) = event.delegation_amount() {
-                guard
-                    .attempt_convert_to_display_dec_coin(amount.into())
-                    .map(Some)
-            } else {
-                Ok(None)
-            }
-            .map(|amount| DelegationEvent::from_mixnet_contract(event, amount))
-        })
-        .collect()
+        .map(|event| DelegationEvent::from_mixnet_contract(event, reg))
+        .collect::<Result<_, _>>()?)
 }
 
 #[tauri::command]

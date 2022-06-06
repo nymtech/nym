@@ -4,41 +4,41 @@
 
 ### Added
 
-- wallet: compound and claim reward endpoints for operators and delegators ([#1302])
+- all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
+- gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
+- mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- mixnet-contract: Replace all naked `-` with `saturating_sub`.
+- network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267], [#1278]).
+- validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
-- wallet: require password to switch accounts
+- validator-api: add Swagger to document the REST API ([#1249]).
+- validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
+- vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - wallet: add simple CLI tool for decrypting and recovering the wallet file.
 - wallet: added support for multiple accounts ([#1265])
+- wallet: compound and claim reward endpoints for operators and delegators ([#1302])
+- wallet: require password to switch accounts
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
-- mixnet-contract: Replace all naked `-` with `saturating_sub`.
-- mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
-- vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
-- validator-api: add Swagger to document the REST API ([#1249]).
-- validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
-- all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
-- network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267], [#1278]).
-- gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
-- validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 
 ### Fixed
 
-- mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
-- mixnet-contract: delegator and operator rewards use lambda and sigma instead of lambda_ticked and sigma_ticked ([#1284])
 - mixnet-contract: `estimated_delegator_reward` calculation ([#1284])
-- vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
+- mixnet-contract: delegator and operator rewards use lambda and sigma instead of lambda_ticked and sigma_ticked ([#1284])
 - mixnet-contract: removed `expect` in `query_delegator_reward` and queries containing invalid proxy address should now return a more human-readable error ([#1257])
+- mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
+- vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 
 ### Changed
 
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 
-[#1258]: https://github.com/nymtech/nym/pull/1258
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
 [#1257]: https://github.com/nymtech/nym/pull/1257
+[#1258]: https://github.com/nymtech/nym/pull/1258
 [#1260]: https://github.com/nymtech/nym/pull/1260
 [#1261]: https://github.com/nymtech/nym/pull/1261
 [#1265]: https://github.com/nymtech/nym/pull/1265

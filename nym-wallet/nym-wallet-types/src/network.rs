@@ -45,6 +45,14 @@ impl Network {
             Network::MAINNET => mainnet::MIX_DENOM.base,
         }
     }
+
+    pub fn display_mix_denom(&self) -> &str {
+        match self {
+            Network::QA => qa::MIX_DENOM.display,
+            Network::SANDBOX => sandbox::MIX_DENOM.display,
+            Network::MAINNET => mainnet::MIX_DENOM.display,
+        }
+    }
 }
 
 impl Default for Network {

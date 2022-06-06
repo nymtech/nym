@@ -164,6 +164,13 @@ impl DecCoin {
         }
     }
 
+    pub fn zero<S: Into<String>>(denom: S) -> Self {
+        DecCoin {
+            denom: denom.into(),
+            amount: Decimal::zero(),
+        }
+    }
+
     pub fn new_scaled_up<S: Into<String>>(
         base_amount: impl Into<Uint128>,
         denom: S,

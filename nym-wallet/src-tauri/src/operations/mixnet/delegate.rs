@@ -96,203 +96,206 @@ struct DelegationWithHistory {
 pub async fn get_all_mix_delegations(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<DelegationWithEverything>, BackendError> {
-    todo!("deal with this later :)");
-
     log::info!(">>> Get all mixnode delegations");
-    //
-    // // TODO: add endpoint to validator API to get a single mix node bond
-    // let mixnodes = api_client!(state).get_mixnodes().await?;
-    //
-    // let address = nymd_client!(state).address().to_string();
-    //
-    // let denom_minor = state.read().await.current_network().denom();
-    // let denom: CurrencyDenom = denom_minor.clone().try_into()?;
-    //
-    // log::info!("  >>> Get delegations");
-    // let delegations = nymd_client!(state)
-    //     .get_delegator_delegations_paged(address.clone(), None, None) // get all delegations, ignoring paging
-    //     .await?
-    //     .delegations;
-    // log::info!("  <<< {} delegations", delegations.len());
-    //
-    // // first get pending events from the mixnet contract (operations made with unlocked tokens)
-    // let mut pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
-    //
-    // // then get pending events from the vesting contract (operations made with locked tokens)
-    // let pending_vesting_events = get_pending_vesting_delegation_events(state.clone()).await?;
-    // for event in pending_vesting_events {
-    //     pending_events_for_account.push(event);
-    // }
-    //
-    // log::info!(
-    //     "  <<< {} pending delegation events for account",
-    //     pending_events_for_account.len()
-    // );
-    //
-    // let mut map: HashMap<String, DelegationWithHistory> = HashMap::new();
-    //
-    // for pending_event in pending_events_for_account.clone() {
-    //     if delegations
-    //         .iter()
-    //         .any(|d| d.node_identity == pending_event.node_identity)
-    //     {
-    //         let amount = pending_event
-    //             .amount
-    //             .unwrap_or_else(|| DecCoin::zero(&denom));
-    //         let delegation = DelegationWithHistory {
-    //             delegation: Delegation {
-    //                 amount: amount.clone(),
-    //                 node_identity: pending_event.node_identity,
-    //                 proxy: None,
-    //                 owner: pending_event.address,
-    //                 block_height: pending_event.block_height,
-    //             },
-    //             amount_sum: amount,
-    //             history: vec![],
-    //         };
-    //         map.insert(delegation.delegation.node_identity.clone(), delegation);
-    //     }
-    // }
-    //
-    // for d in delegations {
-    //     // create record of delegation
-    //     let delegated_on_iso_datetime = nymd_client!(state)
-    //         .get_block_timestamp(Some(d.block_height as u32))
-    //         .await?
-    //         .to_rfc3339();
-    //     let amount: DecCoin = d.amount.clone().into();
-    //     let record = DelegationRecord {
-    //         amount: amount.clone(),
-    //         block_height: d.block_height,
-    //         delegated_on_iso_datetime,
-    //     };
-    //
-    //     let entry = map
-    //         .entry(d.node_identity.clone())
-    //         .or_insert(DelegationWithHistory {
-    //             delegation: d.try_into()?,
-    //             history: vec![],
-    //             amount_sum: DecCoin::zero(&amount.denom),
-    //         });
-    //
-    //     entry.history.push(record);
-    //     entry.amount_sum = entry.amount_sum.clone() + amount;
-    // }
-    //
-    // let mut with_everything: Vec<DelegationWithEverything> = vec![];
-    //
-    // for item in map {
-    //     let d = item.1.delegation;
-    //     let history = item.1.history;
-    //     let Delegation {
-    //         owner,
-    //         node_identity,
-    //         amount,
-    //         block_height,
-    //         proxy,
-    //     } = d;
-    //
-    //     log::trace!(
-    //         "  --- Delegation: node_identity = {}, amount = {}",
-    //         node_identity,
-    //         amount
-    //     );
-    //
-    //     let mixnode = mixnodes
-    //         .iter()
-    //         .find(|m| m.mix_node.identity_key == node_identity);
-    //
-    //     let pledge_amount: Option<DecCoin> =
-    //         mixnode.and_then(|m| m.pledge_amount.clone().try_into().ok());
-    //
-    //     let total_delegation: Option<DecCoin> =
-    //         mixnode.and_then(|m| m.total_delegation.clone().try_into().ok());
-    //
-    //     let profit_margin_percent: Option<u8> = mixnode.map(|m| m.mix_node.profit_margin_percent);
-    //
-    //     log::trace!("  >>> Get accumulated rewards: address = {}", address);
-    //     let accumulated_rewards = match nymd_client!(state)
-    //         .get_delegator_rewards(address.clone(), node_identity.clone(), proxy.clone())
-    //         .await
-    //     {
-    //         Ok(rewards) => {
-    //             let reward = CosmWasmCoin {
-    //                 denom: denom_minor.to_string(),
-    //                 amount: rewards,
-    //             };
-    //             let amount = DecCoin::from(reward);
-    //             log::trace!("  <<< rewards = {}, amount = {}", rewards, amount);
-    //             Some(amount)
-    //         }
-    //         Err(_) => {
-    //             log::trace!("  <<< no rewards waiting");
-    //             None
-    //         }
-    //     };
-    //
-    //     let pending_events =
-    //         filter_pending_events(&node_identity, pending_events_for_account.clone());
-    //     log::trace!(
-    //         "  --- pending events for mixnode = {}",
-    //         pending_events.len()
-    //     );
-    //
-    //     log::trace!(
-    //         "  >>> Get stake saturation: node_identity = {}",
-    //         node_identity
-    //     );
-    //     let stake_saturation = api_client!(state)
-    //         .get_mixnode_stake_saturation(&node_identity)
-    //         .await
-    //         .ok()
-    //         .map(|r| r.saturation);
-    //     log::trace!("  <<< {:?}", stake_saturation);
-    //
-    //     log::trace!(
-    //         "  >>> Get average uptime percentage: node_identity = {}",
-    //         node_identity
-    //     );
-    //     let avg_uptime_percent = api_client!(state)
-    //         .get_mixnode_avg_uptime(&node_identity)
-    //         .await
-    //         .ok()
-    //         .map(|r| r.avg_uptime);
-    //     log::trace!("  <<< {:?}", avg_uptime_percent);
-    //
-    //     log::trace!(
-    //         "  >>> Convert delegated on block height to timestamp: block_height = {}",
-    //         d.block_height
-    //     );
-    //     let timestamp = nymd_client!(state)
-    //         .get_block_timestamp(Some(d.block_height as u32))
-    //         .await?;
-    //     let delegated_on_iso_datetime = timestamp.to_rfc3339();
-    //     log::trace!(
-    //         "  <<< timestamp = {:?}, delegated_on_iso_datetime = {:?}",
-    //         timestamp,
-    //         delegated_on_iso_datetime
-    //     );
-    //
-    //     with_everything.push(DelegationWithEverything {
-    //         owner: owner.to_string(),
-    //         node_identity: node_identity.to_string(),
-    //         amount: item.1.amount_sum,
-    //         block_height,
-    //         proxy: proxy.clone(),
-    //         delegated_on_iso_datetime,
-    //         stake_saturation,
-    //         accumulated_rewards,
-    //         profit_margin_percent,
-    //         pledge_amount,
-    //         avg_uptime_percent,
-    //         total_delegation,
-    //         pending_events,
-    //         history,
-    //     })
-    // }
-    // log::trace!("<<< {:?}", with_everything);
-    //
-    // Ok(with_everything)
+
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    // TODO: add endpoint to validator API to get a single mix node bond
+    let mixnodes = client.validator_api.get_mixnodes().await?;
+
+    let address = client.nymd.address();
+    let network = guard.current_network();
+    let display_mix_denom = network.display_mix_denom();
+    let base_mix_denom = network.base_mix_denom();
+
+    log::info!("  >>> Get delegations");
+    let delegations = client.get_all_delegator_delegations(address).await?;
+    log::info!("  <<< {} delegations", delegations.len());
+
+    // first get pending events from the mixnet contract (operations made with unlocked tokens)
+    let mut pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
+
+    // then get pending events from the vesting contract (operations made with locked tokens)
+    let pending_vesting_events = get_pending_vesting_delegation_events(state.clone()).await?;
+    for event in pending_vesting_events {
+        pending_events_for_account.push(event);
+    }
+
+    log::info!(
+        "  <<< {} pending delegation events for account",
+        pending_events_for_account.len()
+    );
+
+    let mut map: HashMap<String, DelegationWithHistory> = HashMap::new();
+
+    for pending_event in &pending_events_for_account {
+        if delegations
+            .iter()
+            .any(|d| d.node_identity == pending_event.node_identity)
+        {
+            let amount = pending_event
+                .amount
+                .clone()
+                .unwrap_or_else(|| DecCoin::zero(display_mix_denom));
+            let delegation = DelegationWithHistory {
+                delegation: Delegation {
+                    amount: amount.clone(),
+                    node_identity: pending_event.node_identity.clone(),
+                    proxy: None, // TODO: ask @MS about delegations via vesting contract => surely we'd have proxy there?
+                    owner: pending_event.address.clone(),
+                    block_height: pending_event.block_height,
+                },
+                amount_sum: amount,
+                history: vec![],
+            };
+            map.insert(delegation.delegation.node_identity.clone(), delegation);
+        }
+    }
+
+    for d in delegations {
+        // create record of delegation
+        let delegated_on_iso_datetime = client
+            .nymd
+            .get_block_timestamp(Some(d.block_height as u32))
+            .await?
+            .to_rfc3339();
+        let amount = guard.attempt_convert_to_display_dec_coin(d.amount.clone().into())?;
+
+        let record = DelegationRecord {
+            amount: amount.clone(),
+            block_height: d.block_height,
+            delegated_on_iso_datetime,
+        };
+
+        let entry = map
+            .entry(d.node_identity.clone())
+            .or_insert(DelegationWithHistory {
+                delegation: Delegation::from_mixnet_contract(d, amount.clone()),
+                history: vec![],
+                amount_sum: DecCoin::zero(display_mix_denom),
+            });
+
+        debug_assert_eq!(entry.amount_sum.denom, amount.denom);
+
+        entry.history.push(record);
+        entry.amount_sum.amount += amount.amount;
+    }
+
+    let mut with_everything: Vec<DelegationWithEverything> = vec![];
+
+    for item in map {
+        let d = item.1.delegation;
+        let history = item.1.history;
+        let Delegation {
+            owner,
+            node_identity,
+            amount,
+            block_height,
+            proxy,
+        } = d;
+
+        log::trace!(
+            "  --- Delegation: node_identity = {}, amount = {}",
+            node_identity,
+            amount
+        );
+
+        let mixnode = mixnodes
+            .iter()
+            .find(|m| m.mix_node.identity_key == node_identity);
+
+        let pledge_amount = mixnode
+            .map(|m| guard.attempt_convert_to_display_dec_coin(m.pledge_amount.clone().into()))
+            .transpose()?;
+
+        let total_delegation = mixnode
+            .map(|m| guard.attempt_convert_to_display_dec_coin(m.total_delegation.clone().into()))
+            .transpose()?;
+
+        let profit_margin_percent: Option<u8> = mixnode.map(|m| m.mix_node.profit_margin_percent);
+
+        log::trace!("  >>> Get accumulated rewards: address = {}", address);
+        let accumulated_rewards = match client
+            .nymd
+            .get_delegator_rewards(address.to_string(), node_identity.clone(), proxy.clone())
+            .await
+        {
+            Ok(rewards) => {
+                let reward = Coin::new(rewards.u128(), base_mix_denom);
+                let amount = guard.attempt_convert_to_display_dec_coin(reward)?;
+                log::trace!("  <<< rewards = {}, amount = {}", rewards, amount);
+                Some(amount)
+            }
+            Err(_) => {
+                log::trace!("  <<< no rewards waiting");
+                None
+            }
+        };
+
+        let pending_events =
+            filter_pending_events(&node_identity, pending_events_for_account.clone());
+        log::trace!(
+            "  --- pending events for mixnode = {}",
+            pending_events.len()
+        );
+
+        log::trace!(
+            "  >>> Get stake saturation: node_identity = {}",
+            node_identity
+        );
+        let stake_saturation = api_client!(state)
+            .get_mixnode_stake_saturation(&node_identity)
+            .await
+            .ok()
+            .map(|r| r.saturation);
+        log::trace!("  <<< {:?}", stake_saturation);
+
+        log::trace!(
+            "  >>> Get average uptime percentage: node_identity = {}",
+            node_identity
+        );
+        let avg_uptime_percent = api_client!(state)
+            .get_mixnode_avg_uptime(&node_identity)
+            .await
+            .ok()
+            .map(|r| r.avg_uptime);
+        log::trace!("  <<< {:?}", avg_uptime_percent);
+
+        log::trace!(
+            "  >>> Convert delegated on block height to timestamp: block_height = {}",
+            d.block_height
+        );
+        let timestamp = nymd_client!(state)
+            .get_block_timestamp(Some(d.block_height as u32))
+            .await?;
+        let delegated_on_iso_datetime = timestamp.to_rfc3339();
+        log::trace!(
+            "  <<< timestamp = {:?}, delegated_on_iso_datetime = {:?}",
+            timestamp,
+            delegated_on_iso_datetime
+        );
+
+        with_everything.push(DelegationWithEverything {
+            owner: owner.to_string(),
+            node_identity: node_identity.to_string(),
+            amount: item.1.amount_sum,
+            block_height,
+            proxy: proxy.clone(),
+            delegated_on_iso_datetime,
+            stake_saturation,
+            accumulated_rewards,
+            profit_margin_percent,
+            pledge_amount,
+            avg_uptime_percent,
+            total_delegation,
+            pending_events,
+            history,
+        })
+    }
+    log::trace!("<<< {:?}", with_everything);
+
+    Ok(with_everything)
 }
 
 fn filter_pending_events(

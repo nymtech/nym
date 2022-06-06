@@ -4,6 +4,7 @@
 use crate::nymd::Coin;
 use cosmrs::tx;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 pub mod gas_price;
 
@@ -13,6 +14,31 @@ pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
 pub enum Fee {
     Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
     Auto(Option<f32>),
+}
+
+impl Display for Fee {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Fee::Manual(fee) => {
+                write!(f, "Fee in manual mode with ")?;
+                for fee in &fee.amount {
+                    write!(f, "{}{} paid in fees, ", fee.amount, fee.denom)?;
+                }
+                write!(f, "{} set as gas limit, ", fee.gas_limit)?;
+                if let Some(payer) = &fee.payer {
+                    write!(f, "{payer} set as payer, ")?;
+                }
+                if let Some(granter) = &fee.granter {
+                    write!(f, "{granter} set as granter")?;
+                }
+                Ok(())
+            }
+            Fee::Auto(Some(multiplier)) => {
+                write!(f, "Fee in auto mode with {multiplier} simulated multiplier")
+            }
+            Fee::Auto(None) => write!(f, "Fee in auto mode with no custom simulated multiplier"),
+        }
+    }
 }
 
 impl Fee {

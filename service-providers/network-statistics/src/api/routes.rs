@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::storage::NetworkStatisticsStorage;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct MixnetStatisticsRequest {
+pub struct ServiceStatisticsRequest {
     // date, RFC 3339 format
     since: String,
     // date, RFC 3339 format
@@ -26,7 +26,7 @@ pub struct ServiceStatisticsResponse {
 
 #[rocket::post("/service-statistics", data = "<service_statistics_request>")]
 pub(crate) async fn post_service_statistics(
-    service_statistics_request: Json<MixnetStatisticsRequest>,
+    service_statistics_request: Json<ServiceStatisticsRequest>,
     storage: &State<NetworkStatisticsStorage>,
 ) -> Json<Vec<ServiceStatisticsResponse>> {
     let service_statistics = storage

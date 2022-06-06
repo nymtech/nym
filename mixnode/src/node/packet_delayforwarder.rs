@@ -4,7 +4,7 @@
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nymsphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
@@ -75,13 +75,8 @@ where
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimerError>>) {
-        // those are critical errors that I don't think can be recovered from.
-        let delayed = packet.expect("the queue has unexpectedly terminated!");
-        let delayed_packet = delayed
-            .expect("Encountered timer issue within the runtime!")
-            .into_inner();
-
+    fn handle_done_delaying(&mut self, packet: Expired<MixPacket>) {
+        let delayed_packet = packet.into_inner();
         self.forward_packet(delayed_packet)
     }
 
@@ -105,7 +100,7 @@ where
         loop {
             tokio::select! {
                 delayed = self.delay_queue.next() => {
-                    self.handle_done_delaying(delayed);
+                    self.handle_done_delaying(delayed.unwrap());
                 }
                 new_packet = self.packet_receiver.next() => {
                     // this one is impossible to ever panic - the object itself contains a sender

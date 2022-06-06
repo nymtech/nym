@@ -20,7 +20,7 @@ pretty_env_logger = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] } # for config serialization/deserialization
 snafu = "0.6"
-tokio = { version = "1.4", features = ["rt-multi-thread", "net", "signal"] }
+tokio = { version = "1.19.1", features = ["rt-multi-thread", "net", "signal"] }
 url = "2.2"
 
 # internal

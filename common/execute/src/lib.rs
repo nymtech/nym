@@ -83,7 +83,7 @@ pub fn execute(attr: TokenStream, item: TokenStream) -> TokenStream {
     let execute_block = quote! {
         {
             let (req, fee) = self.#name(#(#execute_args),*);
-            let fee = Fee::Auto(Some(self.simulated_gas_multiplier));
+            let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
             self.client
                 .execute(
                     self.address(),

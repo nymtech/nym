@@ -14,8 +14,8 @@ humantime-serde = "1.0"
 log = "0.4"
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.4", features = ["time", "macros", "rt", "net", "io-util"] }
-tokio-util = { version = "0.6", features = ["codec"] }
+tokio = { version = "1.19.1", features = ["time", "macros", "rt", "net", "io-util"] }
+tokio-util = { version = "0.7.3", features = ["codec"] }
 url = "2.2"
 
 crypto =  { path = "../crypto" }

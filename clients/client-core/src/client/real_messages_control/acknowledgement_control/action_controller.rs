@@ -257,7 +257,7 @@ impl ActionController {
                 // we NEVER expect for ANY sender to get dropped so unwrap here is fine
                 action = self.incoming_actions.next() => self.process_action(action.unwrap()),
                 // pending ack queue Stream CANNOT return a `None` so unwrap here is fine
-                expired_ack = self.pending_acks_timers.next() => self.handle_expired_ack_timer(expired_ack.unwrap())
+                expired_ack = self.pending_acks_timers.next() => self.handle_expired_ack_timer(Ok(expired_ack.unwrap()))
             }
         }
     }

@@ -105,7 +105,7 @@ where
         loop {
             tokio::select! {
                 delayed = self.delay_queue.next() => {
-                    self.handle_done_delaying(delayed);
+                    self.handle_done_delaying(Some(Ok(delayed.unwrap())));
                 }
                 new_packet = self.packet_receiver.next() => {
                     // this one is impossible to ever panic - the object itself contains a sender

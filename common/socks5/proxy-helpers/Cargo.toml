@@ -8,8 +8,8 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.0"
-tokio = { version = "1.4", features = [ "net", "io-util", "sync", "macros", "time", "rt-multi-thread" ] }
-tokio-util = { version = "0.6", features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
+tokio = { version = "1.19.1", features = [ "net", "io-util", "sync", "macros", "time", "rt-multi-thread" ] }
+tokio-util = { version = "0.7.3", features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
 # their `read_buf` [from the util crate] replacement rather than having to rethink/reimplement `AvailableReader` with the new AsyncRead trait definition.
 # In the long run, the dependency should probably get removed in favour of pure-tokio implementation, but for time being it's fine.
 futures = "0.3"
@@ -18,4 +18,4 @@ socks5-requests = { path = "../requests" }
 ordered-buffer = { path = "../ordered-buffer" }
 
 [dev-dependencies]
-tokio-test = "0.4"
+tokio-test = "0.4.2"

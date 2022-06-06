@@ -4,6 +4,7 @@
 
 ### Added
 
+- wallet: compound and claim reward endpoints for operators and delegators ([#1302])
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
 - wallet: require password to switch accounts
@@ -47,6 +48,7 @@
 [#1284]: https://github.com/nymtech/nym/pull/1284
 [#1292]: https://github.com/nymtech/nym/pull/1292
 [#1295]: https://github.com/nymtech/nym/pull/1295
+[#1302]: https://github.com/nymtech/nym/pull/1302
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

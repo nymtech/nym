@@ -25,7 +25,8 @@ impl NetworkStatisticsAPI {
             )
             .manage(storage.clone())
             .ignite()
-            .await?;
+            .await
+            .map_err(Box::new)?;
 
         Ok(NetworkStatisticsAPI { rocket })
     }

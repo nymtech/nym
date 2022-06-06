@@ -13,7 +13,7 @@ pub type Result<T> = std::result::Result<T, NetworkStatisticsAPIError>;
 #[derive(Debug, thiserror::Error)]
 pub enum NetworkStatisticsAPIError {
     #[error("{0}")]
-    RocketError(#[from] rocket::Error),
+    RocketError(#[from] Box<rocket::Error>),
 
     #[error("{0}")]
     StorageError(#[from] NetworkStatisticsStorageError),

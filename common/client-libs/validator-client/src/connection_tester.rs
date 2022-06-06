@@ -19,7 +19,7 @@ const CONNECTION_TEST_TIMEOUT_SEC: u64 = 2;
 pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
     nymd_urls: impl Iterator<Item = (Network, Url)>,
     api_urls: impl Iterator<Item = (Network, Url)>,
-    mixnet_contract_address: HashMap<Network, Option<cosmrs::AccountId>, H>,
+    mixnet_contract_address: HashMap<Network, cosmrs::AccountId, H>,
 ) -> (
     HashMap<Network, Vec<(Url, bool)>>,
     HashMap<Network, Vec<(Url, bool)>>,
@@ -47,14 +47,15 @@ pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
 fn setup_connection_tests<H: BuildHasher + 'static>(
     nymd_urls: impl Iterator<Item = (Network, Url)>,
     api_urls: impl Iterator<Item = (Network, Url)>,
-    mixnet_contract_address: HashMap<Network, Option<cosmrs::AccountId>, H>,
+    mixnet_contract_address: HashMap<Network, cosmrs::AccountId, H>,
 ) -> impl Iterator<Item = ClientForConnectionTest> {
     let nymd_connection_test_clients = nymd_urls.filter_map(move |(network, url)| {
         let address = mixnet_contract_address
             .get(&network)
             .expect("No configured contract address")
             .clone();
-        NymdClient::<QueryNymdClient>::connect(url.as_str(), address, None, None)
+        NymdClient::<QueryNymdClient>::connect(url.as_str())
+            .map(|client| client.with_mixnet_contract_address(address))
             .map(move |client| ClientForConnectionTest::Nymd(network, url, Box::new(client)))
             .ok()
     });

@@ -3,14 +3,18 @@
 
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
+use coconut_interface::{
+    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
+};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -85,6 +89,16 @@ impl Client {
             .await
     }
 
+    pub async fn get_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[routes::API_VERSION, routes::MIXNODES, routes::DETAILED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorAPIError> {
         self.query_validator_api(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
@@ -98,9 +112,39 @@ impl Client {
         .await
     }
 
+    pub async fn get_active_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODES,
+                routes::ACTIVE,
+                routes::DETAILED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_rewarded_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODES,
+                routes::REWARDED,
+                routes::DETAILED,
+            ],
             NO_PARAMS,
         )
         .await
@@ -328,6 +372,57 @@ impl Client {
                 routes::COCONUT_VERIFICATION_KEY,
             ],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn verify_bandwidth_credential(
+        &self,
+        request_body: &VerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    pub async fn propose_release_funds(
+        &self,
+        request_body: &ProposeReleaseFundsRequestBody,
+    ) -> Result<ProposeReleaseFundsResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_PROPOSE_RELEASE_FUNDS,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    pub async fn execute_release_funds(
+        &self,
+        request_body: &ExecuteReleaseFundsRequestBody,
+    ) -> Result<(), ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_EXECUTE_RELEASE_FUNDS,
+            ],
+            NO_PARAMS,
+            request_body,
         )
         .await
     }

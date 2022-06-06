@@ -83,7 +83,7 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
-            disabled_credentials_mode: true,
+            disabled_credentials_mode: false,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
@@ -100,8 +100,8 @@ impl GatewayClient {
         }
     }
 
-    pub fn set_disabled_credentials_mode(&mut self, disabled_credentials_mode: bool) {
-        self.disabled_credentials_mode = disabled_credentials_mode
+    pub fn set_disabled_credentials_mode(&mut self, _disabled_credentials_mode: bool) {
+        self.disabled_credentials_mode = false;
     }
 
     // TODO: later convert into proper builder methods
@@ -496,7 +496,6 @@ impl GatewayClient {
             self.shared_key.as_ref().unwrap(),
             iv,
         )
-        .ok_or(GatewayClientError::SerializeCredential)?
         .into();
         self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),

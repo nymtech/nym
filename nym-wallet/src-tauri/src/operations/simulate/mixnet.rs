@@ -4,6 +4,7 @@
 use crate::error::BackendError;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::State;
+use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{ExecuteMsg, Gateway, MixNode};
 use nym_types::currency::DecCoin;
 use std::sync::Arc;
@@ -20,7 +21,7 @@ pub async fn simulate_bond_gateway(
     let pledge = guard.attempt_convert_to_base_coin(pledge)?;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     // TODO: I'm still not 100% convinced whether this should be exposed here or handled somewhere else in the client code
@@ -44,7 +45,7 @@ pub async fn simulate_unbond_gateway(
     let guard = state.read().await;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
@@ -68,7 +69,7 @@ pub async fn simulate_bond_mixnode(
     let pledge = guard.attempt_convert_to_base_coin(pledge)?;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
@@ -91,7 +92,7 @@ pub async fn simulate_unbond_mixnode(
     let guard = state.read().await;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
@@ -112,7 +113,7 @@ pub async fn simulate_update_mixnode(
     let guard = state.read().await;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
@@ -137,7 +138,7 @@ pub async fn simulate_delegate_to_mixnode(
     let delegation = guard.attempt_convert_to_base_coin(amount)?;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
@@ -160,7 +161,7 @@ pub async fn simulate_undelegate_from_mixnode(
     let guard = state.read().await;
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
     let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
@@ -172,5 +173,61 @@ pub async fn simulate_undelegate_from_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+}
+
+#[tauri::command]
+pub async fn simulate_claim_operator_reward(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client.nymd.simulate_claim_operator_reward(None).await?;
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+}
+
+#[tauri::command]
+pub async fn simulate_compound_operator_reward(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client.nymd.simulate_compound_operator_reward(None).await?;
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+}
+
+#[tauri::command]
+pub async fn simulate_claim_delegator_reward(
+    mix_identity: IdentityKey,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client
+        .nymd
+        .simulate_claim_delegator_reward(mix_identity, None)
+        .await?;
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+}
+
+#[tauri::command]
+pub async fn simulate_compound_delegator_reward(
+    mix_identity: IdentityKey,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client
+        .nymd
+        .simulate_compound_delegator_reward(mix_identity, None)
+        .await?;
+    let gas_price = client.nymd.gas_price().clone();
     guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }

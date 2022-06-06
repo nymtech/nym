@@ -146,18 +146,13 @@ impl ClientControlRequest {
         credential: &Credential,
         shared_key: &SharedKeys,
         iv: IV,
-    ) -> Option<Self> {
-        match bincode::serialize(credential) {
-            Ok(serialized_credential) => {
-                let enc_credential =
-                    shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+    ) -> Self {
+        let serialized_credential = credential.as_bytes();
+        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-                Some(ClientControlRequest::BandwidthCredential {
-                    enc_credential,
-                    iv: iv.to_bytes(),
-                })
-            }
-            _ => None,
+        ClientControlRequest::BandwidthCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
         }
     }
 
@@ -167,8 +162,9 @@ impl ClientControlRequest {
         shared_key: &SharedKeys,
         iv: IV,
     ) -> Result<Credential, GatewayRequestsError> {
-        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
+        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        Credential::from_bytes(&credential_bytes)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 
     #[cfg(not(feature = "coconut"))]

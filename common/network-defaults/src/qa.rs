@@ -15,6 +15,9 @@ pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav";
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
+    "n1ghd753shjuwexxywmgs4xz7x2q732vcn7ty4yw";
+pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =

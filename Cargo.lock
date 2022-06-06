@@ -873,7 +873,6 @@ dependencies = [
  "bip39",
  "cfg-if 0.1.10",
  "clap 3.1.8",
- "coconut-bandwidth-contract-common",
  "coconut-interface",
  "credential-storage",
  "credentials",
@@ -1162,6 +1161,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9336ecef1e19d56cf6e3e932475fc6a3dee35eec5a386e07917a1d1ba6bb0e35"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-utils"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
  "schemars",
  "serde",
 ]
@@ -1568,12 +1603,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "explorer-api"
 version = "1.0.1"
 dependencies = [
  "chrono",
  "humantime-serde",
  "isocountry",
+ "itertools",
  "log",
  "mixnet-contract-common",
  "network-defaults",
@@ -1950,7 +1994,6 @@ dependencies = [
 name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "bs58",
  "coconut-interface",
  "credentials",
@@ -2910,6 +2953,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
+name = "multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3239,6 +3294,7 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
+ "cosmwasm-std",
  "credential-storage",
  "credentials",
  "crypto",
@@ -3250,6 +3306,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "mixnet-contract-common",
+ "multisig-contract-common",
  "nymcoconut",
  "nymsphinx",
  "okapi",
@@ -6283,16 +6340,20 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "coconut-bandwidth-contract-common",
  "coconut-interface",
  "colored",
  "config",
  "cosmrs",
  "cosmwasm-std",
+ "cw3",
+ "execute",
  "flate2",
  "futures",
  "itertools",
  "log",
  "mixnet-contract-common",
+ "multisig-contract-common",
  "network-defaults",
  "prost 0.10.3",
  "reqwest",

@@ -15,10 +15,11 @@ use credentials::coconut::params::{
 };
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
+use multisig_contract_common::msg::ProposalResponse;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
-use validator_client::nymd::{tx::Hash, DeliverTx, Event, Tag, TxResponse};
+use validator_client::nymd::{tx::Hash, DeliverTx, Event, Fee, Tag, TxResponse};
 use validator_client::validator_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
@@ -56,6 +57,37 @@ impl super::client::Client for DummyClient {
             .cloned()
             .ok_or(CoconutError::TxHashParseError)
     }
+
+    async fn get_proposal(&self, _proposal_id: u64) -> Result<ProposalResponse> {
+        todo!()
+    }
+
+    async fn propose_release_funds(
+        &self,
+        _title: String,
+        _blinded_serial_number: String,
+        _voucher_value: u128,
+        _fee: Option<Fee>,
+    ) -> Result<u64> {
+        todo!()
+    }
+
+    async fn vote_proposal(
+        &self,
+        _proposal_id: u64,
+        _vote_yes: bool,
+        _fee: Option<Fee>,
+    ) -> Result<()> {
+        todo!()
+    }
+
+    async fn execute_proposal(
+        &self,
+        proposal_id: u64,
+        fee: Option<Fee>,
+    ) -> crate::coconut::error::Result<()> {
+        todo!()
+    }
 }
 
 pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
@@ -87,7 +119,12 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(&nymd_db);
 
-    let rocket = rocket::build().attach(InternalSignRequest::stage(nymd_client, key_pair, storage));
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nymd_client,
+        key_pair,
+        vec![],
+        storage,
+    ));
 
     let client = Client::tracked(rocket)
         .await
@@ -172,6 +209,7 @@ async fn signed_before() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
+        vec![],
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -231,7 +269,7 @@ async fn state_functions() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let state = State::new(nymd_client, key_pair, storage.clone());
+    let state = State::new(nymd_client, key_pair, vec![], storage.clone());
 
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
     assert!(state.signed_before(&tx_hash).await.unwrap().is_none());
@@ -393,6 +431,7 @@ async fn blind_sign_correct() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
+        vec![],
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -465,6 +504,7 @@ async fn signature_test() {
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
+        vec![],
         storage.clone(),
     ));
     let client = Client::tracked(rocket)

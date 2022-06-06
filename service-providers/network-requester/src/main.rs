@@ -9,8 +9,6 @@ mod allowed_hosts;
 mod connection;
 mod core;
 mod statistics;
-#[cfg(feature = "stats-service")]
-mod storage;
 mod websocket;
 
 const OPEN_PROXY_ARG: &str = "open-proxy";

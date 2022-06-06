@@ -53,6 +53,7 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
+    "common/statistics",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
     "common/task",

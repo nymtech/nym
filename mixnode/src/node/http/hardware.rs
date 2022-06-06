@@ -19,29 +19,33 @@ pub(crate) struct CryptoHardware {
 
 /// Provides hardware information which Nym can use to optimize mixnet speed over time (memory, crypto hardware, CPU, cores, etc).
 #[get("/hardware")]
-pub(crate) fn hardware() -> Json<Hardware> {
+pub(crate) fn hardware() -> Json<Option<Hardware>> {
     Json(hardware_info())
 }
 
 /// Gives back a summary report of whatever system hardware info we can get for this platform.
-fn hardware_info() -> Hardware {
+fn hardware_info() -> Option<Hardware> {
     let crypto_hardware = hardware_info_from_cupid();
     hardware_from_sysinfo(crypto_hardware)
 }
 
 /// Sysinfo gives back basic stuff like number of CPU cores and available memory. If available, this includes the hardware encryption
 /// extensions report
-fn hardware_from_sysinfo(crypto_hardware: Option<CryptoHardware>) -> Hardware {
-    let mut system = System::new_all();
-    let total_memory = system.free_memory();
-    system.refresh_all();
-    let ram = format!("{}KB", total_memory);
-    let cores = system.cpus();
-    let num_cores = cores.len();
-    Hardware {
-        crypto_hardware,
-        ram,
-        num_cores,
+fn hardware_from_sysinfo(crypto_hardware: Option<CryptoHardware>) -> Option<Hardware> {
+    if System::IS_SUPPORTED {
+        let mut system = System::new_all();
+        let total_memory = system.free_memory();
+        system.refresh_all();
+        let ram = format!("{}KB", total_memory);
+        let cores = system.cpus();
+        let num_cores = cores.len();
+        Some(Hardware {
+            crypto_hardware,
+            ram,
+            num_cores,
+        })
+    } else {
+        None
     }
 }
 

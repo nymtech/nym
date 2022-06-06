@@ -12,6 +12,7 @@
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
 - mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- mixnode: Added basic mixnode hardware reporting to the HTTP API.
 - vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])

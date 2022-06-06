@@ -213,13 +213,6 @@ pub(crate) async fn get_mixnode_inclusion_probability(
     let mixnodes = cache.mixnodes().await;
     let rewarding_params = cache.epoch_reward_params().await.into_inner();
 
-    if mixnodes.len() <= rewarding_params.rewarded_set_size() as usize {
-        return Json(Some(InclusionProbabilityResponse {
-            in_active: 1.0.into(),
-            in_reserve: 1.0.into(),
-        }));
-    }
-
     if let Some(target_mixnode) = mixnodes.iter().find(|x| x.identity() == &identity) {
         let total_bonded_tokens = mixnodes
             .iter()
@@ -232,9 +225,17 @@ pub(crate) async fn get_mixnode_inclusion_probability(
         let prob_one_draw =
             target_mixnode.total_bond().unwrap_or_default() as f64 / total_bonded_tokens;
         // Chance to be selected in any draw for active set
-        let prob_active_set = active_set_size * prob_one_draw;
+        let prob_active_set = if mixnodes.len() <= active_set_size as usize {
+            1.0
+        } else {
+            active_set_size * prob_one_draw
+        };
         // This is likely slightly too high, as we're not correcting form them not being selected in active, should be chance to be selected, minus the chance for being not selected in reserve
-        let prob_reserve_set = (rewarded_set_size - active_set_size) * prob_one_draw;
+        let prob_reserve_set = if mixnodes.len() <= rewarded_set_size as usize {
+            1.0
+        } else {
+            (rewarded_set_size - active_set_size) * prob_one_draw
+        };
 
         Json(Some(InclusionProbabilityResponse {
             in_active: prob_active_set.into(),

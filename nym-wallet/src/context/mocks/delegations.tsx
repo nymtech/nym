@@ -73,13 +73,12 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     triggerStateUpdate();
 
     setTimeout(async () => {
-      mockDelegations = mockDelegations.map(
-        (d) =>
-          // if (d.node_identity === newDelegation.node_identity) {
-          //   return { ...d, isPending: undefined };
-          // }
-          d,
-      );
+      mockDelegations = mockDelegations.map((d) => {
+        if (d.node_identity === identity) {
+          return { ...d, isPending: undefined };
+        }
+        return d;
+      });
       await recalculate();
       triggerStateUpdate();
     }, 3000);
@@ -173,6 +172,10 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     };
   };
 
+  const redeemRewards = async () => {
+    throw new Error('Not implemented');
+  };
+
   const resetState = () => {
     setIsLoading(true);
     setError(undefined);
@@ -210,6 +213,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
       addDelegation,
       updateDelegation,
       undelegate,
+      redeemRewards,
     }),
     [isLoading, error, delegations, totalDelegations, trigger],
   );

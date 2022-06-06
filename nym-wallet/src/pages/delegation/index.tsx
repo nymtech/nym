@@ -8,7 +8,7 @@ import { TPoolOption } from 'src/components';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { useDelegationContext, DelegationContextProvider } from '../../context/delegations';
-import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
+import { RewardsContextProvider } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
@@ -22,7 +22,6 @@ export const Delegation: FC = () => {
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
   const [showRedeemRewardsModal, setShowRedeemRewardsModal] = useState<boolean>(false);
-  const [showRedeemAllRewardsModal, setShowRedeemAllRewardsModal] = useState<boolean>(false);
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
 
@@ -31,20 +30,22 @@ export const Delegation: FC = () => {
     network,
     userBalance: { balance, originalVesting },
   } = useContext(AppContext);
-  const { redeemAllRewards, redeemRewards, totalRewards, isLoading: isLoadingRewards } = useRewardsContext();
+
   const {
     delegations,
     pendingDelegations,
     totalDelegations,
-    isLoading: isLoadingDelegations,
+    totalRewards,
+    isLoading,
     addDelegation,
     undelegate,
+    redeemRewards,
     refresh,
   } = useDelegationContext();
 
   // Refresh the rewards and delegations periodically when page is mounted
   useEffect(() => {
-    const timer = setInterval(refresh, 1 * 60 * 1000); // every 5 minutes
+    const timer = setInterval(refresh, 1 * 60 * 1000); // every 1 minute
     return () => clearInterval(timer);
   }, []);
 
@@ -63,6 +64,9 @@ export const Delegation: FC = () => {
         setShowUndelegateModal(true);
         break;
       case 'redeem':
+        setShowRedeemRewardsModal(true);
+        break;
+      case 'compound':
         setShowRedeemRewardsModal(true);
         break;
     }
@@ -179,67 +183,57 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleRedeem = async (identityKey?: string) => {
-    if (!identityKey) {
-      setConfirmationModalProps({
-        status: 'error',
-        action: 'redeem',
-      });
-      return;
-    }
+  const handleRedeem = async (identityKey: string, proxy: string | null) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'redeem',
     });
     setShowRedeemRewardsModal(false);
     setCurrentDelegationListActionItem(undefined);
-    if (clientDetails?.client_address) {
-      try {
-        const tx = await redeemRewards(identityKey);
-        const bal = await userBalance();
-        setConfirmationModalProps({
-          status: 'success',
-          action: 'redeem',
-          balance: bal?.printable_balance || '-',
-          recipient: clientDetails?.client_address,
-          transactionUrl: `${urls(network).blockExplorer}/${tx}}`,
-        });
-      } catch (e) {
-        setConfirmationModalProps({
-          status: 'error',
-          action: 'redeem',
-          message: (e as Error).message,
-        });
-      }
-    }
-  };
 
-  const handleRedeemAll = async () => {
-    setConfirmationModalProps({
-      status: 'loading',
-      action: 'redeem-all',
-    });
-    setShowRedeemAllRewardsModal(false);
-    setCurrentDelegationListActionItem(undefined);
     try {
-      const tx = await redeemAllRewards();
+      await redeemRewards(identityKey, proxy);
       const bal = await userBalance();
-
       setConfirmationModalProps({
         status: 'success',
-        action: 'redeem-all',
+        action: 'redeem',
         balance: bal?.printable_balance || '-',
-        recipient: clientDetails?.client_address,
-        transactionUrl: tx.transactionUrl,
       });
     } catch (e) {
       setConfirmationModalProps({
         status: 'error',
-        action: 'redeem-all',
+        action: 'redeem',
         message: (e as Error).message,
       });
     }
   };
+
+  // const handleRedeemAll = async () => {
+  //   setConfirmationModalProps({
+  //     status: 'loading',
+  //     action: 'redeem-all',
+  //   });
+  //   setShowRedeemAllRewardsModal(false);
+  //   setCurrentDelegationListActionItem(undefined);
+  //   try {
+  //     const tx = await redeemAllRewards();
+  //     const bal = await userBalance();
+
+  //     setConfirmationModalProps({
+  //       status: 'success',
+  //       action: 'redeem-all',
+  //       balance: bal?.printable_balance || '-',
+  //       recipient: clientDetails?.client_address,
+  //       transactionUrl: tx.transactionUrl,
+  //     });
+  //   } catch (e) {
+  //     setConfirmationModalProps({
+  //       status: 'error',
+  //       action: 'redeem-all',
+  //       message: (e as Error).message,
+  //     });
+  //   }
+  // };
 
   return (
     <>
@@ -260,12 +254,7 @@ export const Delegation: FC = () => {
             </Link>
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <RewardsSummary
-              isLoading={isLoadingDelegations || isLoadingRewards}
-              totalDelegation={totalDelegations}
-              totalRewards={totalRewards}
-              onClickRedeemAll={() => setShowRedeemAllRewardsModal(true)}
-            />
+            <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
             <Button
               variant="contained"
               disableElevation
@@ -277,7 +266,7 @@ export const Delegation: FC = () => {
           </Box>
           <DelegationList
             explorerUrl={explorerUrl}
-            isLoading={isLoadingDelegations}
+            isLoading={isLoading}
             items={delegations}
             onItemActionClick={handleDelegationItemActionClick}
           />
@@ -340,30 +329,30 @@ export const Delegation: FC = () => {
         />
       )}
 
-      {currentDelegationListActionItem && showRedeemRewardsModal && (
+      {currentDelegationListActionItem?.accumulated_rewards && showRedeemRewardsModal && (
         <RedeemModal
           open={showRedeemRewardsModal}
           onClose={() => setShowRedeemRewardsModal(false)}
-          onOk={handleRedeem}
+          onOk={(identity) => handleRedeem(identity, currentDelegationListActionItem.proxy)}
           message="Redeem rewards"
           currency={clientDetails!.denom}
-          identityKey={currentDelegationListActionItem.node_identity}
+          identityKey={currentDelegationListActionItem?.node_identity}
           fee={0.004375}
-          amount={425.65843}
+          amount={+currentDelegationListActionItem.accumulated_rewards.amount}
         />
       )}
 
-      {showRedeemAllRewardsModal && (
+      {/* {currentDelegationListActionItem && showRedeemAllRewardsModal && (
         <RedeemModal
           open={showRedeemAllRewardsModal}
           onClose={() => setShowRedeemAllRewardsModal(false)}
           onOk={handleRedeemAll}
-          message="Redeem all rewards"
+          message="Compound rewards"
           currency="NYM"
           fee={0.004375}
-          amount={425.65843}
+          amount={currentDelegationListActionItem?.amount.amount}
         />
-      )}
+      )} */}
 
       {confirmationModalProps && (
         <DelegationModal

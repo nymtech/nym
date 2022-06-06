@@ -55,6 +55,7 @@ export const RedeemAllRewards = () => {
         onOk={() => setOpen(false)}
         message="Redeem all rewards"
         currency="NYM"
+        identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         fee={0.004375}
         amount={425.65843}
       />
@@ -92,6 +93,7 @@ export const FeeIsMoreThanAllRewards = () => {
         onOk={() => setOpen(false)}
         message="Redeem all rewards"
         currency="NYM"
+        identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         fee={0.004375}
         amount={0.001}
       />

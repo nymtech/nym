@@ -8,8 +8,10 @@ import {
 } from '@nymproject/types';
 import type { Network } from 'src/types';
 import {
+  claimDelegatorRewards,
   delegateToMixnode,
   getAllPendingDelegations,
+  vestingClaimDelegatorRewards,
   vestingDelegateToMixnode,
   vestingUndelegateFromMixnode,
 } from 'src/requests';
@@ -28,6 +30,7 @@ export type TDelegationContext = {
     tokenPool: TPoolOption,
   ) => Promise<TransactionExecuteResult>;
   undelegate: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
+  redeemRewards: (identity: string, proxy: string | null) => Promise<void>;
 };
 
 export type TDelegationTransaction = {
@@ -41,6 +44,9 @@ export const DelegationContext = createContext<TDelegationContext>({
     throw new Error('Not implemented');
   },
   undelegate: async () => {
+    throw new Error('Not implemented');
+  },
+  redeemRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -70,14 +76,33 @@ export const DelegationContextProvider: FC<{
 
   const undelegate = async (identity: string, proxy: string | null) => {
     let delegationResult;
-    if ((proxy || '').trim().length === 0) {
-      // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-      delegationResult = await undelegateFromMixnode(identity);
-    } else {
-      // the delegation is with locked tokens, so use the vesting contract
-      delegationResult = await vestingUndelegateFromMixnode(identity);
+    try {
+      if ((proxy || '').trim().length === 0) {
+        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
+        delegationResult = await undelegateFromMixnode(identity);
+      } else {
+        // the delegation is with locked tokens, so use the vesting contract
+        delegationResult = await vestingUndelegateFromMixnode(identity);
+      }
+      return delegationResult;
+    } catch (e) {
+      throw new Error(e as string);
     }
-    return delegationResult;
+  };
+
+  const redeemRewards = async (identity: string, proxy: string | null) => {
+    try {
+      if ((proxy || '').trim().length === 0) {
+        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
+        await claimDelegatorRewards(identity);
+      } else {
+        // the delegation is with locked tokens, so use the vesting contract
+        await vestingClaimDelegatorRewards(identity);
+      }
+    } catch (e) {
+      console.log(e);
+      throw new Error(e as string);
+    }
   };
 
   const resetState = () => {
@@ -119,6 +144,7 @@ export const DelegationContextProvider: FC<{
       refresh,
       addDelegation,
       undelegate,
+      redeemRewards,
     }),
     [isLoading, error, delegations, pendingDelegations, totalDelegations],
   );

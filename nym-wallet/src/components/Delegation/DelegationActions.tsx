@@ -16,7 +16,7 @@ import { DelegationEventKind } from '@nymproject/types';
 import { Delegate, Undelegate } from '../../svg-icons';
 import { DelegateListItemPending } from './types';
 
-export type DelegationListItemActions = 'delegate' | 'undelegate' | 'redeem';
+export type DelegationListItemActions = 'delegate' | 'undelegate' | 'redeem' | 'compound';
 
 const BUTTON_SIZE = '32px';
 const MIN_WIDTH = '150px';
@@ -146,7 +146,7 @@ export const DelegationsActionsMenu: React.FC<{
           title="Compound"
           description="Add your rewards to this delegation"
           Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
-          onClick={() => handleActionSelect?.('redeem')}
+          onClick={() => handleActionSelect?.('compound')}
           disabled={disableRedeemingRewards}
         />
 

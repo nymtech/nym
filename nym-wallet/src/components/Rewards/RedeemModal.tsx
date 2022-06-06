@@ -7,8 +7,8 @@ import { SimpleModal } from '../Modals/SimpleModal';
 export const RedeemModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey?: string) => void;
-  identityKey?: string;
+  onOk?: (identityKey: string) => void;
+  identityKey: string;
   amount: number;
   fee: number;
   minimum?: number;

@@ -103,3 +103,9 @@ export const vestingBond = async (args: { type: EnumNodeType } & (TBondMixNodeAr
   if (type === EnumNodeType.mixnode) return vestingBondMixNode(other as TBondMixNodeArgs);
   return vestingBondGateway(other as TBondGatewayArgs);
 };
+
+export const vestingClaimDelegatorRewards = async (mixIdentity: string): Promise<void> =>
+  invokeWrapper('vesting_claim_delegator_reward', { mixIdentity });
+
+export const vestingCompoundDelegatorRewards = async (mixIdentity: string): Promise<void> =>
+  invokeWrapper('vesting_compound_delegator_reward', { mixIdentity });

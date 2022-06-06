@@ -6,3 +6,4 @@ export * from './network';
 export * from './queries';
 export * from './utils';
 export * from './delegation';
+export * from './rewards';

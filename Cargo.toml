@@ -63,6 +63,7 @@ members = [
     "gateway/gateway-requests",
     "mixnode",
     "service-providers/network-requester",
+    "service-providers/network-statistics",
     "validator-api",
     "validator-api/validator-api-requests",
 ]

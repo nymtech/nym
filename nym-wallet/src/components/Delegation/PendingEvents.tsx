@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC } from 'react';
 import {
   Box,
   Link,
@@ -13,7 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
-import { DelegationEvent, DelegationWithEverything } from '@nymproject/types';
+import { DelegationEvent } from '@nymproject/types';
 import { ArrowDropDown } from '@mui/icons-material';
 import { visuallyHidden } from '@mui/utils';
 
@@ -37,6 +37,25 @@ const headCells: HeadCell[] = [
   { id: 'amount', label: 'Delegation', sortable: true },
   { id: 'kind', label: 'Type', sortable: true },
 ];
+
+function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
+  if (b[orderBy] < a[orderBy]) {
+    return -1;
+  }
+  if (b[orderBy] > a[orderBy]) {
+    return 1;
+  }
+  return 0;
+}
+
+function getComparator<Key extends keyof DelegationEvent>(
+  order: Order,
+  orderBy: Key,
+): (a: DelegationEvent, b: DelegationEvent) => number {
+  return order === 'desc'
+    ? (a, b) => descendingComparator(a, b, orderBy)
+    : (a, b) => -descendingComparator(a, b, orderBy);
+}
 
 const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
   const createSortHandler = (property: keyof DelegationEvent) => (event: React.MouseEvent<unknown>) => {
@@ -94,7 +113,7 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
-          {pendingEvents.map((item, index) => (
+          {pendingEvents.sort(getComparator(order, orderBy)).map((item, index) => (
             <TableRow key={item.node_identity + index}>
               <TableCell>
                 <CopyToClipboard

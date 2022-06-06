@@ -30,7 +30,7 @@ pub async fn simulate_bond_gateway(
             gateway,
             owner_signature,
         },
-        vec![pledge.into()],
+        vec![pledge],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
@@ -77,7 +77,7 @@ pub async fn simulate_bond_mixnode(
             mix_node: mixnode,
             owner_signature,
         },
-        vec![pledge.into()],
+        vec![pledge],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
@@ -145,7 +145,7 @@ pub async fn simulate_delegate_to_mixnode(
         &ExecuteMsg::DelegateToMixnode {
             mix_identity: identity.to_string(),
         },
-        vec![delegation.into()],
+        vec![delegation],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;

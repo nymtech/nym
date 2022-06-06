@@ -90,7 +90,7 @@ impl State {
     pub(crate) fn registered_coins(&self) -> Result<&RegisteredCoins, BackendError> {
         self.registered_coins
             .get(&self.current_network)
-            .ok_or_else(|| BackendError::NoCoinsRegistered {
+            .ok_or(BackendError::NoCoinsRegistered {
                 network: self.current_network,
             })
     }

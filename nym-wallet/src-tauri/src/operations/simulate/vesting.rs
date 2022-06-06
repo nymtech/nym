@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::State;
 use mixnet_contract_common::{Gateway, MixNode};
-use nym_types::currency::MajorCurrencyAmount;
+use nym_types::currency::DecCoin;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use vesting_contract_common::ExecuteMsg;
@@ -13,12 +13,12 @@ use vesting_contract_common::ExecuteMsg;
 #[tauri::command]
 pub async fn simulate_vesting_bond_gateway(
     gateway: Gateway,
-    pledge: MajorCurrencyAmount,
+    pledge: DecCoin,
     owner_signature: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let pledge = pledge.into();
+    let pledge = guard.attempt_convert_to_base_coin(pledge)?;
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address()?;
@@ -29,13 +29,13 @@ pub async fn simulate_vesting_bond_gateway(
         &ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
-            amount: pledge,
+            amount: pledge.into(),
         },
         vec![],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -55,18 +55,18 @@ pub async fn simulate_vesting_unbond_gateway(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
 pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
     owner_signature: String,
-    pledge: MajorCurrencyAmount,
+    pledge: DecCoin,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let pledge = pledge.into();
+    let pledge = guard.attempt_convert_to_base_coin(pledge)?;
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address()?;
@@ -77,13 +77,13 @@ pub async fn simulate_vesting_bond_mixnode(
         &ExecuteMsg::BondMixnode {
             mix_node: mixnode,
             owner_signature,
-            amount: pledge,
+            amount: pledge.into(),
         },
         vec![],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -103,7 +103,7 @@ pub async fn simulate_vesting_unbond_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -126,16 +126,16 @@ pub async fn simulate_vesting_update_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
 pub async fn simulate_withdraw_vested_coins(
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let amount = amount.into();
+    let amount = guard.attempt_convert_to_base_coin(amount)?.into();
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address()?;
@@ -148,5 +148,5 @@ pub async fn simulate_withdraw_vested_coins(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }

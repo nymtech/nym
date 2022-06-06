@@ -5,19 +5,19 @@ use crate::error::BackendError;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::State;
 use mixnet_contract_common::{ExecuteMsg, Gateway, MixNode};
-use nym_types::currency::MajorCurrencyAmount;
+use nym_types::currency::DecCoin;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[tauri::command]
 pub async fn simulate_bond_gateway(
     gateway: Gateway,
-    pledge: MajorCurrencyAmount,
+    pledge: DecCoin,
     owner_signature: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let pledge = pledge.into();
+    let pledge = guard.attempt_convert_to_base_coin(pledge)?;
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -30,11 +30,11 @@ pub async fn simulate_bond_gateway(
             gateway,
             owner_signature,
         },
-        vec![pledge],
+        vec![pledge.into()],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -54,18 +54,18 @@ pub async fn simulate_unbond_gateway(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
 pub async fn simulate_bond_mixnode(
     mixnode: MixNode,
     owner_signature: String,
-    pledge: MajorCurrencyAmount,
+    pledge: DecCoin,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let pledge = pledge.into();
+    let pledge = guard.attempt_convert_to_base_coin(pledge)?;
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -77,11 +77,11 @@ pub async fn simulate_bond_mixnode(
             mix_node: mixnode,
             owner_signature,
         },
-        vec![pledge],
+        vec![pledge.into()],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -101,7 +101,7 @@ pub async fn simulate_unbond_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -124,17 +124,17 @@ pub async fn simulate_update_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
 pub async fn simulate_delegate_to_mixnode(
     identity: &str,
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let delegation = amount.into();
+    let delegation = guard.attempt_convert_to_base_coin(amount)?;
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address()?;
@@ -145,11 +145,11 @@ pub async fn simulate_delegate_to_mixnode(
         &ExecuteMsg::DelegateToMixnode {
             mix_identity: identity.to_string(),
         },
-        vec![delegation],
+        vec![delegation.into()],
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -172,5 +172,5 @@ pub async fn simulate_undelegate_from_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }

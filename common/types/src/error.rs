@@ -66,6 +66,8 @@ pub enum TypesError {
     UnsupportedExponent(u32),
     #[error("Attempted to convert coin that would have resulted in loss of precision")]
     LossyCoinConversion,
+    #[error("The provided coin has an unknown denomination - {0}")]
+    UnknownCoinDenom(String),
 }
 
 impl Serialize for TypesError {

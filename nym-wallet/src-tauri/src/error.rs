@@ -1,4 +1,5 @@
 use nym_types::error::TypesError;
+use nym_wallet_types::network::Network;
 use serde::{Serialize, Serializer};
 use std::io;
 use std::num::ParseIntError;
@@ -106,6 +107,8 @@ pub enum BackendError {
     ValueParseError(#[from] ParseIntError),
     #[error("The provided coin has an unknown denomination - {0}")]
     UnknownCoinDenom(String),
+    #[error("Network {network} doesn't have any associated registered coin denoms")]
+    NoCoinsRegistered { network: Network },
 }
 
 impl Serialize for BackendError {

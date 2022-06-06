@@ -1,8 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_types::currency::MajorCurrencyAmount;
-use nym_types::error::TypesError;
 use nym_types::fees::FeeDetails;
 use validator_client::nymd::cosmwasm_client::types::GasInfo;
 use validator_client::nymd::{tx, CosmosCoin, Fee, GasPrice};
@@ -30,20 +28,12 @@ impl SimulateResult {
         }
     }
 
-    pub fn detailed_fee(&self) -> Result<FeeDetails, TypesError> {
-        let amount: Option<MajorCurrencyAmount> = self.to_fee_amount().map(Into::into);
-        Ok(FeeDetails {
-            amount,
-            fee: self.to_fee(),
-        })
-    }
-
-    fn to_fee_amount(&self) -> Option<CosmosCoin> {
+    pub(crate) fn to_fee_amount(&self) -> Option<CosmosCoin> {
         self.gas_info
             .map(|gas_info| &self.gas_price * gas_info.gas_used)
     }
 
-    fn to_fee(&self) -> Fee {
+    pub(crate) fn to_fee(&self) -> Fee {
         self.to_fee_amount()
             .and_then(|fee_amount| {
                 self.gas_info.map(|gas_info| {

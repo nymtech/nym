@@ -1,6 +1,4 @@
 use crate::currency::DecCoin;
-use crate::error::TypesError;
-use log::error;
 use mixnet_contract_common::mixnode::DelegationEvent as ContractDelegationEvent;
 use mixnet_contract_common::mixnode::PendingUndelegate as ContractPendingUndelegate;
 use mixnet_contract_common::Delegation as MixnetContractDelegation;
@@ -33,31 +31,6 @@ impl Delegation {
             block_height: delegation.block_height,
             proxy: delegation.proxy.map(|d| d.to_string()),
         }
-    }
-}
-
-impl TryFrom<MixnetContractDelegation> for Delegation {
-    type Error = TypesError;
-
-    fn try_from(delegation: MixnetContractDelegation) -> Result<Self, Self::Error> {
-        todo!()
-        // let MixnetContractDelegation {
-        //     owner,
-        //     node_identity,
-        //     amount,
-        //     block_height,
-        //     proxy,
-        // } = value;
-        //
-        // let amount: MajorCurrencyAmount = amount.into();
-        //
-        // Ok(Delegation {
-        //     owner: owner.into_string(),
-        //     node_identity,
-        //     amount,
-        //     block_height,
-        //     proxy: proxy.map(|p| p.into_string()),
-        // })
     }
 }
 
@@ -122,20 +95,6 @@ impl DelegationResult {
     }
 }
 
-impl TryFrom<MixnetContractDelegation> for DelegationResult {
-    type Error = TypesError;
-
-    fn try_from(delegation: MixnetContractDelegation) -> Result<Self, Self::Error> {
-        todo!()
-        // let amount: DecCoin = delegation.amount.clone().into();
-        // Ok(DelegationResult {
-        //     source_address: delegation.owner().to_string(),
-        //     target_address: delegation.node_identity(),
-        //     amount: Some(amount),
-        // })
-    }
-}
-
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -161,31 +120,24 @@ pub struct DelegationEvent {
     pub block_height: u64,
 }
 
-impl TryFrom<ContractDelegationEvent> for DelegationEvent {
-    type Error = TypesError;
-
-    fn try_from(event: ContractDelegationEvent) -> Result<Self, Self::Error> {
-        todo!()
-        //
-        // match event {
-        //     ContractDelegationEvent::Delegate(delegation) => {
-        //         let amount: MajorCurrencyAmount = delegation.amount.into();
-        //         Ok(DelegationEvent {
-        //             kind: DelegationEventKind::Delegate,
-        //             block_height: delegation.block_height,
-        //             address: delegation.owner.into_string(),
-        //             node_identity: delegation.node_identity,
-        //             amount: Some(amount),
-        //         })
-        //     }
-        //     ContractDelegationEvent::Undelegate(pending_undelegate) => Ok(DelegationEvent {
-        //         kind: DelegationEventKind::Undelegate,
-        //         block_height: pending_undelegate.block_height(),
-        //         address: pending_undelegate.delegate().into_string(),
-        //         node_identity: pending_undelegate.mix_identity(),
-        //         amount: None,
-        //     }),
-        // }
+impl DelegationEvent {
+    pub fn from_mixnet_contract(event: ContractDelegationEvent, amount: Option<DecCoin>) -> Self {
+        match event {
+            ContractDelegationEvent::Delegate(delegation) => DelegationEvent {
+                kind: DelegationEventKind::Delegate,
+                block_height: delegation.block_height,
+                address: delegation.owner.into_string(),
+                node_identity: delegation.node_identity,
+                amount,
+            },
+            ContractDelegationEvent::Undelegate(pending_undelegate) => DelegationEvent {
+                kind: DelegationEventKind::Undelegate,
+                block_height: pending_undelegate.block_height(),
+                address: pending_undelegate.delegate().into_string(),
+                node_identity: pending_undelegate.mix_identity(),
+                amount,
+            },
+        }
     }
 }
 
@@ -211,30 +163,6 @@ impl From<ContractPendingUndelegate> for PendingUndelegate {
             block_height: pending_undelegate.block_height(),
         }
     }
-}
-
-pub fn from_contract_delegation_events(
-    events: Vec<ContractDelegationEvent>,
-) -> Result<Vec<DelegationEvent>, TypesError> {
-    let (events, errors): (Vec<_>, Vec<_>) = events
-        .into_iter()
-        .map(|delegation_event| delegation_event.try_into())
-        .partition(Result::is_ok);
-
-    if errors.is_empty() {
-        let events = events
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .collect::<Vec<DelegationEvent>>();
-        return Ok(events);
-    }
-    let errors = errors
-        .into_iter()
-        .filter_map(|e| e.err())
-        .collect::<Vec<TypesError>>();
-
-    error!("Failed to convert delegations: {:?}", errors);
-    Err(TypesError::DelegationsInvalid)
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

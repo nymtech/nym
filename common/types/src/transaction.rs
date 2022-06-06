@@ -1,9 +1,9 @@
-use crate::currency::{DecCoin, MajorCurrencyAmount};
+use crate::currency::DecCoin;
 use crate::error::TypesError;
 use crate::gas::{Gas, GasInfo};
 use serde::{Deserialize, Serialize};
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::{Coin, TxResponse};
+use validator_client::nymd::TxResponse;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -99,13 +99,13 @@ pub struct RpcTransactionResponse {
     pub transaction_hash: String,
     pub gas_used: Gas,
     pub gas_wanted: Gas,
-    // pub fee: MajorCurrencyAmount,
+    pub fee: Option<DecCoin>,
 }
 
 impl RpcTransactionResponse {
     pub fn from_tx_response(
         t: &TxResponse,
-        denom_minor: &str,
+        fee: Option<DecCoin>,
     ) -> Result<RpcTransactionResponse, TypesError> {
         Ok(RpcTransactionResponse {
             index: t.index,
@@ -114,11 +114,7 @@ impl RpcTransactionResponse {
             transaction_hash: t.hash.to_string(),
             tx_result_json: ::serde_json::to_string_pretty(&t.tx_result)?,
             block_height: t.height.value(),
-            // wrong
-            // fee: MajorCurrencyAmount::from_decimal_and_denom(
-            //     Decimal::new(Uint128::from(value.tx_result.gas_used.value())),
-            //     denom_minor.to_string(),
-            // )?,
+            fee,
         })
     }
 }

@@ -28,5 +28,5 @@ pub async fn simulate_update_contract_settings(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }

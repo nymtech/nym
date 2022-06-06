@@ -28,8 +28,8 @@ pub enum Period {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PledgeData {
-    amount: Coin,
-    block_time: Timestamp,
+    pub amount: Coin,
+    pub block_time: Timestamp,
 }
 
 impl PledgeData {
@@ -48,9 +48,9 @@ impl PledgeData {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct OriginalVestingResponse {
-    amount: Coin,
-    number_of_periods: usize,
-    period_duration: u64,
+    pub amount: Coin,
+    pub number_of_periods: usize,
+    pub period_duration: u64,
 }
 
 impl OriginalVestingResponse {

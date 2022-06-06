@@ -2,12 +2,11 @@ use crate::error::BackendError;
 use crate::state::State;
 use crate::vesting::delegate::get_pending_vesting_delegation_events;
 use crate::{api_client, nymd_client};
-use cosmwasm_std::Coin as CosmWasmCoin;
 use mixnet_contract_common::IdentityKey;
-use nym_types::currency::{CurrencyDenom, DecCoin};
+use nym_types::currency::DecCoin;
 use nym_types::delegation::{
-    from_contract_delegation_events, Delegation, DelegationEvent, DelegationRecord,
-    DelegationWithEverything, DelegationsSummaryResponse,
+    Delegation, DelegationEvent, DelegationRecord, DelegationWithEverything,
+    DelegationsSummaryResponse,
 };
 use nym_types::transaction::TransactionExecuteResult;
 use std::collections::HashMap;
@@ -20,16 +19,29 @@ pub async fn get_pending_delegation_events(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get pending delegation events");
-    let events = nymd_client!(state)
-        .get_pending_delegation_events(nymd_client!(state).address().to_string(), None)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let events = client
+        .nymd
+        .get_pending_delegation_events(client.nymd.address().to_string(), None)
         .await?;
     log::info!("<<< {} pending delegation events", events.len());
     log::trace!("<<< pending delegation events = {:?}", events);
 
-    match from_contract_delegation_events(events) {
-        Ok(res) => Ok(res),
-        Err(e) => Err(e.into()),
-    }
+    events
+        .into_iter()
+        .map(|event| {
+            if let Some(amount) = event.delegation_amount() {
+                guard
+                    .attempt_convert_to_display_dec_coin(amount.into())
+                    .map(Some)
+            } else {
+                Ok(None)
+            }
+            .map(|amount| DelegationEvent::from_mixnet_contract(event, amount))
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -344,35 +356,37 @@ pub async fn get_delegator_rewards(
 pub async fn get_delegation_summary(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationsSummaryResponse, BackendError> {
-    todo!("also deal with later : )");
     log::info!(">>> Get delegation summary");
 
-    // let denom_minor = state.read().await.current_network().denom();
-    // let denom: CurrencyDenom = denom_minor.clone().try_into()?;
-    //
-    // let delegations = get_all_mix_delegations(state.clone()).await?;
-    // let mut total_delegations = DecCoin::zero(&denom);
-    // let mut total_rewards = DecCoin::zero(&denom);
-    //
-    // for d in delegations.clone() {
-    //     total_delegations = total_delegations + d.amount;
-    //     if let Some(rewards) = d.accumulated_rewards {
-    //         total_rewards = total_rewards + rewards;
-    //     }
-    // }
-    // log::info!(
-    //     "<<< {} delegations, total_delegations = {}, total_rewards = {}",
-    //     delegations.len(),
-    //     total_delegations,
-    //     total_rewards
-    // );
-    // log::trace!("<<< {:?}", delegations);
-    //
-    // Ok(DelegationsSummaryResponse {
-    //     delegations,
-    //     total_delegations,
-    //     total_rewards,
-    // })
+    let guard = state.read().await;
+    let network = guard.current_network();
+    let display_mix_denom = network.display_mix_denom();
+
+    let delegations = get_all_mix_delegations(state.clone()).await?;
+    let mut total_delegations = DecCoin::zero(display_mix_denom);
+    let mut total_rewards = DecCoin::zero(display_mix_denom);
+
+    for d in &delegations {
+        debug_assert_eq!(d.amount.denom, display_mix_denom);
+        total_delegations.amount += d.amount.amount;
+        if let Some(rewards) = &d.accumulated_rewards {
+            debug_assert_eq!(rewards.denom, display_mix_denom);
+            total_rewards.amount += rewards.amount;
+        }
+    }
+    log::info!(
+        "<<< {} delegations, total_delegations = {}, total_rewards = {}",
+        delegations.len(),
+        total_delegations,
+        total_rewards
+    );
+    log::trace!("<<< {:?}", delegations);
+
+    Ok(DelegationsSummaryResponse {
+        delegations,
+        total_delegations,
+        total_rewards,
+    })
 }
 
 #[tauri::command]

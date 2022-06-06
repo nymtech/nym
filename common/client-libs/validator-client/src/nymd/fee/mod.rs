@@ -4,7 +4,6 @@
 use crate::nymd::Coin;
 use cosmrs::tx;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 
 pub mod gas_price;
 
@@ -14,12 +13,6 @@ pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
 pub enum Fee {
     Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
     Auto(Option<f32>),
-}
-
-impl Display for Fee {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
 }
 
 impl Fee {

@@ -1,8 +1,7 @@
 use crate::error::BackendError;
-use crate::nymd_client;
 use crate::state::State;
 use nym_types::currency::DecCoin;
-use nym_types::delegation::{from_contract_delegation_events, DelegationEvent};
+use nym_types::delegation::DelegationEvent;
 use nym_types::transaction::TransactionExecuteResult;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -28,10 +27,19 @@ pub async fn get_pending_vesting_delegation_events(
     log::info!("<<< {} events", events.len());
     log::trace!("<<< {:?}", events);
 
-    match from_contract_delegation_events(events) {
-        Ok(res) => Ok(res),
-        Err(e) => Err(e.into()),
-    }
+    events
+        .into_iter()
+        .map(|event| {
+            if let Some(amount) = event.delegation_amount() {
+                guard
+                    .attempt_convert_to_display_dec_coin(amount.into())
+                    .map(Some)
+            } else {
+                Ok(None)
+            }
+            .map(|amount| DelegationEvent::from_mixnet_contract(event, amount))
+        })
+        .collect()
 }
 
 #[tauri::command]

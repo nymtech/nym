@@ -1,97 +1,95 @@
 use crate::error::TypesError;
+use config::defaults::all::Network;
 use config::defaults::DenomDetails;
-use cosmrs::Denom as CosmosDenom;
-use cosmwasm_std::{Coin as CosmWasmCoin, Fraction};
+use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, Mul};
-use std::str::FromStr;
-use strum::{Display, EnumString, EnumVariantNames};
-use validator_client::nymd::{Coin, CosmosCoin};
+use validator_client::nymd::Coin;
 
 pub type Denom = String;
 
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/CurrencyDenom.ts")
-)]
-#[cfg_attr(feature = "generate-ts", ts(rename_all = "UPPERCASE"))]
-#[derive(
-    Display,
-    Serialize,
-    Deserialize,
-    Clone,
-    Debug,
-    EnumString,
-    EnumVariantNames,
-    PartialEq,
-    JsonSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[strum(serialize_all = "UPPERCASE")]
-// TODO: this shouldn't be an enum...
-#[deprecated]
-pub enum CurrencyDenom {
-    #[strum(ascii_case_insensitive)]
-    Nym,
-    #[strum(ascii_case_insensitive)]
-    Nymt,
-    #[strum(ascii_case_insensitive)]
-    Nyx,
-    #[strum(ascii_case_insensitive)]
-    Nyxt,
-}
+#[derive(Debug, Default)]
+pub struct RegisteredCoins(HashMap<Denom, CoinMetadata>);
 
-impl CurrencyDenom {
-    pub fn parse(value: &str) -> Result<CurrencyDenom, TypesError> {
-        let mut denom = value.to_string();
-        if denom.starts_with('u') {
-            denom = denom[1..].to_string();
-        }
-        match CurrencyDenom::from_str(&denom) {
-            Ok(res) => Ok(res),
-            Err(_e) => Err(TypesError::InvalidDenom(value.to_string())),
-        }
+impl RegisteredCoins {
+    pub fn default_denoms(network: Network) -> Self {
+        let mut network_coins = HashMap::new();
+        network_coins.insert(
+            network.mix_denom().base.into(),
+            (*network.mix_denom()).into(),
+        );
+        network_coins.insert(
+            network.stake_denom().base.into(),
+            (*network.stake_denom()).into(),
+        );
+        RegisteredCoins(network_coins)
     }
-}
 
-impl TryFrom<CosmosDenom> for CurrencyDenom {
-    type Error = TypesError;
-
-    fn try_from(value: CosmosDenom) -> Result<Self, Self::Error> {
-        CurrencyDenom::parse(&value.to_string())
+    pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, TypesError> {
+        // check if this is already in the base denom
+        if self.0.contains_key(&coin.denom) {
+            // if we're converting a base DecCoin it CANNOT fail, unless somebody is providing
+            // bullshit data on purpose : )
+            return Ok(coin.try_into()?);
+        } else {
+            // TODO: this kinda suggests we may need a better data structure
+            for registered_coin in self.0.values() {
+                if let Some(exponent) = registered_coin.get_exponent(&coin.denom) {
+                    let amount = try_convert_decimal_to_u128(coin.try_scale_up_value(exponent)?)?;
+                    return Ok(Coin::new(amount, &registered_coin.base));
+                }
+            }
+        }
+        Err(TypesError::UnknownCoinDenom(coin.denom))
     }
-}
 
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/CurrencyStringMajorAmount.ts")
-)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[deprecated]
-pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-rs/issues/51 for exporting type aliases
+    pub fn attempt_convert_to_display_dec_coin(&self, coin: Coin) -> Result<DecCoin, TypesError> {
+        for registered_coin in self.0.values() {
+            if let Some(exponent) = registered_coin.get_exponent(&coin.denom) {
+                // if this fails it means we haven't registered our display denom which honestly should never be the case
+                // unless somebody is rocking their own custom network
+                let display_exponent = registered_coin
+                    .get_exponent(&registered_coin.display)
+                    .ok_or_else(|| TypesError::UnknownCoinDenom(coin.denom.clone()))?;
 
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Currency.ts")
-)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[deprecated]
-pub struct MajorCurrencyAmount {
-    pub amount: MajorAmountString,
-    pub denom: CurrencyDenom,
+                return match exponent.cmp(&display_exponent) {
+                    Ordering::Greater => {
+                        // we need to scale down, unlikely to ever be needed but included for completion sake,
+                        // for example if we decided to created knym with exponent 9 and wanted to convert to nym with exponent 6
+                        Ok(DecCoin::new_scaled_down(
+                            coin.amount,
+                            &registered_coin.display,
+                            exponent - display_exponent,
+                        )?)
+                    }
+                    // we're already in the display denom
+                    Ordering::Equal => Ok(coin.into()),
+                    Ordering::Less => {
+                        // we need to scale up, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
+                        Ok(DecCoin::new_scaled_up(
+                            coin.amount,
+                            &registered_coin.display,
+                            display_exponent - exponent,
+                        )?)
+                    }
+                };
+            }
+        }
+
+        Err(TypesError::UnknownCoinDenom(coin.denom))
+    }
 }
 
 // TODO: should this live here?
 // attempts to replicate cosmos-sdk's coin metadata
 // https://docs.cosmos.network/master/architecture/adr-024-coin-metadata.html
 // this way we could more easily handle multiple coin types simultaneously (like nym/nyx/nymt/nyx + local currencies)
+#[derive(Debug)]
 pub struct DenomUnit {
     pub denom: Denom,
     pub exponent: u32,
@@ -104,6 +102,7 @@ impl DenomUnit {
     }
 }
 
+#[derive(Debug)]
 pub struct CoinMetadata {
     pub denom_units: Vec<DenomUnit>,
     pub base: Denom,
@@ -243,6 +242,7 @@ pub fn try_convert_decimal_to_u128(dec: Decimal) -> Result<u128, TypesError> {
     Ok(whole.u128())
 }
 
+// TODO: adjust the implementation to as required by @MS or @FT
 impl Display for DecCoin {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", self.amount, self.denom)
@@ -264,97 +264,6 @@ impl TryFrom<DecCoin> for Coin {
             amount: try_convert_decimal_to_u128(value.try_scale_down_value(0)?)?,
             denom: value.denom,
         })
-    }
-}
-
-impl MajorCurrencyAmount {
-    pub fn new(amount: &str, denom: CurrencyDenom) -> MajorCurrencyAmount {
-        MajorCurrencyAmount {
-            amount: MajorAmountString(amount.to_string()),
-            denom,
-        }
-    }
-
-    pub fn zero(denom: &CurrencyDenom) -> MajorCurrencyAmount {
-        MajorCurrencyAmount::new("0", denom.clone())
-    }
-}
-
-impl Display for MajorCurrencyAmount {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.amount.0, self.denom)
-    }
-}
-
-// TODO: cleanup after merge
-impl From<CosmosCoin> for MajorCurrencyAmount {
-    fn from(c: CosmosCoin) -> Self {
-        MajorCurrencyAmount::from(Coin::from(c))
-    }
-}
-
-impl From<CosmWasmCoin> for MajorCurrencyAmount {
-    fn from(c: CosmWasmCoin) -> Self {
-        MajorCurrencyAmount::from(Coin::from(c))
-    }
-}
-
-impl From<Coin> for MajorCurrencyAmount {
-    fn from(coin: Coin) -> Self {
-        // current assumption: MajorCurrencyAmount is represented as decimal with 6 decimal points
-        // unwrap is fine as we haven't exceeded decimal range since our coins are at max 1B in value
-        // (this is a weak assumption, but for solving this merge conflict it's good enough temporary workaround)
-        let amount = Decimal::from_atomics(coin.amount, 6).unwrap();
-        MajorCurrencyAmount {
-            amount: MajorAmountString(amount.to_string()),
-            denom: CurrencyDenom::parse(&coin.denom).expect("this will go away after the merge..."),
-        }
-    }
-}
-
-// temporary...
-impl From<MajorCurrencyAmount> for CosmosCoin {
-    fn from(c: MajorCurrencyAmount) -> CosmosCoin {
-        let c: Coin = c.into();
-        c.into()
-    }
-}
-
-impl From<MajorCurrencyAmount> for CosmWasmCoin {
-    fn from(c: MajorCurrencyAmount) -> CosmWasmCoin {
-        let c: Coin = c.into();
-        c.into()
-    }
-}
-
-impl From<MajorCurrencyAmount> for Coin {
-    fn from(c: MajorCurrencyAmount) -> Coin {
-        let decimal: Decimal = c
-            .amount
-            .0
-            .parse()
-            .expect("stringified amount should have been a valid decimal");
-
-        // again, temporary
-        let exp = Uint128::new(1000000);
-        let val = decimal.mul(exp);
-
-        // again, terrible assumption for denom, but it works temporarily...
-        Coin {
-            amount: val.u128(),
-            denom: format!("u{}", c.denom).to_lowercase(),
-        }
-    }
-}
-
-impl Add for MajorCurrencyAmount {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        // again, temporary workaround to help with merge
-        (Coin::from(self).try_add(&Coin::from(rhs)))
-            .expect("provided coins had different denoms")
-            .into()
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::error::BackendError;
-use crate::nymd_client;
 use crate::state::State;
 use crate::{Gateway, MixNode};
 use nym_types::currency::DecCoin;
@@ -137,7 +136,14 @@ pub async fn mixnode_bond_details(
     let guard = state.read().await;
     let client = guard.current_client()?;
     let bond = client.nymd.owns_mixnode(client.nymd.address()).await?;
-    let res = MixNodeBond::from_mixnet_contract_mixnode_bond(bond)?;
+    let res = bond
+        .map(|bond| {
+            guard
+                .registered_coins()
+                .map(|reg| MixNodeBond::from_mixnet_contract_mixnode_bond(bond, reg))
+        })
+        .transpose()?
+        .transpose()?;
     log::info!(
         "<<< identity_key = {:?}",
         res.as_ref().map(|r| r.mix_node.identity_key.to_string())
@@ -154,7 +160,15 @@ pub async fn gateway_bond_details(
     let guard = state.read().await;
     let client = guard.current_client()?;
     let bond = client.nymd.owns_gateway(client.nymd.address()).await?;
-    let res = GatewayBond::from_mixnet_contract_gateway_bond(bond)?;
+    let res = bond
+        .map(|bond| {
+            guard
+                .registered_coins()
+                .map(|reg| GatewayBond::from_mixnet_contract_gateway_bond(bond, reg))
+        })
+        .transpose()?
+        .transpose()?;
+
     log::info!(
         "<<< identity_key = {:?}",
         res.as_ref().map(|r| r.gateway.identity_key.to_string())

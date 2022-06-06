@@ -1,7 +1,6 @@
 use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network_config;
-use crate::nymd_client;
 use crate::state::{State, WalletAccountIds};
 use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
@@ -10,11 +9,9 @@ use config::defaults::COSMOS_DERIVATION_PATH;
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_types::account::{Account, AccountEntry, Balance};
-use nym_types::currency::MajorCurrencyAmount;
 use nym_wallet_types::network::Network as WalletNetwork;
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
@@ -36,23 +33,22 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-    let denom = state.read().await.current_network().denom();
-    match nymd_client!(state)
-        .get_balance(nymd_client!(state).address(), denom)
-        .await
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let address = client.nymd.address();
+    let network = guard.current_network();
+    let base_mix_denom = network.base_mix_denom();
+
+    match client
+        .nymd
+        .get_balance(address, base_mix_denom.to_string())
+        .await?
     {
-        Ok(Some(coin)) => {
-            let amount = MajorCurrencyAmount::from(coin);
-            let printable_balance = amount.to_string();
-            Ok(Balance {
-                amount,
-                printable_balance,
-            })
+        Some(coin) => {
+            let amount = guard.attempt_convert_to_display_dec_coin(coin)?;
+            Ok(Balance::new(amount))
         }
-        Ok(None) => Err(BackendError::NoBalance(
-            nymd_client!(state).address().to_string(),
-        )),
-        Err(e) => Err(BackendError::from(e)),
+        None => Err(BackendError::NoBalance(address.to_string())),
     }
 }
 
@@ -74,12 +70,12 @@ pub async fn switch_network(
     let account = {
         let r_state = state.read().await;
         let client = r_state.client(network)?;
-        let denom = network.denom();
+        let denom = network.base_mix_denom();
 
         Account::new(
             client.nymd.mixnet_contract_address()?.to_string(),
             client.nymd.address().to_string(),
-            denom.try_into()?,
+            denom.into(),
         )
     };
 
@@ -162,7 +158,7 @@ async fn _connect_with_mnemonic(
         Some(client) => Ok(Account::new(
             client.nymd.mixnet_contract_address()?.to_string(),
             client.nymd.address().to_string(),
-            default_network.denom().try_into()?,
+            default_network.base_mix_denom().into(),
         )),
         None => Err(BackendError::NetworkNotSupported(
             config::defaults::DEFAULT_NETWORK,

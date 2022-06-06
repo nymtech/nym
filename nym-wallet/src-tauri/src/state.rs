@@ -1,13 +1,13 @@
 use crate::config;
 use crate::error::BackendError;
-use ::config::defaults::all::Network as ConfigNetwork;
+use crate::simulate::SimulateResult;
 use itertools::Itertools;
 use log::warn;
-use nym_types::currency::{try_convert_decimal_to_u128, CoinMetadata, DecCoin, Denom};
+use nym_types::currency::{DecCoin, RegisteredCoins};
+use nym_types::fees::FeeDetails;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
 use once_cell::sync::Lazy;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -57,7 +57,7 @@ pub struct State {
 
     /// We fetch (and cache) some metadata, such as names, when available
     validator_metadata: HashMap<Url, ValidatorMetadata>,
-    registered_coins: HashMap<Network, HashMap<Denom, CoinMetadata>>,
+    registered_coins: HashMap<Network, RegisteredCoins>,
 }
 
 pub(crate) struct WalletAccountIds {
@@ -75,21 +75,7 @@ impl State {
             .get(&self.current_network)
             .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
 
-        // check if this is already in the base denom
-        if registered_coins.contains_key(&coin.denom) {
-            // if we're converting a base DecCoin it CANNOT fail, unless somebody is providing
-            // bullshit data on purpose : )
-            return Ok(coin.try_into()?);
-        } else {
-            // TODO: this kinda suggests we may need a better data structure
-            for registered_coin in registered_coins.values() {
-                if let Some(exponent) = registered_coin.get_exponent(&coin.denom) {
-                    let amount = try_convert_decimal_to_u128(coin.try_scale_up_value(exponent)?)?;
-                    return Ok(Coin::new(amount, &registered_coin.base));
-                }
-            }
-        }
-        Err(BackendError::UnknownCoinDenom(coin.denom))
+        Ok(registered_coins.attempt_convert_to_base_coin(coin)?)
     }
 
     pub fn attempt_convert_to_display_dec_coin(&self, coin: Coin) -> Result<DecCoin, BackendError> {
@@ -98,39 +84,15 @@ impl State {
             .get(&self.current_network)
             .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
 
-        for registered_coin in registered_coins.values() {
-            if let Some(exponent) = registered_coin.get_exponent(&coin.denom) {
-                // if this fails it means we haven't registered our display denom which honestly should never be the case
-                // unless somebody is rocking their own custom network
-                let display_exponent = registered_coin
-                    .get_exponent(&registered_coin.display)
-                    .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
+        Ok(registered_coins.attempt_convert_to_display_dec_coin(coin)?)
+    }
 
-                return match exponent.cmp(&display_exponent) {
-                    Ordering::Greater => {
-                        // we need to scale down, unlikely to ever be needed but included for completion sake,
-                        // for example if we decided to created knym with exponent 9 and wanted to convert to nym with exponent 6
-                        Ok(DecCoin::new_scaled_down(
-                            coin.amount,
-                            &registered_coin.display,
-                            exponent - display_exponent,
-                        )?)
-                    }
-                    // we're already in the display denom
-                    Ordering::Equal => Ok(coin.into()),
-                    Ordering::Less => {
-                        // we need to scale up, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
-                        Ok(DecCoin::new_scaled_up(
-                            coin.amount,
-                            &registered_coin.display,
-                            display_exponent - exponent,
-                        )?)
-                    }
-                };
-            }
-        }
-
-        Err(BackendError::UnknownCoinDenom(coin.denom))
+    pub(crate) fn registered_coins(&self) -> Result<&RegisteredCoins, BackendError> {
+        self.registered_coins
+            .get(&self.current_network)
+            .ok_or_else(|| BackendError::NoCoinsRegistered {
+                network: self.current_network,
+            })
     }
 
     pub(crate) fn convert_tx_fee(&self, fee: Option<&Fee>) -> Option<DecCoin> {
@@ -147,6 +109,19 @@ impl State {
             self.attempt_convert_to_display_dec_coin(fee_amount.pop().unwrap())
                 .ok()
         }
+    }
+
+    // this one is rather gnarly and I'm not 100% sure how to feel about existence of it
+    pub(crate) fn create_detailed_fee(
+        &self,
+        simulate_res: SimulateResult,
+    ) -> Result<FeeDetails, BackendError> {
+        let amount = simulate_res
+            .to_fee_amount()
+            .map(|amount| self.attempt_convert_to_display_dec_coin(amount.into()))
+            .transpose()?;
+
+        Ok(FeeDetails::new(amount, simulate_res.to_fee()))
     }
 
     pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {
@@ -196,11 +171,8 @@ impl State {
     }
 
     pub fn register_default_denoms(&mut self, network: Network) {
-        let net: ConfigNetwork = network.into();
-        let mut network_coins = HashMap::new();
-        network_coins.insert(net.mix_denom().base.into(), (*net.mix_denom()).into());
-        network_coins.insert(net.stake_denom().base.into(), (*net.stake_denom()).into());
-        self.registered_coins.insert(network, network_coins);
+        self.registered_coins
+            .insert(network, RegisteredCoins::default_denoms(network.into()));
     }
 
     pub fn set_network(&mut self, network: Network) {

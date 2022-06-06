@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
-use nym_types::currency::MajorCurrencyAmount;
+use nym_types::currency::DecCoin;
 use nym_wallet_types::app::AppEnv;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -146,11 +146,12 @@ impl Operation {
 pub async fn get_old_and_incorrect_hardcoded_fee(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     operation: Operation,
-) -> Result<MajorCurrencyAmount, BackendError> {
-    let mut approximate_fee = operation.default_fee(nymd_client!(state).gas_price());
+) -> Result<DecCoin, BackendError> {
+    let guard = state.read().await;
+    let mut approximate_fee = operation.default_fee(guard.current_client()?.nymd.gas_price());
     // on all our chains it should only ever contain a single type of currency
     assert_eq!(approximate_fee.amount.len(), 1);
     let coin: Coin = approximate_fee.amount.pop().unwrap().into();
     log::info!("hardcoded fee for {:?} is {:?}", operation, coin);
-    Ok(coin.into())
+    guard.attempt_convert_to_display_dec_coin(coin)
 }

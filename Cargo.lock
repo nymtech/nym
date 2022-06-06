@@ -1603,6 +1603,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "explorer-api"
 version = "1.0.1"
 dependencies = [
@@ -6257,6 +6265,7 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "cw3",
+ "execute",
  "flate2",
  "futures",
  "itertools",

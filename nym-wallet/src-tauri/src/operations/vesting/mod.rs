@@ -8,6 +8,7 @@ use vesting_contract_common::PledgeData as VestingPledgeData;
 pub mod bond;
 pub mod delegate;
 pub mod queries;
+pub mod rewards;
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../src/types/rust/pledgedata.ts"))]

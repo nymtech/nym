@@ -110,6 +110,7 @@ pub async fn update_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
         ">>> Update mixnode: profit_margin_percent = {}, fee {:?}",

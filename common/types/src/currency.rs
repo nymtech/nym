@@ -34,6 +34,7 @@ pub type Denom = String;
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 // TODO: this shouldn't be an enum...
+#[deprecated]
 pub enum CurrencyDenom {
     #[strum(ascii_case_insensitive)]
     Nym,
@@ -72,6 +73,7 @@ impl TryFrom<CosmosDenom> for CurrencyDenom {
     ts(export_to = "ts-packages/types/src/types/rust/CurrencyStringMajorAmount.ts")
 )]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[deprecated]
 pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-rs/issues/51 for exporting type aliases
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -80,6 +82,7 @@ pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-r
     ts(export_to = "ts-packages/types/src/types/rust/Currency.ts")
 )]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[deprecated]
 pub struct MajorCurrencyAmount {
     pub amount: MajorAmountString,
     pub denom: CurrencyDenom,

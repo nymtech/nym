@@ -1,15 +1,12 @@
-use std::sync::Arc;
-
-use tokio::sync::RwLock;
-
-use nym_types::currency::MajorCurrencyAmount;
-use nym_types::delegation::{from_contract_delegation_events, DelegationEvent};
-use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::{Fee, VestingSigningClient};
-
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
+use nym_types::currency::DecCoin;
+use nym_types::delegation::{from_contract_delegation_events, DelegationEvent};
+use nym_types::transaction::TransactionExecuteResult;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn get_pending_vesting_delegation_events(
@@ -40,27 +37,30 @@ pub async fn get_pending_vesting_delegation_events(
 #[tauri::command]
 pub async fn vesting_delegate_to_mixnode(
     identity: &str,
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
-    let delegation = amount.clone().into();
+    let guard = state.read().await;
+    let delegation = guard.attempt_convert_to_base_coin(amount.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
     log::info!(
-    ">>> Delegate to mixnode with locked tokens: identity_key = {}, amount = {}, minor_amount = {}, fee = {:?}",
+    ">>> Delegate to mixnode with locked tokens: identity_key = {}, amount_display = {}, amount_base = {}, fee = {:?}",
     identity,
     amount,
     delegation,
     fee
   );
-    let res = nymd_client!(state)
+    let res = guard
+        .current_client()?
+        .nymd
         .vesting_delegate_to_mixnode(identity, delegation, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -70,19 +70,21 @@ pub async fn vesting_undelegate_from_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
         ">>> Undelegate from mixnode delegated with locked tokens: identity_key = {}, fee = {:?}",
         identity,
         fee,
     );
-    let res = nymd_client!(state)
+    let res = guard
+        .current_client()?
+        .nymd
         .vesting_undelegate_from_mixnode(identity, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }

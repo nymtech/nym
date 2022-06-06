@@ -96,7 +96,7 @@ struct DelegationWithHistory {
 pub async fn get_all_mix_delegations(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<DelegationWithEverything>, BackendError> {
-    todo!("deal with this later :)")
+    todo!("deal with this later :)");
 
     log::info!(">>> Get all mixnode delegations");
     //
@@ -341,7 +341,7 @@ pub async fn get_delegator_rewards(
 pub async fn get_delegation_summary(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<DelegationsSummaryResponse, BackendError> {
-    todo!("also deal with later : )")
+    todo!("also deal with later : )");
     log::info!(">>> Get delegation summary");
 
     // let denom_minor = state.read().await.current_network().denom();

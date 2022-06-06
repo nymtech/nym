@@ -1,9 +1,6 @@
-use crate::currency::MajorCurrencyAmount;
-use crate::error::TypesError;
 use cosmrs::tx::Gas as CosmrsGas;
 use serde::{Deserialize, Serialize};
 use validator_client::nymd::cosmwasm_client::types::GasInfo as ValidatorClientGasInfo;
-use validator_client::nymd::GasPrice;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

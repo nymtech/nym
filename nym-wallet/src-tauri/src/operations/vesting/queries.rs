@@ -1,23 +1,20 @@
-use std::sync::Arc;
-
-use cosmwasm_std::Timestamp;
-use tokio::sync::RwLock;
-
-use nym_types::currency::MajorCurrencyAmount;
-use nym_types::vesting::VestingAccountInfo;
-use nym_types::vesting::{OriginalVestingResponse, PledgeData};
-use validator_client::nymd::VestingQueryClient;
-use vesting_contract_common::Period;
-
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::State;
+use cosmwasm_std::Timestamp;
+use nym_types::currency::DecCoin;
+use nym_types::vesting::VestingAccountInfo;
+use nym_types::vesting::{OriginalVestingResponse, PledgeData};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use validator_client::nymd::VestingQueryClient;
+use vesting_contract_common::Period;
 
 #[tauri::command]
 pub async fn locked_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Query locked coins");
     let res = nymd_client!(state)
         .locked_coins(
@@ -34,7 +31,7 @@ pub async fn locked_coins(
 pub async fn spendable_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Query spendable coins");
     let res = nymd_client!(state)
         .spendable_coins(
@@ -52,7 +49,7 @@ pub async fn vested_coins(
     vesting_account_address: &str,
     block_time: Option<u64>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Query vested coins");
     let res = nymd_client!(state)
         .vested_coins(
@@ -70,7 +67,7 @@ pub async fn vesting_coins(
     vesting_account_address: &str,
     block_time: Option<u64>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Query vesting coins");
     let res = nymd_client!(state)
         .vesting_coins(
@@ -130,7 +127,7 @@ pub async fn delegated_free(
     vesting_account_address: &str,
     block_time: Option<u64>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Query delegated free");
     let res = nymd_client!(state)
         .delegated_free(
@@ -149,7 +146,7 @@ pub async fn delegated_vesting(
     block_time: Option<u64>,
     vesting_account_address: &str,
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
+) -> Result<DecCoin, BackendError> {
     log::info!(">>> Query delegated vesting");
     let res = nymd_client!(state)
         .delegated_vesting(

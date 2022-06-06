@@ -42,8 +42,8 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
     UnsupportedBandwidthValue(u64),
 
-    #[error("Provided bandwidth credential did not verify correctly")]
-    InvalidBandwidthCredential,
+    #[error("Provided bandwidth credential did not verify correctly on {0}")]
+    InvalidBandwidthCredential(String),
 
     #[error("This gateway is not running in the disabled credentials mode")]
     NotInDisabledCredentialsMode,
@@ -65,8 +65,12 @@ pub(crate) enum RequestHandlingError {
     NymdError(#[from] validator_client::nymd::error::NymdError),
 
     #[cfg(feature = "coconut")]
-    #[error("Provided coconut bandwidth credential did not have expected structure - {0}")]
-    CoconutBandwidthCredentialError(#[from] credentials::error::Error),
+    #[error("Validator API error")]
+    APIError(#[from] validator_client::ValidatorClientError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Not enough validator API endpoints provided. Needed {needed}, received {received}")]
+    NotEnoughValidatorAPIs { received: usize, needed: usize },
 }
 
 impl RequestHandlingError {
@@ -208,11 +212,55 @@ where
             iv,
         )?;
 
-        if !credential.verify(&self.inner.aggregated_verification_key) {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+        if !credential.verify(
+            self.inner
+                .coconut_verifier
+                .as_ref()
+                .aggregated_verification_key(),
+        ) {
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("credential failed to verify on gateway"),
+            ));
         }
 
-        let bandwidth = Bandwidth::try_from(credential)?;
+        let req = coconut_interface::ProposeReleaseFundsRequestBody::new(credential.clone());
+        let proposal_id = self
+            .inner
+            .coconut_verifier
+            .api_clients()
+            .get(0)
+            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
+                needed: 1,
+                received: 0,
+            })?
+            .propose_release_funds(&req)
+            .await?
+            .proposal_id;
+
+        let req = coconut_interface::VerifyCredentialBody::new(credential.clone(), proposal_id);
+        for client in self.inner.coconut_verifier.api_clients().iter().skip(1) {
+            if !client
+                .verify_bandwidth_credential(&req)
+                .await?
+                .verification_result
+            {
+                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.validator_api.current_url());
+            }
+        }
+
+        let req = coconut_interface::ExecuteReleaseFundsRequestBody::new(proposal_id);
+        self.inner
+            .coconut_verifier
+            .api_clients()
+            .get(0)
+            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
+                needed: 1,
+                received: 0,
+            })?
+            .execute_release_funds(&req)
+            .await?;
+
+        let bandwidth = Bandwidth::from(credential);
         let bandwidth_value = bandwidth.value();
 
         if bandwidth_value > i64::MAX as u64 {
@@ -254,11 +302,15 @@ where
             .inner
             .check_local_identity(&credential.gateway_identity())
         {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("gateway"),
+            ));
         }
 
         if !credential.verify_signature() {
-            return Err(RequestHandlingError::InvalidBandwidthCredential);
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("gateway"),
+            ));
         }
         debug!("Verifying Ethereum for token burn...");
         let gateway_owner = self

@@ -248,6 +248,27 @@ export const PageMixnodes: React.FC = () => {
         </MuiLink>
       ),
     },
+    {
+      field: 'stake_saturation',
+      headerName: 'Stake Saturation',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake Saturation" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 175,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{
+            textAlign: 'left',
+            color: params.value > 100 ? theme.palette.warning.main : 'inherit',
+            ...getCellStyles(theme, params.row),
+          }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {`${params.value.toFixed(2)} %`}
+        </MuiLink>
+      ),
+    },
   ];
 
   const handlePageSize = (event: SelectChangeEvent<string>) => {

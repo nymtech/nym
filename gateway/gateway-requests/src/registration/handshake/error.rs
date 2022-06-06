@@ -25,9 +25,4 @@ pub enum HandshakeError {
     MalformedRequest,
     #[error("sent request was malformed")]
     HandshakeFailure,
-    #[error("could not deserialize from slice: {source}")]
-    DeserializationError {
-        #[from]
-        source: bincode::Error,
-    },
 }

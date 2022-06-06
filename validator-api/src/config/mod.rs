@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::{default_api_endpoints, DEFAULT_NETWORK};
+use config::defaults::DEFAULT_NETWORK;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-
-#[cfg(feature = "coconut")]
-use coconut_interface::{Base58, KeyPair};
 
 mod template;
 
@@ -82,17 +79,20 @@ impl NymConfig for Config {
     }
 
     fn config_directory(&self) -> PathBuf {
-        self.root_directory().join("config")
+        self.root_directory().join(self.get_id()).join("config")
     }
 
     fn data_directory(&self) -> PathBuf {
-        self.root_directory().join("data")
+        self.root_directory().join(self.get_id()).join("data")
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct Base {
+    /// ID specifies the human readable ID of this particular validator-api.
+    id: String,
+
     local_validator: Url,
 
     /// Address of the validator contract managing the network
@@ -105,6 +105,7 @@ pub struct Base {
 impl Default for Base {
     fn default() -> Self {
         Base {
+            id: String::default(),
             local_validator: DEFAULT_LOCAL_VALIDATOR
                 .parse()
                 .expect("default local validator is malformed!"),
@@ -127,11 +128,6 @@ pub struct NetworkMonitor {
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
     disabled_credentials_mode: bool,
-
-    /// Specifies list of all validators on the network issuing coconut credentials.
-    /// A special care must be taken to ensure they are in correct order.
-    /// The list must also contain THIS validator that is running the test
-    all_validator_apis: Vec<Url>,
 
     /// Specifies the interval at which the network monitor sends the test packets.
     #[serde(with = "humantime_serde")]
@@ -189,8 +185,10 @@ pub struct NetworkMonitor {
 }
 
 impl NetworkMonitor {
+    pub const DB_FILE: &'static str = "credentials_database.db";
+
     fn default_credentials_database_path() -> PathBuf {
-        Config::default_data_directory(None).join("credentials_database.db")
+        Config::default_data_directory(None).join(Self::DB_FILE)
     }
 }
 
@@ -201,7 +199,6 @@ impl Default for NetworkMonitor {
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
             disabled_credentials_mode: true,
-            all_validator_apis: default_api_endpoints(),
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
@@ -230,8 +227,10 @@ pub struct NodeStatusAPI {
 }
 
 impl NodeStatusAPI {
+    pub const DB_FILE: &'static str = "db.sqlite";
+
     fn default_database_path() -> PathBuf {
-        Config::default_data_directory(None).join("db.sqlite")
+        Config::default_data_directory(None).join(Self::DB_FILE)
     }
 }
 
@@ -279,15 +278,31 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[cfg(feature = "coconut")]
 pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
 
-    /// Base58 encoded signing keypair
-    keypair_bs58: String,
+    /// Path to the signing keypair
+    keypair_path: PathBuf,
+
+    /// Specifies list of all validators on the network issuing coconut credentials.
+    /// A special care must be taken to ensure they are in correct order.
+    /// The list must also contain THIS validator that is running the test
+    all_validator_apis: Vec<Url>,
+}
+
+#[cfg(feature = "coconut")]
+impl Default for CoconutSigner {
+    fn default() -> Self {
+        CoconutSigner {
+            enabled: false,
+            keypair_path: PathBuf::default(),
+            all_validator_apis: config::defaults::default_api_endpoints(),
+        }
+    }
 }
 
 impl Config {
@@ -295,9 +310,18 @@ impl Config {
         Config::default()
     }
 
+    pub fn with_id(mut self, id: &str) -> Self {
+        self.base.id = id.to_string();
+        self.node_status_api.database_path =
+            Config::default_data_directory(Some(id)).join(NodeStatusAPI::DB_FILE);
+        self.network_monitor.credentials_database_path =
+            Config::default_data_directory(Some(id)).join(NetworkMonitor::DB_FILE);
+        self
+    }
+
     #[cfg(feature = "coconut")]
-    pub fn keypair(&self) -> KeyPair {
-        KeyPair::try_from_bs58(self.coconut_signer.keypair_bs58.clone()).unwrap()
+    pub fn keypair_path(&self) -> PathBuf {
+        self.coconut_signer.keypair_path.clone()
     }
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
@@ -337,13 +361,14 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
-        self.coconut_signer.keypair_bs58 = keypair_bs58.into();
+    pub fn with_keypair_path(mut self, keypair_path: PathBuf) -> Self {
+        self.coconut_signer.keypair_path = keypair_path;
         self
     }
 
+    #[cfg(feature = "coconut")]
     pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.network_monitor.all_validator_apis = validator_api_urls;
+        self.coconut_signer.all_validator_apis = validator_api_urls;
         self
     }
 
@@ -372,6 +397,10 @@ impl Config {
     pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
         self.network_monitor.eth_endpoint = eth_endpoint;
         self
+    }
+
+    pub fn get_id(&self) -> String {
+        self.base.id.clone()
     }
 
     pub fn get_network_monitor_enabled(&self) -> bool {
@@ -474,7 +503,7 @@ impl Config {
     // fix dead code warnings as this method is only ever used with coconut feature
     #[cfg(feature = "coconut")]
     pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
-        self.network_monitor.all_validator_apis.clone()
+        self.coconut_signer.all_validator_apis.clone()
     }
 
     // TODO: Remove if still unused

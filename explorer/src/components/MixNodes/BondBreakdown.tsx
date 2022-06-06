@@ -13,7 +13,7 @@ import { currencyToString } from '../../utils/currency';
 import { useMixnodeContext } from '../../context/mixnode';
 
 export const BondBreakdownTable: React.FC = () => {
-  const { mixNode, delegations } = useMixnodeContext();
+  const { mixNode, delegations, uniqDelegations } = useMixnodeContext();
   const [showDelegations, toggleShowDelegations] = React.useState<boolean>(false);
 
   const [bonds, setBonds] = React.useState({
@@ -155,7 +155,7 @@ export const BondBreakdownTable: React.FC = () => {
                 fontWeight: 400,
               }}
             >
-              {`(${delegations?.data?.length} delegators)`}
+              {`(${uniqDelegations?.data?.length} delegators)`}
             </Typography>
           </Box>
           <Table stickyHeader>
@@ -193,7 +193,7 @@ export const BondBreakdownTable: React.FC = () => {
             </TableHead>
 
             <TableBody>
-              {delegations?.data?.map(({ owner, amount: { amount, denom } }) => (
+              {uniqDelegations?.data?.map(({ owner, amount: { amount, denom } }) => (
                 <TableRow key={owner}>
                   <TableCell sx={matches ? { width: 190 } : null} align="left">
                     {owner}

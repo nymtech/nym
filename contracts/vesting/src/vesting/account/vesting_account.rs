@@ -8,6 +8,13 @@ use vesting_contract_common::{OriginalVestingResponse, Period};
 use super::Account;
 
 impl VestingAccount for Account {
+    fn track_reward(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {
+        let current_balance = self.load_balance(storage)?;
+        let new_balance = current_balance + amount.amount;
+        self.save_balance(new_balance, storage)?;
+        Ok(())
+    }
+
     fn locked_coins(
         &self,
         block_time: Option<Timestamp>,

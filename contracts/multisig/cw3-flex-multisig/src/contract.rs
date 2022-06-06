@@ -18,8 +18,8 @@ use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{Config, CONFIG};
+use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw3-flex-multisig";
@@ -499,7 +499,7 @@ mod tests {
         max_voting_period: Duration,
     ) -> Addr {
         let flex_id = app.store_code(contract_flex());
-        let msg = crate::msg::InstantiateMsg {
+        let msg = InstantiateMsg {
             group_addr: group.to_string(),
             threshold,
             max_voting_period,

@@ -55,9 +55,9 @@ impl Execute for Deposit {
         let tx_hash = client
             .deposit(
                 self.amount,
-                VOUCHER_INFO,
                 signing_keypair.public_key.clone(),
                 encryption_keypair.public_key.clone(),
+                None,
             )
             .await?;
 

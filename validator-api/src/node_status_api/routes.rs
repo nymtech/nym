@@ -147,16 +147,14 @@ pub(crate) async fn get_mixnode_reward_estimation(
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
         let reward_params = RewardParams::new(reward_params, node_reward_params);
 
-        match bond.estimate_reward(&reward_params) {
-            Ok((
-                estimated_total_node_reward,
-                estimated_operator_reward,
-                estimated_delegators_reward,
-            )) => {
+        match bond.mixnode_bond.estimate_reward(&reward_params) {
+            Ok(reward_estimate) => {
                 let reponse = RewardEstimationResponse {
-                    estimated_total_node_reward,
-                    estimated_operator_reward,
-                    estimated_delegators_reward,
+                    estimated_total_node_reward: reward_estimate.total_node_reward,
+                    estimated_operator_reward: reward_estimate.operator_reward,
+                    estimated_delegators_reward: reward_estimate.delegators_reward,
+                    estimated_node_profit: reward_estimate.node_profit,
+                    estimated_operator_cost: reward_estimate.operator_cost,
                     reward_params,
                     as_at,
                 };
@@ -183,11 +181,13 @@ pub(crate) async fn get_mixnode_stake_saturation(
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     let (bond, _) = cache.mixnode_details(&identity).await;
     if let Some(bond) = bond {
+        // Recompute the stake saturation just so that we can confidentaly state that the `as_at`
+        // field is consistent and correct. Luckily this is very cheap.
         let interval_reward_params = cache.epoch_reward_params().await;
         let as_at = interval_reward_params.timestamp();
         let interval_reward_params = interval_reward_params.into_inner();
 
-        let saturation = bond.stake_saturation(
+        let saturation = bond.mixnode_bond.stake_saturation(
             interval_reward_params.circulating_supply(),
             interval_reward_params.rewarded_set_size() as u32,
         );
@@ -211,6 +211,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
     identity: String,
 ) -> Json<Option<InclusionProbabilityResponse>> {
     let mixnodes = cache.mixnodes().await;
+    let rewarding_params = cache.epoch_reward_params().await.into_inner();
 
     if let Some(target_mixnode) = mixnodes.iter().find(|x| x.identity() == &identity) {
         let total_bonded_tokens = mixnodes
@@ -218,17 +219,23 @@ pub(crate) async fn get_mixnode_inclusion_probability(
             .fold(0u128, |acc, x| acc + x.total_bond().unwrap_or_default())
             as f64;
 
-        let rewarding_params = cache.epoch_reward_params().await.into_inner();
         let rewarded_set_size = rewarding_params.rewarded_set_size() as f64;
         let active_set_size = rewarding_params.active_set_size() as f64;
 
         let prob_one_draw =
             target_mixnode.total_bond().unwrap_or_default() as f64 / total_bonded_tokens;
         // Chance to be selected in any draw for active set
-        let prob_active_set = active_set_size * prob_one_draw;
+        let prob_active_set = if mixnodes.len() <= active_set_size as usize {
+            1.0
+        } else {
+            active_set_size * prob_one_draw
+        };
         // This is likely slightly too high, as we're not correcting form them not being selected in active, should be chance to be selected, minus the chance for being not selected in reserve
-        let prob_reserve_set = (rewarded_set_size - active_set_size) * prob_one_draw;
-        // (rewarded_set_size - active_set_size) * prob_one_draw * (1. - prob_active_set);
+        let prob_reserve_set = if mixnodes.len() <= rewarded_set_size as usize {
+            1.0
+        } else {
+            (rewarded_set_size - active_set_size) * prob_one_draw
+        };
 
         Json(Some(InclusionProbabilityResponse {
             in_active: prob_active_set.into(),

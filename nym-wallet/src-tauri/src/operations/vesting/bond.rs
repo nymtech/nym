@@ -9,76 +9,73 @@ use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(
-  gateway: Gateway,
-  pledge: Coin,
-  owner_signature: String,
-  fee: Option<Fee>,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
+    gateway: Gateway,
+    pledge: Coin,
+    owner_signature: String,
+    fee: Option<Fee>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let denom = state.read().await.current_network().denom();
-  let pledge = pledge.into_cosmwasm_coin(&denom)?;
-  nymd_client!(state)
-    .vesting_bond_gateway(gateway, &owner_signature, pledge, fee)
-    .await?;
-  Ok(())
+    let pledge = pledge.into_backend_coin(state.read().await.current_network().denom())?;
+    nymd_client!(state)
+        .vesting_bond_gateway(gateway, &owner_signature, pledge, fee)
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn vesting_unbond_gateway(
-  fee: Option<Fee>,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
+    fee: Option<Fee>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  nymd_client!(state).vesting_unbond_gateway(fee).await?;
-  Ok(())
+    nymd_client!(state).vesting_unbond_gateway(fee).await?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn vesting_unbond_mixnode(
-  fee: Option<Fee>,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
+    fee: Option<Fee>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  nymd_client!(state).vesting_unbond_mixnode(fee).await?;
-  Ok(())
+    nymd_client!(state).vesting_unbond_mixnode(fee).await?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn vesting_bond_mixnode(
-  mixnode: MixNode,
-  owner_signature: String,
-  pledge: Coin,
-  fee: Option<Fee>,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
+    mixnode: MixNode,
+    owner_signature: String,
+    pledge: Coin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let denom = state.read().await.current_network().denom();
-  let pledge = pledge.into_cosmwasm_coin(&denom)?;
-  nymd_client!(state)
-    .vesting_bond_mixnode(mixnode, &owner_signature, pledge, fee)
-    .await?;
-  Ok(())
+    let pledge = pledge.into_backend_coin(state.read().await.current_network().denom())?;
+    nymd_client!(state)
+        .vesting_bond_mixnode(mixnode, &owner_signature, pledge, fee)
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn withdraw_vested_coins(
-  amount: Coin,
-  fee: Option<Fee>,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
+    amount: Coin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  let denom = state.read().await.current_network().denom();
-  let amount = amount.into_cosmwasm_coin(&denom)?;
-  nymd_client!(state)
-    .withdraw_vested_coins(amount, fee)
-    .await?;
-  Ok(())
+    let amount = amount.into_backend_coin(state.read().await.current_network().denom())?;
+    nymd_client!(state)
+        .withdraw_vested_coins(amount, fee)
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn vesting_update_mixnode(
-  profit_margin_percent: u8,
-  fee: Option<Fee>,
-  state: tauri::State<'_, Arc<RwLock<State>>>,
+    profit_margin_percent: u8,
+    fee: Option<Fee>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
-  nymd_client!(state)
-    .vesting_update_mixnode_config(profit_margin_percent, fee)
-    .await?;
-  Ok(())
+    nymd_client!(state)
+        .vesting_update_mixnode_config(profit_margin_percent, fee)
+        .await?;
+    Ok(())
 }

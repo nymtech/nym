@@ -6,7 +6,7 @@ use crate::client::real_messages_control::acknowledgement_control::Retransmissio
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::StreamExt;
 use log::*;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey, TimerError};
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::Delay as SphinxDelay;
 use std::collections::HashMap;
@@ -209,16 +209,11 @@ impl ActionController {
     }
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
-    fn handle_expired_ack_timer(
-        &mut self,
-        expired_ack: Result<Expired<FragmentIdentifier>, TimerError>,
-    ) {
+    fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
         // I'm honestly not sure how to handle it, because getting it means other things in our
         // system are already misbehaving. If we ever see this panic, then I guess we should worry
         // about it. Perhaps just reschedule it at later point?
-        let frag_id = expired_ack
-            .expect("Tokio timer returned an error!")
-            .into_inner();
+        let frag_id = expired_ack.into_inner();
 
         trace!("{} has expired", frag_id);
 

@@ -10,11 +10,17 @@ pub(crate) fn config_template() -> &'static str {
 
 [base]
 
+# ID specifies the human readable ID of this particular validator-api.
+id = '{{ base.id }}'
+
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
+
+# Mnemonic used for rewarding and validator interaction
+mnemonic = '{{ base.mnemonic }}'
 
 ##### network monitor config options #####
 
@@ -25,15 +31,6 @@ enabled = {{ network_monitor.enabled }}
 # Indicates whether this validator api is running in a disabled credentials mode, thus attempting
 # to claim bandwidth without presenting bandwidth credentials.
 disabled_credentials_mode = {{ network_monitor.disabled_credentials_mode }}
-
-# Specifies list of all validators on the network issuing coconut credentials.
-# A special care must be taken to ensure they are in correct order.
-# The list must also contain THIS validator that is running the test
-all_validator_apis = [
-    {{#each network_monitor.all_validator_apis }}
-        '{{this}}',
-    {{/each}}
-]
 
 # Specifies the interval at which the network monitor sends the test packets.
 run_interval = '{{ network_monitor.run_interval }}'
@@ -92,13 +89,27 @@ database_path = '{{ node_status_api.database_path }}'
 # Specifies whether rewarding service is enabled in this process.
 enabled = {{ rewarding.enabled }}
 
-# Mnemonic (currently of the network monitor) used for rewarding
-mnemonic = '{{ rewarding.mnemonic }}'
-
 # Specifies the minimum percentage of monitor test run data present in order to
 # distribute rewards for given interval.
 # Note, only values in range 0-100 are valid
 minimum_interval_monitor_threshold = {{ rewarding.minimum_interval_monitor_threshold }}
+
+[coconut_signer]
+
+# Specifies whether rewarding service is enabled in this process.
+enabled = {{ coconut_signer.enabled }}
+
+# Path to the signing keypair
+keypair_path = '{{ coconut_signer.keypair_path }}'
+
+# Specifies list of all validators on the network issuing coconut credentials.
+# A special care must be taken to ensure they are in correct order.
+# The list must also contain THIS validator that is running the test
+all_validator_apis = [
+    {{#each coconut_signer.all_validator_apis }}
+        '{{this}}',
+    {{/each}}
+]
 
 "#
 }

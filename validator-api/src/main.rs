@@ -23,17 +23,18 @@ use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
-use std::process;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{fs, process};
 use tokio::sync::Notify;
-use url::Url;
 // use validator_client::nymd::SigningNymdClient;
 // use validator_client::ValidatorClientError;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::InternalSignRequest;
+#[cfg(feature = "coconut")]
+use coconut_interface::{Base58, KeyPair};
 use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod config;
@@ -48,18 +49,19 @@ mod swagger;
 #[cfg(feature = "coconut")]
 mod coconut;
 
+const ID: &str = "id";
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
-const API_VALIDATORS_ARG: &str = "api-validators";
 const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 
 #[cfg(feature = "coconut")]
+const API_VALIDATORS_ARG: &str = "api-validators";
+#[cfg(feature = "coconut")]
 const KEYPAIR_ARG: &str = "keypair";
-
 #[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
 
@@ -73,7 +75,8 @@ const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
 const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
 
-fn parse_validators(raw: &str) -> Vec<Url> {
+#[cfg(feature = "coconut")]
+fn parse_validators(raw: &str) -> Vec<url::Url> {
     raw.split(',')
         .map(|raw_validator| {
             raw_validator
@@ -125,6 +128,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .long_version(&*build_details)
         .author("Nymtech")
         .arg(
+            Arg::with_name(ID)
+                .help("Id of the validator-api we want to run")
+                .long(ID)
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
@@ -160,12 +169,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .short("w")
         )
         .arg(
-            Arg::with_name(API_VALIDATORS_ARG)
-                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
-                .long(API_VALIDATORS_ARG)
-                .takes_value(true)
-        )
-        .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
@@ -186,9 +189,15 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(KEYPAIR_ARG),
         )
         .arg(
+            Arg::with_name(API_VALIDATORS_ARG)
+                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
+                .long(API_VALIDATORS_ARG)
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG])
+                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG, API_VALIDATORS_ARG])
                 .long(COCONUT_ENABLED),
         );
 
@@ -236,12 +245,18 @@ fn setup_logging() {
         .filter_module("sled", log::LevelFilter::Warn)
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .filter_module("_", log::LevelFilter::Warn)
-        .filter_module("rocket::server", log::LevelFilter::Warn)
         .init();
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
+    if let Some(id) = matches.value_of(ID) {
+        fs::create_dir_all(Config::default_config_directory(Some(id)))
+            .expect("Could not create config directory");
+        fs::create_dir_all(Config::default_data_directory(Some(id)))
+            .expect("Could not create data directory");
+        config = config.with_id(id);
+    }
+
     if matches.is_present(MONITORING_ENABLED) {
         config = config.with_network_monitor_enabled(true)
     }
@@ -255,6 +270,7 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
         config = config.with_coconut_signer_enabled(true)
     }
 
+    #[cfg(feature = "coconut")]
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
     }
@@ -311,11 +327,7 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
 
     #[cfg(feature = "coconut")]
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
-        let keypair_bs58 = std::fs::read_to_string(keypair_path)
-            .unwrap()
-            .trim()
-            .to_string();
-        config = config.with_keypair(keypair_bs58)
+        config = config.with_keypair_path(keypair_path.into())
     }
 
     #[cfg(not(feature = "coconut"))]
@@ -402,7 +414,7 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
 async fn setup_rocket(
     config: &Config,
     liftoff_notify: Arc<Notify>,
-    _nymd_client: Option<Client<SigningNymdClient>>,
+    _nymd_client: Client<SigningNymdClient>,
 ) -> Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
@@ -434,9 +446,14 @@ async fn setup_rocket(
 
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
+        let keypair_bs58 = fs::read_to_string(config.keypair_path())?
+            .trim()
+            .to_string();
+        let keypair = KeyPair::try_from_bs58(keypair_bs58)?;
         rocket.attach(InternalSignRequest::stage(
-            _nymd_client.expect("Should have a signing client here"),
-            config.keypair(),
+            _nymd_client,
+            keypair,
+            config.get_all_validator_api_endpoints(),
             storage.clone().unwrap(),
         ))
     } else {
@@ -486,10 +503,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values
-    let config = match Config::load_from_file(None) {
+    let id = matches.value_of(ID);
+    let config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(_) => {
-            let config_path = Config::default_config_file_path(None)
+            let config_path = Config::default_config_file_path(id)
                 .into_os_string()
                 .into_string()
                 .unwrap();
@@ -507,11 +525,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         return Ok(());
     }
 
-    let signing_nymd_client = if matches.is_present(MNEMONIC_ARG) {
-        Some(Client::new_signing(&config))
-    } else {
-        None
-    };
+    let signing_nymd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
 
@@ -529,9 +543,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
-        let nymd_client = signing_nymd_client.expect("We should have a signing client here");
         let validator_cache_refresher = ValidatorCacheRefresher::new(
-            nymd_client.clone(),
+            signing_nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
         );
@@ -546,7 +559,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         tokio::spawn(async move { uptime_updater.run().await });
 
         let mut rewarded_set_updater =
-            RewardedSetUpdater::new(nymd_client, validator_cache.clone(), storage).await?;
+            RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
 
         // spawn rewarded set updater
         tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
@@ -590,7 +603,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 async fn main() -> Result<()> {
     println!("Starting validator api...");
 
-    dotenv::dotenv()?;
+    let _ = dotenv::dotenv();
 
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time

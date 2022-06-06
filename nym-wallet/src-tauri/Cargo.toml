@@ -38,7 +38,7 @@ strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.10", features = ["sync", "time"] }
+tokio = { version = "1.19.1", features = ["sync", "time"] }
 toml = "0.5.8"
 url = "2.2"
 

@@ -85,6 +85,7 @@ export interface MixNodeResponseItem {
   mix_node: MixNode;
   avg_uptime: number;
   delegators_number: number;
+  stake_saturation: number;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];
@@ -171,7 +172,14 @@ export type Delegation = {
   block_height: number;
 };
 
+export type DelegationUniq = {
+  owner: string;
+  amount: Amount;
+};
+
 export type DelegationsResponse = Delegation[];
+
+export type UniqDelegationsResponse = DelegationUniq[];
 
 export interface CountryDataResponse {
   [threeLetterCountryCode: string]: CountryData;

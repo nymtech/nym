@@ -14,7 +14,7 @@ log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
 sled = "0.34"
-tokio = { version = "1.4", features = ["macros"] }
+tokio = { version = "1.19.1", features = ["macros"] }
 url = { version ="2.2", features = ["serde"] }
 
 # internal

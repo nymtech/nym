@@ -13,6 +13,7 @@ import {
 import {
   CountryDataResponse,
   DelegationsResponse,
+  UniqDelegationsResponse,
   GatewayResponse,
   MixNodeDescriptionResponse,
   MixNodeResponse,
@@ -129,6 +130,9 @@ export class Api {
 
   static fetchDelegationsById = async (id: string): Promise<DelegationsResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/delegations`)).json();
+
+  static fetchUniqDelegationsById = async (id: string): Promise<UniqDelegationsResponse> =>
+    (await fetch(`${MIXNODE_API}/${id}/delegations/summed`)).json();
 
   static fetchStatsById = async (id: string): Promise<StatsResponse> =>
     (await fetch(`${MIXNODE_API}/${id}/stats`)).json();

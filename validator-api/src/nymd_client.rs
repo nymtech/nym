@@ -1,27 +1,39 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
-use crate::rewarded_set_updater::error::RewardingError;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
-use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
-use mixnet_contract_common::Interval;
-use mixnet_contract_common::{
-    reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
-    IdentityKey, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
-};
 use serde::Serialize;
+#[cfg(feature = "coconut")]
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
+
+use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::{
+    reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
+    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+};
+#[cfg(feature = "coconut")]
+use multisig_contract_common::msg::ProposalResponse;
+#[cfg(feature = "coconut")]
+use validator_client::nymd::{
+    cosmwasm_client::logs::find_attribute,
+    traits::{MultisigSigningClient, QueryClient},
+};
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    CosmWasmClient, CosmosCoin, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
 };
 use validator_client::ValidatorClientError;
+
+#[cfg(feature = "coconut")]
+use crate::coconut::error::CoconutError;
+use crate::config::Config;
+use crate::rewarded_set_updater::error::RewardingError;
 
 pub(crate) struct Client<C>(pub(crate) Arc<RwLock<validator_client::Client<C>>>);
 
@@ -46,14 +58,8 @@ impl Client<QueryNymdClient> {
             .parse()
             .expect("the mixnet contract address is invalid!");
 
-        let client_config = validator_client::Config::new(
-            network,
-            nymd_url,
-            api_url,
-            Some(mixnet_contract),
-            None,
-            None,
-        );
+        let client_config = validator_client::Config::new(network, nymd_url, api_url)
+            .with_mixnode_contract_address(mixnet_contract);
         let inner =
             validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
@@ -80,14 +86,8 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let client_config = validator_client::Config::new(
-            network,
-            nymd_url,
-            api_url,
-            Some(mixnet_contract),
-            None,
-            None,
-        );
+        let client_config = validator_client::Config::new(network, nymd_url, api_url)
+            .with_mixnode_contract_address(mixnet_contract);
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 
@@ -326,7 +326,7 @@ impl<C> Client<C> {
         &self,
         rewarded_set: Vec<IdentityKey>,
         expected_active_set_size: u32,
-        reward_msgs: Vec<(ExecuteMsg, Vec<CosmosCoin>)>,
+        reward_msgs: Vec<(ExecuteMsg, Vec<Coin>)>,
     ) -> Result<(), RewardingError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -358,7 +358,7 @@ impl<C> Client<C> {
 
     async fn execute_multiple_with_retry<M>(
         &self,
-        msgs: Vec<(M, Vec<CosmosCoin>)>,
+        msgs: Vec<(M, Vec<Coin>)>,
         fee: Fee,
         memo: String,
     ) -> Result<(), RewardingError>
@@ -366,12 +366,7 @@ impl<C> Client<C> {
         C: SigningCosmWasmClient + Sync,
         M: Serialize + Clone + Send,
     {
-        let contract = self
-            .0
-            .read()
-            .await
-            .get_mixnet_contract_address()
-            .ok_or(RewardingError::UnspecifiedContractAddress)?;
+        let contract = self.0.read().await.get_mixnet_contract_address();
 
         // grab the write lock here so we're sure nothing else is executing anything on the contract
         // in the meantime
@@ -420,7 +415,7 @@ impl<C> Client<C> {
 #[cfg(feature = "coconut")]
 impl<C> crate::coconut::client::Client for Client<C>
 where
-    C: CosmWasmClient + Sync + Send,
+    C: SigningCosmWasmClient + Sync + Send,
 {
     async fn get_tx(
         &self,
@@ -428,7 +423,71 @@ where
     ) -> crate::coconut::error::Result<validator_client::nymd::TxResponse> {
         let tx_hash = tx_hash
             .parse::<validator_client::nymd::tx::Hash>()
-            .map_err(|_| crate::coconut::error::CoconutError::TxHashParseError)?;
+            .map_err(|_| CoconutError::TxHashParseError)?;
         Ok(self.0.read().await.nymd.get_tx(tx_hash).await?)
+    }
+
+    async fn get_proposal(
+        &self,
+        proposal_id: u64,
+    ) -> crate::coconut::error::Result<ProposalResponse> {
+        Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
+    }
+
+    async fn propose_release_funds(
+        &self,
+        title: String,
+        blinded_serial_number: String,
+        voucher_value: u128,
+        fee: Option<Fee>,
+    ) -> Result<u64, CoconutError> {
+        let res = self
+            .0
+            .read()
+            .await
+            .nymd
+            .propose_release_funds(title, blinded_serial_number, voucher_value, fee)
+            .await?;
+        let proposal_id = u64::from_str(
+            &find_attribute(&res.logs, "wasm", "proposal_id")
+                .ok_or_else(|| {
+                    CoconutError::InternalError("No attribute with proposal_id as key".to_string())
+                })?
+                .value,
+        )
+        .map_err(|_| {
+            CoconutError::InternalError("proposal_id could not be parsed to u64".to_string())
+        })?;
+
+        Ok(proposal_id)
+    }
+
+    async fn vote_proposal(
+        &self,
+        proposal_id: u64,
+        vote_yes: bool,
+        fee: Option<Fee>,
+    ) -> Result<(), CoconutError> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .vote_proposal(proposal_id, vote_yes, fee)
+            .await?;
+        Ok(())
+    }
+
+    async fn execute_proposal(
+        &self,
+        proposal_id: u64,
+        fee: Option<Fee>,
+    ) -> Result<(), CoconutError> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .execute_proposal(proposal_id, fee)
+            .await?;
+        Ok(())
     }
 }

@@ -873,7 +873,6 @@ dependencies = [
  "bip39",
  "cfg-if 0.1.10",
  "clap 3.1.8",
- "coconut-bandwidth-contract-common",
  "coconut-interface",
  "credential-storage",
  "credentials",
@@ -1162,6 +1161,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9336ecef1e19d56cf6e3e932475fc6a3dee35eec5a386e07917a1d1ba6bb0e35"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-utils"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
  "schemars",
  "serde",
 ]
@@ -1568,12 +1603,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "explorer-api"
 version = "1.0.1"
 dependencies = [
  "chrono",
  "humantime-serde",
  "isocountry",
+ "itertools",
  "log",
  "mixnet-contract-common",
  "network-defaults",
@@ -1950,7 +1994,6 @@ dependencies = [
 name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "bs58",
  "coconut-interface",
  "credentials",
@@ -2106,7 +2149,7 @@ dependencies = [
  "indexmap",
  "slab",
  "tokio",
- "tokio-util 0.7.1",
+ "tokio-util 0.7.3",
  "tracing",
 ]
 
@@ -2836,7 +2879,7 @@ dependencies = [
  "log",
  "nymsphinx",
  "tokio",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
 ]
 
 [[package]]
@@ -2877,7 +2920,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "tokio",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
  "url",
  "validator-client",
  "version-checker",
@@ -2908,6 +2951,18 @@ name = "multimap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
+
+[[package]]
+name = "multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw4",
+ "schemars",
+ "serde",
+]
 
 [[package]]
 name = "native-tls"
@@ -2955,7 +3010,7 @@ version = "0.1.0"
 dependencies = [
  "tokio",
  "tokio-stream",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
 ]
 
 [[package]]
@@ -3090,7 +3145,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
  "url",
  "validator-client",
  "vergen",
@@ -3127,7 +3182,7 @@ dependencies = [
  "serde",
  "serial_test",
  "tokio",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
  "toml",
  "topology",
  "url",
@@ -3213,6 +3268,7 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
+ "cosmwasm-std",
  "credential-storage",
  "credentials",
  "crypto",
@@ -3224,6 +3280,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "mixnet-contract-common",
+ "multisig-contract-common",
  "nymcoconut",
  "nymsphinx",
  "okapi",
@@ -3373,7 +3430,7 @@ dependencies = [
  "bytes",
  "nymsphinx-params",
  "nymsphinx-types",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
 ]
 
 [[package]]
@@ -3998,7 +4055,7 @@ dependencies = [
  "socks5-requests",
  "tokio",
  "tokio-test",
- "tokio-util 0.6.9",
+ "tokio-util 0.7.3",
 ]
 
 [[package]]
@@ -5704,9 +5761,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.17.0"
+version = "1.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af73ac49756f3f7c01172e34a23e5d0216f6c32333757c2c61feb2bbff5a5ee"
+checksum = "95eec79ea28c00a365f539f1961e9278fbcaf81c0ff6aaf0e93c181352446948"
 dependencies = [
  "bytes",
  "libc",
@@ -5767,9 +5824,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50145484efff8818b5ccd256697f36863f587da82cf8b409c53adf1e840798e3"
+checksum = "df54d54117d6fdc4e4fea40fe1e4e566b3505700e148a6827e59b34b0d2600d9"
 dependencies = [
  "futures-core",
  "pin-project-lite",
@@ -5814,20 +5871,20 @@ dependencies = [
  "futures-sink",
  "log",
  "pin-project-lite",
- "slab",
  "tokio",
 ]
 
 [[package]]
 name = "tokio-util"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0edfdeb067411dba2044da6d1cb2df793dd35add7888d73c16e3381ded401764"
+checksum = "cc463cd8deddc3770d20f9852143d50bf6094e640b485cb2e189a2099085ff45"
 dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
  "pin-project-lite",
+ "slab",
  "tokio",
  "tracing",
 ]
@@ -5912,7 +5969,7 @@ dependencies = [
  "rand 0.8.5",
  "slab",
  "tokio",
- "tokio-util 0.7.1",
+ "tokio-util 0.7.3",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -6201,16 +6258,20 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "coconut-bandwidth-contract-common",
  "coconut-interface",
  "colored",
  "config",
  "cosmrs",
  "cosmwasm-std",
+ "cw3",
+ "execute",
  "flate2",
  "futures",
  "itertools",
  "log",
  "mixnet-contract-common",
+ "multisig-contract-common",
  "network-defaults",
  "prost 0.10.3",
  "reqwest",

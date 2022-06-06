@@ -1,5 +1,5 @@
 [package]
-name = "network-statistics"
+name = "nym-network-statistics"
 version = "0.1.0"
 edition = "2021"
 

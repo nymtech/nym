@@ -2928,21 +2928,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "network-statistics"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "log",
- "pretty_env_logger",
- "rocket",
- "serde",
- "sqlx",
- "thiserror",
- "tokio",
- "tokio-tungstenite",
-]
-
-[[package]]
 name = "nom"
 version = "7.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3165,6 +3150,21 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "websocket-requests",
+]
+
+[[package]]
+name = "nym-network-statistics"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "log",
+ "pretty_env_logger",
+ "rocket",
+ "serde",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite",
 ]
 
 [[package]]

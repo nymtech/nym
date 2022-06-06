@@ -25,8 +25,6 @@ static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
     listening_address: String,
-    #[cfg(feature = "stats-service")]
-    db_path: PathBuf,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
@@ -48,17 +46,9 @@ impl ServiceProvider {
             PathBuf::from("unknown.list"),
         );
 
-        #[cfg(feature = "stats-service")]
-        let db_path = HostsStore::default_base_dir()
-            .join("service-providers")
-            .join("network-requester")
-            .join("db.sqlite");
-
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
             listening_address,
-            #[cfg(feature = "stats-service")]
-            db_path,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
@@ -229,7 +219,6 @@ impl ServiceProvider {
 
     async fn handle_proxy_message(
         &mut self,
-        #[cfg(feature = "stats-service")] storage: &crate::storage::NetworkRequesterStorage,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
@@ -279,18 +268,7 @@ impl ServiceProvider {
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
-            Socks5Message::Response(_deserialized_response) =>
-            {
-                #[cfg(feature = "stats-service")]
-                match crate::statistics::StatsMessage::from_bytes(&_deserialized_response.data) {
-                    Ok(data) => {
-                        if let Err(e) = storage.insert_service_statistics(data).await {
-                            error!("Could not store received statistics: {}", e);
-                        }
-                    }
-                    Err(e) => error!("Malformed statistics received: {}", e),
-                }
-            }
+            Socks5Message::Response(_) => {}
         }
     }
 
@@ -332,25 +310,6 @@ impl ServiceProvider {
             None
         };
 
-        #[cfg(feature = "stats-service")]
-        let storage = crate::storage::NetworkRequesterStorage::init(self.db_path.as_path())
-            .await
-            .expect("Could not create network requester storage");
-
-        #[cfg(feature = "stats-service")]
-        tokio::spawn(
-            rocket::build()
-                .mount(
-                    "/v1",
-                    rocket::routes![crate::storage::post_mixnet_statistics],
-                )
-                .manage(storage.clone())
-                .ignite()
-                .await
-                .expect("Could not ignite stats api service")
-                .launch(),
-        );
-
         let stats_collector_clone = stats_collector.clone();
         // start the listener for mix messages
         tokio::spawn(async move {
@@ -377,8 +336,6 @@ impl ServiceProvider {
             // TODO: here be potential SURB (i.e. received.reply_SURB)
 
             self.handle_proxy_message(
-                #[cfg(feature = "stats-service")]
-                &storage,
                 &raw_message,
                 &mut controller_sender,
                 &mix_input_sender,

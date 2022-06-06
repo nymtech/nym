@@ -6,6 +6,7 @@ use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
+    hardware::hardware,
     not_found,
     stats::stats,
     verloc::{verloc as verlocRoute, VerlocState},
@@ -139,7 +140,7 @@ impl MixNode {
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verlocRoute, description, stats])
+                .mount("/", routes![verlocRoute, description, stats, hardware])
                 .register("/", catchers![not_found])
                 .manage(verloc_state)
                 .manage(descriptor)

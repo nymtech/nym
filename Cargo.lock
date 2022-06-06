@@ -1141,6 +1141,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cupid"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bad352a84b567cc38a5854e3aa8ee903cb8519a25d0b799b739bafffd1f91a1"
+dependencies = [
+ "gcc",
+ "rustc_version 0.2.3",
+]
+
+[[package]]
 name = "curve25519-dalek"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2000,6 +2010,12 @@ dependencies = [
  "thiserror",
  "tungstenite",
 ]
+
+[[package]]
+name = "gcc"
+version = "0.3.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
 
 [[package]]
 name = "generator"
@@ -3155,6 +3171,7 @@ dependencies = [
  "colored",
  "config",
  "crypto",
+ "cupid",
  "dirs",
  "dotenv",
  "futures",

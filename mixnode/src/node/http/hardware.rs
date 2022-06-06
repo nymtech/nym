@@ -1,5 +1,5 @@
 use rocket::serde::{json::Json, Serialize};
-use sysinfo::{Cpu, System, SystemExt};
+use sysinfo::{System, SystemExt};
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]

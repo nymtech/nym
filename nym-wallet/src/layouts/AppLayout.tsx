@@ -44,7 +44,9 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         </Box>
         <Container maxWidth="xl">
           <AppBar />
-          {children}
+          <Box overflow="auto" sx={{ height: () => `calc(100% - ${theme.spacing(10)})` }}>
+            {children}
+          </Box>
         </Container>
       </Box>
     </>

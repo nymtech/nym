@@ -5,9 +5,9 @@ use log::*;
 use rocket::{Ignite, Rocket};
 
 use crate::storage::NetworkStatisticsStorage;
-use routes::post_service_statistics;
+use routes::{post_service_statistics, post_statistic};
 
-use error::NetworkStatisticsAPIError;
+use error::Result;
 
 mod error;
 mod routes;
@@ -17,11 +17,12 @@ pub(crate) struct NetworkStatisticsAPI {
 }
 
 impl NetworkStatisticsAPI {
-    pub async fn init(
-        storage: NetworkStatisticsStorage,
-    ) -> Result<Self, NetworkStatisticsAPIError> {
+    pub async fn init(storage: NetworkStatisticsStorage) -> Result<Self> {
         let rocket = rocket::build()
-            .mount("/v1", rocket::routes![post_service_statistics])
+            .mount(
+                "/v1",
+                rocket::routes![post_service_statistics, post_statistic],
+            )
             .manage(storage.clone())
             .ignite()
             .await?;

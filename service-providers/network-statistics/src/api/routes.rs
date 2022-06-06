@@ -5,7 +5,9 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::{Deserialize, Serialize};
 
+use crate::api::error::Result;
 use crate::storage::NetworkStatisticsStorage;
+use crate::storage::StatsMessage;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ServiceStatisticsRequest {
@@ -16,7 +18,7 @@ pub struct ServiceStatisticsRequest {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct ServiceStatisticsResponse {
+pub struct ServiceStatistic {
     pub requested_service: String,
     pub request_processed_bytes: u32,
     pub response_processed_bytes: u32,
@@ -28,16 +30,15 @@ pub struct ServiceStatisticsResponse {
 pub(crate) async fn post_service_statistics(
     service_statistics_request: Json<ServiceStatisticsRequest>,
     storage: &State<NetworkStatisticsStorage>,
-) -> Json<Vec<ServiceStatisticsResponse>> {
+) -> Result<Json<Vec<ServiceStatistic>>> {
     let service_statistics = storage
         .get_service_statistics_in_interval(
             &service_statistics_request.since,
             &service_statistics_request.until,
         )
-        .await
-        .unwrap()
+        .await?
         .into_iter()
-        .map(|data| ServiceStatisticsResponse {
+        .map(|data| ServiceStatistic {
             requested_service: data.requested_service,
             request_processed_bytes: data.request_processed_bytes as u32,
             response_processed_bytes: data.response_processed_bytes as u32,
@@ -46,5 +47,14 @@ pub(crate) async fn post_service_statistics(
         })
         .collect();
 
-    Json(service_statistics)
+    Ok(Json(service_statistics))
+}
+
+#[rocket::post("/statistics", data = "<statistics>")]
+pub(crate) async fn post_statistic(
+    statistics: Json<StatsMessage>,
+    storage: &State<NetworkStatisticsStorage>,
+) -> Result<Json<()>> {
+    storage.insert_service_statistics(statistics.0).await?;
+    Ok(Json(()))
 }

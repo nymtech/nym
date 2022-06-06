@@ -11,7 +11,7 @@ use crate::storage::error::NetworkStatisticsStorageError;
 use crate::storage::manager::StorageManager;
 use crate::storage::models::ServiceStatistics;
 
-mod error;
+pub(crate) mod error;
 mod manager;
 mod models;
 

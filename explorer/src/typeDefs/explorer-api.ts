@@ -171,7 +171,14 @@ export type Delegation = {
   block_height: number;
 };
 
+export type DelegationUniq = {
+  owner: string;
+  amount: Amount;
+};
+
 export type DelegationsResponse = Delegation[];
+
+export type UniqDelegationsResponse = DelegationUniq[];
 
 export interface CountryDataResponse {
   [threeLetterCountryCode: string]: CountryData;

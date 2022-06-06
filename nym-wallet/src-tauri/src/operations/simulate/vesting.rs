@@ -3,8 +3,10 @@
 
 use crate::coin::Coin;
 use crate::error::BackendError;
+use crate::nymd_client;
 use crate::simulate::{FeeDetails, SimulateResult};
 use crate::State;
+use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{Gateway, MixNode};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -150,5 +152,51 @@ pub async fn simulate_withdraw_vested_coins(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
+    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+}
+
+#[tauri::command]
+pub async fn simulate_vesting_claim_operator_reward(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let result = nymd_client!(state)
+        .simulate_vesting_claim_operator_reward(None)
+        .await?;
+    let gas_price = nymd_client!(state).gas_price().clone();
+    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+}
+
+#[tauri::command]
+pub async fn simulate_vesting_compound_operator_reward(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let result = nymd_client!(state)
+        .simulate_vesting_compound_operator_reward(None)
+        .await?;
+    let gas_price = nymd_client!(state).gas_price().clone();
+    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+}
+
+#[tauri::command]
+pub async fn simulate_vesting_claim_delegator_reward(
+    mix_identity: IdentityKey,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let result = nymd_client!(state)
+        .simulate_vesting_claim_delegator_reward(mix_identity, None)
+        .await?;
+    let gas_price = nymd_client!(state).gas_price().clone();
+    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+}
+
+#[tauri::command]
+pub async fn simulate_vesting_compound_delegator_reward(
+    mix_identity: IdentityKey,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let result = nymd_client!(state)
+        .simulate_vesting_compound_delegator_reward(mix_identity, None)
+        .await?;
+    let gas_price = nymd_client!(state).gas_price().clone();
     Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
 }

@@ -31,6 +31,7 @@ members = [
     "common/credentials",
     "common/crypto",
     "common/crypto/dkg",
+    "common/execute",
     "common/bandwidth-claim-contract",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/contracts-common",

@@ -209,10 +209,7 @@ impl ActionController {
     }
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
-    fn handle_expired_ack_timer(
-        &mut self,
-        expired_ack: Expired<FragmentIdentifier>,
-    ) {
+    fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
         // I'm honestly not sure how to handle it, because getting it means other things in our
         // system are already misbehaving. If we ever see this panic, then I guess we should worry
         // about it. Perhaps just reschedule it at later point?

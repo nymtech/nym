@@ -75,7 +75,7 @@ where
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    fn handle_done_delaying(&mut self, packet: Expired<MixPacket>) {				        
+    fn handle_done_delaying(&mut self, packet: Expired<MixPacket>) {
         let delayed_packet = packet.into_inner();
         self.forward_packet(delayed_packet)
     }

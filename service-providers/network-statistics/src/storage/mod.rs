@@ -14,7 +14,6 @@ use crate::storage::models::ServiceStatistics;
 mod error;
 mod manager;
 mod models;
-pub(super) mod routes;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsServiceData {

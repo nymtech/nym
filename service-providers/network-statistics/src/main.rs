@@ -3,6 +3,8 @@
 
 use std::path::PathBuf;
 
+use api::NetworkStatisticsAPI;
+
 mod api;
 mod storage;
 
@@ -15,18 +17,10 @@ async fn main() {
         .await
         .expect("Could not create network statistics storage");
 
-    tokio::spawn(
-        rocket::build()
-            .mount(
-                "/v1",
-                rocket::routes![storage::routes::post_service_statistics],
-            )
-            .manage(storage.clone())
-            .ignite()
-            .await
-            .expect("Could not ignite stats api service")
-            .launch(),
-    );
+    let api = NetworkStatisticsAPI::init(storage)
+        .await
+        .expect("Could not ignite stats api service");
+    api.run().await;
 }
 
 fn setup_logging() {

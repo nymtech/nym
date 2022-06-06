@@ -1538,6 +1538,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77f3309417938f28bf8228fcff79a4a37103981e3e186d2ccd19c74b38f4eb71"
 
 [[package]]
+name = "execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5542,6 +5550,7 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "cw3",
+ "execute",
  "flate2",
  "futures",
  "itertools",

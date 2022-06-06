@@ -84,7 +84,7 @@ export const Delegation: FC = () => {
         tokenPool,
       );
 
-      const balance = await userBalance();
+      const bal = await userBalance();
       let spendableLocked;
 
       if (tokenPool === 'locked') spendableLocked = await getSpendableCoins();
@@ -92,10 +92,11 @@ export const Delegation: FC = () => {
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
+        message: 'Delegations can take up to one hour to process',
         balance:
           tokenPool === 'locked'
             ? `${spendableLocked?.amount} ${spendableLocked?.denom}`
-            : balance?.printable_balance || '-',
+            : bal?.printable_balance || '-',
         transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
@@ -131,7 +132,7 @@ export const Delegation: FC = () => {
         },
         tokenPool,
       );
-      let balance = await userBalance();
+      const bal = await userBalance();
       let spendableLocked;
 
       if (originalVesting) spendableLocked = await getSpendableCoins();
@@ -139,8 +140,7 @@ export const Delegation: FC = () => {
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        balance:
-          tokenPool === 'locked' ? `${spendableLocked} ${clientDetails?.denom}` : balance?.printable_balance || '-',
+        balance: tokenPool === 'locked' ? `${spendableLocked} ${clientDetails?.denom}` : bal?.printable_balance || '-',
         transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
@@ -162,12 +162,12 @@ export const Delegation: FC = () => {
 
     try {
       const tx = await undelegate(identityKey, proxy);
-      const balance = await userBalance();
+      const bal = await userBalance();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
-        balance: balance?.printable_balance || '-',
+        balance: bal?.printable_balance || '-',
         transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
@@ -196,11 +196,11 @@ export const Delegation: FC = () => {
     if (clientDetails?.client_address) {
       try {
         const tx = await redeemRewards(identityKey);
-        const balance = await userBalance();
+        const bal = await userBalance();
         setConfirmationModalProps({
           status: 'success',
           action: 'redeem',
-          balance: balance?.printable_balance || '-',
+          balance: bal?.printable_balance || '-',
           recipient: clientDetails?.client_address,
           transactionUrl: `${urls(network).blockExplorer}/${tx}}`,
         });
@@ -223,12 +223,12 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
     try {
       const tx = await redeemAllRewards();
-      const balance = await userBalance();
+      const bal = await userBalance();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem-all',
-        balance: balance?.printable_balance || '-',
+        balance: bal?.printable_balance || '-',
         recipient: clientDetails?.client_address,
         transactionUrl: tx.transactionUrl,
       });

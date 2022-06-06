@@ -1,10 +1,8 @@
 use crate::error::BackendError;
-use crate::state::State;
+use crate::state::WalletState;
 use nym_types::currency::DecCoin;
 use nym_types::transaction::{SendTxResult, TransactionDetails};
 use std::str::FromStr;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use validator_client::nymd::{AccountId, Fee};
 
 #[tauri::command]
@@ -13,7 +11,7 @@ pub async fn send(
     amount: DecCoin,
     memo: String,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<SendTxResult, BackendError> {
     let guard = state.read().await;
     let amount_base = guard.attempt_convert_to_base_coin(amount.clone())?;

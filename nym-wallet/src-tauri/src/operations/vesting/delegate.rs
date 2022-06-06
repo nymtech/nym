@@ -1,15 +1,13 @@
 use crate::error::BackendError;
-use crate::state::State;
+use crate::state::WalletState;
 use nym_types::currency::DecCoin;
 use nym_types::delegation::DelegationEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn get_pending_vesting_delegation_events(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get pending delegations from vesting contract");
 
@@ -39,7 +37,7 @@ pub async fn vesting_delegate_to_mixnode(
     identity: &str,
     amount: DecCoin,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let delegation = guard.attempt_convert_to_base_coin(amount.clone())?;
@@ -68,7 +66,7 @@ pub async fn vesting_delegate_to_mixnode(
 pub async fn vesting_undelegate_from_mixnode(
     identity: &str,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());

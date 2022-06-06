@@ -3,18 +3,16 @@
 
 use crate::error::BackendError;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
-use crate::state::State;
+use crate::state::WalletState;
 use nym_types::currency::DecCoin;
 use std::str::FromStr;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use validator_client::nymd::{AccountId, MsgSend};
 
 #[tauri::command]
 pub async fn simulate_send(
     address: &str,
     amount: DecCoin,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let amount_base = guard.attempt_convert_to_base_coin(amount.clone())?;

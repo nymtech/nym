@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use strum::IntoEnumIterator;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
 use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, SigningNymdClient};
 use validator_client::Client;
@@ -29,7 +29,7 @@ static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {
 
 #[tauri::command]
 pub async fn load_config_from_files(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     state.write().await.load_config_files();
     Ok(())
@@ -37,13 +37,30 @@ pub async fn load_config_from_files(
 
 #[tauri::command]
 pub async fn save_config_to_files(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     state.read().await.save_config_files()
 }
 
+#[derive(Default, Clone)]
+pub struct WalletState {
+    inner: Arc<RwLock<WalletStateInner>>,
+}
+
+impl WalletState {
+    // not the best API, but those are exposed here for backwards compatibility with the existing
+    // state type assumptions so that we wouldn't need to fix it up everywhere at once
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, WalletStateInner> {
+        self.inner.read().await
+    }
+
+    pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, WalletStateInner> {
+        self.inner.write().await
+    }
+}
+
 #[derive(Default)]
-pub struct State {
+pub struct WalletStateInner {
     config: config::Config,
     signing_clients: HashMap<Network, Client<SigningNymdClient>>,
     current_network: Network,
@@ -67,7 +84,7 @@ pub(crate) struct WalletAccountIds {
     pub addresses: HashMap<Network, CosmosAccountId>,
 }
 
-impl State {
+impl WalletStateInner {
     // note that `Coin` is ALWAYS the base coin
     pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, BackendError> {
         let registered_coins = self
@@ -453,7 +470,7 @@ mod tests {
 
     #[test]
     fn adding_validators_urls_prepends() {
-        let mut state = State::default();
+        let mut state = WalletStateInner::default();
         let _api_urls = state.get_api_urls(Network::MAINNET).collect::<Vec<_>>();
 
         state.add_validator_url(

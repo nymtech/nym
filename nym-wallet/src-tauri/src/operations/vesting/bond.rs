@@ -1,12 +1,10 @@
 use crate::error::BackendError;
 use crate::nymd_client;
-use crate::state::State;
+use crate::state::WalletState;
 use crate::{Gateway, MixNode};
 
 use nym_types::currency::DecCoin;
 use nym_types::transaction::TransactionExecuteResult;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
@@ -15,7 +13,7 @@ pub async fn vesting_bond_gateway(
     pledge: DecCoin,
     owner_signature: String,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
@@ -43,7 +41,7 @@ pub async fn vesting_bond_gateway(
 #[tauri::command]
 pub async fn vesting_unbond_gateway(
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
@@ -65,7 +63,7 @@ pub async fn vesting_bond_mixnode(
     owner_signature: String,
     pledge: DecCoin,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
@@ -93,7 +91,7 @@ pub async fn vesting_bond_mixnode(
 #[tauri::command]
 pub async fn vesting_unbond_mixnode(
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
@@ -117,7 +115,7 @@ pub async fn vesting_unbond_mixnode(
 pub async fn withdraw_vested_coins(
     amount: DecCoin,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let amount_base = guard.attempt_convert_to_base_coin(amount.clone())?;
@@ -145,7 +143,7 @@ pub async fn withdraw_vested_coins(
 pub async fn vesting_update_mixnode(
     profit_margin_percent: u8,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());

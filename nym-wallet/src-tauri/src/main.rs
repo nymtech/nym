@@ -4,9 +4,7 @@
 )]
 
 use mixnet_contract_common::{Gateway, MixNode};
-use std::sync::Arc;
 use tauri::Menu;
-use tokio::sync::RwLock;
 
 mod config;
 mod error;
@@ -24,14 +22,14 @@ use crate::operations::simulate;
 use crate::operations::validator_api;
 use crate::operations::vesting;
 
-use crate::state::State;
+use crate::state::WalletState;
 
 fn main() {
     dotenv::dotenv().ok();
     setup_logging();
 
     tauri::Builder::default()
-        .manage(Arc::new(RwLock::new(State::default())))
+        .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
             mixnet::account::add_account_for_password,
             mixnet::account::connect_with_mnemonic,

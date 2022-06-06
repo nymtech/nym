@@ -1,5 +1,5 @@
 use crate::error::BackendError;
-use crate::state::State;
+use crate::state::WalletState;
 use crate::vesting::delegate::get_pending_vesting_delegation_events;
 use crate::{api_client, nymd_client};
 use mixnet_contract_common::IdentityKey;
@@ -10,13 +10,11 @@ use nym_types::delegation::{
 };
 use nym_types::transaction::TransactionExecuteResult;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use validator_client::nymd::{Coin, Fee};
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get pending delegation events");
     let guard = state.read().await;
@@ -41,7 +39,7 @@ pub async fn delegate_to_mixnode(
     identity: &str,
     amount: DecCoin,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let delegation_base = guard.attempt_convert_to_base_coin(amount.clone())?;
@@ -68,7 +66,7 @@ pub async fn delegate_to_mixnode(
 pub async fn undelegate_from_mixnode(
     identity: &str,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
@@ -98,7 +96,7 @@ struct DelegationWithHistory {
 
 #[tauri::command]
 pub async fn get_all_mix_delegations(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationWithEverything>, BackendError> {
     log::info!(">>> Get all mixnode delegations");
 
@@ -319,7 +317,7 @@ pub async fn get_delegator_rewards(
     address: String,
     mix_identity: IdentityKey,
     proxy: Option<String>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
     log::info!(
         ">>> Get delegator rewards: mix_identity = {}, proxy = {:?}",
@@ -347,7 +345,7 @@ pub async fn get_delegator_rewards(
 
 #[tauri::command]
 pub async fn get_delegation_summary(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<DelegationsSummaryResponse, BackendError> {
     log::info!(">>> Get delegation summary");
 
@@ -384,7 +382,7 @@ pub async fn get_delegation_summary(
 
 #[tauri::command]
 pub async fn get_all_pending_delegation_events(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get all pending delegation events");
 

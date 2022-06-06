@@ -3,12 +3,10 @@
 
 use crate::error::BackendError;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
-use crate::State;
+use crate::WalletState;
 use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{Gateway, MixNode};
 use nym_types::currency::DecCoin;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use vesting_contract_common::ExecuteMsg;
 
 #[tauri::command]
@@ -16,7 +14,7 @@ pub async fn simulate_vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
     owner_signature: String,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let pledge = guard.attempt_convert_to_base_coin(pledge)?;
@@ -41,7 +39,7 @@ pub async fn simulate_vesting_bond_gateway(
 
 #[tauri::command]
 pub async fn simulate_vesting_unbond_gateway(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
 
@@ -64,7 +62,7 @@ pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
     owner_signature: String,
     pledge: DecCoin,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let pledge = guard.attempt_convert_to_base_coin(pledge)?;
@@ -89,7 +87,7 @@ pub async fn simulate_vesting_bond_mixnode(
 
 #[tauri::command]
 pub async fn simulate_vesting_unbond_mixnode(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
 
@@ -110,7 +108,7 @@ pub async fn simulate_vesting_unbond_mixnode(
 #[tauri::command]
 pub async fn simulate_vesting_update_mixnode(
     profit_margin_percent: u8,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
 
@@ -133,7 +131,7 @@ pub async fn simulate_vesting_update_mixnode(
 #[tauri::command]
 pub async fn simulate_withdraw_vested_coins(
     amount: DecCoin,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let amount = guard.attempt_convert_to_base_coin(amount)?.into();
@@ -154,7 +152,7 @@ pub async fn simulate_withdraw_vested_coins(
 
 #[tauri::command]
 pub async fn simulate_vesting_claim_operator_reward(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
@@ -169,7 +167,7 @@ pub async fn simulate_vesting_claim_operator_reward(
 
 #[tauri::command]
 pub async fn simulate_vesting_compound_operator_reward(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
@@ -185,7 +183,7 @@ pub async fn simulate_vesting_compound_operator_reward(
 #[tauri::command]
 pub async fn simulate_vesting_claim_delegator_reward(
     mix_identity: IdentityKey,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
@@ -201,7 +199,7 @@ pub async fn simulate_vesting_claim_delegator_reward(
 #[tauri::command]
 pub async fn simulate_vesting_compound_delegator_reward(
     mix_identity: IdentityKey,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;

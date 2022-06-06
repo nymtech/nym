@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Button, CircularProgress, Link, Modal, Stack, Typography } from '@mui/material';
 import { modalStyle } from '../Modals/styles';
 
-export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all';
+export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
 const actionToHeader = (action: ActionType): string => {
   // eslint-disable-next-line default-case

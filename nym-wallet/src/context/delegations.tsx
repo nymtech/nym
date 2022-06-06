@@ -9,9 +9,11 @@ import {
 import type { Network } from 'src/types';
 import {
   claimDelegatorRewards,
+  compoundDelegatorRewards,
   delegateToMixnode,
   getAllPendingDelegations,
   vestingClaimDelegatorRewards,
+  vestingCompoundDelegatorRewards,
   vestingDelegateToMixnode,
   vestingUndelegateFromMixnode,
 } from 'src/requests';
@@ -31,6 +33,7 @@ export type TDelegationContext = {
   ) => Promise<TransactionExecuteResult>;
   undelegate: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
   redeemRewards: (identity: string, proxy: string | null) => Promise<void>;
+  compoundRewards: (identity: string, proxy: string | null) => Promise<void>;
 };
 
 export type TDelegationTransaction = {
@@ -47,6 +50,9 @@ export const DelegationContext = createContext<TDelegationContext>({
     throw new Error('Not implemented');
   },
   redeemRewards: async () => {
+    throw new Error('Not implemented');
+  },
+  compoundRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -100,7 +106,20 @@ export const DelegationContextProvider: FC<{
         await vestingClaimDelegatorRewards(identity);
       }
     } catch (e) {
-      console.log(e);
+      throw new Error(e as string);
+    }
+  };
+
+  const compoundRewards = async (identity: string, proxy: string | null) => {
+    try {
+      if ((proxy || '').trim().length === 0) {
+        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
+        await compoundDelegatorRewards(identity);
+      } else {
+        // the delegation is with locked tokens, so use the vesting contract
+        await vestingCompoundDelegatorRewards(identity);
+      }
+    } catch (e) {
       throw new Error(e as string);
     }
   };
@@ -145,6 +164,7 @@ export const DelegationContextProvider: FC<{
       addDelegation,
       undelegate,
       redeemRewards,
+      compoundRewards,
     }),
     [isLoading, error, delegations, pendingDelegations, totalDelegations],
   );

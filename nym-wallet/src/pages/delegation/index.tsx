@@ -14,6 +14,7 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
+import { CompoundModal } from 'src/components/Rewards/CompoundModal';
 
 const explorerUrl = 'https://sandbox-explorer.nymtech.net';
 
@@ -22,6 +23,7 @@ export const Delegation: FC = () => {
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
   const [showRedeemRewardsModal, setShowRedeemRewardsModal] = useState<boolean>(false);
+  const [showCompoundRewardsModal, setShowCompoundRewardsModal] = useState<boolean>(false);
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
 
@@ -40,6 +42,7 @@ export const Delegation: FC = () => {
     addDelegation,
     undelegate,
     redeemRewards,
+    compoundRewards,
     refresh,
   } = useDelegationContext();
 
@@ -67,7 +70,7 @@ export const Delegation: FC = () => {
         setShowRedeemRewardsModal(true);
         break;
       case 'compound':
-        setShowRedeemRewardsModal(true);
+        setShowCompoundRewardsModal(true);
         break;
     }
   };
@@ -144,7 +147,8 @@ export const Delegation: FC = () => {
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        balance: tokenPool === 'locked' ? `${spendableLocked} ${clientDetails?.denom}` : bal?.printable_balance || '-',
+        balance:
+          tokenPool === 'locked' ? `${spendableLocked?.amount} ${clientDetails?.denom}` : bal?.printable_balance || '-',
         transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
@@ -208,32 +212,30 @@ export const Delegation: FC = () => {
     }
   };
 
-  // const handleRedeemAll = async () => {
-  //   setConfirmationModalProps({
-  //     status: 'loading',
-  //     action: 'redeem-all',
-  //   });
-  //   setShowRedeemAllRewardsModal(false);
-  //   setCurrentDelegationListActionItem(undefined);
-  //   try {
-  //     const tx = await redeemAllRewards();
-  //     const bal = await userBalance();
+  const handleCompound = async (identityKey: string, proxy: string | null) => {
+    setConfirmationModalProps({
+      status: 'loading',
+      action: 'compound',
+    });
+    setShowCompoundRewardsModal(false);
+    setCurrentDelegationListActionItem(undefined);
 
-  //     setConfirmationModalProps({
-  //       status: 'success',
-  //       action: 'redeem-all',
-  //       balance: bal?.printable_balance || '-',
-  //       recipient: clientDetails?.client_address,
-  //       transactionUrl: tx.transactionUrl,
-  //     });
-  //   } catch (e) {
-  //     setConfirmationModalProps({
-  //       status: 'error',
-  //       action: 'redeem-all',
-  //       message: (e as Error).message,
-  //     });
-  //   }
-  // };
+    try {
+      await compoundRewards(identityKey, proxy);
+      const bal = await userBalance();
+      setConfirmationModalProps({
+        status: 'success',
+        action: 'compound',
+        balance: bal?.printable_balance || '-',
+      });
+    } catch (e) {
+      setConfirmationModalProps({
+        status: 'error',
+        action: 'redeem',
+        message: (e as Error).message,
+      });
+    }
+  };
 
   return (
     <>
@@ -342,17 +344,18 @@ export const Delegation: FC = () => {
         />
       )}
 
-      {/* {currentDelegationListActionItem && showRedeemAllRewardsModal && (
-        <RedeemModal
-          open={showRedeemAllRewardsModal}
-          onClose={() => setShowRedeemAllRewardsModal(false)}
-          onOk={handleRedeemAll}
+      {currentDelegationListActionItem?.accumulated_rewards && showCompoundRewardsModal && (
+        <CompoundModal
+          open={showCompoundRewardsModal}
+          onClose={() => setShowCompoundRewardsModal(false)}
+          onOk={(identity) => handleCompound(identity, currentDelegationListActionItem.proxy)}
           message="Compound rewards"
-          currency="NYM"
+          currency={clientDetails!.denom}
+          identityKey={currentDelegationListActionItem?.node_identity}
           fee={0.004375}
-          amount={currentDelegationListActionItem?.amount.amount}
+          amount={+currentDelegationListActionItem.accumulated_rewards.amount}
         />
-      )} */}
+      )}
 
       {confirmationModalProps && (
         <DelegationModal

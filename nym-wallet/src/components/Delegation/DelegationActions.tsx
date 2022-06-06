@@ -143,18 +143,17 @@ export const DelegationsActionsMenu: React.FC<{
           disabled={false}
         />
         <DelegationActionsMenuItem
-          title="Compound"
-          description="Add your rewards to this delegation"
-          Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
-          onClick={() => handleActionSelect?.('compound')}
-          disabled={disableRedeemingRewards}
-        />
-
-        <DelegationActionsMenuItem
           title="Redeem"
           description="Trasfer your rewards to your balance"
           Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
           onClick={() => handleActionSelect?.('redeem')}
+          disabled={disableRedeemingRewards}
+        />
+        <DelegationActionsMenuItem
+          title="Compound"
+          description="Add your rewards to this delegation"
+          Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
+          onClick={() => handleActionSelect?.('compound')}
           disabled={disableRedeemingRewards}
         />
       </Menu>

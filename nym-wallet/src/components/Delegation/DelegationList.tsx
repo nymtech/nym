@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Box,
+  Chip,
   CircularProgress,
   Link,
   Table,
@@ -172,10 +173,15 @@ export const DelegationList: React.FC<{
                     <DelegationsActionsMenu
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
-                      disableRedeemingRewards={!item.accumulated_rewards}
+                      disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
                     />
                   ) : (
-                    'Pending events..'
+                    <Tooltip
+                      title="There will be a new epoch roughly every hour when your changes will take effect"
+                      arrow
+                    >
+                      <Chip label="Pending events" />
+                    </Tooltip>
                   )}
                 </TableCell>
               </TableRow>

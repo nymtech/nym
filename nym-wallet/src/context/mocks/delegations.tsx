@@ -176,6 +176,10 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     throw new Error('Not implemented');
   };
 
+  const compoundRewards = async () => {
+    throw new Error('Not implemented');
+  };
+
   const resetState = () => {
     setIsLoading(true);
     setError(undefined);
@@ -214,6 +218,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
       updateDelegation,
       undelegate,
       redeemRewards,
+      compoundRewards,
     }),
     [isLoading, error, delegations, totalDelegations, trigger],
   );

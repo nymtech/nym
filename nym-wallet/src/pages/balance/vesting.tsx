@@ -131,7 +131,12 @@ export const VestingCard = () => {
     await userBalance.fetchTokenAllocation();
   };
 
-  useEffect(() => () => closeSnackbar(), []);
+  useEffect(() => {
+    closeSnackbar();
+    userBalance.fetchTokenAllocation();
+  }, []);
+
+  if (!userBalance.originalVesting) return null;
 
   return (
     <NymCard

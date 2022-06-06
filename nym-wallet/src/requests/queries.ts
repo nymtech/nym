@@ -45,7 +45,7 @@ export const checkGatewayOwnership = async () => invokeWrapper<boolean>('owns_ga
 
 // TODO: remove this method
 export const getGasFee = async (operation: Operation): Promise<MajorCurrencyAmount> => ({
-  amount: '0',
+  amount: '0.00495',
   denom: 'NYM',
 });
 

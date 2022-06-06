@@ -60,7 +60,7 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
           vestedCoins,
           lockedCoins,
           spendableCoins,
-          currentVestingPeriod,
+          currentPeriod,
           vestingAccountDetail,
         ] = await Promise.all([
           getOriginalVesting(clientDetails?.client_address),
@@ -72,7 +72,7 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
           getVestingAccountInfo(clientDetails?.client_address),
         ]);
         setOriginalVesting(originalVestingValue);
-        setCurrentVestingPeriod(currentVestingPeriod);
+        setCurrentVestingPeriod(currentPeriod);
         setTokenAllocation({
           vesting: vestingCoins.amount,
           vested: vestedCoins.amount,

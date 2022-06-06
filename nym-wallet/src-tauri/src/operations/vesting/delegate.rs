@@ -19,7 +19,7 @@ pub async fn get_pending_vesting_delegation_events(
 
     let guard = state.read().await;
     let client = &guard.current_client()?.nymd;
-    let vesting_contract = client.vesting_contract_address()?;
+    let vesting_contract = client.vesting_contract_address();
 
     let events = client
         .get_pending_delegation_events(

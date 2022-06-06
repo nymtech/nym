@@ -10,6 +10,7 @@ use group::{Curve, Group};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofKappaZeta;
+use crate::scheme::double_use::BlindedSerialNumber;
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
@@ -19,8 +20,7 @@ use crate::Attribute;
 
 // TODO NAMING: this whole thing
 // Theta
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, PartialEq)]
 pub struct Theta {
     // blinded_message (kappa)
     pub blinded_message: G2Projective,
@@ -81,6 +81,12 @@ impl Theta {
         )
     }
 
+    pub fn has_blinded_serial_number(&self, blinded_serial_number_bs58: &str) -> Result<bool> {
+        let blinded_serial_number = BlindedSerialNumber::try_from_bs58(blinded_serial_number_bs58)?;
+        let ret = self.blinded_serial_number.eq(&blinded_serial_number.inner);
+        Ok(ret)
+    }
+
     // blinded message (kappa)  || blinded serial number (zeta) || credential || pi_v
     pub fn to_bytes(&self) -> Vec<u8> {
         let blinded_message_bytes = self.blinded_message.to_affine().to_compressed();
@@ -99,6 +105,13 @@ impl Theta {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Theta> {
         Theta::try_from(bytes)
+    }
+
+    pub fn blinded_serial_number_bs58(&self) -> String {
+        let blinded_serial_nuumber = BlindedSerialNumber {
+            inner: self.blinded_serial_number,
+        };
+        blinded_serial_nuumber.to_bs58()
     }
 }
 

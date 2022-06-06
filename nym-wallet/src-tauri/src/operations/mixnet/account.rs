@@ -77,7 +77,7 @@ pub async fn switch_network(
         let denom = network.denom();
 
         Account::new(
-            client.nymd.mixnet_contract_address()?.to_string(),
+            client.nymd.mixnet_contract_address().to_string(),
             client.nymd.address().to_string(),
             denom.try_into()?,
         )
@@ -160,7 +160,7 @@ async fn _connect_with_mnemonic(
         .find(|client| WalletNetwork::from(client.network) == default_network);
     let account_for_default_network = match client_for_default_network {
         Some(client) => Ok(Account::new(
-            client.nymd.mixnet_contract_address()?.to_string(),
+            client.nymd.mixnet_contract_address().to_string(),
             client.nymd.address().to_string(),
             default_network.denom().try_into()?,
         )),
@@ -253,14 +253,12 @@ fn create_clients(
         log::info!("Connecting to: api_url: {api_url} for {network}");
 
         let mut client = validator_client::Client::new_signing(
-            validator_client::Config::new(
-                network.into(),
-                nymd_url,
-                api_url,
-                config.get_mixnet_contract_address(network),
-                config.get_vesting_contract_address(network),
-                config.get_bandwidth_claim_contract_address(network),
-            ),
+            validator_client::Config::new(network.into(), nymd_url, api_url)
+                .with_mixnode_contract_address(config.get_mixnet_contract_address(network))
+                .with_vesting_contract_address(config.get_vesting_contract_address(network))
+                .with_bandwidth_claim_contract_address(
+                    config.get_bandwidth_claim_contract_address(network),
+                ),
             mnemonic.clone(),
         )?;
         client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);

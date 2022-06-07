@@ -75,7 +75,7 @@ impl ServiceProvider {
                         .response_stats_data
                         .write()
                         .await
-                        .processed(remote_addr, msg.len() as u32);
+                        .processed(remote_addr, msg.size() as u32);
                 }
             }
             // make 'request' to native-websocket client

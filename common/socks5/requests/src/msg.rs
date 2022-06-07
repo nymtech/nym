@@ -42,7 +42,7 @@ impl Message {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         match self {
             Message::Request(req) => match req {
                 Request::Connect(_) => 0,

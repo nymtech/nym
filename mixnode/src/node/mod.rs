@@ -296,13 +296,13 @@ impl MixNode {
             (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
 
-        log::trace!("Sending shutdown");
+        log::info!("Sending shutdown");
         shutdown.signal_shutdown().ok();
 
-        log::trace!("Waiting for tasks to finish...");
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
-        log::trace!("Node: exiting");
+        log::info!("Stopping nym mixnode");
     }
 
     pub async fn run(&mut self) {

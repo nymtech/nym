@@ -5514,6 +5514,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 name = "task"
 version = "0.1.0"
 dependencies = [
+ "log",
  "tokio",
  "tokio-util 0.6.9",
 ]

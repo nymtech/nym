@@ -1,7 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::time::Duration;
+
 use tokio::sync::watch::{self, error::SendError};
+
+const SHUTDOWN_TIMER_SECS: u64 = 5;
 
 /// Used to notify other tasks to gracefully shutdown
 #[derive(Debug)]
@@ -38,7 +42,18 @@ impl ShutdownNotifier {
         if let Some(notify_rx) = self.notify_rx.take() {
             drop(notify_rx);
         }
-        self.notify_tx.closed().await;
+
+        tokio::select! {
+            _ = self.notify_tx.closed() => {
+                log::info!("All registered tasks succesfully shutdown");
+            },
+            _ =  tokio::signal::ctrl_c() => {
+                log::info!("Forcing shutdown");
+            }
+            _ = tokio::time::sleep(Duration::from_secs(SHUTDOWN_TIMER_SECS)) => {
+                log::info!("Timout reached, forcing shutdown");
+            },
+        }
     }
 }
 

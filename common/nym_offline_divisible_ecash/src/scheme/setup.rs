@@ -113,7 +113,7 @@ impl Parameters {
         let sps_signatures: Vec<SPSSignature> = sigmas_u
             .iter()
             .zip(thetas_u.iter())
-            .map(|(sigma, theta)| sps_keypair.sps_sk.sign(grp.clone(), Some(&vec![*sigma, *theta]), None))
+            .map(|(sigma, theta)| sps_keypair.sps_sk.sign(&grp, Some(&vec![*sigma, *theta]), None))
             .collect();
 
 

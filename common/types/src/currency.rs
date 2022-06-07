@@ -67,9 +67,9 @@ impl RegisteredCoins {
 
                 return match exponent.cmp(&display_exponent) {
                     Ordering::Greater => {
-                        // we need to scale down, unlikely to ever be needed but included for completion sake,
+                        // we need to scale up, unlikely to ever be needed but included for completion sake,
                         // for example if we decided to created knym with exponent 9 and wanted to convert to nym with exponent 6
-                        Ok(DecCoin::new_scaled_down(
+                        Ok(DecCoin::new_scaled_up(
                             coin.amount,
                             &registered_coin.display,
                             exponent - display_exponent,
@@ -78,8 +78,8 @@ impl RegisteredCoins {
                     // we're already in the display denom
                     Ordering::Equal => Ok(coin.into()),
                     Ordering::Less => {
-                        // we need to scale up, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
-                        Ok(DecCoin::new_scaled_up(
+                        // we need to scale down, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
+                        Ok(DecCoin::new_scaled_down(
                             coin.amount,
                             &registered_coin.display,
                             display_exponent - exponent,
@@ -396,5 +396,54 @@ mod test {
         let coin = Coin::try_from(dec.clone()).unwrap();
         assert_eq!(dec.denom, coin.denom);
         assert_eq!(coin.amount, 123u128);
+    }
+
+    #[test]
+    fn converting_to_display() {
+        let reg = RegisteredCoins::default_denoms(Network::MAINNET);
+        let values = vec![
+            (1u128, "0.000001"),
+            (10u128, "0.00001"),
+            (100u128, "0.0001"),
+            (1000u128, "0.001"),
+            (10000u128, "0.01"),
+            (100000u128, "0.1"),
+            (1000000u128, "1"),
+            (1234567u128, "1.234567"),
+            (123456700u128, "123.4567"),
+        ];
+
+        for (raw, expected) in values {
+            let coin = Coin::new(raw, Network::MAINNET.mix_denom().base);
+            let display = reg.attempt_convert_to_display_dec_coin(coin).unwrap();
+            assert_eq!(Network::MAINNET.mix_denom().display, display.denom);
+            assert_eq!(expected, display.amount.to_string());
+        }
+    }
+
+    #[test]
+    fn converting_to_base() {
+        let reg = RegisteredCoins::default_denoms(Network::MAINNET);
+        let values = vec![
+            (1u128, "0.000001"),
+            (10u128, "0.00001"),
+            (100u128, "0.0001"),
+            (1000u128, "0.001"),
+            (10000u128, "0.01"),
+            (100000u128, "0.1"),
+            (1000000u128, "1"),
+            (1234567u128, "1.234567"),
+            (123456700u128, "123.4567"),
+        ];
+
+        for (expected, raw_display) in values {
+            let coin = DecCoin {
+                denom: Network::MAINNET.mix_denom().display.into(),
+                amount: raw_display.parse().unwrap(),
+            };
+            let base = reg.attempt_convert_to_base_coin(coin).unwrap();
+            assert_eq!(Network::MAINNET.mix_denom().base, base.denom);
+            assert_eq!(expected, base.amount);
+        }
     }
 }

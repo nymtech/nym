@@ -8,18 +8,22 @@ use std::process;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
+use super::ShutdownListener;
+
 pub(crate) mod connection_handler;
 
 pub(crate) struct Listener {
     address: SocketAddr,
+    shutdown: ShutdownListener,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr) -> Self {
-        Listener { address }
+    pub(crate) fn new(address: SocketAddr, shutdown: ShutdownListener) -> Self {
+        Listener { address, shutdown }
     }
 
     async fn run(&mut self, connection_handler: ConnectionHandler) {
+        log::trace!("Starting Listener");
         let listener = match TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
@@ -28,15 +32,23 @@ impl Listener {
             }
         };
 
-        loop {
-            match listener.accept().await {
-                Ok((socket, remote_addr)) => {
-                    let handler = connection_handler.clone();
-                    tokio::spawn(handler.handle_connection(socket, remote_addr));
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                connection = listener.accept() => {
+                    match connection {
+                        Ok((socket, remote_addr)) => {
+                            let handler = connection_handler.clone();
+                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                        }
+                        Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
+                    }
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("Listener: Received shutdown");
                 }
-                Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
-            }
+            };
         }
+        log::trace!("Listener: Exiting");
     }
 
     pub(crate) fn start(mut self, connection_handler: ConnectionHandler) -> JoinHandle<()> {

@@ -29,6 +29,7 @@
 - mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
+- mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 
 ### Changed

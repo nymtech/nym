@@ -9,6 +9,6 @@ edition = "2021"
 cw-utils = { version = "0.13.1" }
 cw3 = { version = "0.13.1" }
 cw4 = { version = "0.13.1" }
-cosmwasm-std = "1.0.0-beta6"
+cosmwasm-std = "1.0.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

@@ -364,6 +364,7 @@ mod tests {
         let rho2 = v.neg() * r_theta1;
         let rho3 = r_rr * r_tt;
 
+
         let pg_varsigpr1_delta = pairing(&varsig_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
         let pg_psi0_delta = pairing(&psi_g1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
         let pg_varsigpr2_gen2 = pairing(&varsig_prime2.to_affine(), grp.gen2());

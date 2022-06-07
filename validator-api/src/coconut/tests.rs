@@ -83,8 +83,8 @@ impl super::client::Client for DummyClient {
 
     async fn execute_proposal(
         &self,
-        proposal_id: u64,
-        fee: Option<Fee>,
+        _proposal_id: u64,
+        _fee: Option<Fee>,
     ) -> crate::coconut::error::Result<()> {
         todo!()
     }

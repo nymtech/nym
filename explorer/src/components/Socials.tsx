@@ -10,7 +10,7 @@ import { DiscordIcon } from '../icons/socials/DiscordIcon';
 export const TELEGRAM_LINK = 'https://t.me/nymchan';
 export const TWITTER_LINK = 'https://twitter.com/nymproject';
 export const GITHUB_LINK = 'https://github.com/nymtech';
-export const DISCORD_LINK = 'https://discord.gg/nym';
+export const DISCORD_LINK = 'https://discord.gg/ggxrUpbNnn';
 
 export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
   const theme = useTheme();
@@ -22,9 +22,12 @@ export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
       <IconButton component="a" href={TELEGRAM_LINK} target="_blank" data-testid="telegram">
         <TelegramIcon color={color} size={24} />
       </IconButton>
-      <IconButton component="a" href={DISCORD_LINK} target="_blank" data-testid="discord">
-        <DiscordIcon color={color} size={24} />
-      </IconButton>
+      {false && (
+        <IconButton component="a" href={DISCORD_LINK} target="_blank" data-testid="discord">
+          <DiscordIcon color={color} size={24} />
+        </IconButton>
+      )}
+
       <IconButton component="a" href={TWITTER_LINK} target="_blank" data-testid="twitter">
         <TwitterIcon color={color} size={24} />
       </IconButton>

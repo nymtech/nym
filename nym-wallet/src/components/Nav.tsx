@@ -32,16 +32,6 @@ const routesSchema = [
     Icon: Unbond,
   },
   {
-    label: 'Delegate',
-    route: '/delegate',
-    Icon: Delegate,
-  },
-  {
-    label: 'Undelegate',
-    route: '/undelegate',
-    Icon: Undelegate,
-  },
-  {
     label: 'Delegation',
     route: '/delegation',
     Icon: Delegate,

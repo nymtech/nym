@@ -3,8 +3,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { getGasFee } from 'src/requests';
 import { SimpleModal } from '../Modals/SimpleModal';
-import { ModalDivider } from '../Modals/ModalDivider';
 import { ModalListItem } from './ModalListItem';
 import { validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
@@ -25,7 +25,7 @@ export const DelegateModal: React.FC<{
   estimatedReward?: number;
   profitMarginPercentage?: number | null;
   nodeUptimePercentage?: number | null;
-  fee: number;
+  feeOverride?: string;
   currency: CurrencyDenom;
   initialAmount?: string;
   hasVestingContract: boolean;
@@ -40,7 +40,7 @@ export const DelegateModal: React.FC<{
   identityKey: initialIdentityKey,
   rewardInterval,
   accountBalance,
-  fee,
+  feeOverride,
   estimatedReward,
   currency,
   profitMarginPercentage,
@@ -53,6 +53,15 @@ export const DelegateModal: React.FC<{
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
+  const [fee, setFee] = useState<string>();
+
+  const getFee = async () => {
+    if (feeOverride) setFee(feeOverride);
+    else {
+      const res = await getGasFee('BondMixnode');
+      setFee(res.amount);
+    }
+  };
 
   const validate = () => {
     let newValidatedValue = true;
@@ -91,6 +100,10 @@ export const DelegateModal: React.FC<{
   React.useEffect(() => {
     validate();
   }, [amount, identityKey]);
+
+  React.useEffect(() => {
+    getFee();
+  }, []);
 
   return (
     <SimpleModal
@@ -134,13 +147,13 @@ export const DelegateModal: React.FC<{
       <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
       <ModalListItem
         label="Node profit margin"
-        value={`${profitMarginPercentage ? profitMarginPercentage + '%' : '-'}`}
+        value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}
         hidden={profitMarginPercentage === undefined}
         divider
       />
       <ModalListItem
         label="Node uptime"
-        value={`${nodeUptimePercentage ? nodeUptimePercentage + '%' : '-'}`}
+        value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
         hidden={nodeUptimePercentage === undefined}
         divider
       />

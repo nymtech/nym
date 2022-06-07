@@ -5,12 +5,11 @@ import { Logout } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import { AppContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
-import { Node as NodeIcon } from '../svg-icons/node';
 import { MultiAccounts } from './Accounts';
 import { config } from '../config';
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings, handleShowTerminal, appEnv } = useContext(AppContext);
+  const { logOut, handleShowTerminal, appEnv } = useContext(AppContext);
   const navigate = useNavigate();
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
@@ -32,15 +31,7 @@ export const AppBar = () => {
                 </IconButton>
               </Grid>
             )}
-            <Grid item>
-              <IconButton
-                onClick={handleShowSettings}
-                sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
-                size="small"
-              >
-                <NodeIcon fontSize="small" />
-              </IconButton>
-            </Grid>
+
             <Grid item>
               <IconButton
                 size="small"

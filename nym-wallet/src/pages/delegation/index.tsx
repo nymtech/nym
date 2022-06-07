@@ -5,6 +5,7 @@ import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
 import { TPoolOption } from 'src/components';
+import { CompoundModal } from 'src/components/Rewards/CompoundModal';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { useDelegationContext, DelegationContextProvider } from '../../context/delegations';
@@ -14,9 +15,6 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { CompoundModal } from 'src/components/Rewards/CompoundModal';
-
-const explorerUrl = 'https://sandbox-explorer.nymtech.net';
 
 export const Delegation: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
@@ -267,7 +265,7 @@ export const Delegation: FC = () => {
             </Button>
           </Box>
           <DelegationList
-            explorerUrl={explorerUrl}
+            explorerUrl={urls(network).networkExplorer}
             isLoading={isLoading}
             items={delegations}
             onItemActionClick={handleDelegationItemActionClick}
@@ -279,7 +277,7 @@ export const Delegation: FC = () => {
         <Paper elevation={0} sx={{ p: 4, mt: 2 }}>
           <Stack spacing={5}>
             <Typography variant="h6">Pending Delegation Events</Typography>
-            <PendingEvents pendingEvents={pendingDelegations} explorerUrl={explorerUrl} />
+            <PendingEvents pendingEvents={pendingDelegations} explorerUrl={urls(network).networkExplorer} />
           </Stack>
         </Paper>
       )}
@@ -292,7 +290,6 @@ export const Delegation: FC = () => {
           header="Delegate"
           buttonText="Delegate stake"
           currency={clientDetails!.denom}
-          fee={0.004375}
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
@@ -308,7 +305,6 @@ export const Delegation: FC = () => {
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
           currency={clientDetails!.denom}
-          fee={0.004375}
           estimatedReward={0}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}

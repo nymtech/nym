@@ -3,17 +3,15 @@ import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { Box, Container } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { AppContext } from 'src/context';
-import { Settings } from 'src/pages';
 import { AppBar, LoadingPage, Nav } from '../components';
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   const theme = useTheme();
-  const { isLoading, showSettings } = useContext(AppContext);
+  const { isLoading } = useContext(AppContext);
 
   return (
     <>
       {isLoading && <LoadingPage />}
-      {showSettings && <Settings />}
       <Box
         sx={{
           height: '100vh',

@@ -51,9 +51,9 @@ export const Delegate = () => {
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
         currency="NYM"
-        fee={0.004375}
+        feeOverride="0.004375"
         estimatedReward={50.423}
-        accountBalance={'425.2345053'}
+        accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
@@ -73,7 +73,7 @@ export const DelegateBelowMinimum = () => {
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
         currency="NYM"
-        fee={0.004375}
+        feeOverride="0.004375"
         estimatedReward={425.2345053}
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
@@ -97,9 +97,9 @@ export const DelegateMore = () => {
         header="Delegate more"
         buttonText="Delegate more"
         currency="NYM"
-        fee={0.004375}
+        feeOverride="0.004375"
         estimatedReward={50.423}
-        accountBalance={'425.2345053'}
+        accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"

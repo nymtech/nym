@@ -37,7 +37,6 @@ type TAppContext = {
   mixnodeDetails?: MixNodeBond | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
-  showSettings: boolean;
   showTerminal: boolean;
   network?: Network;
   isLoading: boolean;
@@ -48,7 +47,6 @@ type TAppContext = {
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
-  handleShowSettings: () => void;
   handleShowAdmin: () => void;
   logIn: (opts: { type: TLoginType; value: string }) => void;
   handleShowTerminal: () => void;
@@ -66,7 +64,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [network, setNetwork] = useState<Network | undefined>();
   const [appEnv, setAppEnv] = useState<AppEnv>();
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
@@ -177,7 +174,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
-  const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
@@ -193,7 +189,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       mixnodeDetails,
       userBalance,
       showAdmin,
-      showSettings,
       showTerminal,
       network,
       loginType,
@@ -202,7 +197,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       signInWithPassword,
       switchNetwork,
       getBondDetails,
-      handleShowSettings,
       handleShowAdmin,
       handleShowTerminal,
       logIn,
@@ -219,7 +213,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       mixnodeDetails,
       userBalance,
       showAdmin,
-      showSettings,
       network,
       storedAccounts,
       showTerminal,

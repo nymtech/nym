@@ -44,10 +44,8 @@ export const checkMixnodeOwnership = async () => invokeWrapper<boolean>('owns_mi
 export const checkGatewayOwnership = async () => invokeWrapper<boolean>('owns_gateway');
 
 // TODO: remove this method
-export const getGasFee = async (operation: Operation): Promise<MajorCurrencyAmount> => ({
-  amount: '0.00495',
-  denom: 'NYM',
-});
+export const getGasFee = async (operation: Operation): Promise<MajorCurrencyAmount> =>
+  invokeWrapper('get_old_and_incorrect_hardcoded_fee', { operation });
 
 export const getInclusionProbability = async (identity: string) =>
   invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { identity });

@@ -15,12 +15,12 @@ pub struct StatsMessage {
 }
 
 impl StatsMessage {
-    pub fn to_bytes(&self) -> Result<Vec<u8>, StatsError> {
-        Ok(bincode::serialize(self)?)
+    pub fn to_json(&self) -> Result<String, StatsError> {
+        Ok(serde_json::to_string(self)?)
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, StatsError> {
-        Ok(bincode::deserialize(b)?)
+    pub fn from_json(s: &str) -> Result<Self, StatsError> {
+        Ok(serde_json::from_str(s)?)
     }
 }
 

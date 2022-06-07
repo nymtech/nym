@@ -5,6 +5,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum StatsError {
-    #[error("Bincode error: {0}")]
-    BincodeError(#[from] bincode::Error),
+    #[error("Serde JSON error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
 }

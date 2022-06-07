@@ -59,29 +59,29 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
-        mut mix_reader: mpsc::UnboundedReceiver<(Response, Recipient)>,
+        mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
         stats_collector: Option<StatisticsCollector>,
     ) {
         // TODO: wire SURBs in here once they're available
-        while let Some((response, return_address)) = mix_reader.next().await {
+        while let Some((msg, return_address)) = mix_reader.next().await {
             if let Some(stats_collector) = stats_collector.as_ref() {
                 if let Some(remote_addr) = stats_collector
                     .connected_services
                     .read()
                     .await
-                    .get(&response.connection_id)
+                    .get(&msg.conn_id())
                 {
                     stats_collector
                         .response_stats_data
                         .write()
                         .await
-                        .processed(remote_addr, response.data.len() as u32);
+                        .processed(remote_addr, msg.len() as u32);
                 }
             }
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
-                message: Socks5Message::Response(response).into_bytes(),
+                message: msg.into_bytes(),
                 with_reply_surb: false,
             };
 
@@ -127,7 +127,7 @@ impl ServiceProvider {
         remote_addr: String,
         return_address: Recipient,
         controller_sender: ControllerSender,
-        mix_input_sender: mpsc::UnboundedSender<(Response, Recipient)>,
+        mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
             Ok(conn) => conn,
@@ -140,7 +140,10 @@ impl ServiceProvider {
 
                 // inform the remote that the connection is closed before it even was established
                 mix_input_sender
-                    .unbounded_send((Response::new(conn_id, Vec::new(), true), return_address))
+                    .unbounded_send((
+                        Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
+                        return_address,
+                    ))
                     .unwrap();
 
                 return;
@@ -179,7 +182,7 @@ impl ServiceProvider {
     fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
@@ -221,7 +224,7 @@ impl ServiceProvider {
         &mut self,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
         stats_collector: Option<StatisticsCollector>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
@@ -281,7 +284,8 @@ impl ServiceProvider {
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
-        let (mix_input_sender, mix_input_receiver) = mpsc::unbounded::<(Response, Recipient)>();
+        let (mix_input_sender, mix_input_receiver) =
+            mpsc::unbounded::<(Socks5Message, Recipient)>();
 
         let (mut timer_sender, timer_receiver) = Timer::new();
         let interval = timer_sender.interval();

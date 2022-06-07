@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 
 use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
-use socks5_requests::{ConnectionId, RemoteAddress, Response};
+use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
 use statistics::{StatsMessage, StatsServiceData};
 
 use super::error::StatsError;
@@ -124,7 +124,10 @@ impl StatisticsSender {
         })
     }
 
-    pub async fn run(&mut self, mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>) {
+    pub async fn run(
+        &mut self,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+    ) {
         loop {
             if self.timer_receiver.next().await == None {
                 error!("Timer thread has died. No more statistics will be sent");
@@ -161,12 +164,39 @@ impl StatisticsSender {
                     interval_seconds: self.interval_seconds,
                     timestamp: self.timestamp.to_rfc3339(),
                 };
-                match stats_message.to_bytes() {
-                    Ok(data) => {
-                        trace!("Sending data to statistics service");
+                match stats_message.to_json() {
+                    Ok(msg) => {
+                        trace!("Connecting to statistics service");
+                        let conn_id = 0;
+                        let connect_req = Request::new_connect(
+                            conn_id,
+                            String::from("http://localhost:8080"),
+                            self.stats_provider_addr,
+                        );
                         mix_input_sender
                             .unbounded_send((
-                                Response::new(0, data, false),
+                                Socks5Message::Request(connect_req),
+                                self.stats_provider_addr,
+                            ))
+                            .unwrap();
+
+                        trace!("Sending data to statistics service");
+                        let req = reqwest::Request::new(
+                            reqwest::Method::POST,
+                            reqwest::Url::parse("http://localhost:8080/statistics").unwrap(),
+                        );
+                        let data = format!(
+                            "{} {} {:?}\n{}",
+                            req.method().as_str(),
+                            req.url().as_str(),
+                            req.version(),
+                            msg
+                        )
+                        .into_bytes();
+                        let send_req = Request::new_send(conn_id, data, true);
+                        mix_input_sender
+                            .unbounded_send((
+                                Socks5Message::Request(send_req),
                                 self.stats_provider_addr,
                             ))
                             .unwrap();

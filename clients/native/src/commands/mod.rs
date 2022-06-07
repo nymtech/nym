@@ -47,7 +47,7 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> C
         config = config.with_socket(SocketType::None);
     }
 
-    if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
+    if let Some(port) = matches.value_of("port").map(str::parse) {
         if let Err(err) = port {
             // if port was overridden, it must be parsable
             panic!("Invalid port value provided - {:?}", err);

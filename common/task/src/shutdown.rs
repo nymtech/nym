@@ -72,6 +72,14 @@ impl ShutdownListener {
         }
     }
 
+    pub fn empty() -> ShutdownListener {
+        let (_, rx) = watch::channel(());
+        ShutdownListener {
+            shutdown: false,
+            notify: rx,
+        }
+    }
+
     pub fn is_shutdown(&self) -> bool {
         self.shutdown
     }

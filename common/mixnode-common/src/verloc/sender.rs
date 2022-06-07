@@ -7,10 +7,11 @@ use crate::verloc::packet::{EchoPacket, ReplyPacket};
 use crypto::asymmetric::identity;
 use log::*;
 use rand::{thread_rng, Rng};
-use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{fmt, io};
+use task::ShutdownListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
@@ -27,6 +28,16 @@ impl TestedNode {
     }
 }
 
+impl fmt::Display for TestedNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TestedNode(id: {}, address: {})",
+            self.identity, self.address
+        )
+    }
+}
+
 pub(crate) struct PacketSender {
     identity: Arc<identity::KeyPair>,
     // timeout for receiving before sending new one
@@ -34,6 +45,7 @@ pub(crate) struct PacketSender {
     packet_timeout: Duration,
     connection_timeout: Duration,
     delay_between_packets: Duration,
+    shutdown_listener: Option<ShutdownListener>,
 }
 
 impl PacketSender {
@@ -43,6 +55,7 @@ impl PacketSender {
         packet_timeout: Duration,
         connection_timeout: Duration,
         delay_between_packets: Duration,
+        shutdown_listener: Option<ShutdownListener>,
     ) -> Self {
         PacketSender {
             identity,
@@ -50,6 +63,7 @@ impl PacketSender {
             packet_timeout,
             connection_timeout,
             delay_between_packets,
+            shutdown_listener,
         }
     }
 
@@ -69,6 +83,11 @@ impl PacketSender {
         self: Arc<Self>,
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
+        let mut shutdown_listener = self
+            .shutdown_listener
+            .clone()
+            .unwrap_or_else(ShutdownListener::empty);
+
         let mut conn = match tokio::time::timeout(
             self.connection_timeout,
             TcpStream::connect(tested_node.address),
@@ -98,35 +117,40 @@ impl PacketSender {
             let start = tokio::time::Instant::now();
             // TODO: should we get the start time after or before actually sending the data?
             // there's going to definitely some scheduler and network stack bias here
-            match tokio::time::timeout(
-                self.packet_timeout,
-                conn.write_all(packet.to_bytes().as_ref()),
-            )
-            .await
-            {
-                Err(_timeout) => {
-                    let identity_string = tested_node.identity.to_base58_string();
-                    debug!(
-                        "failed to write echo packet to {} within {:?}. Stopping the test.",
-                        identity_string, self.packet_timeout
-                    );
-                    return Err(RttError::UnexpectedConnectionFailureWrite(
-                        identity_string,
-                        io::ErrorKind::TimedOut.into(),
-                    ));
-                }
-                Ok(Err(err)) => {
-                    let identity_string = tested_node.identity.to_base58_string();
-                    debug!(
-                        "failed to write echo packet to {} - {}. Stopping the test.",
-                        identity_string, err
-                    );
-                    return Err(RttError::UnexpectedConnectionFailureWrite(
-                        identity_string,
-                        err,
-                    ));
-                }
-                Ok(Ok(_)) => {}
+            let packet_bytes = packet.to_bytes();
+
+            tokio::select! {
+                write = tokio::time::timeout(self.packet_timeout, conn.write_all(packet_bytes.as_ref())) => {
+                    match write {
+                        Err(_timeout) => {
+                            let identity_string = tested_node.identity.to_base58_string();
+                            debug!(
+                                "failed to write echo packet to {} within {:?}. Stopping the test.",
+                                identity_string, self.packet_timeout
+                            );
+                            return Err(RttError::UnexpectedConnectionFailureWrite(
+                                identity_string,
+                                io::ErrorKind::TimedOut.into(),
+                            ));
+                        }
+                        Ok(Err(err)) => {
+                            let identity_string = tested_node.identity.to_base58_string();
+                            debug!(
+                                "failed to write echo packet to {} - {}. Stopping the test.",
+                                identity_string, err
+                            );
+                            return Err(RttError::UnexpectedConnectionFailureWrite(
+                                identity_string,
+                                err,
+                            ));
+                        }
+                        Ok(Ok(_)) => {}
+                        }
+                },
+                _ = shutdown_listener.recv() => {
+                    log::trace!(target: "verloc", "PacketSender: Received shutdown while sending");
+                    return Err(RttError::ShutdownReceived);
+                },
             }
 
             // there's absolutely no need to put a codec on ReplyPackets as we know exactly
@@ -147,21 +171,28 @@ impl PacketSender {
                 ReplyPacket::try_from_bytes(&buf, &tested_node.identity)
             };
 
-            let reply_packet =
-                match tokio::time::timeout(self.packet_timeout, reply_packet_future).await {
-                    Ok(reply_packet) => reply_packet,
-                    Err(_timeout) => {
-                        // TODO: should we continue regardless (with the rest of the packets, or abandon the whole thing?)
-                        // Note: if we decide to continue, it would increase the complexity of the whole thing
-                        debug!(
-                        "failed to receive reply to our echo packet within {:?}. Stopping the test",
-                        self.packet_timeout
-                    );
-                        return Err(RttError::ConnectionReadTimeout(
-                            tested_node.identity.to_base58_string(),
-                        ));
+            let reply_packet = tokio::select! {
+                reply = tokio::time::timeout(self.packet_timeout, reply_packet_future) => {
+                    match reply {
+                        Ok(reply_packet) => reply_packet,
+                        Err(_timeout) => {
+                            // TODO: should we continue regardless (with the rest of the packets, or abandon the whole thing?)
+                            // Note: if we decide to continue, it would increase the complexity of the whole thing
+                            debug!(
+                                "failed to receive reply to our echo packet within {:?}. Stopping the test",
+                                self.packet_timeout
+                            );
+                            return Err(RttError::ConnectionReadTimeout(
+                                tested_node.identity.to_base58_string(),
+                            ));
+                        }
                     }
-                };
+                },
+                _ = shutdown_listener.recv() => {
+                    log::trace!(target: "verloc", "PacketSender: Received shutdown while waiting for reply");
+                    return Err(RttError::ShutdownReceived);
+                }
+            };
 
             let reply_packet = reply_packet?;
             // make sure it's actually the expected packet...

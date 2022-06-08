@@ -105,6 +105,7 @@ pub struct EpochRewardParams {
     epoch_reward_pool: Uint128,
     rewarded_set_size: Uint128,
     active_set_size: Uint128,
+    #[serde(alias = "circulating_supply")]
     staking_supply: Uint128,
     sybil_resistance_percent: u8,
     active_set_work_factor: u8,

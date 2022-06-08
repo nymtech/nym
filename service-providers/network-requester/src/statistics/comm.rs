@@ -4,6 +4,7 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use rand::RngCore;
 use serde::Deserialize;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
@@ -13,6 +14,7 @@ use tokio::sync::RwLock;
 
 use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::OrderedMessageSender;
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
 use statistics::{StatsMessage, StatsServiceData};
 
@@ -167,10 +169,11 @@ impl StatisticsSender {
                 match stats_message.to_json() {
                     Ok(msg) => {
                         trace!("Connecting to statistics service");
-                        let conn_id = 0;
+                        let mut rng = rand::rngs::OsRng;
+                        let conn_id = rng.next_u64();
                         let connect_req = Request::new_connect(
                             conn_id,
-                            String::from("http://localhost:8080"),
+                            String::from("127.0.0.1:8080"),
                             self.stats_provider_addr,
                         );
                         mix_input_sender
@@ -193,7 +196,9 @@ impl StatisticsSender {
                             msg
                         )
                         .into_bytes();
-                        let send_req = Request::new_send(conn_id, data, true);
+                        let mut message_sender = OrderedMessageSender::new();
+                        let ordered_msg = message_sender.wrap_message(data).into_bytes();
+                        let send_req = Request::new_send(conn_id, ordered_msg, true);
                         mix_input_sender
                             .unbounded_send((
                                 Socks5Message::Request(send_req),

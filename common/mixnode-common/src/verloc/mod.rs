@@ -374,7 +374,10 @@ impl VerlocMeasurer {
             // write current time to "run finished" field
             self.results.finish_measurements().await;
 
-            info!("Finished performing verloc measurements. The next one will happen in {:?}", self.config.testing_interval);
+            info!(
+                "Finished performing verloc measurements. The next one will happen in {:?}",
+                self.config.testing_interval
+            );
 
             tokio::select! {
                 _ = sleep(self.config.testing_interval) => {},

@@ -39,6 +39,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
+- all: updated `rocket` to `0.5.0-rc.2`.
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256

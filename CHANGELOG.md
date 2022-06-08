@@ -33,6 +33,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
 - mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
+- native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 
 ### Changed
 
@@ -54,6 +55,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1295]: https://github.com/nymtech/nym/pull/1295
 [#1302]: https://github.com/nymtech/nym/pull/1302
 [#1318]: https://github.com/nymtech/nym/pull/1318
+[#1322]: https://github.com/nymtech/nym/pull/1322
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

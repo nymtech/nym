@@ -15,6 +15,8 @@ const actionToHeader = (action: ActionType): string => {
       return 'Delegation complete';
     case 'undelegate':
       return 'Undelegation complete';
+    case 'compound':
+      return 'Undelegation complete';
   }
   return 'Oh no! Something went wrong!';
 };

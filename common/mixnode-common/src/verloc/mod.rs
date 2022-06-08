@@ -287,24 +287,6 @@ impl VerlocMeasurer {
                 }
             }
 
-            while let Some(result) = measurement_chunk.next().await {
-                // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
-                // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
-                let execution_result = result.expect("the measurement task panicked!");
-                let measurement_result = match execution_result.0 {
-                    Err(err) => {
-                        debug!(
-                            "Failed to perform measurement for {} - {}",
-                            execution_result.1.to_base58_string(),
-                            err
-                        );
-                        None
-                    }
-                    Ok(result) => Some(result),
-                };
-                chunk_results.push(Verloc::new(execution_result.1, measurement_result));
-            }
-
             // update the results vector with chunks as they become available (by default every 50 nodes)
             self.results.append_results(chunk_results).await;
         }

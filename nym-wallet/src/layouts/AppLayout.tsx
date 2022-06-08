@@ -26,7 +26,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
       >
         <Box
           sx={{
-            background: '#121726',
+            background: (t) => t.palette.nym.nymWallet.nav.background,
             overflow: 'auto',
             py: 3,
             px: 5,

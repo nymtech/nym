@@ -186,6 +186,9 @@ pub async fn execute(matches: ArgMatches<'static>) {
     let id = matches.value_of("id").unwrap(); // required for now
 
     let already_init = if Config::default_config_file_path(Some(id)).exists() {
+        if matches.is_present("gateway") {
+            panic!("At the moment, gateway information can't be overwritten. If you want to point to a different gateway, client {}'s directory will need to be manually removed", id);
+        }
         println!("Client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
         true
     } else {

@@ -145,7 +145,7 @@ impl PacketSender {
                         }
                 },
                 _ = shutdown_listener.recv() => {
-                    log::trace!(target: "verloc", "PacketSender: Received shutdown while sending");
+                    log::trace!("PacketSender: Received shutdown while sending");
                     return Err(RttError::ShutdownReceived);
                 },
             }
@@ -186,7 +186,7 @@ impl PacketSender {
                     }
                 },
                 _ = shutdown_listener.recv() => {
-                    log::trace!(target: "verloc", "PacketSender: Received shutdown while waiting for reply");
+                    log::trace!("PacketSender: Received shutdown while waiting for reply");
                     return Err(RttError::ShutdownReceived);
                 }
             };

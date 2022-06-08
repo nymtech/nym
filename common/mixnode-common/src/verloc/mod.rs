@@ -234,7 +234,7 @@ impl VerlocMeasurer {
     }
 
     async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> MeasurementOutcome {
-        log::trace!(target: "verloc", "Performing measurements");
+        log::trace!("Performing measurements");
 
         let mut shutdown_listener = self.shutdown_listener.clone();
 
@@ -281,7 +281,7 @@ impl VerlocMeasurer {
                         chunk_results.push(Verloc::new(execution_result.1, measurement_result));
                     },
                     _ = shutdown_listener.recv() => {
-                        info!(target: "verloc", "Shutdown received while measuring");
+                        trace!("Shutdown received while measuring");
                         return MeasurementOutcome::Shutdown;
                     }
                 }
@@ -316,7 +316,7 @@ impl VerlocMeasurer {
         self.start_listening();
 
         while !self.shutdown_listener.is_shutdown() {
-            info!(target: "verloc", "Starting verloc measurements");
+            info!("Starting verloc measurements");
             // TODO: should we also measure gateways?
 
             let all_mixes = match self.validator_client.get_cached_mixnodes().await {
@@ -367,24 +367,24 @@ impl VerlocMeasurer {
             self.results.reset_results(tested_nodes.len()).await;
 
             if let MeasurementOutcome::Shutdown = self.perform_measurement(tested_nodes).await {
-                log::trace!(target: "verloc", "Shutting down after aborting measurements");
+                log::trace!("Shutting down after aborting measurements");
                 break;
             }
 
             // write current time to "run finished" field
             self.results.finish_measurements().await;
 
-            info!(target: "verloc", "Finished performing verloc measurements. The next one will happen in {:?}", self.config.testing_interval);
+            info!("Finished performing verloc measurements. The next one will happen in {:?}", self.config.testing_interval);
 
             tokio::select! {
                 _ = sleep(self.config.testing_interval) => {},
                 _ = self.shutdown_listener.recv() => {
-                    log::trace!(target: "verloc", "Shutdown received while sleeping");
+                    log::trace!("Shutdown received while sleeping");
                 }
             }
         }
 
-        log::trace!(target: "verloc", "Exiting");
+        log::trace!("Verloc: Exiting");
     }
 }
 

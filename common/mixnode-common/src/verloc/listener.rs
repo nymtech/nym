@@ -69,7 +69,7 @@ impl PacketListener {
                     }
                 },
                 _ = shutdown_lister.recv() => {
-                    log::trace!(target: "verloc", "PacketListener: Received shutdown");
+                    log::trace!("PacketListener: Received shutdown");
                 }
             }
         }

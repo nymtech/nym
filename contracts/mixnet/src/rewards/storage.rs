@@ -42,10 +42,21 @@ pub fn incr_reward_pool(
     })
 }
 
-pub fn decr_reward_pool(
-    storage: &mut dyn Storage,
-    amount: Uint128,
-) -> Result<Uint128, ContractError> {
+pub fn reward_accounting(storage: &mut dyn Storage, amount: Uint128) -> Result<(), ContractError> {
+    decr_reward_pool(storage, amount)?;
+    incr_staking_supply(storage, amount)?;
+    Ok(())
+}
+
+fn incr_staking_supply(storage: &mut dyn Storage, amount: Uint128) -> Result<(), ContractError> {
+    let mut contract_state =
+        crate::mixnet_contract_settings::storage::CONTRACT_STATE.load(storage)?;
+    contract_state.params.staking_supply += amount;
+    crate::mixnet_contract_settings::storage::CONTRACT_STATE.save(storage, &contract_state)?;
+    Ok(())
+}
+
+fn decr_reward_pool(storage: &mut dyn Storage, amount: Uint128) -> Result<Uint128, ContractError> {
     REWARD_POOL.update(storage, |current_pool| {
         let stake = current_pool
             .checked_sub(amount)

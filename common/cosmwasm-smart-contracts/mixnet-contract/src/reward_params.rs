@@ -78,9 +78,9 @@ impl NodeEpochRewards {
     ) -> Result<Uint128, MixnetContractError> {
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(epoch_reward_params.circulating_supply());
+        let staking_supply = U128::from_num(epoch_reward_params.staking_supply());
 
-        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let scaled_delegation_amount = delegation_amount / staking_supply;
 
         let check_div_by_zero =
             if let Some(value) = scaled_delegation_amount.checked_div(self.sigma()) {
@@ -105,7 +105,7 @@ pub struct EpochRewardParams {
     epoch_reward_pool: Uint128,
     rewarded_set_size: Uint128,
     active_set_size: Uint128,
-    circulating_supply: Uint128,
+    staking_supply: Uint128,
     sybil_resistance_percent: u8,
     active_set_work_factor: u8,
 }
@@ -115,7 +115,7 @@ impl EpochRewardParams {
         epoch_reward_pool: u128,
         rewarded_set_size: u128,
         active_set_size: u128,
-        circulating_supply: u128,
+        staking_supply: u128,
         sybil_resistance_percent: u8,
         active_set_work_factor: u8,
     ) -> EpochRewardParams {
@@ -123,7 +123,7 @@ impl EpochRewardParams {
             epoch_reward_pool: Uint128::new(epoch_reward_pool),
             rewarded_set_size: Uint128::new(rewarded_set_size),
             active_set_size: Uint128::new(active_set_size),
-            circulating_supply: Uint128::new(circulating_supply),
+            staking_supply: Uint128::new(staking_supply),
             sybil_resistance_percent,
             active_set_work_factor,
         }
@@ -136,7 +136,7 @@ impl EpochRewardParams {
     pub fn new_empty() -> Self {
         EpochRewardParams {
             epoch_reward_pool: Uint128::new(0),
-            circulating_supply: Uint128::new(0),
+            staking_supply: Uint128::new(0),
             sybil_resistance_percent: 0,
             rewarded_set_size: Uint128::new(0),
             active_set_size: Uint128::new(0),
@@ -152,8 +152,8 @@ impl EpochRewardParams {
         self.active_set_size.u128()
     }
 
-    pub fn circulating_supply(&self) -> u128 {
-        self.circulating_supply.u128()
+    pub fn staking_supply(&self) -> u128 {
+        self.staking_supply.u128()
     }
 
     pub fn epoch_reward_pool(&self) -> u128 {
@@ -252,8 +252,8 @@ impl RewardParams {
         self.epoch.rewarded_set_size.u128()
     }
 
-    pub fn circulating_supply(&self) -> u128 {
-        self.epoch.circulating_supply.u128()
+    pub fn staking_supply(&self) -> u128 {
+        self.epoch.staking_supply.u128()
     }
 
     pub fn reward_blockstamp(&self) -> u64 {

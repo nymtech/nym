@@ -334,8 +334,9 @@ impl MixNode {
         );
         let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());
 
-        // TODO: Rockets shutdown handling should be incorporated with the shutdown handling of the
-        // test of the tasks.
+        // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
+        // with that of the rest of the tasks.
+        // Currently it's runtime is forcefully terminated once the mixnode exits.
         self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");

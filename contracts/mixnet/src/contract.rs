@@ -480,7 +480,7 @@ fn migrate_contract_state_params(deps: DepsMut<'_>) -> Result<(), ContractError>
     Ok(())
 }
 
-fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
+fn _deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
     // if there exists any delegation of 0 value, remove it
     let zero_delegations = delegations()
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
@@ -514,7 +514,7 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    deal_with_zero_delegations(deps)?;
+    migrate_contract_state_params(deps)?;
 
     Ok(Default::default())
 }

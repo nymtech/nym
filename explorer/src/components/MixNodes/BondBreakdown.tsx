@@ -13,7 +13,7 @@ import { currencyToString } from '../../utils/currency';
 import { useMixnodeContext } from '../../context/mixnode';
 
 export const BondBreakdownTable: React.FC = () => {
-  const { mixNode, delegations } = useMixnodeContext();
+  const { mixNode, delegations, uniqDelegations } = useMixnodeContext();
   const [showDelegations, toggleShowDelegations] = React.useState<boolean>(false);
 
   const [bonds, setBonds] = React.useState({
@@ -91,14 +91,14 @@ export const BondBreakdownTable: React.FC = () => {
               }}
               align="left"
             >
-              Bond total
+              Stake total
             </TableCell>
             <TableCell align="left" data-testid="bond-total-amount">
               {bonds.bondsTotal}
             </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell align="left">Self</TableCell>
+            <TableCell align="left">Bond</TableCell>
             <TableCell align="left" data-testid="pledge-total-amount">
               {bonds.pledges}
             </TableCell>
@@ -155,7 +155,7 @@ export const BondBreakdownTable: React.FC = () => {
                 fontWeight: 400,
               }}
             >
-              {`(${delegations?.data?.length} delegators)`}
+              {`(${uniqDelegations?.data?.length} delegators)`}
             </Typography>
           </Box>
           <Table stickyHeader>
@@ -177,7 +177,7 @@ export const BondBreakdownTable: React.FC = () => {
                   }}
                   align="left"
                 >
-                  Stake
+                  Amount
                 </TableCell>
                 <TableCell
                   sx={{
@@ -187,13 +187,13 @@ export const BondBreakdownTable: React.FC = () => {
                   }}
                   align="left"
                 >
-                  Share from bond
+                  Share of stake
                 </TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
-              {delegations?.data?.map(({ owner, amount: { amount, denom } }) => (
+              {uniqDelegations?.data?.map(({ owner, amount: { amount, denom } }) => (
                 <TableRow key={owner}>
                   <TableCell sx={matches ? { width: 190 } : null} align="left">
                     {owner}

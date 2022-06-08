@@ -21,7 +21,7 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 serde = "1.0.126"
 serde_json = "1.0.66"
 thiserror = "1.0.29"
-tokio = {version = "1.9.0", features = ["full"] }
+tokio = {version = "1.19.1", features = ["full"] }
 
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 network-defaults = { path = "../common/network-defaults" }

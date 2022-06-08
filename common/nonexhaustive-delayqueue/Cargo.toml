@@ -7,6 +7,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.4", features = [] }
-tokio-stream = "0.1" # this one seems to be a thing until `Stream` trait is stabilised in stdlib
-tokio-util = { version = "0.6", features = ["time"] }
+tokio = { version = "1.19.1", features = [] }
+tokio-stream = "0.1.9" # this one seems to be a thing until `Stream` trait is stabilised in stdlib
+tokio-util = { version = "0.7.3", features = ["time"] }

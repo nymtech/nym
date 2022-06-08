@@ -27,7 +27,7 @@ pretty_env_logger = "0.4" # for formatting log messages
 rand = { version = "0.7.3", features = ["wasm-bindgen"] } # rng-related traits + some rng implementation to use
 serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
 sled = "0.34" # for storage of replySURB decryption keys
-tokio = { version = "1.4", features = ["rt-multi-thread", "net", "signal"] } # async runtime
+tokio = { version = "1.19.1", features = ["rt-multi-thread", "net", "signal"] } # async runtime
 tokio-tungstenite = "0.14" # websocket
 
 ## internal

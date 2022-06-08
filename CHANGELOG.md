@@ -1,5 +1,7 @@
 # Changelog
 
+Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
 
 ### Added
@@ -29,11 +31,13 @@
 - mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
+- mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 
 ### Changed
 
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
+- all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -49,6 +53,7 @@
 [#1292]: https://github.com/nymtech/nym/pull/1292
 [#1295]: https://github.com/nymtech/nym/pull/1295
 [#1302]: https://github.com/nymtech/nym/pull/1302
+[#1318]: https://github.com/nymtech/nym/pull/1318
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

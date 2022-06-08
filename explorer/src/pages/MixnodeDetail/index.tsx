@@ -29,7 +29,7 @@ const columns: ColumnsType[] = [
 
   {
     field: 'bond',
-    title: 'Bond',
+    title: 'Stake',
     flex: 1,
     headerAlign: 'left',
   },
@@ -95,7 +95,7 @@ const PageMixnodeDetailWithState: React.FC = () => {
 
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
-          <ContentCard title="Bond Breakdown">
+          <ContentCard title="Stake Breakdown">
             <BondBreakdownTable />
           </ContentCard>
         </Grid>

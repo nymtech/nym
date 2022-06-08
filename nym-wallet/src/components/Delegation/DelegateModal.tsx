@@ -161,7 +161,7 @@ export const DelegateModal: React.FC<{
       <ModalListItem label="Node est. reward per epoch" value={`${estimatedReward} ${currency}`} hidden divider />
       <Stack direction="row" justifyContent="space-between" mt={4}>
         <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          Fee for this transaction:
+          Est. fee for this transaction:
         </Typography>
         <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
           {fee} {currency}

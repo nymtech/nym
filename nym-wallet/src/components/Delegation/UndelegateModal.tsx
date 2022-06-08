@@ -48,7 +48,7 @@ export const UndelegateModal: React.FC<{
 
       <Stack direction="row" justifyContent="space-between" mt={3}>
         <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          Fee for this transaction:
+          Est. fee for this transaction:
         </Typography>
         <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
           {fee} {currency}

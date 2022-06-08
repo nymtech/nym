@@ -1,8 +1,11 @@
 #!/bin/sh
 
+set -ue
+
 git clone https://github.com/CosmWasm/wasmd.git
 cd wasmd
 git checkout "${WASMD_VERSION}"
+WASMD_COMMIT_HASH=$(git rev-parse HEAD)
 mkdir build
 go build \
     -o build/nymd -mod=readonly -tags "netgo,ledger" \

@@ -71,9 +71,6 @@ pub struct Config {
 
     /// URLs to the validator apis for obtaining network topology.
     validator_api_urls: Vec<Url>,
-
-    /// Listens for shutdown events
-    shutdown_listener: Option<ShutdownListener>,
 }
 
 impl Config {
@@ -140,11 +137,6 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn shutdown_listener(mut self, shutdown: ShutdownListener) -> Self {
-        self.0.shutdown_listener = Some(shutdown);
-        self
-    }
-
     pub fn build(self) -> Config {
         // panics here are fine as those are only ever constructed at the initial setup
         assert!(
@@ -168,7 +160,6 @@ impl Default for ConfigBuilder {
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
             validator_api_urls: vec![],
-            shutdown_listener: None,
         })
     }
 }
@@ -177,6 +168,7 @@ pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
+    shutdown_listener: ShutdownListener,
 
     currently_used_api: usize,
 
@@ -189,7 +181,11 @@ pub struct VerlocMeasurer {
 }
 
 impl VerlocMeasurer {
-    pub fn new(mut config: Config, identity: Arc<identity::KeyPair>) -> Self {
+    pub fn new(
+        mut config: Config,
+        identity: Arc<identity::KeyPair>,
+        shutdown_listener: ShutdownListener,
+    ) -> Self {
         config.validator_api_urls.shuffle(&mut thread_rng());
 
         VerlocMeasurer {
@@ -199,13 +195,14 @@ impl VerlocMeasurer {
                 config.packet_timeout,
                 config.connection_timeout,
                 config.delay_between_packets,
-                config.shutdown_listener.clone(),
+                shutdown_listener.clone(),
             )),
             packet_listener: Arc::new(PacketListener::new(
                 config.listening_address,
                 Arc::clone(&identity),
-                config.shutdown_listener.clone(),
+                shutdown_listener.clone(),
             )),
+            shutdown_listener,
             currently_used_api: 0,
             validator_client: validator_client::ApiClient::new(
                 config.validator_api_urls[0].clone(),
@@ -239,11 +236,7 @@ impl VerlocMeasurer {
     async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> MeasurementOutcome {
         log::trace!(target: "verloc", "Performing measurements");
 
-        let mut shutdown_listener = self
-            .config
-            .shutdown_listener
-            .clone()
-            .unwrap_or_else(ShutdownListener::empty);
+        let mut shutdown_listener = self.shutdown_listener.clone();
 
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
             let mut chunk_results = Vec::with_capacity(chunk.len());
@@ -322,13 +315,7 @@ impl VerlocMeasurer {
     pub async fn run(&mut self) {
         self.start_listening();
 
-        let mut shutdown_listener = self
-            .config
-            .shutdown_listener
-            .clone()
-            .unwrap_or_else(ShutdownListener::empty);
-
-        while !shutdown_listener.is_shutdown() {
+        while !self.shutdown_listener.is_shutdown() {
             info!(target: "verloc", "Starting verloc measurements");
             // TODO: should we also measure gateways?
 
@@ -381,7 +368,7 @@ impl VerlocMeasurer {
 
             if let MeasurementOutcome::Shutdown = self.perform_measurement(tested_nodes).await {
                 log::trace!(target: "verloc", "Shutting down after aborting measurements");
-                return;
+                break;
             }
 
             // write current time to "run finished" field
@@ -391,7 +378,7 @@ impl VerlocMeasurer {
 
             tokio::select! {
                 _ = sleep(self.config.testing_interval) => {},
-                _ = shutdown_listener.recv() => {
+                _ = self.shutdown_listener.recv() => {
                     log::trace!(target: "verloc", "Shutdown received while sleeping");
                 }
             }

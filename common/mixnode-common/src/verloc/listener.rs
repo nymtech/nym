@@ -19,14 +19,14 @@ use tokio_util::codec::{Decoder, Encoder, Framed};
 pub(crate) struct PacketListener {
     address: SocketAddr,
     connection_handler: Arc<ConnectionHandler>,
-    shutdown: Option<ShutdownListener>,
+    shutdown: ShutdownListener,
 }
 
 impl PacketListener {
     pub(crate) fn new(
         address: SocketAddr,
         identity: Arc<identity::KeyPair>,
-        shutdown: Option<ShutdownListener>,
+        shutdown: ShutdownListener,
     ) -> Self {
         PacketListener {
             address,
@@ -51,10 +51,7 @@ impl PacketListener {
 
         info!("Started listening for echo packets on {}", self.address);
 
-        let mut shutdown_lister = self
-            .shutdown
-            .clone()
-            .unwrap_or_else(ShutdownListener::empty);
+        let mut shutdown_lister = self.shutdown.clone();
 
         while !shutdown_lister.is_shutdown() {
             // cloning the arc as each accepted socket is handled in separate task
@@ -81,7 +78,7 @@ impl PacketListener {
 
 struct ConnectionHandler {
     identity: Arc<identity::KeyPair>,
-    shutdown: Option<ShutdownListener>,
+    shutdown: ShutdownListener,
 }
 
 impl ConnectionHandler {
@@ -93,10 +90,7 @@ impl ConnectionHandler {
     pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
         debug!("Starting connection handler for {:?}", remote);
 
-        let mut shutdown_listener = self
-            .shutdown
-            .clone()
-            .unwrap_or_else(ShutdownListener::empty);
+        let mut shutdown_listener = self.shutdown.clone();
 
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
         while !shutdown_listener.is_shutdown() {

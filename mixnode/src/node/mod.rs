@@ -244,10 +244,10 @@ impl MixNode {
             .testing_interval(self.config.get_measurement_testing_interval())
             .retry_timeout(self.config.get_measurement_retry_timeout())
             .validator_api_urls(self.config.get_validator_api_endpoints())
-            .shutdown_listener(shutdown)
             .build();
 
-        let mut verloc_measurer = VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair));
+        let mut verloc_measurer =
+            VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair), shutdown);
         let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
         tokio::spawn(async move { verloc_measurer.run().await });
         atomic_verloc_results

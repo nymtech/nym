@@ -45,7 +45,7 @@ pub(crate) struct PacketSender {
     packet_timeout: Duration,
     connection_timeout: Duration,
     delay_between_packets: Duration,
-    shutdown_listener: Option<ShutdownListener>,
+    shutdown_listener: ShutdownListener,
 }
 
 impl PacketSender {
@@ -55,7 +55,7 @@ impl PacketSender {
         packet_timeout: Duration,
         connection_timeout: Duration,
         delay_between_packets: Duration,
-        shutdown_listener: Option<ShutdownListener>,
+        shutdown_listener: ShutdownListener,
     ) -> Self {
         PacketSender {
             identity,
@@ -83,10 +83,7 @@ impl PacketSender {
         self: Arc<Self>,
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
-        let mut shutdown_listener = self
-            .shutdown_listener
-            .clone()
-            .unwrap_or_else(ShutdownListener::empty);
+        let mut shutdown_listener = self.shutdown_listener.clone();
 
         let mut conn = match tokio::time::timeout(
             self.connection_timeout,

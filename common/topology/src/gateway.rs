@@ -93,6 +93,16 @@ impl Node {
     }
 }
 
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Node(id: {}, owner: {}, stake: {}, location: {}, host: {})",
+            self.identity_key, self.owner, self.stake, self.location, self.host,
+        )
+    }
+}
+
 impl filter::Versioned for Node {
     fn version(&self) -> String {
         self.version.clone()

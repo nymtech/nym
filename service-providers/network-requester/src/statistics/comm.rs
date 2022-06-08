@@ -186,13 +186,14 @@ impl StatisticsSender {
                         trace!("Sending data to statistics service");
                         let req = reqwest::Request::new(
                             reqwest::Method::POST,
-                            reqwest::Url::parse("http://localhost:8080/statistics").unwrap(),
+                            reqwest::Url::parse("http://localhost:8080/v1/statistics").unwrap(),
                         );
                         let data = format!(
-                            "{} {} {:?}\n{}",
+                            "{} {} {:?}\nContent-Type: application/json\nContent-Length: {}\n\n{}\n",
                             req.method().as_str(),
                             req.url().as_str(),
                             req.version(),
+                            msg.len(),
                             msg
                         )
                         .into_bytes();

@@ -57,6 +57,8 @@ pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
     time::macros::datetime!(2022-01-01 12:00 UTC);
 
+pub const INITIAL_STAKING_SUPPLY: Uint128 = Uint128::new(100_000_000_000_000);
+
 pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 }
@@ -70,6 +72,7 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            staking_supply: INITIAL_STAKING_SUPPLY,
         },
     }
 }

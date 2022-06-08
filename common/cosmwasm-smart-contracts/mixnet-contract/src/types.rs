@@ -43,6 +43,7 @@ pub struct ContractStateParams {
     // subset of rewarded mixnodes that are actively receiving mix traffic
     // used to handle shorter-term (e.g. hourly) fluctuations of demand
     pub mixnode_active_set_size: u32,
+    pub staking_supply: Uint128,
 }
 
 impl Display for ContractStateParams {

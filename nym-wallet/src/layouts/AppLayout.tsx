@@ -37,7 +37,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         >
           <Box>
             <Box sx={{ mb: 4 }}>
-              <NymWordmark height={14} fill={theme.palette.background.paper} />
+              <NymWordmark height={14} />
             </Box>
             <Nav />
           </Box>

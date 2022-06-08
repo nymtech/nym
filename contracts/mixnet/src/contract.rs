@@ -435,6 +435,51 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
+fn migrate_contract_state_params(deps: DepsMut<'_>) -> Result<(), ContractError> {
+    use crate::mixnet_contract_settings::storage::CONTRACT_STATE;
+    use cw_storage_plus::Item;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize)]
+    struct OldContractState {
+        pub owner: Addr,
+        pub rewarding_validator_address: Addr,
+        pub params: OldContractStateParams,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct OldContractStateParams {
+        pub minimum_mixnode_pledge: Uint128,
+        pub minimum_gateway_pledge: Uint128,
+        pub mixnode_rewarded_set_size: u32,
+        pub mixnode_active_set_size: u32,
+    }
+
+    const OLD_CONTRACT_STATE: Item<'_, OldContractState> = Item::new("config");
+
+    let old_contract_state = OLD_CONTRACT_STATE.load(deps.storage)?;
+
+    let old_params = old_contract_state.params;
+
+    let new_params = ContractStateParams {
+        minimum_mixnode_pledge: old_params.minimum_mixnode_pledge,
+        minimum_gateway_pledge: old_params.minimum_gateway_pledge,
+        mixnode_rewarded_set_size: old_params.mixnode_rewarded_set_size,
+        mixnode_active_set_size: old_params.mixnode_active_set_size,
+        staking_supply: INITIAL_STAKING_SUPPLY,
+    };
+
+    let new_contract_state = ContractState {
+        owner: old_contract_state.owner,
+        rewarding_validator_address: old_contract_state.rewarding_validator_address,
+        params: new_params,
+    };
+
+    CONTRACT_STATE.save(deps.storage, &new_contract_state)?;
+
+    Ok(())
+}
+
 fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
     // if there exists any delegation of 0 value, remove it
     let zero_delegations = delegations()

@@ -2,6 +2,7 @@ import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
+import { getVersion } from '@tauri-apps/api/app';
 import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import {
@@ -32,6 +33,7 @@ type TLoginType = 'mnemonic' | 'password';
 type TAppContext = {
   mode: 'light' | 'dark';
   appEnv?: AppEnv;
+  appVersion?: string;
   clientDetails?: Account;
   storedAccounts?: AccountEntry[];
   mixnodeDetails?: MixNodeBond | null;
@@ -69,6 +71,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [appVersion, setAppVersion] = useState<string>();
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -114,6 +117,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       await loadStoredAccounts();
     }
   };
+
+  useEffect(() => {
+    getVersion().then(setAppVersion);
+  }, []);
 
   useEffect(() => {
     if (!clientDetails) {
@@ -181,6 +188,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     () => ({
       mode,
       appEnv,
+      appVersion,
       isAdminAddress: Boolean(appEnv?.ADMIN_ADDRESS && clientDetails?.client_address === appEnv.ADMIN_ADDRESS),
       isLoading,
       error,
@@ -204,6 +212,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       onAccountChange,
     }),
     [
+      appVersion,
       loginType,
       mode,
       appEnv,

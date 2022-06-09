@@ -7,7 +7,7 @@ import { AppBar, LoadingPage, Nav } from '../components';
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   const theme = useTheme();
-  const { isLoading } = useContext(AppContext);
+  const { isLoading, appVersion } = useContext(AppContext);
 
   return (
     <>
@@ -39,6 +39,11 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             </Box>
             <Nav />
           </Box>
+          {appVersion && (
+            <Box color="#888" mt={8}>
+              Version {appVersion}
+            </Box>
+          )}
         </Box>
         <Container maxWidth="xl">
           <AppBar />

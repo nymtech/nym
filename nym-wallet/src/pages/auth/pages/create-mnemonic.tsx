@@ -1,10 +1,11 @@
 import React, { useContext, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Alert, Button, Stack, Typography } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
 import { AuthContext } from 'src/context/auth';
 import { Check, ContentCopySharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { WordTiles } from '../components';
+import { Warning } from '../../../components';
 
 export const CreateMnemonic = () => {
   const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(AuthContext);
@@ -17,18 +18,17 @@ export const CreateMnemonic = () => {
   }, []);
 
   const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
-
   return (
     <Stack alignItems="center" spacing={3}>
-      <Typography sx={{ color: 'common.white', fontWeight: 600 }} textAlign="center">
-        Write down your mnemonic
+      <Typography sx={{ color: 'common.white', fontWeight: 600 }} variant="h4" textAlign="center">
+        Copy and save or write down your mnemonic
       </Typography>
 
-      <Alert variant="outlined" severity="warning" sx={{ textAlign: 'center' }}>
+      <Warning>
         <Typography>
           Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the future.
         </Typography>
-      </Alert>
+      </Warning>
 
       <WordTiles mnemonicWords={mnemonicWords} showIndex />
 

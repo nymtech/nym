@@ -33,7 +33,7 @@ strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.0.0-rc.8", features = ["ayatana-tray", "shell-open", "system-tray"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.10", features = ["sync"] }
+tokio = { version = "1.19.1", features = ["sync"] }
 url = "2.2"
 
 aes-gcm = "0.9.4"

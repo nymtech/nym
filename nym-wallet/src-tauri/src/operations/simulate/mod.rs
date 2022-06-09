@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_types::currency::MajorCurrencyAmount;
-use nym_types::error::TypesError;
 use nym_types::fees::FeeDetails;
 use validator_client::nymd::cosmwasm_client::types::GasInfo;
 use validator_client::nymd::{tx, CosmosCoin, Fee, GasPrice};
@@ -30,15 +29,12 @@ impl SimulateResult {
         }
     }
 
-    pub fn detailed_fee(&self) -> Result<FeeDetails, TypesError> {
-        let amount: Option<MajorCurrencyAmount> = match self.to_fee_amount() {
-            Some(a) => Some(a.into()),
-            None => None,
-        };
-        Ok(FeeDetails {
+    pub fn detailed_fee(&self) -> FeeDetails {
+        let amount = self.to_fee_amount().map(MajorCurrencyAmount::from);
+        FeeDetails {
             amount,
             fee: self.to_fee(),
-        })
+        }
     }
 
     fn to_fee_amount(&self) -> Option<CosmosCoin> {

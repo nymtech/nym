@@ -346,7 +346,7 @@ pub struct Client<T> {
 
     #[serde(skip)]
     //super_struct: PhantomData<*const T>,
-     super_struct: PhantomData<T>,
+    super_struct: PhantomData<T>,
 }
 
 impl<T: NymConfig> Default for Client<T> {

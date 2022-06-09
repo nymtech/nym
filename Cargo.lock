@@ -218,9 +218,9 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "base64ct"
-version = "1.5.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dea908e7347a8c64e378c17e30ef880ad73e3b4498346b055c2c00ea342f3179"
+checksum = "8a32fd6af2b5827bce66c29053ba0e7c42b9dcab01835835058558c10851a46b"
 
 [[package]]
 name = "binascii"
@@ -3205,6 +3205,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-types"
+version = "1.0.0"
+dependencies = [
+ "coconut-interface",
+ "config",
+ "cosmrs",
+ "cosmwasm-std",
+ "eyre",
+ "itertools",
+ "log",
+ "mixnet-contract-common",
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "thiserror",
+ "ts-rs",
+ "url",
+ "validator-client",
+ "vesting-contract",
+ "vesting-contract-common",
+]
+
+[[package]]
 name = "nym-validator-api"
 version = "1.0.1"
 dependencies = [
@@ -3251,11 +3277,30 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topology",
+ "ts-rs",
  "url",
  "validator-api-requests",
  "validator-client",
  "vergen",
  "version-checker",
+]
+
+[[package]]
+name = "nym-wallet-types"
+version = "1.0.0"
+dependencies = [
+ "config",
+ "cosmrs",
+ "cosmwasm-std",
+ "mixnet-contract-common",
+ "nym-types",
+ "serde",
+ "serde_json",
+ "strum",
+ "ts-rs",
+ "validator-client",
+ "vesting-contract",
+ "vesting-contract-common",
 ]
 
 [[package]]
@@ -5400,6 +5445,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
+name = "strum"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cae14b91c7d11c9a851d3fbc80a963198998c2a64eec840477fa92d8ce9b70bb"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bb0dc7ee9c15cea6199cde9a127fa16a4c5819af85395457ad72d68edc85a38"
+dependencies = [
+ "heck 0.3.3",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn",
+]
+
+[[package]]
 name = "subtle"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6023,6 +6090,21 @@ checksum = "3d26cba30c9b3a2f537f765cf754126f11c983b7426d280ae0b4cef2374cab98"
 dependencies = [
  "thiserror",
  "ts-rs-macros",
+]
+
+[[package]]
+name = "ts-rs-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "mixnet-contract-common",
+ "nym-types",
+ "nym-wallet-types",
+ "ts-rs",
+ "validator-api-requests",
+ "validator-client",
+ "vesting-contract-common",
+ "walkdir",
 ]
 
 [[package]]

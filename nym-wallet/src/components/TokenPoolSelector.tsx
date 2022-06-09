@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
 import { AppContext } from '../context/main';
 
-type TPoolOption = 'balance' | 'locked';
+export type TPoolOption = 'balance' | 'locked';
 
 export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: TPoolOption) => void }> = ({
   disabled,
@@ -11,7 +11,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
   const [value, setValue] = useState<TPoolOption>('balance');
   const {
     userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
-    currency,
+    clientDetails,
   } = useContext(AppContext);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
           {tokenAllocation && (
             <ListItemText
               primary="Locked"
-              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${currency?.major}`}
+              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${clientDetails?.denom}`}
             />
           )}
         </MenuItem>

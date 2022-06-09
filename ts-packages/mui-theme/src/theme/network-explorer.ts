@@ -1,6 +1,6 @@
-import { darkMode, nymPalette, NymPaletteVariant } from './common';
 import { PaletteMode } from '@mui/material';
 import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { darkMode, nymPalette, NymPaletteVariant } from './common';
 import { createDarkModePalette, createLightModePalette } from './theme';
 
 /**
@@ -40,11 +40,11 @@ export interface NetworkExplorerPalette {
         inactive: string;
       };
     };
-    selectionChance: { 
+    selectionChance: {
       overModerate: string;
       moderate: string;
       underModerate: string;
-    }
+    };
   };
 }
 
@@ -89,11 +89,11 @@ export const networkExplorerPalette = (variant: NymPaletteVariant): NetworkExplo
         inactive: variant.text.main,
       },
     },
-    selectionChance: { 
+    selectionChance: {
       overModerate: variant.selectionChance.overModerate,
       moderate: variant.selectionChance.moderate,
       underModerate: variant.selectionChance.underModerate,
-    }
+    },
   },
 });
 
@@ -185,4 +185,3 @@ export const getNetworkExplorerDesignTokens = (mode: PaletteMode): ThemeOptions 
     palette,
   };
 };
-

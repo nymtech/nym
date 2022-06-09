@@ -1,21 +1,21 @@
 import React, { useContext, useEffect } from 'react';
-import {
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  FormControl,
-  FormControlLabel,
-  Grid,
-  InputAdornment,
-  TextField,
-} from '@mui/material';
+import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
+import {
+  Gateway,
+  MixNode,
+  EnumNodeType,
+  MajorCurrencyAmount,
+  CurrencyDenom,
+  TransactionExecuteResult,
+} from '@nymproject/types';
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
+import { TBondArgs } from 'src/types';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { NodeTypeSelector } from '../../components/NodeTypeSelector';
-import { bond, vestingBond, majorToMinor } from '../../requests';
+import { bond, vestingBond } from '../../requests';
 import { validationSchema } from './validationSchema';
-import { Gateway, MixNode, TBondArgs, EnumNodeType } from '../../types';
 import { AppContext } from '../../context/main';
 import { Fee, TokenPoolSelector } from '../../components';
 
@@ -27,7 +27,7 @@ type TBondFormFields = {
   identityKey: string;
   sphinxKey: string;
   profitMarginPercent: number;
-  amount: string;
+  amount: MajorCurrencyAmount;
   host: string;
   version: string;
   location?: string;
@@ -44,7 +44,7 @@ const defaultValues = {
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
-  amount: '',
+  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
   host: '',
   version: '',
   profitMarginPercent: 10,
@@ -55,7 +55,7 @@ const defaultValues = {
   clientsPort: 9000,
 };
 
-const formatData = (data: TBondFormFields) => {
+const formatData = (data: TBondFormFields): MixNode | Gateway => {
   const payload: { [key: string]: any } = {
     identity_key: data.identityKey,
     sphinx_key: data.sphinxKey,
@@ -90,13 +90,14 @@ export const BondForm = ({
     setValue,
     watch,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
     resolver: yupResolver(validationSchema),
     defaultValues,
   });
 
-  const { userBalance, currency, clientDetails } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
 
   useEffect(() => {
     reset();
@@ -105,18 +106,30 @@ export const BondForm = ({
   const watchNodeType = watch('nodeType', defaultValues.nodeType);
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
 
-  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<void>) => {
-    const formattedData = formatData(data);
-    const pledge = await majorToMinor(data.amount);
+  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<TransactionExecuteResult>) => {
+    if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {
+      return setError('amount.amount', { message: 'Not enough funds in wallet' });
+    }
 
-    await cb({ type: data.nodeType, ownerSignature: data.ownerSignature, data: formattedData, pledge })
+    if (data.tokenPool === 'locked' && !(await checkHasEnoughLockedTokens(data.amount.amount || ''))) {
+      return setError('amount.amount', { message: 'Not enough locked tokens' });
+    }
+
+    const formattedData = formatData(data);
+
+    return cb({
+      type: data.nodeType,
+      ownerSignature: data.ownerSignature,
+      [data.nodeType]: formattedData,
+      pledge: data.amount,
+    } as TBondArgs)
       .then(async () => {
         if (data.tokenPool === 'balance') {
           await userBalance.fetchBalance();
         } else {
           await userBalance.fetchTokenAllocation();
         }
-        onSuccess({ address: data.identityKey, amount: data.amount });
+        onSuccess({ address: data.identityKey, amount: data.amount.amount });
       })
       .catch((e) => {
         onError(e);
@@ -188,22 +201,15 @@ export const BondForm = ({
               <TokenPoolSelector onSelect={(pool) => setValue('tokenPool', pool)} disabled={disabled} />
             </Grid>
           )}
-
           <Grid item xs={12} sm={6}>
-            <TextField
-              {...register('amount')}
-              variant="outlined"
+            <CurrencyFormField
+              showCoinMark
               required
-              id="amount"
-              name="amount"
-              label="Amount to pledge"
               fullWidth
-              error={!!errors.amount}
-              helperText={errors.amount?.message}
-              InputProps={{
-                endAdornment: <InputAdornment position="end">{currency?.major}</InputAdornment>,
-              }}
-              disabled={disabled}
+              label="Amount"
+              onChanged={(val) => setValue('amount', val, { shouldValidate: true })}
+              denom={clientDetails?.denom}
+              validationError={errors.amount?.amount?.message}
             />
           </Grid>
 

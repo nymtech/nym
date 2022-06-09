@@ -1,4 +1,2 @@
-export interface AccountEntry {
-  id: string;
-  address: string;
-}
+
+export interface AccountEntry { id: string, address: string, }

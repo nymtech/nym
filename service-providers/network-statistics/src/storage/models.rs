@@ -4,11 +4,10 @@
 use sqlx::types::chrono::NaiveDateTime;
 
 // Internally used struct to catch results from the database to get mixnet statistics
-pub(crate) struct MixnetStatistics {
+pub(crate) struct ServiceStatistics {
     #[allow(dead_code)]
     pub(crate) id: i64,
-    pub(crate) service_description: String,
-    pub(crate) client_identity: String,
+    pub(crate) requested_service: String,
     pub(crate) request_processed_bytes: i64,
     pub(crate) response_processed_bytes: i64,
     pub(crate) interval_seconds: i64,

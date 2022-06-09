@@ -32,6 +32,26 @@ impl Message {
     const REQUEST_FLAG: u8 = 0;
     const RESPONSE_FLAG: u8 = 1;
 
+    pub fn conn_id(&self) -> u64 {
+        match self {
+            Message::Request(req) => match req {
+                Request::Connect(c) => c.conn_id,
+                Request::Send(conn_id, _, _) => *conn_id,
+            },
+            Message::Response(resp) => resp.connection_id,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Message::Request(req) => match req {
+                Request::Connect(_) => 0,
+                Request::Send(_, data, _) => data.len(),
+            },
+            Message::Response(resp) => resp.data.len(),
+        }
+    }
+
     pub fn try_from_bytes(b: &[u8]) -> Result<Message, MessageError> {
         if b.is_empty() {
             return Err(MessageError::NoData);

@@ -643,7 +643,7 @@ mod tests {
         assert_eq!(mnemonic, expected_mnemonic);
 
         let all_accounts: Vec<_> = stored_login
-            .unwrap_into_multiple_accounts(account_id.clone())
+            .unwrap_into_multiple_accounts(account_id)
             .into_accounts()
             .collect();
 

@@ -19,8 +19,7 @@ Running in `open-proxy` mode allows any traffic to be proxied by the network
 requester.
 
 ### Statistics service
-The network requester can be build and ran as a gatherer of statistics from all
-the other network requesters on the mixnet. For that, build the binary with the
-`stats-service` feature enabled. The native client address that corresponds to
-this network requester would have to be built into the constants of all the
-other network requesters that are sending the data.
+The network requester can be ran as a gatherer of statistics for all
+the services it proxies. For that, run the binary with the
+`enable-statistics` flag enabled. Anonymized statistics are then sent to
+a central server, through the mixnet.

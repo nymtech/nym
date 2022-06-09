@@ -53,6 +53,7 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
+    "common/statistics",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
     "common/task",
@@ -64,6 +65,7 @@ members = [
     "gateway/gateway-requests",
     "mixnode",
     "service-providers/network-requester",
+    "service-providers/network-statistics",
     "validator-api",
     "validator-api/validator-api-requests",
     "tools/ts-rs-cli"

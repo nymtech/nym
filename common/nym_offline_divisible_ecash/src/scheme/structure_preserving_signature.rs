@@ -39,23 +39,23 @@ impl SPSSecretKey {
         let rr = grp.gen1() * r;
         let ss: G1Projective = match messages_a {
             Some(msgs_a) => {
-                let prodS: Vec<G1Projective> = msgs_a
+                let prod_s: Vec<G1Projective> = msgs_a
                     .iter()
                     .zip(self.ws.iter())
                     .map(|(m_i, w_i)| m_i * w_i.neg())
                     .collect();
-                grp.gen1() * (self.z() - r * self.y()) + prodS.iter().fold(G1Projective::identity(), |acc, elem| acc + elem)
+                grp.gen1() * (self.z() - r * self.y()) + prod_s.iter().fold(G1Projective::identity(), |acc, elem| acc + elem)
             }
             None => grp.gen1() * (self.z() - r * self.y())
         };
         let tt = match messages_b {
             Some(msgs_b) => {
-                let prodT: Vec<G2Projective> = msgs_b
+                let prod_t: Vec<G2Projective> = msgs_b
                     .iter()
                     .zip(self.us.iter())
                     .map(|(m_i, u_i)| m_i * u_i.neg())
                     .collect();
-                (grp.gen2() + prodT.iter().fold(G2Projective::identity(), |acc, elem| acc + elem)) * r.invert().unwrap()
+                (grp.gen2() + prod_t.iter().fold(G2Projective::identity(), |acc, elem| acc + elem)) * r.invert().unwrap()
             }
             None => grp.gen2() * r.invert().unwrap()
         };

@@ -12,9 +12,9 @@ nymcoconut = { path = "../nymcoconut" }
 log = "0.4"
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 thiserror = "1.0"
-tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
+tokio = { version = "1.19.1", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
 
 
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }

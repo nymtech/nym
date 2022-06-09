@@ -25,9 +25,10 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
+use cosmrs::tendermint::abci::Data;
 use cosmrs::tendermint::{abci, chain};
 use cosmrs::tx::{AccountNumber, Gas, SequenceNumber};
-use cosmrs::{tx, AccountId, Any, Coin};
+use cosmrs::{tx, AccountId, Any, Coin as CosmosCoin};
 use prost::Message;
 use serde::Serialize;
 use std::convert::{TryFrom, TryInto};
@@ -106,9 +107,9 @@ impl TryFrom<ProtoModuleAccount> for ModuleAccount {
 #[derive(Debug)]
 pub struct BaseVestingAccount {
     pub base_account: Option<BaseAccount>,
-    pub original_vesting: Vec<Coin>,
-    pub delegated_free: Vec<Coin>,
-    pub delegated_vesting: Vec<Coin>,
+    pub original_vesting: Vec<CosmosCoin>,
+    pub delegated_free: Vec<CosmosCoin>,
+    pub delegated_vesting: Vec<CosmosCoin>,
     pub end_time: i64,
 }
 
@@ -183,7 +184,7 @@ impl TryFrom<ProtoDelayedVestingAccount> for DelayedVestingAccount {
 #[derive(Debug)]
 pub struct Period {
     pub length: i64,
-    pub amount: Vec<Coin>,
+    pub amount: Vec<CosmosCoin>,
 }
 
 impl TryFrom<ProtoPeriod> for Period {
@@ -488,7 +489,7 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct GasInfo {
     /// GasWanted is the maximum units of work we allow this tx to perform.
     pub gas_wanted: Gas,
@@ -627,12 +628,21 @@ pub struct InstantiateOptions {
     /// created and before the instantiation message is executed by the contract.
     ///
     /// Only native tokens are supported.
-    pub funds: Vec<Coin>,
+    pub funds: Vec<CosmosCoin>,
 
     /// A bech32 encoded address of an admin account.
     /// Caution: an admin has the privilege to upgrade a contract.
     /// If this is not desired, do not set this value.
     pub admin: Option<AccountId>,
+}
+
+impl InstantiateOptions {
+    pub fn new<T: Into<CosmosCoin>>(funds: Vec<T>, admin: Option<AccountId>) -> Self {
+        InstantiateOptions {
+            funds: funds.into_iter().map(Into::into).collect(),
+            admin,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -671,6 +681,8 @@ pub struct MigrateResult {
 #[derive(Debug)]
 pub struct ExecuteResult {
     pub logs: Vec<Log>,
+
+    pub data: Data,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: tx::Hash,

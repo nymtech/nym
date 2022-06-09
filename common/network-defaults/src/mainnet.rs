@@ -5,6 +5,7 @@ use crate::ValidatorDetails;
 
 pub(crate) const BECH32_PREFIX: &str = "n";
 pub const DENOM: &str = "unym";
+pub const STAKE_DENOM: &str = "unyx";
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
     "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
@@ -12,13 +13,14 @@ pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
+    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
-
-pub(crate) const STATS_PROVIDER_CLIENT_ADDRESS: &str = "3V3me68qkEYNNShSQ5yLkrzC8rUJmcmtrTFbLKPqytEZ.7dGmnRAheEozNeGAsp9LXM8oPgS5YgJraNmYguj2t7Bn@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv";
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(

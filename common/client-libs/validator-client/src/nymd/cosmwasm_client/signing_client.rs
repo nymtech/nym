@@ -1,9 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::convert::TryInto;
-use std::time::Duration;
-
+use crate::nymd::cosmwasm_client::client::CosmWasmClient;
+use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
+use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
+use crate::nymd::cosmwasm_client::types::*;
+use crate::nymd::error::NymdError;
+use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
+use crate::nymd::wallet::DirectSecp256k1HdWallet;
+use crate::nymd::{Coin, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -12,32 +17,39 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
-use cosmrs::{cosmwasm, rpc, AccountId, Any, Coin, Tx};
+use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
-
-use crate::nymd::cosmwasm_client::client::CosmWasmClient;
-use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
-use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
-use crate::nymd::cosmwasm_client::types::*;
-use crate::nymd::error::NymdError;
-use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
-use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::nymd::{CosmosCoin, GasPrice, TxResponse};
-
-// we need to have **a** valid secp256k1 signature for simulation purposes.
-// it doesn't matter what it is as long as it parses correctly
-const DUMMY_SECP256K1_SIGNATURE: &[u8] = &[
-    54, 167, 169, 61, 100, 173, 231, 87, 1, 113, 179, 49, 102, 141, 67, 22, 170, 153, 52, 88, 178,
-    159, 200, 11, 37, 138, 76, 221, 187, 70, 104, 123, 98, 216, 190, 249, 149, 81, 1, 158, 0, 220,
-    32, 147, 101, 60, 64, 77, 44, 83, 221, 119, 170, 124, 109, 177, 73, 116, 46, 57, 102, 181, 98,
-    91,
-];
+use std::convert::TryInto;
+use std::time::Duration;
 
 const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
+
+fn empty_fee() -> tx::Fee {
+    tx::Fee {
+        amount: vec![],
+        gas_limit: Default::default(),
+        payer: None,
+        granter: None,
+    }
+}
+
+fn single_unspecified_signer_auth(
+    public_key: Option<tx::SignerPublicKey>,
+    sequence_number: tx::SequenceNumber,
+) -> tx::AuthInfo {
+    tx::SignerInfo {
+        public_key,
+        mode_info: tx::ModeInfo::Single(tx::mode_info::Single {
+            mode: SignMode::Unspecified,
+        }),
+        sequence: sequence_number,
+    }
+    .auth_info(empty_fee())
+}
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {
@@ -64,33 +76,21 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let sequence_response = self.get_sequence(signer_address).await?;
 
         let partial_tx = Tx {
-            body: tx::Body {
-                messages,
-                memo: memo.into(),
-                timeout_height: 0u32.into(),
-                extension_options: vec![],
-                non_critical_extension_options: vec![],
-            },
-            auth_info: tx::AuthInfo {
-                signer_infos: vec![tx::SignerInfo {
-                    public_key,
-                    mode_info: tx::ModeInfo::Single(tx::mode_info::Single {
-                        mode: SignMode::Unspecified,
-                    }),
-                    sequence: sequence_response.sequence,
-                }],
-                fee: tx::Fee::from_amount_and_gas(
-                    CosmosCoin {
-                        denom: "".parse().unwrap(),
-                        amount: 0u64.into(),
-                    },
-                    0,
-                ),
-            },
-            signatures: vec![DUMMY_SECP256K1_SIGNATURE.try_into().unwrap()],
+            body: tx::Body::new(messages, memo, 0u32),
+            auth_info: single_unspecified_signer_auth(public_key, sequence_response.sequence),
+            signatures: vec![Vec::new()],
         };
-
         self.query_simulate(Some(partial_tx), Vec::new()).await
+
+        // for completion sake, once we're able to transition into using `tx_bytes`,
+        // we might want to use something like this instead:
+        // let tx_raw: tx::Raw = cosmrs::proto::cosmos::tx::v1beta1::TxRaw {
+        //     body_bytes: partial_tx.body.into_bytes().unwrap(),
+        //     auth_info_bytes: partial_tx.auth_info.into_bytes().unwrap(),
+        //     signatures: partial_tx.signatures,
+        // }
+        // .into();
+        // self.query_simulate(None, tx_raw.to_bytes().unwrap()).await
     }
 
     async fn upload(
@@ -310,7 +310,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
-            funds,
+            funds: funds.into_iter().map(Into::into).collect(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
@@ -324,6 +324,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            data: tx_res.tx_result.data,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -348,7 +349,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                     sender: sender_address.clone(),
                     contract: contract_address.clone(),
                     msg: serde_json::to_vec(&msg)?,
-                    funds,
+                    funds: funds.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
@@ -364,6 +365,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            data: tx_res.tx_result.data,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -380,7 +382,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
             to_address: recipient_address.clone(),
-            amount,
+            amount: amount.into_iter().map(Into::into).collect(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
@@ -406,7 +408,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                 MsgSend {
                     from_address: sender_address.clone(),
                     to_address,
-                    amount,
+                    amount: amount.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
                 .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))
@@ -429,7 +431,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount,
+            amount: amount.into(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgDelegate".to_owned()))?;
@@ -450,7 +452,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
             validator_address: validator_address.to_owned(),
-            amount: Some(amount),
+            amount: amount.into(),
         }
         .to_any()
         .map_err(|_| NymdError::SerializationError("MsgUndelegate".to_owned()))?;

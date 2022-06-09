@@ -51,12 +51,7 @@ pub async fn obtain_aggregate_verification_key(
     let mut shares = Vec::with_capacity(validators.len());
 
     let mut client = validator_client::ApiClient::new(validators[0].clone());
-    let response = client.get_coconut_verification_key().await?;
-
-    indices.push(1);
-    shares.push(response.key);
-
-    for (id, validator_url) in validators.iter().enumerate().skip(1) {
+    for (id, validator_url) in validators.iter().enumerate() {
         client.change_validator_api(validator_url.clone());
         let response = client.get_coconut_verification_key().await?;
         indices.push((id + 1) as u64);
@@ -135,14 +130,7 @@ pub async fn obtain_aggregate_signature(
     let mut validators_partial_vks: Vec<VerificationKey> = Vec::with_capacity(validators.len());
 
     let mut client = validator_client::ApiClient::new(validators[0].clone());
-    let validator_partial_vk = client.get_coconut_verification_key().await?;
-    validators_partial_vks.push(validator_partial_vk.key.clone());
-
-    let first =
-        obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key).await?;
-    shares.push(SignatureShare::new(first, 1));
-
-    for (id, validator_url) in validators.iter().enumerate().skip(1) {
+    for (id, validator_url) in validators.iter().enumerate() {
         client.change_validator_api(validator_url.clone());
         let validator_partial_vk = client.get_coconut_verification_key().await?;
         validators_partial_vks.push(validator_partial_vk.key.clone());
@@ -193,8 +181,7 @@ pub fn prepare_credential_for_spending(
     Ok(Credential::new(
         PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
         theta,
-        voucher_value.to_string(),
+        voucher_value,
         voucher_info,
-        signature,
     ))
 }

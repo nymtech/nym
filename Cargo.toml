@@ -31,10 +31,12 @@ members = [
     "common/credentials",
     "common/crypto",
     "common/crypto/dkg",
+    "common/execute",
     "common/bandwidth-claim-contract",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/contracts-common",
     "common/cosmwasm-smart-contracts/mixnet-contract",
+    "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/mixnode-common",
     "common/network-defaults",
@@ -51,17 +53,22 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
+    "common/statistics",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
+    "common/task",
     "common/topology",
+    "common/types",
     "common/wasm-utils",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",
     "mixnode",
     "service-providers/network-requester",
+    "service-providers/network-statistics",
     "validator-api",
     "validator-api/validator-api-requests",
+    "tools/ts-rs-cli"
 ]
 
 default-members = [
@@ -74,4 +81,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly"]
+exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly", "nym-wallet"]

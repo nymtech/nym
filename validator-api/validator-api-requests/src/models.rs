@@ -1,16 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use mixnet_contract_common::reward_params::RewardParams;
+use mixnet_contract_common::{reward_params::RewardParams, MixNode, MixNodeBond};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(export, export_to = "../../nym-wallet/src/types/rust/mixnodestatus.ts")
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/MixnodeStatus.ts")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MixnodeStatus {
@@ -27,13 +27,10 @@ impl MixnodeStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/corenodestatusresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/CoreNodeStatusResponse.ts")
 )]
 pub struct CoreNodeStatusResponse {
     pub identity: String,
@@ -41,16 +38,25 @@ pub struct CoreNodeStatusResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/mixnodestatusresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/MixnodeStatusResponse.ts")
 )]
 pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct MixNodeBondAnnotated {
+    pub mixnode_bond: MixNodeBond,
+    pub stake_saturation: StakeSaturation,
+}
+
+impl MixNodeBondAnnotated {
+    pub fn mix_node(&self) -> &MixNode {
+        &self.mixnode_bond.mix_node
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
@@ -58,6 +64,8 @@ pub struct RewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,
     pub estimated_delegators_reward: u64,
+    pub estimated_node_profit: u64,
+    pub estimated_operator_cost: u64,
 
     pub reward_params: RewardParams,
     pub as_at: i64,
@@ -70,27 +78,23 @@ pub struct UptimeResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/stakesaturationresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/StakeSaturationResponse.ts")
 )]
 pub struct StakeSaturationResponse {
-    pub saturation: f32,
+    pub saturation: StakeSaturation,
     pub as_at: i64,
 }
 
+pub type StakeSaturation = f32;
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/selectionchance.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/SelectionChance.ts")
 )]
 pub enum SelectionChance {
     VeryHigh,
@@ -125,13 +129,10 @@ impl fmt::Display for SelectionChance {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../nym-wallet/src/types/rust/inclusionprobabilityresponse.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/InclusionProbabilityResponse.ts")
 )]
 pub struct InclusionProbabilityResponse {
     pub in_active: SelectionChance,

@@ -7,6 +7,7 @@ pub const API_VERSION: &str = VALIDATOR_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 
+pub const DETAILED: &str = "detailed";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 
@@ -16,6 +17,9 @@ pub const BANDWIDTH: &str = "bandwidth";
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-credential";
 pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
+pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
+pub const COCONUT_PROPOSE_RELEASE_FUNDS: &str = "propose-release-funds";
+pub const COCONUT_EXECUTE_RELEASE_FUNDS: &str = "execute-release-funds";
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

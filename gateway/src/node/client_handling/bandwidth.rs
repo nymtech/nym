@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
-use std::convert::TryFrom;
-
-#[cfg(feature = "coconut")]
 use coconut_interface::Credential;
-#[cfg(feature = "coconut")]
-use credentials::error::Error;
 #[cfg(not(feature = "coconut"))]
 use credentials::token::bandwidth::TokenCredential;
 
@@ -22,12 +17,13 @@ impl Bandwidth {
 }
 
 #[cfg(feature = "coconut")]
-impl TryFrom<Credential> for Bandwidth {
-    type Error = Error;
-
-    fn try_from(credential: Credential) -> Result<Self, Self::Error> {
-        let value = credential.voucher_value()?;
-        Ok(Self { value })
+impl From<Credential> for Bandwidth {
+    fn from(credential: Credential) -> Self {
+        let token_value = credential.voucher_value();
+        let bandwidth_bytes = token_value * network_defaults::BYTES_PER_UTOKEN;
+        Bandwidth {
+            value: bandwidth_bytes,
+        }
     }
 }
 

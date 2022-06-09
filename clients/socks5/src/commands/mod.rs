@@ -39,10 +39,6 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> C
             .set_custom_validator_apis(parse_validators(raw_validators));
     }
 
-    if let Some(gateway_id) = matches.value_of("gateway") {
-        config.get_base_mut().with_gateway_id(gateway_id);
-    }
-
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
         if let Err(err) = port {
             // if port was overridden, it must be parsable

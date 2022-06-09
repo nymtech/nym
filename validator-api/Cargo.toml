@@ -33,9 +33,11 @@ serde = "1.0"
 serde_json = "1.0"
 thiserror = "1"
 time = { version = "0.3", features = ["serde-human-readable", "parsing"]}
-tokio = { version = "1.4", features = ["rt-multi-thread", "macros", "signal", "time"] }
-tokio-stream = "0.1.8"
+tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tokio-stream = "0.1.9"
 url = "2.2"
+
+ts-rs = "6.1.2"
 
 anyhow = "1"
 getset = "0.1.1"
@@ -50,9 +52,11 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../common/config" }
+cosmwasm-std = "1.0.0"
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
+multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymsphinx = { path="../common/nymsphinx" }
 topology = { path="../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }
@@ -68,9 +72,10 @@ cfg-if = "1.0"
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut"]
 no-reward = []
+generate-ts = []
 
 [build-dependencies]
-tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
 

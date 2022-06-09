@@ -5,13 +5,13 @@ An API that provides data for the [Network Explorer](../explorer).
 
 Features:
 
-  - geolocates mixnodes using https://freegeoip.app/
+  - geolocates mixnodes using https://app.ipbase.com/
   - calculates how many nodes are in each country
   - proxies mixnode API requests to add HTTPS
   
 ## Running
 
-Supply the environment variable `GEO_IP_SERVICE_API_KEY` with a key from https://freegeoip.app/.
+Supply the environment variable `GEO_IP_SERVICE_API_KEY` with a key from https://app.ipbase.com/.
 
 Run as a service and reverse proxy with `nginx` to add `https` with Lets Encrypt.
 

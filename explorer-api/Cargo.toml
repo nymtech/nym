@@ -6,21 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = { version = "0.4.19", features = ["serde"] }
+humantime-serde = "1.0"
 isocountry = "0.3.2"
+itertools = "0.10.3"
+log = "0.4.0"
+okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
+pretty_env_logger = "0.4.0"
 reqwest = "0.11.4"
 rocket = {version = "0.5.0-rc.1", features=["json"] }
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
-serde = "1.0.126"
-humantime-serde = "1.0"
-serde_json = "1.0.66"
-tokio = {version = "1.9.0", features = ["full"] }
-chrono = { version = "0.4.19", features = ["serde"] }
-schemars = { version = "0.8", features = ["preserve_order"] }
-okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 rocket_okapi = { version = "0.8.0-rc.1", features = ["swagger"] }
-log = "0.4.0"
-pretty_env_logger = "0.4.0"
+schemars = { version = "0.8", features = ["preserve_order"] }
+serde = "1.0.126"
+serde_json = "1.0.66"
 thiserror = "1.0.29"
+tokio = {version = "1.19.1", features = ["full"] }
 
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 network-defaults = { path = "../common/network-defaults" }

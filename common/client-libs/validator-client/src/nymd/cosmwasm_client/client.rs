@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd::coin::Coin;
 use crate::nymd::cosmwasm_client::helpers::{create_pagination, next_page_key};
 use crate::nymd::cosmwasm_client::types::{
     Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
@@ -25,8 +26,7 @@ use cosmrs::rpc::{self, HttpClient, Order};
 use cosmrs::tendermint::abci::Code as AbciCode;
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
-use cosmrs::{tx, AccountId, Coin, Denom, Tx};
-use cosmwasm_std::Coin as CosmWasmCoin;
+use cosmrs::{tx, AccountId, Coin as CosmosCoin, Denom, Tx};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -135,7 +135,7 @@ pub trait CosmWasmClient: rpc::Client {
             .await?;
 
         res.balance
-            .map(TryFrom::try_from)
+            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
             .transpose()
             .map_err(|_| NymdError::SerializationError("Coin".to_owned()))
     }
@@ -166,16 +166,12 @@ pub trait CosmWasmClient: rpc::Client {
 
         raw_balances
             .into_iter()
-            .map(TryFrom::try_from)
+            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
             .collect::<Result<_, _>>()
             .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
     }
 
-    // this is annoyingly and inconsistently returning `Vec<CosmWasmCoin>` rather than
-    // Vec<Coin>, since cosmrs::Coin can't deal with IBC denoms.
-    // Presumably after https://github.com/cosmos/cosmos-rust/issues/173 is resolved,
-    // the code could be adjusted
-    async fn get_total_supply(&self) -> Result<Vec<CosmWasmCoin>, NymdError> {
+    async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError> {
         let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".parse().unwrap());
 
         let mut supply = Vec::new();
@@ -198,12 +194,7 @@ pub trait CosmWasmClient: rpc::Client {
 
         supply
             .into_iter()
-            .map(|coin| {
-                coin.amount.parse().map(|amount| CosmWasmCoin {
-                    denom: coin.denom,
-                    amount,
-                })
-            })
+            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
             .collect::<Result<_, _>>()
             .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
     }
@@ -483,6 +474,9 @@ pub trait CosmWasmClient: rpc::Client {
     // deprecation warning is due to the fact the protobuf files built were based on cosmos-sdk 0.44,
     // where they prefer using tx_bytes directly. However, in 0.42, which we are using at the time
     // of writing this, the option does not work
+    // TODO: we should really stop using the `tx` argument here and use `tx_bytes` exlusively,
+    // however, at the time of writing this update, while our QA and mainnet networks do support it,
+    // sandbox is still running old version of wasmd that lacks support for `tx_bytes`
     #[allow(deprecated)]
     async fn query_simulate(
         &self,

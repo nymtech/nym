@@ -50,7 +50,7 @@ export interface NymPaletteVariant {
     overModerate: string;
     moderate: string;
     underModerate: string;
-  },
+  };
 }
 
 // -------------------------------------------------------------------------------------------------------------------

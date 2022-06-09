@@ -4,7 +4,7 @@
 use crate::nymd::error::NymdError;
 use config::defaults;
 use cosmrs::tx::Gas;
-use cosmrs::{Coin, Denom};
+use cosmrs::Coin;
 use cosmwasm_std::{Decimal, Fraction, Uint128};
 use std::ops::Mul;
 use std::str::FromStr;
@@ -13,11 +13,12 @@ use std::str::FromStr;
 /// the smallest fee token unit, such as 0.012utoken.
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct GasPrice {
-    // I really hate the combination of cosmwasm Decimal with cosmos-sdk Denom,
-    // but cosmos-sdk's Decimal is too basic for our needs
+    // I really dislike the usage of cosmwasm Decimal, but I didn't feel like implementing
+    // our own maths subcrate just for the purposes of calculating gas requirements
+    // this should definitely be rectified later on
     pub amount: Decimal,
 
-    pub denom: Denom,
+    pub denom: String,
 }
 
 impl<'a> Mul<Gas> for &'a GasPrice {
@@ -44,7 +45,10 @@ impl<'a> Mul<Gas> for &'a GasPrice {
 
         assert!(amount.u128() <= u64::MAX as u128);
         Coin {
-            denom: self.denom.clone(),
+            denom: self
+                .denom
+                .parse()
+                .expect("the gas price has been created with invalid denom"),
             amount: (amount.u128() as u64).into(),
         }
     }
@@ -63,9 +67,7 @@ impl FromStr for GasPrice {
             .parse()
             .map_err(|_| NymdError::MalformedGasPrice)?;
         let possible_denom = s.chars().skip(amount_len).collect::<String>();
-        let denom = possible_denom
-            .parse()
-            .map_err(|_| NymdError::MalformedGasPrice)?;
+        let denom = possible_denom.trim().to_string();
 
         Ok(GasPrice { amount, denom })
     }
@@ -106,8 +108,14 @@ mod tests {
         );
 
         assert!(".25upunk".parse::<GasPrice>().is_err());
-        assert!("0.025 upunk".parse::<GasPrice>().is_err());
-        assert!("0.025UPUNK".parse::<GasPrice>().is_err());
+
+        assert_eq!(
+            "0.025upunk".parse::<GasPrice>().unwrap(),
+            "0.025 upunk".parse().unwrap()
+        );
+
+        let gas: GasPrice = "0.025   upunk    ".parse().unwrap();
+        assert_eq!("upunk", gas.denom);
     }
 
     #[test]

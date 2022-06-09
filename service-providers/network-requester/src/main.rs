@@ -4,18 +4,18 @@
 use clap::{App, Arg, ArgMatches};
 
 use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
+use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
 mod connection;
 mod core;
 mod statistics;
-#[cfg(feature = "stats-service")]
-mod storage;
 mod websocket;
 
 const OPEN_PROXY_ARG: &str = "open-proxy";
 const WS_PORT: &str = "websocket-port";
-const DESCRIPTION: &str = "description";
+const ENABLE_STATISTICS: &str = "enable-statistics";
+const STATISTICS_RECIPIENT: &str = "statistics-recipient";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
@@ -35,12 +35,16 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name(DESCRIPTION)
-                .help("service description")
-                .long(DESCRIPTION)
-                .short("d")
-                .takes_value(true)
-                .default_value("undefined"),
+            Arg::with_name(ENABLE_STATISTICS)
+                .help("enable service statistics that get sent to a statistics aggregator server")
+                .long(ENABLE_STATISTICS),
+        )
+        .arg(
+            Arg::with_name(STATISTICS_RECIPIENT)
+                .help("mixnet client address where a statistics aggregator is running. The default value is a Nym aggregator client")
+                .long(STATISTICS_RECIPIENT)
+                .requires(ENABLE_STATISTICS)
+                .takes_value(true),
         )
         .get_matches()
 }
@@ -55,6 +59,17 @@ async fn main() {
         println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
     }
 
+    let enable_statistics = matches.is_present(ENABLE_STATISTICS);
+    if enable_statistics {
+        println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {} FLAG .\n\n", ENABLE_STATISTICS);
+    }
+
+    let stats_provider_addr = matches
+        .value_of(STATISTICS_RECIPIENT)
+        .map(Recipient::try_from_base58_string)
+        .transpose()
+        .unwrap_or(None);
+
     let uri = format!(
         "ws://localhost:{}",
         matches
@@ -62,9 +77,9 @@ async fn main() {
             .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
     );
 
-    let description = matches.value_of(DESCRIPTION).unwrap().to_string();
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri, description, open_proxy);
+    let mut server =
+        core::ServiceProvider::new(uri, open_proxy, enable_statistics, stats_provider_addr);
     server.run().await;
 }
 

@@ -14,15 +14,19 @@ use crate::ValidatorApiStorage;
 
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    KeyPair, Parameters, VerificationKeyResponse,
+    ExecuteReleaseFundsRequestBody, KeyPair, Parameters, ProposeReleaseFundsRequestBody,
+    ProposeReleaseFundsResponse, VerificationKey, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
+use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
 use rand_07::rngs::OsRng;
@@ -30,26 +34,33 @@ use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
-use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use tokio::sync::Mutex;
+use url::Url;
 
 pub struct State {
-    client: Arc<RwLock<dyn LocalClient + Send + Sync>>,
+    client: Arc<dyn LocalClient + Send + Sync>,
     key_pair: KeyPair,
+    validator_apis: Vec<Url>,
     storage: ValidatorApiStorage,
     rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
-    pub(crate) fn new<C>(client: C, key_pair: KeyPair, storage: ValidatorApiStorage) -> Self
+    pub(crate) fn new<C>(
+        client: C,
+        key_pair: KeyPair,
+        validator_apis: Vec<Url>,
+        storage: ValidatorApiStorage,
+    ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
     {
-        let client = Arc::new(RwLock::new(client));
+        let client = Arc::new(client);
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
             client,
             key_pair,
+            validator_apis,
             storage,
             rng,
         }
@@ -109,6 +120,10 @@ impl State {
             Ok(response)
         }
     }
+
+    pub async fn verification_key(&self) -> Result<VerificationKey> {
+        Ok(obtain_aggregate_verification_key(&self.validator_apis).await?)
+    }
 }
 
 #[derive(Getters, CopyGetters, Debug)]
@@ -135,11 +150,16 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage<C>(client: C, key_pair: KeyPair, storage: ValidatorApiStorage) -> AdHoc
+    pub fn stage<C>(
+        client: C,
+        key_pair: KeyPair,
+        validator_apis: Vec<Url>,
+        storage: ValidatorApiStorage,
+    ) -> AdHoc
     where
         C: LocalClient + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, storage);
+        let state = State::new(client, key_pair, validator_apis, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -150,7 +170,10 @@ impl InternalSignRequest {
                 routes![
                     post_blind_sign,
                     get_verification_key,
-                    post_partial_bandwidth_credential
+                    post_partial_bandwidth_credential,
+                    verify_bandwidth_credential,
+                    post_propose_release_funds,
+                    post_execute_release_funds
                 ],
             )
         })
@@ -183,8 +206,6 @@ pub async fn post_blind_sign(
     }
     let tx = state
         .client
-        .read()
-        .await
         .get_tx(blind_sign_request_body.tx_hash())
         .await?;
     let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
@@ -225,4 +246,70 @@ pub async fn get_verification_key(
     Ok(Json(VerificationKeyResponse::new(
         state.key_pair.verification_key(),
     )))
+}
+
+#[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
+pub async fn verify_bandwidth_credential(
+    verify_credential_body: Json<VerifyCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyCredentialResponse>> {
+    let proposal_id = *verify_credential_body.0.proposal_id();
+    let proposal = state.client.get_proposal(proposal_id).await?;
+    // Proposal description is the blinded serial number
+    if !verify_credential_body
+        .0
+        .credential()
+        .has_blinded_serial_number(&proposal.description)?
+    {
+        return Err(CoconutError::IncorrectProposal);
+    }
+    let verification_key = state.verification_key().await?;
+    let verification_result = verify_credential_body
+        .0
+        .credential()
+        .verify(&verification_key);
+
+    // Vote yes or no on the proposal based on the verification result
+    state
+        .client
+        .vote_proposal(proposal_id, verification_result, None)
+        .await?;
+
+    Ok(Json(VerifyCredentialResponse::new(verification_result)))
+}
+
+#[post("/propose-release-funds", data = "<propose_release_funds>")]
+pub async fn post_propose_release_funds(
+    propose_release_funds: Json<ProposeReleaseFundsRequestBody>,
+    state: &RocketState<State>,
+) -> Result<Json<ProposeReleaseFundsResponse>> {
+    let verification_key = state.verification_key().await?;
+    if !propose_release_funds
+        .0
+        .credential()
+        .verify(&verification_key)
+    {
+        return Err(CoconutError::CreateProposalError);
+    }
+
+    let title = String::from("Create proposal to spend a coconut credential");
+    let blinded_serial_number = propose_release_funds.0.credential().blinded_serial_number();
+    let voucher_value = propose_release_funds.0.credential().voucher_value() as u128;
+    let proposal_id = state
+        .client
+        .propose_release_funds(title, blinded_serial_number, voucher_value, None)
+        .await?;
+
+    Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
+}
+
+#[post("/execute-release-funds", data = "<execute_release_funds>")]
+pub async fn post_execute_release_funds(
+    execute_release_funds: Json<ExecuteReleaseFundsRequestBody>,
+    state: &RocketState<State>,
+) -> Result<Json<()>> {
+    let proposal_id = *execute_release_funds.0.proposal_id();
+    state.client.execute_proposal(proposal_id, None).await?;
+
+    Ok(Json(()))
 }

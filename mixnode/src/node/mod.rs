@@ -25,6 +25,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use task::{ShutdownListener, ShutdownNotifier};
 use version_checker::parse_version;
 
 mod http;
@@ -149,11 +150,15 @@ impl MixNode {
         });
     }
 
-    fn start_node_stats_controller(&self) -> (SharedNodeStats, node_statistics::UpdateSender) {
+    fn start_node_stats_controller(
+        &self,
+        shutdown: ShutdownListener,
+    ) -> (SharedNodeStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
         let controller = node_statistics::Controller::new(
             self.config.get_node_stats_logging_delay(),
             self.config.get_node_stats_updating_delay(),
+            shutdown,
         );
         let node_stats_pointer = controller.get_node_stats_data_pointer();
         let update_sender = controller.start();
@@ -165,6 +170,7 @@ impl MixNode {
         &self,
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
+        shutdown: ShutdownListener,
     ) {
         info!("Starting socket listener...");
 
@@ -178,12 +184,13 @@ impl MixNode {
             self.config.get_mix_port(),
         );
 
-        Listener::new(listening_address).start(connection_handler);
+        Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
     fn start_packet_delay_forwarder(
         &mut self,
         node_stats_update_sender: node_statistics::UpdateSender,
+        shutdown: ShutdownListener,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
@@ -197,6 +204,7 @@ impl MixNode {
         let mut packet_forwarder = DelayForwarder::new(
             mixnet_client::Client::new(client_config),
             node_stats_update_sender,
+            shutdown,
         );
 
         let packet_sender = packet_forwarder.sender();
@@ -244,18 +252,25 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    // TODO: ask DH whether this function still makes sense in ^0.10
-    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+    fn random_api_client(&self) -> validator_client::ApiClient {
         let endpoints = self.config.get_validator_api_endpoints();
         let validator_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
-        let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
+        validator_client::ApiClient::new(validator_api.clone())
+    }
+
+    // TODO: ask DH whether this function still makes sense in ^0.10
+    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+        let validator_client = self.random_api_client();
         let existing_nodes = match validator_client.get_cached_mixnodes().await {
             Ok(nodes) => nodes,
             Err(err) => {
-                error!("failed to grab initial network mixnodes - {}\n Please try to startup again in few minutes", err);
+                error!(
+                    "failed to grab initial network mixnodes - {err}\n \
+                    Please try to startup again in few minutes",
+                );
                 process::exit(1);
             }
         };
@@ -268,16 +283,26 @@ impl MixNode {
             .map(|node| node.mix_node.identity_key.clone())
     }
 
-    async fn wait_for_interrupt(&self) {
+    async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
         if let Err(e) = tokio::signal::ctrl_c().await {
             error!(
-                "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
+                "There was an error while capturing SIGINT - {:?}. \
+                We will terminate regardless",
                 e
             );
         }
         println!(
-            "Received SIGINT - the mixnode will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
+            "Received SIGINT - the mixnode will terminate now \
+            (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
+
+        log::info!("Sending shutdown");
+        shutdown.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
+
+        log::info!("Stopping nym mixnode");
     }
 
     pub async fn run(&mut self) {
@@ -295,15 +320,23 @@ impl MixNode {
             }
         }
 
-        let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
-        let delay_forwarding_channel =
-            self.start_packet_delay_forwarder(node_stats_update_sender.clone());
-        self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
+        let shutdown = ShutdownNotifier::default();
 
+        let (node_stats_pointer, node_stats_update_sender) =
+            self.start_node_stats_controller(shutdown.subscribe());
+        let delay_forwarding_channel = self
+            .start_packet_delay_forwarder(node_stats_update_sender.clone(), shutdown.subscribe());
+        self.start_socket_listener(
+            node_stats_update_sender,
+            delay_forwarding_channel,
+            shutdown.subscribe(),
+        );
+
+        // TODO: these two also needs to be shutdown
         let atomic_verloc_results = self.start_verloc_measurements();
         self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-        self.wait_for_interrupt().await
+        self.wait_for_interrupt(shutdown).await
     }
 }

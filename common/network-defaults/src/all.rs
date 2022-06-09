@@ -52,12 +52,16 @@ impl Network {
         self.details().bandwidth_claim_contract_address
     }
 
-    pub fn rewarding_validator_address(&self) -> &str {
-        self.details().rewarding_validator_address
+    pub fn coconut_bandwidth_contract_address(&self) -> &str {
+        self.details().coconut_bandwidth_contract_address
     }
 
-    pub fn stats_provider_network_address(&self) -> &str {
-        self.details().stats_provider_network_address
+    pub fn multisig_contract_address(&self) -> &str {
+        self.details().multisig_contract_address
+    }
+
+    pub fn rewarding_validator_address(&self) -> &str {
+        self.details().rewarding_validator_address
     }
 
     pub fn validators(&self) -> impl Iterator<Item = &ValidatorDetails> {
@@ -97,7 +101,6 @@ pub struct NetworkDetails {
     mixnet_contract_address: String,
     vesting_contract_address: String,
     bandwidth_claim_contract_address: String,
-    rewarding_validator_address: String,
     validators: Vec<ValidatorDetails>,
 }
 
@@ -109,7 +112,6 @@ impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
             mixnet_contract_address: details.mixnet_contract_address.into(),
             vesting_contract_address: details.vesting_contract_address.into(),
             bandwidth_claim_contract_address: details.bandwidth_claim_contract_address.into(),
-            rewarding_validator_address: details.rewarding_validator_address.into(),
             validators: details.validators.clone(),
         }
     }
@@ -158,12 +160,6 @@ impl SupportedNetworks {
         self.networks
             .get(&network)
             .map(|network_details| network_details.bandwidth_claim_contract_address.as_str())
-    }
-
-    pub fn rewarding_validator_address(&self, network: Network) -> Option<&str> {
-        self.networks
-            .get(&network)
-            .map(|network_details| network_details.rewarding_validator_address.as_str())
     }
 
     pub fn validators(&self, network: Network) -> impl Iterator<Item = &ValidatorDetails> {

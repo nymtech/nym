@@ -1,0 +1,14 @@
+[package]
+name = "multisig-contract-common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cw-utils = { version = "0.13.1" }
+cw3 = { version = "0.13.1" }
+cw4 = { version = "0.13.1" }
+cosmwasm-std = "1.0.0"
+schemars = "0.8"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }

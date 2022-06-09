@@ -5,6 +5,8 @@ use cosmwasm_std::{Coin, Timestamp};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+
 pub mod events;
 pub mod messages;
 
@@ -12,10 +14,10 @@ pub fn one_ucoin() -> Coin {
     Coin::new(1, DENOM)
 }
 
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(export, export_to = "../../../nym-wallet/src/types/rust/period.ts")
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
 )]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, JsonSchema)]
 pub enum Period {

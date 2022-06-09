@@ -126,24 +126,6 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'bond',
-      headerName: 'Bond',
-      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
-      type: 'number',
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 200,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {currencyToString(params.value)}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'location',
       headerName: 'Location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
@@ -160,24 +142,6 @@ export const PageMixnodes: React.FC = () => {
         >
           {params.value}
         </Button>
-      ),
-    },
-    {
-      field: 'self_percentage',
-      headerName: 'Self %',
-      width: 110,
-      headerClassName: 'MuiDataGrid-header-override',
-      renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
-      type: 'number',
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {params.value}%
-        </MuiLink>
       ),
     },
     {
@@ -198,19 +162,59 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'layer',
-      headerName: 'Layer',
-      renderHeader: () => <CustomColumnHeading headingTitle="Layer" />,
+      field: 'bond',
+      headerName: 'Stake',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
+      type: 'number',
       headerClassName: 'MuiDataGrid-header-override',
-      width: 110,
+      width: 200,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          sx={getCellStyles(theme, params.row)}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
         >
-          {params.value}
+          {currencyToString(params.value)}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'stake_saturation',
+      headerName: 'Stake Saturation',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake Saturation" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 175,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{
+            textAlign: 'left',
+            color: params.value > 100 ? theme.palette.warning.main : 'inherit',
+            ...getCellStyles(theme, params.row),
+          }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {`${params.value.toFixed(2)} %`}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'self_percentage',
+      headerName: 'Self %',
+      width: 110,
+      headerClassName: 'MuiDataGrid-header-override',
+      renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
+      type: 'number',
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={getCellStyles(theme, params.row)}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}%
         </MuiLink>
       ),
     },

@@ -25,7 +25,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use validator_client::nymd::{CosmosCoin, SigningNymdClient};
+use validator_client::nymd::{Coin, SigningNymdClient};
 
 pub(crate) mod error;
 
@@ -120,7 +120,7 @@ impl RewardedSetUpdater {
 
     async fn reward_current_rewarded_set(
         &self,
-    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
+    ) -> Result<Vec<(ExecuteMsg, Vec<Coin>)>, RewardingError> {
         let to_reward = self.nodes_to_reward().await?;
         let epoch = self.epoch().await?;
 
@@ -143,7 +143,7 @@ impl RewardedSetUpdater {
     async fn generate_reward_messages(
         &self,
         eligible_mixnodes: &[MixnodeToReward],
-    ) -> Result<Vec<(ExecuteMsg, Vec<CosmosCoin>)>, RewardingError> {
+    ) -> Result<Vec<(ExecuteMsg, Vec<Coin>)>, RewardingError> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "no-reward")] {
                 Ok(vec![])
@@ -161,21 +161,25 @@ impl RewardedSetUpdater {
         let epoch = self.epoch().await?;
         let active_set = self
             .validator_cache
-            .active_set()
+            .active_set_detailed()
             .await
             .into_inner()
             .into_iter()
-            .map(|bond| bond.mix_node.identity_key)
+            .map(|bond| bond.mix_node().identity_key.clone())
             .collect::<HashSet<_>>();
 
-        let rewarded_set = self.validator_cache.rewarded_set().await.into_inner();
+        let rewarded_set = self
+            .validator_cache
+            .rewarded_set_detailed()
+            .await
+            .into_inner();
 
         let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
         for rewarded_node in rewarded_set.into_iter() {
             let uptime = self
                 .storage
                 .get_average_mixnode_uptime_in_the_last_24hrs(
-                    rewarded_node.identity(),
+                    rewarded_node.mixnode_bond.identity(),
                     epoch.end_unix_timestamp(),
                 )
                 .await?;
@@ -183,11 +187,11 @@ impl RewardedSetUpdater {
             let node_reward_params = NodeRewardParams::new(
                 0,
                 uptime.u8().into(),
-                active_set.contains(rewarded_node.identity()),
+                active_set.contains(rewarded_node.mixnode_bond.identity()),
             );
 
             eligible_nodes.push(MixnodeToReward {
-                identity: rewarded_node.identity().clone(),
+                identity: rewarded_node.mixnode_bond.identity().clone(),
                 params: node_reward_params,
             })
         }

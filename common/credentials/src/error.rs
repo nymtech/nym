@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "coconut")]
-use coconut_interface::{error::CoconutInterfaceError, CoconutError};
+use coconut_interface::CoconutError;
 use crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
 
@@ -19,10 +19,6 @@ pub enum Error {
     #[cfg(feature = "coconut")]
     #[error("Ran into a coconut error - {0}")]
     CoconutError(#[from] CoconutError),
-
-    #[cfg(feature = "coconut")]
-    #[error("Ran into a coconut interface error - {0}")]
-    CoconutInterfaceError(#[from] CoconutInterfaceError),
 
     #[error("Ran into a validator client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),

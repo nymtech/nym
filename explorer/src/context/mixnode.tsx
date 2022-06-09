@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   ApiState,
   DelegationsResponse,
+  UniqDelegationsResponse,
   MixNodeDescriptionResponse,
   MixNodeEconomicDynamicsStatsResponse,
   MixNodeResponseItem,
@@ -18,6 +19,7 @@ import { mixNodeResponseItemToMixnodeRowType, MixnodeRowType } from '../componen
 
 interface MixnodeState {
   delegations?: ApiState<DelegationsResponse>;
+  uniqDelegations?: ApiState<UniqDelegationsResponse>;
   description?: ApiState<MixNodeDescriptionResponse>;
   economicDynamicsStats?: ApiState<MixNodeEconomicDynamicsStatsResponse>;
   mixNode?: ApiState<MixNodeResponseItem | undefined>;
@@ -52,6 +54,12 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
   const [delegations, fetchDelegations, clearDelegations] = useApiState<DelegationsResponse>(
     mixNodeIdentityKey,
     Api.fetchDelegationsById,
+    'Failed to fetch delegations for mixnode',
+  );
+
+  const [uniqDelegations, fetchUniqDelegations, clearUniqDelegations] = useApiState<UniqDelegationsResponse>(
+    mixNodeIdentityKey,
+    Api.fetchUniqDelegationsById,
     'Failed to fetch delegations for mixnode',
   );
 
@@ -90,6 +98,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
     // when the identity key changes, remove all previous data
     clearMixnodeById();
     clearDelegations();
+    clearUniqDelegations();
     clearStatus();
     clearStats();
     clearDescription();
@@ -105,6 +114,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
       setMixnodeRow(mixNodeResponseItemToMixnodeRowType(value.data));
       Promise.all([
         fetchDelegations(),
+        fetchUniqDelegations(),
         fetchStatus(),
         fetchStats(),
         fetchDescription(),
@@ -117,6 +127,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
   const state = React.useMemo<MixnodeState>(
     () => ({
       delegations,
+      uniqDelegations,
       mixNode,
       mixNodeRow,
       description,
@@ -128,6 +139,7 @@ export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ 
     [
       {
         delegations,
+        uniqDelegations,
         mixNode,
         mixNodeRow,
         description,

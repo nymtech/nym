@@ -1,5 +1,5 @@
-use crate::contract::LOCKED_PLEDGE_CAP;
 use crate::errors::ContractError;
+use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
 use crate::traits::VestingAccount;
@@ -78,11 +78,12 @@ impl MixnodeBondingAccount for Account {
     ) -> Result<Response, ContractError> {
         let current_balance = self.load_balance(storage)?;
         let total_pledged_after = self.total_pledged_locked(storage, env)? + pledge.amount;
+        let locked_pledge_cap = locked_pledge_cap(storage);
 
-        if LOCKED_PLEDGE_CAP < total_pledged_after {
+        if locked_pledge_cap < total_pledged_after {
             return Err(ContractError::LockedPledgeCapReached {
                 current: total_pledged_after,
-                cap: LOCKED_PLEDGE_CAP,
+                cap: locked_pledge_cap,
             });
         }
 

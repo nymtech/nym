@@ -29,6 +29,7 @@ use network_defaults::DEFAULT_NETWORK;
 use serde::Serialize;
 use std::convert::TryInto;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
+use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -378,6 +379,16 @@ impl<C> NymdClient<C> {
         let request = QueryMsg::QueryOperatorReward { address };
         self.client
             .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await
+    }
+
+    pub async fn vesting_get_locked_pledge_cap(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = VestingQueryMsg::GetLockedPledgeCap {};
+        self.client
+            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 
@@ -980,6 +991,18 @@ impl<C> NymdClient<C> {
             VestingExecuteMsg::ClaimDelegatorReward { mix_identity },
             fee,
         )
+    }
+
+    #[execute("vesting")]
+    fn _vesting_update_locked_pledge_cap(
+        &self,
+        amount: Uint128,
+        fee: Option<Fee>,
+    ) -> (VestingExecuteMsg, Option<Fee>)
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        (VestingExecuteMsg::UpdateLockedPledgeCap { amount }, fee)
     }
 
     /// Announce a mixnode, paying a fee.

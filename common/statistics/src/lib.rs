@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use error::StatsError;
 
+pub mod api;
 pub mod error;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

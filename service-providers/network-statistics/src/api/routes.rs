@@ -5,9 +5,10 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::{Deserialize, Serialize};
 
+use statistics::StatsMessage;
+
 use crate::api::error::Result;
 use crate::storage::NetworkStatisticsStorage;
-use crate::storage::StatsMessage;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ServiceStatisticsRequest {
@@ -26,15 +27,15 @@ pub struct ServiceStatistic {
     pub timestamp: String,
 }
 
-#[rocket::post("/service-statistics", data = "<service_statistics_request>")]
-pub(crate) async fn post_service_statistics(
-    service_statistics_request: Json<ServiceStatisticsRequest>,
+#[rocket::post("/all-statistics", data = "<all_statistics_request>")]
+pub(crate) async fn post_all_statistics(
+    all_statistics_request: Json<ServiceStatisticsRequest>,
     storage: &State<NetworkStatisticsStorage>,
 ) -> Result<Json<Vec<ServiceStatistic>>> {
     let service_statistics = storage
         .get_service_statistics_in_interval(
-            &service_statistics_request.since,
-            &service_statistics_request.until,
+            &all_statistics_request.since,
+            &all_statistics_request.until,
         )
         .await?
         .into_iter()
@@ -50,11 +51,11 @@ pub(crate) async fn post_service_statistics(
     Ok(Json(service_statistics))
 }
 
-#[rocket::post("/statistics", data = "<statistics>")]
+#[rocket::post("/statistic", data = "<statistic>")]
 pub(crate) async fn post_statistic(
-    statistics: Json<StatsMessage>,
+    statistic: Json<StatsMessage>,
     storage: &State<NetworkStatisticsStorage>,
 ) -> Result<Json<()>> {
-    storage.insert_service_statistics(statistics.0).await?;
+    storage.insert_service_statistics(statistic.0).await?;
     Ok(Json(()))
 }

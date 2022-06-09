@@ -16,6 +16,10 @@ use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
+use statistics::api::{
+    build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
+    DEFAULT_STATISTICS_SERVICE_PORT,
+};
 use statistics::{StatsMessage, StatsServiceData};
 
 use super::error::StatsError;
@@ -166,14 +170,17 @@ impl StatisticsSender {
                     interval_seconds: self.interval_seconds,
                     timestamp: self.timestamp.to_rfc3339(),
                 };
-                match stats_message.to_json() {
-                    Ok(msg) => {
+                match build_statistics_request_bytes(stats_message) {
+                    Ok(data) => {
                         trace!("Connecting to statistics service");
                         let mut rng = rand::rngs::OsRng;
                         let conn_id = rng.next_u64();
                         let connect_req = Request::new_connect(
                             conn_id,
-                            String::from("127.0.0.1:8080"),
+                            format!(
+                                "{}:{}",
+                                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
+                            ),
                             self.stats_provider_addr,
                         );
                         mix_input_sender
@@ -184,19 +191,6 @@ impl StatisticsSender {
                             .unwrap();
 
                         trace!("Sending data to statistics service");
-                        let req = reqwest::Request::new(
-                            reqwest::Method::POST,
-                            reqwest::Url::parse("http://localhost:8080/v1/statistics").unwrap(),
-                        );
-                        let data = format!(
-                            "{} {} {:?}\nContent-Type: application/json\nContent-Length: {}\n\n{}\n",
-                            req.method().as_str(),
-                            req.url().as_str(),
-                            req.version(),
-                            msg.len(),
-                            msg
-                        )
-                        .into_bytes();
                         let mut message_sender = OrderedMessageSender::new();
                         let ordered_msg = message_sender.wrap_message(data).into_bytes();
                         let send_req = Request::new_send(conn_id, ordered_msg, true);

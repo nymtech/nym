@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use log::*;
-use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
+
+use statistics::StatsMessage;
 
 use crate::storage::error::NetworkStatisticsStorageError;
 use crate::storage::manager::StorageManager;
@@ -14,20 +15,6 @@ use crate::storage::models::ServiceStatistics;
 pub(crate) mod error;
 mod manager;
 mod models;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct StatsServiceData {
-    pub requested_service: String,
-    pub request_bytes: u32,
-    pub response_bytes: u32,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct StatsMessage {
-    pub stats_data: Vec<StatsServiceData>,
-    pub interval_seconds: u32,
-    pub timestamp: String,
-}
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]

@@ -6,15 +6,15 @@ use tokio::sync::RwLock;
 
 #[tauri::command]
 pub async fn start_disconnecting(
-  state: tauri::State<'_, Arc<RwLock<State>>>,
-  window: tauri::Window<tauri::Wry>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+    window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult, BackendError> {
-  let mut guard = state.write().await;
+    let mut guard = state.write().await;
 
-  guard.start_disconnecting(&window).await;
+    guard.start_disconnecting(&window).await;
 
-  Ok(ConnectResult {
-    // WIP(JON): fixme
-    address: "Test".to_string(),
-  })
+    Ok(ConnectResult {
+        // WIP(JON): fixme
+        address: "Test".to_string(),
+    })
 }

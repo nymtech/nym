@@ -36,7 +36,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         )
         .arg(
             Arg::with_name(ENABLE_STATISTICS)
-                .help("enable mixnet statistics that get sent to a statistics aggregator server")
+                .help("enable service statistics that get sent to a statistics aggregator server")
                 .long(ENABLE_STATISTICS),
         )
         .arg(

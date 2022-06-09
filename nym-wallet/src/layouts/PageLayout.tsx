@@ -4,10 +4,14 @@ import { Box } from '@mui/material';
 export const PageLayout: React.FC<{ position?: 'flex-start' | 'flex-end' }> = ({ position, children }) => (
   <Box
     sx={{
-      height: 'calc(100% - 65px)',
+      maxHeight: 'calc(100% - 65px)',
       display: 'flex',
+      flexFlow: 'column wrap',
+      justifyContent: 'start',
       alignItems: position || 'center',
       overflow: 'auto',
+      mt: 2,
+      pb: 5,
     }}
   >
     <Box width="100%" margin="auto">

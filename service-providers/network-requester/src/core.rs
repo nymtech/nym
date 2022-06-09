@@ -28,6 +28,7 @@ pub struct ServiceProvider {
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
+    stats_provider_addr: Option<Recipient>,
 }
 
 impl ServiceProvider {
@@ -35,6 +36,7 @@ impl ServiceProvider {
         listening_address: String,
         open_proxy: bool,
         enable_statistics: bool,
+        stats_provider_addr: Option<Recipient>,
     ) -> ServiceProvider {
         let allowed_hosts = HostsStore::new(
             HostsStore::default_base_dir(),
@@ -52,6 +54,7 @@ impl ServiceProvider {
             outbound_request_filter,
             open_proxy,
             enable_statistics,
+            stats_provider_addr,
         }
     }
 
@@ -300,9 +303,10 @@ impl ServiceProvider {
         });
 
         let stats_collector = if self.enable_statistics {
-            let mut stats_sender = StatisticsSender::new(interval, timer_receiver)
-                .await
-                .expect("Statistics controller could not be bootstrapped");
+            let mut stats_sender =
+                StatisticsSender::new(interval, timer_receiver, self.stats_provider_addr)
+                    .await
+                    .expect("Statistics controller could not be bootstrapped");
             let stats_collector = StatisticsCollector::from(&stats_sender);
 
             let mix_input_sender_clone = mix_input_sender.clone();

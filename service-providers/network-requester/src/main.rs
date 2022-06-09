@@ -4,6 +4,7 @@
 use clap::{App, Arg, ArgMatches};
 
 use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
+use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
 mod connection;
@@ -14,6 +15,7 @@ mod websocket;
 const OPEN_PROXY_ARG: &str = "open-proxy";
 const WS_PORT: &str = "websocket-port";
 const ENABLE_STATISTICS: &str = "enable-statistics";
+const STATISTICS_RECIPIENT: &str = "statistics-recipient";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
@@ -34,8 +36,15 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         )
         .arg(
             Arg::with_name(ENABLE_STATISTICS)
-                .help("enable mixnet statistics that get sent to a Nym server")
+                .help("enable mixnet statistics that get sent to a statistics aggregator server")
                 .long(ENABLE_STATISTICS),
+        )
+        .arg(
+            Arg::with_name(STATISTICS_RECIPIENT)
+                .help("mixnet client address where a statistics aggregator is running. The default value is a Nym aggregator client")
+                .long(STATISTICS_RECIPIENT)
+                .requires(ENABLE_STATISTICS)
+                .takes_value(true),
         )
         .get_matches()
 }
@@ -55,6 +64,12 @@ async fn main() {
         println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND STATISTICS TO A NYM SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {} FLAG .\n\n", ENABLE_STATISTICS);
     }
 
+    let stats_provider_addr = matches
+        .value_of(STATISTICS_RECIPIENT)
+        .map(|addr| Recipient::try_from_base58_string(addr))
+        .transpose()
+        .unwrap_or(None);
+
     let uri = format!(
         "ws://localhost:{}",
         matches
@@ -63,7 +78,8 @@ async fn main() {
     );
 
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri, open_proxy, enable_statistics);
+    let mut server =
+        core::ServiceProvider::new(uri, open_proxy, enable_statistics, stats_provider_addr);
     server.run().await;
 }
 

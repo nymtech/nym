@@ -103,6 +103,7 @@ impl StatisticsSender {
     pub async fn new(
         interval_seconds: Duration,
         timer_receiver: mpsc::Receiver<()>,
+        stats_provider_addr: Option<Recipient>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
@@ -113,12 +114,14 @@ impl StatisticsSender {
             .await?
             .json()
             .await?;
-        let stats_provider_addr = Recipient::try_from_base58_string(
-            stats_provider_config
-                .stats_client_address()
-                .ok_or(StatsError::InvalidClientAddress)?,
-        )
-        .map_err(|_| StatsError::InvalidClientAddress)?;
+        let stats_provider_addr = stats_provider_addr.unwrap_or(
+            Recipient::try_from_base58_string(
+                stats_provider_config
+                    .stats_client_address()
+                    .ok_or(StatsError::InvalidClientAddress)?,
+            )
+            .map_err(|_| StatsError::InvalidClientAddress)?,
+        );
 
         Ok(StatisticsSender {
             request_data: Arc::new(RwLock::new(StatsData::new())),

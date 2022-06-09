@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Button, CircularProgress, Link, Modal, Stack, Typography } from '@mui/material';
 import { modalStyle } from '../Modals/styles';
+import { TPoolOption } from '../TokenPoolSelector';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -28,6 +29,7 @@ export type DelegationModalProps = {
   recipient?: string;
   balance?: string;
   transactionUrl?: string;
+  tokenPool?: TPoolOption;
 };
 
 export const DelegationModal: React.FC<
@@ -35,7 +37,7 @@ export const DelegationModal: React.FC<
     open: boolean;
     onClose?: () => void;
   }
-> = ({ status, action, message, recipient, balance, transactionUrl, open, onClose, children }) => {
+> = ({ status, action, message, recipient, balance, transactionUrl, open, onClose, tokenPool, children }) => {
   if (status === 'loading') {
     return (
       <Modal open>
@@ -79,7 +81,7 @@ export const DelegationModal: React.FC<
           </Typography>
         )}
         <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-          Your current balance: {balance}
+          Your current {tokenPool === 'locked' ? 'locked balance' : 'balance'}: {balance}
         </Typography>
         <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
           Check the transaction hash{' '}

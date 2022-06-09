@@ -28,7 +28,7 @@ export const Delegation: FC = () => {
   const {
     clientDetails,
     network,
-    userBalance: { balance, originalVesting },
+    userBalance: { balance, originalVesting, fetchBalance },
   } = useContext(AppContext);
 
   const {
@@ -103,6 +103,7 @@ export const Delegation: FC = () => {
             ? `${spendableLocked?.amount} ${spendableLocked?.denom}`
             : bal?.printable_balance || '-',
         transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+        tokenPool,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -148,6 +149,7 @@ export const Delegation: FC = () => {
         balance:
           tokenPool === 'locked' ? `${spendableLocked?.amount} ${clientDetails?.denom}` : bal?.printable_balance || '-',
         transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+        tokenPool,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -261,7 +263,7 @@ export const Delegation: FC = () => {
               onClick={() => setShowNewDelegationModal(true)}
               sx={{ py: 1.5, px: 5 }}
             >
-              New Delegation
+              Delegate
             </Button>
           </Box>
           <DelegationList
@@ -357,7 +359,10 @@ export const Delegation: FC = () => {
         <DelegationModal
           {...confirmationModalProps}
           open={Boolean(confirmationModalProps)}
-          onClose={() => setConfirmationModalProps(undefined)}
+          onClose={async () => {
+            setConfirmationModalProps(undefined);
+            await fetchBalance();
+          }}
         />
       )}
     </>

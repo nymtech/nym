@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-CREATE TABLE mixnet_statistics
+CREATE TABLE service_statistics
 (
     id                         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    service_description        VARCHAR NOT NULL,
-    client_identity            VARCHAR NOT NULL,
+    requested_service          VARCHAR NOT NULL,
     request_processed_bytes    INTEGER NOT NULL,
     response_processed_bytes   INTEGER NOT NULL,
     interval_seconds           INTEGER NOT NULL,

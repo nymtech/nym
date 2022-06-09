@@ -1,11 +1,11 @@
 [package]
-name = "hrycyszynvpn"
+name = "nym-connect"
 version = "1.0.0"
 description = "Hrycyszyn VPN"
 authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
-default-run = "hrycyszynvpn"
+default-run = "nym-connect"
 edition = "2021"
 build = "src/build.rs"
 rust-version = "1.58"

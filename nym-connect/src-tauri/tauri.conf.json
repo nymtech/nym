@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "hrycyszynvpn",
+    "productName": "nym-connect",
     "version": "1.0.0"
   },
   "build": {
@@ -17,7 +17,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "net.nymtech.hrycyszynvpn",
+      "identifier": "net.nymtech.connect",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

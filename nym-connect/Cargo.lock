@@ -2522,41 +2522,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hrycyszynvpn"
-version = "1.0.0"
-dependencies = [
- "aes-gcm",
- "argon2",
- "base64",
- "bip39",
- "client-core",
- "config",
- "dirs 4.0.0",
- "eyre",
- "fix-path-env",
- "futures",
- "log",
- "nym-socks5-client",
- "once_cell",
- "pretty_env_logger",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "strum 0.23.0",
- "tauri",
- "tauri-build",
- "tauri-codegen",
- "tauri-macros",
- "tempfile",
- "tendermint-rpc",
- "thiserror",
- "tokio",
- "ts-rs",
- "url",
- "zeroize",
-]
-
-[[package]]
 name = "html5ever"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3475,6 +3440,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71a1eb3a36534514077c1e079ada2fb170ef30c47d203aa6916138cf882ecd52"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "nym-connect"
+version = "1.0.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "base64",
+ "bip39",
+ "client-core",
+ "config",
+ "dirs 4.0.0",
+ "eyre",
+ "fix-path-env",
+ "futures",
+ "log",
+ "nym-socks5-client",
+ "once_cell",
+ "pretty_env_logger",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "strum 0.23.0",
+ "tauri",
+ "tauri-build",
+ "tauri-codegen",
+ "tauri-macros",
+ "tempfile",
+ "tendermint-rpc",
+ "thiserror",
+ "tokio",
+ "ts-rs",
+ "url",
+ "zeroize",
 ]
 
 [[package]]

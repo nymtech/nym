@@ -11,7 +11,6 @@ export const PageLayout: React.FC<{ position?: 'flex-start' | 'flex-end' }> = ({
       alignItems: position || 'center',
       overflow: 'auto',
       mt: 2,
-      pb: 5,
     }}
   >
     <Box width="100%" margin="auto">

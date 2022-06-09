@@ -72,6 +72,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [appVersion, setAppVersion] = useState<string>();
+  const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -136,6 +137,18 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [network]);
 
+  useEffect(() => {
+    let newValue = false;
+    if (network && appEnv?.ADMIN_ADDRESS && clientDetails?.client_address) {
+      const adminAddressMap = JSON.parse(appEnv.ADMIN_ADDRESS);
+      const adminAddresses = adminAddressMap[network] || [];
+      if (adminAddresses.length) {
+        newValue = adminAddresses.includes(clientDetails?.client_address);
+      }
+    }
+    setIsAdminAddress(newValue);
+  }, [appEnv, network]);
+
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {
       setError(`A ${type} must be provided`);
@@ -189,7 +202,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       mode,
       appEnv,
       appVersion,
-      isAdminAddress: Boolean(appEnv?.ADMIN_ADDRESS && clientDetails?.client_address === appEnv.ADMIN_ADDRESS),
+      isAdminAddress,
       isLoading,
       error,
       clientDetails,
@@ -214,6 +227,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     [
       appVersion,
       loginType,
+      isAdminAddress,
       mode,
       appEnv,
       isLoading,

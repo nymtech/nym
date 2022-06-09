@@ -1,16 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Backdrop, Box, Button, CircularProgress, FormControl, Grid, Paper, Slide, TextField } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
 import { TauriContractStateParams } from 'src/types';
-
-import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import { getContractParams, setContractParams } from '../../requests';
+import { PageLayout } from '../../layouts';
+import { AppContext } from '../../context';
 
 const AdminForm: React.FC<{
   params: TauriContractStateParams;
-  onCancel: () => void;
-}> = ({ params, onCancel }) => {
+}> = ({ params }) => {
   const {
     register,
     handleSubmit,
@@ -19,7 +18,6 @@ const AdminForm: React.FC<{
 
   const onSubmit = async (data: TauriContractStateParams) => {
     await setContractParams(data);
-    onCancel();
   };
 
   return (
@@ -72,14 +70,9 @@ const AdminForm: React.FC<{
         spacing={1}
         justifyContent="flex-end"
         sx={{
-          borderTop: (theme) => `1px solid ${theme.palette.grey[200]}`,
-          background: (theme) => theme.palette.grey[100],
           padding: 2,
         }}
       >
-        <Grid item>
-          <Button onClick={onCancel}>Cancel</Button>
-        </Grid>
         <Grid item>
           <Button
             onClick={handleSubmit(onSubmit)}
@@ -99,42 +92,40 @@ const AdminForm: React.FC<{
 };
 
 export const Admin: React.FC = () => {
-  const { showAdmin, handleShowAdmin } = useContext(AppContext);
+  const { isAdminAddress, network } = useContext(AppContext);
   const [isLoading, setIsLoading] = useState(false);
   const [params, setParams] = useState<TauriContractStateParams>();
 
-  const onCancel = () => {
-    setParams(undefined);
-    setIsLoading(false);
-    handleShowAdmin();
-  };
-
   useEffect(() => {
     const requestContractParams = async () => {
-      if (showAdmin) {
-        setIsLoading(true);
-        const prms = await getContractParams();
-        setParams(prms);
-        setIsLoading(false);
-      }
+      setIsLoading(true);
+      const prms = await getContractParams();
+      setParams(prms);
+      setIsLoading(false);
     };
     requestContractParams();
-  }, [showAdmin]);
+  }, [network]);
+
+  if (!isAdminAddress) {
+    return (
+      <PageLayout>
+        <NymCard title="Admin" subheader="Contract administration">
+          <Alert severity="error">Sorry, this account is not an admin for {network}</Alert>
+        </NymCard>
+      </PageLayout>
+    );
+  }
 
   return (
-    <Backdrop open={showAdmin} style={{ zIndex: 2, overflow: 'auto' }}>
-      <Slide in={showAdmin}>
-        <Paper style={{ margin: 'auto' }}>
-          <NymCard title="Admin" subheader="Contract administration" noPadding>
-            {isLoading && (
-              <Box style={{ display: 'flex', justifyContent: 'center' }}>
-                <CircularProgress size={48} />
-              </Box>
-            )}
-            {!isLoading && params && <AdminForm onCancel={onCancel} params={params} />}
-          </NymCard>
-        </Paper>
-      </Slide>
-    </Backdrop>
+    <PageLayout>
+      <NymCard title="Admin" subheader="Contract administration" noPadding>
+        {isLoading && (
+          <Box style={{ display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress size={48} />
+          </Box>
+        )}
+        {!isLoading && params && <AdminForm params={params} />}
+      </NymCard>
+    </PageLayout>
   );
 };

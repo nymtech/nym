@@ -21,6 +21,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: compound and claim reward endpoints for operators and delegators ([#1302])
 - wallet: require password to switch accounts
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
+- wallet: new delegation and rewards UI
+- wallet: show version in nav bar
+- wallet: contract admin route put back
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed

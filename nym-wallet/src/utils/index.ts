@@ -1,7 +1,7 @@
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { valid } from 'semver';
-import { basicRawCoinValueValidation, MajorAmountString } from '@nymproject/types';
+import { isValidRawCoin, MajorAmountString } from '@nymproject/types';
 import { getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';
 
@@ -26,18 +26,13 @@ export const validateAmount = async (
     return false;
   }
 
-  try {
-    if (!basicRawCoinValueValidation(majorAmountAsString)) {
-      return false;
-    }
-
-    const majorValueFloat = parseInt(majorAmountAsString, Number(10));
-
-    return majorValueFloat >= parseInt(minimumAmountAsString, Number(10));
-  } catch (e) {
-    Console.error(e as string);
+  if (!isValidRawCoin(majorAmountAsString)) {
     return false;
   }
+
+  const majorValueFloat = parseInt(majorAmountAsString, Number(10));
+
+  return majorValueFloat >= parseInt(minimumAmountAsString, Number(10));
 
   // this conversion seems really iffy but I'm not sure how to better approach it
 };

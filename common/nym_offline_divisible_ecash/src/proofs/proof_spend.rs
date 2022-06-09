@@ -165,7 +165,7 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_varphi1.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq1.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
-                // .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
+                .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref()))
         );
 
@@ -249,7 +249,6 @@ impl SpendProof {
             + instance.pg_psi0_gen2 * self.response_r_theta2.neg()
             + instance.pg_eq2 * self.challenge;
 
-
         let zkcm_pg_eq3 = instance.pg_psi0_yy * self.response_r_rr
             + instance.pg_psi0_gen2 * self.response_r_ss
             + instance.pg_psi0_ww1 * self.response_r_varsig2
@@ -272,7 +271,7 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_varphi1.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq1.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
-                // .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
+                .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref()))
         );
 
@@ -379,7 +378,7 @@ mod tests {
         let ww2 = params_u.get_sps_pk().get_ith_ww(1);
         let pg_varsigpr2_ww1 = pairing(&varsig_prime2.to_affine(), &ww1.to_affine());
         let pg_psi0_ww1 = pairing(&psi_g1.to_affine(), &ww1.to_affine());
-        let pg_thetapr2_ww2 = pairing(&theta_prime1.to_affine(), &ww2.to_affine());
+        let pg_thetapr2_ww2 = pairing(&theta_prime2.to_affine(), &ww2.to_affine());
         let pg_psi0_ww2 = pairing(&psi_g1.to_affine(), &ww2.to_affine());
         let pg_gen1_zz = pairing(grp.gen1(), &params_u.get_sps_pk().get_zz().to_affine());
         let pg_rr_tt = pairing(&rr_prime.to_affine(), &tt_prime.to_affine());
@@ -392,6 +391,41 @@ mod tests {
         let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
         let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 - pg_gen1_zz;
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
+
+        // assert eq 15
+        // let L1 = pg_rrprime_yy - pg_psi0_yy * r_rr + pg_ssprime_gen2 - pg_psi0_gen2 * r_ss + pg_varsigpr2_ww1 - pg_psi0_ww1 * r_varsig2 + pg_thetapr2_ww2 - pg_psi0_ww2 * r_theta2 - pg_gen1_zz;
+        // assert_eq!(L1, Gt::identity());
+
+        // // assert equation 8
+        // assert_eq!(
+        //     pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).rr.to_affine(), &yy.to_affine())
+        //         + pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).ss.to_affine(), grp.gen2())
+        //         + pairing(&params_u.get_ith_sigma(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(0).to_affine())
+        //         + pairing(&params_u.get_ith_theta(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(1).to_affine())
+        //         - pairing(grp.gen1(), &params_u.get_sps_pk().get_zz().to_affine()),
+        //     Gt::identity()
+        // );
+
+        // let's do step by step checks:
+        // 1
+        // assert_eq!(pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).rr.to_affine(), &yy.to_affine()),
+        //            pg_rrprime_yy - pg_psi0_yy * r_rr
+        // );
+        // 2
+        // assert_eq!(pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).ss.to_affine(), grp.gen2()),
+        //            pg_ssprime_gen2 - pg_psi0_gen2 * r_ss
+        // );
+        // 3
+        // assert_eq!(pairing(&params_u.get_ith_sigma(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(0).to_affine()),
+        //            pg_varsigpr2_ww1 - pg_psi0_ww1 * r_varsig2
+        // );
+        // 4
+        // assert_eq!(pairing(&params_u.get_ith_theta(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(1).to_affine()),
+        //            pg_thetapr2_ww2 - pg_psi0_ww2 * r_theta2
+        // );
+        // 5
+        // assert_eq!(pairing(grp.gen1(), &params_u.get_sps_pk().get_zz().to_affine()),
+        //            pg_gen1_zz);
 
 
         let instance = SpendInstance {

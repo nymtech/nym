@@ -66,7 +66,7 @@ async fn main() {
 
     let stats_provider_addr = matches
         .value_of(STATISTICS_RECIPIENT)
-        .map(|addr| Recipient::try_from_base58_string(addr))
+        .map(Recipient::try_from_base58_string)
         .transpose()
         .unwrap_or(None);
 

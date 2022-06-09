@@ -26,6 +26,10 @@ pub enum Network {
 }
 
 impl Network {
+    pub fn new_custom(details: NymNetworkDetails) -> Self {
+        Network::CUSTOM { details }
+    }
+
     pub fn details(&self) -> NymNetworkDetails {
         match self {
             Self::QA => (&*QA_DEFAULTS).into(),
@@ -38,11 +42,6 @@ impl Network {
 
     pub fn bech32_prefix(&self) -> String {
         self.details().chain_details.bech32_account_prefix
-    }
-
-    #[deprecated(note = "please use mix_denom instead")]
-    pub fn denom(&self) -> String {
-        self.mix_denom()
     }
 
     pub fn mix_denom(&self) -> String {

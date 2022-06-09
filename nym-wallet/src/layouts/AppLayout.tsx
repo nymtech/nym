@@ -1,19 +1,17 @@
 import React, { useContext } from 'react';
-import { NymWordmark } from '@nymproject/react';
+import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { Box, Container } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { AppContext } from 'src/context';
-import { Settings } from 'src/pages';
 import { AppBar, LoadingPage, Nav } from '../components';
 
 export const ApplicationLayout: React.FC = ({ children }) => {
   const theme = useTheme();
-  const { isLoading, showSettings } = useContext(AppContext);
+  const { isLoading, appVersion } = useContext(AppContext);
 
   return (
     <>
       {isLoading && <LoadingPage />}
-      {showSettings && <Settings />}
       <Box
         sx={{
           height: '100vh',
@@ -41,10 +39,17 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             </Box>
             <Nav />
           </Box>
+          {appVersion && (
+            <Box color="#888" mt={8}>
+              Version {appVersion}
+            </Box>
+          )}
         </Box>
-        <Container>
+        <Container maxWidth="xl">
           <AppBar />
-          {children}
+          <Box overflow="auto" sx={{ height: () => `calc(100% - ${theme.spacing(10)})` }}>
+            {children}
+          </Box>
         </Container>
       </Box>
     </>

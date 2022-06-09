@@ -36,6 +36,7 @@ declare module '@mui/material/styles' {
     text: {
       light: string;
       dark: string;
+      muted: string;
     };
   }
 

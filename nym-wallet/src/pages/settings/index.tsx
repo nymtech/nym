@@ -15,17 +15,13 @@ const tabs = ['Profile', 'System variables', 'Node stats'];
 export const Settings = () => {
   const [selectedTab, setSelectedTab] = useState(0);
 
-  const { mixnodeDetails, showSettings, getBondDetails, handleShowSettings } = useContext(AppContext);
-  const { status, saturation, rewardEstimation, inclusionProbability } = useSettingsState(showSettings);
+  const { mixnodeDetails, getBondDetails } = useContext(AppContext);
+  const { status, saturation, rewardEstimation, inclusionProbability } = useSettingsState(false);
 
   const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab);
 
-  useEffect(() => {
-    getBondDetails();
-  }, [showSettings, selectedTab]);
-
-  return showSettings ? (
-    <Dialog open onClose={handleShowSettings} maxWidth="md" fullWidth>
+  return (
+    <Dialog open maxWidth="md" fullWidth>
       <NymCard
         title={
           <Box display="flex" alignItems="center">
@@ -55,5 +51,5 @@ export const Settings = () => {
         </>
       </NymCard>
     </Dialog>
-  ) : null;
+  );
 };

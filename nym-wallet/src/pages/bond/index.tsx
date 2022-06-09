@@ -119,7 +119,7 @@ export const Bond = () => {
                 size="large"
                 disableElevation
               >
-                {status === EnumRequestStatus.error ? 'Again?' : 'Finish'}
+                Finish
               </Button>
             </Box>
           </>

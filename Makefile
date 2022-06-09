@@ -54,3 +54,7 @@ fmt-wallet:
 
 wasm:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
+
+generate-typescript:
+	cd tools/ts-rs-cli && cargo run && cd ../..
+	yarn types:lint:fix

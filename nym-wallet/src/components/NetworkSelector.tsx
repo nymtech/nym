@@ -1,9 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material';
 import { ArrowDropDown, CheckSharp } from '@mui/icons-material';
+import { Network } from 'src/types';
 import { AppContext } from '../context/main';
-import { config } from '../../config';
-import { Network } from '../types';
+import { config } from '../config';
 
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },

@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
 import { AppContext } from 'src/context';
 import { isPasswordCreated } from 'src/requests';
@@ -11,7 +11,7 @@ export const SignInMnemonic = () => {
   const [passwordExists, setPasswordExists] = useState(true);
 
   const { setError, logIn, error } = useContext(AppContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const checkForPassword = async () => {
     const hasPassword = await isPasswordCreated();
@@ -20,7 +20,7 @@ export const SignInMnemonic = () => {
 
   const handlePageChange = (page: string) => {
     setError(undefined);
-    history.push(page);
+    navigate(page);
   };
 
   useEffect(() => {

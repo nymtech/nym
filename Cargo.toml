@@ -58,6 +58,7 @@ members = [
     "common/socks5/requests",
     "common/task",
     "common/topology",
+    "common/types",
     "common/wasm-utils",
     "explorer-api",
     "gateway",
@@ -67,6 +68,7 @@ members = [
     "service-providers/network-statistics",
     "validator-api",
     "validator-api/validator-api-requests",
+    "tools/ts-rs-cli"
 ]
 
 default-members = [
@@ -79,4 +81,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly"]
+exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly", "nym-wallet"]

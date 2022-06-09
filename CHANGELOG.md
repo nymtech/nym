@@ -37,6 +37,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
+- validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
 ### Changed
 
@@ -61,6 +62,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1318]: https://github.com/nymtech/nym/pull/1318
 [#1322]: https://github.com/nymtech/nym/pull/1322
 [#1328]: https://github.com/nymtech/nym/pull/1328
+[#1329]: https://github.com/nymtech/nym/pull/1329
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

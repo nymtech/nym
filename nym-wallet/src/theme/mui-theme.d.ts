@@ -53,7 +53,6 @@ declare module '@mui/material/styles' {
     };
     nav: {
       background: string;
-      hover: string;
     };
   }
 

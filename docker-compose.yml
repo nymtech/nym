@@ -4,7 +4,7 @@ x-network: &NETWORK
   BECH32_PREFIX: nymt
   DENOM: nymt
   STAKE_DENOM: nyxt
-  WASMD_VERSION: v0.26.0
+  WASMD_VERSION: v0.27.0
 
 services:
   genesis_validator:

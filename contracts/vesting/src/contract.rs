@@ -7,7 +7,7 @@ use crate::vesting::{populate_vesting_periods, Account};
 use config::defaults::DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -20,6 +20,8 @@ use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
 use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
+
+pub const LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
 
 #[entry_point]
 pub fn instantiate(

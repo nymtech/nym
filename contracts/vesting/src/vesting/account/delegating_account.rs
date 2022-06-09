@@ -1,7 +1,9 @@
+use crate::contract::LOCKED_PLEDGE_CAP;
 use crate::errors::ContractError;
 use crate::storage::save_delegation;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::DelegatingAccount;
+use crate::traits::VestingAccount;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract_common::IdentityKey;
@@ -58,6 +60,14 @@ impl DelegatingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
         let current_balance = self.load_balance(storage)?;
+        let total_pledged_after = self.total_pledged_locked(storage, env)? + coin.amount;
+
+        if LOCKED_PLEDGE_CAP < total_pledged_after {
+            return Err(ContractError::LockedPledgeCapReached {
+                current: total_pledged_after,
+                cap: LOCKED_PLEDGE_CAP,
+            });
+        }
 
         if current_balance < coin.amount {
             return Err(ContractError::InsufficientBalance(

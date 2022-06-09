@@ -1,1 +1,2 @@
-export type CurrencyDenom = 'NYM' | 'NYMT' | 'NYX' | 'NYXT';
+
+export type CurrencyDenom = "nym" | "nymt" | "nyx" | "nyxt";

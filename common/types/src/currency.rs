@@ -9,7 +9,41 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
+use strum::{Display, EnumString, EnumVariantNames};
 use validator_client::nymd::Coin;
+
+#[cfg(feature = "generate-ts")]
+use ts_rs::{Dependency, TS};
+
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/CurrencyDenom.ts")
+)]
+#[cfg_attr(feature = "generate-ts", ts(rename_all = "lowercase"))]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Clone,
+    Debug,
+    EnumString,
+    EnumVariantNames,
+    PartialEq,
+    JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum CurrencyDenom {
+    #[strum(ascii_case_insensitive)]
+    Nym,
+    #[strum(ascii_case_insensitive)]
+    Nymt,
+    #[strum(ascii_case_insensitive)]
+    Nyx,
+    #[strum(ascii_case_insensitive)]
+    Nyxt,
+}
 
 pub type Denom = String;
 
@@ -149,18 +183,39 @@ impl From<DenomDetails> for CoinMetadata {
 
 // tries to semi-replicate cosmos-sdk's DecCoin for being able to handle tokens with decimal amounts
 // https://github.com/cosmos/cosmos-sdk/blob/v0.45.4/types/dec_coin.go
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DecCoin.ts")
-)]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct DecCoin {
     pub denom: Denom,
     // Decimal is already serialized to string and using string in its schema, so lets also go straight to string for ts_rs
     // todo: is `Decimal` the correct type to use? Do we want to depend on cosmwasm_std here?
-    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub amount: Decimal,
+}
+
+// I had to implement it manually to correctly set dependencies
+#[cfg(feature = "generate-ts")]
+impl TS for DecCoin {
+    const EXPORT_TO: Option<&'static str> = Some("ts-packages/types/src/types/rust/DecCoin.ts");
+
+    fn decl() -> String {
+        format!("type {} = {};", Self::name(), Self::inline())
+    }
+
+    fn name() -> String {
+        "DecCoin".into()
+    }
+
+    fn inline() -> String {
+        "{ denom: CurrencyDenom, amount: string }".into()
+    }
+
+    fn dependencies() -> Vec<Dependency> {
+        vec![Dependency::from_ty::<CurrencyDenom>()
+            .expect("TS was incorrectly defined on `CurrencyDenom`")]
+    }
+
+    fn transparent() -> bool {
+        false
+    }
 }
 
 impl DecCoin {

@@ -1,2 +1,3 @@
+import type { CurrencyDenom } from "./CurrencyDenom";
 
-export interface DecCoin { denom: string, amount: string, }
+export type DecCoin = { denom: CurrencyDenom, amount: string };

@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useState } from 'react';
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
@@ -8,6 +8,7 @@ import { AppContext } from '../../context/main';
 import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests';
 import { Fee, TokenPoolSelector } from '../../components';
 import { Console } from '../../utils/console';
+import { getMixnodeStakeSaturation } from '../../requests';
 
 type TDelegateForm = {
   identity: string;
@@ -41,11 +42,23 @@ export const DelegateForm = ({
     resolver: yupResolver(validationSchema),
   });
 
+  const [saturation, setSaturation] = useState<number>(0);
   const { userBalance, currency, clientDetails } = useContext(AppContext);
 
   useEffect(() => {
     reset();
   }, [clientDetails]);
+
+  useEffect(() => {
+    console.log('saturation', saturation);
+  }, [saturation]);
+
+  const getStakeSaturation = async (mixnodeKey: string) => {
+    const newSaturation = await getMixnodeStakeSaturation(mixnodeKey);
+    if (newSaturation) {
+      setSaturation(Math.round(newSaturation.saturation * 100));
+    }
+  };
 
   const onSubmit = async (data: TDelegateForm, cb: (data: TDelegateArgs) => Promise<DelegationResult>) => {
     const amount = await majorToMinor(data.amount);
@@ -69,6 +82,15 @@ export const DelegateForm = ({
       });
   };
 
+  const checkNodeSaturation = (value: string) => {
+    console.log(value, value.length);
+    if (value.length === 44) {
+      getStakeSaturation(value);
+    } else {
+      setSaturation(0);
+    }
+  };
+
   return (
     <FormControl fullWidth>
       <Box sx={{ p: 3 }}>
@@ -84,7 +106,10 @@ export const DelegateForm = ({
               fullWidth
               error={!!errors.identity}
               helperText={errors?.identity?.message}
+              onBlur={(e) => checkNodeSaturation(e.target.value)}
+              onChange={(e) => setSaturation(0)}
             />
+            {saturation > 100 && <p>Please choose another node, the selected is oversaturated</p>}
           </Grid>
 
           {userBalance.originalVesting && (
@@ -127,7 +152,7 @@ export const DelegateForm = ({
           onClick={handleSubmit((data) =>
             onSubmit(data, data.tokenPool === 'balance' ? delegate : vestingDelegateToMixnode),
           )}
-          disabled={isSubmitting}
+          disabled={isSubmitting || saturation > 100}
           data-testid="delegate-button"
           variant="contained"
           color="primary"

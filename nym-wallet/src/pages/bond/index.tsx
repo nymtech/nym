@@ -26,6 +26,7 @@ export const Bond = () => {
     }
   }, [status, checkOwnership]);
 
+
   return (
     <PageLayout>
       <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>

@@ -94,6 +94,11 @@ impl NymNetworkDetails {
         (&*MAINNET_DEFAULTS).into()
     }
 
+    pub fn current_default() -> Self {
+        // backwards compatibility reasons
+        DEFAULT_NETWORK.details()
+    }
+
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
         self.chain_details.bech32_account_prefix = prefix.into();
         self
@@ -239,6 +244,7 @@ pub struct ValidatorDetails {
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
+    // TODO: I'd argue this one should also have a field like `gas_price` since its a validator-specific setting
 }
 
 impl ValidatorDetails {

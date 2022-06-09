@@ -109,7 +109,9 @@ impl Default for Base {
             local_validator: DEFAULT_LOCAL_VALIDATOR
                 .parse()
                 .expect("default local validator is malformed!"),
-            mixnet_contract_address: DEFAULT_NETWORK.mixnet_contract_address().to_string(),
+            mixnet_contract_address: DEFAULT_NETWORK
+                .mixnet_contract_address()
+                .expect("mixnet contract address is unavailable"),
             mnemonic: String::default(),
         }
     }

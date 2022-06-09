@@ -6,7 +6,6 @@ use crate::network_config;
 use crate::nymd_client;
 use crate::state::{State, WalletAccountIds};
 use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
-
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
 use config::defaults::COSMOS_DERIVATION_PATH;
@@ -213,7 +212,7 @@ async fn _connect_with_mnemonic(
     let default_network: WalletNetwork = config::defaults::DEFAULT_NETWORK.into();
     let client_for_default_network = clients
         .iter()
-        .find(|client| WalletNetwork::from(client.network) == default_network);
+        .find(|client| WalletNetwork::from(client.network.clone()) == default_network);
     let account_for_default_network = match client_for_default_network {
         Some(client) => Ok(Account::new(
             client.nymd.mixnet_contract_address().to_string(),
@@ -231,7 +230,7 @@ async fn _connect_with_mnemonic(
         w_state.logout();
     }
     for client in clients {
-        let network: WalletNetwork = client.network.into();
+        let network: WalletNetwork = client.network.clone().into();
         let mut w_state = state.write().await;
         w_state.add_client(network, client);
     }
@@ -308,15 +307,21 @@ fn create_clients(
         log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
         log::info!("Connecting to: api_url: {api_url} for {network}");
 
-        let mut client = validator_client::Client::new_signing(
-            validator_client::Config::new(network.into(), nymd_url, api_url)
-                .with_mixnode_contract_address(config.get_mixnet_contract_address(network))
-                .with_vesting_contract_address(config.get_vesting_contract_address(network))
-                .with_bandwidth_claim_contract_address(
-                    config.get_bandwidth_claim_contract_address(network),
-                ),
-            mnemonic.clone(),
-        )?;
+        let network_details = Network::from(network)
+            .details()
+            .with_mixnet_contract(Some(config.get_mixnet_contract_address(network).as_ref()))
+            .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()))
+            .with_bandwidth_claim_contract(Some(
+                config
+                    .get_bandwidth_claim_contract_address(network)
+                    .as_ref(),
+            ));
+
+        let config = validator_client::Config::try_from_nym_network_details(&network_details)?
+            .with_urls(nymd_url, api_url);
+
+        let mut client =
+            validator_client::Client::new_signing(config, network.into(), mnemonic.clone())?;
         client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
         clients.push(client);
     }
@@ -486,7 +491,7 @@ pub async fn add_account_for_password(
     let address = {
         let state = state.read().await;
         let network: Network = state.current_network().into();
-        derive_address(mnemonic, network.bech32_prefix())?.to_string()
+        derive_address(mnemonic, &network.bech32_prefix())?.to_string()
     };
 
     // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
@@ -528,7 +533,7 @@ async fn set_state_with_all_accounts(
                     let config_network: Network = network.into();
                     (
                         network,
-                        derive_address(mnemonic.clone(), config_network.bech32_prefix()).unwrap(),
+                        derive_address(mnemonic.clone(), &config_network.bech32_prefix()).unwrap(),
                     )
                 })
                 .collect();

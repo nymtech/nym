@@ -4,7 +4,6 @@
 #[cfg(test)]
 pub mod helpers {
     pub const OWNER: &str = "admin0001";
-    pub const SOMEBODY: &str = "somebody";
     pub const MULTISIG_CONTRACT: &str = "multisig contract address";
     pub const POOL_CONTRACT: &str = "mix pool contract address";
 
@@ -23,7 +22,7 @@ pub mod helpers {
         let env = mock_env();
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-        return deps;
+        deps
     }
 
     pub fn mock_app(init_funds: &[Coin]) -> App {

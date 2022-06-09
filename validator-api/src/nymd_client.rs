@@ -52,16 +52,16 @@ impl Client<QueryNymdClient> {
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
         let network = DEFAULT_NETWORK;
+        let details = network
+            .details()
+            .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
-        let mixnet_contract = config
-            .get_mixnet_contract_address()
-            .parse()
-            .expect("the mixnet contract address is invalid!");
+        let client_config = validator_client::Config::try_from_nym_network_details(&details)
+            .expect("failed to construct valid validator client config with the provided network")
+            .with_urls(nymd_url, api_url);
 
-        let client_config = validator_client::Config::new(network, nymd_url, api_url)
-            .with_mixnode_contract_address(mixnet_contract);
-        let inner =
-            validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
+        let inner = validator_client::Client::new_query(client_config, network)
+            .expect("Failed to connect to nymd!");
 
         Client(Arc::new(RwLock::new(inner)))
     }
@@ -75,20 +75,22 @@ impl Client<SigningNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
-        let network = DEFAULT_NETWORK;
 
-        let mixnet_contract = config
-            .get_mixnet_contract_address()
-            .parse()
-            .expect("the mixnet contract address is invalid!");
+        let network = DEFAULT_NETWORK;
+        let details = network
+            .details()
+            .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
+
+        let client_config = validator_client::Config::try_from_nym_network_details(&details)
+            .expect("failed to construct valid validator client config with the provided network")
+            .with_urls(nymd_url, api_url);
+
         let mnemonic = config
             .get_mnemonic()
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let client_config = validator_client::Config::new(network, nymd_url, api_url)
-            .with_mixnode_contract_address(mixnet_contract);
-        let inner = validator_client::Client::new_signing(client_config, mnemonic)
+        let inner = validator_client::Client::new_signing(client_config, network, mnemonic)
             .expect("Failed to connect to nymd!");
 
         Client(Arc::new(RwLock::new(inner)))

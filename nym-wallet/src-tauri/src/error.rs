@@ -121,6 +121,7 @@ impl From<ValidatorClientError> for BackendError {
             ValidatorClientError::ValidatorAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NymdError(e) => e.into(),
+            ValidatorClientError::NoAPIUrlAvailable => BackendError::NoValidatorApiUrlConfigured,
         }
     }
 }

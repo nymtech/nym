@@ -214,7 +214,7 @@ mod tests {
         ];
 
         for prefix in prefixes {
-            let addrs = match prefix {
+            let addrs = match prefix.as_ref() {
                 "nymt" => vec![
                     "nymt1jw6mp7d5xqc7w6xm79lha27glmd0vdt339me94",
                     "nymt1h5hgn94nsq4kh99rjj794hr5h5q6yfm23rjshv",
@@ -229,7 +229,7 @@ mod tests {
             };
             for (idx, mnemonic) in mnemonics.iter().enumerate() {
                 let wallet =
-                    DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse().unwrap())
+                    DirectSecp256k1HdWallet::from_mnemonic(&prefix, mnemonic.parse().unwrap())
                         .unwrap();
                 assert_eq!(
                     wallet.try_derive_accounts().unwrap()[0].address,

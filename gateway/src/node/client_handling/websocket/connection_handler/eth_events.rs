@@ -21,6 +21,7 @@ use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
+use validator_client::nymd;
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 
 pub(crate) struct ERC20Bridge {
@@ -39,8 +40,11 @@ impl ERC20Bridge {
             .expect("The list of validators is empty");
         let mnemonic =
             Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
+
+        let client_config = nymd::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
+            .expect("failed to construct valid validator client config with the provided network");
         let nymd_client =
-            NymdClient::connect_with_mnemonic(DEFAULT_NETWORK, nymd_url.as_ref(), mnemonic, None)
+            NymdClient::connect_with_mnemonic(client_config, nymd_url.as_ref(), mnemonic, None)
                 .expect("Could not create nymd client");
 
         ERC20Bridge {

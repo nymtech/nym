@@ -67,7 +67,6 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
     use cw_multi_test::Executor;
-    use serde::de::Unexpected::Str;
 
     #[test]
     fn initialize_contract() {

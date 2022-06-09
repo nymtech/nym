@@ -15,6 +15,8 @@ pub enum NetworkDefaultsError {
     MalformedNetworkProvided(String),
 }
 
+// the reason for allowing it is that this is just a temporary solution
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
     QA,
@@ -24,7 +26,7 @@ pub enum Network {
 }
 
 impl Network {
-    fn details(&self) -> NymNetworkDetails {
+    pub fn details(&self) -> NymNetworkDetails {
         match self {
             Self::QA => (&*QA_DEFAULTS).into(),
             Self::SANDBOX => (&*SANDBOX_DEFAULTS).into(),
@@ -73,6 +75,18 @@ impl Network {
 
     pub fn validators(&self) -> Vec<ValidatorDetails> {
         self.details().endpoints
+    }
+
+    // only used in mixnet contract tests, but I don't want to be messing with that code now
+    pub fn rewarding_validator_address(&self) -> &str {
+        match self {
+            Network::QA => crate::qa::REWARDING_VALIDATOR_ADDRESS,
+            Network::SANDBOX => crate::sandbox::REWARDING_VALIDATOR_ADDRESS,
+            Network::MAINNET => crate::mainnet::REWARDING_VALIDATOR_ADDRESS,
+            Network::CUSTOM { .. } => {
+                panic!("rewarding validator address is unavailable for a custom network")
+            }
+        }
     }
 }
 

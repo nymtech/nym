@@ -98,6 +98,9 @@ impl OptionalStatsProviderConfig {
             network_defaults::all::Network::MAINNET => self.mainnet.clone(),
             network_defaults::all::Network::SANDBOX => self.sandbox.clone(),
             network_defaults::all::Network::QA => self.qa.clone(),
+            network_defaults::all::Network::CUSTOM { .. } => {
+                panic!("custom network is unsupported")
+            }
         };
         entry_config.map(|e| e.stats_client_address)
     }

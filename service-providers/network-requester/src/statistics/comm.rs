@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::*;
 use rand::RngCore;
@@ -116,112 +117,135 @@ impl ServiceStatisticsCollector {
     }
 }
 
-pub struct StatisticsSender {
-    data: ServiceStatisticsCollector,
-    interval_seconds: Duration,
+#[async_trait]
+impl StatisticsCollector for ServiceStatisticsCollector {
+    async fn create_stats_message(
+        &self,
+        interval: Duration,
+        timestamp: DateTime<Utc>,
+    ) -> StatsMessage {
+        let stats_data = {
+            let request_data_bytes = self.request_stats_data.read().await;
+            let response_data_bytes = self.response_stats_data.read().await;
+            let services: HashSet<String> = request_data_bytes
+                .client_processed_bytes
+                .keys()
+                .chain(response_data_bytes.client_processed_bytes.keys())
+                .cloned()
+                .collect();
+            services
+                .into_iter()
+                .map(|requested_service| {
+                    let request_bytes = request_data_bytes
+                        .client_processed_bytes
+                        .get(&requested_service)
+                        .copied()
+                        .unwrap_or(0);
+                    let response_bytes = response_data_bytes
+                        .client_processed_bytes
+                        .get(&requested_service)
+                        .copied()
+                        .unwrap_or(0);
+                    StatsServiceData::new(requested_service, request_bytes, response_bytes)
+                })
+                .collect()
+        };
+
+        StatsMessage {
+            stats_data,
+            interval_seconds: interval.as_secs() as u32,
+            timestamp: timestamp.to_rfc3339(),
+        }
+    }
+
+    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError> {
+        let msg = build_statistics_request_bytes(stats_message)?;
+
+        trace!("Connecting to statistics service");
+        let mut rng = rand::rngs::OsRng;
+        let conn_id = rng.next_u64();
+        let connect_req = Request::new_connect(
+            conn_id,
+            format!(
+                "{}:{}",
+                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
+            ),
+            self.stats_provider_addr,
+        );
+        self.mix_input_sender
+            .unbounded_send((
+                Socks5Message::Request(connect_req),
+                self.stats_provider_addr,
+            ))
+            .unwrap();
+
+        trace!("Sending data to statistics service");
+        let mut message_sender = OrderedMessageSender::new();
+        let ordered_msg = message_sender.wrap_message(msg).into_bytes();
+        let send_req = Request::new_send(conn_id, ordered_msg, true);
+        self.mix_input_sender
+            .unbounded_send((Socks5Message::Request(send_req), self.stats_provider_addr))
+            .unwrap();
+
+        Ok(())
+    }
+
+    async fn reset_stats(&mut self) {
+        self.request_stats_data
+            .write()
+            .await
+            .client_processed_bytes
+            .iter_mut()
+            .for_each(|(_, b)| *b = 0);
+        self.response_stats_data
+            .write()
+            .await
+            .client_processed_bytes
+            .iter_mut()
+            .for_each(|(_, b)| *b = 0);
+    }
+}
+
+#[async_trait]
+pub trait StatisticsCollector {
+    async fn create_stats_message(
+        &self,
+        interval: Duration,
+        timestamp: DateTime<Utc>,
+    ) -> StatsMessage;
+    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError>;
+    async fn reset_stats(&mut self);
+}
+
+pub struct StatisticsSender<T: StatisticsCollector> {
+    collector: T,
+    interval: Duration,
     timestamp: DateTime<Utc>,
 }
 
-impl StatisticsSender {
-    pub fn new(data: ServiceStatisticsCollector) -> Self {
+impl<T: StatisticsCollector> StatisticsSender<T> {
+    pub fn new(collector: T) -> Self {
         StatisticsSender {
-            data,
-            interval_seconds: STATISTICS_TIMER_INTERVAL,
+            collector,
+            interval: STATISTICS_TIMER_INTERVAL,
             timestamp: Utc::now(),
         }
     }
 
     pub async fn run(&mut self) {
-        let mut interval = time::interval(self.interval_seconds);
+        let mut interval = time::interval(self.interval);
         loop {
             interval.tick().await;
 
-            let stats_data = {
-                let request_data_bytes = self.data.request_stats_data.read().await;
-                let response_data_bytes = self.data.response_stats_data.read().await;
-                let services: HashSet<String> = request_data_bytes
-                    .client_processed_bytes
-                    .keys()
-                    .chain(response_data_bytes.client_processed_bytes.keys())
-                    .cloned()
-                    .collect();
-                services
-                    .into_iter()
-                    .map(|requested_service| {
-                        let request_bytes = request_data_bytes
-                            .client_processed_bytes
-                            .get(&requested_service)
-                            .copied()
-                            .unwrap_or(0);
-                        let response_bytes = response_data_bytes
-                            .client_processed_bytes
-                            .get(&requested_service)
-                            .copied()
-                            .unwrap_or(0);
-                        StatsServiceData::new(requested_service, request_bytes, response_bytes)
-                    })
-                    .collect()
-            };
-
-            let stats_message = StatsMessage {
-                stats_data,
-                interval_seconds: self.interval_seconds.as_secs() as u32,
-                timestamp: self.timestamp.to_rfc3339(),
-            };
-            match build_statistics_request_bytes(stats_message) {
-                Ok(data) => {
-                    trace!("Connecting to statistics service");
-                    let mut rng = rand::rngs::OsRng;
-                    let conn_id = rng.next_u64();
-                    let connect_req = Request::new_connect(
-                        conn_id,
-                        format!(
-                            "{}:{}",
-                            DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
-                        ),
-                        self.data.stats_provider_addr,
-                    );
-                    self.data
-                        .mix_input_sender
-                        .unbounded_send((
-                            Socks5Message::Request(connect_req),
-                            self.data.stats_provider_addr,
-                        ))
-                        .unwrap();
-
-                    trace!("Sending data to statistics service");
-                    let mut message_sender = OrderedMessageSender::new();
-                    let ordered_msg = message_sender.wrap_message(data).into_bytes();
-                    let send_req = Request::new_send(conn_id, ordered_msg, true);
-                    self.data
-                        .mix_input_sender
-                        .unbounded_send((
-                            Socks5Message::Request(send_req),
-                            self.data.stats_provider_addr,
-                        ))
-                        .unwrap();
-                }
-                Err(e) => error!("Statistics not sent: {}", e),
+            let stats_message = self
+                .collector
+                .create_stats_message(self.interval, self.timestamp)
+                .await;
+            if let Err(e) = self.collector.send_stats_message(stats_message) {
+                error!("Statistics not sent: {}", e);
             }
-            self.reset_stats().await;
+            self.collector.reset_stats().await;
+            self.timestamp = Utc::now();
         }
-    }
-
-    async fn reset_stats(&mut self) {
-        self.data
-            .request_stats_data
-            .write()
-            .await
-            .client_processed_bytes
-            .iter_mut()
-            .for_each(|(_, b)| *b = 0);
-        self.data
-            .response_stats_data
-            .write()
-            .await
-            .client_processed_bytes
-            .iter_mut()
-            .for_each(|(_, b)| *b = 0);
-        self.timestamp = Utc::now();
     }
 }

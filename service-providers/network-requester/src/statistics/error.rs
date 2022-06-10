@@ -10,4 +10,7 @@ pub enum StatsError {
 
     #[error("Invalid stats provider client address")]
     InvalidClientAddress,
+
+    #[error("Common stats error {0}")]
+    CommonStatsError(#[from] statistics::error::StatsError),
 }

@@ -55,7 +55,7 @@ export const DelegateModal: React.FC<{
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [fee, setFee] = useState<string>();
-  const [saturation, setSaturation] = useState<number>(0);
+  const [nodeSaturation, setNodeSaturation] = useState<number>(0);
 
   const getFee = async () => {
     if (feeOverride) setFee(feeOverride);
@@ -85,15 +85,25 @@ export const DelegateModal: React.FC<{
     }
   };
 
+  const setSaturation = async (identityKey: string) => {
+    try {
+      const newSaturation = await getMixnodeStakeSaturation(identityKey);
+      if (!newSaturation) {
+        throw new Error(`HTTP error: ${newSaturation}`);
+      }
+      setNodeSaturation(Math.round(newSaturation.saturation * 100));
+    } catch (error) {
+      console.error(`Could not get products: ${error}`);
+    }
+  };
+
   const handleIdentityKeyChanged = async (newIdentityKey: string) => {
-    debugger;
+    if (newIdentityKey) {
+      setSaturation(newIdentityKey);
+    }
     setIdentityKey(newIdentityKey);
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);
-    }
-    const newSaturation = await getMixnodeStakeSaturation(newIdentityKey);
-    if (newSaturation) {
-      setSaturation(Math.round(newSaturation.saturation * 100));
     }
   };
 
@@ -104,10 +114,7 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  console.log('initialIdentityKey', initialIdentityKey, isValidated);
-
   React.useEffect(() => {
-    console.log('identityKey', identityKey);
     validate();
   }, [amount, identityKey]);
 
@@ -135,12 +142,8 @@ export const DelegateModal: React.FC<{
         textFieldProps={{
           autoFocus: !initialIdentityKey,
         }}
+        saturation={nodeSaturation}
       />
-      {saturation > 100 && (
-        <Typography component="div" textAlign="right" variant="caption" sx={{ color: 'error.main' }}>
-          Selected node saturation {'>'} 100%. Choose another one.
-        </Typography>
-      )}
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField

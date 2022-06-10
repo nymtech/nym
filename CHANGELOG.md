@@ -11,6 +11,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
 - mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
+- mixnet-contrat: Added staking_supply field to ContractStateParams.
+- rewarding: replace circulating supply with staking supply in reward calculations ([#1324])
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
 - validator-api: add Swagger to document the REST API ([#1249]).
@@ -24,6 +26,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: new delegation and rewards UI
 - wallet: show version in nav bar
 - wallet: contract admin route put back
+- waller: staking_supply field to StateParams
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed
@@ -61,6 +64,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1302]: https://github.com/nymtech/nym/pull/1302
 [#1318]: https://github.com/nymtech/nym/pull/1318
 [#1322]: https://github.com/nymtech/nym/pull/1322
+[#1324]: https://github.com/nymtech/nym/pull/1324
 [#1328]: https://github.com/nymtech/nym/pull/1328
 [#1329]: https://github.com/nymtech/nym/pull/1329
 

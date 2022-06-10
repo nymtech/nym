@@ -63,6 +63,32 @@ const AdminForm: React.FC<{
               helperText={errors?.mixnode_active_set_size?.message}
             />
           </Grid>
+          <Grid item xs={12}>
+            <TextField
+              {...register('mixnode_rewarded_set_size', { valueAsNumber: true })}
+              required
+              variant="outlined"
+              id="mixnode_rewarded_set_size"
+              name="mixnode_rewarded_set_size"
+              label="Mixnode Rewarded Set Size"
+              fullWidth
+              error={!!errors.mixnode_rewarded_set_size}
+              helperText={errors?.mixnode_rewarded_set_size?.message}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              {...register('staking_supply', { valueAsNumber: true })}
+              required
+              variant="outlined"
+              id="staking_supply"
+              name="staking_supply"
+              label="Staking Supply"
+              fullWidth
+              error={!!errors.mixnode_rewarded_set_size}
+              helperText={errors?.mixnode_rewarded_set_size?.message}
+            />
+          </Grid>
         </Grid>
       </Box>
       <Grid

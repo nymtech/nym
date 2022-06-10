@@ -14,7 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { NymLogo } from '@nymproject/react';
+import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { BIG_DIPPER, NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
@@ -84,7 +84,7 @@ export const originalNavOptions: NavOptionType[] = [
   {
     id: 0,
     isActive: false,
-    url: '/overview',
+    url: '/',
     title: 'Overview',
     Icon: <OverviewSVG />,
   },
@@ -343,7 +343,7 @@ export const Nav: React.FC = ({ children }) => {
                 fontWeight: 600,
               }}
             >
-              <MuiLink component={Link} to="/overview" underline="none" color="inherit">
+              <MuiLink component={Link} to="/" underline="none" color="inherit">
                 Network Explorer
               </MuiLink>
             </Typography>

@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { Box, Button, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useHistory } from 'react-router-dom';
-import { NymLogo } from '@nymproject/react';
+import { useNavigate } from 'react-router-dom';
+import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { useMainContext } from '../../context/main';
 
 export const Page404: React.FC = () => {
-  const history = useHistory();
+  const navigate = useNavigate();
   const { mode } = useMainContext();
   const theme = useTheme();
   return (
@@ -37,7 +37,7 @@ export const Page404: React.FC = () => {
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.secondary.main,
               }}
-              onClick={() => history.push('/overview')}
+              onClick={() => navigate('/')}
             >
               Overview
             </Button>

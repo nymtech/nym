@@ -1,12 +1,11 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Button, Card, Grid, Link as MuiLink } from '@mui/material';
-import { Link as RRDLink, useParams } from 'react-router-dom';
+import { Link as RRDLink, useParams, useNavigate } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
 import { Theme, useTheme } from '@mui/material/styles';
-import { useHistory } from 'react-router';
-import { CopyToClipboard } from '@nymproject/react';
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { useMainContext } from '../../context/main';
 import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
 import { TableToolbar } from '../../components/TableToolbar';
@@ -42,7 +41,7 @@ export const PageMixnodes: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const theme = useTheme();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
@@ -74,7 +73,7 @@ export const PageMixnodes: React.FC = () => {
   }, [status]);
 
   const handleMixnodeStatusChanged = (newStatus?: MixnodeStatusWithAll) => {
-    history.push(
+    navigate(
       newStatus && newStatus !== MixnodeStatusWithAll.all
         ? `/network-components/mixnodes/${newStatus}`
         : '/network-components/mixnodes',

@@ -5,12 +5,9 @@
 
 use std::sync::Arc;
 
-use tauri::Manager;
-use tauri::{Menu, SystemTrayEvent};
+use tauri::Menu;
 use tokio::sync::RwLock;
 
-// temporarily until it is actually used
-#[allow(unused)]
 use crate::menu::AddDefaultSubmenus;
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
 use crate::state::State;

@@ -1,6 +1,7 @@
 use serde::{Serialize, Serializer};
 use thiserror::Error;
 
+#[allow(unused)]
 #[derive(Error, Debug)]
 pub enum BackendError {
     #[error("State error")]

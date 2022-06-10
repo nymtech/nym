@@ -1,17 +1,11 @@
-use std::time::Duration;
-
 use futures::SinkExt;
 use log::info;
-//use tokio::sync::mpsc;
 use futures::channel::mpsc;
 
 use config::NymConfig;
 #[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
-use nym_socks5::client::{
-    Socks5ControlMessage, Socks5ControlMessageReceiver, Socks5ControlMessageSender,
-};
-use tokio::time::sleep;
+use nym_socks5::client::{Socks5ControlMessage, Socks5ControlMessageSender};
 
 use crate::config::SOCKS5_CONFIG_ID;
 use crate::models::{

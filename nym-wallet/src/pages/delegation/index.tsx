@@ -106,6 +106,7 @@ export const Delegation: FC = () => {
         tokenPool,
       });
     } catch (e) {
+      console.log(e);
       setConfirmationModalProps({
         status: 'error',
         action: 'delegate',
@@ -307,7 +308,6 @@ export const Delegation: FC = () => {
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
           currency={clientDetails!.denom}
-          estimatedReward={0}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
@@ -323,7 +323,6 @@ export const Delegation: FC = () => {
           onOk={handleUndelegate}
           proxy={currentDelegationListActionItem.proxy}
           currency={currentDelegationListActionItem.amount.denom}
-          fee={0.1}
           amount={+currentDelegationListActionItem.amount.amount}
           identityKey={currentDelegationListActionItem.node_identity}
         />

@@ -47,7 +47,7 @@ export const Default = () => {
       <SimpleModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         header="This is a modal"
         subHeader="This is a sub header"
         okLabel="Click to continue"
@@ -104,7 +104,7 @@ export const NoSubheader = () => {
       <SimpleModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
       >

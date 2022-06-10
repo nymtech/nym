@@ -15,11 +15,12 @@ export const CompoundModal: React.FC<{
   currency: string;
   message: string;
 }> = ({ open, onClose, onOk, identityKey, amount, fee, currency, message }) => {
-  const handleOk = () => {
+  const handleOk = async () => {
     if (onOk) {
       onOk(identityKey);
     }
   };
+
   return (
     <SimpleModal
       open={open}

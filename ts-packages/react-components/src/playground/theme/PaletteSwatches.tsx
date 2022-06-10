@@ -38,7 +38,7 @@ export const PaletteSwatches: React.FC<{
       {Object.keys(swatches)
         .filter((key) => typeof swatches[key] === 'string' && key !== 'mode')
         .map((key) => (
-          <Grid item>
+          <Grid item key={key}>
             <PaletteSwatch theme={theme} path={key} value={swatches[key]} width="150px" />
           </Grid>
         ))}

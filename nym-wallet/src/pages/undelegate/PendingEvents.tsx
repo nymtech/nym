@@ -1,7 +1,6 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { Table, TableCell, TableHead, TableRow } from '@mui/material';
-import { minorToMajor } from 'src/requests';
-import { DelegationResult } from 'src/types';
+import { DelegationResult } from '@nymproject/types';
 import { AppContext } from 'src/context';
 
 export const PendingEvents = ({
@@ -11,22 +10,8 @@ export const PendingEvents = ({
   pendingDelegations: DelegationResult[];
   show: boolean;
 }) => {
-  const [mapped, setMapped] = useState<Array<DelegationResult & { majorValue: string }>>([]);
-  const { currency } = useContext(AppContext);
+  const { clientDetails } = useContext(AppContext);
 
-  const mapToMajorValue = useCallback(async () => {
-    const mappedToMajor = await Promise.all(
-      pendingDelegations.map(async (pendingDelegation) => {
-        const majorValue = await minorToMajor(pendingDelegation.amount?.amount || '');
-        return { ...pendingDelegation, majorValue: majorValue.amount };
-      }),
-    );
-    setMapped(mappedToMajor);
-  }, [pendingDelegations]);
-
-  useEffect(() => {
-    mapToMajorValue();
-  }, []);
   return show ? (
     <Table>
       <TableHead>
@@ -35,10 +20,10 @@ export const PendingEvents = ({
           <TableCell>Amount</TableCell>
         </TableRow>
       </TableHead>
-      {mapped.map((delegation) => (
+      {pendingDelegations.map((delegation) => (
         <TableRow>
           <TableCell sx={{ maxWidth: 200, pl: 3 }}>{delegation.target_address}</TableCell>
-          <TableCell align="left">{`${delegation.majorValue} ${currency?.major}`}</TableCell>
+          <TableCell align="left">{`${delegation.amount?.amount} ${clientDetails?.denom}`}</TableCell>
         </TableRow>
       ))}
     </Table>

@@ -1,5 +1,5 @@
 import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
-import { AccountEntry } from 'src/types';
+import { AccountEntry } from '@nymproject/types';
 import { addAccount as addAccountRequest, showMnemonicForAccount } from 'src/requests';
 import { useSnackbar } from 'notistack';
 import { AppContext } from './main';

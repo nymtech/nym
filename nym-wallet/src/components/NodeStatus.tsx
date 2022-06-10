@@ -1,7 +1,7 @@
 import React from 'react';
 import { Typography } from '@mui/material';
 import { CircleOutlined, PauseCircleOutlined, CheckCircleOutline } from '@mui/icons-material';
-import { MixnodeStatus } from '../types';
+import { MixnodeStatus } from '@nymproject/types';
 
 const Active = () => (
   <Typography sx={{ color: 'success.main', display: 'flex', alignItems: 'center' }}>

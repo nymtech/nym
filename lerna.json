@@ -1,6 +1,7 @@
 {
   "packages": [
-    "ts-packages/*"
+    "ts-packages/*",
+    "nym-wallet"
   ],
   "version": "0.0.0"
 }

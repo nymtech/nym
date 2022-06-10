@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api';
-import { AppEnv } from '../types';
+import { AppEnv } from 'src/types';
+import { invokeWrapper } from './wrapper';
 
-export const getEnv = async (): Promise<AppEnv> => invoke('get_env');
+export const getEnv = async () => invokeWrapper<AppEnv>('get_env');

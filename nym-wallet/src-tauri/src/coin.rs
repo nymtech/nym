@@ -239,7 +239,7 @@ mod test {
         let network_denom = "unym";
         let coin = Coin::minor("42");
 
-        let backend_coin = coin.clone().into_backend_coin(&network_denom).unwrap();
+        let backend_coin = coin.into_backend_coin(network_denom).unwrap();
         assert_eq!(backend_coin, BackendCoin::new(42, "unym"));
     }
 
@@ -248,7 +248,7 @@ mod test {
         let network_denom = "unym";
         let coin = Coin::major("52");
 
-        let backend_coin = coin.clone().into_backend_coin(network_denom).unwrap();
+        let backend_coin = coin.into_backend_coin(network_denom).unwrap();
         assert_eq!(backend_coin, BackendCoin::new(52, "nym"));
     }
 

@@ -4,7 +4,8 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use serde::{Deserialize, Serialize};
+use rand::RngCore;
+use serde::Deserialize;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -12,49 +13,19 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 
 use network_defaults::DEFAULT_NETWORK;
-use nymsphinx::addressing::clients::{ClientIdentity, Recipient};
-use socks5_requests::Response;
+use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::OrderedMessageSender;
+use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
+use statistics::api::{
+    build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
+    DEFAULT_STATISTICS_SERVICE_PORT,
+};
+use statistics::{StatsMessage, StatsServiceData};
 
 use super::error::StatsError;
 
 const REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG: &str =
     "https://nymtech.net/.wellknown/network-requester/stats-provider.json";
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct StatsMessage {
-    pub description: String,
-    pub stats_data: Vec<StatsClientData>,
-    pub interval_seconds: u32,
-    pub timestamp: String,
-}
-
-impl StatsMessage {
-    pub fn to_bytes(&self) -> Result<Vec<u8>, StatsError> {
-        Ok(bincode::serialize(self)?)
-    }
-
-    #[cfg(feature = "stats-service")]
-    pub fn from_bytes(b: &[u8]) -> Result<Self, StatsError> {
-        Ok(bincode::deserialize(b)?)
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct StatsClientData {
-    pub client_identity: String,
-    pub request_bytes: u32,
-    pub response_bytes: u32,
-}
-
-impl StatsClientData {
-    pub fn new(client_identity: String, request_bytes: u32, response_bytes: u32) -> Self {
-        StatsClientData {
-            client_identity,
-            request_bytes,
-            response_bytes,
-        }
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct StatsData {
@@ -68,13 +39,12 @@ impl StatsData {
         }
     }
 
-    pub fn processed(&mut self, client_identity: &ClientIdentity, bytes: u32) {
-        let client_identity_bs58 = client_identity.to_base58_string();
-        if let Some(curr_bytes) = self.client_processed_bytes.get_mut(&client_identity_bs58) {
+    pub fn processed(&mut self, remote_addr: &str, bytes: u32) {
+        if let Some(curr_bytes) = self.client_processed_bytes.get_mut(remote_addr) {
             *curr_bytes += bytes;
         } else {
             self.client_processed_bytes
-                .insert(client_identity_bs58, bytes);
+                .insert(remote_addr.to_string(), bytes);
         }
     }
 }
@@ -103,8 +73,24 @@ impl OptionalStatsProviderConfig {
     }
 }
 
-pub struct Statistics {
-    description: String,
+#[derive(Clone)]
+pub struct StatisticsCollector {
+    pub(crate) request_stats_data: Arc<RwLock<StatsData>>,
+    pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
+    pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
+}
+
+impl StatisticsCollector {
+    pub fn from(stats: &StatisticsSender) -> Self {
+        Self {
+            request_stats_data: Arc::clone(&stats.request_data),
+            response_stats_data: Arc::clone(&stats.response_data),
+            connected_services: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+pub struct StatisticsSender {
     request_data: Arc<RwLock<StatsData>>,
     response_data: Arc<RwLock<StatsData>>,
     interval_seconds: u32,
@@ -113,11 +99,11 @@ pub struct Statistics {
     stats_provider_addr: Recipient,
 }
 
-impl Statistics {
+impl StatisticsSender {
     pub async fn new(
-        description: String,
         interval_seconds: Duration,
         timer_receiver: mpsc::Receiver<()>,
+        stats_provider_addr: Option<Recipient>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
@@ -128,15 +114,16 @@ impl Statistics {
             .await?
             .json()
             .await?;
-        let stats_provider_addr = Recipient::try_from_base58_string(
-            stats_provider_config
-                .stats_client_address()
-                .ok_or(StatsError::InvalidClientAddress)?,
-        )
-        .map_err(|_| StatsError::InvalidClientAddress)?;
+        let stats_provider_addr = stats_provider_addr.unwrap_or(
+            Recipient::try_from_base58_string(
+                stats_provider_config
+                    .stats_client_address()
+                    .ok_or(StatsError::InvalidClientAddress)?,
+            )
+            .map_err(|_| StatsError::InvalidClientAddress)?,
+        );
 
-        Ok(Statistics {
-            description,
+        Ok(StatisticsSender {
             request_data: Arc::new(RwLock::new(StatsData::new())),
             response_data: Arc::new(RwLock::new(StatsData::new())),
             timestamp: Utc::now(),
@@ -146,15 +133,10 @@ impl Statistics {
         })
     }
 
-    pub fn request_data(&self) -> &Arc<RwLock<StatsData>> {
-        &self.request_data
-    }
-
-    pub fn response_data(&self) -> &Arc<RwLock<StatsData>> {
-        &self.response_data
-    }
-
-    pub async fn run(&mut self, mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>) {
+    pub async fn run(
+        &mut self,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+    ) {
         loop {
             if self.timer_receiver.next().await == None {
                 error!("Timer thread has died. No more statistics will be sent");
@@ -162,42 +144,62 @@ impl Statistics {
                 let stats_data = {
                     let request_data_bytes = self.request_data.read().await;
                     let response_data_bytes = self.response_data.read().await;
-                    let clients: HashSet<String> = request_data_bytes
+                    let services: HashSet<String> = request_data_bytes
                         .client_processed_bytes
                         .keys()
                         .chain(response_data_bytes.client_processed_bytes.keys())
                         .cloned()
                         .collect();
-                    clients
+                    services
                         .into_iter()
-                        .map(|client_identity| {
+                        .map(|requested_service| {
                             let request_bytes = request_data_bytes
                                 .client_processed_bytes
-                                .get(&client_identity)
+                                .get(&requested_service)
                                 .copied()
                                 .unwrap_or(0);
                             let response_bytes = response_data_bytes
                                 .client_processed_bytes
-                                .get(&client_identity)
+                                .get(&requested_service)
                                 .copied()
                                 .unwrap_or(0);
-                            StatsClientData::new(client_identity, request_bytes, response_bytes)
+                            StatsServiceData::new(requested_service, request_bytes, response_bytes)
                         })
                         .collect()
                 };
 
                 let stats_message = StatsMessage {
-                    description: self.description.clone(),
                     stats_data,
                     interval_seconds: self.interval_seconds,
                     timestamp: self.timestamp.to_rfc3339(),
                 };
-                match stats_message.to_bytes() {
+                match build_statistics_request_bytes(stats_message) {
                     Ok(data) => {
-                        trace!("Sending data to statistics service");
+                        trace!("Connecting to statistics service");
+                        let mut rng = rand::rngs::OsRng;
+                        let conn_id = rng.next_u64();
+                        let connect_req = Request::new_connect(
+                            conn_id,
+                            format!(
+                                "{}:{}",
+                                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
+                            ),
+                            self.stats_provider_addr,
+                        );
                         mix_input_sender
                             .unbounded_send((
-                                Response::new(0, data, false),
+                                Socks5Message::Request(connect_req),
+                                self.stats_provider_addr,
+                            ))
+                            .unwrap();
+
+                        trace!("Sending data to statistics service");
+                        let mut message_sender = OrderedMessageSender::new();
+                        let ordered_msg = message_sender.wrap_message(data).into_bytes();
+                        let send_req = Request::new_send(conn_id, ordered_msg, true);
+                        mix_input_sender
+                            .unbounded_send((
+                                Socks5Message::Request(send_req),
                                 self.stats_provider_addr,
                             ))
                             .unwrap();

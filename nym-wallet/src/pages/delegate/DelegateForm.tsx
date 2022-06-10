@@ -1,24 +1,25 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
-import { DelegationResult, EnumNodeType, TDelegateArgs } from '../../types';
+import { EnumNodeType, MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { TDelegateArgs } from '../../types';
 import { validationSchema } from './validationSchema';
 import { AppContext } from '../../context/main';
-import { delegate, majorToMinor, vestingDelegateToMixnode } from '../../requests';
+import { delegateToMixnode, vestingDelegateToMixnode } from '../../requests';
 import { Fee, TokenPoolSelector } from '../../components';
 import { Console } from '../../utils/console';
 
 type TDelegateForm = {
   identity: string;
-  amount: string;
+  amount: MajorCurrencyAmount;
   tokenPool: string;
   type: EnumNodeType;
 };
 
 const defaultValues: TDelegateForm = {
   identity: '',
-  amount: '',
+  amount: { amount: '', denom: 'NYM' },
   tokenPool: 'balance',
   type: EnumNodeType.mixnode,
 };
@@ -28,7 +29,7 @@ export const DelegateForm = ({
   onSuccess,
 }: {
   onError: (message?: string) => void;
-  onSuccess: (details: { amount: string; address: string }) => void;
+  onSuccess: (details: { amount: string; result: TransactionExecuteResult }) => void;
 }) => {
   const {
     register,
@@ -41,27 +42,24 @@ export const DelegateForm = ({
     resolver: yupResolver(validationSchema),
   });
 
-  const { userBalance, currency, clientDetails } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
 
   useEffect(() => {
     reset();
   }, [clientDetails]);
 
-  const onSubmit = async (data: TDelegateForm, cb: (data: TDelegateArgs) => Promise<DelegationResult>) => {
-    const amount = await majorToMinor(data.amount);
-
+  const onSubmit = async (data: TDelegateForm, cb: (data: TDelegateArgs) => Promise<TransactionExecuteResult>) => {
     await cb({
-      type: data.type,
       identity: data.identity,
-      amount,
+      amount: { ...data.amount, denom: clientDetails!.denom },
     })
-      .then(async (res) => {
+      .then(async (result) => {
         if (data.tokenPool === 'balance') {
           await userBalance.fetchBalance();
         } else {
           await userBalance.fetchTokenAllocation();
         }
-        onSuccess({ amount: data.amount, address: res.target_address });
+        onSuccess({ amount: data.amount.amount, result });
       })
       .catch((e) => {
         Console.error(e as string);
@@ -95,17 +93,17 @@ export const DelegateForm = ({
 
           <Grid item xs={6}>
             <TextField
-              {...register('amount')}
+              {...register('amount.amount')}
               required
               variant="outlined"
               id="amount"
-              name="amount"
+              name="amount.amount"
               label="Amount to delegate"
               fullWidth
-              error={!!errors.amount}
-              helperText={errors?.amount?.message}
+              error={!!errors.amount?.amount}
+              helperText={errors?.amount?.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">{currency?.major}</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{clientDetails?.denom}</InputAdornment>,
               }}
             />
           </Grid>
@@ -125,7 +123,7 @@ export const DelegateForm = ({
       >
         <Button
           onClick={handleSubmit((data) =>
-            onSubmit(data, data.tokenPool === 'balance' ? delegate : vestingDelegateToMixnode),
+            onSubmit(data, data.tokenPool === 'balance' ? delegateToMixnode : vestingDelegateToMixnode),
           )}
           disabled={isSubmitting}
           data-testid="delegate-button"

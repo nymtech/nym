@@ -1,10 +1,10 @@
 import React, { useContext } from 'react';
 import { Box, CircularProgress, Link, Typography } from '@mui/material';
+import { TransactionDetails as TTransactionDetails } from '@nymproject/types';
 import { SendError } from './SendError';
 import { AppContext, urls } from '../../context/main';
 import { SuccessReponse } from '../../components';
 import { TransactionDetails } from '../../components/TransactionDetails';
-import { TransactionDetails as TTransactionDetails } from '../../types';
 
 export const SendConfirmation = ({
   data,
@@ -15,7 +15,7 @@ export const SendConfirmation = ({
   error?: string;
   isLoading: boolean;
 }) => {
-  const { userBalance, currency, network } = useContext(AppContext);
+  const { userBalance, clientDetails, network } = useContext(AppContext);
 
   if (!data && !error && !isLoading) return null;
 
@@ -52,7 +52,7 @@ export const SendConfirmation = ({
           <TransactionDetails
             details={[
               { primary: 'Recipient', secondary: data.to_address },
-              { primary: 'Amount', secondary: `${data.amount.amount} ${currency?.major}` },
+              { primary: 'Amount', secondary: `${data.amount.amount} ${clientDetails?.denom}` },
             ]}
           />
         </>

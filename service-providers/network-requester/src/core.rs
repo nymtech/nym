@@ -3,7 +3,7 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
-use crate::statistics::{StatisticsCollector, StatisticsSender};
+use crate::statistics::{ServiceStatisticsCollector, StatisticsSender};
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
@@ -63,7 +63,7 @@ impl ServiceProvider {
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
-        stats_collector: Option<StatisticsCollector>,
+        stats_collector: Option<ServiceStatisticsCollector>,
     ) {
         // TODO: wire SURBs in here once they're available
         while let Some((msg, return_address)) = mix_reader.next().await {
@@ -228,7 +228,7 @@ impl ServiceProvider {
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
-        stats_collector: Option<StatisticsCollector>,
+        stats_collector: Option<ServiceStatisticsCollector>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -297,11 +297,11 @@ impl ServiceProvider {
         });
 
         let stats_collector = if self.enable_statistics {
-            let mut stats_sender =
-                StatisticsSender::new(self.stats_provider_addr, mix_input_sender.clone())
+            let stats_collector =
+                ServiceStatisticsCollector::new(self.stats_provider_addr, mix_input_sender.clone())
                     .await
-                    .expect("Statistics controller could not be bootstrapped");
-            let stats_collector = StatisticsCollector::from(&stats_sender);
+                    .expect("Service statistics collector could not be bootstrapped");
+            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
 
             tokio::spawn(async move {
                 stats_sender.run().await;

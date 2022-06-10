@@ -75,32 +75,15 @@ impl OptionalStatsProviderConfig {
 }
 
 #[derive(Clone)]
-pub struct StatisticsCollector {
+pub struct ServiceStatisticsCollector {
     pub(crate) request_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
-}
-
-impl StatisticsCollector {
-    pub fn from(stats: &StatisticsSender) -> Self {
-        Self {
-            request_stats_data: Arc::clone(&stats.request_data),
-            response_stats_data: Arc::clone(&stats.response_data),
-            connected_services: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-}
-
-pub struct StatisticsSender {
-    request_data: Arc<RwLock<StatsData>>,
-    response_data: Arc<RwLock<StatsData>>,
-    interval_seconds: Duration,
-    timestamp: DateTime<Utc>,
     stats_provider_addr: Recipient,
     mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
 }
 
-impl StatisticsSender {
+impl ServiceStatisticsCollector {
     pub async fn new(
         stats_provider_addr: Option<Recipient>,
         mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
@@ -123,14 +106,29 @@ impl StatisticsSender {
             .map_err(|_| StatsError::InvalidClientAddress)?,
         );
 
-        Ok(StatisticsSender {
-            request_data: Arc::new(RwLock::new(StatsData::new())),
-            response_data: Arc::new(RwLock::new(StatsData::new())),
-            timestamp: Utc::now(),
-            interval_seconds: STATISTICS_TIMER_INTERVAL,
+        Ok(ServiceStatisticsCollector {
+            request_stats_data: Arc::new(RwLock::new(StatsData::new())),
+            response_stats_data: Arc::new(RwLock::new(StatsData::new())),
+            connected_services: Arc::new(RwLock::new(HashMap::new())),
             stats_provider_addr,
             mix_input_sender,
         })
+    }
+}
+
+pub struct StatisticsSender {
+    data: ServiceStatisticsCollector,
+    interval_seconds: Duration,
+    timestamp: DateTime<Utc>,
+}
+
+impl StatisticsSender {
+    pub fn new(data: ServiceStatisticsCollector) -> Self {
+        StatisticsSender {
+            data,
+            interval_seconds: STATISTICS_TIMER_INTERVAL,
+            timestamp: Utc::now(),
+        }
     }
 
     pub async fn run(&mut self) {
@@ -139,8 +137,8 @@ impl StatisticsSender {
             interval.tick().await;
 
             let stats_data = {
-                let request_data_bytes = self.request_data.read().await;
-                let response_data_bytes = self.response_data.read().await;
+                let request_data_bytes = self.data.request_stats_data.read().await;
+                let response_data_bytes = self.data.response_stats_data.read().await;
                 let services: HashSet<String> = request_data_bytes
                     .client_processed_bytes
                     .keys()
@@ -181,12 +179,13 @@ impl StatisticsSender {
                             "{}:{}",
                             DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
                         ),
-                        self.stats_provider_addr,
+                        self.data.stats_provider_addr,
                     );
-                    self.mix_input_sender
+                    self.data
+                        .mix_input_sender
                         .unbounded_send((
                             Socks5Message::Request(connect_req),
-                            self.stats_provider_addr,
+                            self.data.stats_provider_addr,
                         ))
                         .unwrap();
 
@@ -194,10 +193,11 @@ impl StatisticsSender {
                     let mut message_sender = OrderedMessageSender::new();
                     let ordered_msg = message_sender.wrap_message(data).into_bytes();
                     let send_req = Request::new_send(conn_id, ordered_msg, true);
-                    self.mix_input_sender
+                    self.data
+                        .mix_input_sender
                         .unbounded_send((
                             Socks5Message::Request(send_req),
-                            self.stats_provider_addr,
+                            self.data.stats_provider_addr,
                         ))
                         .unwrap();
                 }
@@ -208,13 +208,15 @@ impl StatisticsSender {
     }
 
     async fn reset_stats(&mut self) {
-        self.request_data
+        self.data
+            .request_stats_data
             .write()
             .await
             .client_processed_bytes
             .iter_mut()
             .for_each(|(_, b)| *b = 0);
-        self.response_data
+        self.data
+            .response_stats_data
             .write()
             .await
             .client_processed_bytes

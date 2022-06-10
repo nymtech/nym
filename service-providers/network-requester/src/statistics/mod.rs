@@ -4,4 +4,4 @@
 mod comm;
 mod error;
 
-pub use comm::{StatisticsCollector, StatisticsSender, StatsData};
+pub use comm::{ServiceStatisticsCollector, StatisticsSender, StatsData};

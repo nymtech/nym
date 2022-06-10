@@ -30,10 +30,7 @@ impl PacketListener {
     ) -> Self {
         PacketListener {
             address,
-            connection_handler: Arc::new(ConnectionHandler {
-                identity,
-                shutdown: shutdown.clone(),
-            }),
+            connection_handler: Arc::new(ConnectionHandler { identity }),
             shutdown,
         }
     }
@@ -44,18 +41,22 @@ impl PacketListener {
         let listener = match TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                error!(
+                    "Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?",
+                    self.address, err
+                );
                 process::exit(1);
             }
         };
 
         info!("Started listening for echo packets on {}", self.address);
 
-        let mut shutdown_lister = self.shutdown.clone();
+        let mut shutdown_listener = self.shutdown.clone();
 
-        while !shutdown_lister.is_shutdown() {
+        while !shutdown_listener.is_shutdown() {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
+            let handler_shutdown_listener = self.shutdown.clone();
 
             tokio::select! {
                 socket = listener.accept() => {
@@ -63,12 +64,12 @@ impl PacketListener {
                         Ok((socket, remote_addr)) => {
                             debug!("New verloc connection from {}", remote_addr);
 
-                            tokio::spawn(connection_handler.handle_connection(socket, remote_addr));
+                            tokio::spawn(connection_handler.handle_connection(socket, remote_addr, handler_shutdown_listener));
                         }
                         Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
                     }
                 },
-                _ = shutdown_lister.recv() => {
+                _ = shutdown_listener.recv() => {
                     log::trace!("PacketListener: Received shutdown");
                 }
             }
@@ -78,7 +79,6 @@ impl PacketListener {
 
 struct ConnectionHandler {
     identity: Arc<identity::KeyPair>,
-    shutdown: ShutdownListener,
 }
 
 impl ConnectionHandler {
@@ -87,10 +87,13 @@ impl ConnectionHandler {
         packet.construct_reply(self.identity.private_key())
     }
 
-    pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
+    pub(crate) async fn handle_connection(
+        self: Arc<Self>,
+        conn: TcpStream,
+        remote: SocketAddr,
+        mut shutdown_listener: ShutdownListener,
+    ) {
         debug!("Starting connection handler for {:?}", remote);
-
-        let mut shutdown_listener = self.shutdown.clone();
 
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
         while !shutdown_listener.is_shutdown() {

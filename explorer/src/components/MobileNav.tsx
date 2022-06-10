@@ -16,7 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
-import { NymLogo } from '@nymproject/react';
+import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';

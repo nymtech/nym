@@ -18,8 +18,9 @@ const actionToHeader = (action: ActionType): string => {
       return 'Undelegation complete';
     case 'compound':
       return 'Undelegation complete';
+    default:
+      return 'Oh no! Something went wrong!';
   }
-  return 'Oh no! Something went wrong!';
 };
 
 export type DelegationModalProps = {

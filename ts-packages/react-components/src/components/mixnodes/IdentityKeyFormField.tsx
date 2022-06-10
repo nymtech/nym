@@ -36,14 +36,6 @@ export const IdentityKeyFormField: React.FC<{
 
   const doValidation = (newValue?: string): boolean => {
     if (validateKey(newValue)) {
-      if (saturation && saturation > 100) {
-        const newSaturationError = 'Node oversaturated.';
-        setValidationError(newSaturationError);
-        if (onValidate) {
-          onValidate(false, newSaturationError);
-        }
-        return false;
-      }
       setValidationError(undefined);
       if (onValidate) {
         onValidate(true);
@@ -51,6 +43,14 @@ export const IdentityKeyFormField: React.FC<{
       return true;
     }
 
+    if (newValue === undefined && saturation && saturation > 100) {
+      const newSaturationError = 'Node oversaturated (saturation > 100). Please, choose another.';
+      setValidationError(newSaturationError);
+      if (onValidate) {
+        onValidate(false, newSaturationError);
+      }
+      return false;
+    }
     const newValidationError = 'Key is not valid';
     setValidationError(newValidationError);
     if (onValidate) {

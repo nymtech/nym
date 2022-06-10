@@ -91,7 +91,8 @@ export const DelegateModal: React.FC<{
       if (!newSaturation) {
         throw new Error(`HTTP error: ${newSaturation}`);
       }
-      setNodeSaturation(Math.round(newSaturation.saturation * 100));
+      const saturationPercentage = Math.round(newSaturation.saturation * 100);
+      setNodeSaturation(saturationPercentage);
     } catch (error) {
       console.error(`Could not get products: ${error}`);
     }

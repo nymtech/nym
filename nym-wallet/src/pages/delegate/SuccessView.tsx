@@ -1,10 +1,13 @@
 import React, { useContext } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
+import { TransactionExecuteResult } from '@nymproject/types';
 import { SuccessReponse, TransactionDetails } from '../../components';
 import { AppContext } from '../../context/main';
 
-export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
-  const { userBalance, currency } = useContext(AppContext);
+export const SuccessView: React.FC<{ details?: { amount: string; result: TransactionExecuteResult } }> = ({
+  details,
+}) => {
+  const { userBalance, clientDetails } = useContext(AppContext);
   return (
     <>
       <SuccessReponse
@@ -23,8 +26,8 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
         <Box sx={{ mt: 2 }}>
           <TransactionDetails
             details={[
-              { primary: 'Node', secondary: details.address },
-              { primary: 'Amount', secondary: `${details.amount} ${currency?.major}` },
+              { primary: 'Node', secondary: details.result.transaction_hash },
+              { primary: 'Amount', secondary: `${details.amount} ${clientDetails?.denom}` },
             ]}
           />
         </Box>

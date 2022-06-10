@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coin::Coin;
-use serde::{Deserialize, Serialize};
+use nym_types::currency::MajorCurrencyAmount;
+use nym_types::fees::FeeDetails;
 use validator_client::nymd::cosmwasm_client::types::GasInfo;
 use validator_client::nymd::{tx, CosmosCoin, Fee, GasPrice};
 
@@ -28,19 +28,11 @@ impl SimulateResult {
             gas_price,
         }
     }
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FeeDetails {
-    // expected to be used by the wallet in order to display detailed fee information to the user
-    pub amount: Option<Coin>,
-    pub fee: Fee,
-}
-
-impl SimulateResult {
     pub fn detailed_fee(&self) -> FeeDetails {
+        let amount = self.to_fee_amount().map(MajorCurrencyAmount::from);
         FeeDetails {
-            amount: self.to_fee_amount().map(Into::into),
+            amount,
             fee: self.to_fee(),
         }
     }

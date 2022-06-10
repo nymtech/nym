@@ -1,5 +1,5 @@
 import React from 'react';
-import { NymLogo as NymLogoReact } from '@nymproject/react';
+import { NymLogo as NymLogoReact } from '@nymproject/react/logo/NymLogo';
 
 const imgSize = {
   small: 40,

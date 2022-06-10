@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
 import { AuthContext } from 'src/context/auth';
 import { randomNumberBetween } from 'src/utils';
@@ -14,7 +14,7 @@ export const VerifyMnemonic = () => {
   const [currentSelection, setCurrentSelection] = useState(0);
 
   const { mnemonicWords } = useContext(AuthContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (mnemonicWords) {
@@ -55,11 +55,11 @@ export const VerifyMnemonic = () => {
             fullWidth
             size="large"
             disabled={currentSelection !== numberOfRandomWords}
-            onClick={() => history.push('/create-password')}
+            onClick={() => navigate('/create-password')}
           >
             Next
           </Button>
-          <Button color="inherit" fullWidth size="large" onClick={() => history.goBack()}>
+          <Button color="inherit" fullWidth size="large" onClick={() => navigate(-1)}>
             Back
           </Button>
         </Stack>

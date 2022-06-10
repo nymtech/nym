@@ -33,28 +33,29 @@ declare module '@mui/material/styles' {
    * This interface defines a palette used across Nym for branding
    */
   interface NymPalette {
-    highlight: string
+    highlight: string;
     text: {
-      nav: string
-      footer: string
+      nav: string;
+      footer: string;
     }
   }
 
   interface NymPaletteVariant {
     mode: PaletteMode
     background: {
-      main: string
-      paper: string
+      main: string;
+      paper: string;
     }
     text: {
-      main: string
+      main: string;
+      muted: string;
     }
     topNav: {
-      background: string
+      background: string;
     }
     nav: {
-      background: string
-      hover: string
+      background: string;
+      hover: string;
     }
   }
 
@@ -64,34 +65,34 @@ declare module '@mui/material/styles' {
   interface NetworkExplorerPalette {
     networkExplorer: {
       map: {
-        stroke: string
-        fills: string[]
+        stroke: string;
+        fills: string[];
       }
       background: {
-        tertiary: string
+        tertiary: string;
       }
       topNav: {
-        background: string
-        socialIcons: string
-        appBar: string
+        background: string;
+        socialIcons: string;
+        appBar: string;
       }
       nav: {
         selected: {
-          main: string
-          nested: string
+          main: string;
+          nested: string;
         }
-        background: string
-        hover: string
-        text: string
+        background: string;
+        hover: string;
+        text: string;
       }
       footer: {
-        socialIcons: string
+        socialIcons: string;
       }
     }
   }
 
   interface NymPaletteAndNetworkExplorerPalette {
-    nym: NymPalette
+    nym: NymPalette;
   }
 
   type NymPaletteAndNetworkExplorerPaletteOptions =

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { useTheme } from '@mui/material';
-import { Playground } from '../playground';
+import { Playground } from '../playground/Playground';
 import { PlaygroundPalette } from '../playground/theme';
 import { MUIThemeExplorer } from '../playground/theme/MUIThemeExplorer';
 

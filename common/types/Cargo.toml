@@ -1,0 +1,40 @@
+[package]
+name = "nym-types"
+version = "1.0.0"
+description = "Nym common types"
+authors = ["Nym Technologies SA"]
+edition = "2021"
+rust-version = "1.58"
+
+[dependencies]
+eyre = "0.6.5"
+log = "0.4"
+itertools = "0.10"
+reqwest = "0.11.9"
+schemars = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+strum = { version = "0.23", features = ["derive"] }
+thiserror = "1.0"
+url = "2.2"
+ts-rs = "6.1.2"
+
+cosmwasm-std = "1.0.0-beta8"
+cosmrs = "0.7.0"
+
+validator-client = { path = "../../common/client-libs/validator-client", features = [
+    "nymd-client",
+] }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
+config = { path = "../../common/config" }
+coconut-interface = { path = "../../common/coconut-interface" }
+# Used for Type conversion, can be extracted but its a lot of work
+vesting-contract = { path = "../../contracts/vesting" }
+
+[dev-dependencies]
+tempfile = "3.3.0"
+
+[features]
+default = []
+generate-ts = []

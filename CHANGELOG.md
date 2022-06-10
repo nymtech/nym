@@ -11,7 +11,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
 - mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
-- network-requester: send traffic statistics from all network requesters and receive it in a special network-requester that aggregates the data and exposes it via a rest API ([#1267], [#1278]).
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
 - validator-api: add Swagger to document the REST API ([#1249]).
@@ -22,6 +21,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: compound and claim reward endpoints for operators and delegators ([#1302])
 - wallet: require password to switch accounts
 - wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
+- wallet: new delegation and rewards UI
+- wallet: show version in nav bar
+- wallet: contract admin route put back
+- network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed
 
@@ -34,11 +37,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
+- validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
 ### Changed
 
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
+- network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -56,6 +61,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1302]: https://github.com/nymtech/nym/pull/1302
 [#1318]: https://github.com/nymtech/nym/pull/1318
 [#1322]: https://github.com/nymtech/nym/pull/1322
+[#1328]: https://github.com/nymtech/nym/pull/1328
+[#1329]: https://github.com/nymtech/nym/pull/1329
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

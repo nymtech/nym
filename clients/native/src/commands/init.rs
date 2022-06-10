@@ -119,6 +119,7 @@ async fn gateway_details(
         .expect("The list of validator apis is empty");
     let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
+    log::trace!("Fetching list of gateways from: {}", validator_api);
     let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways
         .into_iter()
@@ -213,12 +214,14 @@ pub async fn execute(matches: ArgMatches<'static>) {
         let mut key_manager = KeyManager::new(&mut rng);
 
         let chosen_gateway_id = matches.value_of("gateway");
+        log::trace!("Chosen gateway: {:?}", chosen_gateway_id);
 
         let gateway_details = gateway_details(
             config.get_base().get_validator_api_endpoints(),
             chosen_gateway_id,
         )
         .await;
+        log::trace!("Used gateway: {}", gateway_details);
         let shared_keys =
             register_with_gateway(&gateway_details, key_manager.identity_keypair()).await;
 
@@ -241,8 +244,14 @@ pub async fn execute(matches: ArgMatches<'static>) {
         .save_to_file(None)
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
-    println!("Using gateway: {}", config.get_base().get_gateway_id(),);
-    println!("Client configuration completed.\n\n\n");
+    println!("Using gateway: {}", config.get_base().get_gateway_id());
+    log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
+    log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());
+    log::debug!(
+        "Gateway listener: {}",
+        config.get_base().get_gateway_listener()
+    );
+    println!("Client configuration completed.");
 
     show_address(&config);
 }

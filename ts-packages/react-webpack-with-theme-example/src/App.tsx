@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { Box, Container, Grid, Typography } from '@mui/material';
-import { NymLogo, Playground } from '@nymproject/react';
+import { NymLogo } from '@nymproject/react/logo/NymLogo';
+import { Playground } from '@nymproject/react/playground/Playground';
+import { useIsMounted } from '@nymproject/react/hooks/useIsMounted';
 import { NymThemeProvider } from '@nymproject/mui-theme';
 import { useTheme } from '@mui/material/styles';
 import { ThemeToggle } from './ThemeToggle';
@@ -15,6 +17,11 @@ export const AppTheme: React.FC = ({ children }) => {
 export const Content: React.FC = () => {
   const { mode } = useAppContext();
   const theme = useTheme();
+  const isMounted = useIsMounted();
+
+  if (isMounted()) {
+    console.log('Content is mounted');
+  }
 
   const swatches: Record<string, string> = {
     'palette.primary.main': theme.palette.primary.main,

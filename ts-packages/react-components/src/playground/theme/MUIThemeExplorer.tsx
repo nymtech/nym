@@ -1,5 +1,5 @@
 /* eslint-disable react/no-array-index-key */
-import { Theme } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
 import * as React from 'react';
 import TreeView from '@mui/lab/TreeView';
 import TreeItem from '@mui/lab/TreeItem';
@@ -34,9 +34,9 @@ const MUIThemeExplorerItem: React.FC<{
               </svg>
             </Box>
             {!isArrayItem && <Box mr={2}>{parentKey}</Box>}
-            <Box mr={2}>
-              <code>{item}</code>
-            </Box>
+            {/* <Box mr={2}> */}
+            {/*  <code>{item}</code> */}
+            {/* </Box> */}
             <Box color={theme.palette.text.disabled}>
               <code>{path}</code>
             </Box>
@@ -63,7 +63,7 @@ const MUIThemeExplorerItem: React.FC<{
     );
   }
 
-  if (Object.keys(item).length) {
+  if (typeof item === 'object' && Object.keys(item).length) {
     return (
       <TreeItem nodeId={`${path}`} label={`${parentKey}`}>
         {Object.keys(item).map((key) => (
@@ -93,5 +93,6 @@ export const MUIThemeExplorer: React.FC<{
     sx={{ height: 500, flexGrow: 1, width: '100%', overflowY: 'auto' }}
   >
     <MUIThemeExplorerItem theme={theme} item={theme.palette} parentKey="palette" path="theme.palette" />
+    <TreeItem nodeId="test">Test</TreeItem>
   </TreeView>
 );

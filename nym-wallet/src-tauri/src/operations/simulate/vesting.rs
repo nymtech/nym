@@ -1,13 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coin::Coin;
 use crate::error::BackendError;
 use crate::nymd_client;
-use crate::simulate::{FeeDetails, SimulateResult};
+use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::State;
 use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{Gateway, MixNode};
+use nym_types::currency::MajorCurrencyAmount;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use vesting_contract_common::ExecuteMsg;
@@ -15,12 +15,12 @@ use vesting_contract_common::ExecuteMsg;
 #[tauri::command]
 pub async fn simulate_vesting_bond_gateway(
     gateway: Gateway,
-    pledge: Coin,
+    pledge: MajorCurrencyAmount,
     owner_signature: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let pledge = pledge.into_backend_coin(guard.current_network().denom())?;
+    let pledge = pledge.into();
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
@@ -31,7 +31,7 @@ pub async fn simulate_vesting_bond_gateway(
         &ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
-            amount: pledge.into(),
+            amount: pledge,
         },
         vec![],
     )?;
@@ -64,11 +64,11 @@ pub async fn simulate_vesting_unbond_gateway(
 pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
     owner_signature: String,
-    pledge: Coin,
+    pledge: MajorCurrencyAmount,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let pledge = pledge.into_backend_coin(guard.current_network().denom())?;
+    let pledge = pledge.into();
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
@@ -79,7 +79,7 @@ pub async fn simulate_vesting_bond_mixnode(
         &ExecuteMsg::BondMixnode {
             mix_node: mixnode,
             owner_signature,
-            amount: pledge.into(),
+            amount: pledge,
         },
         vec![],
     )?;
@@ -133,11 +133,11 @@ pub async fn simulate_vesting_update_mixnode(
 
 #[tauri::command]
 pub async fn simulate_withdraw_vested_coins(
-    amount: Coin,
+    amount: MajorCurrencyAmount,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-    let amount = amount.into_backend_coin(guard.current_network().denom())?;
+    let amount = amount.into();
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
@@ -145,9 +145,7 @@ pub async fn simulate_withdraw_vested_coins(
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
-        &ExecuteMsg::WithdrawVestedCoins {
-            amount: amount.into(),
-        },
+        &ExecuteMsg::WithdrawVestedCoins { amount },
         vec![],
     )?;
 

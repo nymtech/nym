@@ -1,19 +1,20 @@
-import React, { useMemo, createContext, useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, Network, TCurrency, TMixnodeBondDetails, AccountEntry, AppEnv } from '../types';
+import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
+import { getVersion } from '@tauri-apps/api/app';
+import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import {
+  getEnv,
   getMixnodeBondDetails,
+  listAccounts,
   selectNetwork,
   signInWithMnemonic,
   signInWithPassword,
   signOut,
   switchAccount,
-  getEnv,
-  listAccounts,
 } from '../requests';
-import { currencyMap } from '../utils';
 import { Console } from '../utils/console';
 
 export const urls = (networkName?: Network) =>
@@ -32,15 +33,14 @@ type TLoginType = 'mnemonic' | 'password';
 type TAppContext = {
   mode: 'light' | 'dark';
   appEnv?: AppEnv;
+  appVersion?: string;
   clientDetails?: Account;
   storedAccounts?: AccountEntry[];
-  mixnodeDetails?: TMixnodeBondDetails | null;
+  mixnodeDetails?: MixNodeBond | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
-  showSettings: boolean;
   showTerminal: boolean;
   network?: Network;
-  currency?: TCurrency;
   isLoading: boolean;
   isAdminAddress: boolean;
   error?: string;
@@ -49,7 +49,6 @@ type TAppContext = {
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
   getBondDetails: () => Promise<void>;
-  handleShowSettings: () => void;
   handleShowAdmin: () => void;
   logIn: (opts: { type: TLoginType; value: string }) => void;
   handleShowTerminal: () => void;
@@ -63,20 +62,20 @@ export const AppContext = createContext({} as TAppContext);
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
-  const [mixnodeDetails, setMixnodeDetails] = useState<TMixnodeBondDetails | null>();
+  const [mixnodeDetails, setMixnodeDetails] = useState<MixNodeBond | null>(null);
   const [network, setNetwork] = useState<Network | undefined>();
   const [appEnv, setAppEnv] = useState<AppEnv>();
-  const [currency, setCurrency] = useState<TCurrency>();
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [mode] = useState<'light' | 'dark'>('light');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [appVersion, setAppVersion] = useState<string>();
+  const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
 
-  const userBalance = useGetBalance(clientDetails?.client_address);
-  const history = useHistory();
+  const userBalance = useGetBalance(clientDetails);
+  const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
   const clearState = () => {
@@ -85,7 +84,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setNetwork(undefined);
     setError(undefined);
     setIsLoading(false);
-    setMixnodeDetails(undefined);
+    setMixnodeDetails(null);
   };
 
   const loadAccount = async (n: Network) => {
@@ -95,8 +94,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (e) {
       enqueueSnackbar('Error loading account', { variant: 'error' });
       Console.error(e as string);
-    } finally {
-      setCurrency(currencyMap(n));
     }
   };
 
@@ -106,7 +103,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getBondDetails = async () => {
-    setMixnodeDetails(undefined);
+    setMixnodeDetails(null);
     try {
       const mixnode = await getMixnodeBondDetails();
       setMixnodeDetails(mixnode);
@@ -123,9 +120,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    getVersion().then(setAppVersion);
+  }, []);
+
+  useEffect(() => {
     if (!clientDetails) {
       clearState();
-      history.push('/');
+      navigate('/');
     }
   }, [clientDetails]);
 
@@ -135,6 +136,18 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       getEnv().then(setAppEnv);
     }
   }, [network]);
+
+  useEffect(() => {
+    let newValue = false;
+    if (network && appEnv?.ADMIN_ADDRESS && clientDetails?.client_address) {
+      const adminAddressMap = JSON.parse(appEnv.ADMIN_ADDRESS);
+      const adminAddresses = adminAddressMap[network] || [];
+      if (adminAddresses.length) {
+        newValue = adminAddresses.includes(clientDetails?.client_address);
+      }
+    }
+    setIsAdminAddress(newValue);
+  }, [appEnv, network]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {
@@ -151,7 +164,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         setLoginType('password');
       }
       setNetwork('MAINNET');
-      history.push('/balance');
+      navigate('/balance');
     } catch (e) {
       setError(e as string);
     } finally {
@@ -181,7 +194,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
-  const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
 
@@ -189,7 +201,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     () => ({
       mode,
       appEnv,
-      isAdminAddress: Boolean(appEnv?.ADMIN_ADDRESS && clientDetails?.client_address === appEnv.ADMIN_ADDRESS),
+      appVersion,
+      isAdminAddress,
       isLoading,
       error,
       clientDetails,
@@ -197,17 +210,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       mixnodeDetails,
       userBalance,
       showAdmin,
-      showSettings,
       showTerminal,
       network,
-      currency,
       loginType,
       setIsLoading,
       setError,
       signInWithPassword,
       switchNetwork,
       getBondDetails,
-      handleShowSettings,
       handleShowAdmin,
       handleShowTerminal,
       logIn,
@@ -215,7 +225,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       onAccountChange,
     }),
     [
+      appVersion,
       loginType,
+      isAdminAddress,
       mode,
       appEnv,
       isLoading,
@@ -224,9 +236,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       mixnodeDetails,
       userBalance,
       showAdmin,
-      showSettings,
       network,
-      currency,
       storedAccounts,
       showTerminal,
     ],

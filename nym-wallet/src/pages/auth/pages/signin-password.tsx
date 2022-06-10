@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
 import { PasswordInput } from 'src/components';
 import { Subtitle } from '../components';
@@ -8,7 +8,7 @@ import { AppContext } from '../../../context/main';
 export const SignInPassword = () => {
   const [password, setPassword] = useState('');
   const { setError, logIn, error } = useContext(AppContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   return (
     <Stack spacing={2} alignItems="center" minWidth="50%">
@@ -36,7 +36,7 @@ export const SignInPassword = () => {
               disableElevation
               onClick={() => {
                 setError(undefined);
-                history.push('/existing-account');
+                navigate('/existing-account');
               }}
             >
               Back
@@ -46,7 +46,7 @@ export const SignInPassword = () => {
               color="info"
               onClick={() => {
                 setError(undefined);
-                history.push('/sign-in-mnemonic');
+                navigate('/sign-in-mnemonic');
               }}
               size="small"
             >

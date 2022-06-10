@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
-use futures::StreamExt;
 use log::*;
 use rand::RngCore;
 use serde::Deserialize;
@@ -11,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
+use tokio::time;
 
 use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
@@ -26,6 +26,7 @@ use super::error::StatsError;
 
 const REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG: &str =
     "https://nymtech.net/.wellknown/network-requester/stats-provider.json";
+const STATISTICS_TIMER_INTERVAL: Duration = Duration::from_secs(60);
 
 #[derive(Clone, Debug)]
 pub struct StatsData {
@@ -93,17 +94,16 @@ impl StatisticsCollector {
 pub struct StatisticsSender {
     request_data: Arc<RwLock<StatsData>>,
     response_data: Arc<RwLock<StatsData>>,
-    interval_seconds: u32,
+    interval_seconds: Duration,
     timestamp: DateTime<Utc>,
-    timer_receiver: mpsc::Receiver<()>,
     stats_provider_addr: Recipient,
+    mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
 }
 
 impl StatisticsSender {
     pub async fn new(
-        interval_seconds: Duration,
-        timer_receiver: mpsc::Receiver<()>,
         stats_provider_addr: Option<Recipient>,
+        mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
@@ -127,87 +127,83 @@ impl StatisticsSender {
             request_data: Arc::new(RwLock::new(StatsData::new())),
             response_data: Arc::new(RwLock::new(StatsData::new())),
             timestamp: Utc::now(),
-            interval_seconds: interval_seconds.as_secs() as u32,
-            timer_receiver,
+            interval_seconds: STATISTICS_TIMER_INTERVAL,
             stats_provider_addr,
+            mix_input_sender,
         })
     }
 
-    pub async fn run(
-        &mut self,
-        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
-    ) {
+    pub async fn run(&mut self) {
+        let mut interval = time::interval(self.interval_seconds);
         loop {
-            if self.timer_receiver.next().await == None {
-                error!("Timer thread has died. No more statistics will be sent");
-            } else {
-                let stats_data = {
-                    let request_data_bytes = self.request_data.read().await;
-                    let response_data_bytes = self.response_data.read().await;
-                    let services: HashSet<String> = request_data_bytes
-                        .client_processed_bytes
-                        .keys()
-                        .chain(response_data_bytes.client_processed_bytes.keys())
-                        .cloned()
-                        .collect();
-                    services
-                        .into_iter()
-                        .map(|requested_service| {
-                            let request_bytes = request_data_bytes
-                                .client_processed_bytes
-                                .get(&requested_service)
-                                .copied()
-                                .unwrap_or(0);
-                            let response_bytes = response_data_bytes
-                                .client_processed_bytes
-                                .get(&requested_service)
-                                .copied()
-                                .unwrap_or(0);
-                            StatsServiceData::new(requested_service, request_bytes, response_bytes)
-                        })
-                        .collect()
-                };
+            interval.tick().await;
 
-                let stats_message = StatsMessage {
-                    stats_data,
-                    interval_seconds: self.interval_seconds,
-                    timestamp: self.timestamp.to_rfc3339(),
-                };
-                match build_statistics_request_bytes(stats_message) {
-                    Ok(data) => {
-                        trace!("Connecting to statistics service");
-                        let mut rng = rand::rngs::OsRng;
-                        let conn_id = rng.next_u64();
-                        let connect_req = Request::new_connect(
-                            conn_id,
-                            format!(
-                                "{}:{}",
-                                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
-                            ),
+            let stats_data = {
+                let request_data_bytes = self.request_data.read().await;
+                let response_data_bytes = self.response_data.read().await;
+                let services: HashSet<String> = request_data_bytes
+                    .client_processed_bytes
+                    .keys()
+                    .chain(response_data_bytes.client_processed_bytes.keys())
+                    .cloned()
+                    .collect();
+                services
+                    .into_iter()
+                    .map(|requested_service| {
+                        let request_bytes = request_data_bytes
+                            .client_processed_bytes
+                            .get(&requested_service)
+                            .copied()
+                            .unwrap_or(0);
+                        let response_bytes = response_data_bytes
+                            .client_processed_bytes
+                            .get(&requested_service)
+                            .copied()
+                            .unwrap_or(0);
+                        StatsServiceData::new(requested_service, request_bytes, response_bytes)
+                    })
+                    .collect()
+            };
+
+            let stats_message = StatsMessage {
+                stats_data,
+                interval_seconds: self.interval_seconds.as_secs() as u32,
+                timestamp: self.timestamp.to_rfc3339(),
+            };
+            match build_statistics_request_bytes(stats_message) {
+                Ok(data) => {
+                    trace!("Connecting to statistics service");
+                    let mut rng = rand::rngs::OsRng;
+                    let conn_id = rng.next_u64();
+                    let connect_req = Request::new_connect(
+                        conn_id,
+                        format!(
+                            "{}:{}",
+                            DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
+                        ),
+                        self.stats_provider_addr,
+                    );
+                    self.mix_input_sender
+                        .unbounded_send((
+                            Socks5Message::Request(connect_req),
                             self.stats_provider_addr,
-                        );
-                        mix_input_sender
-                            .unbounded_send((
-                                Socks5Message::Request(connect_req),
-                                self.stats_provider_addr,
-                            ))
-                            .unwrap();
+                        ))
+                        .unwrap();
 
-                        trace!("Sending data to statistics service");
-                        let mut message_sender = OrderedMessageSender::new();
-                        let ordered_msg = message_sender.wrap_message(data).into_bytes();
-                        let send_req = Request::new_send(conn_id, ordered_msg, true);
-                        mix_input_sender
-                            .unbounded_send((
-                                Socks5Message::Request(send_req),
-                                self.stats_provider_addr,
-                            ))
-                            .unwrap();
-                    }
-                    Err(e) => error!("Statistics not sent: {}", e),
+                    trace!("Sending data to statistics service");
+                    let mut message_sender = OrderedMessageSender::new();
+                    let ordered_msg = message_sender.wrap_message(data).into_bytes();
+                    let send_req = Request::new_send(conn_id, ordered_msg, true);
+                    self.mix_input_sender
+                        .unbounded_send((
+                            Socks5Message::Request(send_req),
+                            self.stats_provider_addr,
+                        ))
+                        .unwrap();
                 }
-                self.reset_stats().await;
+                Err(e) => error!("Statistics not sent: {}", e),
             }
+            self.reset_stats().await;
         }
     }
 

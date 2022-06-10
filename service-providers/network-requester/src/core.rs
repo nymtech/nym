@@ -3,7 +3,7 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
-use crate::statistics::{StatisticsCollector, StatisticsSender, Timer};
+use crate::statistics::{StatisticsCollector, StatisticsSender};
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
@@ -290,12 +290,6 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
-        let (mut timer_sender, timer_receiver) = Timer::new();
-        let interval = timer_sender.interval();
-        tokio::spawn(async move {
-            timer_sender.run().await;
-        });
-
         // controller for managing all active connections
         let (mut active_connections_controller, mut controller_sender) = Controller::new();
         tokio::spawn(async move {
@@ -304,14 +298,13 @@ impl ServiceProvider {
 
         let stats_collector = if self.enable_statistics {
             let mut stats_sender =
-                StatisticsSender::new(interval, timer_receiver, self.stats_provider_addr)
+                StatisticsSender::new(self.stats_provider_addr, mix_input_sender.clone())
                     .await
                     .expect("Statistics controller could not be bootstrapped");
             let stats_collector = StatisticsCollector::from(&stats_sender);
 
-            let mix_input_sender_clone = mix_input_sender.clone();
             tokio::spawn(async move {
-                stats_sender.run(&mix_input_sender_clone).await;
+                stats_sender.run().await;
             });
             Some(stats_collector)
         } else {

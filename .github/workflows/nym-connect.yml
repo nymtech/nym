@@ -1,13 +1,13 @@
-name: CI for Big Connect Button
+name: CI for nym-connect
 
 on:
   push:
     paths:
-      - 'hrycyszynvpn/**'
+      - 'nym-connect/**'
 
 defaults:
   run:
-    working-directory: hrycyszynvpn
+    working-directory: nym-connect
 
 jobs:
   build:
@@ -33,26 +33,26 @@ jobs:
       env:
         SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
         ARGS: "-rltgoDzvO --delete"
-        SOURCE: "hrycyszynvpn/storybook-static/"
+        SOURCE: "nym-connect/storybook-static/"
         REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/bcb-${{ env.GITHUB_REF_SLUG }}
+        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/nym-connect-${{ env.GITHUB_REF_SLUG }}
         EXCLUDE: "/dist/, /node_modules/"
     - name: Keybase - Node Install
       run: npm install
       working-directory: .github/workflows/support-files
     - name: Keybase - Send Notification
       env:
-        NYM_NOTIFICATION_KIND: bcb
-        NYM_PROJECT_NAME: "Big Connect Button"
+        NYM_NOTIFICATION_KIND: nym-connect
+        NYM_PROJECT_NAME: "nym-connect"
         NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
-        NYM_CI_WWW_LOCATION: "bcb-${{ env.GITHUB_REF_SLUG }}"
+        NYM_CI_WWW_LOCATION: "nym-connect-${{ env.GITHUB_REF_SLUG }}"
         GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
         GIT_BRANCH: "${GITHUB_REF##*/}"
         KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
         KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
         KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
-        KEYBASE_NYM_CHANNEL: "ci-bcb"
+        KEYBASE_NYM_CHANNEL: "ci-nym-connect"
         IS_SUCCESS: "${{ job.status == 'success' }}"
       uses: docker://keybaseio/client:stable-node
       with:

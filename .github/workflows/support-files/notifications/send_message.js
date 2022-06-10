@@ -3,7 +3,7 @@ require('dotenv').config();
 const Bot = require('keybase-bot');
 
 let context = {
-  kinds: ['nym-wallet', 'ts-packages', 'network-explorer', 'nightly', 'bcb'],
+  kinds: ['nym-wallet', 'ts-packages', 'network-explorer', 'nightly', 'nym-connect'],
 };
 
 /**

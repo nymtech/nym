@@ -7,7 +7,7 @@ import { Button } from '@mui/material';
 export const ConfirmTx: React.FC<{
   open: boolean;
   header: string;
-  subheader: string;
+  subheader?: string;
   fee: MajorCurrencyAmount;
   currency: MajorAmountString;
   onConfirm: () => Promise<void>;

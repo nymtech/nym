@@ -678,7 +678,7 @@ pub(crate) fn try_reward_mixnode(
     )?;
 
     // Take rewards out of the rewarding pool
-    storage::decr_reward_pool(deps.storage, stored_node_result.reward())?;
+    storage::reward_accounting(deps.storage, stored_node_result.reward())?;
 
     let rewarding_result = RewardingResult {
         node_reward: stored_node_result.reward(),

@@ -188,7 +188,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
         let interval_reward_params = interval_reward_params.into_inner();
 
         let saturation = bond.mixnode_bond.stake_saturation(
-            interval_reward_params.circulating_supply(),
+            interval_reward_params.staking_supply(),
             interval_reward_params.rewarded_set_size() as u32,
         );
 

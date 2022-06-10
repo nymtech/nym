@@ -44,7 +44,7 @@ export const IdentityKeyFormField: React.FC<{
     }
 
     if (newValue === undefined && saturation && saturation > 100) {
-      const newSaturationError = 'Node oversaturated (saturation > 100). Please, choose another.';
+      const newSaturationError = `This node is over saturated (${saturation}%), please select another one`;
       setValidationError(newSaturationError);
       if (onValidate) {
         onValidate(false, newSaturationError);

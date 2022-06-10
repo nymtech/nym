@@ -12,6 +12,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
 - mixnet-contrat: Added staking_supply field to ContractStateParams.
+- network-explorer-ui: Upgrade to React Router 6
 - rewarding: replace circulating supply with staking supply in reward calculations ([#1324])
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.

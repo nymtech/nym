@@ -1,21 +1,25 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_config;
-use crate::platform_constants::{CONFIG_DIR_NAME, CONFIG_FILENAME};
-use crate::{error::BackendError, network::Network as WalletNetwork};
-use config::defaults::all::Network;
-use config::defaults::{all::SupportedNetworks, ValidatorDetails};
 use core::fmt;
-use itertools::Itertools;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::{fs, io, path::PathBuf};
+
+use itertools::Itertools;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use url::Url;
 use validator_client::nymd::AccountId as CosmosAccountId;
+
+use config::defaults::all::Network;
+use config::defaults::{all::SupportedNetworks, ValidatorDetails};
+use nym_wallet_types::network::Network as WalletNetwork;
+use nym_wallet_types::network_config;
+
+use crate::error::BackendError;
+use crate::platform_constants::{CONFIG_DIR_NAME, CONFIG_FILENAME};
 
 pub const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
     "https://nymtech.net/.wellknown/wallet/validators.json";

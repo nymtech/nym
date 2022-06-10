@@ -4,6 +4,7 @@ import TerminalIcon from '@mui/icons-material/Terminal';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
+import { Console } from 'src/utils/console';
 import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import {
@@ -12,7 +13,6 @@ import {
   getPendingVestingDelegations,
   getReverseMixDelegations,
 } from '../../requests';
-import { useGetBalance } from '../../hooks/useGetBalance';
 
 const TerminalSection: React.FC<{
   heading: React.ReactNode;
@@ -38,11 +38,9 @@ const TerminalSection: React.FC<{
 
 const TerminalInner: React.FC = () => {
   const { network, userBalance, clientDetails, handleShowTerminal, appEnv } = useContext(AppContext);
-  const { balance, vestingAccountInfo, currentVestingPeriod, originalVesting, fetchBalance, fetchTokenAllocation } =
-    useGetBalance(clientDetails?.client_address);
   const [mixnodeDelegations, setMixnodeDelegations] = useState<any>();
   const [pendingEvents, setPendingEvents] = useState<any>();
-  const [pendingVestingEvents, setPendingVestingEvents] = useState<any>();
+  const [pendingVestingEvents] = useState<any>();
   const [epoch, setEpoch] = useState<any>();
   const [isBusy, setIsBusy] = useState<boolean>();
   const [error, setError] = useState<any>();
@@ -52,7 +50,7 @@ const TerminalInner: React.FC = () => {
     try {
       await fn();
     } catch (e) {
-      console.error(e);
+      Console.error(e);
       setError(e);
     }
   };
@@ -78,11 +76,11 @@ const TerminalInner: React.FC = () => {
     });
     setStatus('Fetching balance...');
     await withErrorCatch(async () => {
-      await fetchBalance();
+      await userBalance.fetchBalance();
     });
     setStatus('Fetching token allocation...');
     await withErrorCatch(async () => {
-      await fetchTokenAllocation();
+      await userBalance.fetchTokenAllocation();
     });
     setStatus(undefined);
     setIsBusy(false);
@@ -136,7 +134,7 @@ const TerminalInner: React.FC = () => {
             </>
           }
         >
-          <pre>{JSON.stringify(balance, null, 2)}</pre>
+          <pre>{JSON.stringify(userBalance.balance, null, 2)}</pre>
         </TerminalSection>
 
         <TerminalSection
@@ -146,7 +144,7 @@ const TerminalInner: React.FC = () => {
             </>
           }
         >
-          <pre>{JSON.stringify(vestingAccountInfo, null, 2)}</pre>
+          <pre>{JSON.stringify(userBalance.vestingAccountInfo, null, 2)}</pre>
         </TerminalSection>
 
         <TerminalSection
@@ -156,11 +154,11 @@ const TerminalInner: React.FC = () => {
             </>
           }
         >
-          <pre>{JSON.stringify(currentVestingPeriod, null, 2)}</pre>
+          <pre>{JSON.stringify(userBalance.currentVestingPeriod, null, 2)}</pre>
         </TerminalSection>
 
         <TerminalSection heading="Original Vesting">
-          <pre>{JSON.stringify(originalVesting, null, 2)}</pre>
+          <pre>{JSON.stringify(userBalance.originalVesting, null, 2)}</pre>
         </TerminalSection>
 
         <TerminalSection heading="Mixnode Delegations">

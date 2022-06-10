@@ -37,6 +37,8 @@ tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros", "signal",
 tokio-stream = "0.1.9"
 url = "2.2"
 
+ts-rs = "6.1.2"
+
 anyhow = "1"
 getset = "0.1.1"
 
@@ -50,7 +52,7 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 config = { path = "../common/config" }
-cosmwasm-std = "1.0.0-beta8"
+cosmwasm-std = "1.0.0"
 crypto = { path="../common/crypto" }
 gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
@@ -70,6 +72,7 @@ cfg-if = "1.0"
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut"]
 no-reward = []
+generate-ts = []
 
 [build-dependencies]
 tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }

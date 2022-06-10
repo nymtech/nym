@@ -38,7 +38,7 @@ const vestingPeriod = (current?: Period, original?: number) => {
 };
 
 const VestingSchedule = () => {
-  const { userBalance, currency } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
   const [vestedPercentage, setVestedPercentage] = useState(0);
 
   const calculatePercentage = () => {
@@ -70,7 +70,7 @@ const VestingSchedule = () => {
           <TableRow>
             <TableCell sx={{ borderBottom: 'none' }}>
               {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {currency?.major}
+              {clientDetails?.denom}
             </TableCell>
             <TableCell align="left" sx={{ borderBottom: 'none' }}>
               {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
@@ -83,7 +83,7 @@ const VestingSchedule = () => {
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }} align="right">
               {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {currency?.major}
+              {clientDetails?.denom}
             </TableCell>
           </TableRow>
         </TableHead>
@@ -93,7 +93,7 @@ const VestingSchedule = () => {
 };
 
 const TokenTransfer = () => {
-  const { userBalance, currency } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
   const icon = useCallback(
     () => (
       <Box sx={{ display: 'flex', mr: 1 }}>
@@ -113,7 +113,7 @@ const TokenTransfer = () => {
         </Typography>
 
         <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
-          {userBalance.tokenAllocation?.spendable || 'n/a'} {currency?.major}
+          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.denom}
         </Typography>
       </Grid>
     </Grid>
@@ -123,7 +123,7 @@ const TokenTransfer = () => {
 export const VestingCard = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { userBalance } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const refreshBalances = async () => {
@@ -131,7 +131,12 @@ export const VestingCard = () => {
     await userBalance.fetchTokenAllocation();
   };
 
-  useEffect(() => () => closeSnackbar(), []);
+  useEffect(() => {
+    closeSnackbar();
+    userBalance.fetchTokenAllocation();
+  }, []);
+
+  if (!userBalance.originalVesting) return null;
 
   return (
     <NymCard
@@ -157,22 +162,27 @@ export const VestingCard = () => {
           size="large"
           variant="contained"
           onClick={async () => {
-            setIsLoading(true);
-            try {
-              await withdrawVestedCoins(userBalance.tokenAllocation?.spendable!);
-              await refreshBalances();
-              enqueueSnackbar('Token transfer succeeded', {
-                variant: 'success',
-                preventDuplicate: true,
-              });
-            } catch (e) {
-              Console.error(e as string);
-              enqueueSnackbar('Token transfer failed. You may not have any transferable tokens at this time', {
-                variant: 'error',
-                preventDuplicate: true,
-              });
-            } finally {
-              setIsLoading(false);
+            if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
+              setIsLoading(true);
+              try {
+                await withdrawVestedCoins({
+                  amount: userBalance.tokenAllocation?.spendable,
+                  denom: clientDetails.denom,
+                });
+                await refreshBalances();
+                enqueueSnackbar('Token transfer succeeded', {
+                  variant: 'success',
+                  preventDuplicate: true,
+                });
+              } catch (e) {
+                Console.error(e as string);
+                enqueueSnackbar('Token transfer failed. You may not have any transferable tokens at this time', {
+                  variant: 'error',
+                  preventDuplicate: true,
+                });
+              } finally {
+                setIsLoading(false);
+              }
             }
           }}
           endIcon={isLoading && <CircularProgress size={16} color="inherit" />}

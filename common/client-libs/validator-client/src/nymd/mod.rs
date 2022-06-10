@@ -189,23 +189,23 @@ impl NymdClient<SigningNymdClient> {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
-            mixnet_contract_address: DEFAULT_NETWORK
+            mixnet_contract_address: network
                 .mixnet_contract_address()
                 .parse()
                 .expect("Error parsing mixnet contract address"),
-            vesting_contract_address: DEFAULT_NETWORK
+            vesting_contract_address: network
                 .vesting_contract_address()
                 .parse()
                 .expect("Error parsing vesting contract address"),
-            bandwidth_claim_contract_address: DEFAULT_NETWORK
+            bandwidth_claim_contract_address: network
                 .bandwidth_claim_contract_address()
                 .parse()
                 .expect("Error parsing bandwidth claim contract address"),
-            coconut_bandwidth_contract_address: DEFAULT_NETWORK
+            coconut_bandwidth_contract_address: network
                 .coconut_bandwidth_contract_address()
                 .parse()
                 .unwrap(),
-            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
+            multisig_contract_address: network.multisig_contract_address().parse().unwrap(),
         })
     }
 }
@@ -289,7 +289,17 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.client.get_block(None).await?.block.header.time)
+        self.get_block_timestamp(None).await
+    }
+
+    pub async fn get_block_timestamp(
+        &self,
+        height: Option<u32>,
+    ) -> Result<TendermintTime, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.client.get_block(height).await?.block.header.time)
     }
 
     pub async fn get_current_block_height(&self) -> Result<Height, NymdError>

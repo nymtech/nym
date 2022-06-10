@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AccountEntry } from 'src/types';
+import { AccountEntry } from '@nymproject/types';
 import { AccountsContext, TAccountMnemonic, TAccountsDialog } from '../accounts';
 
 export const MockAccountsProvider: React.FC = ({ children }) => {

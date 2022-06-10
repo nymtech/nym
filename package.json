@@ -6,10 +6,13 @@
   "workspaces": [
     "ts-packages/*",
     "nym-wallet",
-    "explorer"
+    "explorer",
+    "types"
   ],
   "scripts": {
-    "build": "run-s build:packages",
+    "clean": "lerna run clean",
+    "build": "run-s build:types build:packages",
+    "build:types": "lerna run --scope @nymproject/types build --stream",
     "build:packages": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react --stream build",
     "build:react-example": "lerna run --scope @nymproject/react-webpack-with-theme-example build --stream",
     "build:playground": "lerna run --scope @nymproject/react storybook:build --stream",
@@ -17,6 +20,7 @@
     "build:ci:collect-artifacts": "mkdir -p ts-packages/dist && mv ts-packages/react-components/storybook-static ts-packages/dist/storybook && mv ts-packages/react-webpack-with-theme-example/dist ts-packages/dist/example",
     "lint": "lerna run lint --stream",
     "lint:fix": "lerna run lint:fix --stream",
+    "types:lint:fix": "lerna run lint:fix --scope @nymproject/types --scope @nymproject/nym-wallet-app",
     "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run"
   },
   "devDependencies": {

@@ -23,7 +23,7 @@ cw3 = { version = "0.13.1" }
 cw3-fixed-multisig = { version = "0.13.1", features = ["library"] }
 cw4 = { version = "0.13.1" }
 cw-storage-plus = { version = "0.13.1" }
-cosmwasm-std = { version = "1.0.0-beta6" }
+cosmwasm-std = { version = "1.0.0" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
@@ -31,6 +31,6 @@ thiserror = { version = "1.0.23" }
 multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 [dev-dependencies]
-cosmwasm-schema = { version = "1.0.0-beta6" }
+cosmwasm-schema = { version = "1.0.0" }
 cw4-group = { path = "../cw4-group", version = "0.13.1" }
 cw-multi-test = { version = "0.13.1" }

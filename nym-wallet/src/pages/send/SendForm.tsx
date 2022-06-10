@@ -1,15 +1,17 @@
 import React, { useContext } from 'react';
-import { Grid, InputAdornment, TextField } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
+import { Grid, TextField } from '@mui/material';
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { AppContext } from '../../context/main';
 import { Fee } from '../../components';
 
 export const SendForm = () => {
   const {
     register,
+    setValue,
     formState: { errors },
   } = useFormContext();
-  const { currency } = useContext(AppContext);
+  const { clientDetails } = useContext(AppContext);
 
   return (
     <Grid container spacing={3}>
@@ -28,19 +30,13 @@ export const SendForm = () => {
         />
       </Grid>
       <Grid item xs={12}>
-        <TextField
-          {...register('amount')}
+        <CurrencyFormField
           required
-          variant="outlined"
-          id="amount"
-          name="amount"
-          label="Amount"
           fullWidth
-          error={!!errors.amount}
-          helperText={errors.amount?.message}
-          InputProps={{
-            endAdornment: <InputAdornment position="end">{currency?.major}</InputAdornment>,
-          }}
+          placeholder="Amount"
+          onChanged={(val) => setValue('amount', val, { shouldValidate: true })}
+          validationError={errors.amount?.amount?.message}
+          denom={clientDetails?.denom}
         />
       </Grid>
       <Grid item xs={12}>

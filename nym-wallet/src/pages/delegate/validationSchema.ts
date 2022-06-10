@@ -10,26 +10,29 @@ export const validationSchema = Yup.object().shape({
       (value) => (value ? validateKey(value, 32) : false),
     ),
 
-  amount: Yup.string()
-    .required()
-    .test('valid-amount', 'A valid amount is required', async function isValidAmount(value) {
-      const isValid = await validateAmount(value || '', '0');
+  amount: Yup.object().shape({
+    amount: Yup.string()
+      .required()
+      .test('valid-amount', 'A valid amount is required', async function isValidAmount(value) {
+        const isValid = await validateAmount(value || '', '0');
 
-      if (!isValid) {
-        return this.createError({ message: 'A valid amount is required' });
-      }
+        if (!isValid) {
+          return this.createError({ message: 'A valid amount is required' });
+        }
 
-      const hasEnoughBalance = await checkHasEnoughFunds(value || '');
-      const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '');
+        const hasEnoughBalance = await checkHasEnoughFunds(value || '');
+        const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '');
 
-      if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
-        return this.createError({ message: 'Not enough funds in wallet' });
-      }
+        if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
+          return this.createError({ message: 'Not enough funds in wallet' });
+        }
 
-      if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
-        return this.createError({ message: 'Not enough locked tokens' });
-      }
+        if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
+          return this.createError({ message: 'Not enough locked tokens' });
+        }
 
-      return true;
-    }),
+        return true;
+      }),
+    denom: Yup.string().required(),
+  }),
 });

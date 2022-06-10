@@ -114,8 +114,6 @@ pub async fn gateway_details(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
-    dbg!(&validator_servers);
-    dbg!(&chosen_gateway_id);
     let validator_api = validator_servers
         .choose(&mut thread_rng())
         .expect("The list of validator apis is empty");

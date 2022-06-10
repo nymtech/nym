@@ -38,11 +38,13 @@ use crate::socks::{
 
 pub mod config;
 
+// Channels used to control the main task from outside
 pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage>;
 pub type Socks5ControlMessageReceiver = mpsc::UnboundedReceiver<Socks5ControlMessage>;
 
 #[derive(Debug)]
 pub enum Socks5ControlMessage {
+    /// Tell the main task to stop
     Stop,
 }
 
@@ -281,16 +283,16 @@ impl NymClient {
         );
     }
 
-    // Variant of `run_forever` that listends for message to shutdown
+    // Variant of `run_forever` that listends for remote control messages
     pub async fn run_and_listen(&mut self, mut receiver: Socks5ControlMessageReceiver) {
         self.start().await;
         tokio::select! {
             message = receiver.next() =>  match message {
                 Some(Socks5ControlMessage::Stop) => {
-                    info!("Received: {:?}", message);
-                    info!("Shutting down");
+                    log::info!("Received: {:?}", message);
+                    log::info!("Shutting down");
                 }
-                None => info!("none"),
+                None => log::info!("none"),
             }
         }
     }

@@ -61,10 +61,3 @@ fn setup_logging() {
         .filter_module("handlebars", log::LevelFilter::Warn)
         .init();
 }
-
-#[cfg(test)]
-mod test {
-    ts_rs::export! {
-      mixnet_contract_common::MixNode => "../src/types/rust/mixnode.ts",
-    }
-}

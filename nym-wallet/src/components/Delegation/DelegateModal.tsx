@@ -8,6 +8,7 @@ import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from './ModalListItem';
 import { validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
+import { getMixnodeStakeSaturation } from '../../requests';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -54,6 +55,7 @@ export const DelegateModal: React.FC<{
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [fee, setFee] = useState<string>();
+  const [saturation, setSaturation] = useState<number>(0);
 
   const getFee = async () => {
     if (feeOverride) setFee(feeOverride);
@@ -83,10 +85,15 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleIdentityKeyChanged = (newIdentityKey: string) => {
+  const handleIdentityKeyChanged = async (newIdentityKey: string) => {
+    debugger;
     setIdentityKey(newIdentityKey);
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);
+    }
+    const newSaturation = await getMixnodeStakeSaturation(newIdentityKey);
+    if (newSaturation) {
+      setSaturation(Math.round(newSaturation.saturation * 100));
     }
   };
 
@@ -97,7 +104,10 @@ export const DelegateModal: React.FC<{
     }
   };
 
+  console.log('initialIdentityKey', initialIdentityKey, isValidated);
+
   React.useEffect(() => {
+    console.log('identityKey', identityKey);
     validate();
   }, [amount, identityKey]);
 
@@ -126,6 +136,11 @@ export const DelegateModal: React.FC<{
           autoFocus: !initialIdentityKey,
         }}
       />
+      {saturation > 100 && (
+        <Typography component="div" textAlign="right" variant="caption" sx={{ color: 'error.main' }}>
+          Selected node saturation {'>'} 100%. Choose another one.
+        </Typography>
+      )}
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField

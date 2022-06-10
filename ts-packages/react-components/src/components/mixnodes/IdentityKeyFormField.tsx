@@ -59,7 +59,7 @@ export const IdentityKeyFormField: React.FC<{
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
-
+    console.log('doValidation(newValue)', doValidation(newValue));
     if (doValidation(newValue)) {
       setValue(newValue);
       if (onChanged) {

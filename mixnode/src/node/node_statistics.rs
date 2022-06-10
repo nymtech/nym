@@ -9,6 +9,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
+use super::ShutdownListener;
+
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
@@ -209,28 +211,45 @@ impl CurrentPacketData {
 struct UpdateHandler {
     current_data: CurrentPacketData,
     update_receiver: PacketDataReceiver,
+    shutdown: ShutdownListener,
 }
 
 impl UpdateHandler {
-    fn new(current_data: CurrentPacketData, update_receiver: PacketDataReceiver) -> Self {
+    fn new(
+        current_data: CurrentPacketData,
+        update_receiver: PacketDataReceiver,
+        shutdown: ShutdownListener,
+    ) -> Self {
         UpdateHandler {
             current_data,
             update_receiver,
+            shutdown,
         }
     }
 
     async fn run(&mut self) {
-        while let Some(packet_data) = self.update_receiver.next().await {
-            match packet_data {
-                PacketEvent::Received => self.current_data.increment_received(),
-                PacketEvent::Sent(destination) => {
-                    self.current_data.increment_sent(destination).await
+        log::trace!("Starting UpdateHandler");
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                Some(packet_data) = self.update_receiver.next() => {
+                    match packet_data {
+                        PacketEvent::Received => self.current_data.increment_received(),
+                        PacketEvent::Sent(destination) => {
+                            self.current_data.increment_sent(destination).await
+                        }
+                        PacketEvent::Dropped(destination) => {
+                            self.current_data.increment_dropped(destination).await
+                        }
+                    }
                 }
-                PacketEvent::Dropped(destination) => {
-                    self.current_data.increment_dropped(destination).await
+                _ = self.shutdown.recv() => {
+                    log::trace!("UpdateHandler: Received shutdown");
+                    break;
                 }
             }
         }
+
+        log::trace!("UpdateHandler: Exiting");
     }
 }
 
@@ -274,6 +293,7 @@ struct StatsUpdater {
     updating_delay: Duration,
     current_packet_data: CurrentPacketData,
     current_stats: SharedNodeStats,
+    shutdown: ShutdownListener,
 }
 
 impl StatsUpdater {
@@ -281,11 +301,13 @@ impl StatsUpdater {
         updating_delay: Duration,
         current_packet_data: CurrentPacketData,
         current_stats: SharedNodeStats,
+        shutdown: ShutdownListener,
     ) -> Self {
         StatsUpdater {
             updating_delay,
             current_packet_data,
             current_stats,
+            shutdown,
         }
     }
 
@@ -295,11 +317,16 @@ impl StatsUpdater {
         self.current_stats.update(received, sent, dropped).await;
     }
 
-    async fn run(&self) {
-        loop {
-            tokio::time::sleep(self.updating_delay).await;
-            self.update_stats().await
+    async fn run(&mut self) {
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                _ = tokio::time::sleep(self.updating_delay) => self.update_stats().await,
+                _ = self.shutdown.recv() => {
+                    log::trace!("StatsUpdater: Received shutdown");
+                }
+            }
         }
+        log::trace!("StatsUpdater: Exiting");
     }
 }
 
@@ -308,13 +335,15 @@ impl StatsUpdater {
 struct PacketStatsConsoleLogger {
     logging_delay: Duration,
     stats: SharedNodeStats,
+    shutdown: ShutdownListener,
 }
 
 impl PacketStatsConsoleLogger {
-    fn new(logging_delay: Duration, stats: SharedNodeStats) -> Self {
+    fn new(logging_delay: Duration, stats: SharedNodeStats, shutdown: ShutdownListener) -> Self {
         PacketStatsConsoleLogger {
             logging_delay,
             stats,
+            shutdown,
         }
     }
 
@@ -387,10 +416,16 @@ impl PacketStatsConsoleLogger {
     }
 
     async fn run(&mut self) {
-        loop {
-            tokio::time::sleep(self.logging_delay).await;
-            self.log_running_stats().await;
+        log::trace!("Starting PacketStatsConsoleLogger");
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                _ = tokio::time::sleep(self.logging_delay) => self.log_running_stats().await,
+                _ = self.shutdown.recv() => {
+                    log::trace!("PacketStatsConsoleLogger: Received shutdown");
+                }
+            };
         }
+        log::trace!("PacketStatsConsoleLogger: Exiting");
     }
 }
 
@@ -413,19 +448,32 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub(crate) fn new(logging_delay: Duration, stats_updating_delay: Duration) -> Self {
+    pub(crate) fn new(
+        logging_delay: Duration,
+        stats_updating_delay: Duration,
+        shutdown: ShutdownListener,
+    ) -> Self {
         let (sender, receiver) = mpsc::unbounded();
         let shared_packet_data = CurrentPacketData::new();
         let shared_node_stats = SharedNodeStats::new();
 
         Controller {
-            update_handler: UpdateHandler::new(shared_packet_data.clone(), receiver),
+            update_handler: UpdateHandler::new(
+                shared_packet_data.clone(),
+                receiver,
+                shutdown.clone(),
+            ),
             update_sender: UpdateSender::new(sender),
-            console_logger: PacketStatsConsoleLogger::new(logging_delay, shared_node_stats.clone()),
+            console_logger: PacketStatsConsoleLogger::new(
+                logging_delay,
+                shared_node_stats.clone(),
+                shutdown.clone(),
+            ),
             stats_updater: StatsUpdater::new(
                 stats_updating_delay,
                 shared_packet_data,
                 shared_node_stats.clone(),
+                shutdown,
             ),
             node_stats: shared_node_stats,
         }
@@ -441,7 +489,7 @@ impl Controller {
     pub(crate) fn start(self) -> UpdateSender {
         // move out of self
         let mut update_handler = self.update_handler;
-        let stats_updater = self.stats_updater;
+        let mut stats_updater = self.stats_updater;
         let mut console_logger = self.console_logger;
 
         tokio::spawn(async move { update_handler.run().await });
@@ -455,12 +503,15 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use task::ShutdownNotifier;
 
     #[tokio::test]
     async fn node_stats_reported_are_received() {
         let logging_delay = Duration::from_millis(20);
         let stats_updating_delay = Duration::from_millis(10);
-        let node_stats_controller = Controller::new(logging_delay, stats_updating_delay);
+        let shutdown = ShutdownNotifier::default();
+        let node_stats_controller =
+            Controller::new(logging_delay, stats_updating_delay, shutdown.subscribe());
 
         let node_stats_pointer = node_stats_controller.get_node_stats_data_pointer();
         let update_sender = node_stats_controller.start();

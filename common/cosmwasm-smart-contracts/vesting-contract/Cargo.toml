@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cosmwasm-std = "1.0.0-beta8"
+cosmwasm-std = "1.0.0"
 mixnet-contract-common = { path = "../mixnet-contract" }
 serde = { version = "1.0", features = ["derive"] }
 schemars = "0.8"
-cw-storage-plus = "0.13.2"
+cw-storage-plus = "0.13.4"
 config = { path = "../../config" }
 ts-rs = "6.1.2"
 

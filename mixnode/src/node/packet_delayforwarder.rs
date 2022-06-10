@@ -4,10 +4,12 @@
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nymsphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
+
+use super::ShutdownListener;
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -26,13 +28,18 @@ where
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
     node_stats_update_sender: UpdateSender,
+    shutdown: ShutdownListener,
 }
 
 impl<C> DelayForwarder<C>
 where
     C: mixnet_client::SendWithoutResponse,
 {
-    pub(crate) fn new(client: C, node_stats_update_sender: UpdateSender) -> DelayForwarder<C> {
+    pub(crate) fn new(
+        client: C,
+        node_stats_update_sender: UpdateSender,
+        shutdown: ShutdownListener,
+    ) -> DelayForwarder<C> {
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
         DelayForwarder::<C> {
@@ -41,6 +48,7 @@ where
             packet_sender,
             packet_receiver,
             node_stats_update_sender,
+            shutdown,
         }
     }
 
@@ -75,13 +83,8 @@ where
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimerError>>) {
-        // those are critical errors that I don't think can be recovered from.
-        let delayed = packet.expect("the queue has unexpectedly terminated!");
-        let delayed_packet = delayed
-            .expect("Encountered timer issue within the runtime!")
-            .into_inner();
-
+    fn handle_done_delaying(&mut self, packet: Expired<MixPacket>) {
+        let delayed_packet = packet.into_inner();
         self.forward_packet(delayed_packet)
     }
 
@@ -102,18 +105,24 @@ where
     }
 
     pub(crate) async fn run(&mut self) {
+        log::trace!("Starting DelayForwarder");
         loop {
             tokio::select! {
                 delayed = self.delay_queue.next() => {
-                    self.handle_done_delaying(delayed);
+                    self.handle_done_delaying(delayed.unwrap());
                 }
                 new_packet = self.packet_receiver.next() => {
                     // this one is impossible to ever panic - the object itself contains a sender
                     // and hence it can't happen that ALL senders are dropped
                     self.handle_new_packet(new_packet.unwrap())
                 }
+                _ = self.shutdown.recv() => {
+                    log::trace!("DelayForwarder: Received shutdown");
+                    break;
+                }
             }
         }
+        log::trace!("DelayForwarder: Exiting");
     }
 }
 
@@ -124,6 +133,8 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
+
+    use task::ShutdownNotifier;
 
     use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
     use nymsphinx_params::packet_sizes::PacketSize;
@@ -194,7 +205,9 @@ mod tests {
         let node_stats_update_sender = UpdateSender::new(stats_sender);
         let client = TestClient::default();
         let client_packets_sent = client.packets_sent.clone();
-        let mut delay_forwarder = DelayForwarder::new(client, node_stats_update_sender);
+        let shutdown = ShutdownNotifier::default();
+        let mut delay_forwarder =
+            DelayForwarder::new(client, node_stats_update_sender, shutdown.subscribe());
         let packet_sender = delay_forwarder.sender();
 
         // Spawn the worker, listening on packet_sender channel

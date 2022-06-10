@@ -31,10 +31,10 @@ serde = { version = "1.0.104", features = ["derive"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1"
-tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
-tokio-stream = { version = "0.1", features = [ "fs" ] }
+tokio = { version = "1.19.1", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
+tokio-stream = { version = "0.1.9", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
-tokio-util = { version = "0.6", features = [ "codec" ] }
+tokio-util = { version = "0.7.3", features = [ "codec" ] }
 url = { version = "2.2", features = [ "serde" ] }
 web3 = "0.17.0"
 
@@ -59,6 +59,6 @@ coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coco
 eth = []
 
 [build-dependencies]
-tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

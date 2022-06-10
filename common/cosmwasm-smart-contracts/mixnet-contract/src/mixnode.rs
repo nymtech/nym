@@ -460,7 +460,7 @@ impl MixNodeBond {
             .unwrap_or_default();
         let operator_reward = self.operator_reward(params);
         // Total reward has to be the sum of operator and delegator rewards
-        let delegators_reward = node_profit - operator_reward;
+        let delegators_reward = node_profit.saturating_sub(operator_reward);
 
         Ok(RewardEstimate {
             total_node_reward: total_node_reward.try_into()?,

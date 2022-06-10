@@ -4,27 +4,28 @@
 use log::*;
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
-use std::path::Path;
+use std::path::PathBuf;
 
-use crate::statistics::StatsMessage;
-use crate::storage::error::NetworkRequesterStorageError;
+use statistics::StatsMessage;
+
+use crate::storage::error::NetworkStatisticsStorageError;
 use crate::storage::manager::StorageManager;
-use crate::storage::models::MixnetStatistics;
-pub(crate) use crate::storage::routes::post_mixnet_statistics;
+use crate::storage::models::ServiceStatistics;
 
-mod error;
+pub(crate) mod error;
 mod manager;
 mod models;
-mod routes;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
-pub(crate) struct NetworkRequesterStorage {
+pub(crate) struct NetworkStatisticsStorage {
     manager: StorageManager,
 }
 
-impl NetworkRequesterStorage {
-    pub async fn init(database_path: &Path) -> Result<Self, NetworkRequesterStorageError> {
+impl NetworkStatisticsStorage {
+    pub async fn init(base_dir: &PathBuf) -> Result<Self, NetworkStatisticsStorageError> {
+        std::fs::create_dir_all(base_dir)?;
+        let database_path = base_dir.join("db.sqlite");
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true);
@@ -36,7 +37,7 @@ impl NetworkRequesterStorage {
         sqlx::migrate!("./migrations").run(&connection_pool).await?;
         info!("Database migration finished!");
 
-        let storage = NetworkRequesterStorage {
+        let storage = NetworkStatisticsStorage {
             manager: StorageManager { connection_pool },
         };
 
@@ -51,17 +52,16 @@ impl NetworkRequesterStorage {
     pub(super) async fn insert_service_statistics(
         &self,
         msg: StatsMessage,
-    ) -> Result<(), NetworkRequesterStorageError> {
+    ) -> Result<(), NetworkStatisticsStorageError> {
         let timestamp: DateTime<Utc> = DateTime::parse_from_rfc3339(&msg.timestamp)
-            .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
+            .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
             .into();
-        for client_data in msg.stats_data {
+        for service_data in msg.stats_data {
             self.manager
                 .insert_service_statistics(
-                    msg.description.clone(),
-                    client_data.client_identity.clone(),
-                    client_data.request_bytes,
-                    client_data.response_bytes,
+                    service_data.requested_service.clone(),
+                    service_data.request_bytes,
+                    service_data.response_bytes,
                     msg.interval_seconds,
                     timestamp,
                 )
@@ -81,12 +81,12 @@ impl NetworkRequesterStorage {
         &self,
         since: &str,
         until: &str,
-    ) -> Result<Vec<MixnetStatistics>, NetworkRequesterStorageError> {
+    ) -> Result<Vec<ServiceStatistics>, NetworkStatisticsStorageError> {
         let since = DateTime::parse_from_rfc3339(since)
-            .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
+            .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
             .into();
         let until = DateTime::parse_from_rfc3339(until)
-            .map_err(|_| NetworkRequesterStorageError::TimestampParse)?
+            .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
             .into();
         Ok(self
             .manager

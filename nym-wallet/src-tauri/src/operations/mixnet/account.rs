@@ -616,8 +616,51 @@ mod tests {
         );
     }
 
+    // This decryptes a stored wallet file using the same procedure as when signing in. Most tests
+    // related to the encryped wallet storage is in `wallet_storage`.
     #[test]
     fn decrypt_stored_wallet_multiple_for_sign_in() {
-        // WIP(JON): same as above but with file containing multiple accounts
+        const SAVED_WALLET: &str = "src/wallet_storage/test-data/saved-wallet-1.0.5.json";
+        let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAVED_WALLET);
+        let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
+        let account_id = wallet_storage::AccountId::new("default".to_string());
+        let password = wallet_storage::UserPassword::new("password11!".to_string());
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+
+        let stored_login =
+            wallet_storage::load_existing_login_at_file(&wallet_file, &login_id, &password)
+                .unwrap();
+        let mnemonic = extract_first_mnemonic(&stored_login).unwrap();
+
+        let expected_mnemonic = bip39::Mnemonic::from_str("arrow capable abstract industry elevator nominee december piece hotel feed lounge web faint sword veteran bundle hour page actual laptop horror gold test warrior").unwrap();
+        assert_eq!(mnemonic, expected_mnemonic);
+
+        let all_accounts: Vec<_> = stored_login
+            .unwrap_into_multiple_accounts(account_id)
+            .into_accounts()
+            .collect();
+
+        let expected_mn2 = bip39::Mnemonic::from_str("border hurt skull lunar goddess second danger game dismiss exhaust oven thumb dog drama onion false orchard spice tent next predict invite cherry green").unwrap();
+        let expected_mn3 = bip39::Mnemonic::from_str("gentle crowd rule snap girl urge flat jump winner cluster night sand museum stock grunt quick tree acquire traffic major awake tag rack peasant").unwrap();
+        let expected_mn4 = bip39::Mnemonic::from_str("debris blue skin annual inhale text border rigid spatial lesson coconut yard horn crystal control survey version vote hawk neck frame arrive oblige width").unwrap();
+
+        assert_eq!(
+            all_accounts,
+            vec![
+                WalletAccount::new(
+                    "default".into(),
+                    MnemonicAccount::new(expected_mnemonic, hd_path.clone())
+                ),
+                WalletAccount::new(
+                    "account2".into(),
+                    MnemonicAccount::new(expected_mn2, hd_path.clone()),
+                ),
+                WalletAccount::new(
+                    "foobar".into(),
+                    MnemonicAccount::new(expected_mn3, hd_path.clone()),
+                ),
+                WalletAccount::new("42".into(), MnemonicAccount::new(expected_mn4, hd_path)),
+            ]
+        );
     }
 }

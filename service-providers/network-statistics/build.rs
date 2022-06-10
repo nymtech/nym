@@ -7,7 +7,7 @@ use std::env;
 #[tokio::main]
 async fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    let database_path = format!("{}/network-requester-example.sqlite", out_dir);
+    let database_path = format!("{}/network-statistics-example.sqlite", out_dir);
 
     let mut conn = SqliteConnection::connect(&*format!("sqlite://{}?mode=rwc", database_path))
         .await

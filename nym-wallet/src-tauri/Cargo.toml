@@ -38,7 +38,7 @@ strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.10", features = ["sync", "time"] }
+tokio = { version = "1.19.1", features = ["sync", "time"] }
 toml = "0.5.8"
 url = "2.2"
 
@@ -47,7 +47,7 @@ argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
 zeroize = "1.4.3"
 
-cosmwasm-std = "1.0.0-beta8"
+cosmwasm-std = "1.0.0"
 cosmrs = "0.7.0"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [

@@ -3,22 +3,19 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
-use crate::statistics::{Statistics, StatsData, Timer};
+use crate::statistics::{StatisticsCollector, StatisticsSender, Timer};
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::{ClientIdentity, Recipient};
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
@@ -28,20 +25,18 @@ static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
     listening_address: String,
-    description: String,
-    #[cfg(feature = "stats-service")]
-    db_path: PathBuf,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
+    stats_provider_addr: Option<Recipient>,
 }
 
 impl ServiceProvider {
     pub fn new(
         listening_address: String,
-        description: String,
         open_proxy: bool,
         enable_statistics: bool,
+        stats_provider_addr: Option<Recipient>,
     ) -> ServiceProvider {
         let allowed_hosts = HostsStore::new(
             HostsStore::default_base_dir(),
@@ -53,21 +48,13 @@ impl ServiceProvider {
             PathBuf::from("unknown.list"),
         );
 
-        #[cfg(feature = "stats-service")]
-        let db_path = HostsStore::default_base_dir()
-            .join("service-providers")
-            .join("network-requester")
-            .join("db.sqlite");
-
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
             listening_address,
-            description,
-            #[cfg(feature = "stats-service")]
-            db_path,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
+            stats_provider_addr,
         }
     }
 
@@ -75,21 +62,29 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
-        mut mix_reader: mpsc::UnboundedReceiver<(Response, Recipient)>,
-        response_stats_data: &Option<Arc<RwLock<StatsData>>>,
+        mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
+        stats_collector: Option<StatisticsCollector>,
     ) {
         // TODO: wire SURBs in here once they're available
-        while let Some((response, return_address)) = mix_reader.next().await {
-            if let Some(response_stats_data) = response_stats_data {
-                response_stats_data
-                    .write()
+        while let Some((msg, return_address)) = mix_reader.next().await {
+            if let Some(stats_collector) = stats_collector.as_ref() {
+                if let Some(remote_addr) = stats_collector
+                    .connected_services
+                    .read()
                     .await
-                    .processed(return_address.identity(), response.data.len() as u32);
+                    .get(&msg.conn_id())
+                {
+                    stats_collector
+                        .response_stats_data
+                        .write()
+                        .await
+                        .processed(remote_addr, msg.size() as u32);
+                }
             }
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
-                message: Socks5Message::Response(response).into_bytes(),
+                message: msg.into_bytes(),
                 with_reply_surb: false,
             };
 
@@ -135,7 +130,7 @@ impl ServiceProvider {
         remote_addr: String,
         return_address: Recipient,
         controller_sender: ControllerSender,
-        mix_input_sender: mpsc::UnboundedSender<(Response, Recipient)>,
+        mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
             Ok(conn) => conn,
@@ -148,7 +143,10 @@ impl ServiceProvider {
 
                 // inform the remote that the connection is closed before it even was established
                 mix_input_sender
-                    .unbounded_send((Response::new(conn_id, Vec::new(), true), return_address))
+                    .unbounded_send((
+                        Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
+                        return_address,
+                    ))
                     .unwrap();
 
                 return;
@@ -187,7 +185,7 @@ impl ServiceProvider {
     fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
@@ -227,12 +225,10 @@ impl ServiceProvider {
 
     async fn handle_proxy_message(
         &mut self,
-        #[cfg(feature = "stats-service")] storage: &crate::storage::NetworkRequesterStorage,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
-        request_stats_data: &Option<Arc<RwLock<StatsData>>>,
-        connected_clients: &mut HashMap<ConnectionId, ClientIdentity>,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        stats_collector: Option<StatisticsCollector>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -244,8 +240,12 @@ impl ServiceProvider {
         match deserialized_msg {
             Socks5Message::Request(deserialized_request) => match deserialized_request {
                 Request::Connect(req) => {
-                    if self.enable_statistics {
-                        connected_clients.insert(req.conn_id, *req.return_address.identity());
+                    if let Some(stats_collector) = stats_collector {
+                        stats_collector
+                            .connected_services
+                            .write()
+                            .await
+                            .insert(req.conn_id, req.remote_addr.clone());
                     }
                     self.handle_proxy_connect(
                         controller_sender,
@@ -257,29 +257,24 @@ impl ServiceProvider {
                 }
 
                 Request::Send(conn_id, data, closed) => {
-                    if let Some(request_stats_data) = request_stats_data {
-                        if let Some(client_identity) = connected_clients.get(&conn_id) {
-                            request_stats_data
+                    if let Some(stats_collector) = stats_collector {
+                        if let Some(remote_addr) = stats_collector
+                            .connected_services
+                            .read()
+                            .await
+                            .get(&conn_id)
+                        {
+                            stats_collector
+                                .request_stats_data
                                 .write()
                                 .await
-                                .processed(client_identity, data.len() as u32);
+                                .processed(remote_addr, data.len() as u32);
                         }
                     }
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
-            Socks5Message::Response(_deserialized_response) =>
-            {
-                #[cfg(feature = "stats-service")]
-                match crate::statistics::StatsMessage::from_bytes(&_deserialized_response.data) {
-                    Ok(data) => {
-                        if let Err(e) = storage.insert_service_statistics(data).await {
-                            error!("Could not store received statistics: {}", e);
-                        }
-                    }
-                    Err(e) => error!("Malformed statistics received: {}", e),
-                }
-            }
+            Socks5Message::Response(_) => {}
         }
     }
 
@@ -292,7 +287,8 @@ impl ServiceProvider {
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
-        let (mix_input_sender, mix_input_receiver) = mpsc::unbounded::<(Response, Recipient)>();
+        let (mix_input_sender, mix_input_receiver) =
+            mpsc::unbounded::<(Socks5Message, Recipient)>();
 
         let (mut timer_sender, timer_receiver) = Timer::new();
         let interval = timer_sender.interval();
@@ -306,53 +302,35 @@ impl ServiceProvider {
             active_connections_controller.run().await;
         });
 
-        let mut request_stats_data = None;
-        let mut response_stats_data = None;
+        let stats_collector = if self.enable_statistics {
+            let mut stats_sender =
+                StatisticsSender::new(interval, timer_receiver, self.stats_provider_addr)
+                    .await
+                    .expect("Statistics controller could not be bootstrapped");
+            let stats_collector = StatisticsCollector::from(&stats_sender);
 
-        if self.enable_statistics {
-            let mut stats = Statistics::new(self.description.clone(), interval, timer_receiver)
-                .await
-                .expect("Statistics controller could not be bootstrapped");
-            request_stats_data = Some(Arc::clone(stats.request_data()));
-            response_stats_data = Some(Arc::clone(stats.response_data()));
             let mix_input_sender_clone = mix_input_sender.clone();
             tokio::spawn(async move {
-                stats.run(&mix_input_sender_clone).await;
+                stats_sender.run(&mix_input_sender_clone).await;
             });
-        }
+            Some(stats_collector)
+        } else {
+            None
+        };
 
-        #[cfg(feature = "stats-service")]
-        let storage = crate::storage::NetworkRequesterStorage::init(self.db_path.as_path())
-            .await
-            .expect("Could not create network requester storage");
-
-        #[cfg(feature = "stats-service")]
-        tokio::spawn(
-            rocket::build()
-                .mount(
-                    "/v1",
-                    rocket::routes![crate::storage::post_mixnet_statistics],
-                )
-                .manage(storage.clone())
-                .ignite()
-                .await
-                .expect("Could not ignite stats api service")
-                .launch(),
-        );
-
+        let stats_collector_clone = stats_collector.clone();
         // start the listener for mix messages
         tokio::spawn(async move {
             Self::mixnet_response_listener(
                 websocket_writer,
                 mix_input_receiver,
-                &response_stats_data,
+                stats_collector_clone,
             )
             .await;
         });
 
         println!("\nAll systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
-        let mut connected_clients = HashMap::new();
         loop {
             let received = match Self::read_websocket_message(&mut websocket_reader).await {
                 Some(msg) => msg,
@@ -366,13 +344,10 @@ impl ServiceProvider {
             // TODO: here be potential SURB (i.e. received.reply_SURB)
 
             self.handle_proxy_message(
-                #[cfg(feature = "stats-service")]
-                &storage,
                 &raw_message,
                 &mut controller_sender,
                 &mix_input_sender,
-                &request_stats_data,
-                &mut connected_clients,
+                stats_collector.clone(),
             )
             .await;
         }

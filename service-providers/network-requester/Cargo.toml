@@ -23,7 +23,7 @@ reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "chrono"]}
 thiserror = "1"
-tokio = { version = "1.19.1", features = [ "net", "rt-multi-thread", "macros", "time" ] }
+tokio = { version = "1.19.1", features = [ "net", "rt-multi-thread", "macros" ] }
 tokio-tungstenite = "0.14"
 
 

@@ -11,7 +11,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tokio::time;
 
 use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
@@ -21,13 +20,15 @@ use statistics::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
     DEFAULT_STATISTICS_SERVICE_PORT,
 };
-use statistics::{StatsMessage, StatsServiceData};
+use statistics::{
+    collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
+    StatsServiceData,
+};
 
 use super::error::StatsError;
 
 const REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG: &str =
     "https://nymtech.net/.wellknown/network-requester/stats-provider.json";
-const STATISTICS_TIMER_INTERVAL: Duration = Duration::from_secs(60);
 
 #[derive(Clone, Debug)]
 pub struct StatsData {
@@ -158,7 +159,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         }
     }
 
-    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError> {
+    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), CommonStatsError> {
         let msg = build_statistics_request_bytes(stats_message)?;
 
         trace!("Connecting to statistics service");
@@ -203,49 +204,5 @@ impl StatisticsCollector for ServiceStatisticsCollector {
             .client_processed_bytes
             .iter_mut()
             .for_each(|(_, b)| *b = 0);
-    }
-}
-
-#[async_trait]
-pub trait StatisticsCollector {
-    async fn create_stats_message(
-        &self,
-        interval: Duration,
-        timestamp: DateTime<Utc>,
-    ) -> StatsMessage;
-    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError>;
-    async fn reset_stats(&mut self);
-}
-
-pub struct StatisticsSender<T: StatisticsCollector> {
-    collector: T,
-    interval: Duration,
-    timestamp: DateTime<Utc>,
-}
-
-impl<T: StatisticsCollector> StatisticsSender<T> {
-    pub fn new(collector: T) -> Self {
-        StatisticsSender {
-            collector,
-            interval: STATISTICS_TIMER_INTERVAL,
-            timestamp: Utc::now(),
-        }
-    }
-
-    pub async fn run(&mut self) {
-        let mut interval = time::interval(self.interval);
-        loop {
-            interval.tick().await;
-
-            let stats_message = self
-                .collector
-                .create_stats_message(self.interval, self.timestamp)
-                .await;
-            if let Err(e) = self.collector.send_stats_message(stats_message) {
-                error!("Statistics not sent: {}", e);
-            }
-            self.collector.reset_stats().await;
-            self.timestamp = Utc::now();
-        }
     }
 }

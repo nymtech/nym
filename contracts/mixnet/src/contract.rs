@@ -57,6 +57,8 @@ pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
     time::macros::datetime!(2022-01-01 12:00 UTC);
 
+pub const INITIAL_STAKING_SUPPLY: Uint128 = Uint128::new(100_000_000_000_000);
+
 pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 }
@@ -70,6 +72,7 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            staking_supply: INITIAL_STAKING_SUPPLY,
         },
     }
 }
@@ -432,7 +435,52 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
+fn migrate_contract_state_params(deps: DepsMut<'_>) -> Result<(), ContractError> {
+    use crate::mixnet_contract_settings::storage::CONTRACT_STATE;
+    use cw_storage_plus::Item;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize)]
+    struct OldContractState {
+        pub owner: Addr,
+        pub rewarding_validator_address: Addr,
+        pub params: OldContractStateParams,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct OldContractStateParams {
+        pub minimum_mixnode_pledge: Uint128,
+        pub minimum_gateway_pledge: Uint128,
+        pub mixnode_rewarded_set_size: u32,
+        pub mixnode_active_set_size: u32,
+    }
+
+    const OLD_CONTRACT_STATE: Item<'_, OldContractState> = Item::new("config");
+
+    let old_contract_state = OLD_CONTRACT_STATE.load(deps.storage)?;
+
+    let old_params = old_contract_state.params;
+
+    let new_params = ContractStateParams {
+        minimum_mixnode_pledge: old_params.minimum_mixnode_pledge,
+        minimum_gateway_pledge: old_params.minimum_gateway_pledge,
+        mixnode_rewarded_set_size: old_params.mixnode_rewarded_set_size,
+        mixnode_active_set_size: old_params.mixnode_active_set_size,
+        staking_supply: INITIAL_STAKING_SUPPLY,
+    };
+
+    let new_contract_state = ContractState {
+        owner: old_contract_state.owner,
+        rewarding_validator_address: old_contract_state.rewarding_validator_address,
+        params: new_params,
+    };
+
+    CONTRACT_STATE.save(deps.storage, &new_contract_state)?;
+
+    Ok(())
+}
+
+fn _deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
     // if there exists any delegation of 0 value, remove it
     let zero_delegations = delegations()
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
@@ -466,7 +514,7 @@ fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    deal_with_zero_delegations(deps)?;
+    migrate_contract_state_params(deps)?;
 
     Ok(Default::default())
 }

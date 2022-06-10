@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nymd_client;
 use crate::operations::simulate::{FeeDetails, SimulateResult};
 use crate::WalletState;
 use mixnet_contract_common::IdentityKey;
@@ -155,22 +154,30 @@ pub async fn simulate_withdraw_vested_coins(
 pub async fn simulate_vesting_claim_operator_reward(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client
+        .nymd
         .simulate_vesting_claim_operator_reward(None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
 pub async fn simulate_vesting_compound_operator_reward(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client
+        .nymd
         .simulate_vesting_compound_operator_reward(None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -178,11 +185,15 @@ pub async fn simulate_vesting_claim_delegator_reward(
     mix_identity: IdentityKey,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client
+        .nymd
         .simulate_vesting_claim_delegator_reward(mix_identity, None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }
 
 #[tauri::command]
@@ -190,9 +201,13 @@ pub async fn simulate_vesting_compound_delegator_reward(
     mix_identity: IdentityKey,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let result = client
+        .nymd
         .simulate_vesting_compound_delegator_reward(mix_identity, None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee()?)
+    let gas_price = client.nymd.gas_price().clone();
+    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
 }

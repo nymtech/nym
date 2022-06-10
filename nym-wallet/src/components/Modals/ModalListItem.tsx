@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { ModalDivider } from '../Modals/ModalDivider';
+import { ModalDivider } from './ModalDivider';
 
 export const ModalListItem: React.FC<{
   label: string;

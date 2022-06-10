@@ -62,6 +62,8 @@ export const SendWizard = () => {
   };
 
   const handleSend = async () => {
+    setIsLoading(true);
+
     const formState = methods.getValues();
 
     const hasEnoughFunds = await checkHasEnoughFunds(formState.amount.amount);
@@ -72,7 +74,6 @@ export const SendWizard = () => {
       handlePreviousStep();
       return;
     }
-    setIsLoading(true);
     setActiveStep((s) => s + 1);
 
     send({
@@ -89,13 +90,14 @@ export const SendWizard = () => {
           ...details,
           tx_hash,
         });
-        setIsLoading(false);
         userBalance.fetchBalance();
       })
       .catch((e) => {
         setRequestError(e);
-        setIsLoading(false);
         Console.error(e);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   };
 

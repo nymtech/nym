@@ -45,7 +45,7 @@ pub struct Init {
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
-    mnemonic: String,
+    mnemonic: Option<String>,
 
     /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -73,7 +73,7 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
             validator_apis: init_config.validator_apis,
-            mnemonic: Some(init_config.mnemonic),
+            mnemonic: init_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             enabled_credentials_mode: init_config.enabled_credentials_mode,

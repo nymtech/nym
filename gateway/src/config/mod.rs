@@ -402,7 +402,7 @@ impl Default for Gateway {
             validator_api_urls: default_api_endpoints(),
             #[cfg(not(feature = "coconut"))]
             validator_nymd_urls: default_nymd_endpoints(),
-            cosmos_mnemonic: "".to_string(),
+            cosmos_mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
             wallet_address: "nymXXXXXXXX".to_string(),

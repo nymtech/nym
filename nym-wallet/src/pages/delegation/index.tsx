@@ -5,6 +5,7 @@ import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
 import { TPoolOption } from 'src/components';
+import { Console } from 'src/utils/console';
 import { CompoundModal } from 'src/components/Rewards/CompoundModal';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
@@ -106,7 +107,7 @@ export const Delegation: FC = () => {
         tokenPool,
       });
     } catch (e) {
-      console.log(e);
+      Console.log(e);
       setConfirmationModalProps({
         status: 'error',
         action: 'delegate',
@@ -336,8 +337,8 @@ export const Delegation: FC = () => {
           message="Redeem rewards"
           currency={clientDetails!.denom}
           identityKey={currentDelegationListActionItem?.node_identity}
-          fee={0.004375}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
+          proxy={currentDelegationListActionItem.proxy}
         />
       )}
 
@@ -349,8 +350,8 @@ export const Delegation: FC = () => {
           message="Compound rewards"
           currency={clientDetails!.denom}
           identityKey={currentDelegationListActionItem?.node_identity}
-          fee={0.004375}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
+          proxy={currentDelegationListActionItem.proxy}
         />
       )}
 

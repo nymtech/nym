@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import React, { useEffect } from 'react';
+import { Box, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { SimpleModal } from '../Modals/SimpleModal';
+import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateUndelegateFromMixnode } from 'src/requests';
+import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
-import { FeeDetails } from '@nymproject/types';
+import { ModalFee } from '../Modals/ModalFee';
 
 export const UndelegateModal: React.FC<{
   open: boolean;
@@ -15,20 +16,11 @@ export const UndelegateModal: React.FC<{
   currency: string;
   proxy: string | null;
 }> = ({ identityKey, open, onClose, onOk, amount, currency, proxy }) => {
-  const [fee, setFee] = useState<FeeDetails>();
-  const [error, setError] = useState<string>();
-
-  const getFee = async () => {
-    try {
-      const simulatedFee = await simulateUndelegateFromMixnode(identityKey);
-      setFee(simulatedFee);
-    } catch (e) {
-      setError('Unable to determine fee estimate');
-    }
-  };
+  const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
-    getFee();
+    // Need simulateVestingUndelegateFromMixnode
+    getFee(simulateUndelegateFromMixnode, identityKey);
   }, []);
 
   const handleOk = async () => {
@@ -45,7 +37,7 @@ export const UndelegateModal: React.FC<{
       header="Undelegate"
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
-      okDisabled={!fee && !error}
+      okDisabled={!fee}
     >
       <IdentityKeyFormField
         readOnly
@@ -63,10 +55,7 @@ export const UndelegateModal: React.FC<{
         Tokens will be transferred to account you are logged in with now
       </Typography>
 
-      <ModalListItem
-        label="Estimated fee for this operation"
-        value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : 'n/a'}
-      />
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Alert, AlertTitle, Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import WarningIcon from '@mui/icons-material/Warning';
-import { FeeDetails } from '@nymproject/types';
+import { simulateClaimDelgatorReward, simulateVestingClaimDelgatorReward } from 'src/requests';
+import { isGreaterThan } from 'src/utils';
+import { useGetFee } from 'src/hooks/useGetFee';
 import { SimpleModal } from '../Modals/SimpleModal';
-import { Console } from 'src/utils/console';
-import { simulateRedeemDelgatorReward } from 'src/requests';
-import { ModalListItem } from '../Modals/ModalListItem';
+import { ModalFee } from '../Modals/ModalFee';
 
 export const RedeemModal: React.FC<{
   open: boolean;
@@ -14,12 +14,12 @@ export const RedeemModal: React.FC<{
   onOk?: (identityKey: string) => void;
   identityKey: string;
   amount: number;
-  fee: number;
   minimum?: number;
   currency: string;
   message: string;
-}> = ({ open, onClose, onOk, identityKey, amount, currency, message }) => {
-  const [fee, setFee] = useState<FeeDetails>();
+  proxy: string | null;
+}> = ({ open, onClose, onOk, identityKey, amount, currency, message, proxy }) => {
+  const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   const handleOk = async () => {
     if (onOk) {
@@ -27,17 +27,12 @@ export const RedeemModal: React.FC<{
     }
   };
 
-  const getFee = async () => {
-    try {
-      const simulatedfee = await simulateRedeemDelgatorReward(identityKey);
-      setFee(simulatedfee);
-    } catch (e) {
-      Console.error(`Unable to get fee estimate for compounding reward: ${e}`);
-    }
-  };
-
   useEffect(() => {
-    getFee();
+    if (proxy) {
+      getFee(simulateVestingClaimDelgatorReward, identityKey);
+    } else {
+      getFee(simulateClaimDelgatorReward, identityKey);
+    }
   }, []);
 
   return (
@@ -62,12 +57,8 @@ export const RedeemModal: React.FC<{
         Rewards will be transferred to account you are logged in with now
       </Typography>
 
-      <ModalListItem
-        label="Estimated fee for this operation"
-        value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : 'n/a'}
-      />
-
-      {fee?.amount && amount < +fee.amount?.amount && (
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
+      {fee?.amount && isGreaterThan(+fee.amount.amount, amount) && (
         <Alert color="warning" sx={{ mt: 3 }} icon={<WarningIcon />}>
           <AlertTitle>Warning: fees are greater than the reward</AlertTitle>
           The fees for redeeming rewards will cost more than the rewards. Are you sure you want to continue?

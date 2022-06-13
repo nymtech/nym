@@ -1,15 +1,14 @@
 import React from 'react';
+import { FeeDetails } from '@nymproject/types';
+import { Box, Button } from '@mui/material';
 import { SimpleModal } from './Modals/SimpleModal';
-import { MajorCurrencyAmount, MajorAmountString } from '@nymproject/types';
-import { ModalListItem } from './Modals/ModalListItem';
-import { Button } from '@mui/material';
+import { ModalFee } from './Modals/ModalFee';
 
 export const ConfirmTx: React.FC<{
   open: boolean;
   header: string;
   subheader?: string;
-  fee: MajorCurrencyAmount;
-  currency: MajorAmountString;
+  fee: FeeDetails;
   onConfirm: () => Promise<void>;
   onClose?: () => void;
   onPrev: () => void;
@@ -27,7 +26,9 @@ export const ConfirmTx: React.FC<{
       </Button>
     }
   >
-    {children}
-    <ModalListItem label="Estimated fee for this operation" value={`${fee.amount} ${fee.denom}`} />
+    <Box sx={{ mt: 3 }}>
+      {children}
+      <ModalFee fee={fee} isLoading={false} />
+    </Box>
   </SimpleModal>
 );

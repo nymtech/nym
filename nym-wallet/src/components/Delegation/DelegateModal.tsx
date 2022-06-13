@@ -1,73 +1,29 @@
 import React, { useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
-import { getGasFee, simulateDelegateToMixnode } from 'src/requests';
+import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { simulateDelegateToMixnode } from 'src/requests';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens, validateAmount, validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
-import { Console } from 'src/utils/console';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
-type confirmationResponseType = {
-  error?: string;
-  fees?: FeeDetails;
-};
-
-const handleConfirmWithBalance = async ({
-  identityKey,
-  amount,
-}: {
-  identityKey: string;
-  amount: MajorCurrencyAmount;
-}) => {
-  const response: confirmationResponseType = {};
-  const hasEnoughTokens = await checkHasEnoughFunds(amount.amount);
-
-  try {
-    if (!hasEnoughTokens) {
-      response.error = 'Not enough funds';
-    } else {
-      const fees = await simulateDelegateToMixnode({ identity: identityKey, amount });
-      response.fees = fees;
-    }
-    return response;
-  } catch (e) {
-    Console.error(e);
-    response.fees = undefined;
-    response.error = 'An error occurred. Please check the address and amount are correct';
-    return response;
+const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) => {
+  let hasEnoughFunds = false;
+  if (tokenPool === 'locked') {
+    hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
   }
-};
 
-const handleConfirmWithLocked = async ({
-  identityKey,
-  amount,
-}: {
-  identityKey: string;
-  amount: MajorCurrencyAmount;
-}) => {
-  const response: confirmationResponseType = {};
-  const hasEnoughTokens = await checkHasEnoughLockedTokens(amount.amount);
-
-  try {
-    if (!hasEnoughTokens) {
-      response.error = 'Not enough funds';
-    } else {
-      const fees = await simulateDelegateToMixnode({ identity: identityKey, amount });
-      response.fees = fees;
-    }
-    return response;
-  } catch (e) {
-    Console.error(e);
-    response.fees = undefined;
-    response.error = 'An error occurred. Please check the address and amount are correct';
-    return response;
+  if (tokenPool === 'balance') {
+    hasEnoughFunds = await checkHasEnoughFunds(amount);
   }
+
+  return hasEnoughFunds;
 };
 
 export const DelegateModal: React.FC<{
@@ -84,7 +40,6 @@ export const DelegateModal: React.FC<{
   estimatedReward?: number;
   profitMarginPercentage?: number | null;
   nodeUptimePercentage?: number | null;
-  feeOverride?: string;
   currency: CurrencyDenom;
   initialAmount?: string;
   hasVestingContract: boolean;
@@ -111,7 +66,8 @@ export const DelegateModal: React.FC<{
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
-  const [fee, setFee] = useState<FeeDetails>();
+
+  const { fee, getFee, resetFeeState } = useGetFee();
 
   const validate = async () => {
     let newValidatedValue = true;
@@ -145,22 +101,20 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleConfirm = async ({ identityKey, amount }: { identityKey: string; amount: MajorCurrencyAmount }) => {
-    let response: confirmationResponseType = {};
+  const handleConfirm = async ({ identity, value }: { identity: string; value: MajorCurrencyAmount }) => {
+    const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
+
+    if (!hasEnoughTokens) {
+      setErrorAmount('Not enough funds');
+      return;
+    }
 
     if (tokenPool === 'locked') {
-      response = await handleConfirmWithLocked({ identityKey, amount });
-    } else {
-      response = await handleConfirmWithBalance({ identityKey, amount });
+      getFee(simulateDelegateToMixnode, { identity, amount: value });
     }
 
-    if (response.error) {
-      setErrorAmount(response.error);
-    }
-
-    if (!response.error && response.fees) {
-      setFee(response.fees);
-      setErrorAmount(undefined);
+    if (tokenPool === 'balance') {
+      getFee(simulateDelegateToMixnode, { identity, amount: value });
     }
   };
 
@@ -182,16 +136,15 @@ export const DelegateModal: React.FC<{
     validate();
   }, [amount, identityKey]);
 
-  if (fee?.amount) {
+  if (fee) {
     return (
       <ConfirmTx
         open
         header="Delegation details"
-        fee={fee.amount}
+        fee={fee}
         onClose={onClose}
-        onPrev={() => setFee(undefined)}
+        onPrev={resetFeeState}
         onConfirm={handleOk}
-        currency={currency}
       >
         <ModalListItem label="Node identity key" value={identityKey} divider />
         <ModalListItem label="Amount" value={`${amount} ${currency}`} divider />
@@ -205,7 +158,7 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (identityKey && amount) {
-          handleConfirm({ identityKey, amount: { amount, denom: currency } });
+          handleConfirm({ identity: identityKey, value: { amount, denom: currency } });
         }
       }}
       header={header || 'Delegate'}

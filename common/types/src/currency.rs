@@ -317,7 +317,6 @@ mod test {
     use cosmwasm_std::Coin as CosmWasmCoin;
     use cosmwasm_std::Decimal as CosmWasmDecimal;
     use serde_json::json;
-    use std::convert::TryFrom;
     use std::str::FromStr;
     use std::string::ToString;
 
@@ -424,9 +423,7 @@ mod test {
         };
         println!(
             "from_atomics = {}",
-            CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
-                .unwrap()
-                .to_string()
+            CosmWasmDecimal::from_atomics(coin.amount, 6).unwrap()
         );
         let c: MajorCurrencyAmount = coin.into();
         assert_eq!(c, MajorCurrencyAmount::new("0.000001", CurrencyDenom::Nym));
@@ -440,7 +437,7 @@ mod test {
         };
         println!(
             "from_atomics = {:?}",
-            CosmWasmDecimal::from_atomics(coin.amount.clone(), 6)
+            CosmWasmDecimal::from_atomics(coin.amount, 6)
                 .unwrap()
                 .to_string()
         );
@@ -488,28 +485,5 @@ mod test {
         let c = MajorCurrencyAmount::new("1", CurrencyDenom::Nym);
         let denom = c.denom.to_string();
         assert_eq!(denom, "NYM".to_string());
-    }
-
-    fn amounts() -> Vec<&'static str> {
-        vec![
-            "1",
-            "10",
-            "100",
-            "1000",
-            "10000",
-            "100000",
-            "10000000",
-            "100000000",
-            "1000000000",
-            "10000000000",
-            "100000000000",
-            "1000000000000",
-            "10000000000000",
-            "100000000000000",
-            "1000000000000000",
-            "10000000000000000",
-            "100000000000000000",
-            "1000000000000000000",
-        ]
     }
 }

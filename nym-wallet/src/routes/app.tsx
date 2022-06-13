@@ -2,11 +2,12 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { ApplicationLayout } from 'src/layouts';
 import { Terminal } from 'src/pages/terminal';
-import { Bond, Balance, InternalDocs, Receive, Send, Unbond, DelegationPage, Admin } from '../pages';
+import { Bond, Balance, InternalDocs, Receive, Send, Unbond, DelegationPage, Admin, Settings } from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>
     <Terminal />
+    <Settings />
     <Routes>
       <Route path="/balance" element={<Balance />} />
       <Route path="/send" element={<Send />} />

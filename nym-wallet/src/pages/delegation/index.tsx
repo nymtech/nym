@@ -380,7 +380,7 @@ export const Delegation: FC = () => {
         />
       )}
 
-      {nodeOverSaturation && (
+      {!!nodeOverSaturation && (
         <OverSaturatedBlockerModal
           open={!!nodeOverSaturation}
           onClose={() => {

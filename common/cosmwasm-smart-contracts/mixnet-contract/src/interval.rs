@@ -125,6 +125,10 @@ impl Interval {
         self.length = Duration::from_secs(secs);
     }
 
+    pub const fn length_secs(&self) -> u64 {
+        self.length.as_secs()
+    }
+
     /// Returns the next interval.
     #[must_use]
     pub fn next(&self) -> Self {

@@ -397,7 +397,12 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
         }
-        QueryMsg::GetEpochsInInterval {} => to_binary(&crate::constants::EPOCHS_IN_INTERVAL),
+        QueryMsg::GetEpochsInInterval {} => {
+            to_binary(&crate::support::helpers::epochs_in_interval(deps.storage)?)
+        }
+        QueryMsg::GetCurrentOperatorCost {} => to_binary(
+            &crate::support::helpers::current_operator_epoch_cost(deps.storage)?,
+        ),
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
         QueryMsg::QueryOperatorReward { address } => to_binary(
             &crate::rewards::queries::query_operator_reward(deps, address)?,

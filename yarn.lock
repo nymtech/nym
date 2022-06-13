@@ -4593,66 +4593,72 @@
     "@svgr/plugin-jsx" "^6.2.1"
     "@svgr/plugin-svgo" "^6.2.0"
 
-"@tauri-apps/api@^1.0.0-rc.1":
-  version "1.0.0-rc.1"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-1.0.0-rc.1.tgz#ce26a0fe30d8980a4682d50015eec28ed4a23c1e"
-  integrity sha512-VBUOmfT8ea02JB/Qr+FHeaLnug5BRA7ro2pX47q0GZCbZsU9b+iPnOXl0ShJwT0melR7B6iamyhDwkHStMVfQA==
+"@tauri-apps/api@^1.0.0-rc.6":
+  version "1.0.0-rc.6"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-1.0.0-rc.6.tgz#6c3358bc8c2cba705d52c1194e2d340cedf1697a"
+  integrity sha512-/PbVs3/dUzid0/1XbML8tAkRSOmp+6Gv9ql02HGt3aIjNTvaL2902qEbiTX6xK++3oUoKJJ88t+V6IiNd1JUkw==
   dependencies:
-    type-fest "2.11.2"
+    type-fest "2.12.2"
 
-"@tauri-apps/cli-darwin-arm64@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-1.0.0-rc.5.tgz#9374be8c96afa1cf77b5647bc81fe1a05006757d"
-  integrity sha512-X+3EIAUGfoL8uE6PBADZC8FcUISe4JPQCxXgaVv6ehoZGoCh/pFJF7AvBGTQxbnvngqM7Xce4Lmh63Io2/5ggw==
+"@tauri-apps/cli-darwin-arm64@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-1.0.0-rc.13.tgz#da73a770835ffd63a149d8becf50d3781e1c97dd"
+  integrity sha512-/EqOz7ASHOU98H58Ibbkg12pLG/P5oyQz8OlueaMYryajkJdmi+bHTkJ05DfbS0owAaHkRJ6f+NmoW/AnyqUbg==
 
-"@tauri-apps/cli-darwin-x64@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-x64/-/cli-darwin-x64-1.0.0-rc.5.tgz#4db1dd56a228bfafe5b3f64c7661abbe5606e804"
-  integrity sha512-fEpgOdAvKdq9C5/yip8RnwP1VS+nRrtKdzzplu4jY6njDVH/Vom8mg+EfXkCY5RveCaoskJMFgUvt10IGeZHBA==
+"@tauri-apps/cli-darwin-x64@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-x64/-/cli-darwin-x64-1.0.0-rc.13.tgz#e120cc623fddca3eb9d7fea0c2de057c7440a821"
+  integrity sha512-bvZ0MBKFD1kc4gdVPXgwUA6tHNKj0EmlQK0Xolk6PYP9vZZeNTP1vejevW0bh2IqxC8DuqUArbG9USXwu+LFbQ==
 
-"@tauri-apps/cli-linux-arm-gnueabihf@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm-gnueabihf/-/cli-linux-arm-gnueabihf-1.0.0-rc.5.tgz#0f1ff84c534908a54fbe63b45004abc6d4f03f4d"
-  integrity sha512-V7sWSBrpLyvkQxpkHIM8JltYqQhiTpThySDjO8POtrTqkRwM5BXORcCYhxTAKCedecfYK/RNUJ6Q0t7+3jS6DQ==
+"@tauri-apps/cli-linux-arm-gnueabihf@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm-gnueabihf/-/cli-linux-arm-gnueabihf-1.0.0-rc.13.tgz#3052a59788ae57ad690d4bc09bf0756bc8808116"
+  integrity sha512-yODvfUkNvtYYdDTOJSDXMx9fpoEB66I2PTrYx1UKonKTEaLrQDcpw2exD/S9LPQzCYgyTuJ/kHRhG1uLdO/UUQ==
 
-"@tauri-apps/cli-linux-arm64-gnu@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-gnu/-/cli-linux-arm64-gnu-1.0.0-rc.5.tgz#c5d2f1dd962d80a1958261229778b410b86254d4"
-  integrity sha512-HhM+2FInxtUAI/41LF4fDEzmhLQUq6DOoo7fLN94vgWlhsPyWZoDGP9pA043XbO86+4OX5JZUW1SnTVXMwEaMA==
+"@tauri-apps/cli-linux-arm64-gnu@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-gnu/-/cli-linux-arm64-gnu-1.0.0-rc.13.tgz#9c4094473890c165a4fb22132229ed8212559f79"
+  integrity sha512-kVDJHERD8CmTeMcd2VTnD/nVCHdnNAK8a6ur3l0KTR1iF8A1AtN/sPahMQjK4f7Ar00UDjIzTw74liqakOeiZg==
 
-"@tauri-apps/cli-linux-arm64-musl@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-musl/-/cli-linux-arm64-musl-1.0.0-rc.5.tgz#f485db9ca5402f5d2c4585801a3aaa4519bd67e8"
-  integrity sha512-DhHdKOhf3+peA/sM0c9CpxK89cp8GVwOB5osFW55fxBZbD0mJFeL2SzjkgfGFqFu6Ci/ZiibQGfEp8XTC8OsYA==
+"@tauri-apps/cli-linux-arm64-musl@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-musl/-/cli-linux-arm64-musl-1.0.0-rc.13.tgz#16270a6d3b9289993b9b4d837f63dba4991d9be5"
+  integrity sha512-PFHz+0xKCGMqqn2TmbOSPvTRS61xJQV7srwTZjs5sHBvK536mdBnF/6V6BPEvTn5LzfRnxMu2A5X5GFkYnrZ7w==
 
-"@tauri-apps/cli-linux-x64-gnu@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-gnu/-/cli-linux-x64-gnu-1.0.0-rc.5.tgz#e468939585bc98e80ec827d0a3d8ba06a7cc38e8"
-  integrity sha512-pZzsOHRGG/mdcn7fF/yOIOdeVzGxZUtZqvlGSd90ZM9Ps3//uYGCBHoNTbeSwp/V6+D0KVDaSCbm9lYlHoXcdA==
+"@tauri-apps/cli-linux-x64-gnu@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-gnu/-/cli-linux-x64-gnu-1.0.0-rc.13.tgz#d2f5031f9597300a5814dc8b4d3c59e8dc25a871"
+  integrity sha512-EWhTOUNHaaMM7mxp/ue+Osnzn6/o9/7qVle3MSnNI9pGQzumc/dOtBs+sWS/NPXdVEiWKET2mFMK120KJlYcQQ==
 
-"@tauri-apps/cli-linux-x64-musl@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-musl/-/cli-linux-x64-musl-1.0.0-rc.5.tgz#a1308e93850555f2b6c97b5d7cdbbb9afaa803e2"
-  integrity sha512-COwWCbOhEjBlzGRGTa0ESO4/AiC0cBZ2UEPExRn++S+kWSPJ2vsyMdCLu3hiMy1ABSIRcQ4Vc68M1iVkLhOHHw==
+"@tauri-apps/cli-linux-x64-musl@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-musl/-/cli-linux-x64-musl-1.0.0-rc.13.tgz#9d8b02de7bd5af71c5d3d5be96ec88f3f29c8fbd"
+  integrity sha512-i8lsKw5iAGTAhqSQHeUCISLjhRXNrloHPoFCaSZtU0/GAPGbW/qST7u593h7cKWxRooeMwzo74ij4GhgmddClQ==
 
-"@tauri-apps/cli-win32-x64-msvc@1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-1.0.0-rc.5.tgz#d15c95143d9123d10c510e28ba90df5349b68ecd"
-  integrity sha512-zzizUmPWvnWjj+IUCk36kVjS9j1Bg5JmnwOW5QdX26+a64q5vocmVimCgrfZ5STw3sDFXE++S55ghpzhhH5o+g==
+"@tauri-apps/cli-win32-ia32-msvc@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-ia32-msvc/-/cli-win32-ia32-msvc-1.0.0-rc.13.tgz#1fcf6bed5a89af2cb30a2fe2e823ca486ded61b7"
+  integrity sha512-rJxSqWIQXeeT2oLzSiQyqZPgDKSGH5sK7MUr8cOCBitqy3T0COlOMX4O7hhqF3cJ/5s0aX+MuNZBzF/D0QUcxA==
 
-"@tauri-apps/cli@^1.0.0-rc.5":
-  version "1.0.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli/-/cli-1.0.0-rc.5.tgz#db8ca22c9f55f5400d1c6addd78ee1df5dc15a29"
-  integrity sha512-Q3D0R5YdZRA5EcL206hwwKCyXpet2mRDcfaRTU/IXwF73bS4AMja+JdAGfO2cyHuSvXd+b//Cgbei2zCG8M6hw==
+"@tauri-apps/cli-win32-x64-msvc@1.0.0-rc.13":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-1.0.0-rc.13.tgz#ed2feaf3b3a120c1460cae8941443563d14840bb"
+  integrity sha512-ifOTrJVQoBAQUYX+EVnE4XJ/FCMHs4FQ8qxGNszqkSxrU24mmT7La6tzj77352q80KnxRa05xjjLL6GGhmzXRg==
+
+"@tauri-apps/cli@^1.0.0-rc.12":
+  version "1.0.0-rc.13"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli/-/cli-1.0.0-rc.13.tgz#e58127ebe24c6cc81c3258229219056199421500"
+  integrity sha512-q7i45Mi1SMv5XllNoX09QS4Q/fYVFwD6piVYmqMSrKY/T5RwedQhytiVH60TxC2xk6o0akVHa7BdYiyJvXNR8A==
   optionalDependencies:
-    "@tauri-apps/cli-darwin-arm64" "1.0.0-rc.5"
-    "@tauri-apps/cli-darwin-x64" "1.0.0-rc.5"
-    "@tauri-apps/cli-linux-arm-gnueabihf" "1.0.0-rc.5"
-    "@tauri-apps/cli-linux-arm64-gnu" "1.0.0-rc.5"
-    "@tauri-apps/cli-linux-arm64-musl" "1.0.0-rc.5"
-    "@tauri-apps/cli-linux-x64-gnu" "1.0.0-rc.5"
-    "@tauri-apps/cli-linux-x64-musl" "1.0.0-rc.5"
-    "@tauri-apps/cli-win32-x64-msvc" "1.0.0-rc.5"
+    "@tauri-apps/cli-darwin-arm64" "1.0.0-rc.13"
+    "@tauri-apps/cli-darwin-x64" "1.0.0-rc.13"
+    "@tauri-apps/cli-linux-arm-gnueabihf" "1.0.0-rc.13"
+    "@tauri-apps/cli-linux-arm64-gnu" "1.0.0-rc.13"
+    "@tauri-apps/cli-linux-arm64-musl" "1.0.0-rc.13"
+    "@tauri-apps/cli-linux-x64-gnu" "1.0.0-rc.13"
+    "@tauri-apps/cli-linux-x64-musl" "1.0.0-rc.13"
+    "@tauri-apps/cli-win32-ia32-msvc" "1.0.0-rc.13"
+    "@tauri-apps/cli-win32-x64-msvc" "1.0.0-rc.13"
 
 "@testing-library/dom@^8.0.0", "@testing-library/dom@^8.3.0":
   version "8.11.3"
@@ -17519,10 +17525,10 @@ type-detect@4.0.8:
   resolved "https://registry.yarnpkg.com/type-detect/-/type-detect-4.0.8.tgz#7646fb5f18871cfbb7749e69bd39a6388eb7450c"
   integrity sha512-0fr/mIH1dlO+x7TlcMy+bIDqKPsw/70tVyeHW787goQjhmqaZe10uwLujubK9q9Lg6Fiho1KUKDYz0Z7k7g5/g==
 
-type-fest@2.11.2:
-  version "2.11.2"
-  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.11.2.tgz#5534a919858bc517492cd3a53a673835a76d2e71"
-  integrity sha512-reW2Y2Mpn0QNA/5fvtm5doROLwDPu2zOm5RtY7xQQS05Q7xgC8MOZ3yPNaP9m/s/sNjjFQtHo7VCNqYW2iI+Ig==
+type-fest@2.12.2:
+  version "2.12.2"
+  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.12.2.tgz#80a53614e6b9b475eb9077472fb7498dc7aa51d0"
+  integrity sha512-qt6ylCGpLjZ7AaODxbpyBZSs9fCI9SkL3Z9q2oxMBQhs/uyY+VD8jHA8ULCGmWQJlBgqvO3EJeAngOHD8zQCrQ==
 
 type-fest@^0.18.0:
   version "0.18.1"

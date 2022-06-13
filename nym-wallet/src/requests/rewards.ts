@@ -1,7 +1,14 @@
 import { invokeWrapper } from './wrapper';
+import { TransactionExecuteResult } from '@nymproject/types';
 
-export const claimDelegatorRewards = async (mixIdentity: string): Promise<void> =>
-  invokeWrapper('claim_delegator_reward', { mixIdentity });
+export const claimOperatorRewards = async () =>
+  invokeWrapper<TransactionExecuteResult>('claim_operator_reward');
 
-export const compoundDelegatorRewards = async (mixIdentity: String): Promise<void> =>
-  invokeWrapper('compound_delegator_reward', { mixIdentity });
+export const compoundOperatorRewards = async () =>
+  invokeWrapper<TransactionExecuteResult>('compound_operator_reward');
+
+export const claimDelegatorRewards = async (mixIdentity: string) =>
+  invokeWrapper<TransactionExecuteResult>('claim_delegator_reward', { mixIdentity });
+
+export const compoundDelegatorRewards = async (mixIdentity: String) =>
+  invokeWrapper<TransactionExecuteResult>('compound_delegator_reward', { mixIdentity });

@@ -189,8 +189,8 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={{
             textAlign: 'left',
-            color: params.value > 100 ? theme.palette.warning.main : 'inherit',
             ...getCellStyles(theme, params.row),
+            color: params.value > 100 ? theme.palette.warning.main : 'inherit',
           }}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
@@ -236,8 +236,8 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'avg_uptime',
-      headerName: 'Average Uptime',
-      renderHeader: () => <CustomColumnHeading headingTitle="Average Uptime" />,
+      headerName: 'Avg. Uptime',
+      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 160,
       headerAlign: 'left',

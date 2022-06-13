@@ -24,7 +24,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
       >
         <Box
           sx={{
-            background: '#121726',
+            background: (t) => t.palette.nym.nymWallet.nav.background,
             overflow: 'auto',
             py: 3,
             px: 5,
@@ -35,7 +35,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
         >
           <Box>
             <Box sx={{ mb: 4 }}>
-              <NymWordmark height={14} fill={theme.palette.background.paper} />
+              <NymWordmark height={14} />
             </Box>
             <Nav />
           </Box>

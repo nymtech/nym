@@ -82,14 +82,14 @@ export const Nav = () => {
               <ListItemIcon
                 sx={{
                   minWidth: 30,
-                  color: location.pathname === route ? 'primary.main' : 'common.white',
+                  color: location.pathname === route ? 'primary.main' : 'text.primary',
                 }}
               >
                 <Icon sx={{ fontSize: 20 }} />
               </ListItemIcon>
               <ListItemText
                 sx={{
-                  color: location.pathname === route ? 'primary.main' : 'common.white',
+                  color: location.pathname === route ? 'primary.main' : 'text.primary',
                 }}
                 primary={label}
               />

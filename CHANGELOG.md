@@ -30,6 +30,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: contract admin route put back
 - wallet: staking_supply field to StateParams
 - wallet: show transaction hash for redeeming or compounding rewards
+- wallet: upgrade `tauri` to `1.0.0-rc.14`
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed

@@ -210,12 +210,13 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      await redeemRewards(identityKey, proxy);
+      const tx = await redeemRewards(identityKey, proxy);
       const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem',
         balance: bal?.printable_balance || '-',
+        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
       setConfirmationModalProps({
@@ -235,12 +236,13 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      await compoundRewards(identityKey, proxy);
+      const tx = await compoundRewards(identityKey, proxy);
       const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'compound',
         balance: bal?.printable_balance || '-',
+        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
       });
     } catch (e) {
       setConfirmationModalProps({

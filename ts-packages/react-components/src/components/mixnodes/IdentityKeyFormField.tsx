@@ -33,9 +33,10 @@ export const IdentityKeyFormField: React.FC<{
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
-  const [initSaturation, setInitSaturation] = React.useState<number>(0);
+  const [nodeSaturation, setNodeSaturation] = React.useState<number>(0);
 
   const doValidation = (newValue?: string): boolean => {
+    console.log('newValue', newValue, 'saturation', saturation);
     if (validateKey(newValue)) {
       setValidationError(undefined);
       if (onValidate) {
@@ -71,13 +72,20 @@ export const IdentityKeyFormField: React.FC<{
   React.useEffect(() => {
     // check if the node is over saturated
     if (saturation) {
-      setInitSaturation(saturation);
+      setNodeSaturation(saturation);
     }
   }, [saturation]);
 
+  React.useEffect(() => {
+    // check if the node is over saturated
+    if (saturation) {
+      doValidation();
+    }
+  }, [nodeSaturation]);
+
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
-    setInitSaturation(0);
+    setNodeSaturation(0);
     if (doValidation(newValue)) {
       setValue(newValue);
       if (onChanged) {

@@ -1,10 +1,9 @@
-import { useContext, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSnackbar } from 'notistack';
 import { InclusionProbabilityResponse, MixnodeStatus } from '@nymproject/types';
-import { AppContext } from '../../context/main';
 import { getInclusionProbability, getMixnodeStakeSaturation, getMixnodeStatus } from '../../requests';
 
-export const useSettingsState = (shouldUpdate: boolean) => {
+export const useSettingsState = () => {
   const [status, setStatus] = useState<MixnodeStatus>('not_found');
   const [saturation, setSaturation] = useState<number>(0);
   const [rewardEstimation, setRewardEstimation] = useState<number>(0);
@@ -12,8 +11,6 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     in_active: 'Low',
     in_reserve: 'Low',
   });
-
-  const { mixnodeDetails } = useContext(AppContext);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -45,26 +42,22 @@ export const useSettingsState = (shouldUpdate: boolean) => {
     setInclusionProbability({ in_active: 'Low', in_reserve: 'Low' });
   };
 
-  useEffect(() => {
-    if (shouldUpdate && mixnodeDetails?.mix_node.identity_key) {
-      (async () => {
-        try {
-          await getStatus(mixnodeDetails?.mix_node.identity_key);
-          await getStakeSaturation(mixnodeDetails?.mix_node.identity_key);
-          await getMixnodeInclusionProbability(mixnodeDetails?.mix_node.identity_key);
-        } catch (e) {
-          enqueueSnackbar(e as string, { variant: 'error', preventDuplicate: true });
-        }
-      })();
-    } else {
+  const updateAllMixnodeStats = async (mixnodeId: string) => {
+    try {
+      await getStatus(mixnodeId);
+      await getStakeSaturation(mixnodeId);
+      await getMixnodeInclusionProbability(mixnodeId);
+    } catch (e) {
+      enqueueSnackbar(e as string, { variant: 'error', preventDuplicate: true });
       reset();
     }
-  }, [shouldUpdate]);
+  };
 
   return {
     status,
     saturation,
     rewardEstimation,
     inclusionProbability,
+    updateAllMixnodeStats,
   };
 };

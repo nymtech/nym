@@ -1,8 +1,8 @@
 import React, { useContext, useState } from 'react';
-import { Alert, AlertTitle, Box, Button, Link, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material';
 import { TransactionExecuteResult } from '@nymproject/types';
 import { DelegateForm } from './DelegateForm';
-import { NymCard } from '../../components';
+import { Link, NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
 import { SuccessView } from './SuccessView';
 import { AppContext, urls } from '../../context/main';
@@ -76,9 +76,11 @@ export const Delegate = () => {
       </NymCard>
       <Typography sx={{ p: 3 }}>
         Checkout the{' '}
-        <Link href={`${urls(network).networkExplorer}/network-components/mixnodes`} target="_blank">
-          list of mixnodes
-        </Link>{' '}
+        <Link
+          href={`${urls(network).networkExplorer}/network-components/mixnodes`}
+          target="_blank"
+          text="list of mixnodes"
+        />{' '}
         for uptime and performances to help make delegation decisions
       </Typography>
     </PageLayout>

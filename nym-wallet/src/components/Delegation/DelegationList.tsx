@@ -3,7 +3,6 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Link,
   Table,
   TableBody,
   TableCell,
@@ -19,6 +18,7 @@ import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationWithEverything } from '@nymproject/types';
 import { format } from 'date-fns';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
+import { Link } from '../Link';
 
 type Order = 'asc' | 'desc';
 
@@ -147,11 +147,8 @@ export const DelegationList: React.FC<{
                     <Link
                       target="_blank"
                       href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                      color="inherit"
-                      underline="none"
-                    >
-                      {item.node_identity.slice(0, 6)}...{item.node_identity.slice(-6)}
-                    </Link>
+                      text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                    />
                   </Tooltip>
                 </TableCell>
                 <TableCell align="center">{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>

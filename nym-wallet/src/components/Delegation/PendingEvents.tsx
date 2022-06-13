@@ -1,7 +1,6 @@
 import React, { FC } from 'react';
 import {
   Box,
-  Link,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +15,7 @@ import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationEvent } from '@nymproject/types';
 import { ArrowDropDown } from '@mui/icons-material';
 import { visuallyHidden } from '@mui/utils';
+import { Link } from '../Link';
 
 type Order = 'asc' | 'desc';
 
@@ -137,11 +137,8 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
                   <Link
                     target="_blank"
                     href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                    color="inherit"
-                    underline="none"
-                  >
-                    {item.node_identity.slice(0, 6)}...{item.node_identity.slice(-6)}
-                  </Link>
+                    text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                  />
                 </Tooltip>
               </TableCell>
               <TableCell>{!item.amount ? '-' : `${item.amount?.amount} ${item.amount?.denom}`}</TableCell>

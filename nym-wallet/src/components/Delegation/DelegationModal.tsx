@@ -1,7 +1,8 @@
 import React from 'react';
-import { Box, Button, CircularProgress, Link, Modal, Stack, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Modal, Stack, Typography } from '@mui/material';
 import { modalStyle } from '../Modals/styles';
 import { TPoolOption } from '../TokenPoolSelector';
+import { Link } from '../Link';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -84,10 +85,7 @@ export const DelegationModal: React.FC<
           Your current {tokenPool === 'locked' ? 'locked balance' : 'balance'}: {balance}
         </Typography>
         <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-          Check the transaction hash{' '}
-          <Link href={transactionUrl} target="_blank">
-            here
-          </Link>
+          Check the transaction hash <Link href={transactionUrl} target="_blank" text="here" />
         </Typography>
         {children}
         <Button variant="contained" sx={{ mt: 3 }} size="large" onClick={onClose}>

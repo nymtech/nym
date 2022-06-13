@@ -48,6 +48,7 @@ declare module '@mui/material/styles' {
     };
     text: {
       main: string;
+      linkHover: string;
     };
     topNav: {
       background: string;

@@ -40,6 +40,7 @@ const darkMode: NymPaletteVariant = {
   },
   text: {
     main: '#F2F2F2',
+    linkHover: '#AF4D36',
   },
   topNav: {
     background: '#111826',
@@ -57,6 +58,7 @@ const lightMode: NymPaletteVariant = {
   },
   text: {
     main: '#121726',
+    linkHover: '#AF4D36',
   },
   topNav: {
     background: '#111826',
@@ -233,6 +235,11 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           head: {
             color: nymPalette.text.muted,
           },
+        },
+      },
+      MuiLink: {
+        defaultProps: {
+          underline: 'none',
         },
       },
     },

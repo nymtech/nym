@@ -1,8 +1,11 @@
 #!/bin/sh
 
+set -ue
+
 git clone https://github.com/CosmWasm/wasmd.git
 cd wasmd
 git checkout "${WASMD_VERSION}"
+WASMD_COMMIT_HASH=$(git rev-parse HEAD)
 mkdir build
 go build \
     -o build/nymd -mod=readonly -tags "netgo,ledger" \
@@ -14,5 +17,4 @@ go build \
     -X github.com/CosmWasm/wasmd/app.Bech32Prefix=${BECH32_PREFIX} \
     -X 'github.com/cosmos/cosmos-sdk/version.BuildTags=netgo,ledger'" \
     -trimpath ./cmd/wasmd
-WASMVM_SO=$(ldd build/nymd | grep libwasmvm.so | awk '{ print $3 }')
-cp "${WASMVM_SO}" build/
+find .. -type f -name 'libwasm*.so' -exec cp {} build \;

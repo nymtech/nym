@@ -44,7 +44,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({ icon, title, count, onClic
         </Box>
         {errorMsg && (
           <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>
-            {errorMsg}
+            {typeof errorMsg === 'string' ? errorMsg : errorMsg.message || 'Oh no! An error occurred'}
           </Typography>
         )}
       </CardContent>

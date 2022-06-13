@@ -6,11 +6,15 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- nym-connect: initial proof-of-concept of a UI around the socks5 client was added.
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
 - mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - mixnet-contract: Replace all naked `-` with `saturating_sub`.
+- mixnet-contrat: Added staking_supply field to ContractStateParams.
+- network-explorer-ui: Upgrade to React Router 6
+- rewarding: replace circulating supply with staking supply in reward calculations ([#1324])
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
 - validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
 - validator-api: add Swagger to document the REST API ([#1249]).
@@ -24,6 +28,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: new delegation and rewards UI
 - wallet: show version in nav bar
 - wallet: contract admin route put back
+- waller: staking_supply field to StateParams
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed
@@ -37,6 +42,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
+- validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
 ### Changed
 
@@ -60,7 +66,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1302]: https://github.com/nymtech/nym/pull/1302
 [#1318]: https://github.com/nymtech/nym/pull/1318
 [#1322]: https://github.com/nymtech/nym/pull/1322
+[#1324]: https://github.com/nymtech/nym/pull/1324
 [#1328]: https://github.com/nymtech/nym/pull/1328
+[#1329]: https://github.com/nymtech/nym/pull/1329
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

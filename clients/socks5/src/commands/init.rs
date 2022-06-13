@@ -88,7 +88,8 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     app
 }
 
-async fn register_with_gateway(
+// TODO: make this private again after refactoring the config setup
+pub async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
 ) -> Arc<SharedKeys> {
@@ -110,7 +111,8 @@ async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-async fn gateway_details(
+// TODO: make this private again after refactoring the config setup
+pub async fn gateway_details(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
@@ -144,7 +146,8 @@ async fn gateway_details(
     }
 }
 
-fn show_address(config: &Config) {
+// TODO: make this private again after refactoring the config setup
+pub fn show_address(config: &Config) {
     fn load_identity_keys(pathfinder: &ClientKeyPathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(

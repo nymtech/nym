@@ -5,7 +5,7 @@ use super::storage;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{ContractStateParams, MixnetContractVersion};
 
-pub(crate) fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
+pub fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.params)
@@ -51,6 +51,7 @@ pub(crate) mod tests {
                 minimum_gateway_pledge: 456u128.into(),
                 mixnode_rewarded_set_size: 1000,
                 mixnode_active_set_size: 500,
+                staking_supply: 1000000u128.into(),
             },
         };
 

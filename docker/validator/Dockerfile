@@ -7,6 +7,6 @@ RUN ./setup.sh
 
 FROM ubuntu:20.04
 COPY --from=go_builder /go/wasmd/build/nymd /root/nymd
-COPY --from=go_builder /go/wasmd/build/libwasmvm.so /root/libwasmvm.so
+COPY --from=go_builder /go/wasmd/build/libwasmvm*.so /root
 COPY init_and_start.sh .
 ENTRYPOINT ["./init_and_start.sh"]

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::verloc::listener::PacketListener;
-pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
 use crate::verloc::sender::{PacketSender, TestedNode};
 use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
@@ -13,10 +12,13 @@ use rand::thread_rng;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
 use version_checker::parse_version;
+
+pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
 
 pub mod error;
 pub(crate) mod listener;
@@ -137,9 +139,10 @@ impl ConfigBuilder {
 
     pub fn build(self) -> Config {
         // panics here are fine as those are only ever constructed at the initial setup
-        if self.0.validator_api_urls.is_empty() {
-            panic!("at least one validator endpoint must be provided")
-        }
+        assert!(
+            !self.0.validator_api_urls.is_empty(),
+            "at least one validator endpoint must be provided",
+        );
         self.0
     }
 }
@@ -165,6 +168,7 @@ pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
+    shutdown_listener: ShutdownListener,
 
     currently_used_api: usize,
 
@@ -177,7 +181,11 @@ pub struct VerlocMeasurer {
 }
 
 impl VerlocMeasurer {
-    pub fn new(mut config: Config, identity: Arc<identity::KeyPair>) -> Self {
+    pub fn new(
+        mut config: Config,
+        identity: Arc<identity::KeyPair>,
+        shutdown_listener: ShutdownListener,
+    ) -> Self {
         config.validator_api_urls.shuffle(&mut thread_rng());
 
         VerlocMeasurer {
@@ -187,11 +195,14 @@ impl VerlocMeasurer {
                 config.packet_timeout,
                 config.connection_timeout,
                 config.delay_between_packets,
+                shutdown_listener.clone(),
             )),
             packet_listener: Arc::new(PacketListener::new(
                 config.listening_address,
                 Arc::clone(&identity),
+                shutdown_listener.clone(),
             )),
+            shutdown_listener,
             currently_used_api: 0,
             validator_client: validator_client::ApiClient::new(
                 config.validator_api_urls[0].clone(),
@@ -222,7 +233,11 @@ impl VerlocMeasurer {
         tokio::spawn(packet_listener.run())
     }
 
-    async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) {
+    async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> MeasurementOutcome {
+        log::trace!("Performing measurements");
+
+        let mut shutdown_listener = self.shutdown_listener.clone();
+
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
             let mut chunk_results = Vec::with_capacity(chunk.len());
 
@@ -246,33 +261,44 @@ impl VerlocMeasurer {
                 .collect::<FuturesUnordered<_>>();
 
             // exhaust the results
-            while let Some(result) = measurement_chunk.next().await {
-                // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
-                // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
-                let execution_result = result.expect("the measurement task panicked!");
-                let measurement_result = match execution_result.0 {
-                    Err(err) => {
-                        debug!(
-                            "Failed to perform measurement for {} - {}",
-                            execution_result.1.to_base58_string(),
-                            err
-                        );
-                        None
+            while !shutdown_listener.is_shutdown() {
+                tokio::select! {
+                    Some(result) = measurement_chunk.next() => {
+                        // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
+                        // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
+                        let execution_result = result.expect("the measurement task panicked!");
+                        let measurement_result = match execution_result.0 {
+                            Err(err) => {
+                                debug!(
+                                    "Failed to perform measurement for {} - {}",
+                                    execution_result.1.to_base58_string(),
+                                    err
+                                );
+                                None
+                            }
+                            Ok(result) => Some(result),
+                        };
+                        chunk_results.push(Verloc::new(execution_result.1, measurement_result));
+                    },
+                    _ = shutdown_listener.recv() => {
+                        trace!("Shutdown received while measuring");
+                        return MeasurementOutcome::Shutdown;
                     }
-                    Ok(result) => Some(result),
-                };
-                chunk_results.push(Verloc::new(execution_result.1, measurement_result));
+                }
             }
 
             // update the results vector with chunks as they become available (by default every 50 nodes)
             self.results.append_results(chunk_results).await;
         }
+
+        MeasurementOutcome::Done
     }
 
     pub async fn run(&mut self) {
         self.start_listening();
-        loop {
-            info!(target: "verloc", "Starting verloc measurements");
+
+        while !self.shutdown_listener.is_shutdown() {
+            info!("Starting verloc measurements");
             // TODO: should we also measure gateways?
 
             let all_mixes = match self.validator_client.get_cached_mixnodes().await {
@@ -322,13 +348,32 @@ impl VerlocMeasurer {
             // on start of each run remove old results
             self.results.reset_results(tested_nodes.len()).await;
 
-            self.perform_measurement(tested_nodes).await;
+            if let MeasurementOutcome::Shutdown = self.perform_measurement(tested_nodes).await {
+                log::trace!("Shutting down after aborting measurements");
+                break;
+            }
 
             // write current time to "run finished" field
             self.results.finish_measurements().await;
 
-            info!(target: "verloc", "Finished performing verloc measurements. The next one will happen in {:?}", self.config.testing_interval);
-            sleep(self.config.testing_interval).await
+            info!(
+                "Finished performing verloc measurements. The next one will happen in {:?}",
+                self.config.testing_interval
+            );
+
+            tokio::select! {
+                _ = sleep(self.config.testing_interval) => {},
+                _ = self.shutdown_listener.recv() => {
+                    log::trace!("Shutdown received while sleeping");
+                }
+            }
         }
+
+        log::trace!("Verloc: Exiting");
     }
+}
+
+enum MeasurementOutcome {
+    Done,
+    Shutdown,
 }

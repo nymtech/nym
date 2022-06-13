@@ -32,8 +32,8 @@ export type TDelegationContext = {
     tokenPool: TPoolOption,
   ) => Promise<TransactionExecuteResult>;
   undelegate: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
-  redeemRewards: (identity: string, proxy: string | null) => Promise<void>;
-  compoundRewards: (identity: string, proxy: string | null) => Promise<void>;
+  redeemRewards: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
+  compoundRewards: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
 };
 
 export type TDelegationTransaction = {
@@ -100,10 +100,10 @@ export const DelegationContextProvider: FC<{
     try {
       if ((proxy || '').trim().length === 0) {
         // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-        await claimDelegatorRewards(identity);
+        return claimDelegatorRewards(identity);
       } else {
         // the delegation is with locked tokens, so use the vesting contract
-        await vestingClaimDelegatorRewards(identity);
+        return vestingClaimDelegatorRewards(identity);
       }
     } catch (e) {
       throw new Error(e as string);
@@ -114,10 +114,10 @@ export const DelegationContextProvider: FC<{
     try {
       if ((proxy || '').trim().length === 0) {
         // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-        await compoundDelegatorRewards(identity);
+        return compoundDelegatorRewards(identity);
       } else {
         // the delegation is with locked tokens, so use the vesting contract
-        await vestingCompoundDelegatorRewards(identity);
+        return vestingCompoundDelegatorRewards(identity);
       }
     } catch (e) {
       throw new Error(e as string);

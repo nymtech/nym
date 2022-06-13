@@ -28,7 +28,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: new delegation and rewards UI
 - wallet: show version in nav bar
 - wallet: contract admin route put back
-- waller: staking_supply field to StateParams
+- wallet: staking_supply field to StateParams
+- wallet: show transaction hash for redeeming or compounding rewards
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed

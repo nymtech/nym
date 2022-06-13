@@ -212,7 +212,21 @@ pub async fn execute(matches: ArgMatches<'static>) {
 
     // if client was already initialised, don't generate new keys, not re-register with gateway
     // (because this would create new shared key)
-    if !already_init {
+    if already_init {
+        // Read the existing config to reuse the gateway configuration
+        if let Ok(existing_config) = Config::load_from_file(Some(id)) {
+            config.get_base_mut().with_gateway_endpoint(
+                existing_config.get_base().get_gateway_id(),
+                existing_config.get_base().get_gateway_owner(),
+                existing_config.get_base().get_gateway_listener(),
+            );
+        } else {
+            log::warn!(
+                "Existing configuration found, but enable to load gateway details. \
+                Proceeding anyway."
+            );
+        };
+    } else {
         // create identity, encryption and ack keys.
         let mut key_manager = KeyManager::new(&mut rng);
 

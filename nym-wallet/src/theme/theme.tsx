@@ -44,12 +44,15 @@ const darkMode: NymPaletteVariant = {
   topNav: {
     background: '#111826',
   },
+  nav: {
+    background: '#FFFFFF',
+  },
 };
 
 const lightMode: NymPaletteVariant = {
   mode: 'light',
   background: {
-    main: '#F2F2F2',
+    main: '#E5E5E5',
     paper: '#FFFFFF',
   },
   text: {
@@ -57,6 +60,9 @@ const lightMode: NymPaletteVariant = {
   },
   topNav: {
     background: '#111826',
+  },
+  nav: {
+    background: '#FFFFFF',
   },
 };
 
@@ -66,8 +72,8 @@ const lightMode: NymPaletteVariant = {
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
-const nymWalletPalette = (_variant: NymPaletteVariant): NymWalletPalette => ({
-  nymWallet: {},
+const nymWalletPalette = (variant: NymPaletteVariant): NymWalletPalette => ({
+  nymWallet: variant,
 });
 
 //-----------------------------------------------------------------------------------------------

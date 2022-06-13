@@ -63,7 +63,7 @@ const columns: ColumnsType[] = [
  * Shows mix node details
  */
 const PageMixnodeDetailWithState: React.FC = () => {
-  const { mixNode, mixNodeRow, description, stats, status, uptimeStory } = useMixnodeContext();
+  const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
 
   return (
     <Box component="main">
@@ -95,7 +95,7 @@ const PageMixnodeDetailWithState: React.FC = () => {
 
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
-          <ContentCard title="Stake Breakdown">
+          <ContentCard title={`Stake Breakdown (${uniqDelegations?.data?.length} delegators)`}>
             <BondBreakdownTable />
           </ContentCard>
         </Grid>

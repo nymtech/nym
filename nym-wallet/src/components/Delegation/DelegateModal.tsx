@@ -86,15 +86,10 @@ export const DelegateModal: React.FC<{
   };
 
   const setSaturation = async (identityKey: string) => {
-    try {
-      const newSaturation = await getMixnodeStakeSaturation(identityKey);
-      if (!newSaturation) {
-        throw new Error(`HTTP error: ${newSaturation}`);
-      }
+    const newSaturation = await getMixnodeStakeSaturation(identityKey);
+    if (newSaturation) {
       const saturationPercentage = Math.round(newSaturation.saturation * 100);
       setNodeSaturation(saturationPercentage);
-    } catch (error) {
-      console.error(`Could not get products: ${error}`);
     }
   };
 
@@ -113,6 +108,15 @@ export const DelegateModal: React.FC<{
     if (onAmountChanged) {
       onAmountChanged(newAmount.amount);
     }
+  };
+
+  const handleIdentityValidation = (isValid: boolean) => {
+    if (!isValid) {
+      setNodeSaturation(0);
+      setValidated(false);
+      return;
+    }
+    setValidated(true);
   };
 
   React.useEffect(() => {
@@ -138,6 +142,7 @@ export const DelegateModal: React.FC<{
         fullWidth
         placeholder="Node identity key"
         onChanged={handleIdentityKeyChanged}
+        onValidate={handleIdentityValidation}
         initialValue={initialIdentityKey}
         readOnly={Boolean(initialIdentityKey)}
         textFieldProps={{

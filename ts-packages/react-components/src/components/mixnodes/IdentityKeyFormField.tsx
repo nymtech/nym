@@ -33,10 +33,8 @@ export const IdentityKeyFormField: React.FC<{
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
-  const [nodeSaturation, setNodeSaturation] = React.useState<number>(0);
 
   const doValidation = (newValue?: string): boolean => {
-    console.log('newValue', newValue, 'saturation', saturation);
     if (validateKey(newValue)) {
       setValidationError(undefined);
       if (onValidate) {
@@ -45,20 +43,22 @@ export const IdentityKeyFormField: React.FC<{
       return true;
     }
 
-    if (newValue === undefined && saturation && saturation > 100) {
-      const newSaturationError = `This node is over saturated (${saturation}%), please select another node`;
-      setValidationError(newSaturationError);
-      if (onValidate) {
-        onValidate(false, newSaturationError);
+    if (newValue === undefined) {
+      if (saturation && saturation > 100) {
+        const newSaturationError = `This node is over saturated (${saturation}%), please select another node`;
+        setValidationError(newSaturationError);
+        if (onValidate) {
+          onValidate(false, newSaturationError);
+        }
+        return false;
       }
-      return false;
+    } else {
+      const newValidationError = 'Key is not valid';
+      setValidationError(newValidationError);
+      if (onValidate) {
+        onValidate(false, newValidationError);
+      }
     }
-    const newValidationError = 'Key is not valid';
-    setValidationError(newValidationError);
-    if (onValidate) {
-      onValidate(false, newValidationError);
-    }
-
     return false;
   };
 
@@ -72,20 +72,12 @@ export const IdentityKeyFormField: React.FC<{
   React.useEffect(() => {
     // check if the node is over saturated
     if (saturation) {
-      setNodeSaturation(saturation);
+      doValidation();
     }
   }, [saturation]);
 
-  React.useEffect(() => {
-    // check if the node is over saturated
-    if (saturation) {
-      doValidation();
-    }
-  }, [nodeSaturation]);
-
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
-    setNodeSaturation(0);
     if (doValidation(newValue)) {
       setValue(newValue);
       if (onChanged) {

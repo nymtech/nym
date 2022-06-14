@@ -2,8 +2,8 @@ import React, { useState, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
-import { AppContext } from '../context';
-import { Bond, Delegate, Unbond } from '../svg-icons';
+import { AppContext } from '../context/main';
+import { Delegate, Unbond, Bonding } from '../svg-icons';
 
 export const Nav = () => {
   const location = useLocation();
@@ -29,10 +29,9 @@ export const Nav = () => {
       onClick: handleShowReceiveModal,
     },
     {
-      label: 'Bond',
-      route: '/bond',
-      Icon: Bond,
-      onClick: () => navigate('/bond'),
+      label: 'Bonding',
+      route: '/bonding',
+      Icon: Bonding,
     },
     {
       label: 'Unbond',

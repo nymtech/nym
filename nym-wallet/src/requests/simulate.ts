@@ -29,9 +29,6 @@ export const simulateVestingClaimDelgatorReward = async (identity: string) =>
 export const simulateVestingCompoundDelgatorReward = async (identity: string) =>
   invokeWrapper<FeeDetails>('simulate_vesting_compound_delegator_reward', { mixIdentity: identity });
 
-export const simulateVestingDelegateToMixnode = async (args: any) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_delegate_to_mixnode', args);
-
 export const simulateVestingUndelegateFromMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_undelegate_from_mixnode', args);
 

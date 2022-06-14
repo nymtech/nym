@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { TransactionExecuteResult, DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
+import { DelegationWithEverything, MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
 import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
@@ -172,14 +172,6 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     };
   };
 
-  const redeemRewards = async () => {
-    throw new Error('Not implemented');
-  };
-
-  const compoundRewards = async () => {
-    throw new Error('Not implemented');
-  };
-
   const resetState = () => {
     setIsLoading(true);
     setError(undefined);
@@ -217,8 +209,6 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
       addDelegation,
       updateDelegation,
       undelegate,
-      redeemRewards,
-      compoundRewards,
     }),
     [isLoading, error, delegations, totalDelegations, trigger],
   );

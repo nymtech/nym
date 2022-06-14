@@ -30,7 +30,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: contract admin route put back
 - wallet: staking_supply field to StateParams
 - wallet: show transaction hash for redeeming or compounding rewards
-- wallet: upgrade `tauri` to `1.0.0-rc.14`
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed
@@ -45,12 +44,14 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
+- wallet: overwritten the `32x32.png` icon with a higher resolution variant to temporarily fix icon issues on Linux (#[1354]) 
 
 ### Changed
 
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
+- wallet: updated backend to `tauri v1.0.0-rc.14` (#[1354])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -71,6 +72,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1324]: https://github.com/nymtech/nym/pull/1324
 [#1328]: https://github.com/nymtech/nym/pull/1328
 [#1329]: https://github.com/nymtech/nym/pull/1329
+[#1354]: https://github.com/nymtech/nym/pull/1354
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

@@ -63,7 +63,7 @@ export const Delegation: FC = () => {
       switch (action) {
         case 'delegate':
           return setOverSaturatedNodeDescription(`This node is over saturated, 
-          you can’t delegate more rewards to it.`);
+          you can’t delegate more to it.`);
         case 'compound':
           return setOverSaturatedNodeDescription(`This node is over saturated, 
           you can’t compound rewards to it.`);

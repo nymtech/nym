@@ -12,6 +12,7 @@ pub async fn claim_operator_reward(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
+    // TODO: handle operator bonding with vesting contract
     log::info!(">>> Claim operator reward");
     let denom_minor = state.read().await.current_network().denom();
     let res = nymd_client!(state)
@@ -30,6 +31,7 @@ pub async fn compound_operator_reward(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
+    // TODO: handle operator bonding with vesting contract
     log::info!(">>> Compound operator reward");
     let denom_minor = state.read().await.current_network().denom();
     let res = nymd_client!(state)

@@ -6,7 +6,7 @@ use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
 
-use statistics::StatsMessage;
+use statistics_common::StatsMessage;
 
 use crate::storage::error::NetworkStatisticsStorageError;
 use crate::storage::manager::StorageManager;
@@ -56,16 +56,21 @@ impl NetworkStatisticsStorage {
         let timestamp: DateTime<Utc> = DateTime::parse_from_rfc3339(&msg.timestamp)
             .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
             .into();
-        for service_data in msg.stats_data {
-            self.manager
-                .insert_service_statistics(
-                    service_data.requested_service.clone(),
-                    service_data.request_bytes,
-                    service_data.response_bytes,
-                    msg.interval_seconds,
-                    timestamp,
-                )
-                .await?;
+        for stats_data in msg.stats_data {
+            match stats_data {
+                statistics_common::StatsData::Service(service_data) => {
+                    self.manager
+                        .insert_service_statistics(
+                            service_data.requested_service.clone(),
+                            service_data.request_bytes,
+                            service_data.response_bytes,
+                            msg.interval_seconds,
+                            timestamp,
+                        )
+                        .await?;
+                }
+                statistics_common::StatsData::Gateway(_) => todo!(),
+            }
         }
 
         Ok(())

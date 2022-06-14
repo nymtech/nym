@@ -16,11 +16,11 @@ use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
-use statistics::api::{
+use statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
     DEFAULT_STATISTICS_SERVICE_PORT,
 };
-use statistics::{
+use statistics_common::{
     collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
     StatsServiceData,
 };
@@ -147,7 +147,11 @@ impl StatisticsCollector for ServiceStatisticsCollector {
                         .get(&requested_service)
                         .copied()
                         .unwrap_or(0);
-                    StatsServiceData::new(requested_service, request_bytes, response_bytes)
+                    statistics_common::StatsData::Service(StatsServiceData::new(
+                        requested_service,
+                        request_bytes,
+                        response_bytes,
+                    ))
                 })
                 .collect()
         };

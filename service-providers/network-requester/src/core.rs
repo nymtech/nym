@@ -14,7 +14,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
-use statistics::collector::StatisticsSender;
+use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio_tungstenite::tungstenite::protocol::Message;

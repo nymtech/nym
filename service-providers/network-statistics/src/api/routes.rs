@@ -5,7 +5,7 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::{Deserialize, Serialize};
 
-use statistics::StatsMessage;
+use statistics_common::StatsMessage;
 
 use crate::api::error::Result;
 use crate::storage::NetworkStatisticsStorage;

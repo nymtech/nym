@@ -3073,6 +3073,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "sqlx",
+ "statistics-common",
  "subtle-encoding",
  "thiserror",
  "tokio",
@@ -3146,7 +3147,7 @@ dependencies = [
  "serde",
  "socks5-requests",
  "sqlx",
- "statistics",
+ "statistics-common",
  "thiserror",
  "tokio",
  "tokio-tungstenite",
@@ -3163,7 +3164,7 @@ dependencies = [
  "rocket",
  "serde",
  "sqlx",
- "statistics",
+ "statistics-common",
  "thiserror",
  "tokio",
  "tokio-tungstenite",
@@ -5365,7 +5366,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
-name = "statistics"
+name = "statistics-common"
 version = "1.0.1"
 dependencies = [
  "async-trait",

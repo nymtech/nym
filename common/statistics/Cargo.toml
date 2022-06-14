@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [package]
-name = "statistics"
+name = "statistics-common"
 version = "1.0.1"
 edition = "2021"
 

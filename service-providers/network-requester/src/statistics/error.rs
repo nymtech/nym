@@ -12,5 +12,5 @@ pub enum StatsError {
     InvalidClientAddress,
 
     #[error("Common stats error {0}")]
-    CommonStatsError(#[from] statistics::error::StatsError),
+    CommonStatsError(#[from] statistics_common::error::StatsError),
 }

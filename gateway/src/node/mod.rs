@@ -7,12 +7,14 @@ use crate::config::Config;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
+use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use statistics_common::collector::StatisticsSender;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -29,6 +31,7 @@ use self::storage::PersistentStorage;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
+pub(crate) mod statistics;
 pub(crate) mod storage;
 
 /// Wire up and create Gateway instance
@@ -303,6 +306,12 @@ where
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
         );
+
+        let stats_collector = GatewayStatisticsCollector::new(active_clients_store.clone());
+        let mut stats_sender = StatisticsSender::new(stats_collector.clone());
+        tokio::spawn(async move {
+            stats_sender.run().await;
+        });
 
         self.start_client_websocket_listener(
             mix_forwarding_channel,

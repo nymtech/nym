@@ -105,8 +105,8 @@ pub struct EpochRewardParams {
     epoch_reward_pool: Uint128,
     rewarded_set_size: Uint128,
     active_set_size: Uint128,
-    #[serde(alias = "circulating_supply")]
-    staking_supply: Uint128,
+    circulating_supply: Option<Uint128>,
+    staking_supply: Option<Uint128>,
     sybil_resistance_percent: u8,
     active_set_work_factor: u8,
 }
@@ -124,7 +124,8 @@ impl EpochRewardParams {
             epoch_reward_pool: Uint128::new(epoch_reward_pool),
             rewarded_set_size: Uint128::new(rewarded_set_size),
             active_set_size: Uint128::new(active_set_size),
-            staking_supply: Uint128::new(staking_supply),
+            circulating_supply: None,
+            staking_supply: Some(Uint128::new(staking_supply)),
             sybil_resistance_percent,
             active_set_work_factor,
         }
@@ -137,7 +138,8 @@ impl EpochRewardParams {
     pub fn new_empty() -> Self {
         EpochRewardParams {
             epoch_reward_pool: Uint128::new(0),
-            staking_supply: Uint128::new(0),
+            staking_supply: Some(Uint128::new(0)),
+            circulating_supply: None,
             sybil_resistance_percent: 0,
             rewarded_set_size: Uint128::new(0),
             active_set_size: Uint128::new(0),
@@ -154,7 +156,13 @@ impl EpochRewardParams {
     }
 
     pub fn staking_supply(&self) -> u128 {
-        self.staking_supply.u128()
+        if let Some(s) = self.staking_supply {
+            s.u128()
+        } else if let Some(c) = self.circulating_supply {
+            c.u128()
+        } else {
+            0
+        }
     }
 
     pub fn epoch_reward_pool(&self) -> u128 {
@@ -254,7 +262,7 @@ impl RewardParams {
     }
 
     pub fn staking_supply(&self) -> u128 {
-        self.epoch.staking_supply.u128()
+        self.epoch.staking_supply()
     }
 
     pub fn reward_blockstamp(&self) -> u64 {

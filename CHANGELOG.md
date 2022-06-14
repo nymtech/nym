@@ -6,6 +6,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added.
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
@@ -43,6 +44,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: the mixnode learned how to shutdown gracefully.
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
+- native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
 ### Changed
@@ -70,6 +72,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1324]: https://github.com/nymtech/nym/pull/1324
 [#1328]: https://github.com/nymtech/nym/pull/1328
 [#1329]: https://github.com/nymtech/nym/pull/1329
+[#1353]: https://github.com/nymtech/nym/pull/1353
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

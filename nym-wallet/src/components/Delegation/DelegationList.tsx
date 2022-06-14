@@ -38,12 +38,12 @@ interface HeadCell {
 
 const headCells: HeadCell[] = [
   { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
+  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'center' },
+  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'center' },
+  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'center' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'center' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'center' },
   { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'center' },
-  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'center' },
-  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'center' },
-  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'center' },
 ];
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -154,6 +154,13 @@ export const DelegationList: React.FC<{
                     </Link>
                   </Tooltip>
                 </TableCell>
+                <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
+                <TableCell align="center">
+                  {!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}
+                </TableCell>
+                <TableCell align="center">
+                  {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
+                </TableCell>
                 <TableCell align="center">{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
                 <TableCell align="center">{`${item.amount.amount} ${item.amount.denom}`}</TableCell>
                 <TableCell align="center">
@@ -161,13 +168,7 @@ export const DelegationList: React.FC<{
                     ? '-'
                     : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}
                 </TableCell>
-                <TableCell align="center">
-                  {!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}
-                </TableCell>
-                <TableCell align="center">
-                  {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
-                </TableCell>
-                <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
+
                 <TableCell align="right">
                   {!item.pending_events.length ? (
                     <DelegationsActionsMenu

@@ -213,7 +213,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&self, shutdown: ShutdownListener) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -246,7 +246,8 @@ impl MixNode {
             .validator_api_urls(self.config.get_validator_api_endpoints())
             .build();
 
-        let mut verloc_measurer = VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair));
+        let mut verloc_measurer =
+            VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair), shutdown);
         let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
         tokio::spawn(async move { verloc_measurer.run().await });
         atomic_verloc_results
@@ -331,9 +332,11 @@ impl MixNode {
             delay_forwarding_channel,
             shutdown.subscribe(),
         );
+        let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());
 
-        // TODO: these two also needs to be shutdown
-        let atomic_verloc_results = self.start_verloc_measurements();
+        // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
+        // with that of the rest of the tasks.
+        // Currently it's runtime is forcefully terminated once the mixnode exits.
         self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");

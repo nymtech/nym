@@ -15,7 +15,7 @@ export const simulateDelegateToMixnode = async (args: { identity: string; amount
   invokeWrapper<FeeDetails>('simulate_delegate_to_mixnode', args);
 
 export const simulateUndelegateFromMixnode = async (identity: string) =>
-  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode,', { identity });
+  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode', { identity });
 
 export const simulateCompoundDelgatorReward = async (identity: string) =>
   invokeWrapper<FeeDetails>('simulate_compound_delegator_reward', { mixIdentity: identity });

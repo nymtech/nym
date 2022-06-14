@@ -193,7 +193,7 @@ impl<C> Client<C> {
                 * interval_reward_percent as u128,
             state.mixnode_rewarded_set_size as u128,
             state.mixnode_active_set_size as u128,
-            this.get_circulating_supply().await?,
+            state.staking_supply.u128(),
             this.get_sybil_resistance_percent().await?,
             this.get_active_set_work_factor().await?,
         );

@@ -1,5 +1,6 @@
 import { FeeDetails } from '@nymproject/types';
 import { useState } from 'react';
+import { Console } from 'src/utils/console';
 
 export function useGetFee() {
   const [fee, setFee] = useState<FeeDetails>();
@@ -12,6 +13,7 @@ export function useGetFee() {
       const simulatedFee = await operation(args);
       setFee(simulatedFee);
     } catch (e) {
+      Console.error(e);
       setFeeError(e as string);
     }
     setIsFeeLoading(false);

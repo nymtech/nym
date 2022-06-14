@@ -24,6 +24,8 @@ pub enum RttError {
     ConnectionWriteTimeout(String),
 
     UnexpectedReplySequence,
+
+    ShutdownReceived,
 }
 
 impl Display for RttError {
@@ -69,6 +71,9 @@ impl Display for RttError {
                 f,
                 "The received reply packet had an unexpected sequence number"
             ),
+            RttError::ShutdownReceived => {
+                write!(f, "Shutdown signal received")
+            }
         }
     }
 }

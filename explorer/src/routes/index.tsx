@@ -1,24 +1,15 @@
 import * as React from 'react';
-import { Route, Switch, Redirect } from 'react-router-dom';
+import { Routes as ReactRouterRoutes, Route } from 'react-router-dom';
 import { PageOverview } from '../pages/Overview';
 import { PageMixnodesMap } from '../pages/MixnodesMap';
 import { Page404 } from '../pages/404';
 import { NetworkComponentsRoutes } from './network-components';
 
 export const Routes: React.FC = () => (
-  <Switch>
-    <Route exact path="/">
-      <Redirect to="/overview" />
-    </Route>
-    <Route exact path="/overview">
-      <PageOverview />
-    </Route>
-    <Route path="/network-components">
-      <NetworkComponentsRoutes />
-    </Route>
-    <Route path="/nodemap">
-      <PageMixnodesMap />
-    </Route>
-    <Route component={Page404} />
-  </Switch>
+  <ReactRouterRoutes>
+    <Route path="/" element={<PageOverview />} />
+    <Route path="/network-components/*" element={<NetworkComponentsRoutes />} />
+    <Route path="/nodemap" element={<PageMixnodesMap />} />
+    <Route path="*" element={Page404} />
+  </ReactRouterRoutes>
 );

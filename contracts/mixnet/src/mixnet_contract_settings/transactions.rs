@@ -64,7 +64,7 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{INITIAL_GATEWAY_PLEDGE, INITIAL_MIXNODE_PLEDGE};
+    use crate::contract::{INITIAL_GATEWAY_PLEDGE, INITIAL_MIXNODE_PLEDGE, INITIAL_STAKING_SUPPLY};
     use crate::error::ContractError;
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
@@ -114,6 +114,7 @@ pub mod tests {
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: 100,
             mixnode_active_set_size: 50,
+            staking_supply: INITIAL_STAKING_SUPPLY,
         };
 
         let initial_params = storage::CONTRACT_STATE

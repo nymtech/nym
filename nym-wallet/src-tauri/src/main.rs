@@ -72,6 +72,8 @@ fn main() {
             mixnet::rewards::claim_operator_reward,
             mixnet::rewards::compound_operator_reward,
             mixnet::rewards::compound_delegator_reward,
+            mixnet::rewards::claim_locked_and_unlocked_delegator_reward,
+            mixnet::rewards::compound_locked_and_unlocked_delegator_reward,
             mixnet::send::send,
             network_config::add_validator,
             network_config::get_validator_api_urls,

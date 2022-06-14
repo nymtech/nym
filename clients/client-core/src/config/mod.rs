@@ -114,20 +114,8 @@ impl<T: NymConfig> Config<T> {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
     }
 
-    pub fn with_gateway_endpoint<S: Into<String>>(&mut self, id: S, owner: S, listener: S) {
-        self.client.gateway_endpoint = GatewayEndpoint {
-            gateway_id: id.into(),
-            gateway_owner: owner.into(),
-            gateway_listener: listener.into(),
-        };
-    }
-
-    pub fn with_gateway_endpoint_from_config(&mut self, other_config: &Config<T>) {
-        self.with_gateway_endpoint(
-            other_config.get_gateway_id(),
-            other_config.get_gateway_owner(),
-            other_config.get_gateway_listener(),
-        )
+    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpoint) {
+        self.client.gateway_endpoint = gateway_endpoint;
     }
 
     pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
@@ -150,7 +138,7 @@ impl<T: NymConfig> Config<T> {
 
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.average_packet_delay = Duration::from_millis(10);
-        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2000000); // basically don't really send cover messages
+        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000); // basically don't really send cover messages
         self.debug.message_sending_average_delay = Duration::from_millis(4); // 250 "real" messages / s
     }
 
@@ -212,6 +200,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_gateway_listener(&self) -> String {
         self.client.gateway_endpoint.gateway_listener.clone()
+    }
+
+    pub fn get_gateway_endpoint(&self) -> &GatewayEndpoint {
+        &self.client.gateway_endpoint
     }
 
     pub fn get_database_path(&self) -> PathBuf {
@@ -280,17 +272,28 @@ impl<T: NymConfig> Default for Config<T> {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-struct GatewayEndpoint {
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct GatewayEndpoint {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
-    gateway_id: String,
+    pub gateway_id: String,
 
     /// Address of the gateway owner to which the client should send messages.
-    gateway_owner: String,
+    pub gateway_owner: String,
 
     /// Address of the gateway listener to which all client requests should be sent.
-    gateway_listener: String,
+    pub gateway_listener: String,
+}
+
+impl From<topology::gateway::Node> for GatewayEndpoint {
+    fn from(node: topology::gateway::Node) -> GatewayEndpoint {
+        let gateway_listener = node.clients_address();
+        GatewayEndpoint {
+            gateway_id: node.identity_key.to_base58_string(),
+            gateway_owner: node.owner,
+            gateway_listener,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

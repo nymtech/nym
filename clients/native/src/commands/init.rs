@@ -197,14 +197,11 @@ async fn set_gateway_config(config: &mut Config, chosen_gateway_id: Option<&str>
         chosen_gateway_id,
     )
     .await;
-
     log::trace!("Used gateway: {}", gateway_details);
 
-    config.get_base_mut().with_gateway_endpoint(
-        gateway_details.identity_key.to_base58_string(),
-        gateway_details.owner.clone(),
-        gateway_details.clients_address(),
-    );
+    config
+        .get_base_mut()
+        .with_gateway_endpoint(gateway_details.clone().into());
     gateway_details
 }
 
@@ -271,7 +268,7 @@ pub async fn execute(matches: ArgMatches<'static>) {
         if let Ok(existing_config) = Config::load_from_file(Some(id)) {
             config
                 .get_base_mut()
-                .with_gateway_endpoint_from_config(existing_config.get_base());
+                .with_gateway_endpoint(existing_config.get_base().get_gateway_endpoint().clone());
         } else {
             log::warn!(
                 "Existing configuration found, but enable to load gateway details. \

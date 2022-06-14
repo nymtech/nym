@@ -122,6 +122,14 @@ impl<T: NymConfig> Config<T> {
         };
     }
 
+    pub fn with_gateway_endpoint_from_config(&mut self, other_config: &Config<T>) {
+        self.with_gateway_endpoint(
+            other_config.get_gateway_id(),
+            other_config.get_gateway_owner(),
+            other_config.get_gateway_listener(),
+        )
+    }
+
     pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
         self.client.gateway_endpoint.gateway_id = id.into();
     }

@@ -269,11 +269,9 @@ pub async fn execute(matches: ArgMatches<'static>) {
         // Read the existing config to reuse the gateway configuration
         println!("Not registering gateway, will reuse existing config and keys");
         if let Ok(existing_config) = Config::load_from_file(Some(id)) {
-            config.get_base_mut().with_gateway_endpoint(
-                existing_config.get_base().get_gateway_id(),
-                existing_config.get_base().get_gateway_owner(),
-                existing_config.get_base().get_gateway_listener(),
-            );
+            config
+                .get_base_mut()
+                .with_gateway_endpoint_from_config(existing_config.get_base());
         } else {
             log::warn!(
                 "Existing configuration found, but enable to load gateway details. \

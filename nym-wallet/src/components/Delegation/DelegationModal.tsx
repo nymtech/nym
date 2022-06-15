@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, Button, CircularProgress, Modal, Stack, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { modalStyle } from '../Modals/styles';
 import { TPoolOption } from '../TokenPoolSelector';
-import { Link } from '../Link';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 

@@ -1,8 +1,7 @@
 import React, { useContext } from 'react';
-import { OpenInNew } from '@mui/icons-material';
-import { Button, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { urls, AppContext } from '../../context/main';
-import { Link } from '../../components';
 
 export const NodeStats = ({ mixnodeId }: { mixnodeId?: string }) => {
   const { network } = useContext(AppContext);

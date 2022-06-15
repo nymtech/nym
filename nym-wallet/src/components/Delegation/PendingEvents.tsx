@@ -15,7 +15,7 @@ import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationEvent } from '@nymproject/types';
 import { ArrowDropDown } from '@mui/icons-material';
 import { visuallyHidden } from '@mui/utils';
-import { Link } from '../Link';
+import { Link } from '@nymproject/react/link/Link';
 
 type Order = 'asc' | 'desc';
 

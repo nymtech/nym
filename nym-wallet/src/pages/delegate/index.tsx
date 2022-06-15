@@ -1,8 +1,9 @@
 import React, { useContext, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material';
 import { TransactionExecuteResult } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { DelegateForm } from './DelegateForm';
-import { Link, NymCard } from '../../components';
+import { NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
 import { SuccessView } from './SuccessView';
 import { AppContext, urls } from '../../context/main';

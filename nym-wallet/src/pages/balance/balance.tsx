@@ -1,6 +1,7 @@
 import React, { useContext, useEffect } from 'react';
 import { Alert, Grid, Typography } from '@mui/material';
-import { NymCard, ClientAddress, Link } from '../../components';
+import { Link } from '@nymproject/react/link/Link';
+import { NymCard, ClientAddress } from '../../components';
 import { AppContext, urls } from '../../context/main';
 
 export const BalanceCard = () => {

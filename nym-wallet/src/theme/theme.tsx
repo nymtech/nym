@@ -30,6 +30,7 @@ const nymPalette: NymPalette = {
     dark: '#121726',
     muted: '#7D7D7D',
   },
+  linkHover: '#AF4D36',
 };
 
 const darkMode: NymPaletteVariant = {
@@ -40,7 +41,6 @@ const darkMode: NymPaletteVariant = {
   },
   text: {
     main: '#F2F2F2',
-    linkHover: '#AF4D36',
   },
   topNav: {
     background: '#111826',
@@ -58,7 +58,6 @@ const lightMode: NymPaletteVariant = {
   },
   text: {
     main: '#121726',
-    linkHover: '#AF4D36',
   },
   topNav: {
     background: '#111826',

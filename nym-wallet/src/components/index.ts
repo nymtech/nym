@@ -19,4 +19,3 @@ export * from './textfields';
 export * from './Title';
 export * from './TokenPoolSelector';
 export * from './TransactionDetails';
-export * from './Link';

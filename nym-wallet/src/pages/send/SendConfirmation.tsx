@@ -1,9 +1,10 @@
 import React, { useContext } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { TransactionDetails as TTransactionDetails } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { SendError } from './SendError';
 import { AppContext, urls } from '../../context/main';
-import { Link, SuccessReponse } from '../../components';
+import { SuccessReponse } from '../../components';
 import { TransactionDetails } from '../../components/TransactionDetails';
 
 export const SendConfirmation = ({

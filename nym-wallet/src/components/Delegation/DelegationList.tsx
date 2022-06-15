@@ -17,8 +17,8 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationWithEverything } from '@nymproject/types';
 import { format } from 'date-fns';
+import { Link } from '@nymproject/react/link/Link';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
-import { Link } from '../Link';
 
 type Order = 'asc' | 'desc';
 

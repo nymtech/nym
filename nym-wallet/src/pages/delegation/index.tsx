@@ -1,10 +1,11 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
-import { Link, TPoolOption } from 'src/components';
+import { TPoolOption } from 'src/components';
 import { CompoundModal } from 'src/components/Rewards/CompoundModal';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';

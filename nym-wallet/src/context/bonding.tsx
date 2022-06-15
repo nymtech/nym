@@ -11,11 +11,32 @@ import {
   unbondMixNode as unbondMixNodeRequest,
 } from '../requests';
 
+// TODO temporary type for bonded mixnode data
+export interface BondedMixnode {
+  key: string;
+  ip: string;
+  stake: number;
+  bond: number;
+  stakeSaturation: number;
+  profitMargin: number;
+  nodeRewards: number;
+  operatorRewards: number;
+  delegators: number;
+}
+
+// TODO temporary type for bonded gateway data
+export interface BondedGateway {
+  key: string;
+  ip: string;
+  bond: number;
+  location?: string; // TODO not yet available, only available in Network Explorer API
+}
+
 export type TBondingContext = {
   isLoading: boolean;
   error?: string;
-  bondedMixnode?: any; // TODO fix up type
-  bondedGateway?: any; // TODO fix up type
+  bondedMixnode?: BondedMixnode | null;
+  bondedGateway?: BondedGateway | null;
   refresh: () => Promise<void>;
   bondMixnode: (data: TBondMixNodeArgs) => Promise<TransactionExecuteResult>;
   bondGateway: (data: TBondGatewayArgs) => Promise<TransactionExecuteResult>;
@@ -57,38 +78,102 @@ export const BondingContextProvider = ({
 }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [bondedMixnode, setBondedMixnode] = useState<BondedMixnode | null>(null);
+  const [bondedGateway, setBondedGateway] = useState<BondedGateway | null>(null);
 
-  const refresh = async () => {
-    throw new Error('Not implemented');
+  const resetState = () => {
+    setIsLoading(true);
+    setError(undefined);
+    setBondedGateway(null);
+    setBondedMixnode(null);
   };
 
+  const refresh = useCallback(async () => {
+    const bounded = null;
+    // TODO fetch bondedMixnode and bondedGatway via tauri dedicated requests
+    /* try {
+      bounded = await fetchBondingData();
+    } catch (e: any) {
+      throw new Error(e);
+    } */
+    if (bounded && 'stake' in bounded) {
+      setBondedMixnode(bounded);
+    }
+    if (bounded && !('stake' in bounded)) {
+      setBondedGateway(bounded);
+    }
+    setIsLoading(false);
+  }, [network]);
+
   useEffect(() => {
+    resetState();
     refresh();
   }, [network]);
 
   const bondMixnode = async (data: TBondMixNodeArgs) => {
     // TODO some logic
-    return bondMixNodeRequest(data);
+    let tx;
+    try {
+      tx = await bondMixNodeRequest(data);
+    } catch (e: any) {
+      throw new Error(e);
+    }
+    return tx;
   };
+
   const bondGateway = async (data: TBondGatewayArgs) => {
     // TODO some logic
-    return bondGatewayRequest(data);
+    let tx;
+    try {
+      tx = await bondGatewayRequest(data);
+    } catch (e: any) {
+      throw new Error(e);
+    }
+    return tx;
   };
+
   const unbondMixnode = async () => {
     // TODO some logic
-    return unbondMixNodeRequest();
+    let tx;
+    try {
+      tx = await unbondMixNodeRequest();
+    } catch (e: any) {
+      throw new Error(e);
+    }
+    return tx;
   };
+
   const unbondGateway = async () => {
     // TODO some logic
-    return unbondGatewayRequest();
+    let tx;
+    try {
+      tx = await unbondGatewayRequest();
+    } catch (e: any) {
+      throw new Error(e);
+    }
+    return tx;
   };
+
   const redeemRewards = async () => {
     // TODO some logic
-    return claimOperatorRewards();
+    let tx;
+    try {
+      tx = await claimOperatorRewards();
+    } catch (e: any) {
+      throw new Error(e);
+    }
+    return tx;
   };
+
   const compoundRewards = async () => {
     // TODO some logic
-    return compoundOperatorRewards();
+    let tx;
+    try {
+      tx = await compoundOperatorRewards();
+    } catch (e: any) {
+      throw new Error(e);
+    }
+    return tx;
   };
 
   const memoizedValue = useMemo(
@@ -103,7 +188,7 @@ export const BondingContextProvider = ({
       redeemRewards,
       compoundRewards,
     }),
-    [isLoading, error],
+    [isLoading, error, bondedMixnode, bondedGateway],
   );
 
   return <BondingContext.Provider value={memoizedValue}>{children}</BondingContext.Provider>;

@@ -62,7 +62,6 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
 
   const addDelegation = async ({
     identity,
-    amount,
   }: {
     identity: string;
     amount: MajorCurrencyAmount;

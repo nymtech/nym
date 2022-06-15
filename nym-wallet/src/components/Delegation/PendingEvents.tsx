@@ -113,8 +113,8 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
-          {pendingEvents.sort(getComparator(order, orderBy)).map((item, index) => (
-            <TableRow key={item.node_identity + index}>
+          {pendingEvents.sort(getComparator(order, orderBy)).map((item) => (
+            <TableRow key={`${item.node_identity}-${item.block_height}`}>
               <TableCell>
                 <CopyToClipboard
                   sx={{ fontSize: 16, mr: 1 }}

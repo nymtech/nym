@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, Button, CircularProgress, Link, Modal, Stack, Typography } from '@mui/material';
 import { modalStyle } from '../Modals/styles';
-import { TPoolOption } from '../TokenPoolSelector';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -18,6 +17,8 @@ const actionToHeader = (action: ActionType): string => {
       return 'Undelegation complete';
     case 'compound':
       return 'Rewards compounded successfully';
+    default:
+      throw new Error('Unknown type');
   }
 };
 

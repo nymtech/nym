@@ -100,7 +100,7 @@ export const DelegateModal: React.FC<{
       setErrorNodeSaturation(undefined);
       setValidated(true);
     } catch (e) {
-      console.log('Error fetching the saturation, error:', e);
+      console.error('Error fetching the saturation, error:', e);
     }
   };
 
@@ -122,7 +122,6 @@ export const DelegateModal: React.FC<{
   };
 
   const handleIdentityValidation = (isValid: boolean, error?: string) => {
-    console.log('isValid', isValid, 'error', error);
     setErrorNodeSaturation(undefined);
     if (!isValid) {
       setValidated(false);

@@ -17,7 +17,7 @@ export const ForgotPassword = () => {
         <Button size="large" variant="contained" fullWidth onClick={() => navigate('/sign-in-mnemonic')}>
           Sign in with mnemonic
         </Button>
-        <Button color="inherit" onClick={() => navigate('/existing-account')}>
+        <Button color="inherit" onClick={() => navigate(-1)}>
           Back
         </Button>
       </Stack>

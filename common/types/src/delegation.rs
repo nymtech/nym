@@ -20,7 +20,7 @@ pub struct Delegation {
     pub node_identity: String,
     pub amount: MajorCurrencyAmount,
     pub block_height: u64,
-    pub proxy: Option<String>, // proxy address used to delegate the funds on behalf of anouther address
+    pub proxy: Option<String>, // proxy address used to delegate the funds on behalf of another address
 }
 
 impl TryFrom<MixnetContractDelegation> for Delegation {
@@ -57,6 +57,7 @@ pub struct DelegationRecord {
     pub amount: MajorCurrencyAmount,
     pub block_height: u64,
     pub delegated_on_iso_datetime: String,
+    pub uses_vesting_contract_tokens: bool,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -76,7 +77,7 @@ pub struct DelegationWithEverything {
     pub profit_margin_percent: Option<u8>,
     pub avg_uptime_percent: Option<u8>,
     pub stake_saturation: Option<f32>,
-    pub proxy: Option<String>,
+    pub uses_vesting_contract_tokens: bool,
     pub accumulated_rewards: Option<MajorCurrencyAmount>,
     pub pending_events: Vec<DelegationEvent>,
     pub history: Vec<DelegationRecord>,
@@ -144,6 +145,7 @@ pub struct DelegationEvent {
     pub address: String,
     pub amount: Option<MajorCurrencyAmount>,
     pub block_height: u64,
+    pub proxy: Option<String>,
 }
 
 impl TryFrom<ContractDelegationEvent> for DelegationEvent {
@@ -159,6 +161,7 @@ impl TryFrom<ContractDelegationEvent> for DelegationEvent {
                     address: delegation.owner.into_string(),
                     node_identity: delegation.node_identity,
                     amount: Some(amount),
+                    proxy: delegation.proxy.map(|p| p.into_string()),
                 })
             }
             ContractDelegationEvent::Undelegate(pending_undelegate) => Ok(DelegationEvent {
@@ -167,6 +170,7 @@ impl TryFrom<ContractDelegationEvent> for DelegationEvent {
                 address: pending_undelegate.delegate().into_string(),
                 node_identity: pending_undelegate.mix_identity(),
                 amount: None,
+                proxy: pending_undelegate.proxy().map(|p| p.into_string()),
             }),
         }
     }

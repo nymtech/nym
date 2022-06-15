@@ -16,8 +16,8 @@ export const Undelegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
   const [isLoading, setIsLoading] = useState(true);
   const [pagedDelegations, setPagesDelegations] = useState<TPagedDelegations>();
-  const [pendingUndelegations, setPendingUndelegations] = useState<PendingUndelegate[]>();
-  const [pendingDelegations, setPendingDelegations] = useState<DelegationResult[]>();
+  const [pendingUndelegations /* , setPendingndelegations */] = useState<PendingUndelegate[]>();
+  const [pendingDelegations /* , setPendingDelegations */] = useState<DelegationResult[]>();
   const [currentEndEpoch, setCurrentEndEpoch] = useState<Epoch['end']>();
   const [showPendingDelegations, setShowPendingDelegations] = useState(false);
 

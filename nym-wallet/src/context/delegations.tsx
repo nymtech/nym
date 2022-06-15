@@ -1,5 +1,5 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getDelegationSummary, undelegateFromMixnode } from 'src/requests/delegation';
+import { getDelegationSummary, undelegateAllFromMixnode } from 'src/requests/delegation';
 import {
   DelegationEvent,
   DelegationWithEverything,
@@ -7,16 +7,7 @@ import {
   TransactionExecuteResult,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
-import {
-  claimDelegatorRewards,
-  compoundDelegatorRewards,
-  delegateToMixnode,
-  getAllPendingDelegations,
-  vestingClaimDelegatorRewards,
-  vestingCompoundDelegatorRewards,
-  vestingDelegateToMixnode,
-  vestingUndelegateFromMixnode,
-} from 'src/requests';
+import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
 import { TPoolOption } from 'src/components';
 
 export type TDelegationContext = {
@@ -31,9 +22,7 @@ export type TDelegationContext = {
     data: { identity: string; amount: MajorCurrencyAmount },
     tokenPool: TPoolOption,
   ) => Promise<TransactionExecuteResult>;
-  undelegate: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
-  redeemRewards: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
-  compoundRewards: (identity: string, proxy: string | null) => Promise<TransactionExecuteResult>;
+  undelegate: (identity: string, usesVestingContractTokens: boolean) => Promise<TransactionExecuteResult[]>;
 };
 
 export type TDelegationTransaction = {
@@ -47,12 +36,6 @@ export const DelegationContext = createContext<TDelegationContext>({
     throw new Error('Not implemented');
   },
   undelegate: async () => {
-    throw new Error('Not implemented');
-  },
-  redeemRewards: async () => {
-    throw new Error('Not implemented');
-  },
-  compoundRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -75,50 +58,6 @@ export const DelegationContextProvider: FC<{
       else tx = await delegateToMixnode(data);
 
       return tx;
-    } catch (e) {
-      throw new Error(e as string);
-    }
-  };
-
-  const undelegate = async (identity: string, proxy: string | null) => {
-    let delegationResult;
-    try {
-      if ((proxy || '').trim().length === 0) {
-        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-        delegationResult = await undelegateFromMixnode(identity);
-      } else {
-        // the delegation is with locked tokens, so use the vesting contract
-        delegationResult = await vestingUndelegateFromMixnode(identity);
-      }
-      return delegationResult;
-    } catch (e) {
-      throw new Error(e as string);
-    }
-  };
-
-  const redeemRewards = async (identity: string, proxy: string | null) => {
-    try {
-      if ((proxy || '').trim().length === 0) {
-        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-        return claimDelegatorRewards(identity);
-      } else {
-        // the delegation is with locked tokens, so use the vesting contract
-        return vestingClaimDelegatorRewards(identity);
-      }
-    } catch (e) {
-      throw new Error(e as string);
-    }
-  };
-
-  const compoundRewards = async (identity: string, proxy: string | null) => {
-    try {
-      if ((proxy || '').trim().length === 0) {
-        // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-        return compoundDelegatorRewards(identity);
-      } else {
-        // the delegation is with locked tokens, so use the vesting contract
-        return vestingCompoundDelegatorRewards(identity);
-      }
     } catch (e) {
       throw new Error(e as string);
     }
@@ -162,9 +101,7 @@ export const DelegationContextProvider: FC<{
       totalRewards,
       refresh,
       addDelegation,
-      undelegate,
-      redeemRewards,
-      compoundRewards,
+      undelegate: undelegateAllFromMixnode,
     }),
     [isLoading, error, delegations, pendingDelegations, totalDelegations],
   );

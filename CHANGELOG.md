@@ -20,6 +20,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 - vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- wallet: the wallet backend learned how to archive wallet files.
 - wallet: add simple CLI tool for decrypting and recovering the wallet file.
 - wallet: added support for multiple accounts ([#1265])
 - wallet: compound and claim reward endpoints for operators and delegators ([#1302])

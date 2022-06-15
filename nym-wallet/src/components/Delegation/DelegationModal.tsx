@@ -18,9 +18,8 @@ const actionToHeader = (action: ActionType): string => {
     case 'undelegate':
       return 'Undelegation complete';
     case 'compound':
-      return 'Undelegation complete';
+      return 'Rewards compounded successfully';
   }
-  return 'Oh no! Something went wrong!';
 };
 
 export type DelegationModalProps = {

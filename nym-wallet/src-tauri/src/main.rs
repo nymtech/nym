@@ -26,6 +26,7 @@ use crate::operations::vesting;
 
 use crate::state::State;
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     dotenv::dotenv().ok();
     setup_logging();
@@ -34,6 +35,7 @@ fn main() {
         .manage(Arc::new(RwLock::new(State::default())))
         .invoke_handler(tauri::generate_handler![
             mixnet::account::add_account_for_password,
+            mixnet::account::archive_wallet_file,
             mixnet::account::connect_with_mnemonic,
             mixnet::account::create_new_mnemonic,
             mixnet::account::create_password,

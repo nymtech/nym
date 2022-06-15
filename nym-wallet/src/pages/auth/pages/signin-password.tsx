@@ -14,46 +14,48 @@ export const SignInPassword = () => {
     <Stack spacing={2} alignItems="center" minWidth="50%">
       <Subtitle subtitle="Enter a password to sign in" />
       <FormControl fullWidth>
-        <Stack spacing={2}>
-          <PasswordInput
-            label="Enter password"
-            password={password}
-            onUpdatePassword={(pswd) => setPassword(pswd)}
-            error={error}
-            autoFocus
-          />
-          <Button
-            variant="contained"
-            size="large"
-            fullWidth
-            onClick={() => logIn({ type: 'password', value: password })}
-          >
-            Sign in with password
-          </Button>
-          <Box display="flex" justifyContent="space-between">
+        <form onSubmit={() => logIn({ type: 'password', value: password })}>
+          <Stack spacing={2}>
+            <PasswordInput
+              label="Enter password"
+              password={password}
+              onUpdatePassword={(pswd) => setPassword(pswd)}
+              error={error}
+              autoFocus
+            />
             <Button
-              color="inherit"
-              disableElevation
-              onClick={() => {
-                setError(undefined);
-                navigate('/existing-account');
-              }}
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={() => logIn({ type: 'password', value: password })}
             >
-              Back
+              Sign in with password
             </Button>
+            <Box display="flex" justifyContent="space-between">
+              <Button
+                color="inherit"
+                disableElevation
+                onClick={() => {
+                  setError(undefined);
+                  navigate('/existing-account');
+                }}
+              >
+                Back
+              </Button>
 
-            <Button
-              color="info"
-              onClick={() => {
-                setError(undefined);
-                navigate('/sign-in-mnemonic');
-              }}
-              size="small"
-            >
-              Forgotten password?
-            </Button>
-          </Box>
-        </Stack>
+              <Button
+                color="info"
+                onClick={() => {
+                  setError(undefined);
+                  navigate('/sign-in-mnemonic');
+                }}
+                size="small"
+              >
+                Forgotten password?
+              </Button>
+            </Box>
+          </Stack>
+        </form>
       </FormControl>
     </Stack>
   );

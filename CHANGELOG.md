@@ -21,6 +21,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 - vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
 - wallet: the wallet backend learned how to archive wallet files
+- wallet: add ENABLE_QA_MODE environment variable to enable QA mode on built wallet
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 
 ### Fixed

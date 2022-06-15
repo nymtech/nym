@@ -9,6 +9,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       appEnv: {
         ADMIN_ADDRESS: null,
         SHOW_TERMINAL: null,
+        ENABLE_QA_MODE: null,
       },
       appVersion: 'mock',
       isAdminAddress: false,

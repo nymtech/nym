@@ -1,9 +1,11 @@
+test-all: test cargo-test-expensive
 test: build clippy-all cargo-test wasm fmt
 no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
 clippy-all: clippy-all-main clippy-all-contracts clippy-all-wallet clippy-all-connect
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
 cargo-test: test-main test-contracts test-wallet test-connect
+cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive
 build: build-contracts build-wallet build-main build-connect
 fmt: fmt-main fmt-contracts fmt-wallet fmt-connect
 
@@ -34,14 +36,26 @@ clippy-all-connect:
 test-main:
 	cargo test --all-features --workspace
 
+test-main-expensive:
+	cargo test --all-features --workspace -- --ignored
+
 test-contracts:
 	cargo test --manifest-path contracts/Cargo.toml --all-features
+
+test-contracts-expensive:
+	cargo test --manifest-path contracts/Cargo.toml --all-features -- --ignored
 
 test-wallet:
 	cargo test --manifest-path nym-wallet/Cargo.toml --all-features
 
+test-wallet-expensive:
+	cargo test --manifest-path nym-wallet/Cargo.toml --all-features -- --ignored
+
 test-connect:
 	cargo test --manifest-path nym-connect/Cargo.toml --all-features
+
+test-connect-expensive:
+	cargo test --manifest-path nym-connect/Cargo.toml --all-features -- --ignored
 
 build-main:
 	cargo build --workspace

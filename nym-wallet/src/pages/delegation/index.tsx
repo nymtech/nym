@@ -15,7 +15,6 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { OverSaturatedBlockerModal } from '../../components/Delegation/DelegateBlocker';
 
 export const Delegation: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
@@ -23,8 +22,6 @@ export const Delegation: FC = () => {
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
   const [showRedeemRewardsModal, setShowRedeemRewardsModal] = useState<boolean>(false);
   const [showCompoundRewardsModal, setShowCompoundRewardsModal] = useState<boolean>(false);
-  const [nodeOverSaturation, setNodeOverSaturation] = useState<number>(0);
-  const [overSaturatedNodeDescription, setOverSaturatedNodeDescription] = useState<string>('');
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
 
@@ -58,17 +55,6 @@ export const Delegation: FC = () => {
   }, [network, clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
-    if (item?.stake_saturation && item?.stake_saturation > 1) {
-      setNodeOverSaturation(Math.round(item?.stake_saturation * 100));
-      switch (action) {
-        case 'delegate':
-          return setOverSaturatedNodeDescription(`This node is over saturated, 
-          you can’t delegate more to it.`);
-        case 'compound':
-          return setOverSaturatedNodeDescription(`This node is over saturated, 
-          you can’t compound rewards to it.`);
-      }
-    }
     setCurrentDelegationListActionItem(item);
     // eslint-disable-next-line default-case
     switch (action) {
@@ -379,19 +365,6 @@ export const Delegation: FC = () => {
             setConfirmationModalProps(undefined);
             await fetchBalance();
           }}
-        />
-      )}
-
-      {!!nodeOverSaturation && (
-        <OverSaturatedBlockerModal
-          open={!!nodeOverSaturation}
-          onClose={() => {
-            setNodeOverSaturation(0);
-            setOverSaturatedNodeDescription('');
-          }}
-          header={`Node saturation: ${nodeOverSaturation}% `}
-          subHeader={overSaturatedNodeDescription}
-          buttonText="Close"
         />
       )}
     </>

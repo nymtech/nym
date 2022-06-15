@@ -32,7 +32,6 @@ declare module '@mui/material/styles' {
     success: string;
     info: string;
     fee: string;
-    error: string;
     background: { light: string; dark: string };
     text: {
       light: string;

@@ -1613,12 +1613,20 @@ mod tests {
         let wallet_file = PathBuf::from("/tmp/saved-wallet.json");
         let timestamp = OsString::from("42");
         assert_eq!(
-            append_timestamp_to_filename(wallet_file, timestamp, None)
+            append_timestamp_to_filename(wallet_file.clone(), timestamp.clone(), None)
                 .unwrap()
                 .into_os_string()
                 .into_string()
                 .unwrap(),
-            "/tmp/saved-walet.json".to_string(),
+            "/tmp/saved-walet-42.json".to_string(),
+        );
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file, timestamp, Some(3))
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            "/tmp/saved-walet-42-3.json".to_string(),
         );
     }
 }

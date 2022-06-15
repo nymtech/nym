@@ -405,6 +405,11 @@ pub fn remove_password() -> Result<(), BackendError> {
 }
 
 #[tauri::command]
+pub fn archive_wallet_file() -> Result<(), BackendError> {
+    wallet_storage::archive_wallet_file()
+}
+
+#[tauri::command]
 pub async fn add_account_for_password(
     mnemonic: &str,
     password: &str,

@@ -99,7 +99,8 @@ export const DelegationsActionsMenu: React.FC<{
   isPending?: DelegationEventKind;
   disableRedeemingRewards?: boolean;
   disableDelegateMore?: boolean;
-}> = ({ disableRedeemingRewards, disableDelegateMore, onActionClick, isPending }) => {
+  disableCompoundRewards?: boolean;
+}> = ({ disableRedeemingRewards, disableDelegateMore, disableCompoundRewards, onActionClick, isPending }) => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -135,7 +136,7 @@ export const DelegationsActionsMenu: React.FC<{
           title="Delegate more"
           Icon={<Delegate />}
           onClick={() => handleActionSelect?.('delegate')}
-          disabled={disableDelegateMore}
+          disabled={disableDelegateMore || disableCompoundRewards}
         />
         <DelegationActionsMenuItem
           title="Undelegate"

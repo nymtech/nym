@@ -18,11 +18,12 @@ use execute::execute;
 pub use fee::gas_price::GasPrice;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
+    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, IdentityKeyRef, Interval, LayerDistribution, MixNode,
+    MixNodeBond, MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
+    MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
+    RewardedSetUpdateDetails,
 };
 use network_defaults::DEFAULT_NETWORK;
 use serde::Serialize;
@@ -589,6 +590,38 @@ impl<C> NymdClient<C> {
             address: address.to_string(),
         };
         let response: GatewayOwnershipResponse = self
+            .client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await?;
+        Ok(response.gateway)
+    }
+
+    /// Checks whether there is a bonded mixnode associated with the provided identity key
+    pub async fn get_mixnode_bond(
+        &self,
+        identity: IdentityKey,
+    ) -> Result<Option<MixNodeBond>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetMixnodeBond { identity };
+        let response: MixnodeBondResponse = self
+            .client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await?;
+        Ok(response.mixnode)
+    }
+
+    /// Checks whether there is a bonded gateway associated with the provided identity key
+    pub async fn get_gateway_bond(
+        &self,
+        identity: IdentityKey,
+    ) -> Result<Option<GatewayBond>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetGatewayBond { identity };
+        let response: GatewayBondResponse = self
             .client
             .query_contract_smart(self.mixnet_contract_address(), &request)
             .await?;

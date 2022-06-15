@@ -84,7 +84,7 @@ pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwner
 
 pub fn query_mixnode_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<MixnodeBondResponse> {
     Ok(MixnodeBondResponse {
-        bond: storage::read_full_mixnode_bond(deps.storage, &identity)?,
+        mixnode: storage::read_full_mixnode_bond(deps.storage, &identity)?,
         identity,
     })
 }

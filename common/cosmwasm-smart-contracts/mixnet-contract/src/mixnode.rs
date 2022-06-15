@@ -638,7 +638,7 @@ pub struct MixOwnershipResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixnodeBondResponse {
     pub identity: IdentityKey,
-    pub bond: Option<MixNodeBond>,
+    pub mixnode: Option<MixNodeBond>,
 }
 
 #[cfg(test)]

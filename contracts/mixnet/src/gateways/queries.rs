@@ -51,7 +51,7 @@ pub(crate) fn query_owns_gateway(
 
 pub fn query_gateway_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<GatewayBondResponse> {
     Ok(GatewayBondResponse {
-        bond: storage::gateways().may_load(deps.storage, &identity)?,
+        gateway: storage::gateways().may_load(deps.storage, &identity)?,
         identity,
     })
 }

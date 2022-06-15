@@ -139,7 +139,7 @@ pub struct GatewayOwnershipResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBondResponse {
     pub identity: IdentityKey,
-    pub bond: Option<GatewayBond>,
+    pub gateway: Option<GatewayBond>,
 }
 
 #[cfg(test)]

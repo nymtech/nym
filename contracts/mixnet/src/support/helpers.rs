@@ -30,7 +30,7 @@ pub(crate) fn epoch_reward_params(
         (reward_pool.u128() / 100 / epochs_in_interval as u128) * interval_reward_percent as u128,
         state.mixnode_rewarded_set_size as u128,
         state.mixnode_active_set_size as u128,
-        crate::rewards::storage::circulating_supply(storage)?.u128(),
+        crate::rewards::storage::staking_supply(storage)?.u128(),
         constants::SYBIL_RESISTANCE_PERCENT,
         constants::ACTIVE_SET_WORK_FACTOR,
     );

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
+use crate::mixnet_contract_settings::storage as settings_storage;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
@@ -72,4 +73,9 @@ fn decr_reward_pool(storage: &mut dyn Storage, amount: Uint128) -> Result<Uint12
 pub fn circulating_supply(storage: &dyn Storage) -> StdResult<Uint128> {
     let reward_pool = REWARD_POOL.load(storage)?;
     Ok(Uint128::new(TOTAL_SUPPLY).saturating_sub(reward_pool))
+}
+
+pub fn staking_supply(storage: &dyn Storage) -> StdResult<Uint128> {
+    let state = settings_storage::CONTRACT_STATE.load(storage)?;
+    Ok(state.params.staking_supply)
 }

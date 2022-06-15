@@ -19,8 +19,8 @@ pub use fee::gas_price::GasPrice;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
-    GatewayOwnershipResponse, IdentityKey, IdentityKeyRef, Interval, LayerDistribution, MixNode,
-    MixNodeBond, MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
+    GatewayOwnershipResponse, IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
     MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
     RewardedSetUpdateDetails,

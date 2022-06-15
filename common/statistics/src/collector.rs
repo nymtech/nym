@@ -19,7 +19,7 @@ pub trait StatisticsCollector {
         interval: Duration,
         timestamp: DateTime<Utc>,
     ) -> StatsMessage;
-    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError>;
+    async fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError>;
     async fn reset_stats(&mut self);
 }
 
@@ -47,7 +47,7 @@ impl<T: StatisticsCollector> StatisticsSender<T> {
                 .collector
                 .create_stats_message(self.interval, self.timestamp)
                 .await;
-            if let Err(e) = self.collector.send_stats_message(stats_message) {
+            if let Err(e) = self.collector.send_stats_message(stats_message).await {
                 error!("Statistics not sent: {}", e);
             }
             self.collector.reset_stats().await;

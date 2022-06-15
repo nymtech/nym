@@ -163,7 +163,10 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         }
     }
 
-    fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), CommonStatsError> {
+    async fn send_stats_message(
+        &self,
+        stats_message: StatsMessage,
+    ) -> Result<(), CommonStatsError> {
         let msg = build_statistics_request_bytes(stats_message)?;
 
         trace!("Connecting to statistics service");

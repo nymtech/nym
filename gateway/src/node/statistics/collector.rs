@@ -7,7 +7,8 @@ use std::time::Duration;
 use url::Url;
 
 use statistics_common::{
-    collector::StatisticsCollector, error::StatsError, StatsData, StatsGatewayData, StatsMessage,
+    api::build_and_send_statistics_request, collector::StatisticsCollector, error::StatsError,
+    StatsData, StatsGatewayData, StatsMessage,
 };
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
@@ -43,8 +44,8 @@ impl StatisticsCollector for GatewayStatisticsCollector {
         }
     }
 
-    fn send_stats_message(&self, _stats_message: StatsMessage) -> Result<(), StatsError> {
-        Ok(())
+    async fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError> {
+        build_and_send_statistics_request(stats_message).await
     }
 
     async fn reset_stats(&mut self) {}

@@ -5371,6 +5371,7 @@ version = "1.0.1"
 dependencies = [
  "async-trait",
  "log",
+ "network-defaults",
  "reqwest",
  "serde",
  "serde_json",

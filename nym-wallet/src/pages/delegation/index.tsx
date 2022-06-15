@@ -15,6 +15,7 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
+import { Console } from '../../utils/console';
 
 export const Delegation: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
@@ -118,6 +119,7 @@ export const Delegation: FC = () => {
         ],
       });
     } catch (e) {
+      Console.error('Failed to addDelegation', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'delegate',
@@ -161,6 +163,7 @@ export const Delegation: FC = () => {
         ],
       });
     } catch (e) {
+      Console.error('Failed to addMoreDelegation', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'delegate',
@@ -169,7 +172,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleUndelegate = async (identityKey: string, proxy: string | null) => {
+  const handleUndelegate = async (identityKey: string, usesVestingContractTokens: boolean) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'undelegate',
@@ -178,18 +181,20 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const tx = await undelegate(identityKey, proxy);
+      const txs = await undelegate(identityKey, usesVestingContractTokens);
       const balances = await getAllBalances();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
         ...balances,
-        transactions: [
-          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
-        ],
+        transactions: txs.map((tx) => ({
+          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+          hash: tx.transaction_hash,
+        })),
       });
     } catch (e) {
+      Console.error('Failed to undelegate', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'undelegate',
@@ -219,6 +224,7 @@ export const Delegation: FC = () => {
         })),
       });
     } catch (e) {
+      Console.error('Failed to claimRewards', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'redeem',
@@ -248,6 +254,7 @@ export const Delegation: FC = () => {
         })),
       });
     } catch (e) {
+      Console.error('Failed to compoundRewards', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'redeem',
@@ -340,7 +347,7 @@ export const Delegation: FC = () => {
           open={showUndelegateModal}
           onClose={() => setShowUndelegateModal(false)}
           onOk={handleUndelegate}
-          proxy={currentDelegationListActionItem.proxy}
+          usesVestingContractTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
           currency={currentDelegationListActionItem.amount.denom}
           fee={0.1}
           amount={+currentDelegationListActionItem.amount.amount}

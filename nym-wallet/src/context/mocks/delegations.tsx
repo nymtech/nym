@@ -16,12 +16,12 @@ let mockDelegations: DelegationWithEverything[] = [
     owner: '',
     block_height: BigInt(100),
     stake_saturation: 0.5,
-    proxy: '',
     avg_uptime_percent: 0.5,
     total_delegation: { amount: '0', denom: 'NYM' },
     pledge_amount: { amount: '0', denom: 'NYM' },
     pending_events: [],
     history: [],
+    uses_vesting_contract_tokens: false,
   },
   {
     node_identity: 'DT8S942S8AQs2zKHS9SVo1GyHmuca3pfL2uLhLksJ3D8',
@@ -32,12 +32,12 @@ let mockDelegations: DelegationWithEverything[] = [
     owner: '',
     block_height: BigInt(4000),
     stake_saturation: 0.5,
-    proxy: '',
     avg_uptime_percent: 0.1,
     total_delegation: { amount: '0', denom: 'NYM' },
     pledge_amount: { amount: '0', denom: 'NYM' },
     pending_events: [],
     history: [],
+    uses_vesting_contract_tokens: true,
   },
 ];
 
@@ -141,7 +141,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     };
   };
 
-  const undelegate = async (mixnodeAddress: string): Promise<TransactionExecuteResult> => {
+  const undelegate = async (mixnodeAddress: string): Promise<TransactionExecuteResult[]> => {
     await mockSleep(SLEEP_MS);
     mockDelegations = mockDelegations.map((d) => {
       if (d.node_identity === mixnodeAddress) {
@@ -158,17 +158,19 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
       triggerStateUpdate();
     }, 3000);
 
-    return {
-      logs_json: '',
-      data_json: '',
-      transaction_hash: '',
-      gas_info: {
-        gas_wanted: BigInt(1),
-        gas_used: BigInt(1),
+    return [
+      {
+        logs_json: '',
+        data_json: '',
+        transaction_hash: '',
+        gas_info: {
+          gas_wanted: BigInt(1),
+          gas_used: BigInt(1),
+          fee: { amount: '1', denom: 'NYM' },
+        },
         fee: { amount: '1', denom: 'NYM' },
       },
-      fee: { amount: '1', denom: 'NYM' },
-    };
+    ];
   };
 
   const resetState = () => {

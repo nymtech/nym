@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api';
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { valid } from 'semver';
-import { userBalance, majorToMinor, getLockedCoins, getSpendableCoins } from '../requests';
-import { Coin, Network, TCurrency } from '../types';
+import { isValidRawCoin, MajorAmountString } from '@nymproject/types';
+import { getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
@@ -18,45 +17,22 @@ export const validateKey = (key: string, bytesLength: number): boolean => {
   }
 };
 
-export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
-  const amountFloat = parseFloat(rawAmount);
-
-  // it cannot have more than 6 decimal places
-  if (amountFloat !== parseInt(amountFloat.toFixed(6), Number(10))) {
-    return false;
-  }
-
-  // it cannot be larger than the total supply
-  if (amountFloat > 1_000_000_000_000_000) {
-    return false;
-  }
-
-  // it can't be lower than one micro coin
-  return amountFloat >= 0.000001;
-};
-
-export const validateAmount = async (amount: string, minimum: string): Promise<boolean> => {
+export const validateAmount = async (
+  majorAmountAsString: MajorAmountString,
+  minimumAmountAsString: MajorAmountString,
+): Promise<boolean> => {
   // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
-  if (!Number(amount)) {
+  if (!Number(majorAmountAsString)) {
     return false;
   }
 
-  try {
-    const minorValueStr: Coin = await invoke('major_to_minor', {
-      amount,
-    });
-
-    if (!basicRawCoinValueValidation(minorValueStr.amount)) {
-      return false;
-    }
-
-    const minorValue = parseInt(minorValueStr.amount, Number(10));
-
-    return minorValue >= parseInt(minimum, Number(10));
-  } catch (e) {
-    Console.error(e as string);
+  if (!isValidRawCoin(majorAmountAsString)) {
     return false;
   }
+
+  const majorValueFloat = parseInt(majorAmountAsString, Number(10));
+
+  return majorValueFloat >= parseInt(minimumAmountAsString, Number(10));
 
   // this conversion seems really iffy but I'm not sure how to better approach it
 };
@@ -64,7 +40,7 @@ export const validateAmount = async (amount: string, minimum: string): Promise<b
 export const isValidHostname = (value: string) => {
   // regex for ipv4 and ipv6 and hhostname- source http://jsfiddle.net/DanielD/8S4nq/
   const hostnameRegex =
-    /((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))|(^\s*((?=.{1,255}$)(?=.*[A-Za-z].*)[0-9A-Za-z](?:(?:[0-9A-Za-z]|\b-){0,61}[0-9A-Za-z])?(?:\.[0-9A-Za-z](?:(?:[0-9A-Za-z]|\b-){0,61}[0-9A-Za-z])?)*)\s*$)/;
+    /((^((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))|(^\s*((?=.{1,255}$)(?=.*[A-Za-z].*)[0-9A-Za-z](?:(?:[0-9A-Za-z]|\b-){0,61}[0-9A-Za-z])?(?:\.[0-9A-Za-z](?:(?:[0-9A-Za-z]|\b-){0,61}[0-9A-Za-z])?)*)\s*$)/;
 
   return hostnameRegex.test(value);
 };
@@ -90,13 +66,13 @@ export const isGreaterThan = (a: number, b: number) => a > b;
 export const checkHasEnoughFunds = async (allocationValue: string): Promise<boolean> => {
   try {
     const walletValue = await userBalance();
-    const minorValue = await majorToMinor(allocationValue);
-    const remainingBalance = +walletValue.coin.amount - +minorValue.amount;
+
+    const remainingBalance = +walletValue.amount.amount - +allocationValue;
     return remainingBalance >= 0;
   } catch (e) {
     Console.log(e as string);
+    return false;
   }
-  return false;
 };
 
 export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
@@ -115,21 +91,6 @@ export const randomNumberBetween = (min: number, max: number) => {
   const minCeil = Math.ceil(min);
   const maxFloor = Math.floor(max);
   return Math.floor(Math.random() * (maxFloor - minCeil + 1) + minCeil);
-};
-
-export const currencyMap = (network?: Network): TCurrency => {
-  switch (network) {
-    case 'SANDBOX':
-      return {
-        minor: 'UNYMT',
-        major: 'NYMT',
-      };
-    default:
-      return {
-        minor: 'UNYM',
-        major: 'NYM',
-      };
-  }
 };
 
 export const splice = (size: number, address?: string): string => {

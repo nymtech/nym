@@ -5,9 +5,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum StatsError {
-    #[error("Bincode error: {0}")]
-    BincodeError(#[from] bincode::Error),
-
     #[error("Reqwuest error {0}")]
     ReqwestError(#[from] reqwest::Error),
 

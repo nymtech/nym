@@ -1,26 +1,26 @@
 /* eslint-disable no-nested-ternary */
-import React, { useEffect, useContext, useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import React, { useContext, useEffect, useState } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Step, StepLabel, Stepper } from '@mui/material';
+import { CurrencyDenom, MajorCurrencyAmount, SendTxResult, TransactionDetails } from '@nymproject/types';
 import { SendForm } from './SendForm';
 import { SendReview } from './SendReview';
 import { SendConfirmation } from './SendConfirmation';
 import { AppContext } from '../../context/main';
-import { validationSchema } from './validationSchema';
-import { TauriTxResult, TransactionDetails } from '../../types';
-import { getGasFee, majorToMinor, send } from '../../requests';
+import { getGasFee, send } from '../../requests';
 import { checkHasEnoughFunds } from '../../utils';
 import { Console } from '../../utils/console';
+import { validationSchema } from './validationSchema';
 
 const defaultValues = {
-  amount: '',
+  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
   memo: '',
   to: '',
 };
 
 export type TFormData = {
-  amount: string;
+  amount: MajorCurrencyAmount;
   memo: string;
   to: string;
 };
@@ -45,9 +45,7 @@ export const SendWizard = () => {
   const steps = ['Enter address', 'Review and send', 'Await confirmation'];
 
   const methods = useForm<TFormData>({
-    defaultValues: {
-      ...defaultValues,
-    },
+    defaultValues,
     resolver: yupResolver(validationSchema),
   });
 
@@ -64,42 +62,42 @@ export const SendWizard = () => {
   };
 
   const handleSend = async () => {
+    setIsLoading(true);
+
     const formState = methods.getValues();
 
-    const hasEnoughFunds = await checkHasEnoughFunds(formState.amount);
+    const hasEnoughFunds = await checkHasEnoughFunds(formState.amount.amount);
     if (!hasEnoughFunds) {
-      methods.setError('amount', {
+      methods.setError('amount.amount', {
         message: 'Not enough funds in wallet',
       });
       handlePreviousStep();
       return;
     }
-    setIsLoading(true);
     setActiveStep((s) => s + 1);
-    const amount = await majorToMinor(formState.amount);
 
     send({
-      amount,
+      amount: formState.amount,
       address: formState.to,
       memo: formState.memo,
     })
-      .then((res: TauriTxResult) => {
+      .then((res: SendTxResult) => {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         const { details, tx_hash } = res;
 
         setActiveStep((s) => s + 1);
         setConfirmedData({
           ...details,
-          amount: { denom: 'Major', amount: formState.amount },
           tx_hash,
         });
-        setIsLoading(false);
         userBalance.fetchBalance();
       })
       .catch((e) => {
         setRequestError(e);
-        setIsLoading(false);
         Console.error(e);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   };
 

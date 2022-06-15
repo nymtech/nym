@@ -1,7 +1,5 @@
-use crate::coin::{Coin, Denom};
 use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
-use crate::network::Network as WalletNetwork;
 use crate::network_config;
 use crate::nymd_client;
 use crate::state::{State, WalletAccountIds};
@@ -9,62 +7,21 @@ use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
 use config::defaults::COSMOS_DERIVATION_PATH;
+use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
+use nym_types::account::{Account, AccountEntry, Balance};
+use nym_types::currency::MajorCurrencyAmount;
+use nym_wallet_types::network::Network as WalletNetwork;
 use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
 use url::Url;
-use validator_client::nymd::bip32::DerivationPath;
 use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
-use validator_client::nymd::{AccountId as CosmosAccountId, SigningNymdClient};
-use validator_client::Client;
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/account.ts"))]
-#[derive(Serialize, Deserialize)]
-pub struct Account {
-    contract_address: String,
-    client_address: String,
-    denom: Denom,
-}
-
-impl Account {
-    pub fn new(contract_address: String, client_address: String, denom: Denom) -> Self {
-        Account {
-            contract_address,
-            client_address,
-            denom,
-        }
-    }
-}
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
-#[derive(Serialize, Deserialize)]
-pub struct CreatedAccount {
-    account: Account,
-    mnemonic: String,
-}
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/createdaccount.ts"))]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AccountEntry {
-    id: String,
-    address: String,
-}
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(export, export_to = "../src/types/rust/balance.ts"))]
-#[derive(Serialize, Deserialize)]
-pub struct Balance {
-    coin: Coin,
-    printable_balance: String,
-}
+use validator_client::{nymd::SigningNymdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(
@@ -79,17 +36,17 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-    let denom = state.read().await.current_network().denom().to_owned();
+    let denom = state.read().await.current_network().denom();
     match nymd_client!(state)
-        .get_balance(nymd_client!(state).address(), denom.parse()?)
+        .get_balance(nymd_client!(state).address(), denom)
         .await
     {
         Ok(Some(coin)) => {
-            let coin = Coin::new(&coin.amount.to_string(), &Denom::from_str(&coin.denom)?);
+            let amount = MajorCurrencyAmount::from(coin);
+            let printable_balance = amount.to_string();
             Ok(Balance {
-                coin: coin.clone(),
-                // haha, that's so junky : )
-                printable_balance: format!("{} {}", coin.to_major().amount(), &denom[1..]),
+                amount,
+                printable_balance,
             })
         }
         Ok(None) => Err(BackendError::NoBalance(
@@ -97,18 +54,6 @@ pub async fn get_balance(
         )),
         Err(e) => Err(BackendError::from(e)),
     }
-}
-
-#[tauri::command]
-pub async fn create_new_account(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<CreatedAccount, BackendError> {
-    let rand_mnemonic = random_mnemonic();
-    let account = connect_with_mnemonic(rand_mnemonic.to_string(), state).await?;
-    Ok(CreatedAccount {
-        account,
-        mnemonic: rand_mnemonic.to_string(),
-    })
 }
 
 #[tauri::command]
@@ -134,7 +79,7 @@ pub async fn switch_network(
         Account::new(
             client.nymd.mixnet_contract_address().to_string(),
             client.nymd.address().to_string(),
-            denom.parse()?,
+            denom.try_into()?,
         )
     };
 
@@ -217,7 +162,7 @@ async fn _connect_with_mnemonic(
         Some(client) => Ok(Account::new(
             client.nymd.mixnet_contract_address().to_string(),
             client.nymd.address().to_string(),
-            default_network.denom().parse()?,
+            default_network.denom().try_into()?,
         )),
         None => Err(BackendError::NetworkNotSupported(
             config::defaults::DEFAULT_NETWORK,
@@ -472,7 +417,7 @@ pub async fn add_account_for_password(
     account_id: &str,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<AccountEntry, BackendError> {
-    log::info!("Adding account: {account_id}");
+    log::info!("Adding account for the current password: {account_id}");
     let mnemonic = Mnemonic::from_str(mnemonic)?;
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
@@ -528,7 +473,7 @@ async fn set_state_with_all_accounts(
         .iter()
         .map(|account| {
             let mnemonic = account.mnemonic();
-            let addresses: HashMap<WalletNetwork, CosmosAccountId> = WalletNetwork::iter()
+            let addresses: HashMap<WalletNetwork, cosmrs::AccountId> = WalletNetwork::iter()
                 .map(|network| {
                     let config_network: Network = network.into();
                     (
@@ -573,7 +518,7 @@ pub async fn remove_account_for_password(
 fn derive_address(
     mnemonic: bip39::Mnemonic,
     prefix: &str,
-) -> Result<CosmosAccountId, BackendError> {
+) -> Result<cosmrs::AccountId, BackendError> {
     DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?
         .try_derive_accounts()?
         .first()
@@ -642,14 +587,14 @@ fn _show_mnemonic_for_account_in_password(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::path::PathBuf;
 
     use crate::wallet_storage::{
         self,
         account_data::{MnemonicAccount, WalletAccount},
     };
+
+    use super::*;
 
     // This decryptes a stored wallet file using the same procedure as when signing in. Most tests
     // related to the encryped wallet storage is in `wallet_storage`.
@@ -704,7 +649,7 @@ mod tests {
         assert_eq!(mnemonic, expected_mnemonic);
 
         let all_accounts: Vec<_> = stored_login
-            .unwrap_into_multiple_accounts(account_id.clone())
+            .unwrap_into_multiple_accounts(account_id)
             .into_accounts()
             .collect();
 

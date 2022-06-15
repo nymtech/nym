@@ -1,16 +1,17 @@
 import React, { useContext, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, Link, Typography } from '@mui/material';
+import { TransactionExecuteResult } from '@nymproject/types';
 import { DelegateForm } from './DelegateForm';
 import { NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
 import { SuccessView } from './SuccessView';
-import { urls, AppContext } from '../../context/main';
+import { AppContext, urls } from '../../context/main';
 import { PageLayout } from '../../layouts';
 
 export const Delegate = () => {
   const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
   const [error, setError] = useState<string>();
-  const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
+  const [successDetails, setSuccessDetails] = useState<{ amount: string; result: TransactionExecuteResult }>();
 
   const { network } = useContext(AppContext);
 

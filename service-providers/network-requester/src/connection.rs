@@ -5,7 +5,7 @@ use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::ProxyRunner;
-use socks5_requests::{ConnectionId, RemoteAddress, Response};
+use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Response};
 use std::io;
 use tokio::net::TcpStream;
 
@@ -39,7 +39,7 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         mix_receiver: ConnectionReceiver,
-        mix_sender: mpsc::UnboundedSender<(Response, Recipient)>,
+        mix_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
     ) {
         let stream = self.conn.take().unwrap();
         let remote_source_address = "???".to_string(); // we don't know ip address of requester
@@ -54,7 +54,10 @@ impl Connection {
             connection_id,
         )
         .run(move |conn_id, read_data, socket_closed| {
-            (Response::new(conn_id, read_data, socket_closed), recipient)
+            (
+                Socks5Message::Response(Response::new(conn_id, read_data, socket_closed)),
+                recipient,
+            )
         })
         .await
         .into_inner();

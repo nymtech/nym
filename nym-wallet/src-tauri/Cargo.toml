@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.0.4"
+version = "1.0.6"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -38,7 +38,7 @@ strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.0.0-rc.2", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.19.1", features = ["sync", "time"] }
+tokio = { version = "1.10", features = ["sync", "time"] }
 toml = "0.5.8"
 url = "2.2"
 
@@ -48,6 +48,7 @@ base64 = "0.13"
 zeroize = "1.4.3"
 
 cosmwasm-std = "1.0.0"
+cosmrs = "0.7.0"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nymd-client",
@@ -58,11 +59,14 @@ config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 # Used for Type conversion, can be extracted but its a lot of work
 vesting-contract = { path = "../../contracts/vesting" }
+nym-types = { path = "../../common/types" }
+nym-wallet-types = { path = "../nym-wallet-types" }
 
 [dev-dependencies]
-ts-rs = "6.1.2"
 tempfile = "3.3.0"
+ts-rs = "6.1.2"
 
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+generate-ts = []

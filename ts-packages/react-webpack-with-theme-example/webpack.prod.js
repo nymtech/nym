@@ -25,7 +25,7 @@ module.exports = mergeWithRules({
     ],
   },
   optimization: {
-    minimizer: [`...`, new CssMinimizerPlugin()],
+    minimizer: ['...', new CssMinimizerPlugin()],
     splitChunks: {
       chunks: 'all',
     },

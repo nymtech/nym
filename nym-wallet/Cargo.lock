@@ -2785,6 +2785,7 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.7",
+ "ts-rs",
 ]
 
 [[package]]
@@ -2998,8 +2999,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-types"
+version = "1.0.0"
+dependencies = [
+ "coconut-interface",
+ "config",
+ "cosmrs",
+ "cosmwasm-std",
+ "eyre",
+ "itertools",
+ "log",
+ "mixnet-contract-common",
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "strum 0.23.0",
+ "thiserror",
+ "ts-rs",
+ "url",
+ "validator-client",
+ "vesting-contract",
+ "vesting-contract-common",
+]
+
+[[package]]
+name = "nym-wallet-types"
+version = "1.0.0"
+dependencies = [
+ "config",
+ "cosmrs",
+ "cosmwasm-std",
+ "mixnet-contract-common",
+ "nym-types",
+ "serde",
+ "serde_json",
+ "strum 0.23.0",
+ "ts-rs",
+ "validator-client",
+ "vesting-contract",
+ "vesting-contract-common",
+]
+
+[[package]]
 name = "nym_wallet"
-version = "1.0.4"
+version = "1.0.6"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",
@@ -3009,6 +3053,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "cosmrs",
  "cosmwasm-std",
  "dirs",
  "dotenv",
@@ -3017,6 +3062,8 @@ dependencies = [
  "itertools",
  "log",
  "mixnet-contract-common",
+ "nym-types",
+ "nym-wallet-types",
  "once_cell",
  "pretty_env_logger",
  "rand 0.6.5",
@@ -5450,6 +5497,7 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]
@@ -5541,6 +5589,7 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]

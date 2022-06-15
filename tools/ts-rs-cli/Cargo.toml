@@ -1,0 +1,20 @@
+[package]
+name = "ts-rs-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+ts-rs = "6.1.2"
+walkdir = "2"
+
+validator-client = { path = "../../common/client-libs/validator-client", features = [
+    "nymd-client", "generate-ts"
+] }
+validator-api-requests = { path = "../../validator-api/validator-api-requests", features = ["generate-ts"] }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = [ "generate-ts" ] }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", features = [ "generate-ts" ] }
+nym-types = { path = "../../common/types", features = [ "generate-ts" ] }
+nym-wallet-types = { path = "../../nym-wallet/nym-wallet-types", features = [ "generate-ts" ] }

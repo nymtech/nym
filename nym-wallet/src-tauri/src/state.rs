@@ -1,6 +1,7 @@
+use crate::config;
 use crate::error::BackendError;
-use crate::network::Network;
-use crate::{config, network_config};
+use nym_wallet_types::network::Network;
+use nym_wallet_types::network_config;
 
 use strum::IntoEnumIterator;
 use validator_client::nymd::{AccountId as CosmosAccountId, SigningNymdClient};

@@ -3,8 +3,21 @@
   "version": "1.0.0",
   "license": "Apache-2.0",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./*": "./dist/components/*",
+    "./hooks/*": "./dist/hooks/*",
+    "./playground/*": "./dist/playground/*"
+  },
+  "typesVersions": {
+    "*": {
+      "*": ["dist/components/*"],
+      "hooks/*": ["dist/hooks/*"],
+      "playground/*": ["dist/playground/*"]
+    }
+  },
   "peerDependencies": {
+    "@cosmjs/math": "^0.27.1",
     "@mui/icons-material": ">= 5",
     "@mui/lab": "^5.0.0-alpha.72",
     "@mui/material": ">= 5",
@@ -12,7 +25,10 @@
     "@mui/system": ">= 5",
     "@nymproject/mui-theme": "1",
     "react": "17",
-    "react-dom": "17"
+    "react-dom": "17",
+    "@nymproject/nym-validator-client": "^0.18.0",
+    "@nymproject/types": "1",
+    "base58": "4"
   },
   "dependencies": {
     "flat": "^5.0.2",
@@ -21,13 +37,13 @@
   "devDependencies": {
     "@babel/core": "^7.17.5",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
-    "@storybook/addon-actions": "^6.4.19",
-    "@storybook/addon-essentials": "^6.4.19",
-    "@storybook/addon-interactions": "^6.4.19",
-    "@storybook/addon-links": "^6.4.19",
-    "@storybook/builder-webpack5": "^6.4.19",
-    "@storybook/manager-webpack5": "^6.4.19",
-    "@storybook/react": "^6.4.19",
+    "@storybook/addon-actions": "^6.5.8",
+    "@storybook/addon-essentials": "^6.5.8",
+    "@storybook/addon-interactions": "^6.5.8",
+    "@storybook/addon-links": "^6.5.8",
+    "@storybook/builder-webpack5": "^6.5.8",
+    "@storybook/manager-webpack5": "^6.5.8",
+    "@storybook/react": "^6.5.8",
     "@storybook/testing-library": "^0.0.9",
     "@svgr/webpack": "^6.1.1",
     "@types/flat": "^5.0.2",
@@ -47,7 +63,7 @@
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-react": "^7.29.2",
     "eslint-plugin-react-hooks": "^4.3.0",
-    "eslint-plugin-storybook": "^0.5.7",
+    "eslint-plugin-storybook": "^0.5.12",
     "jest": "^27.1.0",
     "prettier": "^2.5.1",
     "rimraf": "^3.0.2",
@@ -63,5 +79,6 @@
     "lint:fix": "eslint src .storybook --fix",
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook"
-  }
+  },
+  "sideEffects": false
 }

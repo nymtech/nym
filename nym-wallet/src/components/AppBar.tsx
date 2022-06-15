@@ -1,17 +1,17 @@
 import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Logout } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import { AppContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { Node as NodeIcon } from '../svg-icons/node';
 import { MultiAccounts } from './Accounts';
-import { config } from '../../config';
+import { config } from '../config';
 
 export const AppBar = () => {
-  const { showSettings, logOut, handleShowSettings, handleShowTerminal, appEnv } = useContext(AppContext);
-  const history = useHistory();
+  const { logOut, handleShowTerminal, appEnv, handleShowSettings, showSettings } = useContext(AppContext);
+  const navigate = useNavigate();
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
       <Toolbar disableGutters>
@@ -46,7 +46,7 @@ export const AppBar = () => {
                 size="small"
                 onClick={async () => {
                   await logOut();
-                  history.push('/');
+                  navigate('/');
                 }}
                 sx={{ color: 'nym.background.dark' }}
               >

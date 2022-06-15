@@ -102,7 +102,13 @@ export const DelegationModal: React.FC<
           <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
             Check the transaction {transactions.length > 1 ? 'hashes' : 'hash'}:
             {transactions.map((transaction) => (
-              <Link key={transaction.hash} href={transaction.url} target="_blank" sx={{ ml: 1 }} text={transaction.hash.slice(0, 6)} />
+              <Link
+                key={transaction.hash}
+                href={transaction.url}
+                target="_blank"
+                sx={{ ml: 1 }}
+                text={transaction.hash.slice(0, 6)}
+              />
             ))}
           </Typography>
         )}

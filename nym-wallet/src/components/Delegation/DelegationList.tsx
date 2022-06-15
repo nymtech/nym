@@ -161,9 +161,9 @@ export const DelegationList: React.FC<{
                     arrow
                   >
                     <Link
-                        target="_blank"
-                        href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                        text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                      target="_blank"
+                      href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
+                      text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
                     />
                   </Tooltip>
                 </TableCell>

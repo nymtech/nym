@@ -112,7 +112,7 @@ export const hideCloseIcon = () => {
     <BasePage handleClick={handleClick}>
       <SimpleModal
         open={open}
-        hideCloseIcon={true}
+        hideCloseIcon
         onClose={() => setOpen(false)}
         onOk={() => setOpen(false)}
         header="This is a modal"
@@ -139,8 +139,8 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
     <BasePage handleClick={handleClick}>
       <SimpleModal
         open={open}
-        hideCloseIcon={true}
-        displayErrorIcon={true}
+        hideCloseIcon
+        displayErrorIcon
         onClose={() => setOpen(false)}
         onOk={() => setOpen(false)}
         header="This modal announces an error !"

@@ -4,19 +4,18 @@ import { SimpleModal } from '../Modals/SimpleModal';
 export const OverSaturatedBlockerModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  identityKey?: string;
   header?: string;
   subHeader?: string;
   buttonText?: string;
 }> = ({ open, onClose, header, subHeader, buttonText }) => (
   <SimpleModal
     open={open}
-    hideCloseIcon={true}
+    hideCloseIcon
     displayErrorIcon
     onClose={onClose}
     onOk={onClose}
     header={header || 'Delegate'}
-    subHeader={subHeader || 'This node is over saturated, you can’t compound rewards to it'}
+    subHeader={subHeader || "This node is over saturated, you can't delegate more stake to it"}
     okLabel={buttonText || 'Close'}
     sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
     headerStyles={{

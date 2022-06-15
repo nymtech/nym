@@ -14,7 +14,12 @@ export const SignInPassword = () => {
     <Stack spacing={2} alignItems="center" minWidth="50%">
       <Subtitle subtitle="Enter a password to sign in" />
       <FormControl fullWidth>
-        <form onSubmit={() => logIn({ type: 'password', value: password })}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            logIn({ type: 'password', value: password });
+          }}
+        >
           <Stack spacing={2}>
             <PasswordInput
               label="Enter password"

@@ -17,7 +17,6 @@ export const IdentityKeyFormField: React.FC<{
   onValidate?: (isValid: boolean, error?: string) => void;
   textFieldProps?: TextFieldProps;
   sx?: SxProps;
-  saturation?: number;
 }> = ({
   required,
   fullWidth,
@@ -29,7 +28,6 @@ export const IdentityKeyFormField: React.FC<{
   onValidate,
   textFieldProps,
   showTickOnValid = true,
-  saturation,
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
@@ -43,21 +41,12 @@ export const IdentityKeyFormField: React.FC<{
       return true;
     }
 
-    if (newValue === undefined) {
-      if (saturation && saturation > 100) {
-        const newSaturationError = `This node is over saturated (${saturation}%), please select another node`;
-        setValidationError(newSaturationError);
-        if (onValidate) {
-          onValidate(false, newSaturationError);
-        }
-      }
-    } else {
-      const newValidationError = 'Key is not valid';
-      setValidationError(newValidationError);
-      if (onValidate) {
-        onValidate(false, newValidationError);
-      }
+    const newValidationError = 'Key is not valid';
+    setValidationError(newValidationError);
+    if (onValidate) {
+      onValidate(false, newValidationError);
     }
+
     return false;
   };
 
@@ -67,13 +56,6 @@ export const IdentityKeyFormField: React.FC<{
       doValidation(initialValue);
     }
   }, [initialValue]);
-
-  React.useEffect(() => {
-    // validate field once is set the node saturation
-    if (saturation) {
-      doValidation();
-    }
-  }, [saturation]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;

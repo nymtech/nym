@@ -55,7 +55,7 @@ export const DelegateModal: React.FC<{
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [fee, setFee] = useState<string>();
-  const [nodeSaturation, setNodeSaturation] = useState<number>(0);
+  const [errorNodeSaturation, setErrorNodeSaturation] = useState<string | undefined>();
 
   const getFee = async () => {
     if (feeOverride) setFee(feeOverride);
@@ -86,16 +86,20 @@ export const DelegateModal: React.FC<{
   };
 
   const setSaturation = async (identityKey: string) => {
-    setValidated(false);
     try {
+      setValidated(false);
       const newSaturation = await getMixnodeStakeSaturation(identityKey);
       if (newSaturation) {
-        setValidated(true);
         const saturationPercentage = Math.round(newSaturation.saturation * 100);
-        setNodeSaturation(saturationPercentage);
+        if (saturationPercentage > 100) {
+          setErrorNodeSaturation(`This node is over saturated (${saturationPercentage}%), please select another node`);
+          return;
+        }
       }
-    }
-    catch(e) {
+
+      setErrorNodeSaturation(undefined);
+      setValidated(true);
+    } catch (e) {
       console.log('Error fetching the saturation, error:', e);
     }
   };
@@ -117,13 +121,13 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleIdentityValidation = (isValid: boolean) => {
+  const handleIdentityValidation = (isValid: boolean, error?: string) => {
+    console.log('isValid', isValid, 'error', error);
+    setErrorNodeSaturation(undefined);
     if (!isValid) {
-      setNodeSaturation(0);
       setValidated(false);
       return;
     }
-    setValidated(true);
   };
 
   React.useEffect(() => {
@@ -155,8 +159,15 @@ export const DelegateModal: React.FC<{
         textFieldProps={{
           autoFocus: !initialIdentityKey,
         }}
-        saturation={nodeSaturation}
       />
+      <Typography
+        component="div"
+        textAlign="left"
+        variant="caption"
+        sx={{ color: 'error.main', mx: '14px', mt: '3px' }}
+      >
+        {errorNodeSaturation}
+      </Typography>
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField
@@ -168,7 +179,12 @@ export const DelegateModal: React.FC<{
           onChanged={handleAmountChanged}
         />
       </Box>
-      <Typography component="div" textAlign="right" variant="caption" sx={{ color: 'error.main' }}>
+      <Typography
+        component="div"
+        textAlign="left"
+        variant="caption"
+        sx={{ color: 'error.main', mx: '14px', mt: '3px' }}
+      >
         {errorAmount}
       </Typography>
       <Stack direction="row" justifyContent="space-between" my={3}>

@@ -16,14 +16,14 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 #[derive(Clone)]
 pub(crate) struct GatewayStatisticsCollector {
     active_clients_store: ActiveClientsStore,
-    _statistics_service_url: Url,
+    statistics_service_url: Url,
 }
 
 impl GatewayStatisticsCollector {
     pub fn new(active_clients_store: ActiveClientsStore, statistics_service_url: Url) -> Self {
         GatewayStatisticsCollector {
             active_clients_store,
-            _statistics_service_url: statistics_service_url,
+            statistics_service_url,
         }
     }
 }
@@ -45,7 +45,8 @@ impl StatisticsCollector for GatewayStatisticsCollector {
     }
 
     async fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError> {
-        build_and_send_statistics_request(stats_message).await
+        build_and_send_statistics_request(stats_message, self.statistics_service_url.to_string())
+            .await
     }
 
     async fn reset_stats(&mut self) {}

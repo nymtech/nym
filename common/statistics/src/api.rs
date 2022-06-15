@@ -1,8 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::default_statistics_service_url;
-
 use crate::error::StatsError;
 use crate::StatsMessage;
 
@@ -12,13 +10,14 @@ pub const DEFAULT_STATISTICS_SERVICE_PORT: u16 = 8090;
 pub const STATISTICS_SERVICE_VERSION: &str = "/v1";
 pub const STATISTICS_SERVICE_API_STATISTICS: &str = "statistic";
 
-pub async fn build_and_send_statistics_request(msg: StatsMessage) -> Result<(), StatsError> {
+pub async fn build_and_send_statistics_request(
+    msg: StatsMessage,
+    url: String,
+) -> Result<(), StatsError> {
     reqwest::Client::new()
         .post(format!(
             "{}{}/{}",
-            default_statistics_service_url(),
-            STATISTICS_SERVICE_VERSION,
-            STATISTICS_SERVICE_API_STATISTICS
+            url, STATISTICS_SERVICE_VERSION, STATISTICS_SERVICE_API_STATISTICS
         ))
         .json(&msg)
         .send()

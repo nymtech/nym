@@ -6,10 +6,10 @@ import { modalStyle } from './styles';
 
 export const SimpleModal: React.FC<{
   open: boolean;
-  displayCloseIcon?: boolean;
+  hideCloseIcon?: boolean;
   displayErrorIcon?: boolean;
-  titleStyles?: SxProps;
-  descriptionStyles?: SxProps;
+  headerStyles?: SxProps;
+  subHeaderStyles?: SxProps;
   onClose?: () => void;
   onOk?: () => void;
   header: string;
@@ -19,10 +19,10 @@ export const SimpleModal: React.FC<{
   sx?: SxProps;
 }> = ({
   open,
-  displayCloseIcon,
+  hideCloseIcon,
   displayErrorIcon,
-  titleStyles,
-  descriptionStyles,
+  headerStyles,
+  subHeaderStyles,
   onClose,
   okDisabled,
   onOk,
@@ -34,12 +34,12 @@ export const SimpleModal: React.FC<{
 }) => (
   <Modal open={open} onClose={onClose}>
     <Box sx={{ ...modalStyle, ...sx }}>
-      {!!displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
+      {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography fontSize={22} fontWeight={600} sx={{ ...titleStyles }}>
+        <Typography fontSize={22} fontWeight={600} sx={{ ...headerStyles }}>
           {header}
         </Typography>
-        {!!displayCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
+        {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
       </Stack>
       {subHeader && (
         <Typography
@@ -47,7 +47,7 @@ export const SimpleModal: React.FC<{
           mb={3}
           fontSize="small"
           color={(theme) => theme.palette.text.secondary}
-          sx={{ ...descriptionStyles }}
+          sx={{ ...subHeaderStyles }}
         >
           {subHeader}
         </Typography>

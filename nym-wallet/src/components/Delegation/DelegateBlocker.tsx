@@ -11,7 +11,7 @@ export const OverSaturatedBlockerModal: React.FC<{
 }> = ({ open, onClose, header, subHeader, buttonText }) => (
   <SimpleModal
     open={open}
-    displayCloseIcon={false}
+    hideCloseIcon={true}
     displayErrorIcon
     onClose={onClose}
     onOk={onClose}
@@ -19,13 +19,13 @@ export const OverSaturatedBlockerModal: React.FC<{
     subHeader={subHeader || 'This node is over saturated, you can’t compound rewards to it'}
     okLabel={buttonText || 'Close'}
     sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
-    titleStyles={{
+    headerStyles={{
       width: '100%',
       mb: 3,
       textAlign: 'center',
       color: 'error.main',
       fontSize: 16,
     }}
-    descriptionStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
+    subHeaderStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
   />
 );

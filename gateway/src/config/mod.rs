@@ -127,6 +127,11 @@ impl Config {
         self
     }
 
+    pub fn with_custom_statistics_service_url(mut self, statistics_service_url: Url) -> Self {
+        self.gateway.statistics_service_url = statistics_service_url;
+        self
+    }
+
     pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
         self.gateway.validator_api_urls = validator_api_urls;
         self
@@ -225,6 +230,10 @@ impl Config {
     #[cfg(not(feature = "coconut"))]
     pub fn get_eth_endpoint(&self) -> String {
         self.gateway.eth_endpoint.clone()
+    }
+
+    pub fn get_statistics_service_url(&self) -> Url {
+        self.gateway.statistics_service_url.clone()
     }
 
     pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
@@ -339,6 +348,9 @@ pub struct Gateway {
     #[cfg(not(feature = "coconut"))]
     eth_endpoint: String,
 
+    /// Domain address of the statistics service
+    statistics_service_url: Url,
+
     /// Addresses to APIs running on validator from which the node gets the view of the network.
     validator_api_urls: Vec<Url>,
 
@@ -399,6 +411,7 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             #[cfg(not(feature = "coconut"))]
             eth_endpoint: "".to_string(),
+            statistics_service_url: default_statistics_service_url(),
             validator_api_urls: default_api_endpoints(),
             #[cfg(not(feature = "coconut"))]
             validator_nymd_urls: default_nymd_endpoints(),

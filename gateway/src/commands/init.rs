@@ -57,6 +57,10 @@ pub struct Init {
     #[clap(long)]
     eth_endpoint: String,
 
+    /// URL of a custom statistics service. The default value is a Nym run statistics service
+    #[clap(long)]
+    statistics_service_url: Option<String>,
+
     /// Comma separated list of endpoints of the validator
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
@@ -80,6 +84,8 @@ impl From<Init> for OverrideConfig {
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: Some(init_config.eth_endpoint),
+
+            statistics_service_url: init_config.statistics_service_url,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             validators: init_config.validators,

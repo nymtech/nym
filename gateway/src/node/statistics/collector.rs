@@ -4,6 +4,7 @@
 use async_trait::async_trait;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::time::Duration;
+use url::Url;
 
 use statistics_common::{
     collector::StatisticsCollector, error::StatsError, StatsData, StatsGatewayData, StatsMessage,
@@ -14,12 +15,14 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 #[derive(Clone)]
 pub(crate) struct GatewayStatisticsCollector {
     active_clients_store: ActiveClientsStore,
+    _statistics_service_url: Url,
 }
 
 impl GatewayStatisticsCollector {
-    pub fn new(active_clients_store: ActiveClientsStore) -> Self {
+    pub fn new(active_clients_store: ActiveClientsStore, statistics_service_url: Url) -> Self {
         GatewayStatisticsCollector {
             active_clients_store,
+            _statistics_service_url: statistics_service_url,
         }
     }
 }

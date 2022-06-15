@@ -46,6 +46,7 @@ pub(crate) struct OverrideConfig {
     clients_port: Option<u16>,
     datastore: Option<String>,
     announce_host: Option<String>,
+    statistics_service_url: Option<String>,
     validator_apis: Option<String>,
     mnemonic: Option<String>,
 
@@ -100,6 +101,14 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     } else if was_host_overridden {
         // make sure our 'mix-announce-host' always defaults to 'mix-host'
         config = config.announce_host_from_listening_host();
+    }
+
+    if let Some(raw_url) = args.statistics_service_url {
+        config = config.with_custom_statistics_service_url(
+            raw_url
+                .parse()
+                .expect("the provided statistics service url is invalid!"),
+        );
     }
 
     if let Some(raw_validators) = args.validator_apis {

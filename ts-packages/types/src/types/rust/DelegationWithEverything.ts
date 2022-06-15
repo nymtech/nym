@@ -13,7 +13,7 @@ export interface DelegationWithEverything {
   profit_margin_percent: number | null;
   avg_uptime_percent: number | null;
   stake_saturation: number | null;
-  proxy: string | null;
+  uses_vesting_contract_tokens: boolean;
   accumulated_rewards: MajorCurrencyAmount | null;
   pending_events: Array<DelegationEvent>;
   history: Array<DelegationRecord>;

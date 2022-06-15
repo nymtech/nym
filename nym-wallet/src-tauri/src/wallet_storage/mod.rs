@@ -290,11 +290,8 @@ fn _archive_wallet_file(path: &Path) -> Result<(), BackendError> {
     // Try rename, and if it fails, try appending a number.
     while additional_number < 10 {
         if fs::rename(path, new_path.clone()).is_err() {
-            new_path = append_timestamp_to_filename(
-                path,
-                timestamp.clone(),
-                Some(additional_number),
-            )?;
+            new_path =
+                append_timestamp_to_filename(path, timestamp.clone(), Some(additional_number))?;
             additional_number += 1;
         } else {
             if let Some(new_path) = new_path.to_str() {

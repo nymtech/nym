@@ -87,11 +87,16 @@ export const DelegateModal: React.FC<{
 
   const setSaturation = async (identityKey: string) => {
     setValidated(false);
-    const newSaturation = await getMixnodeStakeSaturation(identityKey);
-    if (newSaturation) {
-      setValidated(true);
-      const saturationPercentage = Math.round(newSaturation.saturation * 100);
-      setNodeSaturation(saturationPercentage);
+    try {
+      const newSaturation = await getMixnodeStakeSaturation(identityKey);
+      if (newSaturation) {
+        setValidated(true);
+        const saturationPercentage = Math.round(newSaturation.saturation * 100);
+        setNodeSaturation(saturationPercentage);
+      }
+    }
+    catch(e) {
+      console.log('Error fetching the saturation, error:', e);
     }
   };
 

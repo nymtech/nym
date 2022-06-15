@@ -50,7 +50,6 @@ export const IdentityKeyFormField: React.FC<{
         if (onValidate) {
           onValidate(false, newSaturationError);
         }
-        return false;
       }
     } else {
       const newValidationError = 'Key is not valid';
@@ -70,7 +69,7 @@ export const IdentityKeyFormField: React.FC<{
   }, [initialValue]);
 
   React.useEffect(() => {
-    // check if the node is over saturated
+    // validate field once is set the node saturation
     if (saturation) {
       doValidation();
     }

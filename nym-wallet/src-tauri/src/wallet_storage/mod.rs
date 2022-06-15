@@ -1609,7 +1609,7 @@ mod tests {
                 .into_os_string()
                 .into_string()
                 .unwrap(),
-            "/tmp/saved-walet-42.json".to_string(),
+            "/tmp/saved-wallet-42.json".to_string(),
         );
         assert_eq!(
             append_timestamp_to_filename(wallet_file, timestamp, Some(3))
@@ -1617,7 +1617,7 @@ mod tests {
                 .into_os_string()
                 .into_string()
                 .unwrap(),
-            "/tmp/saved-walet-42-3.json".to_string(),
+            "/tmp/saved-wallet-42-3.json".to_string(),
         );
     }
 }

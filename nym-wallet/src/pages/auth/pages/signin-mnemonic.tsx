@@ -31,27 +31,24 @@ export const SignInMnemonic = () => {
     <Stack spacing={2} alignItems="center" minWidth="50%">
       <Subtitle subtitle="Enter a mnemonic to sign in" />
       <FormControl fullWidth>
-        <Stack spacing={2}>
-          <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(mnc) => setMnemonic(mnc)} error={error} />
-          <Button
-            variant="contained"
-            size="large"
-            fullWidth
-            onClick={() => logIn({ type: 'mnemonic', value: mnemonic })}
-          >
-            Sign in with mnemonic
-          </Button>
-          <Box display="flex" justifyContent={passwordExists ? 'center' : 'space-between'}>
-            <Button color="inherit" onClick={() => handlePageChange('/existing-account')}>
-              Back
+        <form onSubmit={() => logIn({ type: 'mnemonic', value: mnemonic })}>
+          <Stack spacing={2}>
+            <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(mnc) => setMnemonic(mnc)} error={error} />
+            <Button variant="contained" size="large" fullWidth type="submit">
+              Sign in with mnemonic
             </Button>
-            {!passwordExists && (
-              <Button color="info" onClick={() => handlePageChange('/confirm-mnemonic')}>
-                Create a password
+            <Box display="flex" justifyContent={passwordExists ? 'center' : 'space-between'}>
+              <Button color="inherit" onClick={() => handlePageChange('/existing-account')}>
+                Back
               </Button>
-            )}
-          </Box>
-        </Stack>
+              {!passwordExists && (
+                <Button color="info" onClick={() => handlePageChange('/confirm-mnemonic')}>
+                  Create a password
+                </Button>
+              )}
+            </Box>
+          </Stack>
+        </form>
       </FormControl>
     </Stack>
   );

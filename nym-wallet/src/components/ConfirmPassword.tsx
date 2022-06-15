@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, CircularProgress, DialogActions, DialogContent, Typography } from '@mui/material';
+import { useKeyPress } from 'src/hooks/useKeyPress';
 import { PasswordInput } from './textfields';
 
 export const ConfirmPassword = ({
@@ -15,6 +16,14 @@ export const ConfirmPassword = ({
 }) => {
   const [value, setValue] = useState('');
 
+  const enterKeyPressed = useKeyPress('Enter');
+
+  useEffect(() => {
+    if (enterKeyPressed && !!value.length && !isLoading) {
+      onConfirm(value);
+    }
+  }, [enterKeyPressed]);
+
   return (
     <>
       <DialogContent>
@@ -27,6 +36,7 @@ export const ConfirmPassword = ({
           onUpdatePassword={(pswrd) => setValue(pswrd)}
           placeholder="Confirm password"
           autoFocus
+          disabled={isLoading}
         />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0 }}>

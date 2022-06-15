@@ -62,9 +62,10 @@ export const IdentityKeyFormField: React.FC<{
 
     if (doValidation(newValue)) {
       setValue(newValue);
-      if (onChanged) {
-        onChanged(newValue);
-      }
+    }
+
+    if (onChanged) {
+      onChanged(newValue);
     }
   };
 

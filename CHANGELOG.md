@@ -35,6 +35,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
+- wallet: undelegating now uses either the mixnet or vesting contract, or both, depending on how delegations were made
+- wallet: redeeming and compounding now uses both the mixnet and vesting contract
 
 ### Changed
 

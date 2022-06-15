@@ -282,38 +282,32 @@ fn append_timestamp_to_filename(
     Ok(result_path)
 }
 
-fn _archive_wallet_file(path: &PathBuf) -> Result<(), BackendError> {
+fn _archive_wallet_file(path: &Path) -> Result<(), BackendError> {
     let timestamp: OsString = Local::now().timestamp_millis().to_string().into();
     let mut additional_number = 0;
-    let mut new_path = append_timestamp_to_filename(path.clone(), timestamp.clone(), None)?;
-    let mut success = false;
+    let mut new_path = append_timestamp_to_filename(path, timestamp.clone(), None)?;
 
     // Try rename, and if it fails, try appending a number.
     while additional_number < 10 {
-        if fs::rename(path.clone(), new_path.clone()).is_err() {
+        if fs::rename(path, new_path.clone()).is_err() {
             new_path = append_timestamp_to_filename(
-                path.clone(),
+                path,
                 timestamp.clone(),
                 Some(additional_number),
             )?;
             additional_number += 1;
         } else {
-            success = true;
             if let Some(new_path) = new_path.to_str() {
                 log::info!("Archived to: {}", new_path);
             } else {
                 log::warn!("Archived wallet file to filename that is not a valid UTF-8 string");
             }
-            break;
+            return Ok(());
         }
     }
 
-    if success {
-        Ok(())
-    } else {
-        log::warn!("Failed to archive wallet file, suggest renaming it manually!");
-        Err(BackendError::WalletFileUnableToArchive)
-    }
+    log::warn!("Failed to archive wallet file, suggest renaming it manually!");
+    Err(BackendError::WalletFileUnableToArchive)
 }
 
 pub(crate) fn archive_wallet_file() -> Result<(), BackendError> {

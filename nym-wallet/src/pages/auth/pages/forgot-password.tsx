@@ -22,7 +22,7 @@ export const ForgotPassword = () => {
               await archiveWalletFile();
             } catch (e) {
               Console.error(e);
-              enqueueSnackbar('Failed to archive wallet file', { variant: 'error' });
+              enqueueSnackbar('Failed to archive your existing wallet file', { variant: 'error' });
             }
             navigate('/confirm-mnemonic');
           }}

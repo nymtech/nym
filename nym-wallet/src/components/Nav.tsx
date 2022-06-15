@@ -3,7 +3,57 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
 import { AppContext } from '../context/main';
-import { Bond, Delegate, Unbond } from '../svg-icons';
+import { Bond, Delegate, Unbond, Bonding } from '../svg-icons';
+
+const routesSchema = [
+  {
+    label: 'Balance',
+    route: '/balance',
+    Icon: AccountBalanceWalletOutlined,
+  },
+  {
+    label: 'Send',
+    route: '/send',
+    Icon: ArrowForward,
+  },
+  {
+    label: 'Receive',
+    route: '/receive',
+    Icon: ArrowBack,
+  },
+  {
+    label: 'Bond',
+    route: '/bond',
+    Icon: Bond,
+  },
+  {
+    label: 'Bonding',
+    route: '/bonding',
+    Icon: Bonding,
+  },
+  {
+    label: 'Unbond',
+    route: '/unbond',
+    Icon: Unbond,
+  },
+  {
+    label: 'Delegation',
+    route: '/delegation',
+    Icon: Delegate,
+  },
+  {
+    label: 'Docs',
+    route: '/docs',
+    Icon: Description,
+    mode: 'dev',
+  },
+  {
+    label: 'Admin',
+    route: '/admin',
+    Icon: Settings,
+    mode: 'admin',
+  },
+];
 
 export const Nav = () => {
   const location = useLocation();

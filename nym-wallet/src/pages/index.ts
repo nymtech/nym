@@ -7,3 +7,5 @@ export * from './auth';
 export * from './settings';
 export * from './unbond';
 export * from './delegation';
+export * from './bonding';
+

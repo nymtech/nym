@@ -36,7 +36,7 @@ const TxResultMock: TransactionExecuteResult = {
   fee: { amount: '1', denom: 'NYM' },
 };
 
-export const BondingContextProvider = ({
+export const MockBondingContextProvider = ({
   network,
   children,
 }: {

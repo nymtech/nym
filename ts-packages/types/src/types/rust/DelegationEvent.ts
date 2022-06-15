@@ -7,4 +7,5 @@ export interface DelegationEvent {
   address: string;
   amount: MajorCurrencyAmount | null;
   block_height: bigint;
+  proxy: string | null;
 }

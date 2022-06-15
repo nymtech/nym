@@ -51,7 +51,7 @@ impl Gas {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/GasInfo.ts")
 )]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GasInfo {
     /// GasWanted is the maximum units of work we allow this tx to perform.
     pub gas_wanted: u64,

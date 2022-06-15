@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
 import { getGasFee } from 'src/requests';
+import { Console } from 'src/utils/console';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from './ModalListItem';
-import { validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
+import { getMixnodeStakeSaturation } from '../../requests';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -50,10 +51,12 @@ export const DelegateModal: React.FC<{
 }) => {
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
-  const [isValidated, setValidated] = useState<boolean>(false);
-  const [errorAmount, setErrorAmount] = useState<string | undefined>();
-  const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [fee, setFee] = useState<string>();
+  const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
+  const [isValidated, setValidated] = useState<boolean>(false);
+  const [errorAmount, setErrorAmount] = useState<string>();
+  const [errorNodeSaturation, setErrorNodeSaturation] = useState<string>();
+  const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
 
   const getFee = async () => {
     if (feeOverride) setFee(feeOverride);
@@ -63,18 +66,41 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const validate = () => {
-    let newValidatedValue = true;
-    if (!identityKey || !validateKey(identityKey, 32)) {
-      newValidatedValue = false;
+  const handleCheckStakeSaturation = async (identity: string) => {
+    setErrorNodeSaturation(undefined);
+
+    try {
+      const newSaturation = await getMixnodeStakeSaturation(identity);
+      if (newSaturation && newSaturation.saturation > 1) {
+        const saturationPercentage = Math.round(newSaturation.saturation * 100);
+        setErrorNodeSaturation(`This node is over saturated (${saturationPercentage}%), please select another node`);
+      }
+    } catch (e) {
+      Console.error('Error fetching the saturation, error:', e);
+      setErrorNodeSaturation(undefined);
     }
-    if (amount && Number(amount) < MIN_AMOUNT_TO_DELEGATE) {
-      setErrorAmount(`Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${currency}`);
-      newValidatedValue = false;
+  };
+
+  const validateIdentityKey = async (isValid: boolean) => {
+    if (!isValid) {
+      setErrorIdentityKey('Identity key is invalid');
+      setErrorNodeSaturation(undefined);
     } else {
-      setErrorAmount(undefined);
+      setErrorIdentityKey(undefined);
+      await handleCheckStakeSaturation(identityKey!);
     }
-    setValidated(newValidatedValue);
+  };
+
+  const validateAmount = (newValue: MajorCurrencyAmount) => {
+    setErrorAmount(undefined);
+
+    if (newValue.amount && Number(newValue.amount) < MIN_AMOUNT_TO_DELEGATE) {
+      setErrorAmount(`Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${currency}`);
+    }
+
+    if (!newValue.amount) {
+      setErrorAmount('Amount required');
+    }
   };
 
   const handleOk = () => {
@@ -83,8 +109,9 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleIdentityKeyChanged = (newIdentityKey: string) => {
+  const handleIdentityKeyChanged = async (newIdentityKey: string) => {
     setIdentityKey(newIdentityKey);
+
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);
     }
@@ -92,18 +119,21 @@ export const DelegateModal: React.FC<{
 
   const handleAmountChanged = (newAmount: MajorCurrencyAmount) => {
     setAmount(newAmount.amount);
+    validateAmount(newAmount);
+
     if (onAmountChanged) {
       onAmountChanged(newAmount.amount);
     }
   };
 
-  React.useEffect(() => {
-    validate();
-  }, [amount, identityKey]);
-
-  React.useEffect(() => {
+  useEffect(() => {
     getFee();
   }, []);
+
+  useEffect(() => {
+    if (!!errorIdentityKey || !!errorAmount || errorNodeSaturation) setValidated(false);
+    else setValidated(true);
+  }, [errorIdentityKey, errorAmount, errorNodeSaturation]);
 
   return (
     <SimpleModal
@@ -120,12 +150,21 @@ export const DelegateModal: React.FC<{
         fullWidth
         placeholder="Node identity key"
         onChanged={handleIdentityKeyChanged}
+        onValidate={validateIdentityKey}
         initialValue={initialIdentityKey}
         readOnly={Boolean(initialIdentityKey)}
         textFieldProps={{
           autoFocus: !initialIdentityKey,
         }}
       />
+      <Typography
+        component="div"
+        textAlign="left"
+        variant="caption"
+        sx={{ color: 'error.main', mx: '14px', mt: '3px' }}
+      >
+        {errorNodeSaturation}
+      </Typography>
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField
@@ -137,7 +176,12 @@ export const DelegateModal: React.FC<{
           onChanged={handleAmountChanged}
         />
       </Box>
-      <Typography component="div" textAlign="right" variant="caption" sx={{ color: 'error.main' }}>
+      <Typography
+        component="div"
+        textAlign="left"
+        variant="caption"
+        sx={{ color: 'error.main', mx: '14px', mt: '3px' }}
+      >
         {errorAmount}
       </Typography>
       <Stack direction="row" justifyContent="space-between" my={3}>

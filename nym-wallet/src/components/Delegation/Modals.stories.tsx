@@ -122,7 +122,7 @@ export const Undelegate = () => {
         fee={0.004375}
         amount={150}
         identityKey="AA6RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujyxx"
-        proxy={null}
+        usesVestingContractTokens={false}
       />
     </>
   );

@@ -30,7 +30,7 @@ export const urls = (networkName?: Network) =>
 
 type TLoginType = 'mnemonic' | 'password';
 
-type TAppContext = {
+export type TAppContext = {
   mode: 'light' | 'dark';
   appEnv?: AppEnv;
   appVersion?: string;

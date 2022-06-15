@@ -2,7 +2,6 @@ import React from 'react';
 import { Box, Button, CircularProgress, Modal, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { modalStyle } from '../Modals/styles';
-import { TPoolOption } from '../TokenPoolSelector';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -19,6 +18,8 @@ const actionToHeader = (action: ActionType): string => {
       return 'Undelegation complete';
     case 'compound':
       return 'Rewards compounded successfully';
+    default:
+      throw new Error('Unknown type');
   }
 };
 
@@ -28,8 +29,11 @@ export type DelegationModalProps = {
   message?: string;
   recipient?: string;
   balance?: string;
-  transactionUrl?: string;
-  tokenPool?: TPoolOption;
+  balanceVested?: string;
+  transactions?: {
+    url: string;
+    hash: string;
+  }[];
 };
 
 export const DelegationModal: React.FC<
@@ -37,7 +41,7 @@ export const DelegationModal: React.FC<
     open: boolean;
     onClose?: () => void;
   }
-> = ({ status, action, message, recipient, balance, transactionUrl, open, onClose, tokenPool, children }) => {
+> = ({ status, action, message, recipient, balance, balanceVested, transactions, open, onClose, children }) => {
   if (status === 'loading') {
     return (
       <Modal open>
@@ -80,12 +84,28 @@ export const DelegationModal: React.FC<
             Recipient: {recipient}
           </Typography>
         )}
-        <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-          Your current {tokenPool === 'locked' ? 'locked balance' : 'balance'}: {balance}
-        </Typography>
-        <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-          Check the transaction hash <Link href={transactionUrl} target="_blank" text="here" />
-        </Typography>
+        {balanceVested ? (
+          <>
+            <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+              Your current balance: {balance}
+            </Typography>
+            <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+              ({balanceVested} is unlocked in your vesting account)
+            </Typography>
+          </>
+        ) : (
+          <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+            Your current balance: {balance}
+          </Typography>
+        )}
+        {transactions && (
+          <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+            Check the transaction {transactions.length > 1 ? 'hashes' : 'hash'}:
+            {transactions.map((transaction) => (
+              <Link key={transaction.hash} href={transaction.url} target="_blank" sx={{ ml: 1 }} text={transaction.hash.slice(0, 6)} />
+            ))}
+          </Typography>
+        )}
         {children}
         <Button variant="contained" sx={{ mt: 3 }} size="large" onClick={onClose}>
           Finish

@@ -5,7 +5,7 @@ use super::storage::{self, StoredMixnodeBond};
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    IdentityKey, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse,
+    IdentityKey, MixNodeBond, MixOwnershipResponse, MixnodeBondResponse, PagedMixnodeResponse,
 };
 
 pub fn query_mixnode_at_height(
@@ -79,6 +79,13 @@ pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwner
     Ok(MixOwnershipResponse {
         address: validated_addr,
         mixnode,
+    })
+}
+
+pub fn query_mixnode_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<MixnodeBondResponse> {
+    Ok(MixnodeBondResponse {
+        bond: storage::read_full_mixnode_bond(deps.storage, &identity)?,
+        identity,
     })
 }
 

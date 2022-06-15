@@ -9,8 +9,8 @@ use crate::delegations::queries::{
 };
 use crate::delegations::storage::delegations;
 use crate::error::ContractError;
-use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
 use crate::interval::queries::query_current_epoch;
 use crate::interval::queries::{
     query_current_rewarded_set_height, query_rewarded_set,
@@ -331,6 +331,10 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::OwnsMixnode { address } => {
             to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
+        QueryMsg::GetMixnodeBond { identity } => {
+            to_binary(&mixnode_queries::query_mixnode_bond(deps, identity)?)
+        }
+        QueryMsg::GetGatewayBond { identity } => to_binary(&query_gateway_bond(deps, identity)?),
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
         QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),

@@ -47,11 +47,11 @@ export const SignInPassword = () => {
                 color="info"
                 onClick={() => {
                   setError(undefined);
-                  navigate('/sign-in-mnemonic');
+                  navigate('/forgot-password');
                 }}
                 size="small"
               >
-                Forgotten password?
+                Forgot password?
               </Button>
             </Box>
           </Stack>

@@ -307,13 +307,17 @@ where
             active_clients_store.clone(),
         );
 
-        let statistics_service_url = self.config.get_statistics_service_url();
-        let stats_collector =
-            GatewayStatisticsCollector::new(active_clients_store.clone(), statistics_service_url);
-        let mut stats_sender = StatisticsSender::new(stats_collector.clone());
-        tokio::spawn(async move {
-            stats_sender.run().await;
-        });
+        if self.config.get_enabled_statistics() {
+            let statistics_service_url = self.config.get_statistics_service_url();
+            let stats_collector = GatewayStatisticsCollector::new(
+                active_clients_store.clone(),
+                statistics_service_url,
+            );
+            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
+            tokio::spawn(async move {
+                stats_sender.run().await;
+            });
+        }
 
         self.start_client_websocket_listener(
             mix_forwarding_channel,

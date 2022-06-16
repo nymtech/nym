@@ -57,7 +57,11 @@ pub struct Run {
     #[clap(long)]
     eth_endpoint: Option<String>,
 
-    /// URL of a custom statistics service. The default value is a Nym run statistics service
+    /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
+    #[clap(long)]
+    enabled_statistics: Option<bool>,
+
+    /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
     statistics_service_url: Option<String>,
 
@@ -85,6 +89,7 @@ impl From<Run> for OverrideConfig {
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: run_config.eth_endpoint,
 
+            enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]

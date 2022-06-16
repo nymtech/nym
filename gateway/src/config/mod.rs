@@ -127,6 +127,11 @@ impl Config {
         self
     }
 
+    pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
+        self.gateway.enabled_statistics = enabled_statistics;
+        self
+    }
+
     pub fn with_custom_statistics_service_url(mut self, statistics_service_url: Url) -> Self {
         self.gateway.statistics_service_url = statistics_service_url;
         self
@@ -230,6 +235,10 @@ impl Config {
     #[cfg(not(feature = "coconut"))]
     pub fn get_eth_endpoint(&self) -> String {
         self.gateway.eth_endpoint.clone()
+    }
+
+    pub fn get_enabled_statistics(&self) -> bool {
+        self.gateway.enabled_statistics
     }
 
     pub fn get_statistics_service_url(&self) -> Url {
@@ -348,6 +357,9 @@ pub struct Gateway {
     #[cfg(not(feature = "coconut"))]
     eth_endpoint: String,
 
+    /// Wheather gateway collects and sends anonymized statistics
+    enabled_statistics: bool,
+
     /// Domain address of the statistics service
     statistics_service_url: Url,
 
@@ -411,6 +423,7 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             #[cfg(not(feature = "coconut"))]
             eth_endpoint: "".to_string(),
+            enabled_statistics: false,
             statistics_service_url: default_statistics_service_url(),
             validator_api_urls: default_api_endpoints(),
             #[cfg(not(feature = "coconut"))]

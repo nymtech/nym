@@ -68,6 +68,7 @@ export const DelegateModal: React.FC<{
 
   const handleCheckStakeSaturation = async (identity: string) => {
     setErrorNodeSaturation(undefined);
+
     try {
       const newSaturation = await getMixnodeStakeSaturation(identity);
       if (newSaturation && newSaturation.saturation > 1) {
@@ -109,7 +110,7 @@ export const DelegateModal: React.FC<{
 
   const handleIdentityKeyChanged = (newIdentityKey: string) => {
     setIdentityKey(newIdentityKey);
-    handleCheckStakeSaturation(newIdentityKey!);
+    handleCheckStakeSaturation(newIdentityKey);
 
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);

@@ -44,7 +44,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
         .arg(Arg::with_name("force-register-gateway")
             .long("force-register-gateway")
-            .help("Force register gateway. This is only relevant when re-running init and there is an existing config file.")
+            .help("Force register gateway. WARNING: this will overwrite any existing keys for the given id, potentially causing loss of access.")
             .takes_value(false)
         )
         .arg(Arg::with_name("validators")

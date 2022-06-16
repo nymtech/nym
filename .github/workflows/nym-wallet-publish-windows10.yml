@@ -45,9 +45,9 @@ jobs:
           Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
 
       - name: Node v16
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 16
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

@@ -46,6 +46,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
+- gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -67,6 +68,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1328]: https://github.com/nymtech/nym/pull/1328
 [#1329]: https://github.com/nymtech/nym/pull/1329
 [#1353]: https://github.com/nymtech/nym/pull/1353
+[#1376]: https://github.com/nymtech/nym/pull/1376
 
 ## [nym-wallet-v1.0.5](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.5) (2022-06-14)
 

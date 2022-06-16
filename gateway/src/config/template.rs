@@ -56,6 +56,12 @@ mix_port = {{ gateway.mix_port }}
 # (default: 9000)
 clients_port = {{ gateway.clients_port }}
 
+# Wheather gateway collects and sends anonymized statistics
+enabled_statistics = {{ gateway.enabled_statistics }}
+
+# Domain address of the statistics service
+statistics_service_url = '{{ gateway.statistics_service_url }}'
+
 # Addresses to APIs running on validator from which the node gets the view of the network.
 validator_api_urls = [
     {{#each gateway.validator_api_urls }}

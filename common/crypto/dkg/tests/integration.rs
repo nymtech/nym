@@ -9,6 +9,7 @@ use rand_core::SeedableRng;
 use std::collections::BTreeMap;
 
 #[test]
+#[ignore] // expensive test
 fn single_sender() {
     // makes it easier to understand than `full_threshold_secret_sharing`
     // and is a good stepping stone, because its everything each node will have to perform (from one point of view)
@@ -66,6 +67,7 @@ fn single_sender() {
 }
 
 #[test]
+#[ignore] // expensive test
 fn full_threshold_secret_sharing() {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -161,6 +163,7 @@ fn full_threshold_secret_sharing() {
 }
 
 #[test]
+#[ignore] // expensive test
 fn full_threshold_secret_resharing() {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);

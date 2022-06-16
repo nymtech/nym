@@ -58,3 +58,5 @@ nymd-client = [
     "itertools",
     "cosmwasm-std",
 ]
+generate-ts = []
+

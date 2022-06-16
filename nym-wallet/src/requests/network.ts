@@ -1,7 +1,5 @@
-import { invoke } from '@tauri-apps/api';
-import { Account, Network } from '../types';
+import { Account } from '@nymproject/types';
+import { Network } from 'src/types';
+import { invokeWrapper } from './wrapper';
 
-export const selectNetwork = async (network: Network): Promise<Account> => {
-  const res: Account = await invoke('switch_network', { network });
-  return res;
-};
+export const selectNetwork = async (network: Network) => invokeWrapper<Account>('switch_network', { network });

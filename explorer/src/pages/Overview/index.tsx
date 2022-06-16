@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Box, Grid, Link, Typography } from '@mui/material';
-import { useHistory } from 'react-router-dom';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { formatNumber } from '../../utils';
@@ -17,7 +17,7 @@ import { Icons } from '../../components/Icons';
 
 export const PageOverview: React.FC = () => {
   const theme = useTheme();
-  const history = useHistory();
+  const navigate = useNavigate();
   const { summaryOverview, gateways, validators, block, countryData } = useMainContext();
   return (
     <Box component="main" sx={{ flexGrow: 1 }}>
@@ -31,7 +31,7 @@ export const PageOverview: React.FC = () => {
               <>
                 <Grid item xs={12} md={4}>
                   <StatsCard
-                    onClick={() => history.push('/network-components/mixnodes')}
+                    onClick={() => navigate('/network-components/mixnodes')}
                     title="Mixnodes"
                     icon={<MixnodesSVG />}
                     count={summaryOverview.data?.mixnodes.count || ''}
@@ -40,7 +40,7 @@ export const PageOverview: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <StatsCard
-                    onClick={() => history.push('/network-components/mixnodes/active')}
+                    onClick={() => navigate('/network-components/mixnodes/active')}
                     title="Active nodes"
                     icon={<Icons.Mixnodes.Status.Active />}
                     color={theme.palette.nym.networkExplorer.mixnodes.status.active}
@@ -50,7 +50,7 @@ export const PageOverview: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <StatsCard
-                    onClick={() => history.push('/network-components/mixnodes/standby')}
+                    onClick={() => navigate('/network-components/mixnodes/standby')}
                     title="Standby nodes"
                     color={theme.palette.nym.networkExplorer.mixnodes.status.standby}
                     icon={<Icons.Mixnodes.Status.Standby />}
@@ -63,7 +63,7 @@ export const PageOverview: React.FC = () => {
             {gateways && (
               <Grid item xs={12} md={6}>
                 <StatsCard
-                  onClick={() => history.push('/network-components/gateways')}
+                  onClick={() => navigate('/network-components/gateways')}
                   title="Gateways"
                   count={gateways?.data?.length || ''}
                   errorMsg={gateways?.error}

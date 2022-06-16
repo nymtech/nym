@@ -36,7 +36,9 @@ declare module '@mui/material/styles' {
     text: {
       light: string;
       dark: string;
+      muted: string;
     };
+    linkHover: string;
   }
 
   interface NymPaletteVariant {
@@ -51,13 +53,16 @@ declare module '@mui/material/styles' {
     topNav: {
       background: string;
     };
+    nav: {
+      background: string;
+    };
   }
 
   /**
    * A palette definition only for the Nym Wallet that extends the Nym palette
    */
   interface NymWalletPalette {
-    nymWallet: {};
+    nymWallet: NymPaletteVariant;
   }
 
   interface NymPaletteAndNymWalletPalette {

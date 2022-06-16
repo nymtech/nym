@@ -149,14 +149,6 @@ export const BondBreakdownTable: React.FC = () => {
             >
               Delegations&nbsp;&nbsp;
             </Typography>
-            <Typography
-              sx={{
-                fontSize: 12,
-                fontWeight: 400,
-              }}
-            >
-              {`(${uniqDelegations?.data?.length} delegators)`}
-            </Typography>
           </Box>
           <Table stickyHeader>
             <TableHead>

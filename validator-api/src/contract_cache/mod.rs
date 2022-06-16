@@ -108,7 +108,7 @@ impl<C> ValidatorCacheRefresher<C> {
             .map(|mixnode_bond| {
                 let stake_saturation = mixnode_bond
                     .stake_saturation(
-                        interval_reward_params.circulating_supply(),
+                        interval_reward_params.staking_supply(),
                         interval_reward_params.rewarded_set_size() as u32,
                     )
                     .to_num();

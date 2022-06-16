@@ -1,9 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material';
 import { ArrowDropDown, CheckSharp } from '@mui/icons-material';
+import { Network } from 'src/types';
 import { AppContext } from '../context/main';
-import { config } from '../../config';
-import { Network } from '../types';
+import { config } from '../config';
 
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },
@@ -23,7 +23,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
 );
 
 export const NetworkSelector = () => {
-  const { network, switchNetwork } = useContext(AppContext);
+  const { network, switchNetwork, appEnv } = useContext(AppContext);
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -59,7 +59,14 @@ export const NetworkSelector = () => {
         <List>
           <ListSubheader>Network selection</ListSubheader>
           {networks
-            .filter(({ networkName }) => !(!config.IS_DEV_MODE && networkName === 'QA'))
+            .filter(({ networkName }) => {
+              // show all networks when in dev more or the user wants QA mode enabled
+              if (config.IS_DEV_MODE || appEnv?.ENABLE_QA_MODE) {
+                return true;
+              }
+              // otherwise, filter out QA
+              return networkName !== 'QA';
+            })
             .map(({ name, networkName }) => (
               <NetworkItem
                 key={networkName}

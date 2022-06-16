@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
 import { validateMnemonic } from 'src/requests';
 import { MnemonicInput } from 'src/components';
@@ -9,14 +9,14 @@ import { Subtitle } from '../components';
 export const ConfirmMnemonic = () => {
   const { error, setError, setMnemonic, mnemonic } = useContext(AuthContext);
   const [localMnemonic, setLocalMnemonic] = useState(mnemonic);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setError(undefined);
   }, [localMnemonic]);
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ minWidth: '50%' }}>
       <Subtitle subtitle="Enter the mnemonic you wish to create a password for" />
       <MnemonicInput mnemonic={localMnemonic} onUpdateMnemonic={(mnc) => setLocalMnemonic(mnc)} error={error} />
       <Button
@@ -27,7 +27,7 @@ export const ConfirmMnemonic = () => {
           const isValid = await validateMnemonic(localMnemonic);
           if (isValid) {
             setMnemonic(localMnemonic);
-            history.push('/connect-password');
+            navigate('/connect-password');
           } else {
             setError('The mnemonic provided is not valid. Please check the mnemonic');
           }
@@ -42,7 +42,7 @@ export const ConfirmMnemonic = () => {
         fullWidth
         onClick={() => {
           setMnemonic('');
-          history.goBack();
+          navigate(-1);
         }}
       >
         Back

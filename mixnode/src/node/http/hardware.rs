@@ -74,7 +74,7 @@ fn hardware_info_from_cupid() -> Option<CryptoHardware> {
         CryptoHardware {
             aesni: info.aesni(),
             avx2: info.avx2(),
-            brand_string: info.brand_string().unwrap().to_string(),
+            brand_string: info.brand_string().map(String::from).unwrap_or_default(),
             logical_processor_count,
             osxsave: info.osxsave(),
             sgx: info.sgx(),

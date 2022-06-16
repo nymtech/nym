@@ -1,4 +1,4 @@
-use cupid::{ExtendedTopologyEnumeration, TopologyType};
+use cupid::TopologyType;
 use rocket::serde::{json::Json, Serialize};
 use sysinfo::{System, SystemExt};
 

@@ -174,7 +174,9 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
-            mnemonic: "a b c".to_string(),
+            mnemonic: Some("a b c".to_string()),
+            statistics_service_url: None,
+            enabled_statistics: None,
         };
 
         let config = Config::new(&args.id);

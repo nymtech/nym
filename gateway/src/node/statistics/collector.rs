@@ -13,7 +13,6 @@ use statistics_common::{
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 
-#[derive(Clone)]
 pub(crate) struct GatewayStatisticsCollector {
     active_clients_store: ActiveClientsStore,
     statistics_service_url: Url,

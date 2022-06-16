@@ -313,7 +313,7 @@ where
                 active_clients_store.clone(),
                 statistics_service_url,
             );
-            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
+            let mut stats_sender = StatisticsSender::new(stats_collector);
             tokio::spawn(async move {
                 stats_sender.run().await;
             });

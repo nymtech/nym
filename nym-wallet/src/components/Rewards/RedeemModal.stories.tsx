@@ -57,7 +57,7 @@ export const RedeemAllRewards = () => {
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
-        proxy={null}
+        usesVestingTokens={false}
       />
     </>
   );
@@ -76,7 +76,7 @@ export const RedeemRewardForMixnode = () => {
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
-        proxy={null}
+        usesVestingTokens={false}
       />
     </>
   );
@@ -95,7 +95,7 @@ export const FeeIsMoreThanAllRewards = () => {
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={0.001}
-        proxy={null}
+        usesVestingTokens={false}
       />
     </>
   );
@@ -114,7 +114,7 @@ export const FeeIsMoreThanMixnodeReward = () => {
         message="Redeem rewards"
         currency="NYM"
         amount={0.001}
-        proxy={null}
+        usesVestingTokens={false}
       />
     </>
   );

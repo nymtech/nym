@@ -12,13 +12,29 @@ import {
   TableRow,
   TableSortLabel,
   Tooltip,
+  Typography,
 } from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationWithEverything } from '@nymproject/types';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { styled } from '@mui/material/styles';
+import { tableCellClasses } from '@mui/material/TableCell';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
+
+const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
+  [`&.${tableCellClasses.head}`]: {
+    color: theme.palette.common.white,
+    opacity: 0.5,
+    fontSize: 12,
+  },
+  [`&.${tableCellClasses.body}`]: {
+    color: theme.palette.common.white,
+    fontSize: 12,
+  },
+}));
 
 type Order = 'asc' | 'desc';
 
@@ -38,12 +54,12 @@ interface HeadCell {
 
 const headCells: HeadCell[] = [
   { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
+  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'center' },
+  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'center' },
+  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'center' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'center' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'center' },
   { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'center' },
-  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'center' },
-  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'center' },
-  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'center' },
 ];
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -154,27 +170,69 @@ export const DelegationList: React.FC<{
                     </Link>
                   </Tooltip>
                 </TableCell>
-                <TableCell align="center">{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
-                <TableCell align="center">{`${item.amount.amount} ${item.amount.denom}`}</TableCell>
-                <TableCell align="center">
-                  {!item.accumulated_rewards
-                    ? '-'
-                    : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}
-                </TableCell>
+                <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
                 <TableCell align="center">
                   {!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}
                 </TableCell>
                 <TableCell align="center">
                   {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
                 </TableCell>
-                <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
+                <TableCell align="center">{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
+                <TableCell align="center">
+                  <Tooltip
+                    placement="right"
+                    title={
+                      <TableContainer component={Box} color="white">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <StyledTooltipTableCell>Date</StyledTooltipTableCell>
+                              <StyledTooltipTableCell>Amount</StyledTooltipTableCell>
+                              <StyledTooltipTableCell>Block Height</StyledTooltipTableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {item.history.map((historyItem) => (
+                              <TableRow key={`${historyItem.block_height}`}>
+                                <StyledTooltipTableCell>
+                                  {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
+                                    addSuffix: true,
+                                  })}
+                                </StyledTooltipTableCell>
+                                <StyledTooltipTableCell>
+                                  <Typography fontSize="inherit" noWrap>
+                                    {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
+                                    {historyItem.uses_vesting_contract_tokens && (
+                                      <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
+                                    )}
+                                  </Typography>
+                                </StyledTooltipTableCell>
+                                <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    }
+                    arrow
+                  >
+                    <span style={{ cursor: 'pointer' }}>{`${item.amount.amount} ${item.amount.denom}`}</span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="center">
+                  {!item.accumulated_rewards
+                    ? '-'
+                    : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}
+                </TableCell>
+
                 <TableCell align="right">
                   {!item.pending_events.length ? (
                     <DelegationsActionsMenu
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
                       disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableDelegateMore={(item?.stake_saturation || 0) > 100}
+                      disableDelegateMore={(item?.stake_saturation || 0) > 1}
+                      disableCompoundRewards={(item?.stake_saturation || 0) > 1}
                     />
                   ) : (
                     <Tooltip

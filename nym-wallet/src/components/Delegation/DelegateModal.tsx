@@ -10,6 +10,9 @@ import { ModalListItem } from '../Modals/ModalListItem';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens, validateAmount, validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
+import { Console } from 'src/utils/console';
+
+import { getMixnodeStakeSaturation } from '../../requests';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -66,24 +69,49 @@ export const DelegateModal: React.FC<{
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
+  const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
 
   const { fee, getFee, resetFeeState } = useGetFee();
 
+  const handleCheckStakeSaturation = async (identity: string) => {
+    try {
+      const newSaturation = await getMixnodeStakeSaturation(identity);
+      if (newSaturation && newSaturation.saturation > 1) {
+        const saturationPercentage = Math.round(newSaturation.saturation * 100);
+        return { isOverSaturated: true, saturationPercentage };
+      }
+      return { isOverSaturated: false, saturationPercentage: undefined };
+    } catch (e) {
+      Console.error('Error fetching the saturation, error:', e);
+      return { isOverSaturated: false, saturationPercentage: undefined };
+    }
+  };
+
   const validate = async () => {
     let newValidatedValue = true;
-    let errorMessage;
+    let errorAmountMessage;
+    let errorIdentityKeyMessage;
 
     if (!identityKey || !validateKey(identityKey, 32)) {
       newValidatedValue = false;
+      errorIdentityKeyMessage = undefined;
+    }
+
+    if (identityKey && validateKey(identityKey, 32)) {
+      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(identityKey);
+      if (isOverSaturated) {
+        newValidatedValue = false;
+        errorIdentityKeyMessage = `This node is over saturated (${saturationPercentage}%), please select another node`;
+      }
     }
 
     if (amount && !(await validateAmount(amount, '0'))) {
       newValidatedValue = false;
-      errorMessage = 'Please enter a valid amount';
+      errorAmountMessage = 'Please enter a valid amount';
     }
 
     if (amount && Number(amount) < MIN_AMOUNT_TO_DELEGATE) {
-      errorMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${currency}`;
+      errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${currency}`;
       newValidatedValue = false;
     }
 
@@ -91,7 +119,8 @@ export const DelegateModal: React.FC<{
       newValidatedValue = false;
     }
 
-    setErrorAmount(errorMessage);
+    setErrorIdentityKey(errorIdentityKeyMessage);
+    setErrorAmount(errorAmountMessage);
     setValidated(newValidatedValue);
   };
 
@@ -120,6 +149,7 @@ export const DelegateModal: React.FC<{
 
   const handleIdentityKeyChanged = (newIdentityKey: string) => {
     setIdentityKey(newIdentityKey);
+
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);
     }
@@ -127,6 +157,7 @@ export const DelegateModal: React.FC<{
 
   const handleAmountChanged = (newAmount: MajorCurrencyAmount) => {
     setAmount(newAmount.amount);
+
     if (onAmountChanged) {
       onAmountChanged(newAmount.amount);
     }
@@ -177,6 +208,14 @@ export const DelegateModal: React.FC<{
           autoFocus: !initialIdentityKey,
         }}
       />
+      <Typography
+        component="div"
+        textAlign="left"
+        variant="caption"
+        sx={{ color: 'error.main', mx: '14px', mt: '3px' }}
+      >
+        {errorIdentityKey}
+      </Typography>
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField
@@ -188,7 +227,12 @@ export const DelegateModal: React.FC<{
           onChanged={handleAmountChanged}
         />
       </Box>
-      <Typography component="div" textAlign="right" variant="caption" sx={{ color: 'error.main' }}>
+      <Typography
+        component="div"
+        textAlign="left"
+        variant="caption"
+        sx={{ color: 'error.main', mx: '14px', mt: '3px' }}
+      >
         {errorAmount}
       </Typography>
       <Box sx={{ mt: 3 }}>

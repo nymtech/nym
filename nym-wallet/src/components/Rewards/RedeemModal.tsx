@@ -17,8 +17,8 @@ export const RedeemModal: React.FC<{
   minimum?: number;
   currency: string;
   message: string;
-  proxy: string | null;
-}> = ({ open, onClose, onOk, identityKey, amount, currency, message, proxy }) => {
+  usesVestingTokens: boolean;
+}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   const handleOk = async () => {
@@ -28,7 +28,7 @@ export const RedeemModal: React.FC<{
   };
 
   useEffect(() => {
-    if (proxy) {
+    if (usesVestingTokens) {
       getFee(simulateVestingClaimDelgatorReward, identityKey);
     } else {
       getFee(simulateClaimDelgatorReward, identityKey);

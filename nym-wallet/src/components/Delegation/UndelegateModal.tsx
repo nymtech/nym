@@ -10,12 +10,12 @@ import { ModalFee } from '../Modals/ModalFee';
 export const UndelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, proxy: string | null) => void;
+  onOk?: (identityKey: string, usesVestingContractTokens: boolean) => void;
   identityKey: string;
   amount: number;
   currency: string;
-  proxy: string | null;
-}> = ({ identityKey, open, onClose, onOk, amount, currency, proxy }) => {
+  usesVestingContractTokens: boolean;
+}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export const UndelegateModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey, proxy);
+      onOk(identityKey, usesVestingContractTokens);
     }
   };
 

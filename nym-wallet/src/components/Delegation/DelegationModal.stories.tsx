@@ -13,9 +13,12 @@ export default {
   component: Delegations,
 } as ComponentMeta<typeof Delegations>;
 
-const transactionUrl =
-  'https://sandbox-blocks.nymtech.net/transactions/11ED7B9E21534A9421834F52FED5103DC6E982949C06335F5E12EFC71DAF0CFB';
+const transaction = {
+  url: 'https://sandbox-blocks.nymtech.net/transactions/11ED7B9E21534A9421834F52FED5103DC6E982949C06335F5E12EFC71DAF0CFB',
+  hash: '11ED7B9E21534A9421834F52FED5103DC6E982949C06335F5E12EFC71DAF0CFB',
+};
 const balance = '104 NYMT';
+const balanceVested = '12 NYMT';
 const recipient = 'nymt1923pujepxfnv8dqyxqrl078s4ysf3xn2p7z2xa';
 
 const Content: React.FC = () => (
@@ -41,7 +44,7 @@ export const DelegateSuccess = () => (
       message="You delegated 5 NYM"
       recipient={recipient}
       balance={balance}
-      transactionUrl={transactionUrl}
+      transactions={[transaction]}
       open
     />
   </>
@@ -56,7 +59,7 @@ export const UndelegateSuccess = () => (
       message="You undelegated 5 NYM"
       recipient={recipient}
       balance={balance}
-      transactionUrl={transactionUrl}
+      transactions={[transaction]}
       open
     />
   </>
@@ -71,7 +74,23 @@ export const RedeemSuccess = () => (
       message="42 NYM"
       recipient={recipient}
       balance={balance}
-      transactionUrl={transactionUrl}
+      transactions={[transaction, transaction]}
+      open
+    />
+  </>
+);
+
+export const RedeemWithVestedSuccess = () => (
+  <>
+    <Content />
+    <DelegationModal
+      status="success"
+      action="redeem"
+      message="42 NYM"
+      recipient={recipient}
+      balance={balance}
+      balanceVested={balanceVested}
+      transactions={[transaction, transaction]}
       open
     />
   </>
@@ -86,7 +105,7 @@ export const RedeemAllSuccess = () => (
       message="42 NYM"
       recipient={recipient}
       balance={balance}
-      transactionUrl={transactionUrl}
+      transactions={[transaction, transaction]}
       open
     />
   </>
@@ -101,7 +120,7 @@ export const Error = () => (
       message="Minim esse veniam Lorem id velit Lorem eu eu est. Excepteur labore sunt do proident proident sint aliquip consequat Lorem sint non nulla ad excepteur."
       recipient={recipient}
       balance={balance}
-      transactionUrl={transactionUrl}
+      transactions={[transaction]}
       open
     />
   </>

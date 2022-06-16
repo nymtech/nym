@@ -38,5 +38,7 @@ export const removeAccount = async ({ password, accountName }: { password: strin
 
 export const listAccounts = async () => invokeWrapper<AccountEntry[]>('list_accounts');
 
+export const archiveWalletFile = async () => invokeWrapper<void>('archive_wallet_file');
+
 export const showMnemonicForAccount = async ({ password, accountName }: { password: string; accountName: string }) =>
   invokeWrapper<string>('show_mnemonic_for_account_in_password', { password, accountId: accountName });

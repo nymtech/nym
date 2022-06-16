@@ -23,7 +23,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
 );
 
 export const NetworkSelector = () => {
-  const { network, switchNetwork } = useContext(AppContext);
+  const { network, switchNetwork, appEnv } = useContext(AppContext);
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -59,7 +59,14 @@ export const NetworkSelector = () => {
         <List>
           <ListSubheader>Network selection</ListSubheader>
           {networks
-            .filter(({ networkName }) => !(!config.IS_DEV_MODE && networkName === 'QA'))
+            .filter(({ networkName }) => {
+              // show all networks when in dev more or the user wants QA mode enabled
+              if (config.IS_DEV_MODE || appEnv?.ENABLE_QA_MODE) {
+                return true;
+              }
+              // otherwise, filter out QA
+              return networkName !== 'QA';
+            })
             .map(({ name, networkName }) => (
               <NetworkItem
                 key={networkName}

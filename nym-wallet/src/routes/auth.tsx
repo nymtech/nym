@@ -13,6 +13,7 @@ import {
   ConnectPassword,
 } from 'src/pages/auth/pages';
 import { ConfirmMnemonic } from 'src/pages/auth/pages/confirm-mnemonic';
+import { ForgotPassword } from 'src/pages/auth/pages/forgot-password';
 import { AuthTheme } from 'src/theme';
 
 export const AuthRoutes = () => (
@@ -29,6 +30,7 @@ export const AuthRoutes = () => (
           <Route path="/sign-in-password" element={<SignInPassword />} />
           <Route path="/confirm-mnemonic" element={<ConfirmMnemonic />} />
           <Route path="/connect-password" element={<ConnectPassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </AuthLayout>
     </AuthTheme>

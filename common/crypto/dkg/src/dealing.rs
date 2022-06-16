@@ -351,6 +351,7 @@ mod tests {
     use rand_core::SeedableRng;
 
     #[test]
+    #[ignore] // expensive test
     fn recovering_partial_verification_keys() {
         // START OF SETUP
         let dummy_seed = [42u8; 32];
@@ -419,6 +420,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn verifying_partial_verification_keys() {
         let dummy_seed = [42u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -467,6 +469,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn dealing_roundtrip() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);

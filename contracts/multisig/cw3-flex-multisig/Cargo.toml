@@ -17,12 +17,12 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cw-utils = { version = "0.13.1" }
-cw2 = { version = "0.13.1" }
-cw3 = { version = "0.13.1" }
-cw3-fixed-multisig = { version = "0.13.1", features = ["library"] }
-cw4 = { version = "0.13.1" }
-cw-storage-plus = { version = "0.13.1" }
+cw-utils = { version = "0.13.2" }
+cw2 = { version = "0.13.2" }
+cw3 = { version = "0.13.2" }
+cw3-fixed-multisig = { version = "0.13.2", features = ["library"] }
+cw4 = { version = "0.13.2" }
+cw-storage-plus = { version = "0.13.2" }
 cosmwasm-std = { version = "1.0.0" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

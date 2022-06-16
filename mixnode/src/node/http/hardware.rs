@@ -1,3 +1,4 @@
+use cupid::ExtendedTopologyEnumeration;
 use rocket::serde::{json::Json, Serialize};
 use sysinfo::{System, SystemExt};
 
@@ -13,8 +14,12 @@ pub(crate) struct Hardware {
 #[serde(crate = "rocket::serde")]
 pub(crate) struct CryptoHardware {
     aesni: bool,
-    processor: String,
+    avx2: bool,
+    brand_string: String,
+    logical_processor_count: Option<u32>,
+    osxsave: bool,
     sgx: bool,
+    xsave: bool,
 }
 
 /// Provides hardware information which Nym can use to optimize mixnet speed over time (memory, crypto hardware, CPU, cores, etc).
@@ -34,9 +39,8 @@ fn hardware_info() -> Option<Hardware> {
 fn hardware_from_sysinfo(crypto_hardware: Option<CryptoHardware>) -> Option<Hardware> {
     if System::IS_SUPPORTED {
         let mut system = System::new_all();
-        let total_memory = system.free_memory();
         system.refresh_all();
-        let ram = format!("{}KB", total_memory);
+        let ram = format!("{}KB", system.total_memory());
         let cores = system.cpus();
         let num_cores = cores.len();
         Some(Hardware {
@@ -53,9 +57,28 @@ fn hardware_from_sysinfo(crypto_hardware: Option<CryptoHardware>) -> Option<Hard
 ///
 /// Note: this information is generally only available on x86 platforms for Linux.
 fn hardware_info_from_cupid() -> Option<CryptoHardware> {
-    cupid::master().map(|info| CryptoHardware {
-        aesni: info.aesni(),
-        processor: info.brand_string().unwrap().to_string(),
-        sgx: info.sgx(),
+    cupid::master().map(|info| -> CryptoHardware {
+        let mut logical_processor_count = None;
+        if let Some(cpu_count) = info.extended_topology_enumeration() {
+            logical_processor_count = Some(
+                info.extended_topology_enumeration()
+                    .unwrap()
+                    .map(|topology| topology.logical_processor_count())
+                    .collect::<Vec<u32>>()
+                    .first()
+                    .unwrap()
+                    .to_owned(),
+            )
+        };
+
+        CryptoHardware {
+            aesni: info.aesni(),
+            avx2: info.avx2(),
+            brand_string: info.brand_string().unwrap().to_string(),
+            logical_processor_count,
+            osxsave: info.osxsave(),
+            sgx: info.sgx(),
+            xsave: info.xsave(),
+        }
     })
 }

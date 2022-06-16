@@ -1,6 +1,6 @@
+use futures::channel::mpsc;
 use futures::SinkExt;
 use log::info;
-use futures::channel::mpsc;
 
 use config::NymConfig;
 #[cfg(not(feature = "coconut"))]

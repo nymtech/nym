@@ -12,7 +12,7 @@ export const BalanceCard = () => {
   }, []);
 
   return (
-    <NymCard title="Balance" data-testid="check-balance" Action={<ClientAddress withCopy />}>
+    <NymCard title="Balance" data-testid="check-balance" Action={<ClientAddress withCopy showEntireAddress />}>
       <Grid container direction="column" spacing={2}>
         <Grid item>
           {userBalance.error && (

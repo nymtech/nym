@@ -26,9 +26,9 @@ jobs:
             core.setFailed('Release tag did not start with nym-wallet-...')
 
       - name: Node v16
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 16
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:

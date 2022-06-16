@@ -1,12 +1,11 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Button, Card, Grid, Link as MuiLink } from '@mui/material';
-import { Link as RRDLink, useParams } from 'react-router-dom';
+import { Link as RRDLink, useParams, useNavigate } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
 import { Theme, useTheme } from '@mui/material/styles';
-import { useHistory } from 'react-router';
-import { CopyToClipboard } from '@nymproject/react';
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { useMainContext } from '../../context/main';
 import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
 import { TableToolbar } from '../../components/TableToolbar';
@@ -20,8 +19,8 @@ import { splice } from '../../utils';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
 
-const getCellFontStyle = (theme: Theme, row: MixnodeRowType) => {
-  const color = getMixNodeStatusColor(theme, row.status);
+const getCellFontStyle = (theme: Theme, row: MixnodeRowType, textColor?: string) => {
+  const color = textColor || getMixNodeStatusColor(theme, row.status);
   return {
     fontWeight: 400,
     fontSize: 12,
@@ -29,10 +28,10 @@ const getCellFontStyle = (theme: Theme, row: MixnodeRowType) => {
   };
 };
 
-const getCellStyles = (theme: Theme, row: MixnodeRowType): SxProps => ({
+const getCellStyles = (theme: Theme, row: MixnodeRowType, textColor?: string): SxProps => ({
   ...cellStyles,
   // TODO: should these be here, or change in `cellStyles`??
-  ...getCellFontStyle(theme, row),
+  ...getCellFontStyle(theme, row, textColor),
 });
 
 export const PageMixnodes: React.FC = () => {
@@ -42,7 +41,7 @@ export const PageMixnodes: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const theme = useTheme();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
@@ -74,7 +73,7 @@ export const PageMixnodes: React.FC = () => {
   }, [status]);
 
   const handleMixnodeStatusChanged = (newStatus?: MixnodeStatusWithAll) => {
-    history.push(
+    navigate(
       newStatus && newStatus !== MixnodeStatusWithAll.all
         ? `/network-components/mixnodes/${newStatus}`
         : '/network-components/mixnodes',
@@ -190,8 +189,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={{
             textAlign: 'left',
-            color: params.value > 100 ? theme.palette.warning.main : 'inherit',
-            ...getCellStyles(theme, params.row),
+            ...getCellStyles(theme, params.row, params.value > 100 ? 'theme.palette.warning.main' : undefined),
           }}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
@@ -237,8 +235,8 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'avg_uptime',
-      headerName: 'Average Uptime',
-      renderHeader: () => <CustomColumnHeading headingTitle="Average Uptime" />,
+      headerName: 'Avg. Uptime',
+      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 160,
       headerAlign: 'left',

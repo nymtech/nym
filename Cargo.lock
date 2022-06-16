@@ -2852,6 +2852,7 @@ dependencies = [
  "nymsphinx-types",
  "rand 0.8.5",
  "serde",
+ "task",
  "tokio",
  "tokio-util 0.7.3",
  "url",

@@ -14,5 +14,8 @@ export const getDelegationSummary = async () => invokeWrapper<DelegationsSummary
 export const undelegateFromMixnode = async (identity: string) =>
   invokeWrapper<TransactionExecuteResult>('undelegate_from_mixnode', { identity });
 
+export const undelegateAllFromMixnode = async (identity: string, usesVestingContractTokens: boolean) =>
+  invokeWrapper<TransactionExecuteResult[]>('undelegate_all_from_mixnode', { identity, usesVestingContractTokens });
+
 export const delegateToMixnode = async ({ identity, amount }: { identity: string; amount: MajorCurrencyAmount }) =>
   invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { identity, amount });

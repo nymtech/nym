@@ -18,7 +18,7 @@ export const originalNavOptions: NavOptionType[] = [
   {
     id: 0,
     isActive: false,
-    url: '/overview',
+    url: '/',
     title: 'Overview',
     Icon: <OverviewSVG />,
   },

@@ -11,6 +11,7 @@ use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{fmt, io, process};
+use task::ShutdownListener;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Decoder, Encoder, Framed};
@@ -18,13 +19,19 @@ use tokio_util::codec::{Decoder, Encoder, Framed};
 pub(crate) struct PacketListener {
     address: SocketAddr,
     connection_handler: Arc<ConnectionHandler>,
+    shutdown: ShutdownListener,
 }
 
 impl PacketListener {
-    pub(crate) fn new(address: SocketAddr, identity: Arc<identity::KeyPair>) -> Self {
+    pub(crate) fn new(
+        address: SocketAddr,
+        identity: Arc<identity::KeyPair>,
+        shutdown: ShutdownListener,
+    ) -> Self {
         PacketListener {
             address,
             connection_handler: Arc::new(ConnectionHandler { identity }),
+            shutdown,
         }
     }
 }
@@ -34,24 +41,37 @@ impl PacketListener {
         let listener = match TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                error!(
+                    "Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?",
+                    self.address, err
+                );
                 process::exit(1);
             }
         };
 
         info!("Started listening for echo packets on {}", self.address);
 
-        loop {
+        let mut shutdown_listener = self.shutdown.clone();
+
+        while !shutdown_listener.is_shutdown() {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
+            let handler_shutdown_listener = self.shutdown.clone();
 
-            match listener.accept().await {
-                Ok((socket, remote_addr)) => {
-                    debug!("New verloc connection from {}", remote_addr);
+            tokio::select! {
+                socket = listener.accept() => {
+                    match socket {
+                        Ok((socket, remote_addr)) => {
+                            debug!("New verloc connection from {}", remote_addr);
 
-                    tokio::spawn(connection_handler.handle_connection(socket, remote_addr));
+                            tokio::spawn(connection_handler.handle_connection(socket, remote_addr, handler_shutdown_listener));
+                        }
+                        Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
+                    }
+                },
+                _ = shutdown_listener.recv() => {
+                    log::trace!("PacketListener: Received shutdown");
                 }
-                Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
             }
         }
     }
@@ -67,34 +87,46 @@ impl ConnectionHandler {
         packet.construct_reply(self.identity.private_key())
     }
 
-    pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
+    pub(crate) async fn handle_connection(
+        self: Arc<Self>,
+        conn: TcpStream,
+        remote: SocketAddr,
+        mut shutdown_listener: ShutdownListener,
+    ) {
         debug!("Starting connection handler for {:?}", remote);
 
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
-        while let Some(echo_packet) = framed_conn.next().await {
-            // handle echo packet
-            let reply_packet = match echo_packet {
-                Ok(echo_packet) => self.handle_echo_packet(echo_packet),
-                Err(err) => {
-                    error!(
-                        "The socket connection got corrupted with error: {}. Closing the socket",
-                        err
-                    );
-                    return;
-                }
-            };
+        while !shutdown_listener.is_shutdown() {
+            tokio::select! {
+                Some(echo_packet) = framed_conn.next() => {
+                    // handle echo packet
+                    let reply_packet = match echo_packet {
+                        Ok(echo_packet) => self.handle_echo_packet(echo_packet),
+                        Err(err) => {
+                            error!(
+                                "The socket connection got corrupted with error: {}. Closing the socket",
+                                err
+                            );
+                            return;
+                        }
+                    };
 
-            // write back the reply (note the lack of framing)
-            if let Err(err) = framed_conn
-                .get_mut()
-                .write_all(reply_packet.to_bytes().as_ref())
-                .await
-            {
-                error!(
-                    "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
-                    err
-                );
-                return;
+                    // write back the reply (note the lack of framing)
+                    if let Err(err) = framed_conn
+                        .get_mut()
+                        .write_all(reply_packet.to_bytes().as_ref())
+                        .await
+                    {
+                        error!(
+                            "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
+                            err
+                        );
+                        return;
+                    }
+                },
+                _ = shutdown_listener.recv() => {
+                    trace!("ConnectionHandler: Shutdown received");
+                }
             }
         }
     }

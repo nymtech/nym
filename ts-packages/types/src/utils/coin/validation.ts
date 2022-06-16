@@ -3,6 +3,7 @@ export const isValidRawCoin = (rawAmount: string): boolean => {
 
   // if value is a decimal it cannot have more than 6 decimal places
   if (amountFloat % 1 > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/naming-convention
     const [_, numsAfterDecimal] = rawAmount.split('.');
 
     if (+numsAfterDecimal.length > 6) {
@@ -15,7 +16,6 @@ export const isValidRawCoin = (rawAmount: string): boolean => {
     return false;
   }
 
-  console.log(amountFloat);
   // it can't be lower than one micro coin
   if (amountFloat < 0.000001) {
     return false;

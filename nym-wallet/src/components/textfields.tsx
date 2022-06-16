@@ -39,8 +39,9 @@ export const PasswordInput: React.FC<{
   label?: string;
   placeholder?: string;
   autoFocus?: boolean;
+  disabled?: boolean;
   onUpdatePassword: (password: string) => void;
-}> = ({ password, label, placeholder, error, autoFocus, onUpdatePassword }) => {
+}> = ({ password, label, placeholder, error, autoFocus, disabled, onUpdatePassword }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -54,6 +55,7 @@ export const PasswordInput: React.FC<{
           onChange={(e) => onUpdatePassword(e.target.value)}
           type={showPassword ? 'input' : 'password'}
           autoFocus={autoFocus}
+          disabled={disabled}
           InputProps={{
             endAdornment: (
               <IconButton onClick={() => setShowPassword((show) => !show)}>

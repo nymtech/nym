@@ -7,7 +7,6 @@ use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::{
     query_mixnode_delegations_paged, query_pending_delegation_events,
 };
-use crate::delegations::storage::delegations;
 use crate::error::ContractError;
 use crate::gateways::queries::query_owns_gateway;
 use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
@@ -36,7 +35,6 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
-use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -440,87 +438,8 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-fn migrate_contract_state_params(deps: DepsMut<'_>) -> Result<(), ContractError> {
-    use crate::mixnet_contract_settings::storage::CONTRACT_STATE;
-    use cw_storage_plus::Item;
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Serialize, Deserialize)]
-    struct OldContractState {
-        pub owner: Addr,
-        pub rewarding_validator_address: Addr,
-        pub params: OldContractStateParams,
-    }
-
-    #[derive(Serialize, Deserialize)]
-    struct OldContractStateParams {
-        pub minimum_mixnode_pledge: Uint128,
-        pub minimum_gateway_pledge: Uint128,
-        pub mixnode_rewarded_set_size: u32,
-        pub mixnode_active_set_size: u32,
-    }
-
-    const OLD_CONTRACT_STATE: Item<'_, OldContractState> = Item::new("config");
-
-    let old_contract_state = OLD_CONTRACT_STATE.load(deps.storage)?;
-
-    let old_params = old_contract_state.params;
-
-    let new_params = ContractStateParams {
-        minimum_mixnode_pledge: old_params.minimum_mixnode_pledge,
-        minimum_gateway_pledge: old_params.minimum_gateway_pledge,
-        mixnode_rewarded_set_size: old_params.mixnode_rewarded_set_size,
-        mixnode_active_set_size: old_params.mixnode_active_set_size,
-        staking_supply: INITIAL_STAKING_SUPPLY,
-    };
-
-    let new_contract_state = ContractState {
-        owner: old_contract_state.owner,
-        rewarding_validator_address: old_contract_state.rewarding_validator_address,
-        params: new_params,
-    };
-
-    CONTRACT_STATE.save(deps.storage, &new_contract_state)?;
-
-    Ok(())
-}
-
-fn _deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
-    // if there exists any delegation of 0 value, remove it
-    let zero_delegations = delegations()
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| v.amount.amount == Uint128::zero())
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation in &zero_delegations {
-        delegations().remove(deps.storage, delegation.clone())?;
-    }
-
-    // similarly, if there exists any event that is scheduled to insert/remove delegation with 0 value, purge it
-    let delegate_events_to_purge = crate::delegations::storage::PENDING_DELEGATION_EVENTS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| match v {
-            DelegationEvent::Delegate(d) => d.amount.amount == Uint128::zero(),
-            _ => false,
-        })
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation_event in delegate_events_to_purge {
-        crate::delegations::storage::PENDING_DELEGATION_EVENTS
-            .remove(deps.storage, delegation_event);
-    }
-
-    Ok(())
-}
-
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_contract_state_params(deps)?;
-
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

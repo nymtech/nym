@@ -56,7 +56,9 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
     .await;
 
     info!("Setting gateway endpoint");
-    config.get_base_mut().with_gateway_endpoint(gateway_details.into());
+    config
+        .get_base_mut()
+        .with_gateway_endpoint(gateway_details.into());
 
     info!("Insert gateway shared key");
     key_manager.insert_gateway_shared_key(shared_keys);

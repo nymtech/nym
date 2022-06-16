@@ -59,7 +59,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1258]: https://github.com/nymtech/nym/pull/1258
 [#1260]: https://github.com/nymtech/nym/pull/1260
 [#1261]: https://github.com/nymtech/nym/pull/1261
-[#1265]: https://github.com/nymtech/nym/pull/1265
 [#1267]: https://github.com/nymtech/nym/pull/1267
 [#1275]: https://github.com/nymtech/nym/pull/1275
 [#1278]: https://github.com/nymtech/nym/pull/1278
@@ -90,6 +89,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: contract admin route put back
 - wallet: staking_supply field to StateParams
 - wallet: show transaction hash for redeeming or compounding rewards
+
+[#1265]: https://github.com/nymtech/nym/pull/1265
+[#1302]: https://github.com/nymtech/nym/pull/1302
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

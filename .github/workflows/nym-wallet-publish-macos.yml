@@ -1,5 +1,6 @@
 name: Publish Nym Wallet (MacOS)
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
@@ -55,6 +56,12 @@ jobs:
           security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: Create env file
+        run: |
+          touch .env
+          echo ADMIN_ADDRESS=${{ secrets.WALLET_ADMIN_ADDRESS }} >> .env
+          cat .env
+
       - name: Install app dependencies and build it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,8 +73,19 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          ADMIN_ADDRESS: ${{ secrets.WALLET_ADMIN_ADDRESS }}
         run: yarn && yarn build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-wallet.app.tar.gz
+          path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz
+          retention-days: 5
+
+      - name: Clean up keychain
+        if: ${{ always() }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
 
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
@@ -75,8 +93,3 @@ jobs:
           files: |
             nym-wallet/target/release/bundle/dmg/*.dmg
             nym-wallet/target/release/bundle/macos/*.app.tar.gz*
-
-      - name: Clean up keychain
-        if: ${{ always() }}
-        run: |
-          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db

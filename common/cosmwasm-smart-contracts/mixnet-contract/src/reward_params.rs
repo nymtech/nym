@@ -160,11 +160,11 @@ impl EpochRewardParams {
     pub fn epoch_reward_pool(&self) -> u128 {
         self.epoch_reward_pool.u128()
     }
-    
+
     pub fn sybil_resistance_percent(&self) -> u8 {
         self.sybil_resistance_percent
     }
-    
+
     pub fn active_set_work_factor(&self) -> u8 {
         self.active_set_work_factor
     }

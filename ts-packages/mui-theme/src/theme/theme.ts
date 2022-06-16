@@ -126,6 +126,11 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           },
         },
       },
+      MuiLink: {
+        defaultProps: {
+          underline: 'none',
+        },
+      },
     },
     palette,
   };

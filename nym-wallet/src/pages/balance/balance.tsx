@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react';
-import { Alert, Button, Grid, Link, Typography } from '@mui/material';
-import { OpenInNew } from '@mui/icons-material';
+import { Alert, Grid, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { NymCard, ClientAddress } from '../../components';
 import { AppContext, urls } from '../../context/main';
 
@@ -33,9 +33,11 @@ export const BalanceCard = () => {
         </Grid>
         {network && (
           <Grid item>
-            <Link href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`} target="_blank">
-              <Button endIcon={<OpenInNew />}>Last transactions</Button>
-            </Link>
+            <Link
+              href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`}
+              target="_blank"
+              text="Last transactions"
+            />
           </Grid>
         )}
       </Grid>

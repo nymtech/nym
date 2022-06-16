@@ -50,3 +50,9 @@ This project uses [shared asset files](../../assets/README.md) such as favicons 
 ## Publishing
 
 This package is not published to NPM ... yet.
+
+## TODO
+
+- ugprade to React 18
+- upgrade Storybook
+- upgrade MUI

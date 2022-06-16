@@ -1,6 +1,6 @@
 import type { TransactionDetails } from './TransactionDetails';
 
-export interface SendTxResult {
+export interface TauriTxResult {
   block_height: bigint;
   code: number;
   details: TransactionDetails;

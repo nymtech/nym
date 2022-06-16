@@ -17,9 +17,9 @@ jobs:
     - name: Install rsync
       run: sudo apt-get install rsync
     - uses: rlespinasse/github-slug-action@v3.x
-    - uses: actions/setup-node@v2
+    - uses: actions/setup-node@v3
       with:
-        node-version: '16'
+        node-version: 16
     - name: Setup yarn
       run: npm install -g yarn
       continue-on-error: true

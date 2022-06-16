@@ -3,10 +3,10 @@ import {
   DelegationEvent,
   StakeSaturationResponse,
   MixnodeStatusResponse,
-  Operation,
   InclusionProbabilityResponse,
   MajorCurrencyAmount,
   MixNodeBond,
+  Operation,
 } from '@nymproject/types';
 import { Epoch } from 'src/types';
 import { invokeWrapper } from './wrapper';

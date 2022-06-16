@@ -59,7 +59,7 @@ jobs:
       - name: Create env file
         run: |
           touch .env
-          echo ADMIN_ADDRESS=${{ secrets.WALLET_ADMIN_ADDRESS }} >> .env
+          echo ADMIN_ADDRESS="${{ secrets.WALLET_ADMIN_ADDRESS }}" >> .env
           cat .env
 
       - name: Install app dependencies and build it
@@ -89,6 +89,7 @@ jobs:
 
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
         with:
           files: |
             nym-wallet/target/release/bundle/dmg/*.dmg

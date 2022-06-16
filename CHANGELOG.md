@@ -45,6 +45,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
+- all: updated `rocket` to `0.5.0-rc.2`.
 - network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
 - gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
 

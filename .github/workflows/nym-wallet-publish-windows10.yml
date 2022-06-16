@@ -58,7 +58,6 @@ jobs:
         run: |
           touch .env
           echo ADMIN_ADDRESS="${{ secrets.WALLET_ADMIN_ADDRESS }}" >> .env
-          cat .env
 
       - name: Install app dependencies
         run: yarn

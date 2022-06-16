@@ -43,7 +43,6 @@ jobs:
         run: |
           touch .env
           echo ADMIN_ADDRESS="${{ secrets.WALLET_ADMIN_ADDRESS }}" >> .env
-          cat .env
       - name: Build app
         run: yarn build
         env:

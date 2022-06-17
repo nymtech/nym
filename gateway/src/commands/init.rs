@@ -45,7 +45,7 @@ pub struct Init {
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
-    mnemonic: String,
+    mnemonic: Option<String>,
 
     /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -56,6 +56,14 @@ pub struct Init {
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     eth_endpoint: String,
+
+    /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
+    #[clap(long)]
+    enabled_statistics: Option<bool>,
+
+    /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
+    #[clap(long)]
+    statistics_service_url: Option<String>,
 
     /// Comma separated list of endpoints of the validator
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -73,13 +81,16 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
             validator_apis: init_config.validator_apis,
-            mnemonic: Some(init_config.mnemonic),
+            mnemonic: init_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: Some(init_config.eth_endpoint),
+
+            enabled_statistics: init_config.enabled_statistics,
+            statistics_service_url: init_config.statistics_service_url,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             validators: init_config.validators,
@@ -163,7 +174,9 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
-            mnemonic: "a b c".to_string(),
+            mnemonic: Some("a b c".to_string()),
+            statistics_service_url: None,
+            enabled_statistics: None,
         };
 
         let config = Config::new(&args.id);

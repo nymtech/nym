@@ -7,4 +7,7 @@ use thiserror::Error;
 pub enum StatsError {
     #[error("Serde JSON error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("Reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
 }

@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
-import { Box, CircularProgress, Link, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { TransactionDetails as TTransactionDetails } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { SendError } from './SendError';
 import { AppContext, urls } from '../../context/main';
 import { SuccessReponse } from '../../components';
@@ -38,9 +39,11 @@ export const SendConfirmation = ({
             subtitle={
               <>
                 Check the transaction hash{' '}
-                <Link href={`${urls(network).blockExplorer}/transactions/${data.tx_hash}`} target="_blank">
-                  here
-                </Link>
+                <Link
+                  href={`${urls(network).blockExplorer}/transactions/${data.tx_hash}`}
+                  target="_blank"
+                  text="here"
+                />
               </>
             }
             caption={

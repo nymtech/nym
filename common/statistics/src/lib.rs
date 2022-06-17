@@ -6,11 +6,12 @@ use serde::{Deserialize, Serialize};
 use error::StatsError;
 
 pub mod api;
+pub mod collector;
 pub mod error;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsMessage {
-    pub stats_data: Vec<StatsServiceData>,
+    pub stats_data: Vec<StatsData>,
     pub interval_seconds: u32,
     pub timestamp: String,
 }
@@ -22,6 +23,23 @@ impl StatsMessage {
 
     pub fn from_json(s: &str) -> Result<Self, StatsError> {
         Ok(serde_json::from_str(s)?)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum StatsData {
+    Service(StatsServiceData),
+    Gateway(StatsGatewayData),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct StatsGatewayData {
+    pub inbox_count: u32,
+}
+
+impl StatsGatewayData {
+    pub fn new(inbox_count: u32) -> Self {
+        StatsGatewayData { inbox_count }
     }
 }
 

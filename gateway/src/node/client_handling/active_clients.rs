@@ -55,4 +55,9 @@ impl ActiveClientsStore {
     pub(crate) fn insert(&self, client: DestinationAddressBytes, handle: MixMessageSender) {
         self.0.insert(client, handle);
     }
+
+    /// Get number of active clients in store
+    pub(crate) fn size(&self) -> usize {
+        self.0.len()
+    }
 }

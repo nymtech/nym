@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
-import { createPassword } from 'src/requests';
 import { PasswordInput } from 'src/components';
+import { archiveWalletFile, createPassword, isPasswordCreated } from 'src/requests';
 import { Subtitle, Title, PasswordStrength } from '../components';
 
 export const ConnectPassword = () => {
@@ -20,6 +20,12 @@ export const ConnectPassword = () => {
   const storePassword = async () => {
     try {
       setIsLoading(true);
+
+      const exists = await isPasswordCreated();
+      if (exists) {
+        await archiveWalletFile();
+      }
+
       await createPassword({ mnemonic, password });
       resetState();
       enqueueSnackbar('Password successfully created', { variant: 'success' });

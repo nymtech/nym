@@ -6,11 +6,11 @@ use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
 
-use statistics::StatsMessage;
+use statistics_common::StatsMessage;
 
 use crate::storage::error::NetworkStatisticsStorageError;
 use crate::storage::manager::StorageManager;
-use crate::storage::models::ServiceStatistics;
+use crate::storage::models::{GatewayStatistics, ServiceStatistics};
 
 pub(crate) mod error;
 mod manager;
@@ -49,29 +49,38 @@ impl NetworkStatisticsStorage {
     /// # Arguments
     ///
     /// * `msg`: Message containing the statistical data.
-    pub(super) async fn insert_service_statistics(
+    pub(super) async fn insert_statistics(
         &self,
         msg: StatsMessage,
     ) -> Result<(), NetworkStatisticsStorageError> {
         let timestamp: DateTime<Utc> = DateTime::parse_from_rfc3339(&msg.timestamp)
             .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
             .into();
-        for service_data in msg.stats_data {
-            self.manager
-                .insert_service_statistics(
-                    service_data.requested_service.clone(),
-                    service_data.request_bytes,
-                    service_data.response_bytes,
-                    msg.interval_seconds,
-                    timestamp,
-                )
-                .await?;
+        for stats_data in msg.stats_data {
+            match stats_data {
+                statistics_common::StatsData::Service(service_data) => {
+                    self.manager
+                        .insert_service_statistics(
+                            service_data.requested_service.clone(),
+                            service_data.request_bytes,
+                            service_data.response_bytes,
+                            msg.interval_seconds,
+                            timestamp,
+                        )
+                        .await?;
+                }
+                statistics_common::StatsData::Gateway(gateway_data) => {
+                    self.manager
+                        .insert_gateway_statistics(gateway_data.inbox_count, timestamp)
+                        .await?
+                }
+            }
         }
 
         Ok(())
     }
 
-    /// Returns data submitted within the provided time interval.
+    /// Returns service data submitted within the provided time interval.
     ///
     /// # Arguments
     ///
@@ -91,6 +100,29 @@ impl NetworkStatisticsStorage {
         Ok(self
             .manager
             .get_service_statistics_in_interval(since, until)
+            .await?)
+    }
+
+    /// Returns gateway data submitted within the provided time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: indicates the lower bound timestamp for the data, RFC 3339 format
+    /// * `until`: indicates the upper bound timestamp for the data, RFC 3339 format
+    pub(super) async fn get_gateway_statistics_in_interval(
+        &self,
+        since: &str,
+        until: &str,
+    ) -> Result<Vec<GatewayStatistics>, NetworkStatisticsStorageError> {
+        let since = DateTime::parse_from_rfc3339(since)
+            .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
+            .into();
+        let until = DateTime::parse_from_rfc3339(until)
+            .map_err(|_| NetworkStatisticsStorageError::TimestampParse)?
+            .into();
+        Ok(self
+            .manager
+            .get_gateway_statistics_in_interval(since, until)
             .await?)
     }
 }

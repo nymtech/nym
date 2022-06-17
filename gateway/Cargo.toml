@@ -18,7 +18,7 @@ bip39 = "1.0.1"
 bs58 = "0.4.0"
 clap = { version = "3.0.10", features = ["cargo", "derive"] }
 colored = "2.0"
-dashmap = "4.0"
+dashmap = "5.1"
 dirs = "3.0"
 dotenv = "0.15.0"
 futures = "0.3"

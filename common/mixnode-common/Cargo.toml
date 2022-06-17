@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.0"
-dashmap = "4.0"
+dashmap = "5.1"
 futures = "0.3"
 humantime-serde = "1.0"
 log = "0.4"

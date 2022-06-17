@@ -2,6 +2,7 @@ import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { valid } from 'semver';
 import { isValidRawCoin, MajorAmountString } from '@nymproject/types';
+import { TPoolOption } from 'src/components';
 import { getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';
 
@@ -107,3 +108,16 @@ export const maximizeWindow = async () => {
 export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {
   return arr.filter((v, i, a) => a.findIndex((v2) => v2[id] === v[id]) === i);
 }
+
+export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) => {
+  let hasEnoughFunds = false;
+  if (tokenPool === 'locked') {
+    hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
+  }
+
+  if (tokenPool === 'balance') {
+    hasEnoughFunds = await checkHasEnoughFunds(amount);
+  }
+
+  return hasEnoughFunds;
+};

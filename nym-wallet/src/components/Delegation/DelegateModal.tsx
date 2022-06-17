@@ -3,31 +3,18 @@ import { Box, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateDelegateToMixnode } from 'src/requests';
+import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode } from 'src/requests';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
-import { checkHasEnoughFunds, checkHasEnoughLockedTokens, validateAmount, validateKey } from '../../utils';
+import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
-import { Console } from 'src/utils/console';
 
 import { getMixnodeStakeSaturation } from '../../requests';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
-
-const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) => {
-  let hasEnoughFunds = false;
-  if (tokenPool === 'locked') {
-    hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
-  }
-
-  if (tokenPool === 'balance') {
-    hasEnoughFunds = await checkHasEnoughFunds(amount);
-  }
-
-  return hasEnoughFunds;
-};
 
 export const DelegateModal: React.FC<{
   open: boolean;
@@ -138,12 +125,12 @@ export const DelegateModal: React.FC<{
       return;
     }
 
-    if (tokenPool === 'locked') {
+    if (tokenPool === 'balance') {
       getFee(simulateDelegateToMixnode, { identity, amount: value });
     }
 
-    if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { identity, amount: value });
+    if (tokenPool === 'locked') {
+      getFee(simulateVestingDelegateToMixnode, { identity, amount: value });
     }
   };
 

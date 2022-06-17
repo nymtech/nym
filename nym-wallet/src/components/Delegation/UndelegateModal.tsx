@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateUndelegateFromMixnode } from 'src/requests';
+import { simulateUndelegateFromMixnode, simulateVestingUndelegateFromMixnode } from 'src/requests';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { ModalFee } from '../Modals/ModalFee';
@@ -19,8 +19,10 @@ export const UndelegateModal: React.FC<{
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
-    // Need simulateVestingUndelegateFromMixnode
-    getFee(simulateUndelegateFromMixnode, identityKey);
+    if (usesVestingContractTokens) getFee(simulateVestingUndelegateFromMixnode, { identityKey });
+    else {
+      getFee(simulateUndelegateFromMixnode, identityKey);
+    }
   }, []);
 
   const handleOk = async () => {

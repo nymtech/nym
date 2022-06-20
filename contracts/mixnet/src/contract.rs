@@ -445,7 +445,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 
 fn update_epoch_duration(deps: DepsMut<'_>) -> Result<(), ContractError> {
     let mut epoch = crate::interval::storage::current_epoch(deps.storage)?;
-    epoch.update_duration(600);
+    epoch.update_duration(3600);
     crate::interval::storage::save_epoch(deps.storage, &epoch)?;
 
     Ok(())

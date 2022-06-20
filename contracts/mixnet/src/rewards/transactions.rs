@@ -1645,7 +1645,7 @@ pub mod tests {
 
         assert_eq!(
             mix_1.node_profit(&params, base_operator_cost).int(),
-            183202u128
+            183203u128
         );
 
         assert_ne!(
@@ -1662,16 +1662,16 @@ pub mod tests {
             mix_1.reward_delegation(Uint128::new(2000_000000), &params, base_operator_cost);
 
         assert_eq!(mix1_operator_reward, 150761);
-        assert_eq!(mix1_delegator1_reward, 65952);
+        assert_eq!(mix1_delegator1_reward, 65953);
         assert_eq!(mix1_delegator2_reward, 16488);
 
         assert_eq!(
             mix_1_reward_result.reward().int(),
-            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1
+            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward
         );
 
         assert_eq!(
-            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1,
+            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward,
             mix_1_reward_result.reward().int()
         );
 
@@ -1709,14 +1709,12 @@ pub mod tests {
                 + mix1_operator_reward
                 + mix1_delegator1_reward
                 + mix1_delegator2_reward
-                + 1 // There is a rounding error here it seems
         );
 
         assert_eq!(
             storage::REWARD_POOL.load(&deps.storage).unwrap().u128(),
             INITIAL_REWARD_POOL
                 - (mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward)
-                - 1 // Same rounding error, its 1 ucoin, it will manifest/correct when the rewards are claimed
         );
 
         // it's all correctly saved

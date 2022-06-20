@@ -635,6 +635,12 @@ pub struct MixOwnershipResponse {
     pub mixnode: Option<MixNodeBond>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixnodeBondResponse {
+    pub identity: IdentityKey,
+    pub mixnode: Option<MixNodeBond>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -64,6 +64,10 @@ impl Network {
         self.details().rewarding_validator_address
     }
 
+    pub fn statistics_service_url(&self) -> &str {
+        self.details().statistics_service_url
+    }
+
     pub fn validators(&self) -> impl Iterator<Item = &ValidatorDetails> {
         self.details().validators.iter()
     }
@@ -101,6 +105,7 @@ pub struct NetworkDetails {
     mixnet_contract_address: String,
     vesting_contract_address: String,
     bandwidth_claim_contract_address: String,
+    statistics_service_url: String,
     validators: Vec<ValidatorDetails>,
 }
 
@@ -112,6 +117,7 @@ impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
             mixnet_contract_address: details.mixnet_contract_address.into(),
             vesting_contract_address: details.vesting_contract_address.into(),
             bandwidth_claim_contract_address: details.bandwidth_claim_contract_address.into(),
+            statistics_service_url: details.statistics_service_url.into(),
             validators: details.validators.clone(),
         }
     }

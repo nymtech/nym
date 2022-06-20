@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Link, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { DelegationWithEverything } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { DelegationList } from './DelegationList';
 import { DelegationListItemActions } from './DelegationActions';
 
@@ -18,13 +19,7 @@ export const Delegations: React.FC<{
       onItemActionClick={onDelegationItemActionClick}
     />
     <Box sx={{ mt: 3 }}>
-      <Link
-        href={`${explorerUrl}/network-components/mixnodes/`}
-        target="_blank"
-        rel="noreferrer"
-        underline="hover"
-        color={(theme) => theme.palette.text.primary}
-      >
+      <Link href={`${explorerUrl}/network-components/mixnodes/`} target="_blank" rel="noreferrer">
         Check the{' '}
         <Typography color="primary.main" component="span">
           list of mixnodes

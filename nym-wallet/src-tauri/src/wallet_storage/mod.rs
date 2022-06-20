@@ -308,10 +308,27 @@ fn _archive_wallet_file(path: &Path) -> Result<(), BackendError> {
 }
 
 pub(crate) fn archive_wallet_file() -> Result<(), BackendError> {
-    log::info!("Archiving wallet file");
     let store_dir = get_storage_directory()?;
     let filepath = store_dir.join(WALLET_INFO_FILENAME);
-    _archive_wallet_file(&filepath)
+
+    if filepath.exists() {
+        if let Some(filepath) = filepath.to_str() {
+            log::info!("Archiving wallet file: {}", filepath);
+        } else {
+            log::info!("Archiving wallet file");
+        }
+        _archive_wallet_file(&filepath)
+    } else {
+        if let Some(filepath) = filepath.to_str() {
+            log::info!(
+                "Skipping archiving wallet file, as it's not found: {}",
+                filepath
+            );
+        } else {
+            log::info!("Skipping archiving wallet file, as it's not found");
+        }
+        Err(BackendError::WalletFileNotFound)
+    }
 }
 
 /// Remove an account from inside the encrypted login.

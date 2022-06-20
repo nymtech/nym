@@ -90,6 +90,9 @@ export const Nav = () => {
               <ListItemText
                 sx={{
                   color: location.pathname === route ? 'primary.main' : 'text.primary',
+                  '& .MuiListItemText-primary': {
+                    fontWeight: '600',
+                  },
                 }}
                 primary={label}
               />

@@ -18,6 +18,8 @@ export interface NymPalette {
   muted: {
     onDarkBg: string;
   };
+
+  linkHover: string;
 }
 
 /**
@@ -79,6 +81,8 @@ export const nymPalette: NymPalette = {
   muted: {
     onDarkBg: '#666B77',
   },
+
+  linkHover: '#AF4D36',
 };
 
 // -------------------------------------------------------------------------------------------------------------------

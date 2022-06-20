@@ -10,13 +10,29 @@ pub const DEFAULT_STATISTICS_SERVICE_PORT: u16 = 8090;
 pub const STATISTICS_SERVICE_VERSION: &str = "/v1";
 pub const STATISTICS_SERVICE_API_STATISTICS: &str = "statistic";
 
+pub async fn build_and_send_statistics_request(
+    msg: StatsMessage,
+    url: String,
+) -> Result<(), StatsError> {
+    reqwest::Client::new()
+        .post(format!(
+            "{}{}/{}",
+            url, STATISTICS_SERVICE_VERSION, STATISTICS_SERVICE_API_STATISTICS
+        ))
+        .json(&msg)
+        .send()
+        .await?;
+
+    Ok(())
+}
+
 pub fn build_statistics_request_bytes(msg: StatsMessage) -> Result<Vec<u8>, StatsError> {
     let json_msg = msg.to_json()?;
 
     let req = reqwest::Request::new(
         reqwest::Method::POST,
         reqwest::Url::parse(&format!(
-            "http://{}:{}/{}/{}",
+            "http://{}:{}{}/{}",
             DEFAULT_STATISTICS_SERVICE_ADDRESS,
             DEFAULT_STATISTICS_SERVICE_PORT,
             STATISTICS_SERVICE_VERSION,

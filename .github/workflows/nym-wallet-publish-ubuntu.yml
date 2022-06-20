@@ -30,21 +30,24 @@ jobs:
             core.setFailed('Release tag did not start with nym-wallet-...')
 
       - name: Node v16
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 16
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
       - name: Install app dependencies
         run: yarn
+      - name: Create env file
+        run: |
+          touch .env
+          echo ADMIN_ADDRESS="${{ secrets.WALLET_ADMIN_ADDRESS }}" >> .env
       - name: Build app
         run: yarn build
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          ADMIN_ADDRESS: ${{ secrets.WALLET_ADMIN_ADDRESS }}
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         with:

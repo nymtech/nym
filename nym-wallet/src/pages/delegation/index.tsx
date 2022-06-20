@@ -1,6 +1,7 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Box, Button, Link, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
@@ -273,13 +274,8 @@ export const Delegation: FC = () => {
               href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
               target="_blank"
               rel="noreferrer"
-              underline="hover"
-              sx={{ color: 'primary.main', textDecorationColor: 'primary.main' }}
-            >
-              <Typography color="primary.main" variant="body2">
-                Network Explorer
-              </Typography>
-            </Link>
+              text="Network Explorer"
+            />
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />

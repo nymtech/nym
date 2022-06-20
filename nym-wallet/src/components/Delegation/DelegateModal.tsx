@@ -81,13 +81,12 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const validateIdentityKey = async (isValid: boolean) => {
+  const validateIdentityKey = (isValid: boolean) => {
     if (!isValid) {
       setErrorIdentityKey('Identity key is invalid');
       setErrorNodeSaturation(undefined);
     } else {
       setErrorIdentityKey(undefined);
-      await handleCheckStakeSaturation(identityKey!);
     }
   };
 
@@ -109,8 +108,9 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleIdentityKeyChanged = async (newIdentityKey: string) => {
+  const handleIdentityKeyChanged = (newIdentityKey: string) => {
     setIdentityKey(newIdentityKey);
+    handleCheckStakeSaturation(newIdentityKey);
 
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);

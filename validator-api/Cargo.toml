@@ -27,7 +27,7 @@ pretty_env_logger = "0.4"
 rand = "0.8"
 rand-07 = { package = "rand", version = "0.7" } # required for compatibility
 reqwest = { version = "0.11", features = ["json"] }
-rocket = { version = "0.5.0-rc.1", features = ["json"] }
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 serde = "1.0"
 serde_json = "1.0"
@@ -42,11 +42,11 @@ ts-rs = "6.1.2"
 anyhow = "1"
 getset = "0.1.1"
 
-rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false }
+rocket_sync_db_pools = { version = "0.1.0-rc.2", default-features = false }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
-rocket_okapi = { version = "0.8.0-rc.1", features = ["swagger"] }
+rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal

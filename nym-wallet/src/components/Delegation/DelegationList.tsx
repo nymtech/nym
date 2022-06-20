@@ -3,7 +3,6 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Link,
   Table,
   TableBody,
   TableCell,
@@ -19,6 +18,7 @@ import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationWithEverything } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { styled } from '@mui/material/styles';
 import { tableCellClasses } from '@mui/material/TableCell';
@@ -163,11 +163,8 @@ export const DelegationList: React.FC<{
                     <Link
                       target="_blank"
                       href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                      color="inherit"
-                      underline="none"
-                    >
-                      {item.node_identity.slice(0, 6)}...{item.node_identity.slice(-6)}
-                    </Link>
+                      text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                    />
                   </Tooltip>
                 </TableCell>
                 <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>

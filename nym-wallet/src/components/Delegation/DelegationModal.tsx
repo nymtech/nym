@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Button, CircularProgress, Link, Modal, Stack, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Modal, Stack, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { modalStyle } from '../Modals/styles';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
@@ -101,9 +102,13 @@ export const DelegationModal: React.FC<
           <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
             Check the transaction {transactions.length > 1 ? 'hashes' : 'hash'}:
             {transactions.map((transaction) => (
-              <Link key={transaction.hash} href={transaction.url} target="_blank" sx={{ ml: 1 }}>
-                {transaction.hash.slice(0, 6)}
-              </Link>
+              <Link
+                key={transaction.hash}
+                href={transaction.url}
+                target="_blank"
+                sx={{ ml: 1 }}
+                text={transaction.hash.slice(0, 6)}
+              />
             ))}
           </Typography>
         )}

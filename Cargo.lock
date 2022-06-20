@@ -1141,6 +1141,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cupid"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bad352a84b567cc38a5854e3aa8ee903cb8519a25d0b799b739bafffd1f91a1"
+dependencies = [
+ "gcc",
+ "rustc_version 0.2.3",
+]
+
+[[package]]
 name = "curve25519-dalek"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1965,6 +1975,12 @@ dependencies = [
  "thiserror",
  "tungstenite",
 ]
+
+[[package]]
+name = "gcc"
+version = "0.3.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
 
 [[package]]
 name = "generator"
@@ -3120,6 +3136,7 @@ dependencies = [
  "colored",
  "config",
  "crypto",
+ "cupid",
  "dirs",
  "dotenv",
  "futures",
@@ -3138,6 +3155,7 @@ dependencies = [
  "rocket",
  "serde",
  "serial_test",
+ "sysinfo",
  "task",
  "tokio",
  "tokio-util 0.7.3",
@@ -5457,6 +5475,21 @@ dependencies = [
  "quote",
  "syn",
  "unicode-xid",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6a8e71535da31837213ac114531d31def75d7aebd133264e420a3451fa7f703"
+dependencies = [
+ "cfg-if 1.0.0",
+ "core-foundation-sys",
+ "libc",
+ "ntapi",
+ "once_cell",
+ "rayon",
+ "winapi",
 ]
 
 [[package]]

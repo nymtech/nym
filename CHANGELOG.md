@@ -24,6 +24,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: the wallet backend learned how to archive wallet files
 - wallet: add ENABLE_QA_MODE environment variable to enable QA mode on built wallet
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
+- mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 
 ### Fixed
 
@@ -63,6 +64,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1292]: https://github.com/nymtech/nym/pull/1292
 [#1295]: https://github.com/nymtech/nym/pull/1295
 [#1302]: https://github.com/nymtech/nym/pull/1302
+[#1308]: https://github.com/nymtech/nym/pull/1308
 [#1318]: https://github.com/nymtech/nym/pull/1318
 [#1322]: https://github.com/nymtech/nym/pull/1322
 [#1324]: https://github.com/nymtech/nym/pull/1324

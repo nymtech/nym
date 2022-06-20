@@ -1,5 +1,5 @@
-test-all: test cargo-test-expensive
 test: build clippy-all cargo-test wasm fmt
+test-all: test cargo-test-expensive
 no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
 clippy-all: clippy-all-main clippy-all-contracts clippy-all-wallet clippy-all-connect

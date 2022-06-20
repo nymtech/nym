@@ -372,6 +372,56 @@ pub fn try_compound_delegator_reward_on_behalf(
     )
 }
 
+pub fn try_compound_reward(
+    deps: DepsMut<'_>,
+    env: Env,
+    operator: Option<String>,
+    delegator: Option<String>,
+    mix_identity: Option<IdentityKey>,
+    proxy: Option<String>,
+) -> Result<Response, ContractError> {
+    let proxy = proxy.and_then(|p| deps.api.addr_validate(&p).ok());
+    if let Some(operator_address) = operator {
+        let operator_address = deps.api.addr_validate(&operator_address)?;
+        let reward = _try_compound_operator_reward(
+            deps.storage,
+            deps.api,
+            env.block.height,
+            &operator_address,
+            proxy,
+        )?;
+        Ok(
+            Response::default().add_event(new_compound_operator_reward_event(
+                &operator_address,
+                reward,
+            )),
+        )
+    } else if let Some(delegator_address) = delegator {
+        if mix_identity.is_none() {
+            return Err(ContractError::MissingMixIdentity);
+        }
+
+        let delegator_address = deps.api.addr_validate(&delegator_address)?;
+        let reward = _try_compound_delegator_reward(
+            env.block.height,
+            deps,
+            delegator_address.as_str(),
+            mix_identity.as_ref().unwrap(),
+            proxy,
+        )?;
+        Ok(
+            Response::default().add_event(new_compound_delegator_reward_event(
+                &delegator_address,
+                &None,
+                reward,
+                &mix_identity.unwrap(),
+            )),
+        )
+    } else {
+        Ok(Response::default())
+    }
+}
+
 pub fn try_compound_delegator_reward(
     deps: DepsMut<'_>,
     env: Env,

@@ -443,7 +443,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-fn update_epoch_duration(deps: DepsMut<'_>) -> Result<(), ContractError> {
+fn _update_epoch_duration(deps: DepsMut<'_>) -> Result<(), ContractError> {
     let mut epoch = crate::interval::storage::current_epoch(deps.storage)?;
     epoch.update_duration(3600);
     crate::interval::storage::save_epoch(deps.storage, &epoch)?;
@@ -529,9 +529,7 @@ fn _deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    update_epoch_duration(deps)?;
-
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

@@ -14,7 +14,7 @@ export const Balance = () => {
 
   const handleShowTransferModal = async () => {
     await userBalance.refreshBalances();
-    setShowTransferModal(false);
+    setShowTransferModal(true);
   };
 
   return (

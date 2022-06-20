@@ -16,8 +16,7 @@ pub(crate) fn is_authorized(sender: String, storage: &dyn Storage) -> Result<(),
 }
 
 pub(crate) fn epoch_reward_params(
-    epoch_id: u32,
-    storage: &mut dyn Storage,
+    storage: &dyn Storage,
 ) -> Result<EpochRewardParams, ContractError> {
     let state = crate::mixnet_contract_settings::storage::CONTRACT_STATE
         .load(storage)
@@ -30,12 +29,10 @@ pub(crate) fn epoch_reward_params(
         (reward_pool.u128() / 100 / epochs_in_interval as u128) * interval_reward_percent as u128,
         state.mixnode_rewarded_set_size as u128,
         state.mixnode_active_set_size as u128,
-        crate::rewards::storage::circulating_supply(storage)?.u128(),
+        state.staking_supply.u128(),
         constants::SYBIL_RESISTANCE_PERCENT,
         constants::ACTIVE_SET_WORK_FACTOR,
     );
-
-    crate::rewards::storage::EPOCH_REWARD_PARAMS.save(storage, epoch_id, &epoch_reward_params)?;
 
     Ok(epoch_reward_params)
 }

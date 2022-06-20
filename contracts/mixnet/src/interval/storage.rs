@@ -18,8 +18,8 @@ type IntervalId = u32;
 pub(crate) const REWARDED_NODE_DEFAULT_PAGE_LIMIT: u32 = 1000;
 pub(crate) const REWARDED_NODE_MAX_PAGE_LIMIT: u32 = 1500;
 
-const CURRENT_EPOCH: Item<'_, Interval> = Item::new("ceph");
-const CURRENT_EPOCH_REWARD_PARAMS: Item<'_, EpochRewardParams> = Item::new("erp");
+pub(crate) const CURRENT_EPOCH: Item<'_, Interval> = Item::new("ceph");
+pub(crate) const CURRENT_EPOCH_REWARD_PARAMS: Item<'_, EpochRewardParams> = Item::new("erp");
 pub(crate) const CURRENT_REWARDED_SET_HEIGHT: Item<'_, BlockHeight> = Item::new("crh");
 
 // I've changed the `()` data to an `u8` as after serializing `()` is represented as "null",
@@ -49,7 +49,7 @@ pub fn save_epoch_reward_params(
     epoch_id: u32,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    let epoch_reward_params = epoch_reward_params(epoch_id, storage)?;
+    let epoch_reward_params = epoch_reward_params(storage)?;
     CURRENT_EPOCH_REWARD_PARAMS.save(storage, &epoch_reward_params)?;
     crate::rewards::storage::EPOCH_REWARD_PARAMS.save(storage, epoch_id, &epoch_reward_params)?;
     Ok(())

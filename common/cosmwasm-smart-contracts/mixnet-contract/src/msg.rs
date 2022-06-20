@@ -165,6 +165,7 @@ pub enum QueryMsg {
     LayerDistribution {},
     GetRewardPool {},
     GetCirculatingSupply {},
+    GetStakingSupply {},
     GetIntervalRewardPercent {},
     GetSybilResistancePercent {},
     GetActiveSetWorkFactor {},

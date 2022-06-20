@@ -35,6 +35,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnet-contract: removed `expect` in `query_delegator_reward` and queries containing invalid proxy address should now return a more human-readable error ([#1257])
 - mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
+- mixnet-contract: Using correct staking supply when distributing rewards. ([#1373])
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
 - mixnode: the mixnode learned how to shutdown gracefully
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
@@ -58,7 +59,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1258]: https://github.com/nymtech/nym/pull/1258
 [#1260]: https://github.com/nymtech/nym/pull/1260
 [#1261]: https://github.com/nymtech/nym/pull/1261
-[#1265]: https://github.com/nymtech/nym/pull/1265
 [#1267]: https://github.com/nymtech/nym/pull/1267
 [#1275]: https://github.com/nymtech/nym/pull/1275
 [#1278]: https://github.com/nymtech/nym/pull/1278
@@ -74,6 +74,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1329]: https://github.com/nymtech/nym/pull/1329
 [#1353]: https://github.com/nymtech/nym/pull/1353
 [#1369]: https://github.com/nymtech/nym/pull/1369
+[#1373]: https://github.com/nymtech/nym/pull/1373
 [#1376]: https://github.com/nymtech/nym/pull/1376
 
 ## [nym-wallet-v1.0.5](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.5) (2022-06-14)
@@ -88,6 +89,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: contract admin route put back
 - wallet: staking_supply field to StateParams
 - wallet: show transaction hash for redeeming or compounding rewards
+
+[#1265]: https://github.com/nymtech/nym/pull/1265
+[#1302]: https://github.com/nymtech/nym/pull/1302
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

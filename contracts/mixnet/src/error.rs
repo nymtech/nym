@@ -179,4 +179,6 @@ pub enum ContractError {
         last_update_time: u64,
         current_block_time: u64,
     },
+    #[error("`mix_identity` is required when `delegator` is set")]
+    MissingMixIdentity,
 }

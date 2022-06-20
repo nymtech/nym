@@ -4,7 +4,6 @@ use super::storage::{self, PENDING_DELEGATION_EVENTS};
 // use crate::contract::debug_with_visibility;
 // use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use config::defaults::DENOM;
 use cosmwasm_std::{
@@ -20,16 +19,7 @@ use mixnet_contract_common::{Delegation, IdentityKey};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
 
-pub fn try_reconcile_all_delegation_events(
-    deps: DepsMut<'_>,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-    // check if this is executed by the permitted validator, if not reject the transaction
-    if info.sender != state.rewarding_validator_address {
-        return Err(ContractError::Unauthorized);
-    }
-
+pub fn try_reconcile_all_delegation_events(deps: DepsMut<'_>) -> Result<Response, ContractError> {
     _try_reconcile_all_delegation_events(deps.storage, deps.api)
 }
 
@@ -1063,181 +1053,13 @@ mod tests {
     #[cfg(test)]
     mod removing_mix_stake_delegation {
         use crate::delegations::queries::query_mixnode_delegation;
+        use super::*;
+        use crate::support::tests;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Addr;
         use cosmwasm_std::Uint128;
-
-        use crate::mixnodes::transactions::try_remove_mixnode;
-        use crate::support::tests;
-
-        use super::storage;
-        use super::*;
-
-        // TODO: Probably delete due to reconciliation logic
-        #[ignore]
-        #[test]
-        fn fails_if_delegation_never_existed() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mixnode_owner = "bob";
-            let identity = test_helpers::add_mixnode(
-                mixnode_owner,
-                tests::fixtures::good_mixnode_pledge(),
-                deps.as_mut(),
-            );
-            let delegation_owner = Addr::unchecked("sender");
-            assert_eq!(
-                Err(ContractError::NoMixnodeDelegationFound {
-                    identity: identity.clone(),
-                    address: delegation_owner.to_string(),
-                }),
-                try_remove_delegation_from_mixnode(
-                    deps.as_mut(),
-                    env,
-                    mock_info(delegation_owner.as_str(), &[]),
-                    identity,
-                )
-            );
-        }
-
-        // TODO: Update to work with reconciliation
-        #[ignore]
-        #[test]
-        fn succeeds_if_delegation_existed() {
-            let mut deps = test_helpers::init_contract();
-            let mixnode_owner = "bob";
-            let env = mock_env();
-            let identity = test_helpers::add_mixnode(
-                mixnode_owner,
-                tests::fixtures::good_mixnode_pledge(),
-                deps.as_mut(),
-            );
-            let delegation_owner = Addr::unchecked("sender");
-            try_delegate_to_mixnode(
-                deps.as_mut(),
-                mock_env(),
-                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
-                identity.clone(),
-            )
-            .unwrap();
-
-            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
-
-            let _delegation = query_mixnode_delegation(
-                &deps.storage,
-                &deps.api,
-                identity.clone(),
-                delegation_owner.clone().into_string(),
-                None,
-            )
-            .unwrap();
-
-            let expected_response = Response::new()
-                .add_message(BankMsg::Send {
-                    to_address: delegation_owner.clone().into(),
-                    amount: coins(100, DENOM),
-                })
-                .add_event(new_undelegation_event(
-                    &delegation_owner,
-                    &None,
-                    &identity,
-                    Uint128::new(100),
-                ));
-
-            assert_eq!(
-                Ok(expected_response),
-                try_remove_delegation_from_mixnode(
-                    deps.as_mut(),
-                    env,
-                    mock_info(delegation_owner.as_str(), &[]),
-                    identity.clone(),
-                )
-            );
-            assert!(storage::delegations()
-                .may_load(
-                    &deps.storage,
-                    (identity.clone(), delegation_owner.as_bytes().to_vec(), 0),
-                )
-                .unwrap()
-                .is_none());
-
-            // and total delegation is cleared
-            assert_eq!(
-                Uint128::zero(),
-                mixnodes_storage::TOTAL_DELEGATION
-                    .load(&deps.storage, &identity)
-                    .unwrap()
-            )
-        }
-
-        // TODO: Update to work with reconciliation
-        #[ignore]
-        #[test]
-        fn succeeds_if_delegation_existed_even_if_node_unbonded() {
-            let mut deps = test_helpers::init_contract();
-            let mixnode_owner = "bob";
-            let env = mock_env();
-            let identity = test_helpers::add_mixnode(
-                mixnode_owner,
-                tests::fixtures::good_mixnode_pledge(),
-                deps.as_mut(),
-            );
-            let delegation_owner = Addr::unchecked("sender");
-            try_delegate_to_mixnode(
-                deps.as_mut(),
-                mock_env(),
-                mock_info(delegation_owner.as_str(), &coins(100, DENOM)),
-                identity.clone(),
-            )
-            .unwrap();
-
-            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
-
-            let delegation = query_mixnode_delegation(
-                &deps.storage,
-                &deps.api,
-                identity.clone(),
-                delegation_owner.clone().into_string(),
-                None,
-            )
-            .unwrap();
-
-            let expected_response = Response::new()
-                .add_message(BankMsg::Send {
-                    to_address: delegation_owner.clone().into(),
-                    amount: coins(100, DENOM),
-                })
-                .add_event(new_undelegation_event(
-                    &delegation_owner,
-                    &None,
-                    &identity,
-                    Uint128::new(100),
-                ));
-
-            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
-
-            assert_eq!(
-                Ok(expected_response),
-                try_remove_delegation_from_mixnode(
-                    deps.as_mut(),
-                    env,
-                    mock_info(delegation_owner.as_str(), &[]),
-                    identity.clone(),
-                )
-            );
-
-            _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
-
-            assert!(test_helpers::read_delegation(
-                &deps.storage,
-                identity,
-                delegation_owner.as_bytes(),
-                mock_env().block.height
-            )
-            .is_none());
-        }
 
         #[test]
         fn total_delegation_is_preserved_if_only_some_undelegate() {

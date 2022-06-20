@@ -107,6 +107,19 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::CompoundReward {
+            operator,
+            delegator,
+            mix_identity,
+            proxy,
+        } => crate::rewards::transactions::try_compound_reward(
+            deps,
+            env,
+            operator,
+            delegator,
+            mix_identity,
+            proxy,
+        ),
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
             try_update_rewarding_validator_address(deps, info, address)
         }
@@ -275,7 +288,7 @@ pub fn execute(
             )
         }
         ExecuteMsg::ReconcileDelegations {} => {
-            crate::delegations::transactions::try_reconcile_all_delegation_events(deps, info)
+            crate::delegations::transactions::try_reconcile_all_delegation_events(deps)
         }
         ExecuteMsg::CheckpointMixnodes {} => {
             crate::mixnodes::transactions::try_checkpoint_mixnodes(

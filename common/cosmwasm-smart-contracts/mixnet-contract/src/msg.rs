@@ -32,6 +32,12 @@ pub enum ExecuteMsg {
     CompoundDelegatorReward {
         mix_identity: IdentityKey,
     },
+    CompoundReward {
+        operator: Option<String>,
+        delegator: Option<String>,
+        mix_identity: Option<IdentityKey>,
+        proxy: Option<String>,
+    },
     BondMixnode {
         mix_node: MixNode,
         owner_signature: String,

@@ -4,7 +4,7 @@ on:
     inputs:
       nym_wallet_version:
         description: 'The version of the Nym Wallet to release'
-        default: 'v1.0.x'
+        default: '1.0.x'
         required: true
         type: string
 jobs:

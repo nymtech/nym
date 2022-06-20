@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material';
-import { EnumNodeType } from '../types/global';
+import { EnumNodeType } from '@nymproject/types';
 
 export const NodeTypeSelector = ({
   disabled,

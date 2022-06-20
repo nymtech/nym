@@ -1,0 +1,21 @@
+# Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "statistics-common"
+version = "1.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { version = "0.1.51" }
+log = "0.4"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "chrono"]}
+thiserror = "1"
+tokio = { version = "1.19.1", features = [ "time" ] }
+
+network-defaults = { path = "../network-defaults" }

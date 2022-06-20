@@ -16,12 +16,15 @@ export const Settings = () => {
   const [selectedTab, setSelectedTab] = useState(0);
 
   const { mixnodeDetails, showSettings, getBondDetails, handleShowSettings } = useContext(AppContext);
-  const { status, saturation, rewardEstimation, inclusionProbability } = useSettingsState(showSettings);
+  const { status, saturation, rewardEstimation, inclusionProbability, updateAllMixnodeStats } = useSettingsState();
 
   const handleTabChange = (_: React.SyntheticEvent, newTab: number) => setSelectedTab(newTab);
 
   useEffect(() => {
     getBondDetails();
+    if (mixnodeDetails) {
+      updateAllMixnodeStats(mixnodeDetails.mix_node.identity_key);
+    }
   }, [showSettings, selectedTab]);
 
   return showSettings ? (

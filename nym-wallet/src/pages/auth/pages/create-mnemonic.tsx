@@ -1,13 +1,13 @@
 import React, { useContext, useEffect } from 'react';
-import { useHistory } from 'react-router-dom';
-import { Button, Container, Stack } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { Container, Button, Stack } from '@mui/material';
 import { AuthContext } from 'src/context/auth';
 import { useClipboard } from 'use-clipboard-copy';
 import { Mnemonic } from '../../../components';
 
 export const CreateMnemonic = () => {
   const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(AuthContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (mnemonicWords.length === 0) {
@@ -26,7 +26,7 @@ export const CreateMnemonic = () => {
           color="primary"
           disableElevation
           size="large"
-          onClick={() => history.push('/verify-mnemonic')}
+          onClick={() => navigate('/verify-mnemonic')}
           sx={{ width: 250 }}
           disabled={!copied}
         >
@@ -35,7 +35,7 @@ export const CreateMnemonic = () => {
         <Button
           onClick={() => {
             resetState();
-            history.goBack();
+            navigate(-1);
           }}
           color="inherit"
         >

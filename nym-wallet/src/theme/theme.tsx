@@ -28,7 +28,9 @@ const nymPalette: NymPalette = {
   text: {
     light: '#F2F2F2',
     dark: '#121726',
+    muted: '#7D7D7D',
   },
+  linkHover: '#AF4D36',
 };
 
 const darkMode: NymPaletteVariant = {
@@ -48,7 +50,6 @@ const darkMode: NymPaletteVariant = {
   },
   nav: {
     background: '#FFFFFF',
-    hover: '#',
   },
 };
 
@@ -69,7 +70,6 @@ const lightMode: NymPaletteVariant = {
   },
   nav: {
     background: '#FFFFFF',
-    hover: '#',
   },
 };
 
@@ -97,6 +97,9 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   primary: {
     main: nymPalette.highlight,
     contrastText: '#fff',
+  },
+  secondary: {
+    main: nymPalette.text.dark,
   },
   success: {
     main: nymPalette.success,
@@ -215,6 +218,9 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           sizeLarge: {
             height: 55,
           },
+          outlined: {
+            borderWidth: '2px',
+          },
         },
       },
       MuiStepIcon: {
@@ -227,6 +233,18 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
               color: nymPalette.background.dark,
             },
           },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            color: nymPalette.text.muted,
+          },
+        },
+      },
+      MuiLink: {
+        defaultProps: {
+          underline: 'none',
         },
       },
     },

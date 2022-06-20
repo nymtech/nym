@@ -1,10 +1,10 @@
 import React, { useContext, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
-import { createPassword } from 'src/requests';
 import { PasswordInput } from 'src/components';
+import { archiveWalletFile, createPassword, isPasswordCreated } from 'src/requests';
 import { Subtitle, Title, PasswordStrength } from '../components';
 
 export const ConnectPassword = () => {
@@ -13,17 +13,23 @@ export const ConnectPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { mnemonic, password, setPassword, resetState } = useContext(AuthContext);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const { enqueueSnackbar } = useSnackbar();
 
   const storePassword = async () => {
     try {
       setIsLoading(true);
+
+      const exists = await isPasswordCreated();
+      if (exists) {
+        await archiveWalletFile();
+      }
+
       await createPassword({ mnemonic, password });
       resetState();
       enqueueSnackbar('Password successfully created', { variant: 'success' });
-      history.push('/sign-in-password');
+      navigate('/sign-in-password');
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
       setIsLoading(false);
@@ -63,7 +69,7 @@ export const ConnectPassword = () => {
             color="inherit"
             onClick={() => {
               setPassword('');
-              history.goBack();
+              navigate(-1);
             }}
           >
             Back

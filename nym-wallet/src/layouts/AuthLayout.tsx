@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { NymWordmark } from '@nymproject/react';
+import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { Stack, Box } from '@mui/material';
 import { AppContext } from 'src/context';
 import { LoadingPage } from 'src/components';

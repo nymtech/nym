@@ -70,6 +70,10 @@ The output will compile different types of binaries dependent on your hardware /
 
 The admin screens can be shown by setting the environment variable `ADMIN_ADDRESS`. You'll need to know the admin account address for the network you are using.
 
+## QA mode
+
+On built versions of the wallet, you can set the environment variable `ENABLE_QA_MODE=true` to add the QA network to the list of available networks.
+
 ### Binary output directory structure 
 ```
 **macos**

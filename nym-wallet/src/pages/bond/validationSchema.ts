@@ -1,7 +1,5 @@
 import * as Yup from 'yup';
 import {
-  checkHasEnoughFunds,
-  checkHasEnoughLockedTokens,
   isValidHostname,
   validateAmount,
   validateKey,
@@ -25,26 +23,19 @@ export const validationSchema = Yup.object().shape({
 
   profitMarginPercent: Yup.number().required('Profit Percentage is required').min(0).max(100),
 
-  amount: Yup.string()
-    .required('An amount is required')
-    .test('valid-amount', 'Pledge error', async function isValidAmount(value) {
-      const isValid = await validateAmount(value || '', '100000000');
+  amount: Yup.object().shape({
+    amount: Yup.string()
+      .required('An amount is required')
+      .test('valid-amount', 'Pledge error', async function isValidAmount(this, value) {
+        const isValid = await validateAmount(value || '', '100');
 
-      if (!isValid) {
-        return this.createError({ message: 'A valid amount is required (min 100)' });
-      }
-      const hasEnoughBalance = await checkHasEnoughFunds(value || '');
-      const hasEnoughLocked = await checkHasEnoughLockedTokens(value || '');
-      if (this.parent.tokenPool === 'balance' && !hasEnoughBalance) {
-        return this.createError({ message: 'Not enough funds in wallet' });
-      }
+        if (!isValid) {
+          return this.createError({ message: 'A valid amount is required (min 100)' });
+        }
 
-      if (this.parent.tokenPool === 'locked' && !hasEnoughLocked) {
-        return this.createError({ message: 'Not enough locked tokens' });
-      }
-
-      return true;
-    }),
+        return true;
+      }),
+  }),
 
   host: Yup.string()
     .required('A host is required')

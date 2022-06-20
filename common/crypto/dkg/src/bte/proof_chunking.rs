@@ -761,6 +761,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn should_verify_a_valid_proof() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);

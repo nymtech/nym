@@ -13,9 +13,9 @@ import {
 } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { format } from 'date-fns';
+import { EnumNodeType, PendingUndelegate, TDelegation } from '@nymproject/types';
 import { validationSchema } from './validationSchema';
-import { EnumNodeType, PendingUndelegate, TDelegation } from '../../types';
-import { undelegate, vestingUnelegateFromMixnode } from '../../requests';
+import { undelegateFromMixnode, vestingUndelegateFromMixnode } from '../../requests';
 import { Fee } from '../../components';
 
 type TFormData = {
@@ -63,13 +63,10 @@ export const UndelegateForm = ({
     try {
       if ((delegation.proxy || '').trim().length === 0) {
         // the owner of the delegation is main account (the owner of the vesting account), so it is delegation with unlocked tokens
-        res = await undelegate({
-          type: data.nodeType,
-          identity: data.identity,
-        });
+        res = await undelegateFromMixnode(data.identity);
       } else {
         // the delegation is with locked tokens, so use the vesting contract
-        res = await vestingUnelegateFromMixnode(data.identity);
+        res = await vestingUndelegateFromMixnode(data.identity);
       }
 
       if (!res) {
@@ -77,7 +74,7 @@ export const UndelegateForm = ({
         return;
       }
 
-      onSuccess(`Successfully requested undelegation from ${res.target_address}`);
+      onSuccess(`Successfully requested undelegation from ${data.identity}. Tx hash = ${res.transaction_hash}`);
     } catch (e) {
       onError(e as string);
     }

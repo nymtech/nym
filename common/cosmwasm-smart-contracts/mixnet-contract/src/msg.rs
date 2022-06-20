@@ -133,6 +133,12 @@ pub enum QueryMsg {
     OwnsGateway {
         address: String,
     },
+    GetMixnodeBond {
+        identity: IdentityKey,
+    },
+    GetGatewayBond {
+        identity: IdentityKey,
+    },
     StateParams {},
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {

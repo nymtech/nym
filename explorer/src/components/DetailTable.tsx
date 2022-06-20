@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { CopyToClipboard } from '@nymproject/react';
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { Box } from '@mui/system';
 import { cellStyles } from './Universal-DataGrid';
 import { currencyToString } from '../utils/currency';

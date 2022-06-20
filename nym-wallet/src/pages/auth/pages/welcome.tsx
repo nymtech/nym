@@ -1,11 +1,11 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
 import { Button, Stack } from '@mui/material';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { SubtitleSlick, Title } from '../components';
 
 export const WelcomeContent: React.FC<{}> = () => {
-  const history = useHistory();
+  const navigate = useNavigate();
 
   return (
     <>
@@ -17,17 +17,11 @@ export const WelcomeContent: React.FC<{}> = () => {
           color="primary"
           variant="contained"
           size="large"
-          onClick={() => history.push('/existing-account')}
+          onClick={() => navigate('/existing-account')}
         >
           Sign in
         </Button>
-        <Button
-          fullWidth
-          color="inherit"
-          disableElevation
-          size="large"
-          onClick={() => history.push('/create-mnemonic')}
-        >
+        <Button fullWidth color="inherit" disableElevation size="large" onClick={() => navigate('/create-mnemonic')}>
           Create account
         </Button>
       </Stack>

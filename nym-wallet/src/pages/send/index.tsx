@@ -5,10 +5,10 @@ import { AppContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 
 export const Send = () => {
-  const { currency } = useContext(AppContext);
+  const { clientDetails } = useContext(AppContext);
   return (
     <PageLayout>
-      <NymCard title={`Send ${currency?.major}`} noPadding>
+      <NymCard title={`Send ${clientDetails?.denom}`} noPadding>
         <SendWizard />
       </NymCard>
     </PageLayout>

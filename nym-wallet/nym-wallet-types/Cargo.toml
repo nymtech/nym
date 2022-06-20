@@ -1,0 +1,32 @@
+[package]
+name = "nym-wallet-types"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.58"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+strum = { version = "0.23", features = ["derive"] }
+ts-rs = "6.1.2"
+
+cosmwasm-std = "1.0.0-beta8"
+cosmrs = "0.7.0"
+
+config = { path = "../../common/config" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+validator-client = { path = "../../common/client-libs/validator-client", features = [
+    "nymd-client",
+] }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
+# Used for Type conversion, can be extracted but its a lot of work
+vesting-contract = { path = "../../contracts/vesting" }
+
+nym-types = { path = "../../common/types" }
+
+[features]
+default = []
+generate-ts = []
+
+
+

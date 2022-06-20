@@ -1,9 +1,9 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
 import { AppContext } from '../context/main';
-import { Bond, Delegate, Unbond, Undelegate } from '../svg-icons';
+import { Bond, Delegate, Unbond } from '../svg-icons';
 
 const routesSchema = [
   {
@@ -32,30 +32,27 @@ const routesSchema = [
     Icon: Unbond,
   },
   {
-    label: 'Delegate',
-    route: '/delegate',
+    label: 'Delegation',
+    route: '/delegation',
     Icon: Delegate,
   },
   {
-    label: 'Undelegate',
-    route: '/undelegate',
-    Icon: Undelegate,
+    label: 'Docs',
+    route: '/docs',
+    Icon: Description,
+    mode: 'dev',
+  },
+  {
+    label: 'Admin',
+    route: '/admin',
+    Icon: Settings,
+    mode: 'admin',
   },
 ];
 
 export const Nav = () => {
-  const { isAdminAddress, handleShowAdmin } = useContext(AppContext);
   const location = useLocation();
-
-  useEffect(() => {
-    if (isAdminAddress) {
-      routesSchema.push({
-        label: 'Docs',
-        route: '/docs',
-        Icon: Description,
-      });
-    }
-  }, [isAdminAddress]);
+  const { isAdminAddress } = useContext(AppContext);
 
   return (
     <div
@@ -66,36 +63,41 @@ export const Nav = () => {
       }}
     >
       <List disablePadding>
-        {routesSchema.map(({ Icon, route, label }) => (
-          <ListItem disableGutters component={Link} to={route} key={label}>
-            <ListItemIcon
-              sx={{
-                minWidth: 30,
-                color: location.pathname === route ? 'primary.main' : 'text.primary',
-              }}
-            >
-              <Icon sx={{ fontSize: 20 }} />
-            </ListItemIcon>
-            <ListItemText
-              sx={{
-                color: location.pathname === route ? 'primary.main' : 'text.primary',
-              }}
-              primary={label}
-            />
-          </ListItem>
-        ))}
-        {isAdminAddress && (
-          <ListItem disableGutters onClick={handleShowAdmin}>
-            <ListItemIcon
-              sx={{
-                minWidth: 30,
-              }}
-            >
-              <Settings sx={{ fontSize: 20, color: 'text.secondary' }} />
-            </ListItemIcon>
-            <ListItemText primary="Admin" sx={{ color: 'text.primary' }} />
-          </ListItem>
-        )}
+        {routesSchema
+          .filter(({ mode }) => {
+            if (!mode) {
+              return true;
+            }
+            switch (mode) {
+              case 'admin':
+                return isAdminAddress;
+              case 'dev':
+                return isAdminAddress;
+              default:
+                return false;
+            }
+          })
+          .map(({ Icon, route, label }) => (
+            <ListItem disableGutters component={Link} to={route} key={label}>
+              <ListItemIcon
+                sx={{
+                  minWidth: 30,
+                  color: location.pathname === route ? 'primary.main' : 'text.primary',
+                }}
+              >
+                <Icon sx={{ fontSize: 20 }} />
+              </ListItemIcon>
+              <ListItemText
+                sx={{
+                  color: location.pathname === route ? 'primary.main' : 'text.primary',
+                  '& .MuiListItemText-primary': {
+                    fontWeight: '600',
+                  },
+                }}
+                primary={label}
+              />
+            </ListItem>
+          ))}
       </List>
     </div>
   );

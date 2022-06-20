@@ -14,13 +14,10 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
-    test,
-    ts(
-        export,
-        export_to = "../../../nym-wallet/src/types/rust/rewardedsetnodestatus.ts"
-    )
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum RewardedSetNodeStatus {
@@ -109,11 +106,6 @@ impl PendingUndelegate {
     }
 }
 
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(
-    test,
-    ts(export, export_to = "../../../nym-wallet/src/types/rust/mixnode.ts")
-)]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
@@ -228,9 +220,9 @@ impl DelegatorRewardParams {
 
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(self.reward_params.circulating_supply());
+        let staking_supply = U128::from_num(self.reward_params.staking_supply());
 
-        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let scaled_delegation_amount = delegation_amount / staking_supply;
 
         // Div by zero checked above
         let delegator_reward =
@@ -400,22 +392,21 @@ impl MixNodeBond {
         self.total_delegation.clone()
     }
 
-    pub fn stake_saturation(&self, circulating_supply: u128, rewarded_set_size: u32) -> U128 {
-        self.total_bond_to_circulating_supply(circulating_supply)
-            * U128::from_num(rewarded_set_size)
+    pub fn stake_saturation(&self, staking_supply: u128, rewarded_set_size: u32) -> U128 {
+        self.total_bond_to_staking_supply(staking_supply) * U128::from_num(rewarded_set_size)
     }
 
     // TODO: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
     // affect lambda, but will affect sigma, in turn over time, if left unclaimed operator rewards will not compound, but
     // behave similarly to delegations.
     // The question is should this be taken into account when calculating operator rewards?
-    pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
-        U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(circulating_supply)
+    pub fn pledge_to_staking_supply(&self, staking_supply: u128) -> U128 {
+        U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(staking_supply)
     }
 
-    pub fn total_bond_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
+    pub fn total_bond_to_staking_supply(&self, staking_supply: u128) -> U128 {
         U128::from_num(self.pledge_amount().amount.u128() + self.total_delegation().amount.u128())
-            / U128::from_num(circulating_supply)
+            / U128::from_num(staking_supply)
     }
 
     pub fn lambda_ticked(&self, params: &RewardParams) -> U128 {
@@ -425,7 +416,7 @@ impl MixNodeBond {
 
     pub fn lambda(&self, params: &RewardParams) -> U128 {
         // Ratio of a bond to the token circulating supply
-        self.pledge_to_circulating_supply(params.circulating_supply())
+        self.pledge_to_staking_supply(params.staking_supply())
     }
 
     pub fn sigma_ticked(&self, params: &RewardParams) -> U128 {
@@ -435,7 +426,7 @@ impl MixNodeBond {
 
     pub fn sigma(&self, params: &RewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
-        self.total_bond_to_circulating_supply(params.circulating_supply())
+        self.total_bond_to_staking_supply(params.staking_supply())
     }
 
     pub fn estimate_reward(
@@ -523,9 +514,8 @@ impl MixNodeBond {
     }
 
     pub fn sigma_ratio(&self, params: &RewardParams) -> U128 {
-        if self.total_bond_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
-        {
-            self.total_bond_to_circulating_supply(params.circulating_supply())
+        if self.total_bond_to_staking_supply(params.staking_supply()) < params.one_over_k() {
+            self.total_bond_to_staking_supply(params.staking_supply())
         } else {
             params.one_over_k()
         }
@@ -642,6 +632,12 @@ impl PagedMixnodeResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixOwnershipResponse {
     pub address: Addr,
+    pub mixnode: Option<MixNodeBond>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixnodeBondResponse {
+    pub identity: IdentityKey,
     pub mixnode: Option<MixNodeBond>,
 }
 

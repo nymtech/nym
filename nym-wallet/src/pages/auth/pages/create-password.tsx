@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
@@ -13,11 +13,11 @@ export const CreatePassword = () => {
   const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const handleSkip = () => {
     setPassword('');
-    history.push('/sign-in-mnemonic');
+    navigate('/sign-in-mnemonic');
   };
 
   const { enqueueSnackbar } = useSnackbar();
@@ -28,7 +28,7 @@ export const CreatePassword = () => {
       await createPassword({ mnemonic, password });
       enqueueSnackbar('Password successfully created', { variant: 'success' });
       resetState();
-      history.push('/sign-in-password');
+      navigate('/sign-in-password');
     } catch (e) {
       setIsLoading(false);
       enqueueSnackbar(e as string, { variant: 'error' });

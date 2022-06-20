@@ -8,11 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(
-    test,
-    ts(export, export_to = "../../../nym-wallet/src/types/rust/gateway.ts")
-)]
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct Gateway {
     pub host: String,
@@ -138,6 +133,12 @@ impl PagedGatewayResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayOwnershipResponse {
     pub address: Addr,
+    pub gateway: Option<GatewayBond>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct GatewayBondResponse {
+    pub identity: IdentityKey,
     pub gateway: Option<GatewayBond>,
 }
 

@@ -36,7 +36,9 @@ declare module '@mui/material/styles' {
     text: {
       light: string;
       dark: string;
+      muted: string;
     };
+    linkHover: string;
   }
 
   interface NymPaletteVariant {
@@ -56,7 +58,6 @@ declare module '@mui/material/styles' {
     };
     nav: {
       background: string;
-      hover: string;
     };
   }
 

@@ -4,7 +4,7 @@
 pub mod delegation;
 pub mod error;
 pub mod events;
-mod gateway;
+pub mod gateway;
 mod interval;
 pub mod mixnode;
 mod msg;
@@ -18,10 +18,13 @@ pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixDelegationsResponse,
 };
-pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
+pub use gateway::{
+    Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
+};
 pub use interval::Interval;
 pub use mixnode::{
-    Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse, RewardedSetNodeStatus,
+    Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeBondResponse, PagedMixnodeResponse,
+    RewardedSetNodeStatus,
 };
 pub use msg::*;
 pub use types::*;

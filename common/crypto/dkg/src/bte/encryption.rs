@@ -458,6 +458,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn share_decryption_20() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -487,6 +488,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn share_encryption_under_nonzero_epoch() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -557,6 +559,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn update_and_decrypt_10() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -581,6 +584,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn reblinding_node_doesnt_affect_decryption() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -623,6 +627,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn ciphertext_integrity_check_passes_for_valid_data() {
         let params = setup();
 
@@ -640,6 +645,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn ciphertext_integrity_check_passes_fails_for_malformed_data() {
         let params = setup();
 
@@ -668,6 +674,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn ciphertext_integrity_check_passes_fails_for_wrong_epoch() {
         let params = setup();
 

@@ -385,7 +385,7 @@ pub(crate) mod tests {
         let delegation = Delegation::new(
             delegation_owner.clone(),
             node_identity.clone(),
-            coin(1234, MIX_DENOM),
+            coin(1234, MIX_DENOM.base),
             1234,
             None,
         );
@@ -433,7 +433,7 @@ pub(crate) mod tests {
         let delegation = Delegation::new(
             delegation_owner2,
             node_identity1.clone(),
-            coin(1234, MIX_DENOM),
+            coin(1234, MIX_DENOM.base),
             1234,
             None,
         );
@@ -460,7 +460,7 @@ pub(crate) mod tests {
         let delegation = Delegation::new(
             delegation_owner1.clone(),
             node_identity2,
-            coin(1234, MIX_DENOM),
+            coin(1234, MIX_DENOM.base),
             1234,
             None,
         );

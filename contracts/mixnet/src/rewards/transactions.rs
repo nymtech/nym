@@ -1465,7 +1465,7 @@ pub mod tests {
 
         // TODO: perform deeper investigation into this number as it seem to not have compounded
         // reward on the initial 8000 delegation and only have done it starting from 16000
-        assert_eq!(alice_reward, Uint128::new(2737978));
+        assert_eq!(alice_reward, Uint128::new(2737979));
 
         let mix_0 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
 
@@ -1495,7 +1495,7 @@ pub mod tests {
         let delegation = delegations.first().unwrap();
         assert_eq!(
             delegation.amount.amount,
-            Uint128::new(16000000000 + 2737978)
+            Uint128::new(16000000000 + 2737979)
         );
 
         let mix_1 = mixnodes
@@ -1519,7 +1519,7 @@ pub mod tests {
         let operator_reward =
             calculate_operator_reward(&deps.storage, &deps.api, &Addr::unchecked("alice"), &mix_1)
                 .unwrap();
-        assert_eq!(operator_reward, Uint128::new(2278902));
+        assert_eq!(operator_reward, Uint128::new(2278901));
 
         assert_eq!(mix_1_reward_result.sigma(), U128::from_num(0.0002f64));
         assert_eq!(mix_1_reward_result.lambda(), U128::from_num(0.0001f64));

@@ -443,9 +443,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-fn _update_epoch_duration(deps: DepsMut<'_>) -> Result<(), ContractError> {
+fn update_epoch_duration(deps: DepsMut<'_>) -> Result<(), ContractError> {
     let mut epoch = crate::interval::storage::current_epoch(deps.storage)?;
-    epoch.update_duration(3600);
+    epoch.update_duration(600);
     crate::interval::storage::save_epoch(deps.storage, &epoch)?;
 
     Ok(())
@@ -496,40 +496,9 @@ fn _migrate_contract_state_params(deps: DepsMut<'_>) -> Result<(), ContractError
     Ok(())
 }
 
-fn _deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
-    // if there exists any delegation of 0 value, remove it
-    let zero_delegations = delegations()
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| v.amount.amount == Uint128::zero())
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation in &zero_delegations {
-        delegations().remove(deps.storage, delegation.clone())?;
-    }
-
-    // similarly, if there exists any event that is scheduled to insert/remove delegation with 0 value, purge it
-    let delegate_events_to_purge = crate::delegations::storage::PENDING_DELEGATION_EVENTS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| match v {
-            DelegationEvent::Delegate(d) => d.amount.amount == Uint128::zero(),
-            _ => false,
-        })
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation_event in delegate_events_to_purge {
-        crate::delegations::storage::PENDING_DELEGATION_EVENTS
-            .remove(deps.storage, delegation_event);
-    }
-
-    Ok(())
-}
-
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    update_epoch_duration(deps)?;
     Ok(Default::default())
 }
 

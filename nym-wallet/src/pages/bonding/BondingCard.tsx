@@ -166,9 +166,9 @@ export const BondingCard = () => {
           amount={state.amountData?.amount as MajorCurrencyAmount}
         />
       )}
-      {true && (
+      {formStep === 4 && showModal && (
         <SimpleModal
-          open={true}
+          open={formStep === 4 && showModal}
           onOk={() => {
             dispatch({ type: 'close_modal' });
             dispatch({ type: 'reset' });

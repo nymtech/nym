@@ -177,6 +177,12 @@ mod tests {
             mnemonic: Some("a b c".to_string()),
             statistics_service_url: None,
             enabled_statistics: None,
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            enabled_credentials_mode: None,
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            eth_endpoint: "".to_string(),
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            validators: None,
         };
 
         let config = Config::new(&args.id);

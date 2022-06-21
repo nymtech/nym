@@ -24,6 +24,7 @@ export const OverSaturatedBlockerModal: React.FC<{
       textAlign: 'center',
       color: 'error.main',
       fontSize: 16,
+      textTransform: 'capitalize',
     }}
     subHeaderStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
   />

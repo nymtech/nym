@@ -6,7 +6,7 @@ use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; //
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    GatewayBond, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
+    GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
 };
 
 pub(crate) fn query_gateways_paged(
@@ -46,6 +46,13 @@ pub(crate) fn query_owns_gateway(
     Ok(GatewayOwnershipResponse {
         address: validated_addr,
         gateway,
+    })
+}
+
+pub fn query_gateway_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<GatewayBondResponse> {
+    Ok(GatewayBondResponse {
+        gateway: storage::gateways().may_load(deps.storage, &identity)?,
+        identity,
     })
 }
 

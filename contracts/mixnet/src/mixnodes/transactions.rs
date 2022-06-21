@@ -381,8 +381,6 @@ fn validate_mixnode_pledge(
 
 #[cfg(test)]
 pub mod tests {
-    use std::f64::MIN;
-
     use super::*;
     use crate::contract::{execute, query, INITIAL_MIXNODE_PLEDGE};
     use crate::error::ContractError;

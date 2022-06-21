@@ -1,35 +1,22 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, CardContent, CircularProgress, Stack, Typography } from '@mui/material';
-import { ArrowForwardSharp, Check, WarningOutlined } from '@mui/icons-material';
+import { Alert, Box, CircularProgress } from '@mui/material';
 import { FeeDetails } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalListItem } from 'src/components/Delegation/ModalListItem';
-import { ModalDivider } from 'src/components/Modals/ModalDivider';
-import { AppContext } from 'src/context';
+import { AppContext, urls } from 'src/context';
+import { FeeWarning } from 'src/components/FeeWarning';
 import { withdrawVestedCoins } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { simulateWithdrawVestedCoins } from 'src/requests/simulate';
-
-type TResponseState = 'loading' | 'success' | 'fail';
+import { SuccessModal } from './TransferModalSuccess';
+import { TResponseState, TTransactionDetails } from '../types';
 
 export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   const [state, setState] = useState<TResponseState>();
   const [fee, setFee] = useState<FeeDetails>();
+  const [tx, setTx] = useState<TTransactionDetails>();
 
-  const { userBalance, clientDetails } = useContext(AppContext);
-
-  const getStateIcon = (reqState?: TResponseState) => {
-    switch (reqState) {
-      case 'loading':
-        return <CircularProgress />;
-      case 'success':
-        return <Check color="success" />;
-      case 'fail':
-        return <WarningOutlined color="error" />;
-      default:
-        return <ArrowForwardSharp fontSize="large" />;
-    }
-  };
+  const { userBalance, clientDetails, network } = useContext(AppContext);
 
   const getFee = async () => {
     if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
@@ -53,11 +40,15 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
     if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
       setState('loading');
       try {
-        await withdrawVestedCoins({
+        const txResponse = await withdrawVestedCoins({
           amount: userBalance.tokenAllocation?.spendable,
           denom: clientDetails.denom,
         });
         setState('success');
+        setTx({
+          amount: `${userBalance.tokenAllocation?.spendable} ${clientDetails?.denom}`,
+          url: `${urls(network).blockExplorer}/transaction/${txResponse.transaction_hash}`,
+        });
         await userBalance.refreshBalances();
       } catch (e) {
         Console.error(e as string);
@@ -66,10 +57,14 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
+  if (state === 'success') {
+    return <SuccessModal onClose={onClose} tx={tx} />;
+  }
+
   return (
     <SimpleModal
       open
-      okLabel={state === 'loading' ? 'Transferring' : 'Transfer'}
+      okLabel={state === 'loading' ? 'Transferring..' : 'Transfer'}
       header="Transfer locked tokens"
       subHeader="Transfer locked tokens to balance"
       sx={{ width: 600 }}
@@ -77,37 +72,30 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
       okDisabled={state === 'loading' || !fee || userBalance.tokenAllocation?.spendable === '0'}
       onClose={onClose}
     >
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Card elevation={0} sx={{ minWidth: 225, bgcolor: 'grey.100' }}>
-          <CardContent>
-            <Typography variant="caption" sx={{ color: 'grey.600' }}>
-              Locked balance
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {userBalance.tokenAllocation?.spendable} {clientDetails?.denom}
-            </Typography>
-          </CardContent>
-        </Card>
-        {getStateIcon(state)}
-        <Card elevation={0} sx={{ minWidth: 225, bgcolor: 'grey.100' }}>
-          <CardContent>
-            <Typography variant="caption" sx={{ color: 'grey.600' }}>
-              Liquid balance
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {userBalance.balance?.printable_balance}
-            </Typography>
-          </CardContent>
-        </Card>
-      </Stack>
       <Box sx={{ mt: 3 }}>
-        <ModalDivider />
-        <ModalListItem
-          label="Est. fee for this transaction"
-          value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : <CircularProgress size={15} />}
-          divider
-        />
+        {state === 'loading' ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            <ModalListItem
+              label="Unlocked transferrable tokens"
+              value={`${userBalance.tokenAllocation?.spendable} ${clientDetails?.denom}`}
+              divider
+            />
+            <ModalListItem
+              label="Est. fee for this transaction"
+              value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : <CircularProgress size={15} />}
+              divider
+            />
+            {userBalance.tokenAllocation?.spendable && fee?.amount?.amount && (
+              <FeeWarning fee={+fee.amount.amount} amount={+userBalance.tokenAllocation.spendable} />
+            )}
+          </>
+        )}
       </Box>
+      {state === 'fail' && <Alert severity="error">Transfer failed please try again in a few minutes</Alert>}
     </SimpleModal>
   );
 };

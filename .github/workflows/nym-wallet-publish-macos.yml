@@ -2,7 +2,7 @@ name: Publish Nym Wallet (MacOS)
 on:
   workflow_dispatch:
   release:
-    types: [created]
+    types: [created, prereleased]
 
 defaults:
   run:

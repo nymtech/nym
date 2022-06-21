@@ -1,7 +1,7 @@
 name: Publish Nym Wallet (Windows 10)
 on:
   release:
-    types: [created]
+    types: [created, prereleased]
 
 defaults:
   run:
@@ -55,17 +55,10 @@ jobs:
           toolchain: stable
 
       - name: Create env file
-        run: |
-          $secretFile = Join-Path -Path $env:RUNNER_TEMP -ChildPath ".env"; 
-          $encodedBytes = [System.Convert]::FromBase64String($env:DOT_ENV_DATA_BASE64); 
-          Set-Content $secretFile -Value $encodedBytes -AsByteStream;
-          $secretFileHash = Get-FileHash $secretFile;
-          Write-Output "::set-output name=SECRET_FILE::$secretFile";
-          Write-Output "::set-output name=SECRET_FILE_HASH::$($secretFileHash.Hash)";
-          Write-Output "Secret file $secretFile has hash $($secretFileHash.Hash)";
-        shell: pwsh
-        env:
-          DOT_ENV_DATA_BASE64: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+        uses: timheuer/base64-to-file@v1.1
+        with:
+          fileName: '.env'
+          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Install app dependencies
         run: yarn

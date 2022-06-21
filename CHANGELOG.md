@@ -23,8 +23,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 - vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
-- wallet: the wallet backend learned how to archive wallet files
-- wallet: add ENABLE_QA_MODE environment variable to enable QA mode on built wallet
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 
@@ -42,8 +40,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
-- wallet: undelegating now uses either the mixnet or vesting contract, or both, depending on how delegations were made
-- wallet: redeeming and compounding now uses both the mixnet and vesting contract
 
 ### Changed
 
@@ -76,6 +72,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1369]: https://github.com/nymtech/nym/pull/1369
 [#1373]: https://github.com/nymtech/nym/pull/1373
 [#1376]: https://github.com/nymtech/nym/pull/1376
+
+## [nym-wallet-v1.0.6](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.6) (2022-06-21)
+
+- wallet: undelegating now uses either the mixnet or vesting contract, or both, depending on how delegations were made
+- wallet: redeeming and compounding now uses both the mixnet and vesting contract
+- wallet: the wallet backend learned how to archive wallet files
+- wallet: add ENABLE_QA_MODE environment variable to enable QA mode on built wallet
 
 ## [nym-wallet-v1.0.5](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.5) (2022-06-14)
 

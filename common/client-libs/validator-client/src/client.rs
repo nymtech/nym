@@ -318,6 +318,13 @@ impl<C> Client<C> {
         Ok(self.nymd.get_current_epoch().await?)
     }
 
+    pub async fn get_current_operator_cost(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_operator_cost().await?)
+    }
+
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
     where
         C: CosmWasmClient + Sync,

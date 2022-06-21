@@ -431,6 +431,7 @@ impl MixNodeBond {
 
     pub fn estimate_reward(
         &self,
+        base_operator_cost: u64,
         params: &RewardParams,
     ) -> Result<RewardEstimate, MixnetContractError> {
         let total_node_reward = self
@@ -439,15 +440,15 @@ impl MixNodeBond {
             .checked_to_num::<u128>()
             .unwrap_or_default();
         let node_profit = self
-            .node_profit(params)
+            .node_profit(params, base_operator_cost)
             .checked_to_num::<u128>()
             .unwrap_or_default();
         let operator_cost = params
             .node
-            .operator_cost()
+            .operator_cost(base_operator_cost)
             .checked_to_num::<u128>()
             .unwrap_or_default();
-        let operator_reward = self.operator_reward(params);
+        let operator_reward = self.operator_reward(params, base_operator_cost);
         // Total reward has to be the sum of operator and delegator rewards
         let delegators_reward = node_profit.saturating_sub(operator_reward);
 
@@ -479,21 +480,25 @@ impl MixNodeBond {
         }
     }
 
-    pub fn node_profit(&self, params: &RewardParams) -> U128 {
+    pub fn node_profit(&self, params: &RewardParams, base_operator_cost: u64) -> U128 {
         self.reward(params)
             .reward()
-            .saturating_sub(params.node.operator_cost())
+            .saturating_sub(params.node.operator_cost(base_operator_cost))
     }
 
-    pub fn operator_reward(&self, params: &RewardParams) -> u128 {
+    pub fn operator_reward(&self, params: &RewardParams, base_operator_cost: u64) -> u128 {
         let reward = self.reward(params);
-        if reward.sigma == 0 {
+        if reward.sigma == 0u128 {
             return 0;
         }
 
-        let profit = reward.reward.saturating_sub(params.node.operator_cost());
+        let profit = reward
+            .reward
+            .saturating_sub(params.node.operator_cost(base_operator_cost));
 
-        let operator_base_reward = reward.reward.min(params.node.operator_cost());
+        let operator_base_reward = reward
+            .reward
+            .min(params.node.operator_cost(base_operator_cost));
         // Div by zero checked above
         let operator_reward = (self.profit_margin()
             + (ONE - self.profit_margin()) * reward.lambda / reward.sigma)
@@ -521,11 +526,16 @@ impl MixNodeBond {
         }
     }
 
-    pub fn reward_delegation(&self, delegation_amount: Uint128, params: &RewardParams) -> u128 {
+    pub fn reward_delegation(
+        &self,
+        delegation_amount: Uint128,
+        params: &RewardParams,
+        base_operator_cost: u64,
+    ) -> u128 {
         let reward_params = DelegatorRewardParams::new(
             self.sigma(params),
             self.profit_margin(),
-            self.node_profit(params),
+            self.node_profit(params, base_operator_cost),
             params.to_owned(),
         );
         reward_params.determine_delegation_reward(delegation_amount)

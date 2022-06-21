@@ -42,8 +42,8 @@ export type TBondingContext = {
   bondGateway: (data: TBondGatewayArgs) => Promise<TransactionExecuteResult>;
   unbondMixnode: () => Promise<TransactionExecuteResult>;
   unbondGateway: () => Promise<TransactionExecuteResult>;
-  redeemRewards: () => Promise<TransactionExecuteResult>;
-  compoundRewards: () => Promise<TransactionExecuteResult>;
+  redeemRewards: () => Promise<TransactionExecuteResult[]>;
+  compoundRewards: () => Promise<TransactionExecuteResult[]>;
 };
 
 export const BondingContext = createContext<TBondingContext>({

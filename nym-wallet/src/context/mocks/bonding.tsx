@@ -105,16 +105,16 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const redeemRewards = async (): Promise<TransactionExecuteResult> => {
+  const redeemRewards = async (): Promise<TransactionExecuteResult[]> => {
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
-    return TxResultMock;
+    return [TxResultMock];
   };
 
-  const compoundRewards = async (): Promise<TransactionExecuteResult> => {
+  const compoundRewards = async (): Promise<TransactionExecuteResult[]> => {
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
-    return TxResultMock;
+    return [TxResultMock];
   };
 
   const memoizedValue = useMemo(

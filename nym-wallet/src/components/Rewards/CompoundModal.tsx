@@ -1,8 +1,8 @@
 import React from 'react';
-import { Alert, AlertTitle, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import WarningIcon from '@mui/icons-material/Warning';
 import { SimpleModal } from '../Modals/SimpleModal';
+import { FeeWarning } from '../FeeWarning';
 
 export const CompoundModal: React.FC<{
   open: boolean;
@@ -49,13 +49,7 @@ export const CompoundModal: React.FC<{
           {fee} {currency}
         </Typography>
       </Stack>
-
-      {amount < fee && (
-        <Alert color="warning" sx={{ mt: 3 }} icon={<WarningIcon />}>
-          <AlertTitle>Warning: fees are greater than the reward</AlertTitle>
-          The fees for redeeming rewards will cost more than the rewards. Are you sure you want to continue?
-        </Alert>
-      )}
+      <FeeWarning amount={amount} fee={fee} />
     </SimpleModal>
   );
 };

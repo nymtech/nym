@@ -301,7 +301,7 @@ pub fn calculate_operator_reward(
         .prefix(bond.identity())
         .keys(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Ascending,
         )
@@ -479,7 +479,7 @@ pub fn calculate_delegator_reward(
         .prefix((mix_identity.to_string(), key))
         .range(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Descending,
         )
@@ -496,7 +496,7 @@ pub fn calculate_delegator_reward(
         .prefix(mix_identity)
         .keys(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Ascending,
         )

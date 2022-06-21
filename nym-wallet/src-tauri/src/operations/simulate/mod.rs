@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::tx;
+use cosmrs::tx::Gas;
 use nym_types::currency::MajorCurrencyAmount;
 use nym_types::fees::FeeDetails;
 use validator_client::nymd::cosmwasm_client::types::{GasInfo, SimulateResponse};
@@ -57,18 +58,20 @@ impl SimulateResult {
         }
     }
 
-    fn to_fee_amount(&self) -> Option<CosmosCoin> {
+    fn adjusted_gas(&self) -> Option<Gas> {
         self.gas_info
-            .map(|gas_info| &self.gas_price * gas_info.gas_used.adjust_gas(self.gas_adjustment))
+            .map(|gas_info| gas_info.gas_used.adjust_gas(self.gas_adjustment))
+    }
+
+    fn to_fee_amount(&self) -> Option<CosmosCoin> {
+        self.adjusted_gas().map(|gas| &self.gas_price * gas)
     }
 
     fn to_fee(&self) -> Fee {
-        self.to_fee_amount()
-            .and_then(|fee_amount| {
-                self.gas_info.map(|gas_info| {
-                    let gas_limit = gas_info.gas_used;
-                    tx::Fee::from_amount_and_gas(fee_amount, gas_limit).into()
-                })
+        self.adjusted_gas()
+            .map(|gas| {
+                let fee_amount = &self.gas_price * gas;
+                tx::Fee::from_amount_and_gas(fee_amount, gas).into()
             })
             .unwrap_or_default()
     }

@@ -1,4 +1,4 @@
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     from_binary,
     testing::{mock_env, MockApi, MockQuerier, MockStorage},
@@ -45,5 +45,5 @@ pub fn query_contract_balance(
     deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
 ) -> Vec<Coin> {
     let querier = deps.as_ref().querier;
-    vec![querier.query_balance(address, DENOM).unwrap()]
+    vec![querier.query_balance(address, MIX_DENOM.base).unwrap()]
 }

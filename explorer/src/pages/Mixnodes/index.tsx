@@ -181,9 +181,14 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'stake_saturation',
       headerName: 'Stake Saturation',
-      renderHeader: () => <CustomColumnHeading headingTitle="Stake Saturation" />,
+      renderHeader: () => (
+        <CustomColumnHeading
+          headingTitle="Stake Saturation"
+          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
+        />
+      ),
       headerClassName: 'MuiDataGrid-header-override',
-      width: 175,
+      width: 190,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -219,9 +224,14 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'profit_percentage',
       headerName: 'Profit Margin',
-      renderHeader: () => <CustomColumnHeading headingTitle="Profit Margin" />,
+      renderHeader: () => (
+        <CustomColumnHeading
+          headingTitle="Profit Margin"
+          tooltipInfo="Percentage of the delegates rewards that the operator takes as fee before rewards are distributed to the delegates."
+        />
+      ),
       headerClassName: 'MuiDataGrid-header-override',
-      width: 140,
+      width: 165,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -236,7 +246,9 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'avg_uptime',
       headerName: 'Avg. Uptime',
-      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,
+      renderHeader: () => (
+        <CustomColumnHeading headingTitle="Avg. Uptime" tooltipInfo="Node’s average uptime in the last 24h." />
+      ),
       headerClassName: 'MuiDataGrid-header-override',
       width: 160,
       headerAlign: 'left',

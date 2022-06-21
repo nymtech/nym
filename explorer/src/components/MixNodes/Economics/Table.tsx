@@ -1,6 +1,5 @@
 import * as React from 'react';
 import {
-  IconButton,
   Paper,
   Table,
   TableBody,
@@ -13,7 +12,6 @@ import {
 } from '@mui/material';
 import { Box } from '@mui/system';
 import { useTheme, Theme } from '@mui/material/styles';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
@@ -100,24 +98,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
                         bgColor={theme.palette.nym.networkExplorer.tooltip.background}
                         maxWidth={230}
                         arrow
-                      >
-                        <IconButton
-                          sx={{
-                            padding: 0,
-                            py: 1,
-                            pr: 1,
-                          }}
-                          disableFocusRipple
-                          disableRipple
-                        >
-                          <InfoOutlinedIcon
-                            sx={{
-                              height: '18px',
-                              width: '18px',
-                            }}
-                          />
-                        </IconButton>
-                      </Tooltip>
+                      />
                     </Box>
                   )}
                   {title}

@@ -301,7 +301,7 @@ pub fn calculate_operator_reward(
         .prefix(bond.identity())
         .keys(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Ascending,
         )

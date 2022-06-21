@@ -543,20 +543,21 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
     if config.get_network_monitor_enabled() {
-        let validator_cache_refresher = ValidatorCacheRefresher::new(
-            signing_nymd_client.clone(),
-            config.get_caching_interval(),
-            validator_cache.clone(),
-        );
-
-        // spawn our cacher
-        tokio::spawn(async move { validator_cache_refresher.run().await });
-
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
         let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
         let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         tokio::spawn(async move { uptime_updater.run().await });
+
+        let validator_cache_refresher = ValidatorCacheRefresher::new(
+            signing_nymd_client.clone(),
+            config.get_caching_interval(),
+            validator_cache.clone(),
+            Some(storage.clone()),
+        );
+
+        // spawn our cacher
+        tokio::spawn(async move { validator_cache_refresher.run().await });
 
         let mut rewarded_set_updater =
             RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
@@ -569,6 +570,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             nymd_client,
             config.get_caching_interval(),
             validator_cache,
+            None,
         );
 
         // spawn our cacher

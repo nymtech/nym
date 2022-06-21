@@ -1,10 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node_status_api::models::Uptime;
 use crate::nymd_client::Client;
+use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use mixnet_contract_common::reward_params::EpochRewardParams;
+use cosmwasm_std::Uint128;
+use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
@@ -22,7 +25,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
+use validator_api_requests::models::{
+    MixNodeBondAnnotated, MixnodeStatus, RewardEstimationResponse,
+};
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -31,6 +36,7 @@ pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
     cache: ValidatorCache,
     caching_interval: Duration,
+    storage: Option<ValidatorApiStorage>,
 }
 
 #[derive(Clone)]
@@ -92,45 +98,106 @@ impl<C> ValidatorCacheRefresher<C> {
         nymd_client: Client<C>,
         caching_interval: Duration,
         cache: ValidatorCache,
+        storage: Option<ValidatorApiStorage>,
     ) -> Self {
         ValidatorCacheRefresher {
             nymd_client,
             cache,
             caching_interval,
+            storage,
         }
     }
 
-    fn annotate_bond_with_details(
+    async fn annotate_bond_with_details(
         mixnodes: Vec<MixNodeBond>,
         interval_reward_params: EpochRewardParams,
+        current_epoch: Interval,
+        epochs_in_interval: u64,
+        current_operator_base_cost: u64,
+        storage: &ValidatorApiStorage,
+        rewarded_set_identities: &HashMap<IdentityKey, RewardedSetNodeStatus>,
     ) -> Vec<MixNodeBondAnnotated> {
-        mixnodes
-            .into_iter()
-            .map(|mixnode_bond| {
-                let stake_saturation = mixnode_bond
-                    .stake_saturation(
-                        interval_reward_params.staking_supply(),
-                        interval_reward_params.rewarded_set_size() as u32,
-                    )
-                    .to_num();
-                MixNodeBondAnnotated {
-                    mixnode_bond,
-                    stake_saturation,
-                }
-            })
-            .collect()
+        let mut annotated = Vec::new();
+        for mixnode_bond in mixnodes {
+            let stake_saturation = mixnode_bond
+                .stake_saturation(
+                    interval_reward_params.staking_supply(),
+                    interval_reward_params.rewarded_set_size() as u32,
+                )
+                .to_num();
+
+            let identity = mixnode_bond.identity();
+            let uptime = storage
+                .get_average_mixnode_uptime_in_the_last_24hrs(
+                    identity,
+                    current_epoch.end_unix_timestamp(),
+                )
+                .await
+                .unwrap_or_default();
+            let is_active = rewarded_set_identities
+                .get(identity)
+                .map_or(false, RewardedSetNodeStatus::is_active);
+            let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, is_active);
+            let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
+            let reward_estimate =
+                mixnode_bond.estimate_reward(current_operator_base_cost, &reward_params);
+
+            let estimated_total_node_reward = reward_estimate
+                .as_ref()
+                .map(|r| r.total_node_reward)
+                .unwrap_or(0);
+
+            let estimated_operator_reward = reward_estimate
+                .as_ref()
+                .map(|r| r.operator_reward)
+                .unwrap_or(0);
+
+            let estimated_delegators_reward = reward_estimate
+                .as_ref()
+                .map(|r| r.delegators_reward)
+                .unwrap_or(0);
+
+            // WIP(JON): make sure we use proper arithmetic
+            let pledge_amount = mixnode_bond.pledge_amount().amount.u128() as f64;
+            let epochs_per_hour = epochs_in_interval as f64 / 720.0;
+            let estimated_operator_apy =
+                (epochs_per_hour * 24.0 * 365.0 * 100.0 * estimated_operator_reward as f64
+                    / pledge_amount) as u64;
+
+            let estimated_delegators_apy =
+                (epochs_per_hour * 24.0 * 365.0 * 100.0 * estimated_delegators_reward as f64
+                    / pledge_amount) as u64;
+
+            annotated.push(MixNodeBondAnnotated {
+                mixnode_bond,
+                stake_saturation,
+                estimated_total_node_reward,
+                estimated_operator_apy,
+                estimated_delegators_apy,
+            });
+        }
+        annotated
+    }
+
+    async fn get_rewarded_set_identities(&self) -> HashMap<String, RewardedSetNodeStatus>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        if let Ok(rewarded_set_identities) = self.nymd_client.get_rewarded_set_identities().await {
+            rewarded_set_identities
+                .into_iter()
+                .collect::<HashMap<_, _>>()
+        } else {
+            HashMap::new()
+        }
     }
 
     fn collect_rewarded_and_active_set_details(
-        &self,
         all_mixnodes: &[MixNodeBondAnnotated],
-        rewarded_set_identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
+        rewarded_set_identities: &HashMap<IdentityKey, RewardedSetNodeStatus>,
     ) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
         let mut active_set = Vec::new();
         let mut rewarded_set = Vec::new();
-        let rewarded_set_identities = rewarded_set_identities
-            .into_iter()
-            .collect::<HashMap<_, _>>();
 
         for mix in all_mixnodes {
             if let Some(status) = rewarded_set_identities.get(mix.mixnode_bond.identity()) {
@@ -151,21 +218,28 @@ impl<C> ValidatorCacheRefresher<C> {
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
         let current_epoch = self.nymd_client.get_current_epoch().await?;
         let current_operator_base_cost = self.nymd_client.get_current_operator_cost().await?;
+        let epochs_in_interval = self.nymd_client.get_epochs_in_interval().await.unwrap_or(0);
 
         let (mixnodes, gateways) = tokio::try_join!(
             self.nymd_client.get_mixnodes(),
             self.nymd_client.get_gateways(),
         )?;
 
-        let mixnodes = Self::annotate_bond_with_details(mixnodes, epoch_rewarding_params);
+        let rewarded_set_identities = self.get_rewarded_set_identities().await;
 
-        let (rewarded_set, active_set) = if let Ok(rewarded_set_identities) =
-            self.nymd_client.get_rewarded_set_identities().await
-        {
-            self.collect_rewarded_and_active_set_details(&mixnodes, rewarded_set_identities)
-        } else {
-            (Vec::new(), Vec::new())
-        };
+        let mixnodes = Self::annotate_bond_with_details(
+            mixnodes,
+            epoch_rewarding_params,
+            current_epoch,
+            epochs_in_interval,
+            current_operator_base_cost,
+            self.storage.as_ref().unwrap(), // WIP(JON)
+            &rewarded_set_identities,
+        )
+        .await;
+
+        let (rewarded_set, active_set) =
+            Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set_identities);
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",

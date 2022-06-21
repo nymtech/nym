@@ -1,7 +1,7 @@
 name: Publish Nym Wallet (Ubuntu)
 on:
   release:
-    types: [created, published]
+    types: [created]
 
 defaults:
   run:

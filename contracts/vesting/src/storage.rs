@@ -1,5 +1,5 @@
-use crate::errors::ContractError;
 use crate::vesting::Account;
+use crate::{contract::INITIAL_LOCKED_PLEDGE_CAP, errors::ContractError};
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::IdentityKey;
@@ -17,6 +17,21 @@ const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
 pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
 pub const ADMIN: Item<'_, String> = Item::new("adm");
 pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
+pub const LOCKED_PLEDGE_CAP: Item<'_, Uint128> = Item::new("lck");
+
+pub fn locked_pledge_cap(storage: &dyn Storage) -> Uint128 {
+    LOCKED_PLEDGE_CAP
+        .load(storage)
+        .unwrap_or(INITIAL_LOCKED_PLEDGE_CAP)
+}
+
+pub fn update_locked_pledge_cap(
+    amount: Uint128,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    LOCKED_PLEDGE_CAP.save(storage, &amount)?;
+    Ok(())
+}
 
 pub fn save_delegation(
     key: (u32, IdentityKey, BlockHeight),

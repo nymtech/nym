@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Timestamp};
+use cosmwasm_std::{Coin, Timestamp, Uint128};
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -113,6 +113,9 @@ pub enum ExecuteMsg {
     UpdateStakingAddress {
         to_address: Option<String>,
     },
+    UpdateLockedPledgeCap {
+        amount: Uint128,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -163,4 +166,5 @@ pub enum QueryMsg {
     GetCurrentVestingPeriod {
         address: String,
     },
+    GetLockedPledgeCap {},
 }

@@ -1,8 +1,14 @@
 use crate::errors::ContractError;
-use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp};
+use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
 use vesting_contract_common::OriginalVestingResponse;
 
 pub trait VestingAccount {
+    fn total_pledged_locked(
+        &self,
+        storage: &dyn Storage,
+        env: &Env,
+    ) -> Result<Uint128, ContractError>;
+
     // locked_coins returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
     // defined as the vesting coins that are not delegated or pledged.
     //

@@ -773,9 +773,8 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f109fe191e73898d74b8020c50f86018364ad19bc30318aa074616c382b52856"
+version = "0.12.3"
+source = "git+https://github.com/neacsu/cosmos-rust?branch=neacsu/feegrant_support#484f3b8bd39e00c2db567e754d4b7337b7c635a6"
 dependencies = [
  "prost 0.10.3",
  "prost-types 0.10.1",
@@ -784,9 +783,8 @@ dependencies = [
 
 [[package]]
 name = "cosmrs"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8413275b23cb5a0734d9d1e3e33f0b5b94547c1e94776dbc3149dbf46588a533"
+version = "0.7.1"
+source = "git+https://github.com/neacsu/cosmos-rust?branch=neacsu/feegrant_support#484f3b8bd39e00c2db567e754d4b7337b7c635a6"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",

@@ -45,6 +45,10 @@ export interface NetworkExplorerPalette {
       moderate: string;
       underModerate: string;
     };
+    tooltip: {
+      background: string;
+      color: string;
+    };
   };
 }
 
@@ -94,6 +98,10 @@ export const networkExplorerPalette = (variant: NymPaletteVariant): NetworkExplo
       moderate: variant.selectionChance.moderate,
       underModerate: variant.selectionChance.underModerate,
     },
+    tooltip: {
+      background: '#A0AED1',
+      color: '#111826',
+    }
   },
 });
 

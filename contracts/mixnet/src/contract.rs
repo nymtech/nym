@@ -443,7 +443,6 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())

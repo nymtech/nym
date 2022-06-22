@@ -1,15 +1,17 @@
 import React, { useContext, useEffect, useReducer } from 'react';
 import { Box, Button, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { Gateway, MajorCurrencyAmount, MixNode } from '@nymproject/types';
 import { NymCard } from '../../components';
 import { NodeIdentityModal } from './NodeIdentityModal';
 import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from './types';
 import { AmountModal } from './AmountModal';
-import { AppContext } from '../../context';
+import { AppContext, urls } from '../../context';
 import { SummaryModal } from './SummaryModal';
 import { bond, vestingBond } from '../../requests';
 import { TBondArgs } from '../../types';
-import { SimpleModal } from '../../components/Modals/SimpleModal';
+import { Console } from '../../utils/console';
+import { SimpleDialog } from './SimpleDialog';
 
 const initialState: BondState = {
   showModal: false,
@@ -51,7 +53,7 @@ export const BondingCard = () => {
   const { formStep, showModal } = state;
   console.log(state);
 
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, clientDetails, network } = useContext(AppContext);
 
   useEffect(() => {
     dispatch({ type: 'reset' });
@@ -101,9 +103,15 @@ export const BondingCard = () => {
         dispatch({ type: 'set_tx', payload: tx });
         dispatch({ type: 'next_step' });
       })
-      .catch(() => {
+      .catch((e: any) => {
+        Console.error('Failed to bond', e);
         // TODO do something
       });
+  };
+
+  const onConfirm = () => {
+    dispatch({ type: 'close_modal' });
+    dispatch({ type: 'reset' });
   };
 
   return (
@@ -167,17 +175,16 @@ export const BondingCard = () => {
         />
       )}
       {formStep === 4 && showModal && (
-        <SimpleModal
+        <SimpleDialog
           open={formStep === 4 && showModal}
-          onOk={() => {
-            dispatch({ type: 'close_modal' });
-            dispatch({ type: 'reset' });
-          }}
-          header="Bonding successful"
-          okLabel="Done"
+          onClose={onConfirm}
+          title="Bonding successful"
+          confirmText="Done"
         >
-          Link to transaction on network explorer
-        </SimpleModal>
+          <Link href={`${urls(network).blockExplorer}/transaction/${state.tx?.transaction_hash}`} noIcon>
+            View on blockchain
+          </Link>
+        </SimpleDialog>
       )}
     </NymCard>
   );

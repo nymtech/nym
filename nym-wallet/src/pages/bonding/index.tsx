@@ -4,8 +4,8 @@ import { Box } from '@mui/material';
 import { useBondingContext, BondingContextProvider } from '../../context';
 import { PageLayout } from '../../layouts';
 import { BondingCard } from './BondingCard';
-import { BondedMixnodeCard } from './BoundedMixnodeCard';
-import { BondedGatewayCard } from './BoundedGatewayCard';
+import { MixnodeCard } from './MixnodeCard';
+import { GatewayCard } from './GatewayCard';
 import { EnumRequestStatus } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 
@@ -26,13 +26,7 @@ const Bonding = () => {
   return (
     <PageLayout>
       <Box display="flex" flexDirection="column" gap={2}>
-        {!bondedMixnode &&
-          !bondedGateway &&
-          status === EnumRequestStatus.initial &&
-          !ownership.hasOwnership &&
-          !isLoading && <BondingCard />}
-        {bondedMixnode && <BondedMixnodeCard />}
-        {bondedGateway && <BondedGatewayCard />}
+        {bondedMixnode && <MixnodeCard mixnode={bondedMixnode} />}
       </Box>
     </PageLayout>
   );

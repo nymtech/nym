@@ -1,4 +1,4 @@
-import { TransactionExecuteResult } from '@nymproject/types';
+import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
 import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
@@ -15,12 +15,12 @@ import {
 export interface BondedMixnode {
   key: string;
   ip: string;
-  stake: number;
-  bond: number;
+  stake: MajorCurrencyAmount;
+  bond: MajorCurrencyAmount;
   stakeSaturation: number;
   profitMargin: number;
-  nodeRewards: number;
-  operatorRewards: number;
+  nodeRewards: MajorCurrencyAmount;
+  operatorRewards: MajorCurrencyAmount;
   delegators: number;
 }
 
@@ -28,7 +28,7 @@ export interface BondedMixnode {
 export interface BondedGateway {
   key: string;
   ip: string;
-  bond: number;
+  bond: MajorCurrencyAmount;
   location?: string; // TODO not yet available, only available in Network Explorer API
 }
 
@@ -89,7 +89,17 @@ export const BondingContextProvider = ({
   };
 
   const refresh = useCallback(async () => {
-    const bounded = null;
+    const bounded: BondedMixnode = {
+      bond: { denom: 'NYM', amount: '1234' },
+      key: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
+      delegators: 123,
+      ip: '1.2.34.5',
+      nodeRewards: { denom: 'NYM', amount: '123' },
+      operatorRewards: { denom: 'NYM', amount: '12' },
+      profitMargin: 10,
+      stake: { denom: 'NYM', amount: '99' },
+      stakeSaturation: 99,
+    };
     // TODO fetch bondedMixnode and bondedGatway via tauri dedicated requests
     /* try {
       bounded = await fetchBondingData();
@@ -181,6 +191,7 @@ export const BondingContextProvider = ({
       isLoading,
       error,
       bondMixnode,
+      bondedMixnode,
       bondGateway,
       unbondMixnode,
       unbondGateway,

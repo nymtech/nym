@@ -34,18 +34,18 @@ export const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, iden
   return (
     <SimpleModal open={open} onClose={onClose} onOk={onConfirm} header={header} okLabel={buttonText}>
       <Stack direction="row" justifyContent="space-between" mt={3}>
-        <Typography fontWeight={600}>Identity Key</Typography>
-        <Typography fontWeight={600}>{identityKey}</Typography>
+        <Typography>Identity Key</Typography>
+        <Typography>{identityKey}</Typography>
       </Stack>
       <Divider sx={{ my: 1 }} />
-      <Stack direction="row" justifyContent="space-between" mt={3}>
-        <Typography fontWeight={600}>Amount</Typography>
-        <Typography fontWeight={600}>{`${amount.amount} ${amount.denom}`}</Typography>
+      <Stack direction="row" justifyContent="space-between">
+        <Typography>Amount</Typography>
+        <Typography>{`${amount.amount} ${amount.denom}`}</Typography>
       </Stack>
       <Divider sx={{ my: 1 }} />
-      <Stack direction="row" justifyContent="space-between" mt={3}>
-        <Typography fontWeight={600}>Fee for this operation</Typography>
-        <Typography fontWeight={600}>{fee}</Typography>
+      <Stack direction="row" justifyContent="space-between" mb={1}>
+        <Typography>Fee for this operation</Typography>
+        <Typography>{fee}</Typography>
       </Stack>
     </SimpleModal>
   );

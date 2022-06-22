@@ -31,14 +31,12 @@ pub(crate) struct ERC20Bridge {
 }
 
 impl ERC20Bridge {
-    pub fn new(eth_endpoint: String, nymd_urls: Vec<Url>, cosmos_mnemonic: String) -> Self {
+    pub fn new(eth_endpoint: String, nymd_urls: Vec<Url>, mnemonic: Mnemonic) -> Self {
         let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum endpoint");
         let web3 = Web3::new(transport);
         let nymd_url = nymd_urls
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
-        let mnemonic =
-            Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
         let nymd_client =
             NymdClient::connect_with_mnemonic(DEFAULT_NETWORK, nymd_url.as_ref(), mnemonic, None)
                 .expect("Could not create nymd client");

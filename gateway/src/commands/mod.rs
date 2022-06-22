@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::process;
+use std::{process, str::FromStr};
 
 use crate::{config::Config, Cli};
 use clap::Subcommand;
@@ -130,7 +130,9 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(cosmos_mnemonic) = args.mnemonic {
-        config = config.with_cosmos_mnemonic(cosmos_mnemonic);
+        config = config.with_cosmos_mnemonic(
+            bip39::Mnemonic::from_str(&cosmos_mnemonic).expect("Provided mnemonic is invalid"),
+        );
     }
 
     #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node_status_api::models::Uptime;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
@@ -108,14 +109,22 @@ impl<C> ValidatorCacheRefresher<C> {
         }
     }
 
+    async fn get_uptime(&self, identity: &IdentityKey, epoch: Interval) -> Option<Uptime> {
+        self.storage
+            .as_ref()?
+            .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
+            .await
+            .ok()
+    }
+
     async fn annotate_bond_with_details(
+        &self,
         mixnodes: Vec<MixNodeBond>,
         interval_reward_params: EpochRewardParams,
         current_epoch: Interval,
         epochs_in_interval: u64,
         current_operator_base_cost: u64,
         rewarded_set_identities: &HashMap<IdentityKey, RewardedSetNodeStatus>,
-        storage: &ValidatorApiStorage,
     ) -> Vec<MixNodeBondAnnotated> {
         let mut annotated = Vec::new();
         for mixnode_bond in mixnodes {
@@ -126,12 +135,11 @@ impl<C> ValidatorCacheRefresher<C> {
                 )
                 .to_num();
 
+            // Note here that the absence of storage, implies zero uptime and zero rewards
+            // estimations.
             let reward_estimate = {
-                let uptime = storage
-                    .get_average_mixnode_uptime_in_the_last_24hrs(
-                        mixnode_bond.identity(),
-                        current_epoch.end_unix_timestamp(),
-                    )
+                let uptime = self
+                    .get_uptime(mixnode_bond.identity(), current_epoch)
                     .await
                     .unwrap_or_default();
                 let is_active = rewarded_set_identities
@@ -224,16 +232,16 @@ impl<C> ValidatorCacheRefresher<C> {
 
         let rewarded_set_identities = self.get_rewarded_set_identities().await;
 
-        let mixnodes = Self::annotate_bond_with_details(
-            mixnodes,
-            epoch_rewarding_params,
-            current_epoch,
-            epochs_in_interval,
-            current_operator_base_cost,
-            &rewarded_set_identities,
-            self.storage.as_ref().unwrap(), // WIP(JON)
-        )
-        .await;
+        let mixnodes = self
+            .annotate_bond_with_details(
+                mixnodes,
+                epoch_rewarding_params,
+                current_epoch,
+                epochs_in_interval,
+                current_operator_base_cost,
+                &rewarded_set_identities,
+            )
+            .await;
 
         let (rewarded_set, active_set) =
             Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set_identities);

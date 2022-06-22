@@ -12,7 +12,12 @@ export const BalanceCard = () => {
   }, []);
 
   return (
-    <NymCard title="Balance" data-testid="check-balance" Action={<ClientAddress withCopy showEntireAddress />}>
+    <NymCard
+      title="Balance"
+      data-testid="check-balance"
+      borderless
+      Action={<ClientAddress withCopy showEntireAddress />}
+    >
       <Grid container direction="column" spacing={2}>
         <Grid item>
           {userBalance.error && (
@@ -23,9 +28,9 @@ export const BalanceCard = () => {
           {!userBalance.error && (
             <Typography
               data-testid="refresh-success"
-              sx={{ color: 'nym.background.dark', textTransform: 'uppercase' }}
+              sx={{ color: (theme) => theme.palette.text.primary, textTransform: 'uppercase' }}
               variant="h5"
-              fontWeight="700"
+              fontWeight={(theme) => (theme.palette.mode === 'light' ? '600' : '400')}
             >
               {userBalance.balance?.printable_balance}
             </Typography>

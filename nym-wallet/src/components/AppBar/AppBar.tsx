@@ -12,7 +12,7 @@ export const AppBar = () => {
   const { showSettings, handleShowTerminal, appEnv, handleShowSettings, logOut } = useContext(AppContext);
 
   return (
-    <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
+    <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent', backgroundImage: 'none' }}>
       <Toolbar disableGutters>
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
           <Grid item container alignItems="center" spacing={1}>
@@ -26,7 +26,11 @@ export const AppBar = () => {
           <Grid item container justifyContent="flex-end" alignItems="center" md={12} lg={5} spacing={2}>
             {(appEnv?.SHOW_TERMINAL || config.IS_DEV_MODE) && (
               <Grid item>
-                <IconButton size="small" onClick={handleShowTerminal} sx={{ color: 'nym.background.dark' }}>
+                <IconButton
+                  size="small"
+                  onClick={handleShowTerminal}
+                  sx={{ color: (theme) => theme.palette.text.primary }}
+                >
                   <TerminalIcon fontSize="small" />
                 </IconButton>
               </Grid>
@@ -34,14 +38,14 @@ export const AppBar = () => {
             <Grid item>
               <IconButton
                 onClick={handleShowSettings}
-                sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
+                sx={{ color: showSettings ? 'primary.main' : (theme) => theme.palette.text.primary }}
                 size="small"
               >
                 <Node fontSize="small" />
               </IconButton>
             </Grid>
             <Grid item>
-              <IconButton size="small" onClick={logOut} sx={{ color: 'nym.background.dark' }}>
+              <IconButton size="small" onClick={logOut} sx={{ color: (theme) => theme.palette.text.primary }}>
                 <Logout fontSize="small" />
               </IconButton>
             </Grid>

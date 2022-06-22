@@ -142,7 +142,6 @@ impl Config {
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
         self.gateway.validator_nymd_urls = validator_nymd_urls;
         self
@@ -249,7 +248,6 @@ impl Config {
         self.gateway.validator_api_urls.clone()
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_nymd_urls.clone()
     }
@@ -367,7 +365,6 @@ pub struct Gateway {
     validator_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-    #[cfg(not(feature = "coconut"))]
     validator_nymd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.
@@ -426,7 +423,6 @@ impl Default for Gateway {
             enabled_statistics: false,
             statistics_service_url: default_statistics_service_url(),
             validator_api_urls: default_api_endpoints(),
-            #[cfg(not(feature = "coconut"))]
             validator_nymd_urls: default_nymd_endpoints(),
             cosmos_mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
             nym_root_directory: Config::default_root_directory(),

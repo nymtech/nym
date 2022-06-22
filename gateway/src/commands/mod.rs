@@ -17,9 +17,6 @@ pub(crate) mod upgrade;
 
 #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
-
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Initialise the gateway
@@ -49,6 +46,7 @@ pub(crate) struct OverrideConfig {
     enabled_statistics: Option<bool>,
     statistics_service_url: Option<String>,
     validator_apis: Option<String>,
+    validators: Option<String>,
     mnemonic: Option<String>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -56,9 +54,6 @@ pub(crate) struct OverrideConfig {
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     eth_endpoint: Option<String>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    validators: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -120,6 +115,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_custom_validator_apis(parse_validators(&raw_validators));
     }
 
+    if let Some(raw_validators) = args.validators {
+        config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
+    }
+
     if let Some(wallet_address) = args.wallet_address {
         let trimmed = wallet_address.trim();
         validate_bech32_address_or_exit(trimmed);
@@ -136,7 +135,6 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
     {
-        config = config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
         config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
     }
 

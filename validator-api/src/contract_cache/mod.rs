@@ -1,12 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::models::Uptime;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use cosmwasm_std::Uint128;
 use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
@@ -25,9 +23,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_api_requests::models::{
-    MixNodeBondAnnotated, MixnodeStatus, RewardEstimationResponse,
-};
+use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -63,6 +59,10 @@ struct ValidatorCacheInner {
 fn current_unix_timestamp() -> i64 {
     let now = OffsetDateTime::now_utc();
     now.unix_timestamp()
+}
+
+fn compute_apy(epochs_per_hour: f64, reward: f64, pledge_amount: f64) -> f64 {
+    epochs_per_hour * 24.0 * 365.0 * 100.0 * reward / pledge_amount
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -114,8 +114,8 @@ impl<C> ValidatorCacheRefresher<C> {
         current_epoch: Interval,
         epochs_in_interval: u64,
         current_operator_base_cost: u64,
-        storage: &ValidatorApiStorage,
         rewarded_set_identities: &HashMap<IdentityKey, RewardedSetNodeStatus>,
+        storage: &ValidatorApiStorage,
     ) -> Vec<MixNodeBondAnnotated> {
         let mut annotated = Vec::new();
         for mixnode_bond in mixnodes {
@@ -126,26 +126,22 @@ impl<C> ValidatorCacheRefresher<C> {
                 )
                 .to_num();
 
-            let identity = mixnode_bond.identity();
-            let uptime = storage
-                .get_average_mixnode_uptime_in_the_last_24hrs(
-                    identity,
-                    current_epoch.end_unix_timestamp(),
-                )
-                .await
-                .unwrap_or_default();
-            let is_active = rewarded_set_identities
-                .get(identity)
-                .map_or(false, RewardedSetNodeStatus::is_active);
-            let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, is_active);
-            let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
-            let reward_estimate =
-                mixnode_bond.estimate_reward(current_operator_base_cost, &reward_params);
+            let reward_estimate = {
+                let uptime = storage
+                    .get_average_mixnode_uptime_in_the_last_24hrs(
+                        mixnode_bond.identity(),
+                        current_epoch.end_unix_timestamp(),
+                    )
+                    .await
+                    .unwrap_or_default();
+                let is_active = rewarded_set_identities
+                    .get(mixnode_bond.identity())
+                    .map_or(false, RewardedSetNodeStatus::is_active);
+                let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, is_active);
+                let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
 
-            let estimated_total_node_reward = reward_estimate
-                .as_ref()
-                .map(|r| r.total_node_reward)
-                .unwrap_or(0);
+                mixnode_bond.estimate_reward(current_operator_base_cost, &reward_params)
+            };
 
             let estimated_operator_reward = reward_estimate
                 .as_ref()
@@ -157,21 +153,22 @@ impl<C> ValidatorCacheRefresher<C> {
                 .map(|r| r.delegators_reward)
                 .unwrap_or(0);
 
-            // WIP(JON): make sure we use proper arithmetic
-            let pledge_amount = mixnode_bond.pledge_amount().amount.u128() as f64;
             let epochs_per_hour = epochs_in_interval as f64 / 720.0;
-            let estimated_operator_apy =
-                (epochs_per_hour * 24.0 * 365.0 * 100.0 * estimated_operator_reward as f64
-                    / pledge_amount) as u64;
-
-            let estimated_delegators_apy =
-                (epochs_per_hour * 24.0 * 365.0 * 100.0 * estimated_delegators_reward as f64
-                    / pledge_amount) as u64;
+            let pledge = mixnode_bond.pledge_amount().amount.u128();
+            let estimated_operator_apy = compute_apy(
+                epochs_per_hour,
+                estimated_operator_reward as f64,
+                pledge as f64,
+            );
+            let estimated_delegators_apy = compute_apy(
+                epochs_per_hour,
+                estimated_delegators_reward as f64,
+                pledge as f64,
+            );
 
             annotated.push(MixNodeBondAnnotated {
                 mixnode_bond,
                 stake_saturation,
-                estimated_total_node_reward,
                 estimated_operator_apy,
                 estimated_delegators_apy,
             });
@@ -233,8 +230,8 @@ impl<C> ValidatorCacheRefresher<C> {
             current_epoch,
             epochs_in_interval,
             current_operator_base_cost,
-            self.storage.as_ref().unwrap(), // WIP(JON)
             &rewarded_set_identities,
+            self.storage.as_ref().unwrap(), // WIP(JON)
         )
         .await;
 

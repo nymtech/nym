@@ -38,7 +38,7 @@ export const CreatePassword = () => {
   return (
     <Stack spacing={3} alignItems="center" minWidth="50%">
       <Title title="Create optional password" />
-      <Subtitle subtitle="Password should be min 8 characters, at least one number and one symbol" />
+      <Subtitle subtitle="Password should be min 8 characters, at least one uppercase character, one number and one symbol" />
       <FormControl fullWidth>
         <Stack spacing={2}>
           <>
@@ -58,7 +58,7 @@ export const CreatePassword = () => {
           <Button
             size="large"
             variant="contained"
-            disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
+            disabled={password !== confirmedPassword || password.length === 0 || isLoading}
             onClick={storePassword}
           >
             Next

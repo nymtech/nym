@@ -40,10 +40,10 @@ export const NetworkSelector = () => {
       <Button
         variant="text"
         color="primary"
-        sx={{ color: (theme) => `${theme.palette.nym.background.dark}` }}
+        sx={{ color: (theme) => theme.palette.text.primary }}
         onClick={handleClick}
         disableElevation
-        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
+        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.text.primary}` }} />}
       >
         {networks.find((n) => n.networkName === network)?.name}
       </Button>

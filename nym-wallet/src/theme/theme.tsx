@@ -37,11 +37,11 @@ const darkMode: NymPaletteVariant = {
   mode: 'dark',
   background: {
     main: '#121726',
-    paper: '#242C3D',
+    paper: '#292E34',
     warn: '#FFE600',
   },
   text: {
-    main: '#F2F2F2',
+    main: '#FFFFFF',
     muted: '#5B6174',
     warn: '#FFE600',
   },

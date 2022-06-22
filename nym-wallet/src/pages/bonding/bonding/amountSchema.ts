@@ -1,7 +1,7 @@
 import { number, object, string } from 'yup';
-import { validateAmount } from '../../utils';
+import { validateAmount } from '../../../utils';
 
-export const amountSchema = object().shape({
+const amountSchema = object().shape({
   amount: object().shape({
     amount: string()
       .required('An amount is required')
@@ -15,3 +15,5 @@ export const amountSchema = object().shape({
   }),
   profitMargin: number().required('Profit Percentage is required').min(0).max(100),
 });
+
+export default amountSchema;

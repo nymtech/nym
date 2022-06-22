@@ -6,22 +6,23 @@ import { mockSleep } from './utils';
 
 const SLEEP_MS = 1000;
 
-const bondedMixnodeMock = {
+const bondedMixnodeMock: BondedMixnode = {
   key: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.56',
-  stake: 35847.221,
-  bond: 12576.32745,
+  stake: { denom: 'NYM', amount: '1234' },
+  bond: { denom: 'NYM', amount: '1234' },
   stakeSaturation: 95,
   profitMargin: 15,
-  nodeRewards: 12576.32745,
-  operatorRewards: 12576.32,
+  nodeRewards: { denom: 'NYM', amount: '1234' },
+  operatorRewards: { denom: 'NYM', amount: '1234' },
   delegators: 5423,
+  status: 'active',
 };
 
-const bondedGatewayMock = {
+const bondedGatewayMock: BondedGateway = {
   key: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
-  bond: 12576.32745,
+  bond: { denom: 'NYM', amount: '1234' },
 };
 
 const TxResultMock: TransactionExecuteResult = {

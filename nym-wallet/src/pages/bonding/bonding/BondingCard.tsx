@@ -1,19 +1,21 @@
 import React, { useContext, useEffect, useReducer } from 'react';
 import { Box, Button, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { Gateway, MajorCurrencyAmount, MixNode } from '@nymproject/types';
-import { NymCard } from '../../components';
-import { NodeIdentityModal } from './NodeIdentityModal';
-import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from './types';
-import { AmountModal } from './AmountModal';
-import { AppContext } from '../../context';
-import { SummaryModal } from './SummaryModal';
-import { bond, vestingBond } from '../../requests';
-import { TBondArgs } from '../../types';
-import { SimpleModal } from '../../components/Modals/SimpleModal';
+import { NymCard } from '../../../components';
+import NodeIdentityModal from './NodeIdentityModal';
+import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from '../types';
+import AmountModal from './AmountModal';
+import { AppContext, urls } from '../../../context';
+import SummaryModal from './SummaryModal';
+import { bond, vestingBond } from '../../../requests';
+import { TBondArgs } from '../../../types';
+import { Console } from '../../../utils/console';
+import { SimpleDialog } from '../components';
 
 const initialState: BondState = {
   showModal: false,
-  formStep: 1,
+  formStep: 4,
 };
 
 function reducer(state: BondState, action: ACTIONTYPE) {
@@ -46,12 +48,12 @@ function reducer(state: BondState, action: ACTIONTYPE) {
   }
 }
 
-export const BondingCard = () => {
+const BondingCard = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
   console.log(state);
 
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, clientDetails, network } = useContext(AppContext);
 
   useEffect(() => {
     dispatch({ type: 'reset' });
@@ -101,9 +103,15 @@ export const BondingCard = () => {
         dispatch({ type: 'set_tx', payload: tx });
         dispatch({ type: 'next_step' });
       })
-      .catch(() => {
+      .catch((e: any) => {
+        Console.error('Failed to bond', e);
         // TODO do something
       });
+  };
+
+  const onConfirm = () => {
+    dispatch({ type: 'close_modal' });
+    dispatch({ type: 'reset' });
   };
 
   return (
@@ -137,8 +145,6 @@ export const BondingCard = () => {
             dispatch({ type: 'set_node_data', payload: data });
             dispatch({ type: 'next_step' });
           }}
-          header="Bond"
-          buttonText="Next"
         />
       )}
       {formStep === 2 && showModal && (
@@ -149,8 +155,6 @@ export const BondingCard = () => {
             dispatch({ type: 'set_amount_data', payload: data });
             dispatch({ type: 'next_step' });
           }}
-          header="Bond"
-          buttonText="Next"
           nodeType={state.nodeData?.nodeType || 'mixnode'}
         />
       )}
@@ -159,26 +163,28 @@ export const BondingCard = () => {
           open={formStep === 3 && showModal}
           onClose={() => dispatch({ type: 'reset' })}
           onSubmit={onSubmit}
-          header="Bond details"
-          buttonText="Confirm"
           nodeType={state.nodeData?.nodeType as NodeType}
           identityKey={state.nodeData?.identityKey as string}
           amount={state.amountData?.amount as MajorCurrencyAmount}
         />
       )}
       {formStep === 4 && showModal && (
-        <SimpleModal
+        <SimpleDialog
           open={formStep === 4 && showModal}
-          onOk={() => {
-            dispatch({ type: 'close_modal' });
-            dispatch({ type: 'reset' });
-          }}
-          header="Bonding successful"
-          okLabel="Done"
+          onConfirm={onConfirm}
+          onClose={onConfirm}
+          title="Bonding successful"
+          confirmButton="Done"
+          maxWidth="xs"
+          fullWidth
         >
-          Link to transaction on network explorer
-        </SimpleModal>
+          <Link href={`${urls(network).blockExplorer}/transaction/${state.tx?.transaction_hash}`} noIcon>
+            View on blockchain
+          </Link>
+        </SimpleDialog>
       )}
     </NymCard>
   );
 };
+
+export default BondingCard;

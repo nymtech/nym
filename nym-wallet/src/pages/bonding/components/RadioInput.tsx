@@ -22,7 +22,7 @@ interface Props {
   muiFormLabelProps?: FormLabelProps;
 }
 
-export const RadioInput = ({
+const RadioInput = ({
   label,
   control,
   options,
@@ -68,3 +68,5 @@ export const RadioInput = ({
     </FormControl>
   );
 };
+
+export default RadioInput;

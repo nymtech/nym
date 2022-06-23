@@ -1,17 +1,20 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd::Gas;
 use cosmrs::tx;
 use serde::{Deserialize, Serialize};
 
 pub mod gas_price;
 
-pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
+pub type GasAdjustment = f32;
+
+pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: GasAdjustment = 1.3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Fee {
     Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
-    Auto(Option<f32>),
+    Auto(Option<GasAdjustment>),
 }
 
 impl From<tx::Fee> for Fee {
@@ -20,8 +23,8 @@ impl From<tx::Fee> for Fee {
     }
 }
 
-impl From<f32> for Fee {
-    fn from(multiplier: f32) -> Self {
+impl From<GasAdjustment> for Fee {
+    fn from(multiplier: GasAdjustment) -> Self {
         Fee::Auto(Some(multiplier))
     }
 }
@@ -29,6 +32,21 @@ impl From<f32> for Fee {
 impl Default for Fee {
     fn default() -> Self {
         Fee::Auto(Some(DEFAULT_SIMULATED_GAS_MULTIPLIER))
+    }
+}
+
+pub trait GasAdjustable {
+    fn adjust_gas(&self, adjustment: GasAdjustment) -> Self;
+}
+
+impl GasAdjustable for Gas {
+    fn adjust_gas(&self, adjustment: GasAdjustment) -> Self {
+        if adjustment == 1.0 {
+            *self
+        } else {
+            let adjusted = (self.value() as f32 * adjustment).ceil();
+            (adjusted as u64).into()
+        }
     }
 }
 

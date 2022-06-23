@@ -15,7 +15,6 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use cosmwasm_std::Uint128;
 use execute::execute;
-pub use fee::gas_price::GasPrice;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
@@ -50,6 +49,7 @@ pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
@@ -268,6 +268,10 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient,
     {
         self.client.gas_price()
+    }
+
+    pub fn gas_adjustment(&self) -> GasAdjustment {
+        self.simulated_gas_multiplier
     }
 
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>

@@ -111,8 +111,7 @@ impl ThreadsafeMixNodesCache {
             .read()
             .await
             .get(identity_key)
-            .map(|cache_item| cache_item.valid_until > SystemTime::now())
-            .unwrap_or(false)
+            .map_or(false, |cache_item| cache_item.valid_until > SystemTime::now())
     }
 
     pub(crate) async fn get_locations(&self) -> LocationCache {

@@ -1,0 +1,38 @@
+name: Build release of Nym smart contracts
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: contracts
+
+jobs:
+  publish-tauri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+
+      - name: Build release contracts
+        run: RUSTFLAGS='-C link-arg=-s' cargo build --release --target wasm32-unknown-unknown
+
+      - name: Upload Mixnet Contract Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: mixnet_contract.wasm
+          path: contract/target/wasm32-unknown-unknown/release/mixnet_contract.wasm
+          retention-days: 5
+
+      - name: Upload Vesting Contract Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: vesting_contract.wasm
+          path: contract/target/wasm32-unknown-unknown/release/vesting_contract.wasm
+          retention-days: 5

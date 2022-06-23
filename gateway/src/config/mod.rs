@@ -8,6 +8,7 @@ use log::error;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
@@ -142,13 +143,12 @@ impl Config {
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
         self.gateway.validator_nymd_urls = validator_nymd_urls;
         self
     }
 
-    pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: String) -> Self {
+    pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: bip39::Mnemonic) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
         self
     }
@@ -249,12 +249,11 @@ impl Config {
         self.gateway.validator_api_urls.clone()
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_nymd_urls.clone()
     }
 
-    pub fn _get_cosmos_mnemonic(&self) -> String {
+    pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
     }
 
@@ -367,11 +366,10 @@ pub struct Gateway {
     validator_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-    #[cfg(not(feature = "coconut"))]
     validator_nymd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.
-    cosmos_mnemonic: String,
+    cosmos_mnemonic: bip39::Mnemonic,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -426,9 +424,8 @@ impl Default for Gateway {
             enabled_statistics: false,
             statistics_service_url: default_statistics_service_url(),
             validator_api_urls: default_api_endpoints(),
-            #[cfg(not(feature = "coconut"))]
             validator_nymd_urls: default_nymd_endpoints(),
-            cosmos_mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
+            cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
             wallet_address: "nymXXXXXXXX".to_string(),

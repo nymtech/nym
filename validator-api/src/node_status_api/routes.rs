@@ -131,6 +131,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
         let reward_params = cache.epoch_reward_params().await;
         let as_at = reward_params.timestamp();
         let reward_params = reward_params.into_inner();
+        let base_operator_cost = cache.base_operator_cost().await.into_inner();
 
         let current_epoch = cache.current_epoch().await.into_inner();
         info!("{:?}", current_epoch);
@@ -147,7 +148,10 @@ pub(crate) async fn get_mixnode_reward_estimation(
         let node_reward_params = NodeRewardParams::new(0, uptime.u8() as u128, status.is_active());
         let reward_params = RewardParams::new(reward_params, node_reward_params);
 
-        match bond.mixnode_bond.estimate_reward(&reward_params) {
+        match bond
+            .mixnode_bond
+            .estimate_reward(base_operator_cost, &reward_params)
+        {
             Ok(reward_estimate) => {
                 let reponse = RewardEstimationResponse {
                     estimated_total_node_reward: reward_estimate.total_node_reward,

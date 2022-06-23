@@ -51,6 +51,7 @@ struct ValidatorCacheInner {
 
     current_reward_params: Cache<EpochRewardParams>,
     current_epoch: Cache<Option<Interval>>,
+    current_operator_base_cost: Cache<u64>,
 }
 
 fn current_unix_timestamp() -> i64 {
@@ -149,6 +150,7 @@ impl<C> ValidatorCacheRefresher<C> {
     {
         let epoch_rewarding_params = self.nymd_client.get_current_epoch_reward_params().await?;
         let current_epoch = self.nymd_client.get_current_epoch().await?;
+        let current_operator_base_cost = self.nymd_client.get_current_operator_cost().await?;
 
         let (mixnodes, gateways) = tokio::try_join!(
             self.nymd_client.get_mixnodes(),
@@ -179,6 +181,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 active_set,
                 epoch_rewarding_params,
                 current_epoch,
+                current_operator_base_cost,
             )
             .await;
 
@@ -234,6 +237,7 @@ impl ValidatorCache {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_cache(
         &self,
         mixnodes: Vec<MixNodeBondAnnotated>,
@@ -242,6 +246,7 @@ impl ValidatorCache {
         active_set: Vec<MixNodeBondAnnotated>,
         epoch_rewarding_params: EpochRewardParams,
         current_epoch: Interval,
+        current_operator_base_cost: u64,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -251,6 +256,9 @@ impl ValidatorCache {
                 cache.active_set.update(active_set);
                 cache.current_reward_params.update(epoch_rewarding_params);
                 cache.current_epoch.update(Some(current_epoch));
+                cache
+                    .current_operator_base_cost
+                    .update(current_operator_base_cost);
             }
             Err(e) => {
                 error!("{}", e);
@@ -474,6 +482,16 @@ impl ValidatorCache {
         }
     }
 
+    pub(crate) async fn base_operator_cost(&self) -> Cache<u64> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.current_operator_base_cost.clone(),
+            Err(e) => {
+                error!("{}", e);
+                Cache::new(0)
+            }
+        }
+    }
+
     pub async fn mixnode_details(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -542,6 +560,7 @@ impl ValidatorCacheInner {
             // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
             // since 'initialised' flag won't be set
             current_epoch: Cache::new(None),
+            current_operator_base_cost: Cache::new(0),
         }
     }
 }

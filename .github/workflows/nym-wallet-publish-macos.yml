@@ -57,9 +57,10 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN_PATH
 
       - name: Create env file
-        run: |
-          touch .env
-          echo ADMIN_ADDRESS="${{ secrets.WALLET_ADMIN_ADDRESS }}" >> .env
+        uses: timheuer/base64-to-file@v1.1
+        with:
+          fileName: '.env'
+          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Install app dependencies and build it
         env:

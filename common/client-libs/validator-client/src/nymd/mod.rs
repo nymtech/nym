@@ -438,6 +438,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn get_current_operator_cost(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentOperatorCost {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await
+    }
+
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>
     where
         C: CosmWasmClient + Sync,

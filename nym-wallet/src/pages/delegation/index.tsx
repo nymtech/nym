@@ -400,7 +400,7 @@ export const Delegation: FC = () => {
           open={Boolean(saturationError)}
           onClose={() => setSaturationError(undefined)}
           header={`Node saturation: ${Math.round(saturationError.saturation * 100000) / 1000}%`}
-          subHeader={'This node is over saturated. Choose a new mix node to delegate to and start compounding rewards.'}
+          subHeader="This node is over saturated. Choose a new mix node to delegate to and start compounding rewards."
         />
       )}
     </>

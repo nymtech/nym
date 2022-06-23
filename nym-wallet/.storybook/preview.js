@@ -12,9 +12,6 @@ export const parameters = {
 }
 
 const withThemeProvider = (Story, context) => (
-  // <NymWalletThemeWithMode mode="light">
-  //   <Story {...context} />
-  // </NymWalletThemeWithMode>
   <div style={{ display: 'grid', height: '100%', gridTemplateColumns: '50% 50%' }}>
     <div>
       <NymWalletThemeWithMode mode="light">

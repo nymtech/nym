@@ -46,7 +46,7 @@ export type TAppContext = {
   error?: string;
   loginType?: TLoginType;
   showSettings: boolean;
-  handleShowSettings?: () => void;
+  handleShowSettings: () => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;

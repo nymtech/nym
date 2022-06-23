@@ -201,5 +201,5 @@ impl ParametersAuthority {
 
     pub(crate) fn get_etas(&self) -> &[G2Projective] { &self.etas }
 
-    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G2Projective { self.etas.get(idx - 1).unwrap() }
+    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G2Projective { self.etas.get(idx).unwrap() }
 }

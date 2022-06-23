@@ -14,7 +14,6 @@ use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective};
 
 pub mod aggregation;
-pub mod identify;
 pub mod keygen;
 pub mod setup;
 pub mod structure_preserving_signature;
@@ -112,26 +111,44 @@ impl VarPhi {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct PayInfo {
     pub info: [u8; 32],
 }
 
 #[derive(Debug, Clone)]
 pub struct Payment {
-    kappa: G2Projective,
-    sig: Signature,
-    phi: Phi,
-    varphi: VarPhi,
-    varsig_prime1: G1Projective,
-    varsig_prime2: G1Projective,
-    theta_prime1: G1Projective,
-    theta_prime2: G1Projective,
-    rr_prime: G1Projective,
-    ss_prime: G1Projective,
-    tt_prime: G2Projective,
-    rr: Scalar,
-    zk_proof: SpendProof,
-    vv: u64,
+    pub kappa: G2Projective,
+    pub sig: Signature,
+    pub phi: Phi,
+    pub varphi: VarPhi,
+    pub varsig_prime1: G1Projective,
+    pub varsig_prime2: G1Projective,
+    pub theta_prime1: G1Projective,
+    pub theta_prime2: G1Projective,
+    pub rr_prime: G1Projective,
+    pub ss_prime: G1Projective,
+    pub tt_prime: G2Projective,
+    pub rr: Scalar,
+    pub zk_proof: SpendProof,
+    pub vv: u64,
+}
+
+impl Payment {
+    pub fn get_kappa(&self) -> G2Projective { self.kappa }
+    pub fn get_sig(&self) -> Signature { self.sig }
+    pub fn get_phi(&self) -> Phi { self.phi }
+    pub fn get_varphi(&self) -> VarPhi { self.varphi }
+    pub fn get_varsig_prime1(&self) -> G1Projective { self.varsig_prime1 }
+    pub fn get_varsig_prime2(&self) -> G1Projective { self.varsig_prime2 }
+    pub fn get_theta_prime1(&self) -> G1Projective { self.theta_prime1 }
+    pub fn get_theta_prime2(&self) -> G1Projective { self.theta_prime2 }
+    pub fn get_rr_prime(&self) -> G1Projective { self.rr_prime }
+    pub fn get_ss_prime(&self) -> G1Projective { self.ss_prime }
+    pub fn get_tt_prime(&self) -> G2Projective { self.tt_prime }
+    pub fn get_rr(&self) -> Scalar { self.rr }
+    pub fn get_zk_proof(&self) -> SpendProof { self.zk_proof.clone() }
+    pub fn get_vv(&self) -> u64 { self.vv }
 }
 
 pub struct PartialWallet {
@@ -171,13 +188,6 @@ impl Wallet {
         self.l.get()
     }
 
-    fn up(&self) {
-        self.l.set(self.l.get() + 1);
-    }
-
-    fn down(&self) {
-        self.l.set(self.l.get() - 1);
-    }
 
     pub(crate) fn spend(
         &self,

@@ -11,7 +11,7 @@ use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{Polynomial, SignerIndex, try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar, try_deserialize_scalar_vec};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Eq, Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
     pub(crate) x: Scalar,
     pub(crate) ys: Vec<Scalar>,
@@ -89,7 +89,7 @@ impl SecretKeyAuth {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Eq, Debug, PartialEq, Clone)]
 pub struct VerificationKeyAuth {
     pub(crate) alpha: G2Projective,
     pub(crate) beta_g1: Vec<G1Projective>,
@@ -313,11 +313,14 @@ impl VerificationKeyAuth {
     }
 }
 
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct KeyPairUser {
     secret_key: SecretKeyUser,
     public_key: PublicKeyUser,
 }
 
+
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct KeyPairAuth {
     secret_key: SecretKeyAuth,
     verification_key: VerificationKeyAuth,
@@ -335,7 +338,7 @@ impl KeyPairAuth {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Eq, Debug, PartialEq, Clone)]
 pub struct SecretKeyUser {
     pub(crate) sk: Scalar,
 }
@@ -348,7 +351,7 @@ impl SecretKeyUser {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Eq, Debug, PartialEq, Clone)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
 }

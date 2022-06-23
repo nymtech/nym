@@ -1,9 +1,10 @@
 use rand::thread_rng;
 
 use crate::error::DivisibleEcashError;
+use crate::scheme::{PayInfo, Payment};
 use crate::scheme::aggregation::{aggregate_signatures, aggregate_verification_keys, aggregate_wallets};
+use crate::scheme::identification::identify;
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser, ttp_keygen_authorities, VerificationKeyAuth};
-use crate::scheme::PayInfo;
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::scheme::withdrawal::{issue, issue_verify, withdrawal_request};
 
@@ -54,7 +55,7 @@ fn main() -> Result<(), DivisibleEcashError> {
     let (payment, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10)?;
 
     // SPEND VERIFICATION 
-    payment.spend_verify(&params, &verification_key, &pay_info);
+    assert!(payment.spend_verify(&params, &verification_key, &pay_info).unwrap());
 
     Ok(())
 }

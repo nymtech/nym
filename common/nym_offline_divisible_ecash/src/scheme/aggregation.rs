@@ -2,12 +2,13 @@ use core::iter::Sum;
 use core::ops::Mul;
 use std::cell::Cell;
 
-use bls12_381::{G2Prepared, G2Projective, Scalar};
+use bls12_381::{G2Prepared, G2Projective, pairing, Scalar};
 use group::Curve;
 use itertools::Itertools;
 
 use crate::Attribute;
 use crate::error::{DivisibleEcashError, Result};
+use crate::scheme::{PartialWallet, Wallet};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::GroupParameters;
 use crate::utils::{
@@ -140,4 +141,27 @@ pub fn aggregate_signatures(
     Ok(signature)
 }
 
+pub fn aggregate_wallets(
+    grp: &GroupParameters,
+    verification_key: &VerificationKeyAuth,
+    sk_user: &SecretKeyUser,
+    wallets: &[PartialWallet],
+) -> Result<Wallet> {
+    let signature_shares: Vec<SignatureShare> = wallets
+        .iter()
+        .enumerate()
+        .map(|(idx, wallet)| SignatureShare::new(*wallet.signature(), (idx + 1) as u64))
+        .collect();
+
+    let v = wallets.get(0).unwrap().v;
+    let attributes = vec![sk_user.sk, v];
+    let aggregated_signature =
+        aggregate_signature_shares(&grp, &verification_key, &attributes, &signature_shares)?;
+
+    Ok(Wallet {
+        sig: aggregated_signature,
+        v,
+        l: Cell::new(1),
+    })
+}
 

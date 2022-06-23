@@ -21,7 +21,7 @@ pub struct RequestInfo {
     v: Scalar,
 }
 
-pub fn withdrawal_request(params: Parameters, sk_user: SecretKeyUser) -> Result<(WithdrawalRequest, RequestInfo)> {
+pub fn withdrawal_request(params: &Parameters, sk_user: &SecretKeyUser) -> Result<(WithdrawalRequest, RequestInfo)> {
     let grp = params.get_grp();
     let g1 = grp.gen1();
     let params_u = params.get_params_u();
@@ -78,7 +78,7 @@ pub fn withdrawal_request(params: Parameters, sk_user: SecretKeyUser) -> Result<
     Ok((req, req_info))
 }
 
-pub(crate) fn issue(params: &Parameters, req: WithdrawalRequest, pk_u: PublicKeyUser, sk_a: SecretKeyAuth) -> Result<BlindedSignature> {
+pub(crate) fn issue(params: &Parameters, req: &WithdrawalRequest, pk_u: PublicKeyUser, sk_a: &SecretKeyAuth) -> Result<BlindedSignature> {
     let h = hash_g1(req.com.to_bytes());
     if !(h == req.com_hash) {
         return Err(DivisibleEcashError::WithdrawalRequestVerification(

@@ -15,8 +15,8 @@ pub struct SpendInstance {
     pub varphi: VarPhi,
     pub rr: Scalar,
     pub rr_prime: G1Projective,
-    pub ss: G1Projective,
-    pub tt: G2Projective,
+    pub ss_prime: G1Projective,
+    pub tt_prime: G2Projective,
     pub varsig_prime1: G1Projective,
     pub theta_prime1: G1Projective,
     pub pg_eq1: Gt,
@@ -43,8 +43,8 @@ impl SpendInstance {
         bytes.extend_from_slice(self.varphi.to_bytes().as_ref());
         bytes.extend_from_slice(self.rr.to_bytes().as_ref());
         bytes.extend_from_slice(self.rr_prime.to_bytes().as_ref());
-        bytes.extend_from_slice(self.ss.to_bytes().as_ref());
-        bytes.extend_from_slice(self.tt.to_bytes().as_ref());
+        bytes.extend_from_slice(self.ss_prime.to_bytes().as_ref());
+        bytes.extend_from_slice(self.tt_prime.to_bytes().as_ref());
         bytes.extend_from_slice(self.varsig_prime1.to_bytes().as_ref());
         bytes.extend_from_slice(self.theta_prime1.to_bytes().as_ref());
         bytes.extend_from_slice(self.pg_eq1.to_compressed().as_ref());
@@ -283,7 +283,7 @@ impl SpendProof {
 mod tests {
     use std::ops::Neg;
 
-    use bls12_381::{G2Projective, Gt, pairing};
+    use bls12_381::{G2Projective, pairing};
     use group::Curve;
     use rand::thread_rng;
 
@@ -392,41 +392,6 @@ mod tests {
         let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 - pg_gen1_zz;
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
 
-        // assert eq 15
-        // let L1 = pg_rrprime_yy - pg_psi0_yy * r_rr + pg_ssprime_gen2 - pg_psi0_gen2 * r_ss + pg_varsigpr2_ww1 - pg_psi0_ww1 * r_varsig2 + pg_thetapr2_ww2 - pg_psi0_ww2 * r_theta2 - pg_gen1_zz;
-        // assert_eq!(L1, Gt::identity());
-
-        // // assert equation 8
-        // assert_eq!(
-        //     pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).rr.to_affine(), &yy.to_affine())
-        //         + pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).ss.to_affine(), grp.gen2())
-        //         + pairing(&params_u.get_ith_sigma(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(0).to_affine())
-        //         + pairing(&params_u.get_ith_theta(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(1).to_affine())
-        //         - pairing(grp.gen1(), &params_u.get_sps_pk().get_zz().to_affine()),
-        //     Gt::identity()
-        // );
-
-        // let's do step by step checks:
-        // 1
-        // assert_eq!(pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).rr.to_affine(), &yy.to_affine()),
-        //            pg_rrprime_yy - pg_psi0_yy * r_rr
-        // );
-        // 2
-        // assert_eq!(pairing(&params_u.get_ith_sps_sign(l as usize + vv as usize - 1).ss.to_affine(), grp.gen2()),
-        //            pg_ssprime_gen2 - pg_psi0_gen2 * r_ss
-        // );
-        // 3
-        // assert_eq!(pairing(&params_u.get_ith_sigma(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(0).to_affine()),
-        //            pg_varsigpr2_ww1 - pg_psi0_ww1 * r_varsig2
-        // );
-        // 4
-        // assert_eq!(pairing(&params_u.get_ith_theta(l as usize + vv as usize - 1).to_affine(), &params_u.get_sps_pk().get_ith_ww(1).to_affine()),
-        //            pg_thetapr2_ww2 - pg_psi0_ww2 * r_theta2
-        // );
-        // 5
-        // assert_eq!(pairing(grp.gen1(), &params_u.get_sps_pk().get_zz().to_affine()),
-        //            pg_gen1_zz);
-
 
         let instance = SpendInstance {
             kappa,
@@ -434,8 +399,8 @@ mod tests {
             varphi,
             rr,
             rr_prime,
-            ss: ss_prime,
-            tt: tt_prime,
+            ss_prime: ss_prime,
+            tt_prime: tt_prime,
             varsig_prime1,
             theta_prime1,
             pg_eq1,

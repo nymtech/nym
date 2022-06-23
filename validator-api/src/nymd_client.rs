@@ -176,6 +176,13 @@ impl<C> Client<C> {
         self.0.read().await.get_current_epoch().await
     }
 
+    pub(crate) async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_epochs_in_interval().await
+    }
+
     pub(crate) async fn get_current_operator_cost(&self) -> Result<u64, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

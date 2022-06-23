@@ -281,6 +281,7 @@ pub(crate) async fn get_mixnode_avg_uptime(
     }))
 }
 
+// DEPRECATED: the uptime is available as part of the `/mixnodes/detailed` endpoint
 #[openapi(tag = "status")]
 #[get("/mixnodes/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptimes(

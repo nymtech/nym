@@ -1,5 +1,4 @@
-import type { MajorCurrencyAmount } from './Currency';
+import type { Fee } from "./Fee";
+import type { MajorCurrencyAmount } from "./Currency";
 
-export interface FeeDetails {
-  amount: MajorCurrencyAmount | null;
-}
+export type FeeDetails = { amount: MajorCurrencyAmount | null, fee: Fee };

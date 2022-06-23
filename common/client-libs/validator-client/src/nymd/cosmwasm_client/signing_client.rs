@@ -8,7 +8,7 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::nymd::{Coin, GasPrice, TxResponse};
+use crate::nymd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -504,7 +504,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
                     .gas_used;
 
                 let multiplier = multiplier.unwrap_or(DEFAULT_SIMULATED_GAS_MULTIPLIER);
-                let gas = ((gas_estimation.value() as f32 * multiplier) as u64).into();
+                let gas = gas_estimation.adjust_gas(multiplier);
 
                 debug!("Gas estimation: {}", gas_estimation);
                 debug!("Multiplying the estimation by {}", multiplier);

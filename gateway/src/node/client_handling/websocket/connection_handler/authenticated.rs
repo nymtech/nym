@@ -48,6 +48,9 @@ pub(crate) enum RequestHandlingError {
     #[error("This gateway is not running in the disabled credentials mode")]
     NotInDisabledCredentialsMode,
 
+    #[error("Nymd Error - {0}")]
+    NymdError(#[from] validator_client::nymd::error::NymdError),
+
     #[cfg(not(feature = "coconut"))]
     #[error("Ethereum web3 error")]
     Web3Error(#[from] web3::Error),
@@ -59,10 +62,6 @@ pub(crate) enum RequestHandlingError {
     #[cfg(not(feature = "coconut"))]
     #[error("Ethereum contract error")]
     EthContractError(#[from] web3::contract::Error),
-
-    #[cfg(not(feature = "coconut"))]
-    #[error("Nymd Error - {0}")]
-    NymdError(#[from] validator_client::nymd::error::NymdError),
 
     #[cfg(feature = "coconut")]
     #[error("Validator API error")]

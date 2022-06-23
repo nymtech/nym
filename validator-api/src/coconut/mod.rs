@@ -25,8 +25,8 @@ use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-    ExecuteReleaseFundsRequestBody, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
-    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
@@ -175,8 +175,7 @@ impl InternalSignRequest {
                     get_cosmos_address,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential,
-                    post_propose_release_funds,
-                    post_execute_release_funds
+                    post_propose_release_funds
                 ],
             )
         })
@@ -311,15 +310,4 @@ pub async fn post_propose_release_funds(
         .await?;
 
     Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
-}
-
-#[post("/execute-release-funds", data = "<execute_release_funds>")]
-pub async fn post_execute_release_funds(
-    execute_release_funds: Json<ExecuteReleaseFundsRequestBody>,
-    state: &RocketState<State>,
-) -> Result<Json<()>> {
-    let proposal_id = *execute_release_funds.0.proposal_id();
-    state.client.execute_proposal(proposal_id, None).await?;
-
-    Ok(Json(()))
 }

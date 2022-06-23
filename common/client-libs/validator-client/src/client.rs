@@ -5,9 +5,9 @@ use crate::{validator_api, ValidatorClientError};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, ProposeReleaseFundsRequestBody,
+    ProposeReleaseFundsResponse, VerificationKeyResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
@@ -751,16 +751,6 @@ impl ApiClient {
         Ok(self
             .validator_api
             .propose_release_funds(request_body)
-            .await?)
-    }
-
-    pub async fn execute_release_funds(
-        &self,
-        request_body: &ExecuteReleaseFundsRequestBody,
-    ) -> Result<(), ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .execute_release_funds(request_body)
             .await?)
     }
 }

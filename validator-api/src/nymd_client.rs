@@ -497,18 +497,4 @@ where
             .await?;
         Ok(())
     }
-
-    async fn execute_proposal(
-        &self,
-        proposal_id: u64,
-        fee: Option<Fee>,
-    ) -> Result<(), CoconutError> {
-        self.0
-            .read()
-            .await
-            .nymd
-            .execute_proposal(proposal_id, fee)
-            .await?;
-        Ok(())
-    }
 }

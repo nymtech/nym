@@ -86,14 +86,6 @@ impl super::client::Client for DummyClient {
     ) -> Result<()> {
         todo!()
     }
-
-    async fn execute_proposal(
-        &self,
-        _proposal_id: u64,
-        _fee: Option<Fee>,
-    ) -> crate::coconut::error::Result<()> {
-        todo!()
-    }
 }
 
 pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {

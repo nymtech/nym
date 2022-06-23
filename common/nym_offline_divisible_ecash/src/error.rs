@@ -25,6 +25,9 @@ pub enum DivisibleEcashError {
     #[error("Spend Verification related error: {0}")]
     Spend(String),
 
+    #[error("Identify Verification related error: {0}")]
+    Identify(String),
+
     #[error("Tried to deserialize {object} with bytes of invalid length. Expected {actual} < {} or {modulus_target} % {modulus} == 0")]
     DeserializationInvalidLength {
         actual: usize,

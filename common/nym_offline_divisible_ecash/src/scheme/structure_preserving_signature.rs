@@ -1,11 +1,9 @@
-use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::ops::Neg;
 
 use bls12_381::{G1Projective, G2Projective, Gt, pairing, Scalar};
 use group::Curve;
 
-use crate::Attribute;
 use crate::scheme::setup::GroupParameters;
 
 #[derive(Debug, Clone)]

@@ -223,46 +223,9 @@ where
             ));
         }
 
-        let req = validator_api_requests::coconut::ProposeReleaseFundsRequestBody::new(
-            credential.clone(),
-        );
-        let proposal_id = self
-            .inner
-            .coconut_verifier
-            .api_clients()
-            .get(0)
-            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
-                needed: 1,
-                received: 0,
-            })?
-            .propose_release_funds(&req)
-            .await?
-            .proposal_id;
-
-        let req = validator_api_requests::coconut::VerifyCredentialBody::new(
-            credential.clone(),
-            proposal_id,
-        );
-        for client in self.inner.coconut_verifier.api_clients().iter().skip(1) {
-            if !client
-                .verify_bandwidth_credential(&req)
-                .await?
-                .verification_result
-            {
-                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.validator_api.current_url());
-            }
-        }
-
-        let req = validator_api_requests::coconut::ExecuteReleaseFundsRequestBody::new(proposal_id);
         self.inner
             .coconut_verifier
-            .api_clients()
-            .get(0)
-            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
-                needed: 1,
-                received: 0,
-            })?
-            .execute_release_funds(&req)
+            .release_funds(&credential)
             .await?;
 
         let bandwidth = Bandwidth::from(credential);

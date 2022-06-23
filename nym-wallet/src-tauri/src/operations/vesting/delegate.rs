@@ -44,7 +44,7 @@ pub async fn vesting_delegate_to_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let delegation = amount.clone().into();
     log::info!(
     ">>> Delegate to mixnode with locked tokens: identity_key = {}, amount = {}, minor_amount = {}, fee = {:?}",
@@ -70,7 +70,7 @@ pub async fn vesting_undelegate_from_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Undelegate from mixnode delegated with locked tokens: identity_key = {}, fee = {:?}",
         identity,

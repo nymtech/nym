@@ -41,7 +41,7 @@ pub async fn delegate_to_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let delegation = amount.clone().into();
     log::info!(
         ">>> Delegate to mixnode: identity_key = {}, amount = {}, minor_amount = {}, fee = {:?}",
@@ -67,7 +67,7 @@ pub async fn undelegate_from_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Undelegate from mixnode: identity_key = {}, fee = {:?}",
         identity,
@@ -126,7 +126,7 @@ pub async fn get_all_mix_delegations(
 
     let address = nymd_client!(state).address().to_string();
 
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let denom: CurrencyDenom = denom_minor.clone().try_into()?;
 
     log::info!("  >>> Get delegations");
@@ -340,7 +340,7 @@ pub async fn get_delegator_rewards(
     proxy: Option<String>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<MajorCurrencyAmount, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Get delegator rewards: mix_identity = {}, proxy = {:?}",
         mix_identity,
@@ -361,7 +361,7 @@ pub async fn get_delegation_summary(
 ) -> Result<DelegationsSummaryResponse, BackendError> {
     log::info!(">>> Get delegation summary");
 
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let denom: CurrencyDenom = denom_minor.clone().try_into()?;
 
     let delegations = get_all_mix_delegations(state.clone()).await?;

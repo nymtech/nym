@@ -16,7 +16,7 @@ pub async fn send(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<SendTxResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let address = AccountId::from_str(address)?;
     let from_address = nymd_client!(state).address().to_string();
     let amount2 = amount.clone().into();

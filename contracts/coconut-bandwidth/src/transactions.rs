@@ -11,7 +11,7 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 
 pub(crate) fn deposit_funds(
     _deps: DepsMut<'_>,
@@ -25,7 +25,7 @@ pub(crate) fn deposit_funds(
     if info.funds.len() > 1 {
         return Err(ContractError::MultipleDenoms);
     }
-    if info.funds[0].denom != DENOM {
+    if info.funds[0].denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom);
     }
 
@@ -45,10 +45,12 @@ pub(crate) fn release_funds(
     info: MessageInfo,
     funds: Coin,
 ) -> Result<Response, ContractError> {
-    if funds.denom != DENOM {
+    if funds.denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom);
     }
-    let current_balance = deps.querier.query_balance(env.contract.address, DENOM)?;
+    let current_balance = deps
+        .querier
+        .query_balance(env.contract.address, MIX_DENOM.base)?;
     if funds.amount > current_balance.amount {
         return Err(ContractError::NotEnoughFunds);
     }
@@ -90,7 +92,7 @@ mod tests {
             Err(ContractError::NoCoin)
         );
 
-        let coin = Coin::new(1000000, DENOM);
+        let coin = Coin::new(1000000, MIX_DENOM.base);
         let second_coin = Coin::new(1000000, "some_denom");
 
         let info = mock_info("requester", &[coin, second_coin.clone()]);
@@ -120,7 +122,7 @@ mod tests {
             verification_key.clone(),
             encryption_key.clone(),
         );
-        let coin = Coin::new(deposit_value, DENOM);
+        let coin = Coin::new(deposit_value, MIX_DENOM.base);
         let info = mock_info("requester", &[coin]);
 
         let tx = deposit_funds(deps.as_mut(), env.clone(), info, data).unwrap();
@@ -169,7 +171,7 @@ mod tests {
         let mut deps = helpers::init_contract();
         let env = mock_env();
         let invalid_admin = "invalid admin";
-        let funds = Coin::new(1, DENOM);
+        let funds = Coin::new(1, MIX_DENOM.base);
 
         let err = release_funds(
             deps.as_mut(),
@@ -205,7 +207,7 @@ mod tests {
     fn valid_release() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let coin = Coin::new(1, DENOM);
+        let coin = Coin::new(1, MIX_DENOM.base);
 
         deps.querier
             .update_balance(env.contract.address.clone(), vec![coin.clone()]);

@@ -49,7 +49,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
     ) -> Result<ExecuteResult, NymdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
-            funds: Coin::new(voucher_value, DEFAULT_NETWORK.denom()),
+            funds: Coin::new(voucher_value, DEFAULT_NETWORK.mix_denom().base),
         };
         let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.coconut_bandwidth_contract_address().to_string(),

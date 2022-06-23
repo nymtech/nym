@@ -18,7 +18,7 @@ pub async fn bond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let pledge_minor = pledge.clone().into();
     log::info!(
         ">>> Bond gateway: identity_key = {}, pledge = {}, pledge_minor = {}, fee = {:?}",
@@ -43,7 +43,7 @@ pub async fn unbond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(">>> Unbond gateway, fee = {:?}", fee);
     let res = nymd_client!(state).unbond_gateway(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -62,7 +62,7 @@ pub async fn bond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let pledge_minor = pledge.clone().into();
     log::info!(
         ">>> Bond mixnode: identity_key = {}, pledge = {}, pledge_minor = {}, fee = {:?}",
@@ -87,7 +87,7 @@ pub async fn unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(">>> Unbond mixnode, fee = {:?}", fee);
     let res = nymd_client!(state).unbond_mixnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -104,7 +104,7 @@ pub async fn update_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Update mixnode: profit_margin_percent = {}, fee {:?}",
         profit_margin_percent,
@@ -161,7 +161,7 @@ pub async fn get_operator_rewards(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<MajorCurrencyAmount, BackendError> {
     log::info!(">>> Get operator rewards for {}", address);
-    let denom = state.read().await.current_network().denom();
+    let denom = state.read().await.current_network().base_mix_denom();
     let rewards_as_minor = nymd_client!(state).get_operator_rewards(address).await?;
     let coin = CosmWasmCoin::new(rewards_as_minor.u128(), denom.as_ref());
     let amount: MajorCurrencyAmount = coin.into();

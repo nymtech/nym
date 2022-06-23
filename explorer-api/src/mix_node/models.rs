@@ -31,6 +31,8 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub mix_node: MixNode,
     pub avg_uptime: Option<u8>,
     pub stake_saturation: f32,
+    pub estimated_operator_apy: f64,
+    pub estimated_delegators_apy: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]

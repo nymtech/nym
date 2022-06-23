@@ -109,7 +109,7 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_NETWORK.mixnet_contract_address().to_string(),
-            mnemonic: String::default(),
+            mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
     }
 }

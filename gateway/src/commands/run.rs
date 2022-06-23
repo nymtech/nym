@@ -43,6 +43,10 @@ pub struct Run {
     #[clap(long)]
     validator_apis: Option<String>,
 
+    /// Comma separated list of endpoints of the validator
+    #[clap(long)]
+    validators: Option<String>,
+
     /// Cosmos wallet mnemonic
     #[clap(long)]
     mnemonic: Option<String>,
@@ -64,11 +68,6 @@ pub struct Run {
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
     statistics_service_url: Option<String>,
-
-    /// Comma separated list of endpoints of the validator
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    validators: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -81,6 +80,7 @@ impl From<Run> for OverrideConfig {
             datastore: run_config.datastore,
             announce_host: run_config.announce_host,
             validator_apis: run_config.validator_apis,
+            validators: run_config.validators,
             mnemonic: run_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -91,9 +91,6 @@ impl From<Run> for OverrideConfig {
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            validators: run_config.validators,
         }
     }
 }

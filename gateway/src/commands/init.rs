@@ -171,15 +171,14 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
-            mnemonic: Some("a b c".to_string()),
+            validators: None,
+            mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             enabled_credentials_mode: None,
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: "".to_string(),
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            validators: None,
         };
 
         let config = Config::new(&args.id);

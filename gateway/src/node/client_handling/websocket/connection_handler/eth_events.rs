@@ -1,12 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bip39::core::str::FromStr;
-use bip39::Mnemonic;
-use config::defaults::DEFAULT_NETWORK;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use url::Url;
+use std::str::FromStr;
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};
 use web3::ethabi::Token;
@@ -31,15 +26,9 @@ pub(crate) struct ERC20Bridge {
 }
 
 impl ERC20Bridge {
-    pub fn new(eth_endpoint: String, nymd_urls: Vec<Url>, mnemonic: Mnemonic) -> Self {
+    pub fn new(eth_endpoint: String, nymd_client: NymdClient<SigningNymdClient>) -> Self {
         let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum endpoint");
         let web3 = Web3::new(transport);
-        let nymd_url = nymd_urls
-            .choose(&mut thread_rng())
-            .expect("The list of validators is empty");
-        let nymd_client =
-            NymdClient::connect_with_mnemonic(DEFAULT_NETWORK, nymd_url.as_ref(), mnemonic, None)
-                .expect("Could not create nymd client");
 
         ERC20Bridge {
             contract: eth_contract(web3.clone()),

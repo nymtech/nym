@@ -1,5 +1,6 @@
 import React from 'react';
 import { SimpleModal } from '../Modals/SimpleModal';
+import { SxProps } from '@mui/material';
 
 export const OverSaturatedBlockerModal: React.FC<{
   open: boolean;
@@ -7,7 +8,8 @@ export const OverSaturatedBlockerModal: React.FC<{
   header?: string;
   subHeader?: string;
   buttonText?: string;
-}> = ({ open, onClose, header, subHeader, buttonText }) => (
+  sx?: SxProps;
+}> = ({ open, onClose, header, subHeader, buttonText, sx }) => (
   <SimpleModal
     open={open}
     hideCloseIcon
@@ -17,7 +19,7 @@ export const OverSaturatedBlockerModal: React.FC<{
     header={header || 'Delegate'}
     subHeader={subHeader || "This node is over saturated, you can't delegate more stake to it"}
     okLabel={buttonText || 'Close'}
-    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', ...sx }}
     headerStyles={{
       width: '100%',
       mb: 3,

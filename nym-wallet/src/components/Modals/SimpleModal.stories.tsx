@@ -1,7 +1,8 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 
-import { Button, Paper } from '@mui/material';
+import { Button, Paper, Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { SimpleModal } from './SimpleModal';
 import { ModalDivider } from './ModalDivider';
 
@@ -17,33 +18,33 @@ const BasePage: React.FC<{ children: React.ReactElement<any, any>; handleClick: 
   <>
     <Paper elevation={0} sx={{ px: 4, pt: 2, pb: 4 }}>
       <h2>Lorem ipsum</h2>
-      <Button variant="contained" onClick={handleClick}>
+      <Button variant="contained" onClick={handleClick} sx={{ mb: 3 }}>
         Show modal
       </Button>
-      <p>
+      <Typography>
         Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis sunt
         velit elit do minim mollit non duis reprehenderit. Eiusmod dolore adipisicing ex nostrud consectetur culpa
         exercitation do. Ad elit esse ipsum aliqua labore irure laborum qui culpa.
-      </p>
-      <p>
+      </Typography>
+      <Typography>
         Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eiusmod occaecat aliquip ad
         tempor. Labore amet laborum magna amet consequat dolor cupidatat in consequat sunt aliquip magna laboris tempor
         culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna elit ut
         mollit.
-      </p>
-      <p>
+      </Typography>
+      <Typography>
         Labore voluptate elit amet ipsum qui officia duis in et occaecat culpa ex do non labore mollit. Cillum cupidatat
         duis ea dolore laboris laboris sunt duis anim consectetur cupidatat nulla ad minim sunt ea. Aliqua amet commodo
         est irure sint magna sunt. Pariatur dolore commodo labore quis incididunt proident duis voluptate exercitation
         in duis. Occaecat aliqua laboris reprehenderit nostrud est aute pariatur fugiat anim. Dolore sunt cillum ea
         aliquip consectetur laborum ipsum qui veniam Lorem consectetur adipisicing velit magna aute. Amet tempor quis
         excepteur minim culpa velit Lorem enim ad.
-      </p>
-      <p>
+      </Typography>
+      <Typography>
         Mollit laborum exercitation excepteur laboris adipisicing ipsum veniam cillum mollit voluptate do. Amet et anim
         Lorem mollit minim duis cupidatat non. Consectetur sit deserunt nisi nisi non excepteur dolor eiusmod aute aute
         irure anim dolore ipsum et veniam.
-      </p>
+      </Typography>
     </Paper>
     {children}
   </>
@@ -53,27 +54,40 @@ export const Default = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
 
+  const theme = useTheme();
+
   return (
     <BasePage handleClick={handleClick}>
-      <SimpleModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
-        header="This is a modal"
-        subHeader="This is a sub header"
-        okLabel="Click to continue"
-      >
-        <p>Lorem mollit minim duis cupidatat non. Consectetur sit deserunt</p>
-        <p>
-          Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-        </p>
-        <ModalDivider />
-        <p>Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eius</p>
-        <p>
-          Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
-          elit ut mollit.
-        </p>
-      </SimpleModal>
+      <Box sx={{ width: '50%' }}>
+        <SimpleModal
+          open={open}
+          onClose={() => setOpen(false)}
+          onOk={() => setOpen(false)}
+          header="This is a modal"
+          subHeader="This is a sub header"
+          okLabel="Click to continue"
+          sx={{
+            position: 'relative',
+            left: theme.palette.mode === 'light' ? '25%' : '75%',
+          }}
+        >
+          <Typography sx={{ color: theme.palette.text.primary }}>
+            Lorem mollit minim duis cupidatat non. Consectetur sit deserunt
+          </Typography>
+          <Typography sx={{ color: theme.palette.text.primary }}>
+            Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
+          </Typography>
+          <ModalDivider />
+          <Typography sx={{ color: theme.palette.text.primary }}>
+            Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eius
+          </Typography>
+
+          <Typography sx={{ color: theme.palette.text.primary }}>
+            Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore
+            magna elit ut mollit.
+          </Typography>
+        </SimpleModal>
+      </Box>
     </BasePage>
   );
 };
@@ -81,6 +95,8 @@ export const Default = () => {
 export const NoSubheader = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
+
+  const theme = useTheme();
 
   return (
     <BasePage handleClick={handleClick}>
@@ -90,15 +106,19 @@ export const NoSubheader = () => {
         onOk={() => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
+        sx={{
+          position: 'relative',
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
       >
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
           elit ut mollit.
-        </p>
+        </Typography>
         <ModalDivider />
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-        </p>
+        </Typography>
       </SimpleModal>
     </BasePage>
   );
@@ -107,6 +127,8 @@ export const NoSubheader = () => {
 export const hideCloseIcon = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
+
+  const theme = useTheme();
 
   return (
     <BasePage handleClick={handleClick}>
@@ -117,15 +139,19 @@ export const hideCloseIcon = () => {
         onOk={() => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
+        sx={{
+          position: 'relative',
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
       >
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
           elit ut mollit.
-        </p>
+        </Typography>
         <ModalDivider />
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-        </p>
+        </Typography>
       </SimpleModal>
     </BasePage>
   );
@@ -134,6 +160,8 @@ export const hideCloseIcon = () => {
 export const hideCloseIconAndDisplayErrorIcon = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
+
+  const theme = useTheme();
 
   return (
     <BasePage handleClick={handleClick}>
@@ -145,7 +173,13 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
         onOk={() => setOpen(false)}
         header="This modal announces an error !"
         okLabel="Kaplow!"
-        sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
         headerStyles={{
           width: '100%',
           mb: 3,
@@ -154,14 +188,14 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
         }}
         subHeaderStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
       >
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
           elit ut mollit.
-        </p>
+        </Typography>
         <ModalDivider />
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-        </p>
+        </Typography>
       </SimpleModal>
     </BasePage>
   );

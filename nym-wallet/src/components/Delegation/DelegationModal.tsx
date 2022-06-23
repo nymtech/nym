@@ -1,7 +1,8 @@
 import React from 'react';
-import { Box, Button, CircularProgress, Modal, Stack, Typography } from '@mui/material';
+import { Box, Button, Modal, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { modalStyle } from '../Modals/styles';
+import { LoadingModal } from '../Modals/LoadingModal';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -42,18 +43,7 @@ export const DelegationModal: React.FC<
     onClose?: () => void;
   }
 > = ({ status, action, message, recipient, balance, balanceVested, transactions, open, onClose, children }) => {
-  if (status === 'loading') {
-    return (
-      <Modal open>
-        <Box sx={modalStyle} textAlign="center">
-          <Stack spacing={4} direction="row" alignItems="center">
-            <CircularProgress />
-            <Typography>Please wait...</Typography>
-          </Stack>
-        </Box>
-      </Modal>
-    );
-  }
+  if (status === 'loading') return <LoadingModal />;
 
   if (status === 'error') {
     return (

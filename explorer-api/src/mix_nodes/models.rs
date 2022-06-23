@@ -8,9 +8,8 @@ use std::time::{Duration, SystemTime};
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use validator_client::models::{MixNodeBondAnnotated, UptimeResponse};
+use validator_client::models::MixNodeBondAnnotated;
 
-use crate::cache::Cache;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
 use crate::mix_nodes::CACHE_ENTRY_TTL;
@@ -77,16 +76,10 @@ impl MixNodesResult {
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct MixNodeHealth {
-    avg_uptime: u8,
-}
-
 #[derive(Clone)]
 pub(crate) struct ThreadsafeMixNodesCache {
     mixnodes: Arc<RwLock<MixNodesResult>>,
     locations: Arc<RwLock<LocationCache>>,
-    mixnode_health: Arc<RwLock<Cache<MixNodeHealth>>>,
 }
 
 impl ThreadsafeMixNodesCache {
@@ -94,7 +87,6 @@ impl ThreadsafeMixNodesCache {
         ThreadsafeMixNodesCache {
             mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
             locations: Arc::new(RwLock::new(LocationCache::new())),
-            mixnode_health: Arc::new(RwLock::new(Cache::new())),
         }
     }
 
@@ -102,7 +94,6 @@ impl ThreadsafeMixNodesCache {
         ThreadsafeMixNodesCache {
             mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
             locations: Arc::new(RwLock::new(locations)),
-            mixnode_health: Arc::new(RwLock::new(Cache::new())),
         }
     }
 
@@ -140,11 +131,9 @@ impl ThreadsafeMixNodesCache {
     ) -> Option<PrettyDetailedMixNodeBond> {
         let mixnodes_guard = self.mixnodes.read().await;
         let location_guard = self.locations.read().await;
-        let mixnode_health_guard = self.mixnode_health.read().await;
 
         let bond = mixnodes_guard.get_mixnode(identity_key);
         let location = location_guard.get(identity_key);
-        let health = mixnode_health_guard.get(identity_key);
 
         match bond {
             Some(bond) => Some(PrettyDetailedMixNodeBond {
@@ -155,7 +144,7 @@ impl ThreadsafeMixNodesCache {
                 owner: bond.mixnode_bond.owner,
                 layer: bond.mixnode_bond.layer,
                 mix_node: bond.mixnode_bond.mix_node,
-                avg_uptime: health.map(|m| m.avg_uptime),
+                avg_uptime: bond.uptime,
                 stake_saturation: bond.stake_saturation,
                 estimated_operator_apy: bond.estimated_operator_apy,
                 estimated_delegators_apy: bond.estimated_delegators_apy,
@@ -167,7 +156,6 @@ impl ThreadsafeMixNodesCache {
     pub(crate) async fn get_detailed_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {
         let mixnodes_guard = self.mixnodes.read().await;
         let location_guard = self.locations.read().await;
-        let mixnode_health_guard = self.mixnode_health.read().await;
 
         mixnodes_guard
             .all_mixnodes
@@ -175,7 +163,6 @@ impl ThreadsafeMixNodesCache {
             .map(|bond| {
                 let location = location_guard.get(&bond.mix_node().identity_key);
                 let copy = bond.mixnode_bond.clone();
-                let health = mixnode_health_guard.get(&bond.mix_node().identity_key);
                 PrettyDetailedMixNodeBond {
                     location: location.and_then(|l| l.location.clone()),
                     status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
@@ -184,7 +171,7 @@ impl ThreadsafeMixNodesCache {
                     owner: copy.owner,
                     layer: copy.layer,
                     mix_node: copy.mix_node,
-                    avg_uptime: health.map(|m| m.avg_uptime),
+                    avg_uptime: bond.uptime,
                     stake_saturation: bond.stake_saturation,
                     estimated_operator_apy: bond.estimated_operator_apy,
                     estimated_delegators_apy: bond.estimated_delegators_apy,
@@ -207,15 +194,5 @@ impl ThreadsafeMixNodesCache {
         guard.rewarded_mixnodes = rewarded_nodes;
         guard.active_mixnodes = active_nodes;
         guard.valid_until = SystemTime::now() + CACHE_ENTRY_TTL;
-    }
-
-    pub(crate) async fn update_health_cache(&self, all_uptimes: Vec<UptimeResponse>) {
-        let mut mixnode_health = self.mixnode_health.write().await;
-        for uptime in all_uptimes {
-            let health = MixNodeHealth {
-                avg_uptime: uptime.avg_uptime,
-            };
-            mixnode_health.set(&uptime.identity, health);
-        }
     }
 }

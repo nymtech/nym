@@ -1,4 +1,5 @@
 import { NymWalletThemeWithMode } from '../src/theme/NymWalletTheme';
+import { Box } from '@mui/material';
 
 export const parameters = {
   actions: { argTypesRegex: "^on[A-Z].*" },

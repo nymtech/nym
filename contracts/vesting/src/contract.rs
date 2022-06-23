@@ -1,13 +1,16 @@
 use crate::errors::ContractError;
-use crate::storage::{account_from_address, ADMIN, MIXNET_CONTRACT_ADDRESS};
+use crate::storage::{
+    account_from_address, locked_pledge_cap, update_locked_pledge_cap, ADMIN,
+    MIXNET_CONTRACT_ADDRESS,
+};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp,
+    Response, Timestamp, Uint128,
 };
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
@@ -20,6 +23,8 @@ use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
 use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
+
+pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
 
 #[entry_point]
 pub fn instantiate(
@@ -47,6 +52,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::UpdateLockedPledgeCap { amount } => {
+            try_update_locked_pledge_cap(amount, info, deps)
+        }
         ExecuteMsg::TrackReward { amount, address } => {
             try_track_reward(deps, info, amount, &address)
         }
@@ -118,6 +126,18 @@ pub fn execute(
     }
 }
 
+pub fn try_update_locked_pledge_cap(
+    amount: Uint128,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    if info.sender != ADMIN.load(deps.storage)? {
+        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
+    }
+    update_locked_pledge_cap(amount, deps.storage)?;
+    Ok(Response::default())
+}
+
 pub fn try_update_mixnode_config(
     profit_margin_percent: u8,
     info: MessageInfo,
@@ -147,8 +167,11 @@ pub fn try_withdraw_vested_coins(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    if amount.denom != DENOM {
-        return Err(ContractError::WrongDenom(amount.denom, DENOM.to_string()));
+    if amount.denom != MIX_DENOM.base {
+        return Err(ContractError::WrongDenom(
+            amount.denom,
+            MIX_DENOM.base.to_string(),
+        ));
     }
 
     let address = info.sender.clone();
@@ -421,6 +444,7 @@ fn try_create_periodic_vesting_account(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
+        QueryMsg::GetLockedPledgeCap {} => to_binary(&get_locked_pledge_cap(deps)),
         QueryMsg::LockedCoins {
             vesting_account_address,
             block_time,
@@ -493,6 +517,10 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     };
 
     Ok(query_res?)
+}
+
+pub fn get_locked_pledge_cap(deps: Deps<'_>) -> Uint128 {
+    locked_pledge_cap(deps.storage)
 }
 
 pub fn try_get_current_vesting_period(
@@ -611,10 +639,10 @@ fn validate_funds(funds: &[Coin]) -> Result<Coin, ContractError> {
         return Err(ContractError::MultipleDenoms);
     }
 
-    if funds[0].denom != DENOM {
+    if funds[0].denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom(
             funds[0].denom.clone(),
-            DENOM.to_string(),
+            MIX_DENOM.base.to_string(),
         ));
     }
 

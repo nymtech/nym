@@ -13,8 +13,8 @@ use crate::error::ContractError;
 use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
-use crate::support::helpers::is_authorized;
-use config::defaults::DENOM;
+use crate::support::helpers::{is_authorized, operator_cost_at_epoch};
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response,
     Storage, Uint128,
@@ -105,7 +105,7 @@ fn _try_claim_operator_reward(
 
     let return_tokens = BankMsg::Send {
         to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
-        amount: coins(reward.u128(), DENOM),
+        amount: coins(reward.u128(), MIX_DENOM.base),
     };
 
     let mut response = Response::default()
@@ -115,7 +115,7 @@ fn _try_claim_operator_reward(
     if let Some(proxy) = proxy {
         let msg = Some(VestingContractExecuteMsg::TrackReward {
             address: owner.to_string(),
-            amount: Coin::new(reward.u128(), DENOM),
+            amount: Coin::new(reward.u128(), MIX_DENOM.base),
         });
 
         let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
@@ -153,7 +153,7 @@ pub fn _try_claim_delegator_reward(
 
     let return_tokens = BankMsg::Send {
         to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
-        amount: coins(reward.u128(), DENOM),
+        amount: coins(reward.u128(), MIX_DENOM.base),
     };
 
     let mut response =
@@ -169,7 +169,7 @@ pub fn _try_claim_delegator_reward(
     if let Some(proxy) = proxy {
         let msg = Some(VestingContractExecuteMsg::TrackReward {
             address: owner.to_string(),
-            amount: Coin::new(reward.u128(), DENOM),
+            amount: Coin::new(reward.u128(), MIX_DENOM.base),
         });
 
         let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
@@ -301,7 +301,7 @@ pub fn calculate_operator_reward(
         .prefix(bond.identity())
         .keys(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Ascending,
         )
@@ -317,7 +317,9 @@ pub fn calculate_operator_reward(
                 {
                     if let Some(ref epoch_rewards) = bond.epoch_rewards {
                         // Compound rewards from previous heights
-                        match epoch_rewards.operator_reward(bond.profit_margin()) {
+                        let operator_cost =
+                            operator_cost_at_epoch(storage, epoch_rewards.epoch_id())?;
+                        match epoch_rewards.operator_reward(bond.profit_margin(), operator_cost) {
                             Ok(reward) => return Ok(accumulated_reward + reward),
                             Err(err) => {
                                 debug_with_visibility(
@@ -436,7 +438,7 @@ pub fn _try_compound_delegator_reward(
             owner_address,
             Coin {
                 amount: compounded_delegation,
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             proxy,
         )?;
@@ -477,7 +479,7 @@ pub fn calculate_delegator_reward(
         .prefix((mix_identity.to_string(), key))
         .range(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Descending,
         )
@@ -494,7 +496,7 @@ pub fn calculate_delegator_reward(
         .prefix(mix_identity)
         .keys(
             storage,
-            Some(Bound::exclusive(last_claimed_height)),
+            Some(Bound::inclusive(last_claimed_height)),
             None,
             Order::Ascending,
         )
@@ -528,12 +530,15 @@ pub fn calculate_delegator_reward(
                         .flatten()
                     {
                         if let Some(ref epoch_rewards) = bond.epoch_rewards {
+                            let operator_cost =
+                                operator_cost_at_epoch(storage, epoch_rewards.epoch_id()).unwrap();
                             // Compound rewards from previous heights
                             match epoch_reward_params_for_id(storage, epoch_rewards.epoch_id()) {
                                 Ok(params) => {
                                     let reward_at_height = match epoch_rewards.delegation_reward(
                                         delegation_at_height + accumulated_reward,
                                         bond.profit_margin(),
+                                        operator_cost,
                                         params,
                                     ) {
                                         Ok(reward) => {
@@ -703,7 +708,6 @@ pub(crate) fn try_reward_mixnode(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::constants::EPOCHS_IN_INTERVAL;
     use crate::delegations::transactions::{
         _try_remove_delegation_from_mixnode, try_delegate_to_mixnode,
     };
@@ -718,17 +722,20 @@ pub mod tests {
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::StoredMixnodeBond;
     use crate::rewards::transactions::try_reward_mixnode;
+    use crate::support::helpers::{current_operator_epoch_cost, epochs_in_interval};
     use crate::support::tests;
     use crate::support::tests::test_helpers;
     use az::CheckedCast;
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, StdError, Timestamp, Uint128};
     use mixnet_contract_common::events::{
         must_find_attribute, BOND_TOO_FRESH_VALUE, NO_REWARD_REASON_KEY,
         OPERATOR_REWARDING_EVENT_TYPE,
     };
-    use mixnet_contract_common::reward_params::{NodeRewardParams, RewardParams};
+    use mixnet_contract_common::reward_params::{
+        EpochRewardParams, NodeRewardParams, RewardParams,
+    };
     use mixnet_contract_common::{Delegation, IdentityKey, Interval, Layer, MixNode};
     use time::OffsetDateTime;
 
@@ -737,7 +744,7 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
         let sender = rewarding_validator_address(&deps.storage).unwrap();
-        let info = mock_info(&sender, &coins(1000, DENOM));
+        let info = mock_info(&sender, &coins(1000, MIX_DENOM.base));
         crate::interval::transactions::init_epoch(&mut deps.storage, env.clone()).unwrap();
 
         // bond the node
@@ -878,7 +885,7 @@ pub mod tests {
         let initial_bond = 10000_000000;
         let initial_delegation = 20000_000000;
         let mixnode_bond = StoredMixnodeBond {
-            pledge_amount: coin(initial_bond, DENOM),
+            pledge_amount: coin(initial_bond, MIX_DENOM.base),
             owner: node_owner,
             layer: Layer::One,
             block_height: env.block.height,
@@ -918,7 +925,7 @@ pub mod tests {
                 &Delegation::new(
                     Addr::unchecked("delegator"),
                     node_identity.clone(),
-                    coin(initial_delegation, DENOM),
+                    coin(initial_delegation, MIX_DENOM.base),
                     env.block.height,
                     None,
                 ),
@@ -1091,14 +1098,18 @@ pub mod tests {
             .collect::<Vec<(IdentityKey, u64)>>();
         assert_eq!(0, checkpoints.len());
 
-        let period_reward_pool = (INITIAL_REWARD_POOL / 100 / EPOCHS_IN_INTERVAL as u128)
-            * INTERVAL_REWARD_PERCENT as u128;
+        let period_reward_pool =
+            (INITIAL_REWARD_POOL / 100 / epochs_in_interval(&deps.storage).unwrap() as u128)
+                * INTERVAL_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 6_944_444_444);
         let circulating_supply = storage::circulating_supply(&deps.storage).unwrap().u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
 
+        let staking_supply = storage::staking_supply(&deps.storage).unwrap().u128();
+        assert_eq!(staking_supply, 100_000_000_000_000u128);
+
         let sender = Addr::unchecked("alice");
-        let stake = coins(10_000_000_000, DENOM);
+        let stake = coins(10_000_000_000, MIX_DENOM.base);
 
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
         let owner_signature = keypair
@@ -1111,8 +1122,6 @@ pub mod tests {
         let info = mock_info(sender.as_str(), &stake);
 
         let node_identity_1 = keypair.public_key().to_base58_string();
-
-        env.block.height;
 
         try_add_mixnode(
             deps.as_mut(),
@@ -1151,14 +1160,14 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("johnny");
         let node_identity_2 = test_helpers::add_mixnode(
             node_owner.as_str(),
-            coins(10_000_000_000, DENOM),
+            coins(10_000_000_000, MIX_DENOM.base),
             deps.as_mut(),
         );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
+            mock_info("alice_d1", &[coin(8000_000000, MIX_DENOM.base)]),
             node_identity_1.clone(),
         )
         .unwrap();
@@ -1166,7 +1175,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
+            mock_info("alice_d2", &[coin(2000_000000, MIX_DENOM.base)]),
             node_identity_1.clone(),
         )
         .unwrap();
@@ -1174,7 +1183,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("bob_d1", &[coin(8000_000000, DENOM)]),
+            mock_info("bob_d1", &[coin(8000_000000, MIX_DENOM.base)]),
             node_identity_2.clone(),
         )
         .unwrap();
@@ -1182,7 +1191,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("bob_d2", &[coin(2000_000000, DENOM)]),
+            mock_info("bob_d2", &[coin(2000_000000, MIX_DENOM.base)]),
             node_identity_2.clone(),
         )
         .unwrap();
@@ -1190,14 +1199,14 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("alicebob");
         let node_identity_3 = test_helpers::add_mixnode(
             node_owner.as_str(),
-            coins(10_000_000_000 * 2, DENOM),
+            coins(10_000_000_000 * 2, MIX_DENOM.base),
             deps.as_mut(),
         );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alicebob_d1", &[coin(8000_000000 * 2, DENOM)]),
+            mock_info("alicebob_d1", &[coin(8000_000000 * 2, MIX_DENOM.base)]),
             node_identity_3.clone(),
         )
         .unwrap();
@@ -1205,7 +1214,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alicebob_d2", &[coin(2000_000000 * 2, DENOM)]),
+            mock_info("alicebob_d2", &[coin(2000_000000 * 2, MIX_DENOM.base)]),
             node_identity_3.clone(),
         )
         .unwrap();
@@ -1281,15 +1290,22 @@ pub mod tests {
         .unwrap();
 
         let mix_after_reward = mixnodes.may_load(&deps.storage, &node_identity_1).unwrap();
-        // println!("{:?}", mix_after_reward);
+        let accumulated1 = mix_after_reward
+            .as_ref()
+            .unwrap()
+            .accumulated_rewards
+            .unwrap()
+            .u128();
+        // stupid one-off error, but @DU says it's fine
+        assert_eq!(accumulated1, 1948911 + 1);
 
         let checkpoints = mixnodes
             .changelog()
             .prefix(&node_identity_1)
             .keys(&deps.storage, None, None, Order::Ascending)
             .filter_map(|x| x.ok())
-            .collect::<Vec<u64>>();
-        assert_eq!(checkpoints.len(), 2);
+            .count();
+        assert_eq!(checkpoints, 2);
 
         env.block.height += 10000;
         env.block.time = env.block.time.plus_seconds(3601);
@@ -1305,7 +1321,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             env.clone(),
-            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
+            mock_info("alice_d1", &[coin(8000_000000, MIX_DENOM.base)]),
             node_identity_1.clone(),
         )
         .unwrap();
@@ -1330,13 +1346,19 @@ pub mod tests {
         try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
-            info.clone(),
+            info,
             node_identity_1.clone(),
             node_reward_params,
         )
         .unwrap();
         let mix_after_reward_2 = mixnodes.may_load(&deps.storage, &node_identity_1).unwrap();
-
+        let accumulated2 = mix_after_reward_2
+            .as_ref()
+            .unwrap()
+            .accumulated_rewards
+            .unwrap()
+            .u128();
+        assert_eq!(accumulated2, accumulated1 + 2728477);
         assert_ne!(mix_after_reward, mix_after_reward_2);
 
         let checkpoints = mixnodes
@@ -1370,11 +1392,20 @@ pub mod tests {
         try_reward_mixnode(
             deps.as_mut(),
             env.clone(),
-            info.clone(),
+            info,
             node_identity_1.clone(),
             node_reward_params,
         )
         .unwrap();
+        let mix_after_reward_3 = mixnodes.may_load(&deps.storage, &node_identity_1).unwrap();
+        let accumulated3 = mix_after_reward_3
+            .as_ref()
+            .unwrap()
+            .accumulated_rewards
+            .unwrap()
+            .u128();
+        // off by one : )
+        assert_eq!(accumulated3 + 1, accumulated2 + 2728477);
 
         let checkpoints = mixnodes
             .changelog()
@@ -1431,7 +1462,10 @@ pub mod tests {
         let alice_reward =
             calculate_delegator_reward(&deps.storage, &deps.api, key.clone(), &node_identity_1)
                 .unwrap();
-        assert_eq!(alice_reward, Uint128::new(304552));
+
+        // TODO: perform deeper investigation into this number as it seem to not have compounded
+        // reward on the initial 8000 delegation and only have done it starting from 16000
+        assert_eq!(alice_reward, Uint128::new(2737979));
 
         let mix_0 = mixnodes.load(&deps.storage, &node_identity_1).unwrap();
 
@@ -1459,7 +1493,10 @@ pub mod tests {
         assert_eq!(delegations.len(), 1);
 
         let delegation = delegations.first().unwrap();
-        assert_eq!(delegation.amount.amount, Uint128::new(16000000000 + 304552));
+        assert_eq!(
+            delegation.amount.amount,
+            Uint128::new(16000000000 + 2737979)
+        );
 
         let mix_1 = mixnodes
             .load(&deps.storage, &node_identity_1.clone())
@@ -1482,29 +1519,17 @@ pub mod tests {
         let operator_reward =
             calculate_operator_reward(&deps.storage, &deps.api, &Addr::unchecked("alice"), &mix_1)
                 .unwrap();
-        assert_eq!(operator_reward, Uint128::new(352532));
+        assert_eq!(operator_reward, Uint128::new(2278901));
 
-        assert_eq!(
-            mix_1_reward_result.sigma(),
-            U128::from_num(0.0000266666666666f64)
-        );
-        assert_eq!(
-            mix_1_reward_result.lambda(),
-            U128::from_num(0.0000133333333333f64)
-        );
-        assert_eq!(mix_1_reward_result.reward().int(), 259114u128);
+        assert_eq!(mix_1_reward_result.sigma(), U128::from_num(0.0002f64));
+        assert_eq!(mix_1_reward_result.lambda(), U128::from_num(0.0001f64));
+        assert_eq!(mix_1_reward_result.reward().int(), accumulated1);
 
         let mix_2_reward_result = mix_2.reward(&params2);
 
-        assert_eq!(
-            mix_2_reward_result.sigma(),
-            U128::from_num(0.0000266666666666f64)
-        );
-        assert_eq!(
-            mix_2_reward_result.lambda(),
-            U128::from_num(0.0000133333333333f64)
-        );
-        assert_eq!(mix_2_reward_result.reward().int(), 129557u128);
+        assert_eq!(mix_2_reward_result.sigma(), U128::from_num(0.0002f64));
+        assert_eq!(mix_2_reward_result.lambda(), U128::from_num(0.0001f64));
+        assert_eq!(mix_2_reward_result.reward().int(), 974456u128);
 
         let mix_3_reward_result = mix_3.reward(&params3);
 
@@ -1515,6 +1540,7 @@ pub mod tests {
     fn test_tokenomics_rewarding() {
         use crate::constants::INTERVAL_REWARD_PERCENT;
         use crate::contract::INITIAL_REWARD_POOL;
+        use crate::support::helpers::epochs_in_interval;
 
         type U128 = fixed::types::U75F53;
 
@@ -1524,8 +1550,9 @@ pub mod tests {
             .load(deps.as_ref().storage)
             .unwrap();
         let rewarding_validator_address = current_state.rewarding_validator_address;
-        let period_reward_pool = (INITIAL_REWARD_POOL / 100 / EPOCHS_IN_INTERVAL as u128)
-            * INTERVAL_REWARD_PERCENT as u128;
+        let period_reward_pool =
+            (INITIAL_REWARD_POOL / 100 / epochs_in_interval(&deps.storage).unwrap() as u128)
+                * INTERVAL_REWARD_PERCENT as u128;
         assert_eq!(period_reward_pool, 6_944_444_444);
         let circulating_supply = storage::circulating_supply(&deps.storage).unwrap().u128();
         assert_eq!(circulating_supply, 750_000_000_000_000u128);
@@ -1533,14 +1560,14 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("alice");
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
-            coins(10_000_000_000, DENOM),
+            coins(10_000_000_000, MIX_DENOM.base),
             deps.as_mut(),
         );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d1", &[coin(8000_000000, DENOM)]),
+            mock_info("alice_d1", &[coin(8000_000000, MIX_DENOM.base)]),
             node_identity.clone(),
         )
         .unwrap();
@@ -1548,7 +1575,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d2", &[coin(2000_000000, DENOM)]),
+            mock_info("alice_d2", &[coin(2000_000000, MIX_DENOM.base)]),
             node_identity.clone(),
         )
         .unwrap();
@@ -1573,13 +1600,34 @@ pub mod tests {
 
         let interval_reward_params = current_epoch_reward_params(&deps.storage).unwrap();
 
+        // =======================
+        // TODO: this is a temporary 'workaround' until we can produce "good" numbers for if the rewards
+        // were calculated based of 100M staking supply as opposed to original 750M circulating supply
+        let interval_reward_params = EpochRewardParams::new(
+            interval_reward_params.epoch_reward_pool(),
+            interval_reward_params.rewarded_set_size(),
+            interval_reward_params.active_set_size(),
+            circulating_supply,
+            interval_reward_params.sybil_resistance_percent(),
+            interval_reward_params.active_set_work_factor(),
+        );
+
+        // this one repeats internals of `save_epoch_reward_params` but with 750M staking supply as opposed to 100M
+        crate::interval::storage::CURRENT_EPOCH_REWARD_PARAMS
+            .save(&mut deps.storage, &interval_reward_params)
+            .unwrap();
+        crate::rewards::storage::EPOCH_REWARD_PARAMS
+            .save(&mut deps.storage, epoch.id(), &interval_reward_params)
+            .unwrap();
+        // =======================
+
         let node_reward_params = NodeRewardParams::new(0, mix_1_uptime, true);
 
         let mut params = RewardParams::new(interval_reward_params, node_reward_params);
 
         params.set_reward_blockstamp(env.block.height);
 
-        assert_eq!(params.performance(), U128::from_num(0.8999999999999999));
+        assert_eq!(params.performance(), U128::from_num(0.8999999999999999f64));
 
         let mix_1_reward_result = mix_1.reward(&params);
 
@@ -1593,30 +1641,37 @@ pub mod tests {
         );
         assert_eq!(mix_1_reward_result.reward().int(), 233202u128);
 
-        assert_eq!(mix_1.node_profit(&params).int(), 183202u128);
+        let base_operator_cost = current_operator_epoch_cost(&deps.storage).unwrap();
+
+        assert_eq!(
+            mix_1.node_profit(&params, base_operator_cost).int(),
+            183203u128
+        );
 
         assert_ne!(
             mix_1_reward_result.reward(),
-            mix_1.node_profit(&params).int()
+            mix_1.node_profit(&params, base_operator_cost).int()
         );
 
-        let mix1_operator_reward = mix_1.operator_reward(&params);
+        let mix1_operator_reward = mix_1.operator_reward(&params, base_operator_cost);
 
-        let mix1_delegator1_reward = mix_1.reward_delegation(Uint128::new(8000_000000), &params);
+        let mix1_delegator1_reward =
+            mix_1.reward_delegation(Uint128::new(8000_000000), &params, base_operator_cost);
 
-        let mix1_delegator2_reward = mix_1.reward_delegation(Uint128::new(2000_000000), &params);
+        let mix1_delegator2_reward =
+            mix_1.reward_delegation(Uint128::new(2000_000000), &params, base_operator_cost);
 
         assert_eq!(mix1_operator_reward, 150761);
-        assert_eq!(mix1_delegator1_reward, 65952);
+        assert_eq!(mix1_delegator1_reward, 65953);
         assert_eq!(mix1_delegator2_reward, 16488);
 
         assert_eq!(
             mix_1_reward_result.reward().int(),
-            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1
+            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward
         );
 
         assert_eq!(
-            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward + 1,
+            mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward,
             mix_1_reward_result.reward().int()
         );
 
@@ -1635,7 +1690,7 @@ pub mod tests {
         try_reward_mixnode(
             deps.as_mut(),
             env,
-            info.clone(),
+            info,
             node_identity.clone(),
             node_reward_params,
         )
@@ -1654,14 +1709,12 @@ pub mod tests {
                 + mix1_operator_reward
                 + mix1_delegator1_reward
                 + mix1_delegator2_reward
-                + 1 // There is a rounding error here it seems
         );
 
         assert_eq!(
             storage::REWARD_POOL.load(&deps.storage).unwrap().u128(),
             INITIAL_REWARD_POOL
                 - (mix1_operator_reward + mix1_delegator1_reward + mix1_delegator2_reward)
-                - 1 // Same rounding error, its 1 ucoin, it will manifest/correct when the rewards are claimed
         );
 
         // it's all correctly saved
@@ -1698,7 +1751,7 @@ pub mod tests {
             #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                coins(10000_000_000, DENOM),
+                coins(10000_000_000, MIX_DENOM.base),
                 deps.as_mut(),
             );
 
@@ -1725,7 +1778,7 @@ pub mod tests {
             #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                coins(10000_000_000, DENOM),
+                coins(10000_000_000, MIX_DENOM.base),
                 deps.as_mut(),
             );
 
@@ -1733,7 +1786,10 @@ pub mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     env.clone(),
-                    mock_info(&*format!("delegator{:04}", i), &[coin(2000_000000, DENOM)]),
+                    mock_info(
+                        &*format!("delegator{:04}", i),
+                        &[coin(2000_000000, MIX_DENOM.base)],
+                    ),
                     node_identity.clone(),
                 )
                 .unwrap();

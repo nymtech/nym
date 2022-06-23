@@ -1,7 +1,6 @@
 use crate::{error::MixnetContractError, mixnode::StoredNodeRewardResult, ONE, U128};
 use az::CheckedCast;
 use cosmwasm_std::Uint128;
-use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -41,19 +40,23 @@ impl NodeEpochRewards {
         self.result.reward()
     }
 
-    pub fn operator_cost(&self) -> U128 {
-        self.params.operator_cost()
+    pub fn operator_cost(&self, base_operator_cost: u64) -> U128 {
+        self.params.operator_cost(base_operator_cost)
     }
 
-    pub fn node_profit(&self) -> U128 {
+    pub fn node_profit(&self, base_operator_cost: u64) -> U128 {
         let reward = U128::from_num(self.reward().u128());
         // if operating cost is higher then the reward node profit is 0
-        reward.saturating_sub(self.operator_cost())
+        reward.saturating_sub(self.operator_cost(base_operator_cost))
     }
 
-    pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {
-        let reward = self.node_profit();
-        let operator_base_reward = reward.min(self.operator_cost());
+    pub fn operator_reward(
+        &self,
+        profit_margin: U128,
+        base_operator_cost: u64,
+    ) -> Result<Uint128, MixnetContractError> {
+        let reward = self.node_profit(base_operator_cost);
+        let operator_base_reward = reward.min(self.operator_cost(base_operator_cost));
         let div_by_zero_check = if let Some(value) = self.lambda().checked_div(self.sigma()) {
             value
         } else {
@@ -74,6 +77,7 @@ impl NodeEpochRewards {
         &self,
         delegation_amount: Uint128,
         profit_margin: U128,
+        base_operator_cost: u64,
         epoch_reward_params: EpochRewardParams,
     ) -> Result<Uint128, MixnetContractError> {
         // change all values into their fixed representations
@@ -89,7 +93,8 @@ impl NodeEpochRewards {
                 return Err(MixnetContractError::DivisionByZero);
             };
 
-        let delegator_reward = (ONE - profit_margin) * check_div_by_zero * self.node_profit();
+        let delegator_reward =
+            (ONE - profit_margin) * check_div_by_zero * self.node_profit(base_operator_cost);
 
         let reward = delegator_reward.max(U128::ZERO);
         if let Some(int_reward) = reward.checked_cast() {
@@ -160,6 +165,14 @@ impl EpochRewardParams {
     pub fn epoch_reward_pool(&self) -> u128 {
         self.epoch_reward_pool.u128()
     }
+
+    pub fn sybil_resistance_percent(&self) -> u8 {
+        self.sybil_resistance_percent
+    }
+
+    pub fn active_set_work_factor(&self) -> u8 {
+        self.active_set_work_factor
+    }
 }
 
 #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
@@ -178,8 +191,8 @@ impl NodeRewardParams {
         }
     }
 
-    pub fn operator_cost(&self) -> U128 {
-        self.performance() * U128::from_num(DEFAULT_OPERATOR_INTERVAL_COST)
+    pub fn operator_cost(&self, base_operator_cost: u64) -> U128 {
+        self.performance() * U128::from_num(base_operator_cost)
     }
 
     pub fn uptime(&self) -> Uint128 {

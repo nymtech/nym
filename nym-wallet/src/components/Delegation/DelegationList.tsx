@@ -228,8 +228,7 @@ export const DelegationList: React.FC<{
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
                       disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableDelegateMore={(item?.stake_saturation || 0) > 1}
-                      disableCompoundRewards={(item?.stake_saturation || 0) > 1}
+                      disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
                     />
                   ) : (
                     <Tooltip

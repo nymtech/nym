@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, str::FromStr};
 
 use crate::{
-    DefaultNetworkDetails, ValidatorDetails, MAINNET_DEFAULTS, QA_DEFAULTS, SANDBOX_DEFAULTS,
+    DefaultNetworkDetails, DenomDetails, DenomDetailsOwned, ValidatorDetails, MAINNET_DEFAULTS,
+    QA_DEFAULTS, SANDBOX_DEFAULTS,
 };
 
 use thiserror::Error;
@@ -24,7 +25,7 @@ pub enum Network {
 }
 
 impl Network {
-    fn details(&self) -> &DefaultNetworkDetails<'_> {
+    fn details(&self) -> &DefaultNetworkDetails {
         match self {
             Self::QA => &QA_DEFAULTS,
             Self::SANDBOX => &SANDBOX_DEFAULTS,
@@ -36,8 +37,12 @@ impl Network {
         self.details().bech32_prefix
     }
 
-    pub fn denom(&self) -> &str {
-        self.details().denom
+    pub fn mix_denom(&self) -> &DenomDetails {
+        &self.details().mix_denom
+    }
+
+    pub fn stake_denom(&self) -> &DenomDetails {
+        &self.details().stake_denom
     }
 
     pub fn mixnet_contract_address(&self) -> &str {
@@ -101,7 +106,8 @@ impl fmt::Display for Network {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NetworkDetails {
     bech32_prefix: String,
-    denom: String,
+    mix_denom: DenomDetailsOwned,
+    stake_denom: DenomDetailsOwned,
     mixnet_contract_address: String,
     vesting_contract_address: String,
     bandwidth_claim_contract_address: String,
@@ -109,17 +115,24 @@ pub struct NetworkDetails {
     validators: Vec<ValidatorDetails>,
 }
 
-impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
-    fn from(details: &DefaultNetworkDetails<'_>) -> Self {
+impl From<&DefaultNetworkDetails> for NetworkDetails {
+    fn from(details: &DefaultNetworkDetails) -> Self {
         NetworkDetails {
             bech32_prefix: details.bech32_prefix.into(),
-            denom: details.denom.into(),
+            mix_denom: details.mix_denom.into(),
+            stake_denom: details.stake_denom.into(),
             mixnet_contract_address: details.mixnet_contract_address.into(),
             vesting_contract_address: details.vesting_contract_address.into(),
             bandwidth_claim_contract_address: details.bandwidth_claim_contract_address.into(),
             statistics_service_url: details.statistics_service_url.into(),
             validators: details.validators.clone(),
         }
+    }
+}
+
+impl NetworkDetails {
+    pub fn base_mix_denom(&self) -> &str {
+        &self.mix_denom.base
     }
 }
 
@@ -144,10 +157,10 @@ impl SupportedNetworks {
             .map(|network_details| network_details.bech32_prefix.as_str())
     }
 
-    pub fn denom(&self, network: Network) -> Option<&str> {
+    pub fn base_mix_denom(&self, network: Network) -> Option<&str> {
         self.networks
             .get(&network)
-            .map(|network_details| network_details.denom.as_str())
+            .map(|network_details| network_details.base_mix_denom())
     }
 
     pub fn mixnet_contract_address(&self, network: Network) -> Option<&str> {

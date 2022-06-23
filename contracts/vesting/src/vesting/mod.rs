@@ -44,7 +44,7 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::{Gateway, MixNode};
@@ -55,7 +55,7 @@ mod tests {
     fn test_account_creation() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("not_admin", &coins(1_000_000_000_000, DENOM));
+        let info = mock_info("not_admin", &coins(1_000_000_000_000, MIX_DENOM.base));
         let msg = ExecuteMsg::CreateAccount {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
@@ -65,7 +65,7 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert!(response.is_err());
 
-        let info = mock_info("admin", &coins(1_000_000_000_000, DENOM));
+        let info = mock_info("admin", &coins(1_000_000_000_000, MIX_DENOM.base));
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
             .unwrap()
@@ -131,7 +131,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawVestedCoins {
             amount: Coin {
                 amount: Uint128::new(1),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
         };
         let info = mock_info("new_owner", &[]);
@@ -261,8 +261,8 @@ mod tests {
         let mix_identity = "alice".to_string();
 
         let delegation = Coin {
-            amount: Uint128::new(500_000_000_000),
-            denom: DENOM.to_string(),
+            amount: Uint128::new(90_000_000_000),
+            denom: MIX_DENOM.base.to_string(),
         };
 
         let ok = account.try_delegate_to_mixnode(
@@ -285,16 +285,16 @@ mod tests {
             .get_delegated_vesting(None, &env, &mut deps.storage)
             .unwrap();
 
-        assert_eq!(delegated_free.amount, Uint128::new(250_000_000_000));
-        assert_eq!(delegated_vesting.amount, Uint128::new(250_000_000_000));
+        assert_eq!(delegated_free.amount, Uint128::new(90_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
 
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(500_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
         let spendable = account
             .spendable_coins(None, &env, &mut deps.storage)
             .unwrap();
-        assert_eq!(spendable.amount, Uint128::zero());
+        assert_eq!(spendable.amount, Uint128::new(160_000_000_000));
 
         let ok = account.try_undelegate_from_mixnode(mix_identity.clone(), &mut deps.storage);
         assert!(ok.is_ok());
@@ -370,10 +370,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(delegated_free.amount, Uint128::zero());
-        assert_eq!(delegated_vesting.amount, Uint128::new(500_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::new(90_000_000_000));
 
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
     }
 
     #[test]
@@ -388,7 +388,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -398,23 +398,35 @@ mod tests {
         let ok = account.try_delegate_to_mixnode(
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_000),
-                denom: DENOM.to_string(),
+                amount: Uint128::new(90_000_000_000),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
         );
         assert!(ok.is_ok());
 
+        // Fails due to delegation locked delegation cap
+        let ok = account.try_delegate_to_mixnode(
+            "alice".to_string(),
+            Coin {
+                amount: Uint128::new(20_000_000_000),
+                denom: MIX_DENOM.base.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_err());
+
         let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(500_000_000_000));
+        assert_eq!(balance, Uint128::new(910000000000));
 
         // Try delegating too much again
         let err = account.try_delegate_to_mixnode(
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -424,7 +436,7 @@ mod tests {
         let total_delegations = account
             .total_delegations_for_mix("alice".to_string(), &deps.storage)
             .unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), total_delegations);
+        assert_eq!(Uint128::new(90_000_000_000), total_delegations);
 
         // Current period -> block_time: None
         let delegated_free = account
@@ -510,7 +522,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -521,8 +533,8 @@ mod tests {
             mix_node.clone(),
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_000),
-                denom: DENOM.to_string(),
+                amount: Uint128::new(90_000_000_000),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -530,15 +542,15 @@ mod tests {
         assert!(ok.is_ok());
 
         let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(500_000_000_000));
+        assert_eq!(balance, Uint128::new(910_000_000_000));
 
         // Try delegating too much again
         let err = account.try_bond_mixnode(
             mix_node,
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_001),
-                denom: DENOM.to_string(),
+                amount: Uint128::new(10_000_000_001),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -546,7 +558,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_mixnode_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
+        assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();
@@ -630,7 +642,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -641,8 +653,8 @@ mod tests {
             gateway.clone(),
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_000),
-                denom: DENOM.to_string(),
+                amount: Uint128::new(90_000_000_000),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -650,7 +662,7 @@ mod tests {
         assert!(ok.is_ok());
 
         let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(500_000_000_000));
+        assert_eq!(balance, Uint128::new(910_000_000_000));
 
         // Try delegating too much again
         let err = account.try_bond_gateway(
@@ -658,7 +670,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -666,7 +678,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_gateway_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
+        assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();

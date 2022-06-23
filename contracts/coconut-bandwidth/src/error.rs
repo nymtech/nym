@@ -5,7 +5,7 @@ use cosmwasm_std::StdError;
 use cw_controllers::AdminError;
 use thiserror::Error;
 
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 
 /// Custom errors for contract failure conditions.
 ///
@@ -22,7 +22,7 @@ pub enum ContractError {
     #[error("No coin was sent for voucher")]
     NoCoin,
 
-    #[error("Wrong coin denomination, you must send {}", DENOM)]
+    #[error("Wrong coin denomination, you must send {}", MIX_DENOM.base)]
     WrongDenom,
 
     #[error("There aren't enough funds in the contract")]

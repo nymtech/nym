@@ -1,0 +1,32 @@
+name: Release Nym Wallet
+on:
+  workflow_dispatch:
+    inputs:
+      nym_wallet_version:
+        description: 'The version of the Nym Wallet to release'
+        default: '1.0.x'
+        required: true
+        type: string
+jobs:
+  create-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: >-
+            This is a pre-release
+            
+            Download the wallet for your platform:
+            
+              - [Linux](https://github.com/nymtech/nym/releases/download/nym-wallet-v${{ inputs.nym_wallet_version}}/nym-wallet_v${{ inputs.nym_wallet_version}}_amd64_ubuntu20.04.AppImage)
+              - [MacOS](https://github.com/nymtech/nym/releases/download/nym-wallet-v${{ inputs.nym_wallet_version}}/nym-wallet_v${{ inputs.nym_wallet_version}}_x64_macos_11.dmg)
+              - [Windows](https://github.com/nymtech/nym/releases/download/nym-wallet-v${{ inputs.nym_wallet_version}}/nym-wallet_v${{ inputs.nym_wallet_version}}_x64_windows.msi)
+          prerelease: true
+          name: Nym Wallet v${{ inputs.nym_wallet_version}}
+          tag_name: nym-wallet-v${{ inputs.nym_wallet_version}}

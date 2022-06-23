@@ -13,4 +13,5 @@ pub const ACTIVE_SET_WORK_FACTOR: u8 = 10;
 // and we can't change this easily to `Duration`, because then the entire rewarded set storage
 // would be messed up... (as we look up stuff "by blocks")
 pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
-pub const EPOCHS_IN_INTERVAL: u64 = 720; // Hours in a month
+pub const INTERVAL_SECONDS: u64 = 86400 * 30; // 30 days
+pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000;

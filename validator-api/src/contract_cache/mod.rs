@@ -6,8 +6,7 @@ use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use mixnet_contract_common::mixnode::RewardEstimate;
-use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams, RewardParams};
+use mixnet_contract_common::reward_params::EpochRewardParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
@@ -28,6 +27,7 @@ use tokio::time;
 use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use validator_client::nymd::CosmWasmClient;
 
+pub(crate) mod reward_estimate;
 pub(crate) mod routes;
 
 pub struct ValidatorCacheRefresher<C> {
@@ -63,30 +63,6 @@ struct ValidatorCacheInner {
 fn current_unix_timestamp() -> i64 {
     let now = OffsetDateTime::now_utc();
     now.unix_timestamp()
-}
-
-fn compute_apy(epochs_per_hour: f64, reward: f64, pledge_amount: f64) -> f64 {
-    epochs_per_hour * 24.0 * 365.0 * 100.0 * reward / pledge_amount
-}
-
-fn compute_apy_from_reward(
-    mixnode_bond: &MixNodeBond,
-    reward_estimate: RewardEstimate,
-    epochs_in_interval: u64,
-) -> (f64, f64) {
-    let epochs_per_hour = epochs_in_interval as f64 / 720.0;
-    let pledge = mixnode_bond.pledge_amount().amount.u128();
-    let estimated_operator_apy = compute_apy(
-        epochs_per_hour,
-        reward_estimate.operator_reward as f64,
-        pledge as f64,
-    );
-    let estimated_delegators_apy = compute_apy(
-        epochs_per_hour,
-        reward_estimate.delegators_reward as f64,
-        pledge as f64,
-    );
-    (estimated_operator_apy, estimated_delegators_apy)
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -140,35 +116,6 @@ impl<C> ValidatorCacheRefresher<C> {
             .ok()
     }
 
-    async fn compute_reward_estimate(
-        &self,
-        mixnode_bond: &MixNodeBond,
-        current_epoch: Interval,
-        rewarded_set_identities: &HashMap<IdentityKey, RewardedSetNodeStatus>,
-        interval_reward_params: EpochRewardParams,
-        current_operator_base_cost: u64,
-    ) -> RewardEstimate {
-        let uptime = self
-            .get_uptime(mixnode_bond.identity(), current_epoch)
-            .await
-            .unwrap_or_default();
-        let is_active = rewarded_set_identities
-            .get(mixnode_bond.identity())
-            .map_or(false, RewardedSetNodeStatus::is_active);
-        let node_reward_params = NodeRewardParams::new(0, u128::from(uptime.u8()), is_active);
-        let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
-
-        mixnode_bond
-            .estimate_reward(current_operator_base_cost, &reward_params)
-            .unwrap_or(RewardEstimate {
-                total_node_reward: 0,
-                operator_reward: 0,
-                delegators_reward: 0,
-                node_profit: 0,
-                operator_cost: 0,
-            })
-    }
-
     async fn annotate_bond_with_details(
         &self,
         mixnodes: Vec<MixNodeBond>,
@@ -187,22 +134,34 @@ impl<C> ValidatorCacheRefresher<C> {
                 )
                 .to_num();
 
-            let reward_estimate = self
-                .compute_reward_estimate(
-                    &mixnode_bond,
-                    current_epoch,
-                    rewarded_set_identities,
-                    interval_reward_params,
-                    current_operator_base_cost,
-                )
-                .await;
+            let uptime = self
+                .get_uptime(mixnode_bond.identity(), current_epoch)
+                .await
+                .unwrap_or_default();
+
+            let is_active = rewarded_set_identities
+                .get(mixnode_bond.identity())
+                .map_or(false, RewardedSetNodeStatus::is_active);
+
+            let reward_estimate = reward_estimate::compute_reward_estimate(
+                &mixnode_bond,
+                uptime,
+                is_active,
+                interval_reward_params,
+                current_operator_base_cost,
+            );
 
             let (estimated_operator_apy, estimated_delegators_apy) =
-                compute_apy_from_reward(&mixnode_bond, reward_estimate, epochs_in_interval);
+                reward_estimate::compute_apy_from_reward(
+                    &mixnode_bond,
+                    reward_estimate,
+                    epochs_in_interval,
+                );
 
             annotated.push(MixNodeBondAnnotated {
                 mixnode_bond,
                 stake_saturation,
+                uptime: uptime.u8(),
                 estimated_operator_apy,
                 estimated_delegators_apy,
             });

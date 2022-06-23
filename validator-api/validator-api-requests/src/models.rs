@@ -51,6 +51,7 @@ pub struct MixnodeStatusResponse {
 pub struct MixNodeBondAnnotated {
     pub mixnode_bond: MixNodeBond,
     pub stake_saturation: StakeSaturation,
+    pub uptime: u8,
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
 }

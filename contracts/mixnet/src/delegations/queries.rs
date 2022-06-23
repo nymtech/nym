@@ -200,7 +200,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::{coin, Addr, Storage};
     use rand::Rng;
 
@@ -385,7 +385,7 @@ pub(crate) mod tests {
         let delegation = Delegation::new(
             delegation_owner.clone(),
             node_identity.clone(),
-            coin(1234, DENOM),
+            coin(1234, MIX_DENOM.base),
             1234,
             None,
         );
@@ -433,7 +433,7 @@ pub(crate) mod tests {
         let delegation = Delegation::new(
             delegation_owner2,
             node_identity1.clone(),
-            coin(1234, DENOM),
+            coin(1234, MIX_DENOM.base),
             1234,
             None,
         );
@@ -460,7 +460,7 @@ pub(crate) mod tests {
         let delegation = Delegation::new(
             delegation_owner1.clone(),
             node_identity2,
-            coin(1234, DENOM),
+            coin(1234, MIX_DENOM.base),
             1234,
             None,
         );

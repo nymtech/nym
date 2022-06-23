@@ -15,7 +15,7 @@ pub async fn claim_operator_reward(
 ) -> Result<TransactionExecuteResult, BackendError> {
     // TODO: handle operator bonding with vesting contract
     log::info!(">>> Claim operator reward");
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_claim_operator_reward(fee)
         .await?;
@@ -34,7 +34,7 @@ pub async fn compound_operator_reward(
 ) -> Result<TransactionExecuteResult, BackendError> {
     // TODO: handle operator bonding with vesting contract
     log::info!(">>> Compound operator reward");
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_compound_operator_reward(fee)
         .await?;
@@ -56,7 +56,7 @@ pub async fn claim_delegator_reward(
         ">>> Claim delegator reward: identity_key = {}",
         mix_identity
     );
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_claim_delegator_reward(mix_identity, fee)
         .await?;
@@ -78,7 +78,7 @@ pub async fn compound_delegator_reward(
         ">>> Compound delegator reward: identity_key = {}",
         mix_identity
     );
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_compound_delegator_reward(mix_identity, fee)
         .await?;

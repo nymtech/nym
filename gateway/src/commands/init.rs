@@ -43,6 +43,10 @@ pub struct Init {
     #[clap(long)]
     validator_apis: Option<String>,
 
+    /// Comma separated list of endpoints of the validator
+    #[clap(long)]
+    validators: Option<String>,
+
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
     mnemonic: Option<String>,
@@ -64,11 +68,6 @@ pub struct Init {
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
     statistics_service_url: Option<String>,
-
-    /// Comma separated list of endpoints of the validator
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    validators: Option<String>,
 }
 
 impl From<Init> for OverrideConfig {
@@ -81,6 +80,7 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
             validator_apis: init_config.validator_apis,
+            validators: init_config.validators,
             mnemonic: init_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -91,9 +91,6 @@ impl From<Init> for OverrideConfig {
 
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            validators: init_config.validators,
         }
     }
 }
@@ -174,15 +171,14 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             validator_apis: None,
-            mnemonic: Some("a b c".to_string()),
+            validators: None,
+            mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             enabled_credentials_mode: None,
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: "".to_string(),
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            validators: None,
         };
 
         let config = Config::new(&args.id);

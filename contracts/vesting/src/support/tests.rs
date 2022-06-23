@@ -2,7 +2,7 @@
 pub mod helpers {
     use crate::contract::instantiate;
     use crate::vesting::{populate_vesting_periods, Account};
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{Addr, Coin, Empty, Env, MemoryStorage, OwnedDeps, Storage, Uint128};
     use vesting_contract_common::messages::{InitMsg, VestingSpecification};
@@ -31,7 +31,7 @@ pub mod helpers {
             Some(Addr::unchecked("staking")),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             start_time_ts,
             periods,
@@ -50,7 +50,7 @@ pub mod helpers {
             Some(Addr::unchecked("staking")),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             start_time,
             periods,

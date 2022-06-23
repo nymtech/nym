@@ -30,6 +30,7 @@ pub(crate) fn node_status_routes(
             routes::gateway_core_status_count,
             routes::get_mixnode_status,
             routes::get_mixnode_reward_estimation,
+            routes::compute_mixnode_reward_estimation,
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
             routes::get_mixnode_avg_uptime,

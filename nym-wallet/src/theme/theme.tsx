@@ -38,9 +38,12 @@ const darkMode: NymPaletteVariant = {
   background: {
     main: '#121726',
     paper: '#242C3D',
+    warn: '#FFE600',
   },
   text: {
     main: '#F2F2F2',
+    muted: '#5B6174',
+    warn: '#FFE600',
   },
   topNav: {
     background: '#111826',
@@ -55,9 +58,12 @@ const lightMode: NymPaletteVariant = {
   background: {
     main: '#E5E5E5',
     paper: '#FFFFFF',
+    warn: '#FFE600',
   },
   text: {
     main: '#121726',
+    muted: '#5B6174',
+    warn: '#FFE600',
   },
   topNav: {
     background: '#111826',

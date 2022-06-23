@@ -136,6 +136,12 @@ pub struct GatewayOwnershipResponse {
     pub gateway: Option<GatewayBond>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct GatewayBondResponse {
+    pub identity: IdentityKey,
+    pub gateway: Option<GatewayBond>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

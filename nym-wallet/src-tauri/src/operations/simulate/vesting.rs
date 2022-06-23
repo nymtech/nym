@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nymd_client;
-use crate::operations::simulate::{FeeDetails, SimulateResult};
+use crate::operations::simulate::FeeDetails;
+use crate::simulate::detailed_fee;
 use crate::State;
 use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{Gateway, MixNode};
@@ -24,7 +24,6 @@ pub async fn simulate_vesting_bond_gateway(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -37,7 +36,7 @@ pub async fn simulate_vesting_bond_gateway(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -48,7 +47,6 @@ pub async fn simulate_vesting_unbond_gateway(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -57,7 +55,7 @@ pub async fn simulate_vesting_unbond_gateway(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -72,7 +70,6 @@ pub async fn simulate_vesting_bond_mixnode(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -85,7 +82,7 @@ pub async fn simulate_vesting_bond_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -96,7 +93,6 @@ pub async fn simulate_vesting_unbond_mixnode(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -105,7 +101,7 @@ pub async fn simulate_vesting_unbond_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -117,7 +113,6 @@ pub async fn simulate_vesting_update_mixnode(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -128,7 +123,7 @@ pub async fn simulate_vesting_update_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -190,7 +185,6 @@ pub async fn simulate_withdraw_vested_coins(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -199,29 +193,33 @@ pub async fn simulate_withdraw_vested_coins(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
 pub async fn simulate_vesting_claim_operator_reward(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let result = client
+        .nymd
         .simulate_vesting_claim_operator_reward(None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
 pub async fn simulate_vesting_compound_operator_reward(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let result = client
+        .nymd
         .simulate_vesting_compound_operator_reward(None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -229,11 +227,13 @@ pub async fn simulate_vesting_claim_delegator_reward(
     mix_identity: IdentityKey,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let result = client
+        .nymd
         .simulate_vesting_claim_delegator_reward(mix_identity, None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -241,9 +241,11 @@ pub async fn simulate_vesting_compound_delegator_reward(
     mix_identity: IdentityKey,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
-    let result = nymd_client!(state)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let result = client
+        .nymd
         .simulate_vesting_compound_delegator_reward(mix_identity, None)
         .await?;
-    let gas_price = nymd_client!(state).gas_price().clone();
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }

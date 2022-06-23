@@ -235,8 +235,8 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'avg_uptime',
-      headerName: 'Avg. Uptime',
-      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Uptime" />,
+      headerName: 'Routing Score',
+      renderHeader: () => <CustomColumnHeading headingTitle="Routing Score" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 160,
       headerAlign: 'left',

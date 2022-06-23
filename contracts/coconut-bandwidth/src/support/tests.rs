@@ -4,7 +4,6 @@
 #[cfg(test)]
 pub mod helpers {
     pub const OWNER: &str = "admin0001";
-    pub const SOMEBODY: &str = "somebody";
     pub const MULTISIG_CONTRACT: &str = "multisig contract address";
     pub const POOL_CONTRACT: &str = "mix pool contract address";
 

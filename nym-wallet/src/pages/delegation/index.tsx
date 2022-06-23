@@ -8,6 +8,7 @@ import { PendingEvents } from 'src/components/Delegation/PendingEvents';
 import { TPoolOption } from 'src/components';
 import { Console } from 'src/utils/console';
 import { CompoundModal } from 'src/components/Rewards/CompoundModal';
+import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { useDelegationContext, DelegationContextProvider } from '../../context/delegations';
@@ -26,6 +27,7 @@ export const Delegation: FC = () => {
   const [showCompoundRewardsModal, setShowCompoundRewardsModal] = useState<boolean>(false);
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
+  const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: number }>();
 
   const {
     clientDetails,
@@ -74,6 +76,11 @@ export const Delegation: FC = () => {
   }, [network, clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
+    if ((action === 'delegate' || action === 'compound') && item.stake_saturation && item.stake_saturation > 1) {
+      setSaturationError({ action, saturation: item.stake_saturation });
+      return;
+    }
+
     setCurrentDelegationListActionItem(item);
     // eslint-disable-next-line default-case
     switch (action) {
@@ -383,6 +390,15 @@ export const Delegation: FC = () => {
             setConfirmationModalProps(undefined);
             await fetchBalance();
           }}
+        />
+      )}
+
+      {!!saturationError && (
+        <OverSaturatedBlockerModal
+          open={Boolean(saturationError)}
+          onClose={() => setSaturationError(undefined)}
+          header={`Node saturation: ${Math.round(saturationError.saturation * 100000) / 1000}%`}
+          subHeader={'This node is over saturated. Choose a new mix node to delegate to and start compounding rewards.'}
         />
       )}
     </>

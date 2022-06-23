@@ -17,7 +17,7 @@ pub async fn vesting_bond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let pledge_minor = pledge.clone().into();
     log::info!(
     ">>> Bond gateway with locked tokens: identity_key = {}, pledge = {}, pledge_minor = {}, fee = {:?}",
@@ -42,7 +42,7 @@ pub async fn vesting_unbond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Unbond gateway bonded with locked tokens, fee = {:?}",
         fee
@@ -64,7 +64,7 @@ pub async fn vesting_bond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let pledge_minor = pledge.clone().into();
     log::info!(
     ">>> Bond mixnode with locked tokens: identity_key = {}, pledge = {}, pledge_minor = {}, fee = {:?}",
@@ -89,7 +89,7 @@ pub async fn vesting_unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Unbond mixnode bonded with locked tokens, fee = {:?}",
         fee
@@ -109,7 +109,7 @@ pub async fn withdraw_vested_coins(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let amount_minor = amount.clone().into();
     log::info!(
         ">>> Withdraw vested liquid coins: amount = {}, amount_minor = {}, fee = {:?}",
@@ -134,7 +134,7 @@ pub async fn vesting_update_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     log::info!(
         ">>> Update mixnode bonded with locked tokens: profit_margin_percent = {}, fee = {:?}",
         profit_margin_percent,

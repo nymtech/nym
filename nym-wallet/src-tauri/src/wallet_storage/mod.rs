@@ -1620,6 +1620,7 @@ mod tests {
     fn append_filename() {
         let wallet_file = PathBuf::from("/tmp/saved-wallet.json");
         let timestamp = OsString::from("42");
+        #[cfg(target_family = "unix")]
         assert_eq!(
             append_timestamp_to_filename(wallet_file.clone(), timestamp.clone(), None)
                 .unwrap()
@@ -1628,6 +1629,17 @@ mod tests {
                 .unwrap(),
             "/tmp/saved-wallet-42.json".to_string(),
         );
+        #[cfg(not(target_family = "unix"))]
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file.clone(), timestamp.clone(), None)
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            r"/tmp\saved-wallet-42.json".to_string(),
+        );
+
+        #[cfg(target_family = "unix")]
         assert_eq!(
             append_timestamp_to_filename(wallet_file, timestamp, Some(3))
                 .unwrap()
@@ -1635,6 +1647,15 @@ mod tests {
                 .into_string()
                 .unwrap(),
             "/tmp/saved-wallet-42-3.json".to_string(),
+        );
+        #[cfg(not(target_family = "unix"))]
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file, timestamp, Some(3))
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            r"/tmp\saved-wallet-42-3.json".to_string(),
         );
     }
 }

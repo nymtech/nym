@@ -12,7 +12,7 @@ pub async fn vesting_claim_operator_reward(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     log::info!(">>> Vesting account: claim operator reward");
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_vesting_claim_operator_reward(None)
         .await?;
@@ -30,7 +30,7 @@ pub async fn vesting_compound_operator_reward(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     log::info!(">>> Vesting account: compound operator reward");
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_vesting_compound_operator_reward(fee)
         .await?;
@@ -52,7 +52,7 @@ pub async fn vesting_claim_delegator_reward(
         ">>> Vesting account: claim delegator reward: identity_key = {}",
         mix_identity
     );
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_vesting_claim_delegator_reward(mix_identity, fee)
         .await?;
@@ -74,7 +74,7 @@ pub async fn vesting_compound_delegator_reward(
         ">>> Vesting account: compound delegator reward: identity_key = {}",
         mix_identity
     );
-    let denom_minor = state.read().await.current_network().denom();
+    let denom_minor = state.read().await.current_network().base_mix_denom();
     let res = nymd_client!(state)
         .execute_vesting_compound_delegator_reward(mix_identity, fee)
         .await?;

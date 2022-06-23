@@ -43,14 +43,18 @@ pub struct Run {
     #[clap(long)]
     validator_apis: Option<String>,
 
+    /// Comma separated list of endpoints of the validator
+    #[clap(long)]
+    validators: Option<String>,
+
     /// Cosmos wallet mnemonic
     #[clap(long)]
     mnemonic: Option<String>,
 
-    /// Set this gateway to work in a disabled credentials mode that would allow clients to bypass bandwidth credential requirement
+    /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
-    disabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -64,11 +68,6 @@ pub struct Run {
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
     statistics_service_url: Option<String>,
-
-    /// Comma separated list of endpoints of the validator
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    validators: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -81,19 +80,17 @@ impl From<Run> for OverrideConfig {
             datastore: run_config.datastore,
             announce_host: run_config.announce_host,
             validator_apis: run_config.validator_apis,
+            validators: run_config.validators,
             mnemonic: run_config.mnemonic,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            disabled_credentials_mode: run_config.disabled_credentials_mode,
+            enabled_credentials_mode: run_config.enabled_credentials_mode,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: run_config.eth_endpoint,
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            validators: run_config.validators,
         }
     }
 }

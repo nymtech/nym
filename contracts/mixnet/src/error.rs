@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{Addr, StdError};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey};
 use thiserror::Error;
@@ -33,13 +33,13 @@ pub enum ContractError {
     #[error("MIXNET ({}): Unauthorized", line!())]
     Unauthorized,
 
-    #[error("MIXNET ({}): Wrong coin denomination, you must send {}", line!(), DENOM)]
+    #[error("MIXNET ({}): Wrong coin denomination, you must send {}", line!(), MIX_DENOM.base)]
     WrongDenom,
 
     #[error("MIXNET ({}): Received multiple coin types during staking", line!())]
     MultipleDenoms,
 
-    #[error("MIXNET ({}): No coin was sent for the bonding, you must send {}", line!(), DENOM)]
+    #[error("MIXNET ({}): No coin was sent for the bonding, you must send {}", line!(), MIX_DENOM.base)]
     NoBondFound,
 
     #[error("MIXNET ({}): Provided active set size is bigger than the rewarded set", line!())]

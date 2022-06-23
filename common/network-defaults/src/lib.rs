@@ -17,24 +17,24 @@ pub mod sandbox;
 cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
-        pub const DENOM: &str = mainnet::DENOM;
-        pub const STAKE_DENOM: &str = mainnet::STAKE_DENOM;
+       pub const MIX_DENOM: DenomDetails = mainnet::MIX_DENOM;
+        pub const STAKE_DENOM: DenomDetails = mainnet::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
 
     } else if #[cfg(network = "qa")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
-        pub const DENOM: &str = qa::DENOM;
-        pub const STAKE_DENOM: &str = qa::STAKE_DENOM;
+       pub const MIX_DENOM: DenomDetails = qa::MIX_DENOM;
+        pub const STAKE_DENOM: DenomDetails = qa::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
 
     } else if #[cfg(network = "sandbox")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX;
-        pub const DENOM: &str = sandbox::DENOM;
-        pub const STAKE_DENOM: &str = sandbox::STAKE_DENOM;
+        pub const MIX_DENOM: DenomDetails = sandbox::MIX_DENOM;
+        pub const STAKE_DENOM: DenomDetails = sandbox::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -45,50 +45,52 @@ cfg_if::cfg_if! {
 // future. If we do this, and also get rid of the references we could potentially unify with
 // `NetworkDetails`.
 #[derive(Debug)]
-pub struct DefaultNetworkDetails<'a> {
-    bech32_prefix: &'a str,
-    denom: &'a str,
-    mixnet_contract_address: &'a str,
-    vesting_contract_address: &'a str,
-    bandwidth_claim_contract_address: &'a str,
-    coconut_bandwidth_contract_address: &'a str,
-    multisig_contract_address: &'a str,
-    rewarding_validator_address: &'a str,
-    statistics_service_url: &'a str,
+pub struct DefaultNetworkDetails {
+    bech32_prefix: &'static str,
+    mix_denom: DenomDetails,
+    stake_denom: DenomDetails,
+    mixnet_contract_address: &'static str,
+    vesting_contract_address: &'static str,
+    bandwidth_claim_contract_address: &'static str,
+    coconut_bandwidth_contract_address: &'static str,
+    multisig_contract_address: &'static str,
+    rewarding_validator_address: &'static str,
+    statistics_service_url: &'static str,
     validators: Vec<ValidatorDetails>,
 }
 
-static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
-    Lazy::new(|| DefaultNetworkDetails {
-        bech32_prefix: mainnet::BECH32_PREFIX,
-        denom: mainnet::DENOM,
-        mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
-        vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
-        bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-        coconut_bandwidth_contract_address: mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-        multisig_contract_address: mainnet::MULTISIG_CONTRACT_ADDRESS,
-        rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
-        statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-        validators: mainnet::validators(),
-    });
+static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
+    bech32_prefix: mainnet::BECH32_PREFIX,
+    mix_denom: mainnet::MIX_DENOM,
+    stake_denom: mainnet::STAKE_DENOM,
+    mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
+    vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
+    bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    coconut_bandwidth_contract_address: mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+    multisig_contract_address: mainnet::MULTISIG_CONTRACT_ADDRESS,
+    rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
+    statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    validators: mainnet::validators(),
+});
 
-static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> =
-    Lazy::new(|| DefaultNetworkDetails {
-        bech32_prefix: sandbox::BECH32_PREFIX,
-        denom: sandbox::DENOM,
-        mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
-        vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
-        bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-        coconut_bandwidth_contract_address: sandbox::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-        multisig_contract_address: sandbox::MULTISIG_CONTRACT_ADDRESS,
-        rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
-        statistics_service_url: sandbox::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-        validators: sandbox::validators(),
-    });
+static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
+    bech32_prefix: sandbox::BECH32_PREFIX,
+    mix_denom: sandbox::MIX_DENOM,
+    stake_denom: sandbox::STAKE_DENOM,
+    mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
+    vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
+    bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    coconut_bandwidth_contract_address: sandbox::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+    multisig_contract_address: sandbox::MULTISIG_CONTRACT_ADDRESS,
+    rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
+    statistics_service_url: sandbox::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    validators: sandbox::validators(),
+});
 
-static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultNetworkDetails {
+static QA_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
     bech32_prefix: qa::BECH32_PREFIX,
-    denom: qa::DENOM,
+    mix_denom: qa::MIX_DENOM,
+    stake_denom: qa::STAKE_DENOM,
     mixnet_contract_address: qa::MIXNET_CONTRACT_ADDRESS,
     vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
     bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
@@ -98,6 +100,42 @@ static QA_DEFAULTS: Lazy<DefaultNetworkDetails<'static>> = Lazy::new(|| DefaultN
     statistics_service_url: qa::STATISTICS_SERVICE_DOMAIN_ADDRESS,
     validators: qa::validators(),
 });
+
+#[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct DenomDetails {
+    pub base: &'static str,
+    pub display: &'static str,
+    // i.e. display_amount * 10^display_exponent = base_amount
+    pub display_exponent: u32,
+}
+
+impl DenomDetails {
+    pub const fn new(base: &'static str, display: &'static str, display_exponent: u32) -> Self {
+        DenomDetails {
+            base,
+            display,
+            display_exponent,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct DenomDetailsOwned {
+    pub base: String,
+    pub display: String,
+    // i.e. display_amount * 10^display_exponent = base_amount
+    pub display_exponent: u32,
+}
+
+impl From<DenomDetails> for DenomDetailsOwned {
+    fn from(details: DenomDetails) -> Self {
+        DenomDetailsOwned {
+            base: details.base.to_owned(),
+            display: details.display.to_owned(),
+            display_exponent: details.display_exponent,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ValidatorDetails {
@@ -210,7 +248,8 @@ pub const VALIDATOR_API_VERSION: &str = "v1";
 
 /// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
-pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 55_556; // 40$/1hr at 1 Nym == 1$
+// pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 55_556; // 40$/1hr at 1 Nym == 1$
+// pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 9259; // 40$/1hr/6 at 1 Nym == 1$
 
 // TODO: is there a way to get this from the chain
 pub const TOTAL_SUPPLY: u128 = 1_000_000_000_000_000;

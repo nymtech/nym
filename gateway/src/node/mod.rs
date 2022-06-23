@@ -9,6 +9,7 @@ use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use config::defaults::DEFAULT_NETWORK;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -239,6 +240,23 @@ where
         validator_client::ApiClient::new(validator_api.clone())
     }
 
+    fn random_nymd_client(
+        &self,
+    ) -> validator_client::nymd::NymdClient<validator_client::nymd::SigningNymdClient> {
+        let endpoints = self.config.get_validator_nymd_endpoints();
+        let validator_nymd = endpoints
+            .choose(&mut thread_rng())
+            .expect("The list of validators is empty");
+
+        validator_client::nymd::NymdClient::connect_with_mnemonic(
+            DEFAULT_NETWORK,
+            validator_nymd.as_ref(),
+            self.config.get_cosmos_mnemonic(),
+            None,
+        )
+        .expect("Could not connect with mnemonic")
+    }
+
     #[cfg(feature = "coconut")]
     fn all_api_clients(&self) -> Vec<validator_client::ApiClient> {
         self.config
@@ -288,16 +306,17 @@ where
             obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
+
+        let nymd_client = self.random_nymd_client();
         #[cfg(feature = "coconut")]
-        let coconut_verifier =
-            CoconutVerifier::new(self.all_api_clients(), validators_verification_key);
+        let coconut_verifier = CoconutVerifier::new(
+            self.all_api_clients(),
+            nymd_client,
+            validators_verification_key,
+        );
 
         #[cfg(not(feature = "coconut"))]
-        let erc20_bridge = ERC20Bridge::new(
-            self.config.get_eth_endpoint(),
-            self.config.get_validator_nymd_endpoints(),
-            self.config._get_cosmos_mnemonic(),
-        );
+        let erc20_bridge = ERC20Bridge::new(self.config.get_eth_endpoint(), nymd_client);
 
         let mix_forwarding_channel = self.start_packet_forwarder();
 

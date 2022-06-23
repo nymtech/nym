@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{DEFAULT_OPERATOR_INTERVAL_COST, INTERVAL_SECONDS};
+use crate::interval::storage::{current_epoch, EPOCHS};
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{constants, gateways::storage as gateways_storage};
 
@@ -15,27 +17,41 @@ pub(crate) fn is_authorized(sender: String, storage: &dyn Storage) -> Result<(),
     Ok(())
 }
 
+pub fn epochs_in_interval(storage: &dyn Storage) -> Result<u64, ContractError> {
+    let epoch = current_epoch(storage)?;
+    Ok(INTERVAL_SECONDS / epoch.length_secs())
+}
+
+#[allow(dead_code)]
+pub fn current_operator_epoch_cost(storage: &dyn Storage) -> Result<u64, ContractError> {
+    Ok(DEFAULT_OPERATOR_INTERVAL_COST / epochs_in_interval(storage)?)
+}
+
+pub fn operator_cost_at_epoch(storage: &dyn Storage, epoch_id: u32) -> Result<u64, ContractError> {
+    let epoch = EPOCHS.load(storage, epoch_id)?;
+    // This is historical, so we can't use the function defined above
+    let epochs_in_interval = INTERVAL_SECONDS / epoch.length_secs();
+    Ok(DEFAULT_OPERATOR_INTERVAL_COST / epochs_in_interval)
+}
+
 pub(crate) fn epoch_reward_params(
-    epoch_id: u32,
-    storage: &mut dyn Storage,
+    storage: &dyn Storage,
 ) -> Result<EpochRewardParams, ContractError> {
     let state = crate::mixnet_contract_settings::storage::CONTRACT_STATE
         .load(storage)
         .map(|settings| settings.params)?;
     let reward_pool = crate::rewards::storage::REWARD_POOL.load(storage)?;
     let interval_reward_percent = crate::constants::INTERVAL_REWARD_PERCENT;
-    let epochs_in_interval = crate::constants::EPOCHS_IN_INTERVAL;
+    let epochs_in_interval = epochs_in_interval(storage)?;
 
     let epoch_reward_params = EpochRewardParams::new(
         (reward_pool.u128() / 100 / epochs_in_interval as u128) * interval_reward_percent as u128,
         state.mixnode_rewarded_set_size as u128,
         state.mixnode_active_set_size as u128,
-        crate::rewards::storage::circulating_supply(storage)?.u128(),
+        state.staking_supply.u128(),
         constants::SYBIL_RESISTANCE_PERCENT,
         constants::ACTIVE_SET_WORK_FACTOR,
     );
-
-    crate::rewards::storage::EPOCH_REWARD_PARAMS.save(storage, epoch_id, &epoch_reward_params)?;
 
     Ok(epoch_reward_params)
 }

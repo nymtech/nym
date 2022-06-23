@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
+import { AccountBalanceWalletOutlined, ArrowBack, Description, Settings } from '@mui/icons-material';
 import { AppContext } from '../context/main';
 import { Bond, Delegate, Unbond } from '../svg-icons';
 
@@ -10,11 +10,6 @@ const routesSchema = [
     label: 'Balance',
     route: '/balance',
     Icon: AccountBalanceWalletOutlined,
-  },
-  {
-    label: 'Send',
-    route: '/send',
-    Icon: ArrowForward,
   },
   {
     label: 'Receive',

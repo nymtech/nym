@@ -1,11 +1,11 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
+import { MockMainContextProvider } from 'src/context/mocks/main';
 import { SendDetailsModal } from './SendDetailsModal';
 import { SendSuccessModal } from './SendSuccessModal';
 import { SendErrorModal } from './SendErrorModal';
 import { SendInputModal } from './SendInputModal';
 import { Send } from '.';
-import { MockMainContextProvider } from 'src/context/mocks/main';
 
 export default {
   title: 'Send/Components',
@@ -14,7 +14,7 @@ export default {
 
 export const SendInput = () => (
   <SendInputModal
-    toAddress="nymt1w8qp7zsxggvtxhpqpt6e329j42wtv07dm5ts8u"
+    toAddress=""
     fromAddress="nymt1w8qp7zsxggvtxhpqpt6e329j42wtv07dm5ts8u"
     onNext={() => {}}
     onClose={() => {}}

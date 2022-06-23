@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { AppContext, urls } from 'src/context';
 import { send } from 'src/requests';
+import { Console } from 'src/utils/console';
 import { simulateSend } from 'src/requests/simulate';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { SendDetailsModal } from './SendDetailsModal';
@@ -50,6 +51,7 @@ export const SendModal = ({ onClose }: { onClose: () => void }) => {
         txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,
       });
     } catch (e) {
+      Console.error(e as string);
       setSendError(true);
     } finally {
       setIsLoading(false);

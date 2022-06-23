@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@mui/material';
-import { SendModal } from './Sendmodal';
+import { SendModal } from './SendModal';
 
 export const Send = () => {
   const [showModal, setShowModal] = useState(false);

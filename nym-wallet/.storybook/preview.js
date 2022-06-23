@@ -11,9 +11,47 @@ export const parameters = {
 }
 
 const withThemeProvider = (Story, context) => (
-  <NymWalletThemeWithMode mode="light">
-    <Story {...context} />
-  </NymWalletThemeWithMode>
+  // <NymWalletThemeWithMode mode="light">
+  //   <Story {...context} />
+  // </NymWalletThemeWithMode>
+  <div style={{ display: 'grid', height: '100%', gridTemplateColumns: '50% 50%' }}>
+    <div>
+      <NymWalletThemeWithMode mode="light">
+        <Box
+          p={4}
+          sx={{
+            display: 'grid',
+            gridTemplateRows: '80vh 2rem',
+            background: (theme) => theme.palette.background.default,
+            color: (theme) => theme.palette.text.primary,
+          }}
+        >
+          <Box sx={{ overflowY: 'auto' }}>
+            <Story {...context} />
+          </Box>
+          <h4 style={{ textAlign: 'center' }}>Light mode</h4>
+        </Box>
+      </NymWalletThemeWithMode>
+    </div>
+    <div>
+      <NymWalletThemeWithMode mode="dark">
+        <Box
+          p={4}
+          sx={{
+            display: 'grid',
+            gridTemplateRows: '80vh 2rem',
+            background: (theme) => theme.palette.background.default,
+            color: (theme) => theme.palette.text.primary,
+          }}
+        >
+          <Box sx={{ overflowY: 'auto' }}>
+            <Story {...context} />
+          </Box>
+          <h4 style={{ textAlign: 'center' }}>Dark mode</h4>
+        </Box>
+      </NymWalletThemeWithMode>
+    </div>
+  </div>
 );
 
 export const decorators = [withThemeProvider];

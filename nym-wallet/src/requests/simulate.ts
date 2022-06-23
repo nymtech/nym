@@ -1,4 +1,4 @@
-import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { FeeDetails, Fee, MajorCurrencyAmount } from '@nymproject/types';
 import { invokeWrapper } from './wrapper';
 
 export const simulateBondGateway = async (args: any) => invokeWrapper<FeeDetails>('simulate_bond_gateway', args);
@@ -35,5 +35,12 @@ export const simulateVestingUpdateMixnode = async (args: any) =>
 export const simulateWithdrawVestedCoins = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', args);
 
-export const simulateSend = async ({ address, amount }: { address: string; amount: MajorCurrencyAmount }) =>
-  invokeWrapper<FeeDetails>('simulate_send', { address, amount });
+export const simulateSend = async ({
+  address,
+  amount,
+  fee,
+}: {
+  address: string;
+  amount: MajorCurrencyAmount;
+  fee?: Fee;
+}) => invokeWrapper<FeeDetails>('simulate_send', { address, amount });

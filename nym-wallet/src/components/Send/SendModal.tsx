@@ -28,7 +28,7 @@ export const SendModal = ({ onClose }: { onClose: () => void }) => {
       setIsLoading(true);
       setError(undefined);
       try {
-        const simulatedFee = await simulateSend({ address: toAddress, amount });
+        const simulatedFee = await simulateSend({ address: toAddress, amount, fee: fee?.fee });
         setFee(simulatedFee);
         setModal('send details');
       } catch (e) {

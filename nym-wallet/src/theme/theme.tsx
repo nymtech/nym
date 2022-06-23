@@ -49,7 +49,7 @@ const darkMode: NymPaletteVariant = {
     background: '#111826',
   },
   nav: {
-    background: '#FFFFFF',
+    background: '#292E34',
   },
 };
 

@@ -6258,6 +6258,7 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "coconut-interface",
+ "cosmrs",
  "getset",
  "mixnet-contract-common",
  "schemars",

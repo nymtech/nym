@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmrs::AccountId;
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
@@ -140,11 +141,11 @@ impl VerificationKeyResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct CosmosAddressResponse {
-    pub addr: String,
+    pub addr: AccountId,
 }
 
 impl CosmosAddressResponse {
-    pub fn new(addr: String) -> CosmosAddressResponse {
+    pub fn new(addr: AccountId) -> CosmosAddressResponse {
         CosmosAddressResponse { addr }
     }
 }

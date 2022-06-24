@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
+    ExecuteReleaseFundsRequestBody, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
+    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
@@ -370,6 +370,19 @@ impl Client {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::COCONUT_VERIFICATION_KEY,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_cosmos_address(&self) -> Result<CosmosAddressResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_COSMOS_ADDRESS,
             ],
             NO_PARAMS,
         )

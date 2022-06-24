@@ -24,9 +24,9 @@ use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
+    ExecuteReleaseFundsRequestBody, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
+    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
@@ -252,11 +252,9 @@ pub async fn get_verification_key(
 }
 
 #[get("/cosmos-address")]
-pub async fn get_cosmos_address(
-    state: &RocketState<State>,
-) -> Result<Json<VerificationKeyResponse>> {
-    Ok(Json(VerificationKeyResponse::new(
-        state.key_pair.verification_key(),
+pub async fn get_cosmos_address(state: &RocketState<State>) -> Result<Json<CosmosAddressResponse>> {
+    Ok(Json(CosmosAddressResponse::new(
+        state.client.address().await,
     )))
 }
 

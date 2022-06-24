@@ -2,6 +2,7 @@ import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 
 import { Button, Paper } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { RedeemModal } from './RedeemModal';
 
 export default {
@@ -46,6 +47,7 @@ const Content: React.FC<{
 
 export const RedeemAllRewards = () => {
   const [open, setOpen] = React.useState<boolean>(true);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -58,6 +60,9 @@ export const RedeemAllRewards = () => {
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
         usesVestingTokens={false}
+        sx={{
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
       />
     </>
   );
@@ -65,6 +70,7 @@ export const RedeemAllRewards = () => {
 
 export const RedeemRewardForMixnode = () => {
   const [open, setOpen] = React.useState<boolean>(true);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -77,6 +83,9 @@ export const RedeemRewardForMixnode = () => {
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
         usesVestingTokens={false}
+        sx={{
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
       />
     </>
   );
@@ -84,6 +93,7 @@ export const RedeemRewardForMixnode = () => {
 
 export const FeeIsMoreThanAllRewards = () => {
   const [open, setOpen] = React.useState<boolean>(true);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -96,6 +106,9 @@ export const FeeIsMoreThanAllRewards = () => {
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={0.001}
         usesVestingTokens={false}
+        sx={{
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
       />
     </>
   );
@@ -103,6 +116,7 @@ export const FeeIsMoreThanAllRewards = () => {
 
 export const FeeIsMoreThanMixnodeReward = () => {
   const [open, setOpen] = React.useState<boolean>(true);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -115,6 +129,9 @@ export const FeeIsMoreThanMixnodeReward = () => {
         currency="NYM"
         amount={0.001}
         usesVestingTokens={false}
+        sx={{
+          left: theme.palette.mode === 'light' ? '25%' : '75%',
+        }}
       />
     </>
   );

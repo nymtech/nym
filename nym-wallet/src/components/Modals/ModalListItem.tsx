@@ -11,10 +11,18 @@ export const ModalListItem: React.FC<{
 }> = ({ label, value, hidden, divider, strong }) => (
   <Box sx={{ display: hidden ? 'none' : 'block' }}>
     <Stack direction="row" justifyContent="space-between">
-      <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined}>
+      <Typography
+        fontSize="smaller"
+        fontWeight={strong ? 600 : undefined}
+        sx={{ color: (theme) => theme.palette.text.primary }}
+      >
         {label}:
       </Typography>
-      <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined}>
+      <Typography
+        fontSize="smaller"
+        fontWeight={strong ? 600 : undefined}
+        sx={{ color: (theme) => theme.palette.text.primary }}
+      >
         {value}
       </Typography>
     </Stack>

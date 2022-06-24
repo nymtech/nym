@@ -67,7 +67,6 @@ export const Default = () => {
           subHeader="This is a sub header"
           okLabel="Click to continue"
           sx={{
-            position: 'relative',
             left: theme.palette.mode === 'light' ? '25%' : '75%',
           }}
         >
@@ -107,7 +106,6 @@ export const NoSubheader = () => {
         header="This is a modal"
         okLabel="Kaplow!"
         sx={{
-          position: 'relative',
           left: theme.palette.mode === 'light' ? '25%' : '75%',
         }}
       >
@@ -140,7 +138,6 @@ export const hideCloseIcon = () => {
         header="This is a modal"
         okLabel="Kaplow!"
         sx={{
-          position: 'relative',
           left: theme.palette.mode === 'light' ? '25%' : '75%',
         }}
       >

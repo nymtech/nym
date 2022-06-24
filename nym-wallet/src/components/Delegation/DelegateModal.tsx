@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography } from '@mui/material';
+import { SxProps } from '@mui/system';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
@@ -33,6 +34,7 @@ export const DelegateModal: React.FC<{
   currency: CurrencyDenom;
   initialAmount?: string;
   hasVestingContract: boolean;
+  sx?: SxProps;
 }> = ({
   open,
   onIdentityKeyChanged,
@@ -50,6 +52,7 @@ export const DelegateModal: React.FC<{
   nodeUptimePercentage,
   initialAmount,
   hasVestingContract,
+  sx,
 }) => {
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
@@ -183,6 +186,7 @@ export const DelegateModal: React.FC<{
       subHeader="Delegate to mixnode"
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
+      sx={{ ...sx }}
     >
       <IdentityKeyFormField
         required

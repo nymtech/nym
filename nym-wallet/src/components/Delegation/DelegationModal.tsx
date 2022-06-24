@@ -41,7 +41,7 @@ export const DelegationModal: React.FC<
     open: boolean;
     onClose?: () => void;
     sx?: SxProps;
-    BackdropProps?: any;
+    BackdropProps?: object;
   }
 > = ({
   status,

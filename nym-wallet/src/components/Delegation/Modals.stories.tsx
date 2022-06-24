@@ -1,9 +1,10 @@
 import React from 'react';
 
 import { Button, Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, Theme } from '@mui/material/styles';
 import { DelegateModal } from './DelegateModal';
 import { UndelegateModal } from './UndelegateModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
 export default {
   title: 'Delegation/Components/Action Modals',
@@ -63,7 +64,8 @@ export const Delegate = () => {
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
         hasVestingContract={false}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );
@@ -87,7 +89,8 @@ export const DelegateBelowMinimum = () => {
         rewardInterval="weekly"
         initialAmount="0.1"
         hasVestingContract={false}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );
@@ -113,7 +116,8 @@ export const DelegateMore = () => {
         profitMarginPercentage={11.12334234}
         rewardInterval="weekly"
         hasVestingContract={false}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );
@@ -134,7 +138,8 @@ export const Undelegate = () => {
         amount={150}
         identityKey="AA6RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujyxx"
         usesVestingContractTokens={false}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );

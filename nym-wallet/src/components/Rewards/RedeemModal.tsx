@@ -14,7 +14,8 @@ export const RedeemModal: React.FC<{
   currency: string;
   message: string;
   sx?: SxProps;
-}> = ({ open, onClose, onOk, identityKey, amount, fee, currency, message, sx }) => {
+  BackdropProps?: Object;
+}> = ({ open, onClose, onOk, identityKey, amount, fee, currency, message, sx, BackdropProps }) => {
   const handleOk = () => {
     if (onOk) {
       onOk(identityKey);
@@ -29,6 +30,7 @@ export const RedeemModal: React.FC<{
       subHeader="Rewards from delegations"
       okLabel="Redeem rewards"
       sx={{ ...sx }}
+      BackdropProps={BackdropProps}
     >
       {identityKey && <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} />}
 

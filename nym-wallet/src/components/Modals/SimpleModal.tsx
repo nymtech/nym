@@ -17,6 +17,7 @@ export const SimpleModal: React.FC<{
   okLabel: string;
   okDisabled?: boolean;
   sx?: SxProps;
+  BackdropProps?: object;
 }> = ({
   open,
   hideCloseIcon,
@@ -31,8 +32,9 @@ export const SimpleModal: React.FC<{
   okLabel,
   sx,
   children,
+  BackdropProps,
 }) => (
-  <Modal open={open} onClose={onClose}>
+  <Modal open={open} onClose={onClose} BackdropProps={BackdropProps}>
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">

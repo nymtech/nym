@@ -9,7 +9,8 @@ export const OverSaturatedBlockerModal: React.FC<{
   subHeader?: string;
   buttonText?: string;
   sx?: SxProps;
-}> = ({ open, onClose, header, subHeader, buttonText, sx }) => (
+  BackdropProps?: object;
+}> = ({ open, onClose, header, subHeader, buttonText, sx, BackdropProps }) => (
   <SimpleModal
     open={open}
     hideCloseIcon
@@ -29,5 +30,6 @@ export const OverSaturatedBlockerModal: React.FC<{
       textTransform: 'capitalize',
     }}
     subHeaderStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
+    BackdropProps={BackdropProps}
   />
 );

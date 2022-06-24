@@ -13,7 +13,8 @@ export const UndelegateModal: React.FC<{
   currency: string;
   usesVestingContractTokens: boolean;
   sx?: SxProps;
-}> = ({ identityKey, open, onClose, onOk, amount, fee, currency, usesVestingContractTokens, sx }) => {
+  BackdropProps?: object;
+}> = ({ identityKey, open, onClose, onOk, amount, fee, currency, usesVestingContractTokens, sx, BackdropProps }) => {
   const handleOk = () => {
     if (onOk) {
       onOk(identityKey, usesVestingContractTokens);
@@ -27,7 +28,8 @@ export const UndelegateModal: React.FC<{
       header="Undelegate"
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
-      sx={{...sx}}
+      sx={{ ...sx }}
+      BackdropProps={BackdropProps}
     >
       <IdentityKeyFormField
         readOnly
@@ -38,7 +40,9 @@ export const UndelegateModal: React.FC<{
       />
 
       <Stack direction="row" justifyContent="space-between" my={3}>
-        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>Delegation amount:</Typography>
+        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
+          Delegation amount:
+        </Typography>
         <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
           {amount} {currency}
         </Typography>

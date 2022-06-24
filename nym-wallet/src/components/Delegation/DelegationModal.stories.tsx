@@ -2,7 +2,7 @@ import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 
 import { Paper, Button } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, Theme } from '@mui/material/styles';
 import { Delegations } from './Delegations';
 import { items } from './DelegationList.stories';
 import { DelegationModal } from './DelegationModal';
@@ -27,6 +27,21 @@ const balance = '104 NYMT';
 const balanceVested = '12 NYMT';
 const recipient = 'nymt1923pujepxfnv8dqyxqrl078s4ysf3xn2p7z2xa';
 
+const backDropStyles = (theme: Theme) => {
+  const { mode } = theme.palette;
+  return {
+    style: {
+      left: mode === 'light' ? '0' : '50%',
+      width: '50%',
+    },
+  };
+};
+
+const modalStyles = (theme: Theme) => {
+  const { mode } = theme.palette;
+  return { left: mode === 'light' ? '25%' : '75%' };
+};
+
 const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
   children,
   handleClick,
@@ -47,7 +62,6 @@ export const Loading = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -55,15 +69,8 @@ export const Loading = () => {
         onClose={() => setOpen(false)}
         status="loading"
         action="delegate"
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
-        sx={{
-          left: mode === 'light' ? '25%' : '75%',
-        }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </Content>
   );

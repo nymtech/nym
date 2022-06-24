@@ -22,6 +22,7 @@ use multisig_contract_common::msg::ProposalResponse;
 use validator_client::nymd::{
     cosmwasm_client::logs::find_attribute,
     traits::{MultisigSigningClient, QueryClient},
+    AccountId,
 };
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
@@ -431,6 +432,10 @@ impl<C> crate::coconut::client::Client for Client<C>
 where
     C: SigningCosmWasmClient + Sync + Send,
 {
+    async fn address(&self) -> AccountId {
+        self.0.read().await.nymd.address().clone()
+    }
+
     async fn get_tx(
         &self,
         tx_hash: &str,

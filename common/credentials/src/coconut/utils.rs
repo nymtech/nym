@@ -3,13 +3,13 @@
 
 use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
-    BlindSignRequestBody, BlindedSignature, Credential, Parameters, Signature, SignatureShare,
-    VerificationKey,
+    BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
 use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use url::Url;
+use validator_api_requests::coconut::BlindSignRequestBody;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use crate::coconut::params::{

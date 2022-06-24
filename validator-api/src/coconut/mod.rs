@@ -13,10 +13,7 @@ use crate::coconut::error::{CoconutError, Result};
 use crate::ValidatorApiStorage;
 
 use coconut_interface::{
-    Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature, BlindedSignatureResponse,
-    ExecuteReleaseFundsRequestBody, KeyPair, Parameters, ProposeReleaseFundsRequestBody,
-    ProposeReleaseFundsResponse, VerificationKey, VerificationKeyResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
@@ -26,6 +23,11 @@ use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
+use validator_api_requests::coconut::{
+    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
+};
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
@@ -170,6 +172,7 @@ impl InternalSignRequest {
                 routes![
                     post_blind_sign,
                     get_verification_key,
+                    get_cosmos_address,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential,
                     post_propose_release_funds,
@@ -241,6 +244,15 @@ pub async fn post_partial_bandwidth_credential(
 
 #[get("/verification-key")]
 pub async fn get_verification_key(
+    state: &RocketState<State>,
+) -> Result<Json<VerificationKeyResponse>> {
+    Ok(Json(VerificationKeyResponse::new(
+        state.key_pair.verification_key(),
+    )))
+}
+
+#[get("/cosmos-address")]
+pub async fn get_cosmos_address(
     state: &RocketState<State>,
 ) -> Result<Json<VerificationKeyResponse>> {
     Ok(Json(VerificationKeyResponse::new(

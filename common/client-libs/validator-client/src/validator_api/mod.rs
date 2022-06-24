@@ -3,15 +3,15 @@
 
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
-use coconut_interface::{
-    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
-};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
+use validator_api_requests::coconut::{
+    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
+};
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
     MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,

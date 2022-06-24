@@ -924,6 +924,7 @@ dependencies = [
  "rand 0.7.3",
  "thiserror",
  "url",
+ "validator-api-requests",
  "validator-client",
 ]
 
@@ -3120,6 +3121,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util 0.7.3",
  "url",
+ "validator-api-requests",
  "validator-client",
  "vergen",
  "version-checker",
@@ -6254,6 +6256,9 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
+ "bs58",
+ "coconut-interface",
+ "getset",
  "mixnet-contract-common",
  "schemars",
  "serde",

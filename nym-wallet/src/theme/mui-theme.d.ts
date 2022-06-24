@@ -64,6 +64,17 @@ declare module '@mui/material/styles' {
     nav: {
       background: string;
     };
+    mixnodes: {
+      status: {
+        active: string;
+        standby: string;
+      };
+    };
+    selectionChance: {
+      overModerate: string;
+      moderate: string;
+      underModerate: string;
+    };
   }
 
   /**

@@ -25,7 +25,7 @@ export interface TableCell {
 export type TableHeader = TableCell & { tooltip?: React.ReactNode };
 
 const CellHeader = ({ children, tooltip, sx, size, align, color }: TableHeader) => (
-  <MUITableCell sx={{ py: 1.2, ...sx }} size={size} align={align} color={color}>
+  <MUITableCell sx={{ py: 1.2, color, ...sx }} size={size} align={align}>
     {tooltip ? (
       <Tooltip title={tooltip} arrow placement="top-start">
         <Stack direction="row" alignItems="center" fontSize="0.8rem">
@@ -40,7 +40,7 @@ const CellHeader = ({ children, tooltip, sx, size, align, color }: TableHeader) 
 );
 
 const CellValue = ({ children, align, size, color, sx }: TableCell) => (
-  <MUITableCell component="th" scope="row" sx={{ py: 1, ...sx }} align={align} size={size} color={color}>
+  <MUITableCell component="th" scope="row" sx={{ py: 1, color, ...sx }} align={align} size={size}>
     {children}
   </MUITableCell>
 );

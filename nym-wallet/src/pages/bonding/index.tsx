@@ -27,6 +27,7 @@ const Bonding = () => {
     <PageLayout>
       <Box display="flex" flexDirection="column" gap={2}>
         {bondedMixnode && <MixnodeCard mixnode={bondedMixnode} />}
+        {bondedGateway && <GatewayCard gateway={bondedGateway} />}
       </Box>
     </PageLayout>
   );

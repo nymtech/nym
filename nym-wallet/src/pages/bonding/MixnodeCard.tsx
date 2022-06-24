@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
-import { IconButton, Typography } from '@mui/material';
+import { Button, IconButton, Typography } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
-import { NymCard } from '../../components';
 import { BondedMixnode } from '../../context';
+import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
+import BondedNodeCard from './BondedNodeCard';
 
 const headers: Header[] = [
   {
@@ -51,6 +53,7 @@ const headers: Header[] = [
 
 export const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
   const { stake, bond, stakeSaturation, profitMargin, nodeRewards, operatorRewards, delegators } = mixnode;
+  const theme = useTheme();
   const cells: Cell[] = useMemo(
     () => [
       {
@@ -65,6 +68,7 @@ export const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
       {
         cell: `${stakeSaturation}%`,
         id: 'stake-saturation-cell',
+        color: stakeSaturation > 100 ? theme.palette.nym.nymWallet.selectionChance.underModerate : undefined,
       },
       {
         cell: `${profitMargin}%`,
@@ -94,10 +98,29 @@ export const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
         sx: { pr: 0 },
       },
     ],
-    [mixnode],
+    [mixnode, theme],
   );
   return (
-    <NymCard title="Monster node">
+    <BondedNodeCard
+      title="Monster node"
+      identityKey={mixnode.key}
+      status={mixnode.status}
+      action={
+        <Button
+          variant="text"
+          color="secondary"
+          sx={{
+            fontWeight: 500,
+            '& .MuiSvgIcon-root': {
+              fontSize: 14,
+            },
+          }}
+          startIcon={<NodeIcon />}
+        >
+          Node settings
+        </Button>
+      }
+    >
       <NodeTable headers={headers} cells={cells} />
       <Typography sx={{ mt: 2 }}>
         Check more stats of your node on the{' '}
@@ -105,6 +128,6 @@ export const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
           explorer
         </Link>
       </Typography>
-    </NymCard>
+    </BondedNodeCard>
   );
 };

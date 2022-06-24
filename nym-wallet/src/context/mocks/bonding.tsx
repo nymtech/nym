@@ -16,6 +16,7 @@ const bondedMixnodeMock: BondedMixnode = {
   nodeRewards: { denom: 'NYM', amount: '1234' },
   operatorRewards: { denom: 'NYM', amount: '1234' },
   delegators: 5423,
+  status: 'active',
 };
 
 const bondedGatewayMock: BondedGateway = {

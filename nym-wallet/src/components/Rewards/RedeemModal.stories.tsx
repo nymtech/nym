@@ -4,6 +4,7 @@ import { ComponentMeta } from '@storybook/react';
 import { Button, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { RedeemModal } from './RedeemModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
 export default {
   title: 'Rewards/Components/Redeem Modals',
@@ -60,9 +61,8 @@ export const RedeemAllRewards = () => {
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
         usesVestingTokens={false}
-        sx={{
-          left: theme.palette.mode === 'light' ? '25%' : '75%',
-        }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );
@@ -83,9 +83,8 @@ export const RedeemRewardForMixnode = () => {
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
         usesVestingTokens={false}
-        sx={{
-          left: theme.palette.mode === 'light' ? '25%' : '75%',
-        }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );
@@ -106,9 +105,8 @@ export const FeeIsMoreThanAllRewards = () => {
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={0.001}
         usesVestingTokens={false}
-        sx={{
-          left: theme.palette.mode === 'light' ? '25%' : '75%',
-        }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );
@@ -129,9 +127,8 @@ export const FeeIsMoreThanMixnodeReward = () => {
         currency="NYM"
         amount={0.001}
         usesVestingTokens={false}
-        sx={{
-          left: theme.palette.mode === 'light' ? '25%' : '75%',
-        }}
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       />
     </>
   );

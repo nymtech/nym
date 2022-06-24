@@ -17,8 +17,9 @@ export const RedeemModal: React.FC<{
   currency: string;
   message: string;
   sx?: SxProps;
+  BackdropProps?: Object;
   usesVestingTokens: boolean;
-}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens, sx }) => {
+}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens, sx, BackdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   const handleOk = async () => {
@@ -44,6 +45,7 @@ export const RedeemModal: React.FC<{
       subHeader="Rewards from delegations"
       okLabel="Redeem rewards"
       sx={{ ...sx }}
+      BackdropProps={BackdropProps}
     >
       {identityKey && <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} />}
 

@@ -22,6 +22,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
+- validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
 
 ### Fixed
 
@@ -57,6 +58,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1376]: https://github.com/nymtech/nym/pull/1376
 [#1388]: https://github.com/nymtech/nym/pull/1388
 [#1393]: https://github.com/nymtech/nym/pull/1393
+[#1404]: https://github.com/nymtech/nym/pull/1404
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

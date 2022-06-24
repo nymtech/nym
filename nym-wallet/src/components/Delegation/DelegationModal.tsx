@@ -42,13 +42,27 @@ export const DelegationModal: React.FC<
     open: boolean;
     onClose?: () => void;
     sx?: SxProps;
+    BackdropProps?: any;
   }
-> = ({ status, action, message, recipient, balance, balanceVested, transactions, open, onClose, children, sx }) => {
+> = ({
+  status,
+  action,
+  message,
+  recipient,
+  balance,
+  balanceVested,
+  transactions,
+  open,
+  onClose,
+  children,
+  sx,
+  BackdropProps,
+}) => {
   if (status === 'loading') return <LoadingModal />;
 
   if (status === 'error') {
     return (
-      <Modal open={open} onClose={onClose}>
+      <Modal open={open} onClose={onClose} BackdropProps={BackdropProps}>
         <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
@@ -67,7 +81,7 @@ export const DelegationModal: React.FC<
   transactions &&
     transactions.map((transaction) => console.log('action', action, 'status', status, 'key', transaction.hash));
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} BackdropProps={BackdropProps}>
       <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}

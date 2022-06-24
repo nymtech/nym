@@ -47,6 +47,7 @@ export const Loading = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -54,7 +55,15 @@ export const Loading = () => {
         onClose={() => setOpen(false)}
         status="loading"
         action="delegate"
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );
@@ -64,6 +73,7 @@ export const DelegateSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -75,7 +85,15 @@ export const DelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );
@@ -85,6 +103,7 @@ export const UndelegateSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -96,7 +115,15 @@ export const UndelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );
@@ -106,6 +133,7 @@ export const RedeemSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -121,7 +149,15 @@ export const RedeemSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );
@@ -131,6 +167,7 @@ export const RedeemWithVestedSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -147,7 +184,15 @@ export const RedeemWithVestedSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );
@@ -157,6 +202,7 @@ export const RedeemAllSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -172,7 +218,15 @@ export const RedeemAllSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );
@@ -182,6 +236,7 @@ export const Error = () => {
   const [open, setOpen] = React.useState<boolean>(true);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -193,7 +248,15 @@ export const Error = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
+        BackdropProps={{
+          style: {
+            left: mode === 'light' ? '0' : '50%',
+            width: '50%',
+          },
+        }}
+        sx={{
+          left: mode === 'light' ? '25%' : '75%',
+        }}
       />
     </Content>
   );

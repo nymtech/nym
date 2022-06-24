@@ -41,11 +41,25 @@ export const DelegationModal: React.FC<
     open: boolean;
     onClose?: () => void;
     sx?: SxProps;
+    BackdropProps?: any;
   }
-> = ({ status, action, message, recipient, balance, balanceVested, transactions, open, onClose, children, sx }) => {
+> = ({
+  status,
+  action,
+  message,
+  recipient,
+  balance,
+  balanceVested,
+  transactions,
+  open,
+  onClose,
+  children,
+  sx,
+  BackdropProps,
+}) => {
   if (status === 'loading') {
     return (
-      <Modal open>
+      <Modal open BackdropProps={BackdropProps}>
         <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Stack spacing={4} direction="row" alignItems="center">
             <CircularProgress />
@@ -58,7 +72,7 @@ export const DelegationModal: React.FC<
 
   if (status === 'error') {
     return (
-      <Modal open={open} onClose={onClose}>
+      <Modal open={open} onClose={onClose} BackdropProps={BackdropProps}>
         <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
@@ -76,7 +90,7 @@ export const DelegationModal: React.FC<
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} BackdropProps={BackdropProps}>
       <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}

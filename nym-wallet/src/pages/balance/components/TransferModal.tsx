@@ -26,7 +26,7 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
         });
         setFee(simulatedFee);
       } catch (e) {
-        setFee({ amount: { amount: 'n/a', denom: clientDetails.denom } });
+        setFee({ amount: { amount: 'n/a', denom: clientDetails.denom }, fee: { Auto: null } });
         Console.error(e);
       }
     }

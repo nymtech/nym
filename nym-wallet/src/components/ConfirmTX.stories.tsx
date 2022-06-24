@@ -21,7 +21,7 @@ Default.args = {
   open: true,
   header: 'Confirm transaction',
   subheader: 'Confirm and proceed or cancel transaction',
-  fee: { amount: { amount: '0.001', denom: 'NYM' } },
+  fee: { amount: { amount: '0.001', denom: 'NYM' }, fee: { Auto: null } },
   onClose: () => {},
   onConfirm: async () => {},
   onPrev: () => {},

@@ -27,7 +27,7 @@ futures = "0.3"
 
 coconut-interface = { path = "../../coconut-interface" }
 network-defaults = { path = "../../network-defaults" }
-validator-api-requests = { path = "../../../validator-api/validator-api-requests" }
+validator-api-requests = { path = "../../../validator-api/validator-api-requests", features = ["coconut"] }
 
 # required for nymd-client
 # at some point it might be possible to make it wasm-compatible

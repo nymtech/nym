@@ -74,7 +74,7 @@ export const DelegationModal: React.FC<
       </Modal>
     );
   }
-  transactions && transactions.map((transaction) => console.log('action', action, 'status', status, 'key', transaction.hash));
+
   return (
     <Modal open={open} onClose={onClose}>
       <Box sx={{ ...modalStyle, ...sx }} textAlign="center">

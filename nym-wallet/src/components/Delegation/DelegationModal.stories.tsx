@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 
-import { Paper } from '@mui/material';
+import { Paper, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Delegations } from './Delegations';
 import { items } from './DelegationList.stories';
@@ -27,72 +27,90 @@ const balance = '104 NYMT';
 const balanceVested = '12 NYMT';
 const recipient = 'nymt1923pujepxfnv8dqyxqrl078s4ysf3xn2p7z2xa';
 
-const Content: React.FC = () => (
-  <Paper elevation={0} sx={{ px: 4, pt: 2, pb: 4 }}>
-    <h2>Your Delegations</h2>
-    <Delegations items={items} explorerUrl={explorerUrl} />
-  </Paper>
+const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
+  children,
+  handleClick,
+}) => (
+  <>
+    <Paper elevation={0} sx={{ px: 4, pt: 2, pb: 4 }}>
+      <h2>Your Delegations</h2>
+      <Button variant="contained" onClick={handleClick} sx={{ mb: 3 }}>
+        Show modal story again
+      </Button>
+      <Delegations items={items} explorerUrl={explorerUrl} />
+    </Paper>
+    {children}
+  </>
 );
 
 export const Loading = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="loading"
         action="delegate"
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };
 
 export const DelegateSuccess = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="success"
         action="delegate"
         message="You delegated 5 NYM"
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };
 
 export const UndelegateSuccess = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="success"
         action="undelegate"
         message="You undelegated 5 NYM"
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };
 
 export const RedeemSuccess = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="success"
         action="redeem"
         message="42 NYM"
@@ -103,19 +121,21 @@ export const RedeemSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };
 
 export const RedeemWithVestedSuccess = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="success"
         action="redeem"
         message="42 NYM"
@@ -127,19 +147,21 @@ export const RedeemWithVestedSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };
 
 export const RedeemAllSuccess = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="success"
         action="redeem-all"
         message="42 NYM"
@@ -150,28 +172,29 @@ export const RedeemAllSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };
 
 export const Error = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
-    <>
-      <Content />
+    <Content handleClick={handleClick}>
       <DelegationModal
+        open={open}
+        onClose={() => setOpen(false)}
         status="error"
         action="redeem-all"
         message="Minim esse veniam Lorem id velit Lorem eu eu est. Excepteur labore sunt do proident proident sint aliquip consequat Lorem sint non nulla ad excepteur."
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        open
         sx={{ left: theme.palette.mode === 'light' ? '25%' : '75%' }}
       />
-    </>
+    </Content>
   );
 };

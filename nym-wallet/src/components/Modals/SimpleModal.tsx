@@ -39,7 +39,7 @@ export const SimpleModal: React.FC<{
         <Typography
           fontSize={22}
           fontWeight={600}
-          sx={{ ...headerStyles, color: (theme) => theme.palette.text.primary }}
+          sx={{ color: (theme) => theme.palette.text.primary, ...headerStyles }}
         >
           {header}
         </Typography>
@@ -51,7 +51,7 @@ export const SimpleModal: React.FC<{
           mb={3}
           fontSize="small"
           color={(theme) => theme.palette.text.secondary}
-          sx={{ ...subHeaderStyles, color: (theme) => theme.palette.text.primary }}
+          sx={{ color: (theme) => theme.palette.text.primary, ...subHeaderStyles }}
         >
           {subHeader}
         </Typography>

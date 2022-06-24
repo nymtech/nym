@@ -2,16 +2,16 @@ import React, { useContext, useEffect, useReducer } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { Gateway, MajorCurrencyAmount, MixNode } from '@nymproject/types';
-import { NymCard } from '../../components';
-import { NodeIdentityModal } from './NodeIdentityModal';
-import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from './types';
-import { AmountModal } from './AmountModal';
-import { AppContext, urls } from '../../context';
-import { SummaryModal } from './SummaryModal';
-import { bond, vestingBond } from '../../requests';
-import { TBondArgs } from '../../types';
-import { Console } from '../../utils/console';
-import { SimpleDialog } from './SimpleDialog';
+import { NymCard } from '../../../components';
+import NodeIdentityModal from './NodeIdentityModal';
+import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from '../types';
+import AmountModal from './AmountModal';
+import { AppContext, urls } from '../../../context';
+import SummaryModal from './SummaryModal';
+import { bond, vestingBond } from '../../../requests';
+import { TBondArgs } from '../../../types';
+import { Console } from '../../../utils/console';
+import { SimpleDialog } from '../components';
 
 const initialState: BondState = {
   showModal: false,
@@ -48,7 +48,7 @@ function reducer(state: BondState, action: ACTIONTYPE) {
   }
 }
 
-export const BondingCard = () => {
+const BondingCard = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
   console.log(state);
@@ -189,3 +189,5 @@ export const BondingCard = () => {
     </NymCard>
   );
 };
+
+export default BondingCard;

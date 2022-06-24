@@ -2,10 +2,10 @@ import React from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Stack } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { SimpleModal } from '../../components/Modals/SimpleModal';
-import { NodeData, NodeType } from './types';
-import { RadioInput, TextFieldInput, CheckboxInput } from './bond-form';
-import { nodeSchema } from './nodeSchema';
+import { SimpleModal } from '../../../components/Modals/SimpleModal';
+import { NodeData, NodeType } from '../types';
+import { RadioInput, TextFieldInput, CheckboxInput } from '../components';
+import nodeSchema from './nodeSchema';
 
 export interface Props {
   open: boolean;
@@ -26,7 +26,7 @@ const radioOptions: { label: string; value: NodeType }[] = [
   },
 ];
 
-export const NodeIdentityModal = ({ open, onClose, onSubmit, header, buttonText }: Props) => {
+const NodeIdentityModal = ({ open, onClose, onSubmit, header, buttonText }: Props) => {
   const {
     control,
     getValues,
@@ -209,3 +209,5 @@ export const NodeIdentityModal = ({ open, onClose, onSubmit, header, buttonText 
     </SimpleModal>
   );
 };
+
+export default NodeIdentityModal;

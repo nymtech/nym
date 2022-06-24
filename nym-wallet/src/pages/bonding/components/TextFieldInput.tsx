@@ -17,7 +17,7 @@ interface Props {
   registerOptions?: RegisterOptions;
 }
 
-export const TextFieldInput = ({
+const TextFieldInput = ({
   name,
   label,
   control,
@@ -57,3 +57,5 @@ export const TextFieldInput = ({
     />
   );
 };
+
+export default TextFieldInput;

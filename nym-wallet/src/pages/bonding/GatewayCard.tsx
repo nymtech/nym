@@ -2,11 +2,8 @@ import React, { useMemo } from 'react';
 import { IconButton } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { NymCard } from '../../components';
 import { BondedGateway } from '../../context';
-import { Cell, Header, NodeTable } from './NodeTable';
-import BondedNodeCard from './BondedNodeCard';
-import { bondGateway } from '../../requests';
+import { NodeTable, BondedNodeCard, Cell, Header } from './components';
 
 const headers: Header[] = [
   {

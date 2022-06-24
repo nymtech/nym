@@ -53,7 +53,7 @@ export interface TableProps {
   cells: Cell[];
 }
 
-export const NodeTable = ({ headers, cells }: TableProps) => (
+const NodeTable = ({ headers, cells }: TableProps) => (
   <TableContainer component={Box}>
     <Table sx={{ minWidth: 650 }} aria-label="node-table">
       <TableHead>
@@ -77,3 +77,5 @@ export const NodeTable = ({ headers, cells }: TableProps) => (
     </Table>
   </TableContainer>
 );
+
+export default NodeTable;

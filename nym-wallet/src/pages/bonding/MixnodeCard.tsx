@@ -5,8 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
 import { BondedMixnode } from '../../context';
 import { Node as NodeIcon } from '../../svg-icons/node';
-import { Cell, Header, NodeTable } from './NodeTable';
-import BondedNodeCard from './BondedNodeCard';
+import { NodeTable, BondedNodeCard, Cell, Header } from './components';
 
 const headers: Header[] = [
   {

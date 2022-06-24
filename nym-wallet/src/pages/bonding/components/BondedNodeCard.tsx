@@ -2,8 +2,8 @@ import * as React from 'react';
 import { Card, CardContent, CardHeader, Stack, Typography } from '@mui/material';
 import { MixnodeStatus } from '@nymproject/types';
 import { CheckCircleOutline, CircleOutlined, PauseCircleOutlined } from '@mui/icons-material';
-import { CopyToClipboard } from '../../components';
-import { splice } from '../../utils';
+import { CopyToClipboard } from '../../../components';
+import { splice } from '../../../utils';
 
 interface Props {
   children?: React.ReactNode;

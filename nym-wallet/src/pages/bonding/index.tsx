@@ -3,7 +3,7 @@ import { AppContext } from 'src/context/main';
 import { Box } from '@mui/material';
 import { useBondingContext, BondingContextProvider } from '../../context';
 import { PageLayout } from '../../layouts';
-import { BondingCard } from './BondingCard';
+import BondingCard from './bonding';
 import { MixnodeCard } from './MixnodeCard';
 import { GatewayCard } from './GatewayCard';
 import { EnumRequestStatus } from '../../components';

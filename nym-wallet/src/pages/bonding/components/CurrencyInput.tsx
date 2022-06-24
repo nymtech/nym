@@ -13,7 +13,7 @@ interface Props {
   currencyDenom?: CurrencyDenom;
 }
 
-export const CurrencyInput = ({ name, label, control, errorMessage, currencyDenom, required, fullWidth }: Props) => {
+const CurrencyInput = ({ name, label, control, errorMessage, currencyDenom, required, fullWidth }: Props) => {
   const {
     field: { onChange },
   } = useController({
@@ -32,3 +32,5 @@ export const CurrencyInput = ({ name, label, control, errorMessage, currencyDeno
     />
   );
 };
+
+export default CurrencyInput;

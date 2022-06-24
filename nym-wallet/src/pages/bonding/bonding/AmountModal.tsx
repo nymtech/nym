@@ -2,14 +2,13 @@ import React, { useContext } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Divider, Stack, Typography } from '@mui/material';
-import { SimpleModal } from '../../components/Modals/SimpleModal';
-import { AmountData, NodeType } from './types';
-import { CurrencyInput } from './bond-form/CurrencyInput';
-import { AppContext } from '../../context';
-import { amountSchema } from './amountSchema';
-import { TokenPoolSelector } from '../../components';
-import { TextFieldInput } from './bond-form';
-import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../utils';
+import { SimpleModal } from '../../../components/Modals/SimpleModal';
+import { AmountData, NodeType } from '../types';
+import { AppContext } from '../../../context';
+import amountSchema from './amountSchema';
+import { TokenPoolSelector } from '../../../components';
+import { TextFieldInput, CurrencyInput } from '../components';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../utils';
 
 export interface Props {
   nodeType: NodeType;
@@ -20,7 +19,7 @@ export interface Props {
   buttonText?: string;
 }
 
-export const AmountModal = ({ open, onClose, onSubmit, header, buttonText, nodeType }: Props) => {
+const AmountModal = ({ open, onClose, onSubmit, header, buttonText, nodeType }: Props) => {
   const {
     control,
     setValue,
@@ -96,3 +95,5 @@ export const AmountModal = ({ open, onClose, onSubmit, header, buttonText, nodeT
     </SimpleModal>
   );
 };
+
+export default AmountModal;

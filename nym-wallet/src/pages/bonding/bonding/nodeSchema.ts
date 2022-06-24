@@ -1,8 +1,8 @@
 import { boolean, lazy, mixed, number, object, string } from 'yup';
-import { isValidHostname, validateKey, validateLocation, validateRawPort, validateVersion } from '../../utils';
-import { NodeType } from './types';
+import { isValidHostname, validateKey, validateLocation, validateRawPort, validateVersion } from '../../../utils';
+import { NodeType } from '../types';
 
-export const nodeSchema = object().shape({
+const nodeSchema = object().shape({
   nodeType: string<NodeType>().required(),
   identityKey: string()
     .required('An indentity key is required')
@@ -53,3 +53,5 @@ export const nodeSchema = object().shape({
     .required('A clients port is required')
     .test('valid-clients', 'A valid clients port is required', (value) => (value ? validateRawPort(value) : false)),
 });
+
+export default nodeSchema;

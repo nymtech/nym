@@ -12,7 +12,7 @@ interface Props {
   sx?: SxProps;
 }
 
-export const CheckboxInput = ({
+const CheckboxInput = ({
   name,
   control,
   defaultValue,
@@ -47,3 +47,5 @@ export const CheckboxInput = ({
     </FormGroup>
   );
 };
+
+export default CheckboxInput;

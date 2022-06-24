@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleModal } from '../../components/Modals/SimpleModal';
-import { getGasFee } from '../../requests';
-import { NodeType } from './types';
-import { AppContext } from '../../context';
+import { SimpleModal } from '../../../components/Modals/SimpleModal';
+import { getGasFee } from '../../../requests';
+import { NodeType } from '../types';
+import { AppContext } from '../../../context';
 
 export interface Props {
   open: boolean;
@@ -17,7 +17,7 @@ export interface Props {
   amount: MajorCurrencyAmount;
 }
 
-export const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, identityKey, nodeType, amount }: Props) => {
+const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, identityKey, nodeType, amount }: Props) => {
   const onConfirm = async () => onSubmit();
   const [fee, setFee] = useState<string>('-');
   const { clientDetails } = useContext(AppContext);
@@ -50,3 +50,5 @@ export const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, iden
     </SimpleModal>
   );
 };
+
+export default SummaryModal;

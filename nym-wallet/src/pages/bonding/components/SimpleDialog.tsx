@@ -9,7 +9,7 @@ interface Props {
   confirmText: string;
 }
 
-export const SimpleDialog = ({ open, onClose, children, title, confirmText }: Props) => (
+const SimpleDialog = ({ open, onClose, children, title, confirmText }: Props) => (
   <Dialog
     open={open}
     onClose={onClose}
@@ -26,3 +26,5 @@ export const SimpleDialog = ({ open, onClose, children, title, confirmText }: Pr
     </DialogActions>
   </Dialog>
 );
+
+export default SimpleDialog;

@@ -11,7 +11,7 @@ import {
   unbondMixNode as unbondMixNodeRequest,
 } from '../requests';
 
-/* const bounded: BondedMixnode = {
+const bounded: BondedMixnode = {
   bond: { denom: 'NYM', amount: '1234' },
   key: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   delegators: 123,
@@ -22,14 +22,14 @@ import {
   stake: { denom: 'NYM', amount: '99' },
   stakeSaturation: 99,
   status: 'active',
-}; */
+};
 
-const bounded: BondedMixnode | BondedGateway = {
+/* const bounded: BondedMixnode | BondedGateway = {
   bond: { denom: 'NYM', amount: '1234' },
   key: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   ip: '1.2.34.5',
   location: 'France',
-};
+}; */
 
 // TODO temporary type for bonded mixnode data
 export interface BondedMixnode {

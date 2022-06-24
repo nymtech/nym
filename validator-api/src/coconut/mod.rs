@@ -28,6 +28,7 @@ use validator_api_requests::coconut::{
     ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
+use validator_client::nymd::Fee;
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
@@ -281,7 +282,15 @@ pub async fn verify_bandwidth_credential(
     // Vote yes or no on the proposal based on the verification result
     state
         .client
-        .vote_proposal(proposal_id, verification_result, None)
+        .vote_proposal(
+            proposal_id,
+            verification_result,
+            Some(Fee::PayerGranterAuto(
+                None,
+                None,
+                Some(verify_credential_body.0.gateway_cosmos_addr().to_owned()),
+            )),
+        )
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
@@ -306,7 +315,16 @@ pub async fn post_propose_release_funds(
     let voucher_value = propose_release_funds.0.credential().voucher_value() as u128;
     let proposal_id = state
         .client
-        .propose_release_funds(title, blinded_serial_number, voucher_value, None)
+        .propose_release_funds(
+            title,
+            blinded_serial_number,
+            voucher_value,
+            Some(Fee::PayerGranterAuto(
+                None,
+                None,
+                Some(propose_release_funds.0.gateway_cosmos_addr().to_owned()),
+            )),
+        )
         .await?;
 
     Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))

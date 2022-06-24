@@ -15,13 +15,20 @@ pub struct VerifyCredentialBody {
     credential: Credential,
     #[getset(get = "pub")]
     proposal_id: u64,
+    #[getset(get = "pub")]
+    gateway_cosmos_addr: AccountId,
 }
 
 impl VerifyCredentialBody {
-    pub fn new(credential: Credential, proposal_id: u64) -> VerifyCredentialBody {
+    pub fn new(
+        credential: Credential,
+        proposal_id: u64,
+        gateway_cosmos_addr: AccountId,
+    ) -> VerifyCredentialBody {
         VerifyCredentialBody {
             credential,
             proposal_id,
+            gateway_cosmos_addr,
         }
     }
 }
@@ -154,11 +161,16 @@ impl CosmosAddressResponse {
 pub struct ProposeReleaseFundsRequestBody {
     #[getset(get = "pub")]
     credential: Credential,
+    #[getset(get = "pub")]
+    gateway_cosmos_addr: AccountId,
 }
 
 impl ProposeReleaseFundsRequestBody {
-    pub fn new(credential: Credential) -> Self {
-        ProposeReleaseFundsRequestBody { credential }
+    pub fn new(credential: Credential, gateway_cosmos_addr: AccountId) -> Self {
+        ProposeReleaseFundsRequestBody {
+            credential,
+            gateway_cosmos_addr,
+        }
     }
 }
 

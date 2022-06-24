@@ -46,7 +46,9 @@ export type TAppContext = {
   error?: string;
   loginType?: TLoginType;
   showSettings: boolean;
+  showSendModal: boolean;
   handleShowSettings: () => void;
+  handleShowSendModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
@@ -76,6 +78,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [appVersion, setAppVersion] = useState<string>();
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -211,6 +214,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleShowSendModal = () => setShowSendModal((show) => !show);
 
   const memoizedValue = useMemo(
     () => ({
@@ -240,6 +244,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       logOut,
       onAccountChange,
       handleShowSettings,
+      showSendModal,
+      handleShowSendModal,
     }),
     [
       appVersion,
@@ -257,6 +263,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       storedAccounts,
       showTerminal,
       showSettings,
+      showSendModal,
     ],
   );
 

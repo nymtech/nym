@@ -1,15 +1,15 @@
 import React, { useContext } from 'react';
+import { Logout } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
-import { Send } from 'src/components/Send';
+import { Node } from 'src/svg-icons/node';
 import { config } from '../../config';
 import { AppContext } from '../../context/main';
 import { MultiAccounts } from '../Accounts';
 import { NetworkSelector } from '../NetworkSelector';
-import { AppMenu } from './AppMenu';
 
 export const AppBar = () => {
-  const { handleShowTerminal, appEnv } = useContext(AppContext);
+  const { showSettings, handleShowTerminal, appEnv, handleShowSettings, logOut } = useContext(AppContext);
 
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
@@ -32,25 +32,19 @@ export const AppBar = () => {
               </Grid>
             )}
             <Grid item>
-              <Send />
-            </Grid>
-            <Grid item>
-              <AppMenu />
-            </Grid>
-            {/* <Grid item>
               <IconButton
                 onClick={handleShowSettings}
                 sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
                 size="small"
               >
-                <NodeIcon fontSize="small" />
+                <Node fontSize="small" />
               </IconButton>
             </Grid>
             <Grid item>
               <IconButton size="small" onClick={logOut} sx={{ color: 'nym.background.dark' }}>
                 <Logout fontSize="small" />
               </IconButton>
-            </Grid> */}
+            </Grid>
           </Grid>
         </Grid>
       </Toolbar>

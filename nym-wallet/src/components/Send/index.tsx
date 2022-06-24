@@ -1,16 +1,11 @@
-import React, { useState } from 'react';
-import { Button } from '@mui/material';
+import React, { useContext, useState } from 'react';
 import { SendModal } from './SendModal';
+import { AppContext } from 'src/context';
 
 export const Send = () => {
-  const [showModal, setShowModal] = useState(false);
+  const { showSendModal, handleShowSendModal } = useContext(AppContext);
 
-  return (
-    <>
-      <Button variant="outlined" size="small" disableElevation onClick={() => setShowModal(true)}>
-        Send
-      </Button>
-      {showModal && <SendModal onClose={() => setShowModal(false)} />}
-    </>
-  );
+  if (showSendModal) return <SendModal onClose={handleShowSendModal} />;
+
+  return null;
 };

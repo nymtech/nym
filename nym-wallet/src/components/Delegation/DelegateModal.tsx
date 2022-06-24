@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
+import { SxProps } from '@mui/system';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
@@ -30,6 +31,7 @@ export const DelegateModal: React.FC<{
   currency: CurrencyDenom;
   initialAmount?: string;
   hasVestingContract: boolean;
+  sx?: SxProps;
 }> = ({
   open,
   onIdentityKeyChanged,
@@ -48,6 +50,7 @@ export const DelegateModal: React.FC<{
   nodeUptimePercentage,
   initialAmount,
   hasVestingContract,
+  sx,
 }) => {
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
@@ -144,6 +147,7 @@ export const DelegateModal: React.FC<{
       subHeader="Delegate to mixnode"
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
+      sx={{ ...sx }}
     >
       <IdentityKeyFormField
         required
@@ -185,10 +189,14 @@ export const DelegateModal: React.FC<{
         {errorAmount}
       </Typography>
       <Stack direction="row" justifyContent="space-between" my={3}>
-        <Typography fontWeight={600}>Account balance</Typography>
-        <Typography fontWeight={600}>{accountBalance}</Typography>
+        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
+          Account balance
+        </Typography>
+        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
+          {accountBalance}
+        </Typography>
       </Stack>
-      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
+      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider/>
       <ModalListItem
         label="Node profit margin"
         value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}

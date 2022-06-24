@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Stack, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { SimpleModal } from '../Modals/SimpleModal';
 
@@ -12,7 +12,8 @@ export const UndelegateModal: React.FC<{
   fee: number;
   currency: string;
   usesVestingContractTokens: boolean;
-}> = ({ identityKey, open, onClose, onOk, amount, fee, currency, usesVestingContractTokens }) => {
+  sx?: SxProps;
+}> = ({ identityKey, open, onClose, onOk, amount, fee, currency, usesVestingContractTokens, sx }) => {
   const handleOk = () => {
     if (onOk) {
       onOk(identityKey, usesVestingContractTokens);
@@ -26,6 +27,7 @@ export const UndelegateModal: React.FC<{
       header="Undelegate"
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
+      sx={{...sx}}
     >
       <IdentityKeyFormField
         readOnly
@@ -36,13 +38,13 @@ export const UndelegateModal: React.FC<{
       />
 
       <Stack direction="row" justifyContent="space-between" my={3}>
-        <Typography fontWeight={600}>Delegation amount:</Typography>
-        <Typography fontWeight={600}>
+        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>Delegation amount:</Typography>
+        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
           {amount} {currency}
         </Typography>
       </Stack>
 
-      <Typography mb={5} fontSize="smaller">
+      <Typography mb={5} fontSize="smaller" sx={{ color: (theme) => theme.palette.text.primary }}>
         Tokens will be transferred to account you are logged in with now
       </Typography>
 

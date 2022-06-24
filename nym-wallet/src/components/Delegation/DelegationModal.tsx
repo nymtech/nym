@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, Modal, Typography } from '@mui/material';
+import { Box, Button, Modal, Typography, SxProps } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { modalStyle } from '../Modals/styles';
 import { LoadingModal } from '../Modals/LoadingModal';
@@ -41,18 +41,21 @@ export const DelegationModal: React.FC<
   DelegationModalProps & {
     open: boolean;
     onClose?: () => void;
+    sx?: SxProps;
   }
-> = ({ status, action, message, recipient, balance, balanceVested, transactions, open, onClose, children }) => {
+> = ({ status, action, message, recipient, balance, balanceVested, transactions, open, onClose, children, sx }) => {
   if (status === 'loading') return <LoadingModal />;
 
   if (status === 'error') {
     return (
       <Modal open={open} onClose={onClose}>
-        <Box sx={modalStyle} textAlign="center">
+        <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
           </Typography>
-          <Typography my={5}>{message}</Typography>
+          <Typography my={5} color={(theme) => theme.palette.text.primary}>
+            {message}
+          </Typography>
           {children}
           <Button variant="contained" onClick={onClose}>
             Close
@@ -61,13 +64,17 @@ export const DelegationModal: React.FC<
       </Modal>
     );
   }
+  transactions &&
+    transactions.map((transaction) => console.log('action', action, 'status', status, 'key', transaction.hash));
   return (
     <Modal open={open} onClose={onClose}>
-      <Box sx={modalStyle} textAlign="center">
+      <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}
         </Typography>
-        <Typography mb={3}>{message}</Typography>
+        <Typography mb={3} color={(theme) => theme.palette.text.primary}>
+          {message}
+        </Typography>
 
         {recipient && (
           <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>

@@ -62,7 +62,7 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 pub mod tests {
     use super::*;
     use bandwidth_claim_contract::payment::PagedPaymentResponse;
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
 
@@ -91,11 +91,11 @@ pub mod tests {
 
         // Contract balance should match what we initialized it as
         assert_eq!(
-            coins(0, DENOM),
+            coins(0, MIX_DENOM.base),
             vec![deps
                 .as_ref()
                 .querier
-                .query_balance(env.contract.address, DENOM)
+                .query_balance(env.contract.address, MIX_DENOM.base)
                 .unwrap()]
         );
     }

@@ -44,7 +44,7 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::{Gateway, MixNode};
@@ -55,7 +55,7 @@ mod tests {
     fn test_account_creation() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("not_admin", &coins(1_000_000_000_000, DENOM));
+        let info = mock_info("not_admin", &coins(1_000_000_000_000, MIX_DENOM.base));
         let msg = ExecuteMsg::CreateAccount {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
@@ -65,7 +65,7 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert!(response.is_err());
 
-        let info = mock_info("admin", &coins(1_000_000_000_000, DENOM));
+        let info = mock_info("admin", &coins(1_000_000_000_000, MIX_DENOM.base));
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
             .unwrap()
@@ -131,7 +131,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawVestedCoins {
             amount: Coin {
                 amount: Uint128::new(1),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
         };
         let info = mock_info("new_owner", &[]);
@@ -262,7 +262,7 @@ mod tests {
 
         let delegation = Coin {
             amount: Uint128::new(90_000_000_000),
-            denom: DENOM.to_string(),
+            denom: MIX_DENOM.base.to_string(),
         };
 
         let ok = account.try_delegate_to_mixnode(
@@ -388,7 +388,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -399,7 +399,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -411,7 +411,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(20_000_000_000),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -426,7 +426,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -522,7 +522,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -534,7 +534,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -550,7 +550,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(10_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -642,7 +642,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -654,7 +654,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -670,7 +670,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
-                denom: DENOM.to_string(),
+                denom: MIX_DENOM.base.to_string(),
             },
             &env,
             &mut deps.storage,

@@ -7,11 +7,12 @@ import { isGreaterThan } from 'src/utils';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalFee } from '../Modals/ModalFee';
+import { FeeDetails } from '@nymproject/types';
 
 export const RedeemModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string) => void;
+  onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
   minimum?: number;
@@ -23,7 +24,7 @@ export const RedeemModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey);
+      onOk(identityKey, fee);
     }
   };
 

@@ -137,7 +137,6 @@ pub async fn simulate_vesting_delegate_to_mixnode(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -149,7 +148,7 @@ pub async fn simulate_vesting_delegate_to_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]
@@ -161,7 +160,6 @@ pub async fn simulate_vesting_undelegate_from_mixnode(
 
     let client = guard.current_client()?;
     let vesting_contract = client.nymd.vesting_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         vesting_contract,
@@ -172,7 +170,7 @@ pub async fn simulate_vesting_undelegate_from_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }
 
 #[tauri::command]

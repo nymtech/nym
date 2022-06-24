@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode } from 'src/requests';
@@ -19,7 +19,7 @@ const MIN_AMOUNT_TO_DELEGATE = 10;
 export const DelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => Promise<void>;
+  onOk?: (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -113,7 +113,7 @@ export const DelegateModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom: currency }, tokenPool);
+      onOk(identityKey, { amount, denom: currency }, tokenPool, fee);
     }
   };
 

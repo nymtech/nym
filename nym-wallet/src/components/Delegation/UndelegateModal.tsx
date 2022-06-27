@@ -40,15 +40,15 @@ export const UndelegateModal: React.FC<{
       />
 
       <Stack direction="row" justifyContent="space-between" my={3}>
-        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
+        <Typography fontWeight={600} sx={{ color: 'text.primary' }}>
           Delegation amount:
         </Typography>
-        <Typography fontWeight={600} sx={{ color: (theme) => theme.palette.text.primary }}>
+        <Typography fontWeight={600} sx={{ color: 'text.primary' }}>
           {amount} {currency}
         </Typography>
       </Stack>
 
-      <Typography mb={5} fontSize="smaller" sx={{ color: (theme) => theme.palette.text.primary }}>
+      <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
         Tokens will be transferred to account you are logged in with now
       </Typography>
 

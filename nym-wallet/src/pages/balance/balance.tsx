@@ -28,7 +28,7 @@ export const BalanceCard = () => {
           {!userBalance.error && (
             <Typography
               data-testid="refresh-success"
-              sx={{ color: (theme) => theme.palette.text.primary, textTransform: 'uppercase' }}
+              sx={{ color: 'text.primary', textTransform: 'uppercase' }}
               variant="h5"
               fontWeight={(theme) => (theme.palette.mode === 'light' ? '600' : '400')}
             >

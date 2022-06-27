@@ -12,7 +12,7 @@ export default {
 } as ComponentMeta<typeof OverSaturatedBlockerModal>;
 
 export const Default = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (

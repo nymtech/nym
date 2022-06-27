@@ -35,13 +35,13 @@ export const RedeemModal: React.FC<{
       {identityKey && <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} />}
 
       <Stack direction="row" justifyContent="space-between" mb={4} mt={identityKey && 4}>
-        <Typography sx={{ color: (theme) => theme.palette.text.primary }}>Rewards amount:</Typography>
-        <Typography sx={{ color: (theme) => theme.palette.text.primary }}>
+        <Typography sx={{ color: 'text.primary' }}>Rewards amount:</Typography>
+        <Typography sx={{ color: 'text.primary' }}>
           {amount} {currency}
         </Typography>
       </Stack>
 
-      <Typography mb={5} fontSize="smaller" sx={{ color: (theme) => theme.palette.text.primary }}>
+      <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
         Rewards will be transferred to account you are logged in with now
       </Typography>
 

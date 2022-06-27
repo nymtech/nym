@@ -47,7 +47,7 @@ const Background: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
 };
 
 export const Delegate = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>
@@ -72,7 +72,7 @@ export const Delegate = () => {
 };
 
 export const DelegateBelowMinimum = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>
@@ -97,7 +97,7 @@ export const DelegateBelowMinimum = () => {
 };
 
 export const DelegateMore = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>
@@ -124,7 +124,7 @@ export const DelegateMore = () => {
 };
 
 export const Undelegate = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>

@@ -63,7 +63,7 @@ export const DelegationModal: React.FC<
         <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Stack spacing={4} direction="row" alignItems="center">
             <CircularProgress />
-            <Typography color={(theme) => theme.palette.text.primary}>Please wait...</Typography>
+            <Typography color={'text.primary'}>Please wait...</Typography>
           </Stack>
         </Box>
       </Modal>
@@ -77,7 +77,7 @@ export const DelegationModal: React.FC<
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
           </Typography>
-          <Typography my={5} color={(theme) => theme.palette.text.primary}>
+          <Typography my={5} color={'text.primary'}>
             {message}
           </Typography>
           {children}
@@ -95,7 +95,7 @@ export const DelegationModal: React.FC<
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}
         </Typography>
-        <Typography mb={3} color={(theme) => theme.palette.text.primary}>
+        <Typography mb={3} color={'text.primary'}>
           {message}
         </Typography>
 

@@ -59,7 +59,7 @@ const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: (
 );
 
 export const Loading = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   return (
@@ -77,7 +77,7 @@ export const Loading = () => {
 };
 
 export const DelegateSuccess = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   const { mode } = theme.palette;
@@ -107,7 +107,7 @@ export const DelegateSuccess = () => {
 };
 
 export const UndelegateSuccess = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   const { mode } = theme.palette;
@@ -137,7 +137,7 @@ export const UndelegateSuccess = () => {
 };
 
 export const RedeemSuccess = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   const { mode } = theme.palette;
@@ -171,7 +171,7 @@ export const RedeemSuccess = () => {
 };
 
 export const RedeemWithVestedSuccess = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   const { mode } = theme.palette;
@@ -206,7 +206,7 @@ export const RedeemWithVestedSuccess = () => {
 };
 
 export const RedeemAllSuccess = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   const { mode } = theme.palette;
@@ -240,7 +240,7 @@ export const RedeemAllSuccess = () => {
 };
 
 export const Error = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
   const { mode } = theme.palette;

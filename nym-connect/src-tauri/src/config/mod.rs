@@ -16,6 +16,8 @@ pub static SOCKS5_CONFIG_ID: Lazy<String> = Lazy::new(|| {
 });
 
 // TODO: make this configurable from the UI
+// TODO: once we can set this is the UI, consider just removing it, and put in guards to halt if
+// user hasn't chosen the provider
 pub static PROVIDER_ADDRESS: &str = "EWa8DgePKfuWSjqPo6NEdavBK6gpnK4TKb2npi2HWuC2.6PGVT9y83UMGbFrPKDnCvTP2jJjpXYpD87ZpiRsLo1YR@CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM";
 
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
@@ -50,9 +52,10 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init() {
+    pub async fn init(service_provider: Option<&String>) {
+        let service_provider = service_provider.map_or(PROVIDER_ADDRESS, String::as_str);
         info!("Initialising...");
-        init_socks5(PROVIDER_ADDRESS, None).await;
+        init_socks5(service_provider, None).await;
         info!("Configuration saved 🚀");
     }
 }

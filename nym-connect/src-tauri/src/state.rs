@@ -16,6 +16,7 @@ use tauri::Manager;
 
 pub struct State {
     status: ConnectionStatusKind,
+    service_provider: Option<String>,
     socks5_client_sender: Option<Socks5ControlMessageSender>,
 }
 
@@ -23,6 +24,7 @@ impl State {
     pub fn new() -> Self {
         State {
             status: ConnectionStatusKind::Disconnected,
+            service_provider: None,
             socks5_client_sender: None,
         }
     }
@@ -42,8 +44,16 @@ impl State {
             .unwrap();
     }
 
-    pub async fn init_config() {
-        crate::config::Config::init().await;
+    pub fn get_service_provider(&self) -> &Option<String> {
+        &self.service_provider
+    }
+
+    pub fn set_service_provider(&mut self, provider: String) {
+        self.service_provider = Some(provider);
+    }
+
+    pub async fn init_config(&self) {
+        crate::config::Config::init(self.service_provider.as_ref()).await;
     }
 
     pub async fn start_connecting(&mut self, window: &tauri::Window<tauri::Wry>) {
@@ -52,7 +62,7 @@ impl State {
         self.status = ConnectionStatusKind::Connecting;
 
         // Setup configuration by writing to file
-        Self::init_config().await;
+        self.init_config().await;
 
         // Kick of the main task and get the channel for controlling it
         let sender = start_nym_socks5_client();

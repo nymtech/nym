@@ -11,8 +11,9 @@ export const CurrencyWithCoinMark: React.FC<{
   fontSize?: number;
   prefix?: boolean;
   showSeparators?: boolean;
+  hideFractions?: boolean;
   sx?: SxProps;
-}> = ({ majorAmount, fontSize, prefix, showSeparators, sx }) => {
+}> = ({ majorAmount, fontSize, prefix, showSeparators, hideFractions, sx }) => {
   const theme = useTheme();
   const size = fontSize || theme.typography.htmlFontSize;
   if (!majorAmount) {
@@ -20,15 +21,15 @@ export const CurrencyWithCoinMark: React.FC<{
   }
   const DenomMark = majorAmount.denom === 'nymt' ? CoinMarkTestnet : CoinMark;
   return (
-    <Stack direction="row" fontSize={size} spacing={1} alignItems="center" sx={sx}>
+    <Stack direction="row" fontSize={size || 'inherit'} spacing={1} alignItems="center" sx={sx}>
       {prefix ? (
         <>
           <DenomMark height={size} />
-          <CurrencyAmount majorAmount={majorAmount} showSeparators={showSeparators} />
+          <CurrencyAmount majorAmount={majorAmount} showSeparators={showSeparators} hideFractions={hideFractions} />
         </>
       ) : (
         <>
-          <CurrencyAmount majorAmount={majorAmount} showSeparators={showSeparators} />
+          <CurrencyAmount majorAmount={majorAmount} showSeparators={showSeparators} hideFractions={hideFractions} />
           <DenomMark height={size} />
         </>
       )}

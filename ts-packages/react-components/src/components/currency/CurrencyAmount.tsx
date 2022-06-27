@@ -39,18 +39,19 @@ const toChunks = (value: String, size: number = 3): Array<string> => {
 export const CurrencyAmountString: React.FC<{
   majorAmount?: string;
   showSeparators?: boolean;
+  hideFractions?: boolean;
   sx?: SxProps;
-}> = ({ majorAmount, sx, showSeparators = true }) => {
+}> = ({ majorAmount, sx, showSeparators = true, hideFractions = false }) => {
   if (!majorAmount) {
     return (
-      <Stack direction="row" sx={sx}>
+      <Stack direction="row" sx={sx} fontSize="inherit">
         <span>-</span>
       </Stack>
     );
   }
   if (!showSeparators) {
     return (
-      <Stack direction="row" sx={sx}>
+      <Stack direction="row" sx={sx} fontSize="inherit">
         <span>{majorAmount}</span>
       </Stack>
     );
@@ -66,29 +67,30 @@ export const CurrencyAmountString: React.FC<{
 
   const parts = majorAmount.split('.');
   if (parts.length !== 1 && parts.length !== 2) {
-    return <Typography sx={sx}>Error</Typography>;
+    return (
+      <Typography sx={sx} fontSize="inherit">
+        Error
+      </Typography>
+    );
   }
 
-  const wholePart = toReverseChunks(parts[0]);
-  const fractionPart = parts[1] ? toChunks(parts[1]) : [];
+  const wholePartFormatted = new Intl.NumberFormat('en-US', { style: 'decimal' })
+    .format(Number.parseFloat(parts[0]))
+    .replaceAll(',', ' ');
+
+  if (parts.length === 1 || hideFractions) {
+    return (
+      <Stack direction="row" sx={sx}>
+        <span>{wholePartFormatted}</span>
+      </Stack>
+    );
+  }
 
   return (
     <Stack direction="row" sx={sx}>
-      <Stack direction="row" spacing={CURRENCY_AMOUNT_SPACING}>
-        {wholePart.map((chunk, index) => (
-          <span key={`${chunk}-${index}`}>{chunk}</span>
-        ))}
-      </Stack>
-      {parts[1] && (
-        <>
-          <span>.</span>
-          <Stack direction="row" spacing={CURRENCY_AMOUNT_SPACING}>
-            {fractionPart.map((chunk, index) => (
-              <span key={`${chunk}-${index}`}>{chunk}</span>
-            ))}
-          </Stack>
-        </>
-      )}
+      <span>{wholePartFormatted}</span>
+      <span>.</span>
+      <span>{parts[1]}</span>
     </Stack>
   );
 };
@@ -96,5 +98,6 @@ export const CurrencyAmountString: React.FC<{
 export const CurrencyAmount: React.FC<{
   majorAmount?: DecCoin;
   showSeparators?: boolean;
+  hideFractions?: boolean;
   sx?: SxProps;
 }> = ({ majorAmount, ...props }) => <CurrencyAmountString majorAmount={majorAmount?.amount} {...props} />;

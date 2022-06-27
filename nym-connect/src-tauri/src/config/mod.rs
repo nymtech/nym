@@ -84,7 +84,7 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
         "Using gateway: {}",
         config.get_socks5().get_base().get_gateway_id(),
     );
-    info!("Client configuration completed.\n\n\n");
+    info!("Client configuration completed.");
 
     client_core::init::show_address(config.get_base());
 }

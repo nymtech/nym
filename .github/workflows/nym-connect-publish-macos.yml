@@ -78,8 +78,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: nym-connect.app.tar.gz
-          path: nym-connect/target/release/bundle/macos/nym-connect.app.tar.gz
+          name: nym-connect_1.0.0_x64.dmg
+          path: nym-connect/target/release/bundle/dmg/nym-connect_1.0.0_x64.dmg
           retention-days: 5
 
       - name: Clean up keychain

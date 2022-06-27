@@ -1,5 +1,6 @@
 name: Publish Nym Connect (Ubuntu)
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
@@ -45,6 +46,13 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-connect.AppImage.tar.gz
+          path: nym-connect/target/release/bundle/macos/nym-connect.AppImage.tar.gz
+          retention-days: 5
+
       - name: Build app
         run: yarn build
         env:
@@ -52,6 +60,7 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
         with:
           files: |
             nym-connect/target/release/bundle/appimage/*.AppImage

@@ -1,5 +1,6 @@
 name: Publish Nym Connect (Windows 10)
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
@@ -73,8 +74,16 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: yarn build
 
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-connect.AppImage.tar.gz
+          path: nym-connect/target/release/bundle/macos/nym-connect.msi.zip
+          retention-days: 5
+
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
         with:
           files: |
             nym-connect/target/release/bundle/msi/*.msi

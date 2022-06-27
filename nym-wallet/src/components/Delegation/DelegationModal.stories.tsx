@@ -50,7 +50,7 @@ const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: (
     <Paper elevation={0} sx={{ px: 4, pt: 2, pb: 4 }}>
       <h2>Your Delegations</h2>
       <Button variant="contained" onClick={handleClick} sx={{ mb: 3 }}>
-        Show modal story again
+        Show modal
       </Button>
       <Delegations items={items} explorerUrl={explorerUrl} />
     </Paper>
@@ -62,6 +62,7 @@ export const Loading = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
+  console.log('open', open);
   return (
     <Content handleClick={handleClick}>
       <DelegationModal

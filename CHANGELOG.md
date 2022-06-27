@@ -11,6 +11,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
+- explorer-api: add apy values to `mix_nodes` endpoint
 - gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
 - network-explorer-ui: Upgrade to React Router 6
 - rewarding: replace circulating supply with staking supply in reward calculations ([#1324])

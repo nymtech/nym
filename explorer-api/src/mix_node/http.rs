@@ -83,7 +83,7 @@ pub(crate) async fn get_description(
                 Some(bond) => {
                     match get_mix_node_description(
                         &bond.mix_node().host,
-                        &bond.mix_node().http_api_port,
+                        bond.mix_node().http_api_port,
                     )
                     .await
                     {
@@ -129,7 +129,7 @@ pub(crate) async fn get_stats(
             trace!("No valid cache value for {}", pubkey);
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
-                    match get_mix_node_stats(&bond.mix_node().host, &bond.mix_node().http_api_port)
+                    match get_mix_node_stats(&bond.mix_node().host, bond.mix_node().http_api_port)
                         .await
                     {
                         Ok(response) => {
@@ -188,14 +188,14 @@ pub(crate) async fn get_economic_dynamics_stats(
     }
 }
 
-async fn get_mix_node_description(host: &str, port: &u16) -> Result<NodeDescription, ReqwestError> {
+async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription, ReqwestError> {
     reqwest::get(format!("http://{}:{}/description", host, port))
         .await?
         .json::<NodeDescription>()
         .await
 }
 
-async fn get_mix_node_stats(host: &str, port: &u16) -> Result<NodeStats, ReqwestError> {
+async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestError> {
     reqwest::get(format!("http://{}:{}/stats", host, port))
         .await?
         .json::<NodeStats>()

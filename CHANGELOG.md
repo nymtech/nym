@@ -31,6 +31,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: the mixnode learned how to shutdown gracefully
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 - native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
+- native & socks5 clients: deduplicate big chunks of init logic
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
 ### Changed

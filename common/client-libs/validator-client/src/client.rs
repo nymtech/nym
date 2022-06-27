@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use coconut_interface::{
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use url::Url;
+use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
     ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
-use url::Url;
 
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,

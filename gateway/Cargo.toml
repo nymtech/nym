@@ -52,11 +52,12 @@ network-defaults = { path = "../common/network-defaults" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
+validator-api-requests = { path = "../validator-api/validator-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut"]
+coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut"]
 eth = []
 
 [build-dependencies]

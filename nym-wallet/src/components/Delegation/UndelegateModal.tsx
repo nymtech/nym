@@ -58,7 +58,7 @@ export const UndelegateModal: React.FC<{
         <ModalListItem label="Delegation amount" value={`${amount} ${currency}`} divider />
       </Box>
 
-      <Typography mb={5} fontSize="smaller" sx={{ color: (theme) => theme.palette.text.primary }}>
+      <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
         Tokens will be transferred to account you are logged in with now
       </Typography>
 

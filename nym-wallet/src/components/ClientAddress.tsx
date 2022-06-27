@@ -37,14 +37,14 @@ export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }>
   <Box>
     {withLabel && (
       <>
-        <Typography variant="body2" component="span" sx={{ color: (theme) => theme.palette.text.primary }}>
+        <Typography variant="body2" component="span" sx={{ color: 'text.primary' }}>
           Address:
         </Typography>{' '}
       </>
     )}
 
     <AddressTooltip address={address} visible={!showEntireAddress}>
-      <Typography variant="body2" component="span" sx={{ mr: 1, color: (theme) => theme.palette.text.primary }}>
+      <Typography variant="body2" component="span" sx={{ mr: 1, color: 'text.primary' }}>
         {showEntireAddress ? address || '' : splice(6, address)}
       </Typography>
     </AddressTooltip>

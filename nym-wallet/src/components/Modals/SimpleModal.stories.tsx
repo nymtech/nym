@@ -52,7 +52,7 @@ const BasePage: React.FC<{ children: React.ReactElement<any, any>; handleClick: 
 );
 
 export const Default = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
 
   const theme = useTheme();
@@ -92,7 +92,7 @@ export const Default = () => {
 };
 
 export const NoSubheader = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
 
   const theme = useTheme();
@@ -122,7 +122,7 @@ export const NoSubheader = () => {
 };
 
 export const hideCloseIcon = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
 
   const theme = useTheme();
@@ -153,7 +153,7 @@ export const hideCloseIcon = () => {
 };
 
 export const hideCloseIconAndDisplayErrorIcon = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
 
   const theme = useTheme();

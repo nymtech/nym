@@ -47,7 +47,7 @@ const Content: React.FC<{
 );
 
 export const RedeemAllRewards = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>
@@ -69,7 +69,7 @@ export const RedeemAllRewards = () => {
 };
 
 export const RedeemRewardForMixnode = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>
@@ -91,7 +91,7 @@ export const RedeemRewardForMixnode = () => {
 };
 
 export const FeeIsMoreThanAllRewards = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>
@@ -113,7 +113,7 @@ export const FeeIsMoreThanAllRewards = () => {
 };
 
 export const FeeIsMoreThanMixnodeReward = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const theme = useTheme();
   return (
     <>

@@ -3,9 +3,9 @@ import { Button, IconButton, Typography } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
-import { BondedMixnode } from '../../context';
-import { Node as NodeIcon } from '../../svg-icons/node';
-import { NodeTable, BondedNodeCard, Cell, Header } from './components';
+import { BondedMixnode } from '../../../context';
+import { Node as NodeIcon } from '../../../svg-icons/node';
+import { NodeTable, BondedNodeCard, Cell, Header } from '../components';
 
 const headers: Header[] = [
   {
@@ -50,7 +50,7 @@ const headers: Header[] = [
   },
 ];
 
-export const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
+const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
   const { stake, bond, stakeSaturation, profitMargin, nodeRewards, operatorRewards, delegators } = mixnode;
   const theme = useTheme();
   const cells: Cell[] = useMemo(
@@ -130,3 +130,5 @@ export const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
     </BondedNodeCard>
   );
 };
+
+export default MixnodeCard;

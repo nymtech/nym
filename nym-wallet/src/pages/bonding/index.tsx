@@ -4,8 +4,8 @@ import { Box } from '@mui/material';
 import { useBondingContext, BondingContextProvider } from '../../context';
 import { PageLayout } from '../../layouts';
 import BondingCard from './bonding';
-import { MixnodeCard } from './MixnodeCard';
-import { GatewayCard } from './GatewayCard';
+import MixnodeCard from './mixnode';
+import GatewayCard from './gateway';
 import { EnumRequestStatus } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 

@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import { IconButton } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { BondedGateway } from '../../context';
-import { NodeTable, BondedNodeCard, Cell, Header } from './components';
+import { BondedGateway } from '../../../context';
+import { NodeTable, BondedNodeCard, Cell, Header } from '../components';
 
 const headers: Header[] = [
   {
@@ -22,7 +22,7 @@ const headers: Header[] = [
   },
 ];
 
-export const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
+const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
   const { ip, bond } = gateway;
   const theme = useTheme();
   const cells: Cell[] = useMemo(
@@ -56,3 +56,5 @@ export const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
     </BondedNodeCard>
   );
 };
+
+export default GatewayCard;

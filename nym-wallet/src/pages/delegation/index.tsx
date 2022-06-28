@@ -1,5 +1,6 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
@@ -28,6 +29,8 @@ export const Delegation: FC = () => {
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
   const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: number }>();
+
+  const theme = useTheme();
 
   const {
     clientDetails,
@@ -282,6 +285,9 @@ export const Delegation: FC = () => {
               target="_blank"
               rel="noreferrer"
               text="Network Explorer"
+              fontSize={14}
+              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+              noIcon
             />
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -290,7 +296,7 @@ export const Delegation: FC = () => {
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5 }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText', fontSize: 16 }}
             >
               Delegate
             </Button>

@@ -177,6 +177,7 @@ const BondingCard = () => {
           confirmButton="Done"
           maxWidth="xs"
           fullWidth
+          sx={{ textAlign: 'center' }}
         >
           <Link href={`${urls(network).blockExplorer}/transaction/${state.tx?.transaction_hash}`} noIcon>
             View on blockchain

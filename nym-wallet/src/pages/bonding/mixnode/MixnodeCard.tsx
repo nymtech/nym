@@ -130,7 +130,7 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
           explorer
         </Link>
       </Typography>
-      <NodeSettings mixnode={mixnode} open={showNodeSettings} />
+      <NodeSettings mixnode={mixnode} show={showNodeSettings} onClose={() => setShowNodeSettings(false)} />
     </BondedNodeCard>
   );
 };

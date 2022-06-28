@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use client_core::config::GatewayEndpoint;
 use log::info;
 
@@ -16,6 +18,14 @@ pub static PROVIDER_ADDRESS: &str = "8CrdmK4mYgZ5caMxGU4AvNeT1dXL8VSbgMYAjSFvnfu
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 const DEFAULT_ETH_PRIVATE_KEY: &str =
     "0000000000000000000000000000000000000000000000000000000000000001";
+
+#[tauri::command]
+pub fn get_config_file_location() -> String {
+    let id: &str = SOCKS5_CONFIG_ID;
+    Config::config_file_location(id)
+        .to_string_lossy()
+        .to_string()
+}
 
 pub struct Config {
     socks5: Socks5Config,
@@ -51,6 +61,10 @@ impl Config {
         init_socks5(service_provider, None).await;
         info!("Configuration saved 🚀");
     }
+
+    pub fn config_file_location(id: &str) -> PathBuf {
+        Socks5Config::default_config_file_path(Some(id))
+    }
 }
 
 pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>) {
@@ -58,7 +72,11 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
 
     let id: &str = SOCKS5_CONFIG_ID;
 
-    let already_init = Socks5Config::default_config_file_path(Some(id)).exists();
+    log::debug!(
+        "Attempting to use config file location: {}",
+        Config::config_file_location(id).to_string_lossy(),
+    );
+    let already_init = Config::config_file_location(id).exists();
     if already_init {
         log::info!(
             "SOCKS5 client \"{}\" was already initialised before! \

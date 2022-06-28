@@ -15,10 +15,11 @@ pub static SOCKS5_CONFIG_ID: Lazy<String> = Lazy::new(|| {
     format!("{}{:08}", "nym-connect-", rng.gen::<u64>())
 });
 
+// This is an open-proxy network-requester for testing
 // TODO: make this configurable from the UI
 // TODO: once we can set this is the UI, consider just removing it, and put in guards to halt if
-// user hasn't chosen the provider
-pub static PROVIDER_ADDRESS: &str = "EWa8DgePKfuWSjqPo6NEdavBK6gpnK4TKb2npi2HWuC2.6PGVT9y83UMGbFrPKDnCvTP2jJjpXYpD87ZpiRsLo1YR@CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM";
+//       user hasn't chosen the provider
+pub static PROVIDER_ADDRESS: &str = "8CrdmK4mYgZ5caMxGU4AvNeT1dXL8VSbgMYAjSFvnfut.2GLdZ1Jn9vkTBMf858evGNGDsPoeivUPw7zFNceLiLX3@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv";
 
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 const DEFAULT_ETH_PRIVATE_KEY: &str =

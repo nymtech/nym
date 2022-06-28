@@ -2,17 +2,14 @@ import React from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Stack } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { SimpleModal } from '../../../components/Modals/SimpleModal';
 import { NodeData, NodeType } from '../types';
-import { RadioInput, TextFieldInput, CheckboxInput } from '../components';
+import { RadioInput, TextFieldInput, CheckboxInput, SimpleDialog } from '../components';
 import nodeSchema from './nodeSchema';
 
 export interface Props {
   open: boolean;
   onClose?: () => void;
   onSubmit: (data: NodeData) => Promise<void>;
-  header?: string;
-  buttonText?: string;
 }
 
 const radioOptions: { label: string; value: NodeType }[] = [
@@ -26,7 +23,7 @@ const radioOptions: { label: string; value: NodeType }[] = [
   },
 ];
 
-const NodeIdentityModal = ({ open, onClose, onSubmit, header, buttonText }: Props) => {
+const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
   const {
     control,
     getValues,
@@ -52,13 +49,14 @@ const NodeIdentityModal = ({ open, onClose, onSubmit, header, buttonText }: Prop
   };
 
   return (
-    <SimpleModal
+    <SimpleDialog
       open={open}
       onClose={onClose}
-      onOk={handleSubmit(onSubmitForm)}
-      header={header || 'Bond'}
-      subHeader="Step 1/2"
-      okLabel={buttonText || 'Next'}
+      onConfirm={handleSubmit(onSubmitForm)}
+      title="Bond"
+      subTitle="Step 1/2"
+      confirmButton="Next"
+      closeButton
     >
       <form>
         <RadioInput
@@ -206,7 +204,7 @@ const NodeIdentityModal = ({ open, onClose, onSubmit, header, buttonText }: Prop
           </Stack>
         )}
       </form>
-    </SimpleModal>
+    </SimpleDialog>
   );
 };
 

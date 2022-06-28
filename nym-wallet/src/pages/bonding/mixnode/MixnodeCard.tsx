@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button, IconButton, Typography } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -6,6 +6,7 @@ import { Link } from '@nymproject/react/link/Link';
 import { BondedMixnode } from '../../../context';
 import { Node as NodeIcon } from '../../../svg-icons/node';
 import { NodeTable, BondedNodeCard, Cell, Header } from '../components';
+import { NodeSettings } from './node-settings';
 
 const headers: Header[] = [
   {
@@ -52,6 +53,7 @@ const headers: Header[] = [
 
 const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
   const { stake, bond, stakeSaturation, profitMargin, nodeRewards, operatorRewards, delegators } = mixnode;
+  const [showNodeSettings, setShowNodeSettings] = useState<boolean>(false);
   const theme = useTheme();
   const cells: Cell[] = useMemo(
     () => [
@@ -108,6 +110,7 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
         <Button
           variant="text"
           color="secondary"
+          onClick={() => setShowNodeSettings(true)}
           sx={{
             fontWeight: 500,
             '& .MuiSvgIcon-root': {
@@ -127,6 +130,7 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
           explorer
         </Link>
       </Typography>
+      <NodeSettings mixnode={mixnode} open={showNodeSettings} />
     </BondedNodeCard>
   );
 };

@@ -15,7 +15,7 @@ import { SimpleDialog } from '../components';
 
 const initialState: BondState = {
   showModal: false,
-  formStep: 1,
+  formStep: 4,
 };
 
 function reducer(state: BondState, action: ACTIONTYPE) {
@@ -145,8 +145,6 @@ const BondingCard = () => {
             dispatch({ type: 'set_node_data', payload: data });
             dispatch({ type: 'next_step' });
           }}
-          header="Bond"
-          buttonText="Next"
         />
       )}
       {formStep === 2 && showModal && (
@@ -157,8 +155,6 @@ const BondingCard = () => {
             dispatch({ type: 'set_amount_data', payload: data });
             dispatch({ type: 'next_step' });
           }}
-          header="Bond"
-          buttonText="Next"
           nodeType={state.nodeData?.nodeType || 'mixnode'}
         />
       )}
@@ -167,8 +163,6 @@ const BondingCard = () => {
           open={formStep === 3 && showModal}
           onClose={() => dispatch({ type: 'reset' })}
           onSubmit={onSubmit}
-          header="Bond details"
-          buttonText="Confirm"
           nodeType={state.nodeData?.nodeType as NodeType}
           identityKey={state.nodeData?.identityKey as string}
           amount={state.amountData?.amount as MajorCurrencyAmount}
@@ -177,9 +171,12 @@ const BondingCard = () => {
       {formStep === 4 && showModal && (
         <SimpleDialog
           open={formStep === 4 && showModal}
+          onConfirm={onConfirm}
           onClose={onConfirm}
           title="Bonding successful"
-          confirmText="Done"
+          confirmButton="Done"
+          maxWidth="xs"
+          fullWidth
         >
           <Link href={`${urls(network).blockExplorer}/transaction/${state.tx?.transaction_hash}`} noIcon>
             View on blockchain

@@ -1,23 +1,21 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleModal } from '../../../components/Modals/SimpleModal';
 import { getGasFee } from '../../../requests';
 import { NodeType } from '../types';
 import { AppContext } from '../../../context';
+import { SimpleDialog } from '../components';
 
 export interface Props {
   open: boolean;
   onClose?: () => void;
   onSubmit: () => Promise<void>;
-  header: string;
-  buttonText: string;
   identityKey: string;
   nodeType: NodeType;
   amount: MajorCurrencyAmount;
 }
 
-const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, identityKey, nodeType, amount }: Props) => {
+const SummaryModal = ({ open, onClose, onSubmit, identityKey, nodeType, amount }: Props) => {
   const onConfirm = async () => onSubmit();
   const [fee, setFee] = useState<string>('-');
   const { clientDetails } = useContext(AppContext);
@@ -32,8 +30,19 @@ const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, identityKey
   }, [clientDetails, nodeType]);
 
   return (
-    <SimpleModal open={open} onClose={onClose} onOk={onConfirm} header={header} okLabel={buttonText}>
-      <Stack direction="row" justifyContent="space-between" mt={3}>
+    <SimpleDialog
+      open={open}
+      onClose={onClose}
+      onCancel={onClose}
+      onConfirm={onConfirm}
+      title="Bond details"
+      confirmButton="Confirm"
+      fullWidth
+      maxWidth="xs"
+      cancelButton
+      closeButton
+    >
+      <Stack direction="row" justifyContent="space-between">
         <Typography>Identity Key</Typography>
         <Typography>{identityKey}</Typography>
       </Stack>
@@ -43,11 +52,11 @@ const SummaryModal = ({ open, onClose, onSubmit, header, buttonText, identityKey
         <Typography>{`${amount.amount} ${amount.denom}`}</Typography>
       </Stack>
       <Divider sx={{ my: 1 }} />
-      <Stack direction="row" justifyContent="space-between" mb={1}>
+      <Stack direction="row" justifyContent="space-between">
         <Typography>Fee for this operation</Typography>
         <Typography>{fee}</Typography>
       </Stack>
-    </SimpleModal>
+    </SimpleDialog>
   );
 };
 

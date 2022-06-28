@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Divider, Stack, Typography } from '@mui/material';
+import { Box, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
 import { SimpleDialog, TextFieldInput } from '../../components';
 import { Node as NodeIcon } from '../../../../svg-icons/node';
@@ -71,7 +71,13 @@ const NodeSettingsModal = ({ open, onClose, onConfirm, estimatedOpReward, curren
           />
         </form>
         <Stack direction="row" justifyContent="space-between" mt={3}>
-          <Typography fontWeight={400}>Estimated operator reward for 10% PM</Typography>
+          <Tooltip
+            title="Estimated total reward in an epoch for this profit margin if your node is selected in the active set."
+            arrow
+            placement="top"
+          >
+            <Typography fontWeight={400}>Estimated operator reward for 10% PM</Typography>
+          </Tooltip>
           <Typography fontWeight={400}>{`~${estimatedOpReward.amount} ${estimatedOpReward.denom}`}</Typography>
         </Stack>
         <Divider sx={{ my: 1 }} />

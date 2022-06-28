@@ -1,3 +1,3 @@
 import NodeSettings from './NodeSettings';
 
-export { NodeSettings };
+export default NodeSettings;

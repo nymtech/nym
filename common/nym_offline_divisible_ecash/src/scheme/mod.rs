@@ -111,7 +111,7 @@ impl VarPhi {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PayInfo {
     pub info: [u8; 32],
 }
@@ -345,7 +345,7 @@ impl Wallet {
             zk_proof,
             vv,
         };
-
+        
         self.l.set(self.l() + vv);
         Ok((pay, self))
     }

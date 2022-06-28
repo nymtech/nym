@@ -351,7 +351,7 @@ impl SecretKeyUser {
     }
 }
 
-#[derive(Eq, Debug, PartialEq, Clone)]
+#[derive(Hash, Eq, Debug, PartialEq, Clone)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
 }

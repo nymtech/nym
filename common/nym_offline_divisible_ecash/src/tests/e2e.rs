@@ -9,6 +9,8 @@ use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::scheme::withdrawal::{issue, issue_verify, withdrawal_request};
 
 #[test]
+// Test wa full end to end flow of withdrawal request, issuance,
+// and spending.
 fn main() -> Result<(), DivisibleEcashError> {
     // SETUP PHASE
     let rng = thread_rng();

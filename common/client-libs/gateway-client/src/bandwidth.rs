@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::{Storage, StorageError};
+use crate::wasm_storage::Storage;
 #[cfg(feature = "coconut")]
 use coconut_interface::Base58;
 #[cfg(feature = "coconut")]

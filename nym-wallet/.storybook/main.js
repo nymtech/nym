@@ -9,6 +9,7 @@ module.exports = {
   core: {
     builder: 'webpack5',
   },
+  typescript: { reactDocgen: false },
   // webpackFinal: async (config, { configType }) => {
   //   // `configType` has a value of 'DEVELOPMENT' or 'PRODUCTION'
   //   // You can change the configuration based on that.
@@ -32,15 +33,17 @@ module.exports = {
     config.resolve.extensions = ['.tsx', '.ts', '.js'];
     config.resolve.plugins = [new TsconfigPathsPlugin()];
 
-    config.plugins.push(new ForkTsCheckerWebpackPlugin({
-      typescript: {
-        mode: 'write-references',
-        diagnosticOptions: {
-          semantic: true,
-          syntactic: true,
+    config.plugins.push(
+      new ForkTsCheckerWebpackPlugin({
+        typescript: {
+          mode: 'write-references',
+          diagnosticOptions: {
+            semantic: true,
+            syntactic: true,
+          },
         },
-      },
-    }));
+      }),
+    );
 
     if (!config.resolve.alias) {
       config.resolve.alias = {};

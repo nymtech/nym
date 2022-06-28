@@ -150,6 +150,7 @@ pub async fn simulate_undelegate_from_mixnode(
     identity: &str,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<FeeDetails, BackendError> {
+    println!("Called");
     let guard = state.read().await;
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();

@@ -11,12 +11,13 @@ export const SimpleModal: React.FC<{
   headerStyles?: SxProps;
   subHeaderStyles?: SxProps;
   onClose?: () => void;
-  onOk?: () => void;
+  onOk?: () => Promise<void>;
   header: string;
   subHeader?: string;
   okLabel: string;
   okDisabled?: boolean;
   sx?: SxProps;
+  SecondaryAction?: React.ReactNode;
 }> = ({
   open,
   hideCloseIcon,
@@ -30,6 +31,7 @@ export const SimpleModal: React.FC<{
   subHeader,
   okLabel,
   sx,
+  SecondaryAction,
   children,
 }) => (
   <Modal open={open} onClose={onClose}>
@@ -55,9 +57,11 @@ export const SimpleModal: React.FC<{
 
       {children}
 
-      <Button variant="contained" fullWidth sx={{ mt: 3 }} size="large" onClick={onOk} disabled={okDisabled}>
+      <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} sx={{ mt: 2 }}>
         {okLabel}
       </Button>
+
+      {SecondaryAction}
     </Box>
   </Modal>
 );

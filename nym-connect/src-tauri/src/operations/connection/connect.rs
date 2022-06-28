@@ -60,4 +60,3 @@ pub async fn set_gateway(
     guard.set_gateway(gateway);
     Ok(())
 }
-

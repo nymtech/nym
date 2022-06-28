@@ -63,7 +63,6 @@ impl State {
         self.gateway = Some(gateway);
     }
 
-
     pub async fn init_config(&self) {
         crate::config::Config::init(self.service_provider.as_ref(), self.gateway.as_ref()).await;
     }

@@ -101,8 +101,14 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
         config.get_base().get_gateway_listener()
     );
 
-    log::info!("Service provider address: {}", config.get_socks5().get_provider_mix_address());
-    log::info!("Service provider port: {}", config.get_socks5().get_listening_port());
+    log::info!(
+        "Service provider address: {}",
+        config.get_socks5().get_provider_mix_address()
+    );
+    log::info!(
+        "Service provider port: {}",
+        config.get_socks5().get_listening_port()
+    );
     info!("Client configuration completed.");
 
     client_core::init::show_address(config.get_base());

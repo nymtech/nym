@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect.AppImage.tar.gz
-          path: nym-connect/target/release/bundle/macos/nym-connect.AppImage.tar.gz
+          path: nym-connect/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
           retention-days: 5
 
       - name: Build app

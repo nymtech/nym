@@ -36,6 +36,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Changed
 
+- nym-connect: reuse config id instead of creating a new id on each connection.
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - all: updated `rocket` to `0.5.0-rc.2`.

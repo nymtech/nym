@@ -88,7 +88,7 @@ impl State {
 }
 
 fn start_nym_socks5_client() -> Socks5ControlMessageSender {
-    let id: &str = &SOCKS5_CONFIG_ID;
+    let id: &str = SOCKS5_CONFIG_ID;
 
     info!("Loading config from file");
     let config = nym_socks5::client::config::Config::load_from_file(Some(id)).unwrap();

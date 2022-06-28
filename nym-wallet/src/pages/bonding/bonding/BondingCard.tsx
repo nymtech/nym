@@ -15,7 +15,7 @@ import { SimpleDialog } from '../components';
 
 const initialState: BondState = {
   showModal: false,
-  formStep: 4,
+  formStep: 1,
 };
 
 function reducer(state: BondState, action: ACTIONTYPE) {
@@ -34,7 +34,7 @@ function reducer(state: BondState, action: ACTIONTYPE) {
     case 'next_step':
       step = state.formStep + 1;
       return { ...state, formStep: step <= 4 ? (step as FormStep) : 4 };
-    case 'previous_step':
+    case 'prev_step':
       step = state.formStep - 1;
       return { ...state, formStep: step >= 1 ? (step as FormStep) : 1 };
     case 'show_modal':
@@ -162,6 +162,7 @@ const BondingCard = () => {
         <SummaryModal
           open={formStep === 3 && showModal}
           onClose={() => dispatch({ type: 'reset' })}
+          onCancel={() => dispatch({ type: 'prev_step' })}
           onSubmit={onSubmit}
           nodeType={state.nodeData?.nodeType as NodeType}
           identityKey={state.nodeData?.identityKey as string}

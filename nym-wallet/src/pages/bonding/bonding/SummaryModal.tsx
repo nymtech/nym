@@ -9,13 +9,14 @@ import { SimpleDialog } from '../components';
 export interface Props {
   open: boolean;
   onClose?: () => void;
+  onCancel?: () => void;
   onSubmit: () => Promise<void>;
   identityKey: string;
   nodeType: NodeType;
   amount: MajorCurrencyAmount;
 }
 
-const SummaryModal = ({ open, onClose, onSubmit, identityKey, nodeType, amount }: Props) => {
+const SummaryModal = ({ open, onClose, onSubmit, identityKey, nodeType, amount, onCancel }: Props) => {
   const onConfirm = async () => onSubmit();
   const [fee, setFee] = useState<string>('-');
   const { clientDetails } = useContext(AppContext);
@@ -33,12 +34,12 @@ const SummaryModal = ({ open, onClose, onSubmit, identityKey, nodeType, amount }
     <SimpleDialog
       open={open}
       onClose={onClose}
-      onCancel={onClose}
+      onCancel={onCancel}
       onConfirm={onConfirm}
       title="Bond details"
       confirmButton="Confirm"
-      fullWidth
       maxWidth="xs"
+      fullWidth
       cancelButton
       closeButton
     >

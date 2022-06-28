@@ -10,7 +10,7 @@ export type ACTIONTYPE =
   | { type: 'set_step'; payload: FormStep }
   | { type: 'set_tx'; payload: TransactionExecuteResult }
   | { type: 'next_step' }
-  | { type: 'previous_step' }
+  | { type: 'prev_step' }
   | { type: 'show_modal' }
   | { type: 'close_modal' }
   | { type: 'reset' };

@@ -77,7 +77,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: nym-connect.AppImage.tar.gz
+          name: nym-connect_1.0.0_x64_en-US.msi
           path: nym-connect/target/release/bundle/msi/nym-connect_1.0.0_x64_en-US.msi
           retention-days: 30
 

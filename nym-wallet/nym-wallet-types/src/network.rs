@@ -65,6 +65,7 @@ impl From<ConfigNetwork> for Network {
             ConfigNetwork::QA => Network::QA,
             ConfigNetwork::SANDBOX => Network::SANDBOX,
             ConfigNetwork::MAINNET => Network::MAINNET,
+            ConfigNetwork::CUSTOM { .. } => panic!("custom network is not supported"),
         }
     }
 }

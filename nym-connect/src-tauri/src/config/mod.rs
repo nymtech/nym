@@ -22,7 +22,9 @@ const DEFAULT_ETH_PRIVATE_KEY: &str =
 #[tauri::command]
 pub fn get_config_file_location() -> String {
     let id: &str = SOCKS5_CONFIG_ID;
-    Config::config_file_location(id).to_string_lossy().to_string()
+    Config::config_file_location(id)
+        .to_string_lossy()
+        .to_string()
 }
 
 pub struct Config {

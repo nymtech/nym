@@ -39,6 +39,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
   const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: number }>();
 
+  const theme = useTheme();
+
   const {
     clientDetails,
     network,
@@ -55,8 +57,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     undelegate,
     refresh: refreshDelegations,
   } = useDelegationContext();
-
-  const theme = useTheme();
 
   const { refresh: refreshRewards, claimRewards, compoundRewards } = useRewardsContext();
 
@@ -306,6 +306,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               target="_blank"
               rel="noreferrer"
               text="Network Explorer"
+              fontSize={14}
+              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+              noIcon
             />
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -314,7 +317,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5 }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText', fontSize: 16 }}
             >
               Delegate
             </Button>

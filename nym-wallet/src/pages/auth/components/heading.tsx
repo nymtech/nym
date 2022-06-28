@@ -10,7 +10,16 @@ export const Subtitle = ({ subtitle }: { subtitle: string }) => (
 );
 
 export const SubtitleSlick = ({ subtitle }: { subtitle: string }) => (
-  <Typography variant="caption" sx={{ color: 'grey.600', textTransform: 'uppercase', letterSpacing: 4 }}>
+  <Typography
+    variant="caption"
+    sx={{
+      color: (theme) => theme.palette.text.disabled,
+      textTransform: 'uppercase',
+      letterSpacing: 4,
+      fontWeight: 400,
+      fontSize: 14,
+    }}
+  >
     {subtitle}
   </Typography>
 );

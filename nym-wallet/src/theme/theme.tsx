@@ -36,7 +36,7 @@ const nymPalette: NymPalette = {
 const darkMode: NymPaletteVariant = {
   mode: 'dark',
   background: {
-    main: '#121726',
+    main: '#1D2125',
     paper: '#292E34',
     warn: '#FFE600',
   },
@@ -44,6 +44,8 @@ const darkMode: NymPaletteVariant = {
     main: '#FFFFFF',
     muted: '#5B6174',
     warn: '#FFE600',
+    contrast: '#1D2125',
+    grey: '#5B6174',
   },
   topNav: {
     background: '#111826',
@@ -64,6 +66,8 @@ const lightMode: NymPaletteVariant = {
     main: '#121726',
     muted: '#5B6174',
     warn: '#FFE600',
+    contrast: '#FFFFFF',
+    grey: '#3A4053',
   },
   topNav: {
     background: '#111826',
@@ -93,13 +97,14 @@ const nymWalletPalette = (variant: NymPaletteVariant): NymWalletPalette => ({
 const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   text: {
     primary: variant.text.main,
+    disabled: variant.text.grey,
   },
   primary: {
     main: nymPalette.highlight,
-    contrastText: '#fff',
+    contrastText: variant.text.contrast,
   },
   secondary: {
-    main: nymPalette.text.dark,
+    main: variant.text.main,
   },
   success: {
     main: nymPalette.success,

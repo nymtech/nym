@@ -28,9 +28,13 @@ export const BalanceCard = () => {
           {!userBalance.error && (
             <Typography
               data-testid="refresh-success"
-              sx={{ color: 'text.primary', textTransform: 'uppercase' }}
+              sx={{
+                color: 'text.primary',
+                textTransform: 'uppercase',
+                fontWeight: (theme) => (theme.palette.mode === 'light' ? '600' : '400'),
+                fontSize: 28,
+              }}
               variant="h5"
-              fontWeight={(theme) => (theme.palette.mode === 'light' ? '600' : '400')}
             >
               {userBalance.balance?.printable_balance}
             </Typography>
@@ -42,6 +46,7 @@ export const BalanceCard = () => {
               href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`}
               target="_blank"
               text="Last transactions"
+              fontSize={14}
             />
           </Grid>
         )}

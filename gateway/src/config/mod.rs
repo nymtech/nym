@@ -8,6 +8,7 @@ use log::error;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
@@ -127,18 +128,27 @@ impl Config {
         self
     }
 
+    pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
+        self.gateway.enabled_statistics = enabled_statistics;
+        self
+    }
+
+    pub fn with_custom_statistics_service_url(mut self, statistics_service_url: Url) -> Self {
+        self.gateway.statistics_service_url = statistics_service_url;
+        self
+    }
+
     pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
         self.gateway.validator_api_urls = validator_api_urls;
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
         self.gateway.validator_nymd_urls = validator_nymd_urls;
         self
     }
 
-    pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: String) -> Self {
+    pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: bip39::Mnemonic) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
         self
     }
@@ -227,16 +237,23 @@ impl Config {
         self.gateway.eth_endpoint.clone()
     }
 
+    pub fn get_enabled_statistics(&self) -> bool {
+        self.gateway.enabled_statistics
+    }
+
+    pub fn get_statistics_service_url(&self) -> Url {
+        self.gateway.statistics_service_url.clone()
+    }
+
     pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_api_urls.clone()
     }
 
-    #[cfg(not(feature = "coconut"))]
     pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_nymd_urls.clone()
     }
 
-    pub fn _get_cosmos_mnemonic(&self) -> String {
+    pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
     }
 
@@ -339,15 +356,20 @@ pub struct Gateway {
     #[cfg(not(feature = "coconut"))]
     eth_endpoint: String,
 
+    /// Wheather gateway collects and sends anonymized statistics
+    enabled_statistics: bool,
+
+    /// Domain address of the statistics service
+    statistics_service_url: Url,
+
     /// Addresses to APIs running on validator from which the node gets the view of the network.
     validator_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-    #[cfg(not(feature = "coconut"))]
     validator_nymd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.
-    cosmos_mnemonic: String,
+    cosmos_mnemonic: bip39::Mnemonic,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -399,10 +421,11 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             #[cfg(not(feature = "coconut"))]
             eth_endpoint: "".to_string(),
+            enabled_statistics: false,
+            statistics_service_url: default_statistics_service_url(),
             validator_api_urls: default_api_endpoints(),
-            #[cfg(not(feature = "coconut"))]
             validator_nymd_urls: default_nymd_endpoints(),
-            cosmos_mnemonic: "".to_string(),
+            cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
             wallet_address: "nymXXXXXXXX".to_string(),

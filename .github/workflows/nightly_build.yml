@@ -2,7 +2,7 @@ name: Nightly builds
 
 on:
   schedule:
-    - cron: '14 4 * * *'
+    - cron: '14 1 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest
@@ -50,6 +50,12 @@ jobs:
           command: test
           args: --workspace
 
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
       - name: Run expensive tests
         if: github.ref == 'refs/heads/develop' || github.event.pull_request.base.ref == 'develop' || github.event.pull_request.base.ref == 'master'
         uses: actions-rs/cargo@v1
@@ -82,9 +88,9 @@ jobs:
           command: clippy
           args: --workspace --all-targets -- -D warnings
 
-      - name: Reclaim some disk space (because Windows is being annoying)
+      - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' }}
         with:
           command: clean
 

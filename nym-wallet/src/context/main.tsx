@@ -30,7 +30,7 @@ export const urls = (networkName?: Network) =>
 
 type TLoginType = 'mnemonic' | 'password';
 
-type TAppContext = {
+export type TAppContext = {
   mode: 'light' | 'dark';
   appEnv?: AppEnv;
   appVersion?: string;
@@ -143,14 +143,25 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let newValue = false;
     if (network && appEnv?.ADMIN_ADDRESS && clientDetails?.client_address) {
-      const adminAddressMap = JSON.parse(appEnv.ADMIN_ADDRESS);
-      const adminAddresses = adminAddressMap[network] || [];
-      if (adminAddresses.length) {
-        newValue = adminAddresses.includes(clientDetails?.client_address);
+      try {
+        const adminAddressMap = JSON.parse(appEnv.ADMIN_ADDRESS);
+        const adminAddresses = adminAddressMap[network] || [];
+        if (adminAddresses.length) {
+          newValue = adminAddresses.includes(clientDetails?.client_address);
+          if (newValue) {
+            Console.log('Wallet is in admin mode: ', {
+              network,
+              adminAddress: adminAddressMap[network],
+              clientAddress: clientDetails?.client_address,
+            });
+          }
+        }
+      } catch (e) {
+        Console.error('Failed to check admin addresses', e);
       }
     }
     setIsAdminAddress(newValue);
-  }, [appEnv, network]);
+  }, [appEnv, network, clientDetails?.client_address]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {

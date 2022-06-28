@@ -15,18 +15,19 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use cosmwasm_std::Uint128;
 use execute::execute;
-pub use fee::gas_price::GasPrice;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
+    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
+    MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
+    RewardedSetUpdateDetails,
 };
 use serde::Serialize;
 use std::convert::TryInto;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
+use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -47,6 +48,7 @@ pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 use network_defaults::{ChainDetails, NymNetworkDetails};
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
@@ -160,7 +162,7 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let denom = network.mix_denom();
+        let denom = network.base_mix_denom();
         let client_address = signer
             .try_derive_accounts()?
             .into_iter()
@@ -186,7 +188,7 @@ impl NymdClient<SigningNymdClient> {
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         let prefix = &config.chain_details.bech32_account_prefix;
-        let denom = &config.chain_details.mix_denom;
+        let denom = &config.chain_details.mix_denom.base;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
@@ -312,6 +314,10 @@ impl<C> NymdClient<C> {
         self.client.gas_price()
     }
 
+    pub fn gas_adjustment(&self) -> GasAdjustment {
+        self.simulated_gas_multiplier
+    }
+
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -424,6 +430,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn vesting_get_locked_pledge_cap(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = VestingQueryMsg::GetLockedPledgeCap {};
+        self.client
+            .query_contract_smart(self.vesting_contract_address(), &request)
+            .await
+    }
+
     pub async fn get_delegator_rewards(
         &self,
         address: String,
@@ -465,6 +481,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetCurrentEpoch {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await
+    }
+
+    pub async fn get_current_operator_cost(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentOperatorCost {};
         self.client
             .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
@@ -633,6 +659,38 @@ impl<C> NymdClient<C> {
             address: address.to_string(),
         };
         let response: GatewayOwnershipResponse = self
+            .client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await?;
+        Ok(response.gateway)
+    }
+
+    /// Checks whether there is a bonded mixnode associated with the provided identity key
+    pub async fn get_mixnode_bond(
+        &self,
+        identity: IdentityKey,
+    ) -> Result<Option<MixNodeBond>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetMixnodeBond { identity };
+        let response: MixnodeBondResponse = self
+            .client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await?;
+        Ok(response.mixnode)
+    }
+
+    /// Checks whether there is a bonded gateway associated with the provided identity key
+    pub async fn get_gateway_bond(
+        &self,
+        identity: IdentityKey,
+    ) -> Result<Option<GatewayBond>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetGatewayBond { identity };
+        let response: GatewayBondResponse = self
             .client
             .query_contract_smart(self.mixnet_contract_address(), &request)
             .await?;
@@ -991,6 +1049,18 @@ impl<C> NymdClient<C> {
             VestingExecuteMsg::ClaimDelegatorReward { mix_identity },
             fee,
         )
+    }
+
+    #[execute("vesting")]
+    fn _vesting_update_locked_pledge_cap(
+        &self,
+        amount: Uint128,
+        fee: Option<Fee>,
+    ) -> (VestingExecuteMsg, Option<Fee>)
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        (VestingExecuteMsg::UpdateLockedPledgeCap { amount }, fee)
     }
 
     /// Announce a mixnode, paying a fee.

@@ -45,14 +45,20 @@ jobs:
           Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
 
       - name: Node v16
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 16
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Create env file
+        uses: timheuer/base64-to-file@v1.1
+        with:
+          fileName: '.env'
+          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Install app dependencies
         run: yarn
@@ -65,7 +71,6 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          ADMIN_ADDRESS: ${{ secrets.WALLET_ADMIN_ADDRESS }}
         run: yarn build
 
       - name: Upload to release based on tag name

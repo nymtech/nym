@@ -1,19 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bip39::core::str::FromStr;
-use bip39::Mnemonic;
-use config::defaults::DEFAULT_NETWORK;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use url::Url;
-use web3::contract::tokens::Detokenize;
-use web3::contract::{Contract, Error};
-use web3::ethabi::Token;
-use web3::transports::Http;
-use web3::types::{BlockNumber, FilterBuilder, H256};
-use web3::Web3;
-
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use bandwidth_claim_contract::msg::ExecuteMsg;
 use bandwidth_claim_contract::payment::LinkPaymentData;
@@ -21,8 +8,14 @@ use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
-use validator_client::nymd;
+use std::str::FromStr;
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
+use web3::contract::tokens::Detokenize;
+use web3::contract::{Contract, Error};
+use web3::ethabi::Token;
+use web3::transports::Http;
+use web3::types::{BlockNumber, FilterBuilder, H256};
+use web3::Web3;
 
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface
@@ -32,20 +25,9 @@ pub(crate) struct ERC20Bridge {
 }
 
 impl ERC20Bridge {
-    pub fn new(eth_endpoint: String, nymd_urls: Vec<Url>, cosmos_mnemonic: String) -> Self {
+    pub fn new(eth_endpoint: String, nymd_client: NymdClient<SigningNymdClient>) -> Self {
         let transport = Http::new(&eth_endpoint).expect("Invalid Ethereum endpoint");
         let web3 = Web3::new(transport);
-        let nymd_url = nymd_urls
-            .choose(&mut thread_rng())
-            .expect("The list of validators is empty");
-        let mnemonic =
-            Mnemonic::from_str(&cosmos_mnemonic).expect("Invalid Cosmos mnemonic provided");
-
-        let client_config = nymd::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
-            .expect("failed to construct valid validator client config with the provided network");
-        let nymd_client =
-            NymdClient::connect_with_mnemonic(client_config, nymd_url.as_ref(), mnemonic, None)
-                .expect("Could not create nymd client");
 
         ERC20Bridge {
             contract: eth_contract(web3.clone()),

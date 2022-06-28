@@ -22,6 +22,7 @@ use multisig_contract_common::msg::ProposalResponse;
 use validator_client::nymd::{
     cosmwasm_client::logs::find_attribute,
     traits::{MultisigSigningClient, QueryClient},
+    AccountId,
 };
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
@@ -176,6 +177,20 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         self.0.read().await.get_current_epoch().await
+    }
+
+    pub(crate) async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_epochs_in_interval().await
+    }
+
+    pub(crate) async fn get_current_operator_cost(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.0.read().await.get_current_operator_cost().await
     }
 
     pub(crate) async fn get_current_epoch_reward_params(
@@ -419,6 +434,10 @@ impl<C> crate::coconut::client::Client for Client<C>
 where
     C: SigningCosmWasmClient + Sync + Send,
 {
+    async fn address(&self) -> AccountId {
+        self.0.read().await.nymd.address().clone()
+    }
+
     async fn get_tx(
         &self,
         tx_hash: &str,

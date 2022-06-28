@@ -41,9 +41,10 @@ export const EconomicsInfoColumns: ColumnsType[] = [
   },
   {
     field: 'avgUptime',
-    title: 'Avg. Uptime',
+    title: 'Routing Score',
     flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Node’s average uptime in the last 24h.',
+    tooltipInfo:
+      'Node’s routing score is relative to that of the network. Each time a node is tested, the test packets have to go through the full path of the network (a gateway + 3 nodes). If a node in the path drop packets it will affect the score of other nodes in the test.',
   },
 ];

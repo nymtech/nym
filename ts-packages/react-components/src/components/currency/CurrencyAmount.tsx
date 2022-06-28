@@ -1,3 +1,4 @@
+/* eslint-disable react/no-array-index-key */
 import * as React from 'react';
 import type { MajorCurrencyAmount } from '@nymproject/types';
 import { Stack, SxProps, Typography } from '@mui/material';
@@ -35,12 +36,12 @@ const toChunks = (value: String, size: number = 3): Array<string> => {
   return chunks.map((chars) => chars.join(''));
 };
 
-export const CurrencyAmount: React.FC<{
-  majorAmount?: MajorCurrencyAmount;
+export const CurrencyAmountString: React.FC<{
+  majorAmount?: string;
   showSeparators?: boolean;
   sx?: SxProps;
 }> = ({ majorAmount, sx, showSeparators = true }) => {
-  if (!majorAmount || !majorAmount.amount) {
+  if (!majorAmount) {
     return (
       <Stack direction="row" sx={sx}>
         <span>-</span>
@@ -50,12 +51,12 @@ export const CurrencyAmount: React.FC<{
   if (!showSeparators) {
     return (
       <Stack direction="row" sx={sx}>
-        <span>{majorAmount.amount}</span>
+        <span>{majorAmount}</span>
       </Stack>
     );
   }
 
-  if (majorAmount.amount.trim() === '0') {
+  if (majorAmount.trim() === '0') {
     return (
       <Stack direction="row" sx={sx}>
         <span>0</span>
@@ -63,27 +64,37 @@ export const CurrencyAmount: React.FC<{
     );
   }
 
-  const parts = majorAmount.amount.split('.');
-  if (parts.length !== 2) {
+  const parts = majorAmount.split('.');
+  if (parts.length !== 1 && parts.length !== 2) {
     return <Typography sx={sx}>Error</Typography>;
   }
 
   const wholePart = toReverseChunks(parts[0]);
-  const fractionPart = toChunks(parts[1]);
+  const fractionPart = parts[1] ? toChunks(parts[1]) : [];
 
   return (
     <Stack direction="row" sx={sx}>
       <Stack direction="row" spacing={CURRENCY_AMOUNT_SPACING}>
-        {wholePart.map((chunk) => (
-          <span key={chunk}>{chunk}</span>
+        {wholePart.map((chunk, index) => (
+          <span key={`${chunk}-${index}`}>{chunk}</span>
         ))}
       </Stack>
-      <span>.</span>
-      <Stack direction="row" spacing={CURRENCY_AMOUNT_SPACING}>
-        {fractionPart.map((chunk) => (
-          <span key={chunk}>{chunk}</span>
-        ))}
-      </Stack>
+      {parts[1] && (
+        <>
+          <span>.</span>
+          <Stack direction="row" spacing={CURRENCY_AMOUNT_SPACING}>
+            {fractionPart.map((chunk, index) => (
+              <span key={`${chunk}-${index}`}>{chunk}</span>
+            ))}
+          </Stack>
+        </>
+      )}
     </Stack>
   );
 };
+
+export const CurrencyAmount: React.FC<{
+  majorAmount?: MajorCurrencyAmount;
+  showSeparators?: boolean;
+  sx?: SxProps;
+}> = ({ majorAmount, ...props }) => <CurrencyAmountString majorAmount={majorAmount?.amount} {...props} />;

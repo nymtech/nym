@@ -10,4 +10,5 @@ use serde::{Deserialize, Serialize};
 pub struct AppEnv {
     pub ADMIN_ADDRESS: Option<String>,
     pub SHOW_TERMINAL: Option<String>,
+    pub ENABLE_QA_MODE: Option<String>,
 }

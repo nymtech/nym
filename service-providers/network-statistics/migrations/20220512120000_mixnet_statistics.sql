@@ -12,3 +12,10 @@ CREATE TABLE service_statistics
     interval_seconds           INTEGER NOT NULL,
     timestamp                  DATETIME NOT NULL
 );
+
+CREATE TABLE gateway_statistics
+(
+    id                         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    inbox_count                INTEGER NOT NULL,
+    timestamp                  DATETIME NOT NULL
+);

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::DENOM;
+use config::defaults::MIX_DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
 use mixnet_contract_common::{
@@ -171,7 +171,7 @@ pub(crate) fn read_full_mixnode_bond(
             Ok(Some(MixNodeBond {
                 pledge_amount: stored_bond.pledge_amount,
                 total_delegation: Coin {
-                    denom: DENOM.to_owned(),
+                    denom: MIX_DENOM.base.to_owned(),
                     amount: total_delegation.unwrap_or_default(),
                 },
                 owner: stored_bond.owner,
@@ -190,7 +190,7 @@ mod tests {
     use super::super::storage;
     use super::*;
     use crate::support::tests;
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract_common::{IdentityKey, MixNode};
@@ -223,7 +223,7 @@ mod tests {
         let pledge_value = 1000000000;
 
         let mixnode_bond = StoredMixnodeBond {
-            pledge_amount: coin(pledge_value, DENOM),
+            pledge_amount: coin(pledge_value, MIX_DENOM.base),
             owner: node_owner,
             layer: Layer::One,
             block_height: 12_345,

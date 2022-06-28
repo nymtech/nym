@@ -58,7 +58,6 @@ pub struct Config {
     rewarding: Rewarding,
 
     #[serde(default)]
-    #[cfg(feature = "coconut")]
     coconut_signer: CoconutSigner,
 }
 
@@ -112,7 +111,7 @@ impl Default for Base {
             mixnet_contract_address: DEFAULT_NETWORK
                 .mixnet_contract_address()
                 .expect("mixnet contract address is unavailable"),
-            mnemonic: String::default(),
+            mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
     }
 }
@@ -282,7 +281,6 @@ impl Default for Rewarding {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-#[cfg(feature = "coconut")]
 pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
@@ -296,7 +294,6 @@ pub struct CoconutSigner {
     all_validator_apis: Vec<Url>,
 }
 
-#[cfg(feature = "coconut")]
 impl Default for CoconutSigner {
     fn default() -> Self {
         CoconutSigner {

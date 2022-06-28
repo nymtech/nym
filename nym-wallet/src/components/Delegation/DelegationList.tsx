@@ -3,7 +3,6 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Link,
   Table,
   TableBody,
   TableCell,
@@ -12,13 +11,30 @@ import {
   TableRow,
   TableSortLabel,
   Tooltip,
+  Typography,
 } from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationWithEverything } from '@nymproject/types';
-import { format } from 'date-fns';
+import { Link } from '@nymproject/react/link/Link';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { styled } from '@mui/material/styles';
+import { tableCellClasses } from '@mui/material/TableCell';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
+
+const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
+  [`&.${tableCellClasses.head}`]: {
+    color: theme.palette.common.white,
+    opacity: 0.5,
+    fontSize: 12,
+  },
+  [`&.${tableCellClasses.body}`]: {
+    color: theme.palette.common.white,
+    fontSize: 12,
+  },
+}));
 
 type Order = 'asc' | 'desc';
 
@@ -147,11 +163,8 @@ export const DelegationList: React.FC<{
                     <Link
                       target="_blank"
                       href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                      color="inherit"
-                      underline="none"
-                    >
-                      {item.node_identity.slice(0, 6)}...{item.node_identity.slice(-6)}
-                    </Link>
+                      text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                    />
                   </Tooltip>
                 </TableCell>
                 <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
@@ -162,7 +175,47 @@ export const DelegationList: React.FC<{
                   {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
                 </TableCell>
                 <TableCell align="center">{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
-                <TableCell align="center">{`${item.amount.amount} ${item.amount.denom}`}</TableCell>
+                <TableCell align="center">
+                  <Tooltip
+                    placement="right"
+                    title={
+                      <TableContainer component={Box} color="white">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <StyledTooltipTableCell>Date</StyledTooltipTableCell>
+                              <StyledTooltipTableCell>Amount</StyledTooltipTableCell>
+                              <StyledTooltipTableCell>Block Height</StyledTooltipTableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {item.history.map((historyItem) => (
+                              <TableRow key={`${historyItem.block_height}`}>
+                                <StyledTooltipTableCell>
+                                  {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
+                                    addSuffix: true,
+                                  })}
+                                </StyledTooltipTableCell>
+                                <StyledTooltipTableCell>
+                                  <Typography fontSize="inherit" noWrap>
+                                    {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
+                                    {historyItem.uses_vesting_contract_tokens && (
+                                      <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
+                                    )}
+                                  </Typography>
+                                </StyledTooltipTableCell>
+                                <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    }
+                    arrow
+                  >
+                    <span style={{ cursor: 'pointer' }}>{`${item.amount.amount} ${item.amount.denom}`}</span>
+                  </Tooltip>
+                </TableCell>
                 <TableCell align="center">
                   {!item.accumulated_rewards
                     ? '-'
@@ -175,7 +228,7 @@ export const DelegationList: React.FC<{
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
                       disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableDelegateMore={(item?.stake_saturation || 0) > 100}
+                      disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
                     />
                   ) : (
                     <Tooltip

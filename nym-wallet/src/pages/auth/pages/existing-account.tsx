@@ -22,7 +22,7 @@ export const ExistingAccount = () => {
           <Button color="inherit" onClick={() => navigate('/')}>
             Back
           </Button>
-          <Button color="info" onClick={() => navigate('/sign-in-mnemonic')}>
+          <Button color="info" onClick={() => navigate('/forgot-password')}>
             Forgot password?
           </Button>
         </Box>

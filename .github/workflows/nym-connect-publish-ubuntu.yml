@@ -1,0 +1,67 @@
+name: Publish Nym Connect (Ubuntu)
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+defaults:
+  run:
+    working-directory: nym-connect
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Tauri dependencies
+        run: >
+          sudo apt-get update &&
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+      - name: Check the release tag starts with `nym-connect-`
+        if: startsWith(github.ref, 'refs/tags/nym-connect-') == false && github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Release tag did not start with nym-connect-...')
+
+      - name: Node v16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install app dependencies
+        run: yarn
+      - name: Create env file
+        uses: timheuer/base64-to-file@v1.1
+        with:
+          fileName: '.env'
+          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-connect.AppImage.tar.gz
+          path: nym-connect/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
+          retention-days: 5
+
+      - name: Build app
+        run: yarn build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+      - name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
+        with:
+          files: |
+            nym-connect/target/release/bundle/appimage/*.AppImage
+            nym-connect/target/release/bundle/appimage/*.AppImage.tar.gz*

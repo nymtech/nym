@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::operations::simulate::{FeeDetails, SimulateResult};
+use crate::operations::simulate::FeeDetails;
+use crate::simulate::detailed_fee;
 use crate::State;
 use mixnet_contract_common::{ContractStateParams, ExecuteMsg};
 use nym_wallet_types::admin::TauriContractStateParams;
@@ -19,7 +20,6 @@ pub async fn simulate_update_contract_settings(
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -28,5 +28,5 @@ pub async fn simulate_update_contract_settings(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    Ok(SimulateResult::new(result.gas_info, gas_price).detailed_fee())
+    Ok(detailed_fee(client, result))
 }

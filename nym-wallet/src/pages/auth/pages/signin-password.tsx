@@ -14,7 +14,12 @@ export const SignInPassword = () => {
     <Stack spacing={2} alignItems="center" minWidth="50%">
       <Subtitle subtitle="Enter a password to sign in" />
       <FormControl fullWidth>
-        <form onSubmit={() => logIn({ type: 'password', value: password })}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            logIn({ type: 'password', value: password });
+          }}
+        >
           <Stack spacing={2}>
             <PasswordInput
               label="Enter password"
@@ -47,11 +52,11 @@ export const SignInPassword = () => {
                 color="info"
                 onClick={() => {
                   setError(undefined);
-                  navigate('/sign-in-mnemonic');
+                  navigate('/forgot-password');
                 }}
                 size="small"
               >
-                Forgotten password?
+                Forgot password?
               </Button>
             </Box>
           </Stack>

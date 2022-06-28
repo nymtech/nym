@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use coconut_interface::{
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use url::Url;
+use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
     ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
-use url::Url;
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
@@ -310,6 +310,13 @@ impl<C> Client<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.nymd.get_current_epoch().await?)
+    }
+
+    pub async fn get_current_operator_cost(&self) -> Result<u64, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        Ok(self.nymd.get_current_operator_cost().await?)
     }
 
     pub async fn get_mixnet_contract_version(&self) -> Result<MixnetContractVersion, NymdError>

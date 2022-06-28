@@ -36,7 +36,7 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Balance, BackendError> {
-    let denom = state.read().await.current_network().denom();
+    let denom = state.read().await.current_network().base_mix_denom();
     match nymd_client!(state)
         .get_balance(nymd_client!(state).address(), denom)
         .await
@@ -74,7 +74,7 @@ pub async fn switch_network(
     let account = {
         let r_state = state.read().await;
         let client = r_state.client(network)?;
-        let denom = network.denom();
+        let denom = network.base_mix_denom();
 
         Account::new(
             client.nymd.mixnet_contract_address().to_string(),
@@ -162,7 +162,7 @@ async fn _connect_with_mnemonic(
         Some(client) => Ok(Account::new(
             client.nymd.mixnet_contract_address().to_string(),
             client.nymd.address().to_string(),
-            default_network.denom().try_into()?,
+            default_network.base_mix_denom().try_into()?,
         )),
         None => Err(BackendError::NetworkNotSupported(
             config::defaults::DEFAULT_NETWORK,
@@ -408,6 +408,11 @@ pub fn remove_password() -> Result<(), BackendError> {
     log::info!("Removing password");
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     wallet_storage::remove_login(&login_id)
+}
+
+#[tauri::command]
+pub fn archive_wallet_file() -> Result<(), BackendError> {
+    wallet_storage::archive_wallet_file()
 }
 
 #[tauri::command]

@@ -63,7 +63,7 @@ mod tests {
     use super::*;
     use crate::support::tests::helpers::*;
     use coconut_bandwidth_contract_common::deposit::DepositData;
-    use config::defaults::DENOM;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
     use cw_multi_test::Executor;
@@ -83,20 +83,20 @@ mod tests {
 
         // Contract balance should be 0
         assert_eq!(
-            coins(0, DENOM),
+            coins(0, MIX_DENOM.base),
             vec![deps
                 .as_ref()
                 .querier
-                .query_balance(env.contract.address, DENOM)
+                .query_balance(env.contract.address, MIX_DENOM.base)
                 .unwrap()]
         );
     }
 
     #[test]
     fn deposit_and_release() {
-        let init_funds = coins(10, DENOM);
-        let deposit_funds = coins(1, DENOM);
-        let release_funds = coins(2, DENOM);
+        let init_funds = coins(10, MIX_DENOM.base);
+        let deposit_funds = coins(1, MIX_DENOM.base);
+        let release_funds = coins(2, MIX_DENOM.base);
         let mut app = mock_app(&init_funds);
         let multisig_addr = String::from(MULTISIG_CONTRACT);
         let pool_addr = String::from(POOL_CONTRACT);
@@ -156,7 +156,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        let pool_bal = app.wrap().query_balance(pool_addr, DENOM).unwrap();
+        let pool_bal = app.wrap().query_balance(pool_addr, MIX_DENOM.base).unwrap();
         assert_eq!(pool_bal, deposit_funds[0]);
     }
 }

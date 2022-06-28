@@ -2,25 +2,77 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 ## [Unreleased]
 
 ### Added
 
-- nym-connect: initial proof-of-concept of a UI around the socks5 client was added.
+- socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
+- nym-connect: initial proof-of-concept of a UI around the socks5 client was added
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
+- explorer-api: add apy values to `mix_nodes` endpoint
 - gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
-- mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
-- mixnet-contract: Replace all naked `-` with `saturating_sub`.
-- mixnet-contrat: Added staking_supply field to ContractStateParams.
 - network-explorer-ui: Upgrade to React Router 6
 - rewarding: replace circulating supply with staking supply in reward calculations ([#1324])
 - validator-api: add `estimated_node_profit` and `estimated_operator_cost` to `reward-estimate` endpoint ([#1284])
-- validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation.
+- validator-api: add detailed mixnode bond endpoints, and explorer-api makes use of that data to append stake saturation
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
-- vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- validator-api: add `uptime`, `estimated_operator_apy`, `estimated_delegators_apy` to `/mixnodes/detailed` endpoint ([#1393])
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
+- wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
+- mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
+- validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
+
+### Fixed
+
+- mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
+- mixnode: the mixnode learned how to shutdown gracefully
+- native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
+- native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
+- native & socks5 clients: deduplicate big chunks of init logic
+- validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
+
+### Changed
+
+- validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
+- all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
+- all: updated `rocket` to `0.5.0-rc.2`.
+- network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
+- gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
+
+[#1249]: https://github.com/nymtech/nym/pull/1249
+[#1256]: https://github.com/nymtech/nym/pull/1256
+[#1260]: https://github.com/nymtech/nym/pull/1260
+[#1261]: https://github.com/nymtech/nym/pull/1261
+[#1267]: https://github.com/nymtech/nym/pull/1267
+[#1278]: https://github.com/nymtech/nym/pull/1278
+[#1295]: https://github.com/nymtech/nym/pull/1295
+[#1302]: https://github.com/nymtech/nym/pull/1302
+[#1308]: https://github.com/nymtech/nym/pull/1308
+[#1318]: https://github.com/nymtech/nym/pull/1318
+[#1322]: https://github.com/nymtech/nym/pull/1322
+[#1324]: https://github.com/nymtech/nym/pull/1324
+[#1328]: https://github.com/nymtech/nym/pull/1328
+[#1329]: https://github.com/nymtech/nym/pull/1329
+[#1353]: https://github.com/nymtech/nym/pull/1353
+[#1376]: https://github.com/nymtech/nym/pull/1376
+[#1388]: https://github.com/nymtech/nym/pull/1388
+[#1393]: https://github.com/nymtech/nym/pull/1393
+[#1404]: https://github.com/nymtech/nym/pull/1404
+
+## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
+
+### Added
+
+- mixnet-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- mixnet-contract: Replace all naked `-` with `saturating_sub`.
+- mixnet-contract: Added staking_supply field to ContractStateParams.
+- mixnet-contract: Added a query to get MixnodeBond by identity key ([#1369]).
+- mixnet-contract: Added a query to get GatewayBond by identity key ([#1369]).
+- vesting-contract: Added ClaimOperatorReward and ClaimDelegatorReward messages ([#1292])
+- vesting-contract: Added limit to the amount of tokens one can pledge ([#1331])
 
 ### Fixed
 
@@ -29,37 +81,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnet-contract: removed `expect` in `query_delegator_reward` and queries containing invalid proxy address should now return a more human-readable error ([#1257])
 - mixnet-contract: replaced integer division with fixed for performance calculations ([#1284])
 - mixnet-contract: Under certain circumstances nodes could not be unbonded ([#1255](https://github.com/nymtech/nym/issues/1255)) ([#1258])
-- mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
-- mixnode: the mixnode learned how to shutdown gracefully.
+- mixnet-contract: Using correct staking supply when distributing rewards. ([#1373])
 - vesting-contract: replaced `checked_sub` with `saturating_sub` to fix the underflow in `get_vesting_tokens` ([#1275])
-- native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
-- validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
-### Changed
 
-- validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
-- all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
-- network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
-
-[#1249]: https://github.com/nymtech/nym/pull/1249
-[#1256]: https://github.com/nymtech/nym/pull/1256
+[#1255]: https://github.com/nymtech/nym/pull/1255
 [#1257]: https://github.com/nymtech/nym/pull/1257
 [#1258]: https://github.com/nymtech/nym/pull/1258
-[#1260]: https://github.com/nymtech/nym/pull/1260
-[#1261]: https://github.com/nymtech/nym/pull/1261
-[#1265]: https://github.com/nymtech/nym/pull/1265
-[#1267]: https://github.com/nymtech/nym/pull/1267
 [#1275]: https://github.com/nymtech/nym/pull/1275
-[#1278]: https://github.com/nymtech/nym/pull/1278
 [#1284]: https://github.com/nymtech/nym/pull/1284
 [#1292]: https://github.com/nymtech/nym/pull/1292
-[#1295]: https://github.com/nymtech/nym/pull/1295
-[#1302]: https://github.com/nymtech/nym/pull/1302
-[#1318]: https://github.com/nymtech/nym/pull/1318
-[#1322]: https://github.com/nymtech/nym/pull/1322
-[#1324]: https://github.com/nymtech/nym/pull/1324
-[#1328]: https://github.com/nymtech/nym/pull/1328
-[#1329]: https://github.com/nymtech/nym/pull/1329
+[#1331]: https://github.com/nymtech/nym/pull/1331
+[#1369]: https://github.com/nymtech/nym/pull/1369
+[#1373]: https://github.com/nymtech/nym/pull/1373
+
+## [nym-wallet-v1.0.6](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.6) (2022-06-21)
+
+- wallet: undelegating now uses either the mixnet or vesting contract, or both, depending on how delegations were made
+- wallet: redeeming and compounding now uses both the mixnet and vesting contract
+- wallet: the wallet backend learned how to archive wallet files
+- wallet: add ENABLE_QA_MODE environment variable to enable QA mode on built wallet
 
 ## [nym-wallet-v1.0.5](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.5) (2022-06-14)
 
@@ -73,6 +114,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wallet: contract admin route put back
 - wallet: staking_supply field to StateParams
 - wallet: show transaction hash for redeeming or compounding rewards
+
+[#1265]: https://github.com/nymtech/nym/pull/1265
+[#1302]: https://github.com/nymtech/nym/pull/1302
 
 ## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
 

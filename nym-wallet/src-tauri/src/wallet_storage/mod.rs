@@ -14,6 +14,8 @@ pub(crate) use crate::wallet_storage::password::{AccountId, LoginId, UserPasswor
 
 use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
+use chrono::Local;
+use std::ffi::OsString;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::{Path, PathBuf};
 use validator_client::nymd::bip32::DerivationPath;
@@ -250,6 +252,82 @@ fn remove_login_at_file(filepath: &Path, id: &LoginId) -> Result<(), BackendErro
         Ok(fs::remove_file(filepath)?)
     } else {
         write_to_file(filepath, &stored_wallet)
+    }
+}
+
+// Given a file path, append a timestamp. If provided, also append a number.
+fn append_timestamp_to_filename(
+    path: impl AsRef<Path>,
+    timestamp: OsString,
+    additional_number: Option<u32>,
+) -> Result<PathBuf, BackendError> {
+    let path = path.as_ref();
+    let mut result_path = path.to_owned();
+
+    let stem = result_path
+        .file_stem()
+        .ok_or(BackendError::WalletFileMalformedFilename)?;
+    let mut new_stem = stem.to_os_string();
+    new_stem.push("-");
+    new_stem.push(timestamp);
+    if let Some(additional_number) = additional_number {
+        new_stem.push("-");
+        new_stem.push(additional_number.to_string());
+    }
+    result_path.set_file_name(new_stem);
+
+    if let Some(ext) = path.extension() {
+        result_path.set_extension(ext);
+    }
+    Ok(result_path)
+}
+
+fn _archive_wallet_file(path: &Path) -> Result<(), BackendError> {
+    let timestamp: OsString = Local::now().timestamp_millis().to_string().into();
+    let mut additional_number = 0;
+    let mut new_path = append_timestamp_to_filename(path, timestamp.clone(), None)?;
+
+    // Try rename, and if it fails, try appending a number.
+    while additional_number < 10 {
+        if fs::rename(path, new_path.clone()).is_err() {
+            new_path =
+                append_timestamp_to_filename(path, timestamp.clone(), Some(additional_number))?;
+            additional_number += 1;
+        } else {
+            if let Some(new_path) = new_path.to_str() {
+                log::info!("Archived to: {}", new_path);
+            } else {
+                log::warn!("Archived wallet file to filename that is not a valid UTF-8 string");
+            }
+            return Ok(());
+        }
+    }
+
+    log::warn!("Failed to archive wallet file, suggest renaming it manually!");
+    Err(BackendError::WalletFileUnableToArchive)
+}
+
+pub(crate) fn archive_wallet_file() -> Result<(), BackendError> {
+    let store_dir = get_storage_directory()?;
+    let filepath = store_dir.join(WALLET_INFO_FILENAME);
+
+    if filepath.exists() {
+        if let Some(filepath) = filepath.to_str() {
+            log::info!("Archiving wallet file: {}", filepath);
+        } else {
+            log::info!("Archiving wallet file");
+        }
+        _archive_wallet_file(&filepath)
+    } else {
+        if let Some(filepath) = filepath.to_str() {
+            log::info!(
+                "Skipping archiving wallet file, as it's not found: {}",
+                filepath
+            );
+        } else {
+            log::info!("Skipping archiving wallet file, as it's not found");
+        }
+        Err(BackendError::WalletFileNotFound)
     }
 }
 
@@ -1536,5 +1614,48 @@ mod tests {
         .into();
 
         assert_eq!(login, &expected);
+    }
+
+    #[test]
+    fn append_filename() {
+        let wallet_file = PathBuf::from("/tmp/saved-wallet.json");
+        let timestamp = OsString::from("42");
+        #[cfg(target_family = "unix")]
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file.clone(), timestamp.clone(), None)
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            "/tmp/saved-wallet-42.json".to_string(),
+        );
+        #[cfg(not(target_family = "unix"))]
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file.clone(), timestamp.clone(), None)
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            r"/tmp\saved-wallet-42.json".to_string(),
+        );
+
+        #[cfg(target_family = "unix")]
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file, timestamp, Some(3))
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            "/tmp/saved-wallet-42-3.json".to_string(),
+        );
+        #[cfg(not(target_family = "unix"))]
+        assert_eq!(
+            append_timestamp_to_filename(wallet_file, timestamp, Some(3))
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            r"/tmp\saved-wallet-42-3.json".to_string(),
+        );
     }
 }

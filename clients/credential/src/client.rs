@@ -4,7 +4,7 @@
 use crate::error::Result;
 use crate::{MNEMONIC, NYMD_URL};
 use bip39::Mnemonic;
-use network_defaults::{DEFAULT_NETWORK, DENOM, VOUCHER_INFO};
+use network_defaults::{DEFAULT_NETWORK, MIX_DENOM, VOUCHER_INFO};
 use std::str::FromStr;
 use url::Url;
 use validator_client::nymd;
@@ -34,7 +34,7 @@ impl Client {
         encryption_key: String,
         fee: Option<Fee>,
     ) -> Result<String> {
-        let amount = Coin::new(amount as u128, DENOM.to_string());
+        let amount = Coin::new(amount as u128, MIX_DENOM.base.to_string());
         Ok(self
             .nymd_client
             .deposit(

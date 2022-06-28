@@ -6,11 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+bs58 = "0.4.0"
+cosmrs = { version = "0.7.0" }
+getset = "0.1.1"
 schemars = { version = "0.8", features = ["preserve_order"] }
 serde = "1.0"
 ts-rs = "6.1.2"
 
+coconut-interface = { path = "../../common/coconut-interface", optional = true }
+mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+
 [features]
 default = []
+coconut = ["coconut-interface"]
 generate-ts = []

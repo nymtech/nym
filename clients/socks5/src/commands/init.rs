@@ -2,20 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{App, Arg, ArgMatches};
-use client_core::client::key_manager::KeyManager;
-use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use client_core::config::GatewayEndpoint;
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
-use gateway_client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKeys;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NodeIdentity;
-use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
-use std::convert::TryInto;
-use std::sync::Arc;
-use std::time::Duration;
-use topology::{filter::VersionFilterable, gateway};
-use url::Url;
 
 use crate::client::config::Config;
 use crate::commands::override_config;
@@ -45,6 +33,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("gateway")
             .help("Id of the gateway we are going to connect to.")
             .takes_value(true)
+        )
+        .arg(Arg::with_name("force-register-gateway")
+            .long("force-register-gateway")
+            .help("Force register gateway. WARNING: this will overwrite any existing keys for the given id, potentially causing loss of access.")
+            .takes_value(false)
         )
         .arg(Arg::with_name("validators")
                  .long("validators")
@@ -88,165 +81,110 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     app
 }
 
-// TODO: make this private again after refactoring the config setup
-pub async fn register_with_gateway(
-    gateway: &gateway::Node,
-    our_identity: Arc<identity::KeyPair>,
-) -> Arc<SharedKeys> {
-    let timeout = Duration::from_millis(1500);
-    let mut gateway_client = GatewayClient::new_init(
-        gateway.clients_address(),
-        gateway.identity_key,
-        gateway.owner.clone(),
-        our_identity.clone(),
-        timeout,
-    );
-    gateway_client
-        .establish_connection()
-        .await
-        .expect("failed to establish connection with the gateway!");
-    gateway_client
-        .perform_initial_authentication()
-        .await
-        .expect("failed to register with the gateway!")
-}
-
-// TODO: make this private again after refactoring the config setup
-pub async fn gateway_details(
-    validator_servers: Vec<Url>,
-    chosen_gateway_id: Option<&str>,
-) -> gateway::Node {
-    let validator_api = validator_servers
-        .choose(&mut thread_rng())
-        .expect("The list of validator apis is empty");
-    let validator_client = validator_client::ApiClient::new(validator_api.clone());
-
-    let gateways = validator_client.get_cached_gateways().await.unwrap();
-    let valid_gateways = gateways
-        .into_iter()
-        .filter_map(|gateway| gateway.try_into().ok())
-        .collect::<Vec<gateway::Node>>();
-
-    let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
-
-    // if we have chosen particular gateway - use it, otherwise choose a random one.
-    // (remember that in active topology all gateways have at least 100 reputation so should
-    // be working correctly)
-    if let Some(gateway_id) = chosen_gateway_id {
-        filtered_gateways
-            .iter()
-            .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
-            .expect(&*format!("no gateway with id {} exists!", gateway_id))
-            .clone()
-    } else {
-        filtered_gateways
-            .choose(&mut rand::thread_rng())
-            .expect("there are no gateways on the network!")
-            .clone()
-    }
-}
-
-// TODO: make this private again after refactoring the config setup
-pub fn show_address(config: &Config) {
-    fn load_identity_keys(pathfinder: &ClientKeyPathfinder) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
-            ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
-    }
-
-    fn load_sphinx_keys(pathfinder: &ClientKeyPathfinder) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
-    }
-
-    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-    let identity_keypair = load_identity_keys(&pathfinder);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
-
-    let client_recipient = Recipient::new(
-        *identity_keypair.public_key(),
-        *sphinx_keypair.public_key(),
-        // TODO: below only works under assumption that gateway address == gateway id
-        // (which currently is true)
-        NodeIdentity::from_base58_string(config.get_base().get_gateway_id()).unwrap(),
-    );
-
-    println!("\nThe address of this client is: {}", client_recipient);
-}
-
 pub async fn execute(matches: ArgMatches<'static>) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
     let provider_address = matches.value_of("provider").unwrap();
 
-    let already_init = if Config::default_config_file_path(Some(id)).exists() {
-        if matches.is_present("gateway") {
-            panic!("At the moment, gateway information can't be overwritten. If you want to point to a different gateway, client {}'s directory will need to be manually removed", id);
-        }
-        println!("Socks5 client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
-        true
-    } else {
-        false
-    };
+    let already_init = Config::default_config_file_path(Some(id)).exists();
+    if already_init {
+        println!(
+            "SOCKS5 client \"{}\" was already initialised before! \
+            Config information will be overwritten (but keys will be kept)!",
+            id
+        );
+    }
+
+    // Usually you only register with the gateway on the first init, however you can force
+    // re-registering if wanted.
+    let user_wants_force_register = matches.is_present("force-register-gateway");
+
+    // If the client was already initialized, don't generate new keys and don't re-register with
+    // the gateway (because this would create a new shared key).
+    // Unless the user really wants to.
+    let register_gateway = !already_init || user_wants_force_register;
+
+    // Attempt to use a user-provided gateway, if possible
+    let user_chosen_gateway_id = matches.value_of("gateway");
 
     let mut config = Config::new(id, provider_address);
 
-    let mut rng = OsRng;
-
-    // TODO: ideally that should be the last thing that's being done to config.
-    // However, we are later further overriding it with gateway id
     config = override_config(config, &matches);
     if matches.is_present("fastmode") {
         config.get_base_mut().set_high_default_traffic_volume();
     }
 
-    // if client was already initialised, don't generate new keys, not re-register with gateway
-    // (because this would create new shared key)
-    if !already_init {
-        // create identity, encryption and ack keys.
-        let mut key_manager = KeyManager::new(&mut rng);
-
-        let chosen_gateway_id = matches.value_of("gateway");
-
-        let gateway_details = gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            chosen_gateway_id,
-        )
-        .await;
-        let shared_keys =
-            register_with_gateway(&gateway_details, key_manager.identity_keypair()).await;
-
-        config.get_base_mut().with_gateway_endpoint(
-            gateway_details.identity_key.to_base58_string(),
-            gateway_details.owner.clone(),
-            gateway_details.clients_address(),
-        );
-        key_manager.insert_gateway_shared_key(shared_keys);
-
-        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        key_manager
-            .store_keys(&pathfinder)
-            .expect("Failed to generated keys");
-        println!("Saved all generated keys");
-    }
+    let gateway = setup_gateway(id, register_gateway, user_chosen_gateway_id, &config).await;
+    config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_config_file_save_location();
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    println!("Saved configuration file to {:?}", config_save_location);
-    println!("Using gateway: {}", config.get_base().get_gateway_id(),);
-    println!("Client configuration completed.\n\n\n");
 
-    show_address(&config);
+    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Using gateway: {}", config.get_base().get_gateway_id());
+    log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
+    log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());
+    log::debug!(
+        "Gateway listener: {}",
+        config.get_base().get_gateway_listener()
+    );
+    println!("Client configuration completed.");
+
+    client_core::init::show_address(config.get_base());
+}
+
+async fn setup_gateway(
+    id: &str,
+    register: bool,
+    user_chosen_gateway_id: Option<&str>,
+    config: &Config,
+) -> GatewayEndpoint {
+    if register {
+        // Get the gateway details by querying the validator-api. Either pick one at random or use
+        // the chosen one if it's among the available ones.
+        println!("Configuring gateway");
+        let gateway = client_core::init::query_gateway_details(
+            config.get_base().get_validator_api_endpoints(),
+            user_chosen_gateway_id,
+        )
+        .await;
+        log::debug!("Querying gateway gives: {}", gateway);
+
+        // Registering with gateway by setting up and writing shared keys to disk
+        log::trace!("Registering gateway");
+        client_core::init::register_with_gateway_and_store_keys(gateway.clone(), config.get_base())
+            .await;
+        println!("Saved all generated keys");
+
+        gateway.into()
+    } else if user_chosen_gateway_id.is_some() {
+        // Just set the config, don't register or create any keys
+        // This assumes that the user knows what they are doing, and that the existing keys are
+        // valid for the gateway being used
+        println!("Using gateway provided by user, keeping existing keys");
+        let gateway = client_core::init::query_gateway_details(
+            config.get_base().get_validator_api_endpoints(),
+            user_chosen_gateway_id,
+        )
+        .await;
+        log::debug!("Querying gateway gives: {}", gateway);
+        gateway.into()
+    } else {
+        println!("Not registering gateway, will reuse existing config and keys");
+        match Config::load_from_file(Some(id)) {
+            Ok(existing_config) => existing_config.get_base().get_gateway_endpoint().clone(),
+            Err(err) => {
+                panic!(
+                    "Unable to configure gateway: {err}. \n
+                    Seems like the client was already initialized but it was not possible to read \
+                    the existing configuration file. \n
+                    CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
+                    removing the existing configuration and starting over."
+                )
+            }
+        }
+    }
 }

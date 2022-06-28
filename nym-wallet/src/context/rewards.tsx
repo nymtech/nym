@@ -1,27 +1,30 @@
 import React, { createContext, FC, useContext, useEffect, useMemo, useState } from 'react';
 import { Network } from 'src/types';
+import { TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
+import { claimDelegatorRewards, compoundDelegatorRewards } from '../requests';
 
 type TRewardsContext = {
   isLoading: boolean;
   error?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
-  redeemRewards: (mixnodeAddress: string) => Promise<TRewardsTransaction>;
-  redeemAllRewards: () => Promise<TRewardsTransaction>;
+  claimRewards: (identity: string) => Promise<TransactionExecuteResult[]>;
+  compoundRewards: (identity: string) => Promise<TransactionExecuteResult[]>;
 };
 
 export type TRewardsTransaction = {
   transactionUrl: string;
+  transactionHash: string;
 };
 
 export const RewardsContext = createContext<TRewardsContext>({
   isLoading: true,
   refresh: async () => undefined,
-  redeemRewards: async () => {
+  claimRewards: async () => {
     throw new Error('Not implemented');
   },
-  redeemAllRewards: async () => {
+  compoundRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -51,9 +54,8 @@ export const RewardsContextProvider: FC<{
       error,
       totalRewards,
       refresh,
-      redeemRewards: async () => {
-        throw new Error('Not implemented');
-      },
+      claimRewards: claimDelegatorRewards,
+      compoundRewards: compoundDelegatorRewards,
       redeemAllRewards: async () => {
         throw new Error('Not implemented');
       },

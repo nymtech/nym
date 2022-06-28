@@ -121,6 +121,14 @@ impl Interval {
         self.start_unix_timestamp() <= block_time && block_time < self.end_unix_timestamp()
     }
 
+    pub fn update_duration(&mut self, secs: u64) {
+        self.length = Duration::from_secs(secs);
+    }
+
+    pub const fn length_secs(&self) -> u64 {
+        self.length.as_secs()
+    }
+
     /// Returns the next interval.
     #[must_use]
     pub fn next(&self) -> Self {

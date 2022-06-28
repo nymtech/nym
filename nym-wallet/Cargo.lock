@@ -622,6 +622,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 
 [[package]]
+name = "chrono"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
+dependencies = [
+ "libc",
+ "num-integer",
+ "num-traits",
+ "time 0.1.43",
+ "winapi",
+]
+
+[[package]]
 name = "cipher"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3050,6 +3063,7 @@ dependencies = [
  "base64",
  "bip39",
  "cfg-if",
+ "chrono",
  "coconut-interface",
  "colored",
  "config",
@@ -5494,6 +5508,10 @@ dependencies = [
 name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "getset",
  "mixnet-contract-common",
  "schemars",
  "serde",
@@ -5567,7 +5585,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "config",
  "cosmwasm-std",

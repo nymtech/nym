@@ -1,7 +1,7 @@
 import React, { FC } from 'react';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import {
   Box,
-  Link,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +16,7 @@ import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationEvent } from '@nymproject/types';
 import { ArrowDropDown } from '@mui/icons-material';
 import { visuallyHidden } from '@mui/utils';
+import { Link } from '@nymproject/react/link/Link';
 
 type Order = 'asc' | 'desc';
 
@@ -113,8 +114,8 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
-          {pendingEvents.sort(getComparator(order, orderBy)).map((item, index) => (
-            <TableRow key={item.node_identity + index}>
+          {pendingEvents.sort(getComparator(order, orderBy)).map((item) => (
+            <TableRow key={`${item.node_identity}-${item.block_height}`}>
               <TableCell>
                 <CopyToClipboard
                   sx={{ fontSize: 16, mr: 1 }}
@@ -137,15 +138,19 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
                   <Link
                     target="_blank"
                     href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                    color="inherit"
-                    underline="none"
-                  >
-                    {item.node_identity.slice(0, 6)}...{item.node_identity.slice(-6)}
-                  </Link>
+                    text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                  />
                 </Tooltip>
               </TableCell>
               <TableCell>{!item.amount ? '-' : `${item.amount?.amount} ${item.amount?.denom}`}</TableCell>
-              <TableCell>{item.kind === 'Delegate' ? 'Delegation' : 'Undelegation'}</TableCell>
+              <TableCell>
+                {item.kind === 'Delegate' ? 'Delegation' : 'Undelegation'}
+                {item.proxy && (
+                  <Tooltip title="Uses tokens for your vesting account" arrow>
+                    <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
+                  </Tooltip>
+                )}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

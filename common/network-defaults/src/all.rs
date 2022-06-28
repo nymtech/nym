@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    DefaultNetworkDetails, NymNetworkDetails, ValidatorDetails, MAINNET_DEFAULTS, QA_DEFAULTS,
-    SANDBOX_DEFAULTS,
+    DefaultNetworkDetails, DenomDetailsOwned, NymNetworkDetails, ValidatorDetails,
+    MAINNET_DEFAULTS, QA_DEFAULTS, SANDBOX_DEFAULTS,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, str::FromStr};
@@ -44,12 +44,20 @@ impl Network {
         self.details().chain_details.bech32_account_prefix
     }
 
-    pub fn mix_denom(&self) -> String {
+    pub fn mix_denom(&self) -> DenomDetailsOwned {
         self.details().chain_details.mix_denom
     }
 
-    pub fn stake_denom(&self) -> String {
+    pub fn stake_denom(&self) -> DenomDetailsOwned {
         self.details().chain_details.stake_denom
+    }
+
+    pub fn base_mix_denom(&self) -> String {
+        self.details().chain_details.mix_denom.base
+    }
+
+    pub fn base_stake_denom(&self) -> String {
+        self.details().chain_details.stake_denom.base
     }
 
     pub fn mixnet_contract_address(&self) -> Option<String> {
@@ -87,6 +95,16 @@ impl Network {
             }
         }
     }
+
+    // this should be handled differently, but I don't want to break compatibility
+    pub fn statistics_service_url(&self) -> &str {
+        match self {
+            Network::MAINNET => crate::mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+            _ => {
+                panic!("statistics service url is only available for mainnet!")
+            }
+        }
+    }
 }
 
 impl FromStr for Network {
@@ -118,21 +136,25 @@ impl fmt::Display for Network {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NetworkDetails {
     bech32_prefix: String,
-    denom: String,
+    mix_denom: DenomDetailsOwned,
+    stake_denom: DenomDetailsOwned,
     mixnet_contract_address: String,
     vesting_contract_address: String,
     bandwidth_claim_contract_address: String,
+    statistics_service_url: String,
     validators: Vec<ValidatorDetails>,
 }
 
-impl From<&DefaultNetworkDetails<'_>> for NetworkDetails {
-    fn from(details: &DefaultNetworkDetails<'_>) -> Self {
+impl From<&DefaultNetworkDetails> for NetworkDetails {
+    fn from(details: &DefaultNetworkDetails) -> Self {
         NetworkDetails {
             bech32_prefix: details.bech32_prefix.into(),
-            denom: details.denom.into(),
+            mix_denom: details.mix_denom.into(),
+            stake_denom: details.stake_denom.into(),
             mixnet_contract_address: details.mixnet_contract_address.into(),
             vesting_contract_address: details.vesting_contract_address.into(),
             bandwidth_claim_contract_address: details.bandwidth_claim_contract_address.into(),
+            statistics_service_url: details.statistics_service_url.into(),
             validators: details.validators.clone(),
         }
     }
@@ -143,7 +165,8 @@ impl From<NymNetworkDetails> for NetworkDetails {
     fn from(details: NymNetworkDetails) -> Self {
         NetworkDetails {
             bech32_prefix: details.chain_details.bech32_account_prefix,
-            denom: details.chain_details.mix_denom,
+            mix_denom: details.chain_details.mix_denom,
+            stake_denom: details.chain_details.stake_denom,
             mixnet_contract_address: details
                 .contracts
                 .mixnet_contract_address
@@ -156,8 +179,15 @@ impl From<NymNetworkDetails> for NetworkDetails {
                 .contracts
                 .bandwidth_claim_contract_address
                 .unwrap_or_default(),
+            statistics_service_url: "".to_string(),
             validators: details.endpoints,
         }
+    }
+}
+
+impl NetworkDetails {
+    pub fn base_mix_denom(&self) -> &str {
+        &self.mix_denom.base
     }
 }
 
@@ -185,10 +215,10 @@ impl SupportedNetworks {
             .map(|network_details| network_details.bech32_prefix.as_str())
     }
 
-    pub fn denom(&self, network: Network) -> Option<&str> {
+    pub fn base_mix_denom(&self, network: Network) -> Option<&str> {
         self.networks
             .get(&network)
-            .map(|network_details| network_details.denom.as_str())
+            .map(|network_details| network_details.base_mix_denom())
     }
 
     pub fn mixnet_contract_address(&self, network: Network) -> Option<&str> {

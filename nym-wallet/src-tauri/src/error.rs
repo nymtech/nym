@@ -84,6 +84,10 @@ pub enum BackendError {
     WalletFileAlreadyExists,
     #[error("The wallet file is not found")]
     WalletFileNotFound,
+    #[error("The wallet file has a malformed name")]
+    WalletFileMalformedFilename,
+    #[error("Unable to archive wallet file")]
+    WalletFileUnableToArchive,
     #[error("Login ID not found in wallet")]
     WalletNoSuchLoginId,
     #[error("Account ID not found in wallet login")]
@@ -98,8 +102,6 @@ pub enum BackendError {
     WalletDifferentPasswordDetected,
     #[error("Unexpected mnemonic account for login")]
     WalletUnexpectedMnemonicAccount,
-    // #[error("Unexpected multiple account entry for login")]
-    // WalletUnexpectedMultipleAccounts,
     #[error("Failed to derive address from mnemonic")]
     FailedToDeriveAddress,
     #[error("{0}")]

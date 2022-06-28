@@ -1,7 +1,8 @@
 import { number, object } from 'yup';
 
-const schema = object().shape({
-  profitMargin: number().required('Profit Percentage is required').min(0).max(100),
-});
+const getSchema = (currentPm: number) =>
+  object().shape({
+    profitMargin: number().required('Profit Percentage is required').min(0).max(100).notOneOf([currentPm]),
+  });
 
-export default schema;
+export default getSchema;

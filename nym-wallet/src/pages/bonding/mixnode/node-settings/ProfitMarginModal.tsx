@@ -1,15 +1,16 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Divider, Stack, Typography } from '@mui/material';
+import { Box, Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
 import { SimpleDialog, TextFieldInput } from '../../components';
-import schema from './schema';
+import { Node as NodeIcon } from '../../../../svg-icons/node';
+import getSchema from './schema';
 
 export interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (pm: number) => Promise<void>;
+  onConfirm: (pm: number) => void;
   estimatedOpReward: MajorCurrencyAmount;
   currentPm: number;
 }
@@ -18,15 +19,14 @@ interface FormData {
   profitMargin: number;
 }
 
-const NodeSettingsModal = ({ open, onClose, onSubmit, estimatedOpReward, currentPm }: Props) => {
+const NodeSettingsModal = ({ open, onClose, onConfirm, estimatedOpReward, currentPm }: Props) => {
   const {
     control,
-    setValue,
-    setError,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: yupResolver(schema),
+    resolver: yupResolver(getSchema(currentPm)),
     defaultValues: {
       profitMargin: currentPm,
     },
@@ -35,37 +35,48 @@ const NodeSettingsModal = ({ open, onClose, onSubmit, estimatedOpReward, current
   return (
     <SimpleDialog
       open={open}
-      onClose={onClose}
-      onConfirm={handleSubmit(async (data) => onSubmit(data.profitMargin))}
-      title="Node Settings"
+      onClose={() => {
+        reset();
+        onClose();
+      }}
+      onConfirm={handleSubmit(async (data) => onConfirm(data.profitMargin))}
+      title={
+        <Stack direction="row" alignItems="center">
+          <NodeIcon sx={{ mr: 1, fontSize: 14 }} />
+          Node Settings
+        </Stack>
+      }
       subTitle="System Variables"
       confirmButton="Next"
       closeButton
+      disabled={Boolean(errors?.profitMargin)}
     >
-      <form>
-        <TextFieldInput
-          name="profitMargin"
-          control={control}
-          defaultValue=""
-          label="Set profit margin"
-          placeholder="Profit Margin"
-          error={Boolean(errors.profitMargin)}
-          helperText={
-            errors.profitMargin
-              ? errors.profitMargin.message
-              : 'Your new profit margin will be applied in the next epoch'
-          }
-          required
-          muiTextFieldProps={{ fullWidth: true }}
-          sx={{ mb: 2.5 }}
-        />
-      </form>
-      <Stack direction="row" justifyContent="space-between" mt={3}>
-        <Typography fontWeight={400}>Estimated operator reward for 10% PM</Typography>
-        <Typography fontWeight={400}>{`~${estimatedOpReward.amount} ${estimatedOpReward.denom}`}</Typography>
-      </Stack>
-      <Divider sx={{ my: 1 }} />
-      <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>
+      <Box sx={{ mt: 1 }}>
+        <form>
+          <TextFieldInput
+            name="profitMargin"
+            control={control}
+            defaultValue=""
+            label="Set profit margin"
+            placeholder="Profit Margin"
+            error={Boolean(errors.profitMargin)}
+            helperText={
+              errors.profitMargin
+                ? errors.profitMargin.message
+                : 'Your new profit margin will be applied in the next epoch'
+            }
+            required
+            muiTextFieldProps={{ fullWidth: true }}
+            sx={{ mb: 2.5 }}
+          />
+        </form>
+        <Stack direction="row" justifyContent="space-between" mt={3}>
+          <Typography fontWeight={400}>Estimated operator reward for 10% PM</Typography>
+          <Typography fontWeight={400}>{`~${estimatedOpReward.amount} ${estimatedOpReward.denom}`}</Typography>
+        </Stack>
+        <Divider sx={{ my: 1 }} />
+        <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>
+      </Box>
     </SimpleDialog>
   );
 };

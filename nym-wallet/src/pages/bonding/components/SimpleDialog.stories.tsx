@@ -33,3 +33,9 @@ Default.args = {
   cancelButton: false,
   disabled: false,
 };
+
+export const CenteredText = Template.bind({});
+CenteredText.args = {
+  ...Default.args,
+  sx: { textAlign: 'center' },
+};

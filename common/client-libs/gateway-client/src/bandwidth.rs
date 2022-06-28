@@ -3,6 +3,8 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_storage::Storage;
+#[cfg(all(target_arch = "wasm32", feature = "coconut"))]
+use crate::wasm_storage::StorageError;
 #[cfg(feature = "coconut")]
 use coconut_interface::Base58;
 #[cfg(feature = "coconut")]

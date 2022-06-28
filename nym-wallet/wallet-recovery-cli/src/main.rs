@@ -38,13 +38,27 @@ struct Args {
     /// Path to the wallet file that will be decrypted.
     #[clap(short, long)]
     file: String,
+
+    /// Raw mode. Skips trying to parse the decrypted content.
+    #[clap(short, long)]
+    raw: bool,
+}
+
+enum ParseMode {
+    Skip,
+    Try,
 }
 
 fn main() -> Result<()> {
     setup_logging();
     let args = Args::parse();
     let file = File::open(args.file)?;
-    decrypt_file(file, &args.password)
+    let parse = if args.raw {
+        ParseMode::Skip
+    } else {
+        ParseMode::Try
+    };
+    decrypt_file(file, &args.password, &parse)
 }
 
 fn setup_logging() {
@@ -59,7 +73,7 @@ fn setup_logging() {
     log_builder.init();
 }
 
-fn decrypt_file(file: File, passwords: &[String]) -> Result<()> {
+fn decrypt_file(file: File, passwords: &[String], parse: &ParseMode) -> Result<()> {
     let json_file: Value = serde_json::from_reader(file)?;
 
     // The logins are stored under the more generic name "accounts"
@@ -76,7 +90,7 @@ fn decrypt_file(file: File, passwords: &[String]) -> Result<()> {
     println!("We have {} password(s) to try", passwords.len());
     let mut successes = 0;
     for login in logins {
-        match decrypt_login(login, passwords) {
+        match decrypt_login(login, passwords, parse) {
             Ok(is_success) if is_success => successes += 1,
             Ok(_) => println!("None of the provided passwords succeeded"),
             Err(err) => println!("Failed: {}", err),
@@ -95,7 +109,7 @@ fn decrypt_file(file: File, passwords: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn decrypt_login(login: &Value, passwords: &[String]) -> Result<bool> {
+fn decrypt_login(login: &Value, passwords: &[String], parse: &ParseMode) -> Result<bool> {
     let id = &login["id"];
     println!("\nAttempting to parse login entry: {id}");
 
@@ -104,24 +118,34 @@ fn decrypt_login(login: &Value, passwords: &[String]) -> Result<bool> {
 
     for (i, password) in passwords.iter().enumerate() {
         print!("Trying to decrypt with password {i}:");
-        match decrypt_password(password, &ciphertext, &iv, &salt).and_then(|r| parse_results(&r)) {
-            Ok(DecryptedAccount::Mnemonic((mnemonic, hd_path))) => {
+
+        let result = decrypt_password(password, &ciphertext, &iv, &salt, parse);
+        match result {
+            Ok(DecryptedData::Raw(raw_decrypt)) => {
                 println!(" success!");
-                println!("  mnemonic: {mnemonic}");
-                println!("  hd_path: {hd_path}");
+                println!("{}", raw_decrypt);
                 return Ok(true);
             }
-            Ok(DecryptedAccount::Multiple(accounts)) => {
-                println!(" success!");
-                println!();
-                for (id, mnemonic, hd_path) in accounts {
-                    println!("  account_id: {id}");
+            Ok(DecryptedData::Json(json_decrypt)) => match parse_results(&json_decrypt) {
+                Ok(DecryptedAccount::Mnemonic((mnemonic, hd_path))) => {
+                    println!(" success!");
                     println!("  mnemonic: {mnemonic}");
                     println!("  hd_path: {hd_path}");
-                    println!();
+                    return Ok(true);
                 }
-                return Ok(true);
-            }
+                Ok(DecryptedAccount::Multiple(accounts)) => {
+                    println!(" success!");
+                    println!();
+                    for (id, mnemonic, hd_path) in accounts {
+                        println!("  account_id: {id}");
+                        println!("  mnemonic: {mnemonic}");
+                        println!("  hd_path: {hd_path}");
+                        println!();
+                    }
+                    return Ok(true);
+                }
+                Err(err) => println!(" failed to parse\n{}", err),
+            },
             Err(err) => println!(" failed\n{}", err),
         }
     }
@@ -154,7 +178,18 @@ fn base64_decode(ciphertext: &str, iv: &str, salt: &str) -> Result<(Vec<u8>, Vec
     Ok((ciphertext, iv, salt))
 }
 
-fn decrypt_password(password: &str, ciphertext: &[u8], iv: &[u8], salt: &[u8]) -> Result<Value> {
+enum DecryptedData {
+    Raw(String),
+    Json(Value),
+}
+
+fn decrypt_password(
+    password: &str,
+    ciphertext: &[u8],
+    iv: &[u8],
+    salt: &[u8],
+    parse: &ParseMode,
+) -> Result<DecryptedData> {
     let params = Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap();
 
     // Argon2id is default, V0x13 is default
@@ -175,8 +210,13 @@ fn decrypt_password(password: &str, ciphertext: &[u8], iv: &[u8], salt: &[u8]) -
         .map_err(|_| anyhow!("Unable to decrypt"))?;
     let plaintext = String::from_utf8(plaintext)?;
 
-    let json_data: Value = serde_json::from_str(&plaintext)?;
-    Ok(json_data)
+    match parse {
+        ParseMode::Skip => Ok(DecryptedData::Raw(plaintext)),
+        ParseMode::Try => {
+            let json_data: Value = serde_json::from_str(&plaintext)?;
+            Ok(DecryptedData::Json(json_data))
+        }
+    }
 }
 
 fn parse_results(json_data: &Value) -> Result<DecryptedAccount> {
@@ -232,7 +272,7 @@ mod tests {
         let wallet_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(file);
         let file = File::open(wallet_file).unwrap();
         let passwords: Vec<_> = passwords.into_iter().map(ToString::to_string).collect();
-        decrypt_file(file, &passwords).is_ok()
+        decrypt_file(file, &passwords, &ParseMode::Try).is_ok()
     }
 
     #[test]

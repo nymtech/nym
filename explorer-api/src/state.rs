@@ -64,39 +64,36 @@ impl ExplorerApiStateContext {
         let json_file_path = Path::new(&json_file);
         info!("Loading state from file {:?}...", json_file);
 
-        match File::open(json_file_path).map(serde_json::from_reader::<_, ExplorerApiStateOnDisk>) {
-            Ok(Ok(state)) => {
-                info!("Loaded state from file {:?}: {:?}", json_file, state);
-                ExplorerApiState {
-                    country_node_distribution:
-                        ThreadsafeCountryNodesDistribution::new_from_distribution(
-                            state.country_node_distribution,
-                        ),
-                    gateways: ThreadsafeGatewayCache::new(),
-                    mixnode: ThreadsafeMixNodeCache::new(),
-                    mixnodes: ThreadsafeMixNodesCache::new_with_location_cache(
-                        state.location_cache,
+        if let Ok(Ok(state)) =
+            File::open(json_file_path).map(serde_json::from_reader::<_, ExplorerApiStateOnDisk>)
+        {
+            info!("Loaded state from file {:?}: {:?}", json_file, state);
+            ExplorerApiState {
+                country_node_distribution:
+                    ThreadsafeCountryNodesDistribution::new_from_distribution(
+                        state.country_node_distribution,
                     ),
-                    ping: ThreadsafePingCache::new(),
-                    validators: ThreadsafeValidatorCache::new(),
-                    validator_client: ThreadsafeValidatorClient::new(),
-                }
+                gateways: ThreadsafeGatewayCache::new(),
+                mixnode: ThreadsafeMixNodeCache::new(),
+                mixnodes: ThreadsafeMixNodesCache::new_with_location_cache(state.location_cache),
+                ping: ThreadsafePingCache::new(),
+                validators: ThreadsafeValidatorCache::new(),
+                validator_client: ThreadsafeValidatorClient::new(),
             }
-            _ => {
-                warn!(
-                    "Failed to load state from file {:?}, starting with empty state!",
-                    json_file
-                );
+        } else {
+            warn!(
+                "Failed to load state from file {:?}, starting with empty state!",
+                json_file
+            );
 
-                ExplorerApiState {
-                    country_node_distribution: ThreadsafeCountryNodesDistribution::new(),
-                    gateways: ThreadsafeGatewayCache::new(),
-                    mixnode: ThreadsafeMixNodeCache::new(),
-                    mixnodes: ThreadsafeMixNodesCache::new(),
-                    ping: ThreadsafePingCache::new(),
-                    validators: ThreadsafeValidatorCache::new(),
-                    validator_client: ThreadsafeValidatorClient::new(),
-                }
+            ExplorerApiState {
+                country_node_distribution: ThreadsafeCountryNodesDistribution::new(),
+                gateways: ThreadsafeGatewayCache::new(),
+                mixnode: ThreadsafeMixNodeCache::new(),
+                mixnodes: ThreadsafeMixNodesCache::new(),
+                ping: ThreadsafePingCache::new(),
+                validators: ThreadsafeValidatorCache::new(),
+                validator_client: ThreadsafeValidatorClient::new(),
             }
         }
     }

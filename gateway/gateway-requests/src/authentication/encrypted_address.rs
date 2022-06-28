@@ -10,7 +10,7 @@ use thiserror::Error;
 
 pub const ENCRYPTED_ADDRESS_SIZE: usize = DESTINATION_ADDRESS_LENGTH;
 
-/// Replacement for what used to be an 'AuthToken'. We used to be generating an 'AuthToken' based on
+/// Replacement for what used to be an `AuthToken`. We used to be generating an `AuthToken` based on
 /// local secret and remote address in order to allow for authentication. Due to changes in registration
 /// and the fact we are deriving a shared key, we are encrypting remote's address with the previously
 /// derived shared key. If the value is as expected, then authentication is successful.

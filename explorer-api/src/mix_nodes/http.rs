@@ -32,7 +32,7 @@ pub(crate) async fn list_active_set(
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(get_mixnodes_by_status(
         state.inner.mixnodes.get_detailed_mixnodes().await,
-        MixnodeStatus::Active,
+        &MixnodeStatus::Active,
     ))
 }
 
@@ -43,7 +43,7 @@ pub(crate) async fn list_inactive_set(
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(get_mixnodes_by_status(
         state.inner.mixnodes.get_detailed_mixnodes().await,
-        MixnodeStatus::Inactive,
+        &MixnodeStatus::Inactive,
     ))
 }
 
@@ -54,7 +54,7 @@ pub(crate) async fn list_standby_set(
 ) -> Json<Vec<PrettyDetailedMixNodeBond>> {
     Json(get_mixnodes_by_status(
         state.inner.mixnodes.get_detailed_mixnodes().await,
-        MixnodeStatus::Standby,
+        &MixnodeStatus::Standby,
     ))
 }
 
@@ -66,9 +66,9 @@ pub(crate) async fn summary(state: &State<ExplorerApiStateContext>) -> Json<MixN
 
 pub(crate) async fn get_mixnode_summary(state: &State<ExplorerApiStateContext>) -> MixNodeSummary {
     let mixnodes = state.inner.mixnodes.get_detailed_mixnodes().await;
-    let active = get_mixnodes_by_status(mixnodes.clone(), MixnodeStatus::Active).len();
-    let standby = get_mixnodes_by_status(mixnodes.clone(), MixnodeStatus::Standby).len();
-    let inactive = get_mixnodes_by_status(mixnodes.clone(), MixnodeStatus::Inactive).len();
+    let active = get_mixnodes_by_status(mixnodes.clone(), &MixnodeStatus::Active).len();
+    let standby = get_mixnodes_by_status(mixnodes.clone(), &MixnodeStatus::Standby).len();
+    let inactive = get_mixnodes_by_status(mixnodes.clone(), &MixnodeStatus::Inactive).len();
     MixNodeSummary {
         count: mixnodes.len(),
         activeset: MixNodeActiveSetSummary {
@@ -81,10 +81,10 @@ pub(crate) async fn get_mixnode_summary(state: &State<ExplorerApiStateContext>) 
 
 fn get_mixnodes_by_status(
     all_mixnodes: Vec<PrettyDetailedMixNodeBond>,
-    status: MixnodeStatus,
+    status: &MixnodeStatus,
 ) -> Vec<PrettyDetailedMixNodeBond> {
     all_mixnodes
         .into_iter()
-        .filter(|mixnode| mixnode.status == status)
+        .filter(|mixnode| &mixnode.status == status)
         .collect()
 }

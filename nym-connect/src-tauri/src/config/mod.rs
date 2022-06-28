@@ -55,10 +55,11 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(service_provider: Option<&String>) {
+    pub async fn init(service_provider: Option<&String>, chosen_gateway_id: Option<&String>) {
         let service_provider = service_provider.map_or(PROVIDER_ADDRESS, String::as_str);
+        let chosen_gateway_id = chosen_gateway_id.map(String::as_str);
         info!("Initialising...");
-        init_socks5(service_provider, None).await;
+        init_socks5(service_provider, chosen_gateway_id).await;
         info!("Configuration saved 🚀");
     }
 

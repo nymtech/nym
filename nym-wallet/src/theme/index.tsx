@@ -11,7 +11,7 @@ import { NymWalletThemeWithMode } from './NymWalletTheme';
 
 export const NymWalletTheme: React.FC = ({ children }) => {
   const { mode } = useContext(AppContext);
-  return <NymWalletThemeWithMode mode={'dark'}>{children}</NymWalletThemeWithMode>;
+  return <NymWalletThemeWithMode mode={mode}>{children}</NymWalletThemeWithMode>;
 };
 
 export const AuthTheme: React.FC = ({ children }) => {

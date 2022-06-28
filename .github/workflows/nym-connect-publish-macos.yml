@@ -80,7 +80,7 @@ jobs:
         with:
           name: nym-connect_1.0.0_x64.dmg
           path: nym-connect/target/release/bundle/dmg/nym-connect_1.0.0_x64.dmg
-          retention-days: 5
+          retention-days: 30
 
       - name: Clean up keychain
         if: ${{ always() }}

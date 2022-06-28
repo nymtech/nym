@@ -79,7 +79,7 @@ jobs:
         with:
           name: nym-connect.AppImage.tar.gz
           path: nym-connect/target/release/bundle/msi/nym-connect_1.0.0_x64_en-US.msi
-          retention-days: 5
+          retention-days: 30
 
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1

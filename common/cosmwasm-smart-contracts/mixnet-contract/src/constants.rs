@@ -7,7 +7,8 @@ use cosmwasm_std::Decimal;
 // This is equivalent of representing our display coin with 6 decimal places.
 // I'm using this one as opposed to "Decimal::one()", as this provides us with higher accuracy
 // whilst providing no noticable drawbacks.
-pub const UNIT_DELEGATION_BASE: Decimal = Decimal::raw(1000000 * 1_000_000_000_000_000_000u128);
+pub const UNIT_DELEGATION_BASE: Decimal =
+    Decimal::raw(1_000_000_000 * 1_000_000_000_000_000_000u128);
 
 #[cfg(test)]
 mod tests {
@@ -18,7 +19,7 @@ mod tests {
         // a sanity check test to make sure Decimal's `DECIMAL_FRACTIONAL` internal implementation hasn't changed
         assert_eq!(
             UNIT_DELEGATION_BASE,
-            Decimal::one() * Decimal::from_atomics(1000000u32, 0).unwrap()
+            Decimal::one() * Decimal::from_atomics(1_000_000_000u32, 0).unwrap()
         )
     }
 }

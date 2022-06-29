@@ -10,6 +10,7 @@ pub(crate) struct Hardware {
     crypto_hardware: Option<CryptoHardware>,
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Serialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct CryptoHardware {
@@ -44,9 +45,9 @@ fn hardware_from_sysinfo(crypto_hardware: Option<CryptoHardware>) -> Option<Hard
         let cores = system.cpus();
         let num_cores = cores.len();
         Some(Hardware {
-            crypto_hardware,
             ram,
             num_cores,
+            crypto_hardware,
         })
     } else {
         None

@@ -27,7 +27,7 @@ impl LayerDistribution {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractStateParams {
     // so currently interval_length is being unused and validator API performs rewarding
     // based on its own interval length config value. I guess that's fine for time being
@@ -72,7 +72,7 @@ impl Display for ContractStateParams {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RewardingResult {
     pub node_reward: Uint128,
 }
@@ -124,21 +124,21 @@ pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PagedRewardedSetResponse {
     pub identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
     pub start_next_after: Option<IdentityKey>,
     pub at_height: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct RewardedSetUpdateDetails {
     pub refresh_rate_blocks: u64,
     pub last_refreshed_block: u64,
     pub current_height: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct IntervalRewardedSetHeightsResponse {
     pub interval_id: u32,
     pub heights: Vec<u64>,

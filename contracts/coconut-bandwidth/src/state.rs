@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 pub const ADMIN: Admin = Admin::new("admin");
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 pub struct Config {
     pub multisig_addr: Addr,
     pub pool_addr: Addr,

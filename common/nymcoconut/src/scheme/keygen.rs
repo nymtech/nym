@@ -114,7 +114,7 @@ impl Base58 for SecretKey {}
 
 // TODO: perhaps change points to affine representation
 // to make verification slightly more efficient?
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,

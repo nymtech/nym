@@ -40,7 +40,7 @@ const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
 const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Config {
     #[serde(default)]
     base: Base,
@@ -86,7 +86,7 @@ impl NymConfig for Config {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct Base {
     /// ID specifies the human readable ID of this particular validator-api.
@@ -116,7 +116,7 @@ impl Default for Base {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct NetworkMonitor {
     //  Mixnodes and gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
@@ -220,7 +220,7 @@ impl Default for NetworkMonitor {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct NodeStatusAPI {
     /// Path to the database file containing uptime statuses for all mixnodes and gateways.
@@ -243,7 +243,7 @@ impl Default for NodeStatusAPI {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct TopologyCacher {
     #[serde(with = "humantime_serde")]
@@ -258,7 +258,7 @@ impl Default for TopologyCacher {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct Rewarding {
     /// Specifies whether rewarding service is enabled in this process.
@@ -279,7 +279,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.

@@ -1,20 +1,20 @@
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct ConnectResult {
     pub address: String,
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct DisconnectResult {
     pub success: bool,
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ConnectionStatusKind {
     Disconnected,

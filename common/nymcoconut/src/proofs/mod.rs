@@ -327,7 +327,7 @@ impl ProofCmCs {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ProofKappaZeta {
     // c
     challenge: Scalar,

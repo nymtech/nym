@@ -12,7 +12,9 @@ use crate::nymd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
-use cosmrs::feegrant::{AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance};
+use cosmrs::feegrant::{
+    AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance,
+};
 use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
@@ -454,6 +456,25 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| NymdError::SerializationError("MsgGrantAllowance".to_owned()))?;
 
         self.sign_and_broadcast(granter, vec![grant_allowance_msg], fee, memo)
+            .await?
+            .check_response()
+    }
+
+    async fn revoke_allowance(
+        &self,
+        granter: &AccountId,
+        grantee: &AccountId,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<TxResponse, NymdError> {
+        let revoke_allowance_msg = MsgRevokeAllowance {
+            granter: granter.to_owned(),
+            grantee: grantee.to_owned(),
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("MsgRevokeAllowance".to_owned()))?;
+
+        self.sign_and_broadcast(granter, vec![revoke_allowance_msg], fee, memo)
             .await?
             .check_response()
     }

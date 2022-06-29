@@ -8,7 +8,7 @@ use log::*;
 use coconut_interface::{Credential, VerificationKey};
 use network_defaults::MIX_DENOM;
 use validator_client::{
-    nymd::{traits::MultisigSigningClient, Coin, NymdClient, SigningNymdClient},
+    nymd::{traits::MultisigSigningClient, Coin, Fee, NymdClient, SigningNymdClient},
     ApiClient,
 };
 
@@ -47,6 +47,10 @@ impl CoconutVerifier {
     }
 
     pub async fn release_funds(&self, credential: &Credential) -> Result<(), RequestHandlingError> {
+        // Use a custom multiplier for revoke, as the default one (1.3)
+        // isn't enough
+        let revoke_fee = Some(Fee::Auto(Some(1.5)));
+
         let first_api_client = self
             .api_clients
             .get(0)
@@ -69,10 +73,17 @@ impl CoconutVerifier {
             credential.clone(),
             self.nymd_client.address().clone(),
         );
-        let proposal_id = first_api_client
-            .propose_release_funds(&req)
-            .await?
-            .proposal_id;
+        let ret = first_api_client.propose_release_funds(&req).await;
+
+        self.nymd_client
+            .revoke_allowance(
+                &first_api_cosmos_addr,
+                format!("Cleanup the previous allowance for releasing funds"),
+                revoke_fee.clone(),
+            )
+            .await?;
+
+        let proposal_id = ret?.proposal_id;
 
         let req = validator_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),
@@ -92,11 +103,15 @@ impl CoconutVerifier {
                     None,
                 )
                 .await?;
-            if !client
-                .verify_bandwidth_credential(&req)
-                .await?
-                .verification_result
-            {
+            let ret = client.verify_bandwidth_credential(&req).await;
+            self.nymd_client
+                .revoke_allowance(
+                    &api_cosmos_addr,
+                    format!("Cleanup the previous allowance for releasing funds"),
+                    revoke_fee.clone(),
+                )
+                .await?;
+            if !ret?.verification_result {
                 debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.validator_api.current_url());
             }
         }

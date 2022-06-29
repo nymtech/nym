@@ -873,6 +873,22 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    /// Revoke a fee allowance from one address to another
+    pub async fn revoke_allowance(
+        &self,
+        grantee: &AccountId,
+        memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
+    ) -> Result<TxResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        self.client
+            .revoke_allowance(self.address(), grantee, fee, memo)
+            .await
+    }
+
     pub async fn execute<M>(
         &self,
         contract_address: &AccountId,

@@ -42,6 +42,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - all: updated `rocket` to `0.5.0-rc.2`.
 - network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
 - gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
+- validator-api: fee payment for multisig operations comes from the gateway account instead of the validator APIs' accounts ([#1419])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -62,6 +63,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1388]: https://github.com/nymtech/nym/pull/1388
 [#1393]: https://github.com/nymtech/nym/pull/1393
 [#1404]: https://github.com/nymtech/nym/pull/1404
+[#1419]: https://github.com/nymtech/nym/pull/1419
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

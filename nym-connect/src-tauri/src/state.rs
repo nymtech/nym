@@ -8,10 +8,12 @@ use config::NymConfig;
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{Socks5ControlMessage, Socks5ControlMessageSender};
 
-use crate::config::SOCKS5_CONFIG_ID;
-use crate::models::{
-    AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
-    APP_EVENT_CONNECTION_STATUS_CHANGED,
+use crate::{
+    config::append_config_id,
+    models::{
+        AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
+        APP_EVENT_CONNECTION_STATUS_CHANGED,
+    },
 };
 use tauri::Manager;
 
@@ -64,7 +66,15 @@ impl State {
     }
 
     pub async fn init_config(&self) {
-        crate::config::Config::init(self.service_provider.as_ref(), self.gateway.as_ref()).await;
+        let service_provider = self
+            .service_provider
+            .as_ref()
+            .expect("Attempting to init without service provider");
+        let gateway = self
+            .gateway
+            .as_ref()
+            .expect("Attempting to init without gateway");
+        crate::config::Config::init(service_provider, gateway).await;
     }
 
     pub async fn start_connecting(&mut self, window: &tauri::Window<tauri::Wry>) {
@@ -76,7 +86,12 @@ impl State {
         self.init_config().await;
 
         // Kick of the main task and get the channel for controlling it
-        let (sender, used_gateway) = start_nym_socks5_client();
+        let id = append_config_id(
+            self.gateway
+                .as_ref()
+                .expect("Attempting to start without gateway"),
+        );
+        let (sender, used_gateway) = start_nym_socks5_client(&id);
         self.gateway = Some(used_gateway.gateway_id);
         self.socks5_client_sender = Some(sender);
 
@@ -99,10 +114,9 @@ impl State {
     }
 }
 
-fn start_nym_socks5_client() -> (Socks5ControlMessageSender, GatewayEndpoint) {
-    let id: &str = SOCKS5_CONFIG_ID;
-
-    info!("Loading config from file");
+fn start_nym_socks5_client(id: &str) -> (Socks5ControlMessageSender, GatewayEndpoint) {
+    info!("Loading config from file: {id}");
+    // TODO: handle this gracefully!
     let config = nym_socks5::client::config::Config::load_from_file(Some(id)).unwrap();
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 

@@ -194,7 +194,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         'Helvetica Neue',
       ].join(','),
       fontSize: 14,
-      fontWeightRegular: 500,
+      fontWeightRegular: 400,
       button: {
         textTransform: 'none',
         fontWeight: '600',
@@ -218,8 +218,18 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       },
     },
     components: {
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            fontSize: 14,
+          },
+        },
+      },
       MuiButton: {
         styleOverrides: {
+          root: {
+            fontSize: 16,
+          },
           sizeLarge: {
             height: 55,
           },
@@ -242,7 +252,13 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       },
       MuiTableCell: {
         styleOverrides: {
+          root: {
+            padding: 0,
+            paddingTop: '16px',
+            paddingBottom: '16px',
+          },
           head: {
+            fontWeight: '400',
             color: nymPalette.text.muted,
           },
         },

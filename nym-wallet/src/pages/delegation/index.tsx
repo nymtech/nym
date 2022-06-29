@@ -317,7 +317,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5, color: 'primary.contrastText', fontSize: 16 }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
             >
               Delegate
             </Button>

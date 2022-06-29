@@ -41,7 +41,7 @@ export const SimpleModal: React.FC<{
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography fontSize={22} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
+        <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
           {header}
         </Typography>
         {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" color="primary" />}
@@ -50,9 +50,9 @@ export const SimpleModal: React.FC<{
         <Typography
           mt={0.5}
           mb={3}
-          fontSize="small"
+          fontSize={12}
           color={(theme) => theme.palette.text.secondary}
-          sx={{ color: 'text.primary', ...subHeaderStyles }}
+          sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
         >
           {subHeader}
         </Typography>

@@ -100,7 +100,8 @@ export const Nav = () => {
                 sx={{
                   color: location.pathname === route ? 'primary.main' : 'text.primary',
                   '& .MuiListItemText-primary': {
-                    fontWeight: '600',
+                    fontSize: 14,
+                    fontWeight: (theme) => (theme.palette.mode === 'light' ? 600 : 500),
                   },
                 }}
                 primary={label}

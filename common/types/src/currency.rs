@@ -60,7 +60,7 @@ impl TryFrom<CosmosDenom> for CurrencyDenom {
     type Error = TypesError;
 
     fn try_from(value: CosmosDenom) -> Result<Self, Self::Error> {
-        CurrencyDenom::parse(&value.to_string())
+        CurrencyDenom::parse(value.as_ref())
     }
 }
 

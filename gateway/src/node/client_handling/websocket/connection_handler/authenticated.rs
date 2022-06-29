@@ -223,7 +223,9 @@ where
             ));
         }
 
-        let req = coconut_interface::ProposeReleaseFundsRequestBody::new(credential.clone());
+        let req = validator_api_requests::coconut::ProposeReleaseFundsRequestBody::new(
+            credential.clone(),
+        );
         let proposal_id = self
             .inner
             .coconut_verifier
@@ -237,7 +239,10 @@ where
             .await?
             .proposal_id;
 
-        let req = coconut_interface::VerifyCredentialBody::new(credential.clone(), proposal_id);
+        let req = validator_api_requests::coconut::VerifyCredentialBody::new(
+            credential.clone(),
+            proposal_id,
+        );
         for client in self.inner.coconut_verifier.api_clients().iter().skip(1) {
             if !client
                 .verify_bandwidth_credential(&req)
@@ -248,7 +253,7 @@ where
             }
         }
 
-        let req = coconut_interface::ExecuteReleaseFundsRequestBody::new(proposal_id);
+        let req = validator_api_requests::coconut::ExecuteReleaseFundsRequestBody::new(proposal_id);
         self.inner
             .coconut_verifier
             .api_clients()

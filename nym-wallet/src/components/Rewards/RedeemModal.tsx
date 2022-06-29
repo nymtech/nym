@@ -1,24 +1,40 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
+import { FeeDetails } from '@nymproject/types';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { simulateClaimDelgatorReward, simulateVestingClaimDelgatorReward } from 'src/requests';
+import { ModalFee } from '../Modals/ModalFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { FeeWarning } from '../FeeWarning';
 
 export const RedeemModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string) => void;
+  onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  fee: number;
+  minimum?: number;
   currency: string;
   message: string;
-}> = ({ open, onClose, onOk, identityKey, amount, fee, currency, message }) => {
-  const handleOk = () => {
+  usesVestingTokens: boolean;
+}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens }) => {
+  const { fee, isFeeLoading, feeError, getFee } = useGetFee();
+
+  const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey);
+      onOk(identityKey, fee);
     }
   };
+
+  useEffect(() => {
+    if (usesVestingTokens) {
+      getFee(simulateVestingClaimDelgatorReward, identityKey);
+    } else {
+      getFee(simulateClaimDelgatorReward, identityKey);
+    }
+  }, []);
+
   return (
     <SimpleModal
       open={open}
@@ -49,8 +65,8 @@ export const RedeemModal: React.FC<{
           {fee} {currency}
         </Typography>
       </Stack>
-
-      {amount < fee && <FeeWarning amount={amount} fee={fee} />}
+      {fee && <FeeWarning amount={amount} fee={fee} />}
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

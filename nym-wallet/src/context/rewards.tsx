@@ -1,6 +1,6 @@
 import React, { createContext, FC, useContext, useEffect, useMemo, useState } from 'react';
 import { Network } from 'src/types';
-import { TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
 import { claimDelegatorRewards, compoundDelegatorRewards } from '../requests';
 
@@ -9,8 +9,8 @@ type TRewardsContext = {
   error?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
-  claimRewards: (identity: string) => Promise<TransactionExecuteResult[]>;
-  compoundRewards: (identity: string) => Promise<TransactionExecuteResult[]>;
+  claimRewards: (identity: string, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
+  compoundRewards: (identity: string, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
 };
 
 export type TRewardsTransaction = {

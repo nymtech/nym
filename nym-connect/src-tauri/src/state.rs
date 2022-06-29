@@ -1,3 +1,4 @@
+use client_core::config::GatewayEndpoint;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use log::info;
@@ -16,6 +17,8 @@ use tauri::Manager;
 
 pub struct State {
     status: ConnectionStatusKind,
+    service_provider: Option<String>,
+    gateway: Option<String>,
     socks5_client_sender: Option<Socks5ControlMessageSender>,
 }
 
@@ -23,6 +26,8 @@ impl State {
     pub fn new() -> Self {
         State {
             status: ConnectionStatusKind::Disconnected,
+            service_provider: None,
+            gateway: None,
             socks5_client_sender: None,
         }
     }
@@ -42,8 +47,24 @@ impl State {
             .unwrap();
     }
 
-    pub async fn init_config() {
-        crate::config::Config::init().await;
+    pub fn get_service_provider(&self) -> &Option<String> {
+        &self.service_provider
+    }
+
+    pub fn set_service_provider(&mut self, provider: String) {
+        self.service_provider = Some(provider);
+    }
+
+    pub fn get_gateway(&self) -> &Option<String> {
+        &self.gateway
+    }
+
+    pub fn set_gateway(&mut self, gateway: String) {
+        self.gateway = Some(gateway);
+    }
+
+    pub async fn init_config(&self) {
+        crate::config::Config::init(self.service_provider.as_ref(), self.gateway.as_ref()).await;
     }
 
     pub async fn start_connecting(&mut self, window: &tauri::Window<tauri::Wry>) {
@@ -52,10 +73,11 @@ impl State {
         self.status = ConnectionStatusKind::Connecting;
 
         // Setup configuration by writing to file
-        Self::init_config().await;
+        self.init_config().await;
 
         // Kick of the main task and get the channel for controlling it
-        let sender = start_nym_socks5_client();
+        let (sender, used_gateway) = start_nym_socks5_client();
+        self.gateway = Some(used_gateway.gateway_id);
         self.socks5_client_sender = Some(sender);
 
         self.status = ConnectionStatusKind::Connected;
@@ -77,11 +99,12 @@ impl State {
     }
 }
 
-fn start_nym_socks5_client() -> Socks5ControlMessageSender {
-    let id: &str = &SOCKS5_CONFIG_ID;
+fn start_nym_socks5_client() -> (Socks5ControlMessageSender, GatewayEndpoint) {
+    let id: &str = SOCKS5_CONFIG_ID;
 
     info!("Loading config from file");
     let config = nym_socks5::client::config::Config::load_from_file(Some(id)).unwrap();
+    let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
     let mut socks5_client = Socks5NymClient::new(config);
     info!("Starting socks5 client");
@@ -97,5 +120,5 @@ fn start_nym_socks5_client() -> Socks5ControlMessageSender {
         });
     });
 
-    sender
+    (sender, used_gateway)
 }

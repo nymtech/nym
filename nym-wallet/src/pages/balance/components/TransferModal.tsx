@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, CircularProgress } from '@mui/material';
 import { FeeDetails } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
-import { ModalListItem } from 'src/components/Delegation/ModalListItem';
+import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { AppContext, urls } from 'src/context';
 import { FeeWarning } from 'src/components/FeeWarning';
 import { withdrawVestedCoins } from 'src/requests';
@@ -89,8 +89,8 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
               value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : <CircularProgress size={15} />}
               divider
             />
-            {userBalance.tokenAllocation?.spendable && fee?.amount?.amount && (
-              <FeeWarning fee={+fee.amount.amount} amount={+userBalance.tokenAllocation.spendable} />
+            {userBalance.tokenAllocation?.spendable && fee && (
+              <FeeWarning fee={fee} amount={+userBalance.tokenAllocation.spendable} />
             )}
           </>
         )}

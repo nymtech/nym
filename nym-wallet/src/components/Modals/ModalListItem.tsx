@@ -1,12 +1,12 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { ModalDivider } from '../Modals/ModalDivider';
+import { ModalDivider } from './ModalDivider';
 
 export const ModalListItem: React.FC<{
   label: string;
   divider?: boolean;
   hidden?: boolean;
-  value: React.ReactNode;
+  value: string | React.ReactNode;
 }> = ({ label, value, hidden, divider }) => (
   <Box sx={{ display: hidden ? 'none' : 'block' }}>
     <Stack direction="row" justifyContent="space-between">

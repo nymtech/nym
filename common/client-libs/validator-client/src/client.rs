@@ -2,27 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use coconut_interface::{
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
+use url::Url;
+use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
     ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
-use url::Url;
-
 use validator_api_requests::models::{
     CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
+
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::{MixNodeBondAnnotated, UptimeResponse};
 
 #[cfg(feature = "nymd-client")]
-use network_defaults::DEFAULT_NETWORK;
-
-#[cfg(feature = "nymd-client")]
 use crate::nymd::{
-    error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
+    self, error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 
 #[cfg(feature = "nymd-client")]
@@ -32,18 +29,18 @@ use mixnet_contract_common::{
     RewardedSetUpdateDetails,
 };
 #[cfg(feature = "nymd-client")]
+use network_defaults::{all::Network, NymNetworkDetails};
+#[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
-    network: network_defaults::all::Network,
     api_url: Url,
     nymd_url: Url,
-    mixnet_contract_address: cosmrs::AccountId,
-    vesting_contract_address: cosmrs::AccountId,
-    bandwidth_claim_contract_address: cosmrs::AccountId,
+
+    nymd_config: nymd::Config,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -53,42 +50,44 @@ pub struct Config {
 
 #[cfg(feature = "nymd-client")]
 impl Config {
-    pub fn new(network: network_defaults::all::Network, nymd_url: Url, api_url: Url) -> Self {
-        Config {
-            network,
-            nymd_url,
-            mixnet_contract_address: DEFAULT_NETWORK
-                .mixnet_contract_address()
+    pub fn try_from_nym_network_details(
+        details: &NymNetworkDetails,
+    ) -> Result<Self, ValidatorClientError> {
+        let mut api_url = details
+            .endpoints
+            .iter()
+            .filter_map(|d| d.api_url.as_ref())
+            .map(|url| Url::parse(url))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if api_url.is_empty() {
+            return Err(ValidatorClientError::NoAPIUrlAvailable);
+        }
+
+        Ok(Config {
+            api_url: api_url.pop().unwrap(),
+            nymd_url: details.endpoints[0]
+                .nymd_url
                 .parse()
-                .expect("Error parsing mixnet contract address"),
-            vesting_contract_address: DEFAULT_NETWORK
-                .vesting_contract_address()
-                .parse()
-                .expect("Error parsing vesting contract address"),
-            bandwidth_claim_contract_address: DEFAULT_NETWORK
-                .bandwidth_claim_contract_address()
-                .parse()
-                .expect("Error parsing bandwidth claim contract address"),
-            api_url,
+                .map_err(ValidatorClientError::MalformedUrlProvided)?,
+            nymd_config: nymd::Config::try_from_nym_network_details(details)?,
             mixnode_page_limit: None,
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
             rewarded_set_page_limit: None,
-        }
+        })
     }
 
-    pub fn with_mixnode_contract_address(mut self, address: cosmrs::AccountId) -> Self {
-        self.mixnet_contract_address = address;
+    // TODO: this method shouldn't really exist as all information should be included immediately
+    // via `from_nym_network_details`, but it's here for, you guessed it, legacy compatibility
+    pub fn with_urls(mut self, nymd_url: Url, api_url: Url) -> Self {
+        self.nymd_url = nymd_url;
+        self.api_url = api_url;
         self
     }
 
-    pub fn with_vesting_contract_address(mut self, address: cosmrs::AccountId) -> Self {
-        self.vesting_contract_address = address;
-        self
-    }
-
-    pub fn with_bandwidth_claim_contract_address(mut self, address: cosmrs::AccountId) -> Self {
-        self.bandwidth_claim_contract_address = address;
+    pub fn with_nymd_url(mut self, nymd_url: Url) -> Self {
+        self.nymd_url = nymd_url;
         self
     }
 
@@ -115,10 +114,11 @@ impl Config {
 
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
-    pub network: network_defaults::all::Network,
-    mixnet_contract_address: cosmrs::AccountId,
-    vesting_contract_address: cosmrs::AccountId,
-    bandwidth_claim_contract_address: cosmrs::AccountId,
+    // compatibility : (
+    pub network: Network,
+
+    // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
+    // non-trivial amount of work and it's out of scope of the current branch
     mnemonic: Option<bip39::Mnemonic>,
 
     mixnode_page_limit: Option<u32>,
@@ -135,29 +135,26 @@ pub struct Client<C> {
 impl Client<SigningNymdClient> {
     pub fn new_signing(
         config: Config,
+        // we need to provide network argument due to compatibility with other components (wallet...)
+        // that rely on its existence...
+        network: Network,
         mnemonic: bip39::Mnemonic,
     ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect_with_mnemonic(
-            config.network,
+            config.nymd_config.clone(),
             config.nymd_url.as_str(),
             mnemonic.clone(),
             None,
-        )?
-        .with_mixnet_contract_address(config.mixnet_contract_address.clone())
-        .with_vesting_contract_address(config.vesting_contract_address.clone())
-        .with_bandwidth_claim_contract_address(config.bandwidth_claim_contract_address.clone());
+        )?;
 
         Ok(Client {
-            network: config.network,
-            mixnet_contract_address: config.mixnet_contract_address,
-            vesting_contract_address: config.vesting_contract_address,
-            bandwidth_claim_contract_address: config.bandwidth_claim_contract_address,
+            network,
             mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
-            rewarded_set_page_limit: None,
+            rewarded_set_page_limit: config.rewarded_set_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -165,14 +162,11 @@ impl Client<SigningNymdClient> {
 
     pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
         self.nymd = NymdClient::connect_with_mnemonic(
-            self.network,
+            self.nymd.current_config().clone(),
             new_endpoint.as_ref(),
             self.mnemonic.clone().unwrap(),
             None,
-        )?
-        .with_mixnet_contract_address(self.mixnet_contract_address.clone())
-        .with_vesting_contract_address(self.vesting_contract_address.clone())
-        .with_bandwidth_claim_contract_address(self.bandwidth_claim_contract_address.clone());
+        )?;
         Ok(())
     }
 
@@ -183,17 +177,18 @@ impl Client<SigningNymdClient> {
 
 #[cfg(feature = "nymd-client")]
 impl Client<QueryNymdClient> {
-    pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
+    pub fn new_query(
+        config: Config,
+        // we need to provide network argument due to compatibility with other components (wallet...)
+        // that rely on its existence...
+        network: Network,
+    ) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
-        let nymd_client = NymdClient::connect(config.nymd_url.as_str())?
-            .with_mixnet_contract_address(config.mixnet_contract_address.clone())
-            .with_vesting_contract_address(config.vesting_contract_address.clone());
+        let nymd_client =
+            NymdClient::connect(config.nymd_config.clone(), config.nymd_url.as_str())?;
 
         Ok(Client {
-            network: config.network,
-            mixnet_contract_address: config.mixnet_contract_address,
-            vesting_contract_address: config.vesting_contract_address,
-            bandwidth_claim_contract_address: config.bandwidth_claim_contract_address,
+            network,
             mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -205,10 +200,7 @@ impl Client<QueryNymdClient> {
     }
 
     pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nymd = NymdClient::connect(new_endpoint.as_ref())?
-            .with_mixnet_contract_address(self.mixnet_contract_address.clone())
-            .with_vesting_contract_address(self.vesting_contract_address.clone())
-            .with_bandwidth_claim_contract_address(self.bandwidth_claim_contract_address.clone());
+        self.nymd = NymdClient::connect(self.nymd.current_config().clone(), new_endpoint.as_ref())?;
         Ok(())
     }
 }
@@ -222,11 +214,12 @@ impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
     pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
-        self.mixnet_contract_address = mixnet_contract_address
+        self.nymd
+            .set_mixnet_contract_address(mixnet_contract_address)
     }
 
     pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
-        self.mixnet_contract_address.clone()
+        self.nymd.mixnet_contract_address().clone()
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {

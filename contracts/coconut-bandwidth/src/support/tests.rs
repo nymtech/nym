@@ -22,7 +22,7 @@ pub mod helpers {
         let env = mock_env();
         let info = mock_info("creator", &[]);
         instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-        return deps;
+        deps
     }
 
     pub fn mock_app(init_funds: &[Coin]) -> App {

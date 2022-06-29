@@ -1,9 +1,10 @@
 import React from 'react';
 import { Warning } from '@mui/icons-material';
+import { FeeDetails } from '@nymproject/types';
 import { Alert, AlertTitle } from '@mui/material';
 
-export const FeeWarning = ({ fee, amount }: { fee: number; amount: number }) => {
-  if (fee > amount) {
+export const FeeWarning = ({ fee, amount }: { fee: FeeDetails; amount: number }) => {
+  if (fee.amount && +fee.amount.amount > amount) {
     return (
       <Alert color="warning" sx={{ mt: 3 }} icon={<Warning />}>
         <AlertTitle>Warning: fees are greater than the reward</AlertTitle>

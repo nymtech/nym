@@ -3,6 +3,7 @@ import { getDelegationSummary, undelegateAllFromMixnode } from 'src/requests/del
 import {
   DelegationEvent,
   DelegationWithEverything,
+  FeeDetails,
   MajorCurrencyAmount,
   TransactionExecuteResult,
 } from '@nymproject/types';
@@ -21,8 +22,13 @@ export type TDelegationContext = {
   addDelegation: (
     data: { identity: string; amount: MajorCurrencyAmount },
     tokenPool: TPoolOption,
+    fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
-  undelegate: (identity: string, usesVestingContractTokens: boolean) => Promise<TransactionExecuteResult[]>;
+  undelegate: (
+    identity: string,
+    usesVestingContractTokens: boolean,
+    fee?: FeeDetails,
+  ) => Promise<TransactionExecuteResult[]>;
 };
 
 export type TDelegationTransaction = {
@@ -50,7 +56,11 @@ export const DelegationContextProvider: FC<{
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
 
-  const addDelegation = async (data: { identity: string; amount: MajorCurrencyAmount }, tokenPool: TPoolOption) => {
+  const addDelegation = async (
+    data: { identity: string; amount: MajorCurrencyAmount },
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => {
     try {
       let tx;
 

@@ -11,6 +11,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
+- explorer-api: add apy values to `mix_nodes` endpoint
 - gateway: Added gateway coconut verifications and validator-api communication for double spending protection ([#1261])
 - network-explorer-ui: Upgrade to React Router 6
 - rewarding: replace circulating supply with staking supply in reward calculations ([#1324])
@@ -22,6 +23,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
+- validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
 
 ### Fixed
 
@@ -29,10 +31,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: the mixnode learned how to shutdown gracefully
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 - native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
+- native & socks5 clients: deduplicate big chunks of init logic
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 
 ### Changed
 
+- nym-connect: reuse config id instead of creating a new id on each connection.
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - all: updated `rocket` to `0.5.0-rc.2`.
@@ -57,6 +61,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1376]: https://github.com/nymtech/nym/pull/1376
 [#1388]: https://github.com/nymtech/nym/pull/1388
 [#1393]: https://github.com/nymtech/nym/pull/1393
+[#1404]: https://github.com/nymtech/nym/pull/1404
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

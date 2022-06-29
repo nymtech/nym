@@ -51,6 +51,8 @@ pub enum TypesError {
         #[from]
         source: cosmwasm_std::DecimalRangeExceeded,
     },
+    #[error("No validator API URL configured")]
+    NoValidatorApiUrlConfigured,
     #[error("{0} is not a valid amount string")]
     InvalidAmount(String),
     #[error("{0} is not a valid denomination string")]
@@ -78,6 +80,7 @@ impl From<ValidatorClientError> for TypesError {
             ValidatorClientError::ValidatorAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NymdError(e) => e.into(),
+            ValidatorClientError::NoAPIUrlAvailable => TypesError::NoValidatorApiUrlConfigured,
         }
     }
 }

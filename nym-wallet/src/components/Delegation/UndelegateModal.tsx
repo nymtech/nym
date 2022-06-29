@@ -1,23 +1,37 @@
-import React from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
+import React, { useEffect } from 'react';
+import { FeeDetails } from '@nymproject/types';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { simulateUndelegateFromMixnode, simulateVestingUndelegateFromMixnode } from 'src/requests';
+import { ModalFee } from '../Modals/ModalFee';
+import { ModalListItem } from '../Modals/ModalListItem';
 import { SimpleModal } from '../Modals/SimpleModal';
 
 export const UndelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, usesVestingContractTokens: boolean) => void;
+  onOk?: (identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  fee: number;
   currency: string;
   usesVestingContractTokens: boolean;
-}> = ({ identityKey, open, onClose, onOk, amount, fee, currency, usesVestingContractTokens }) => {
-  const handleOk = () => {
+}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens }) => {
+  const { fee, isFeeLoading, feeError, getFee } = useGetFee();
+
+  useEffect(() => {
+    if (usesVestingContractTokens) getFee(simulateVestingUndelegateFromMixnode, { identity: identityKey });
+    else {
+      getFee(simulateUndelegateFromMixnode, identityKey);
+    }
+  }, []);
+
+  const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey, usesVestingContractTokens);
+      onOk(identityKey, usesVestingContractTokens, fee);
     }
   };
+
   return (
     <SimpleModal
       open={open}
@@ -26,6 +40,7 @@ export const UndelegateModal: React.FC<{
       header="Undelegate"
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
+      okDisabled={!fee}
     >
       <IdentityKeyFormField
         readOnly
@@ -35,25 +50,15 @@ export const UndelegateModal: React.FC<{
         showTickOnValid={false}
       />
 
-      <Stack direction="row" justifyContent="space-between" my={3}>
-        <Typography fontWeight={600}>Delegation amount:</Typography>
-        <Typography fontWeight={600}>
-          {amount} {currency}
-        </Typography>
-      </Stack>
+      <Box sx={{ mt: 3 }}>
+        <ModalListItem label="Delegation amount" value={`${amount} ${currency}`} divider />
+      </Box>
 
       <Typography mb={5} fontSize="smaller">
         Tokens will be transferred to account you are logged in with now
       </Typography>
 
-      <Stack direction="row" justifyContent="space-between" mt={3}>
-        <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          Est. fee for this transaction:
-        </Typography>
-        <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          {fee} {currency}
-        </Typography>
-      </Stack>
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

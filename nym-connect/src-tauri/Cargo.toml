@@ -35,6 +35,7 @@ url = "2.2"
 log = "0.4"
 pretty_env_logger = "0.4.0"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
+reqwest = { version = "0.11", features = ["json"] }
 
 client-core = { path = "../../clients/client-core" }
 config = { path = "../../common/config" }

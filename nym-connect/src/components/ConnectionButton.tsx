@@ -3,17 +3,21 @@ import { ConnectionStatusKind } from '../types';
 
 export const ConnectionButton: React.FC<{
   status: ConnectionStatusKind;
+  disabled?: boolean;
   busy?: boolean;
   isError?: boolean;
   onClick?: (status: ConnectionStatusKind) => void;
-}> = ({ status, isError, onClick, busy }) => {
+}> = ({ status, disabled, isError, onClick, busy }) => {
   const [hover, setHover] = React.useState<boolean>(false);
 
   const handleClick = React.useCallback(() => {
+    if (disabled === true) {
+      return;
+    }
     if (onClick) {
       onClick(status);
     }
-  }, [status]);
+  }, [status, disabled]);
 
   const statusText = getStatusText(status, hover);
   const statusTextColor = isError ? '#40475C' : '#FFF';
@@ -21,16 +25,17 @@ export const ConnectionButton: React.FC<{
 
   return (
     <svg
+      opacity={disabled ? 0.75 : 1}
       width="208"
       height="208"
       viewBox="0 0 208 208"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={() => !disabled && setHover(true)}
+      onMouseLeave={() => !disabled && setHover(false)}
     >
       <g transform="translate(-46 -46)">
-        <g onClick={handleClick} style={{ cursor: 'pointer' }}>
+        <g onClick={handleClick} style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}>
           <g filter="url(#filter0_f_2_303)">
             <circle cx="150" cy="150" r="70" fill="#3B445F" />
           </g>

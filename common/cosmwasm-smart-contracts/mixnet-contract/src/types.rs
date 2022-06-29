@@ -70,30 +70,35 @@ impl LayerDistribution {
         ];
         layers.iter().min_by_key(|x| x.1).unwrap().0
     }
+
+    pub fn increment_layer_count(&mut self, layer: Layer) {
+        match layer {
+            Layer::Gateway => self.gateways += 1,
+            Layer::One => self.layer1 += 1,
+            Layer::Two => self.layer2 += 1,
+            Layer::Three => self.layer3 += 1,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractStateParams {
-    // so currently interval_length is being unused and validator API performs rewarding
-    // based on its own interval length config value. I guess that's fine for time being
-    // however, in the future, the contract constant should be controlling it instead.
-    // pub interval_length: u32, // length of a rewarding interval/interval, expressed in hours
-    pub minimum_mixnode_pledge: Uint128, // minimum amount a mixnode must pledge to get into the system
-    pub minimum_gateway_pledge: Uint128, // minimum amount a gateway must pledge to get into the system
+    pub minimum_mixnode_pledge: Coin, // minimum amount a mixnode must pledge to get into the system
+    pub minimum_gateway_pledge: Coin, // minimum amount a gateway must pledge to get into the system
 
-    // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
-    // based on overall demand for private bandwidth-
-    pub mixnode_rewarded_set_size: u32,
-
-    // subset of rewarded mixnodes that are actively receiving mix traffic
-    // used to handle shorter-term (e.g. hourly) fluctuations of demand
-    pub mixnode_active_set_size: u32,
-    pub staking_supply: Uint128,
+                                      // // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
+                                      // // based on overall demand for private bandwidth-
+                                      // pub mixnode_rewarded_set_size: u32,
+                                      //
+                                      // // subset of rewarded mixnodes that are actively receiving mix traffic
+                                      // // used to handle shorter-term (e.g. hourly) fluctuations of demand
+                                      // pub mixnode_active_set_size: u32,
+                                      // pub staking_supply: Uint128,
 }
 
 impl Display for ContractStateParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Contract state parameters: [ ")?;
+        write!(f, "Contract state parameters: ")?;
         write!(
             f,
             "minimum mixnode pledge: {}; ",
@@ -103,17 +108,17 @@ impl Display for ContractStateParams {
             f,
             "minimum gateway pledge: {}; ",
             self.minimum_gateway_pledge
-        )?;
-        write!(
-            f,
-            "mixnode rewarded set size: {}",
-            self.mixnode_rewarded_set_size
-        )?;
-        write!(
-            f,
-            "mixnode active set size: {}",
-            self.mixnode_active_set_size
         )
+        // write!(
+        //     f,
+        //     "mixnode rewarded set size: {}",
+        //     self.mixnode_rewarded_set_size
+        // )?;
+        // write!(
+        //     f,
+        //     "mixnode active set size: {}",
+        //     self.mixnode_active_set_size
+        // )
     }
 }
 

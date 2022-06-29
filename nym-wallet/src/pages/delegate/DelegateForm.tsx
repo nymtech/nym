@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
-import { EnumNodeType, MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { MajorCurrencyAmount, TNodeType, TransactionExecuteResult } from '@nymproject/types';
 import { TDelegateArgs } from '../../types';
 import { validationSchema } from './validationSchema';
 import { AppContext } from '../../context/main';
@@ -14,14 +14,14 @@ type TDelegateForm = {
   identity: string;
   amount: MajorCurrencyAmount;
   tokenPool: string;
-  type: EnumNodeType;
+  type: TNodeType;
 };
 
 const defaultValues: TDelegateForm = {
   identity: '',
   amount: { amount: '', denom: 'NYM' },
   tokenPool: 'balance',
-  type: EnumNodeType.mixnode,
+  type: 'mixnode',
 };
 
 export const DelegateForm = ({

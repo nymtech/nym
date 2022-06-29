@@ -1,5 +1,5 @@
 import {
-  EnumNodeType,
+  TNodeType,
   FeeDetails,
   Gateway,
   MajorCurrencyAmount,
@@ -84,7 +84,7 @@ export const getVestingPledgeInfo = async ({
   type,
 }: {
   address?: string;
-  type: EnumNodeType;
+  type: TNodeType;
 }): Promise<PledgeData | undefined> => {
   try {
     return await invokeWrapper<PledgeData>(`vesting_get_${type}_pledge`, { address });
@@ -96,15 +96,9 @@ export const getVestingPledgeInfo = async ({
 export const vestingDelegatedFree = async (vestingAccountAddress: string) =>
   invokeWrapper<MajorCurrencyAmount>('delegated_free', { vestingAccountAddress });
 
-export const vestingUnbond = async (type: EnumNodeType) => {
-  if (type === EnumNodeType.mixnode) return vestingUnbondMixnode();
+export const vestingUnbond = async (type: TNodeType) => {
+  if (type === 'mixnode') return vestingUnbondMixnode();
   return vestingUnbondGateway();
-};
-
-export const vestingBond = async (args: { type: EnumNodeType } & (TBondMixNodeArgs | TBondGatewayArgs)) => {
-  const { type, ...other } = args;
-  if (type === EnumNodeType.mixnode) return vestingBondMixNode(other as TBondMixNodeArgs);
-  return vestingBondGateway(other as TBondGatewayArgs);
 };
 
 export const vestingClaimOperatorRewards = async () =>

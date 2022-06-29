@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { BondForm } from './BondForm';
-import { SuccessView } from './SuccessView';
 import { NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
-import { unbond, vestingUnbond } from '../../requests';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { PageLayout } from '../../layouts';
+import { unbond, vestingUnbond } from '../../requests';
+import { FormHandler } from './components/FormHandler';
+import { SuccessView } from './components/SuccessView';
 
 export const Bond = () => {
-  const [status, setStatus] = useState(EnumRequestStatus.initial);
+  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
   const [error, setError] = useState<string>();
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
@@ -28,7 +28,7 @@ export const Bond = () => {
 
   return (
     <PageLayout>
-      <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>
+      <NymCard title="Bond" subheader="Bond a mixnode or gateway" noPadding>
         {status === EnumRequestStatus.initial && (
           <Box sx={{ px: 3, mb: 1 }}>
             <Alert severity="warning">Always ensure you leave yourself enough funds to UNBOND</Alert>
@@ -78,16 +78,15 @@ export const Bond = () => {
           </Box>
         )}
         {status === EnumRequestStatus.initial && !ownership.hasOwnership && !isLoading && (
-          <BondForm
-            onError={(e?: string) => {
-              setError(e);
-              setStatus(EnumRequestStatus.error);
-            }}
+          <FormHandler
             onSuccess={(details) => {
-              setSuccessDetails(details);
               setStatus(EnumRequestStatus.success);
+              setSuccessDetails(details);
             }}
-            disabled={ownership?.hasOwnership}
+            onError={(err) => {
+              setStatus(EnumRequestStatus.error);
+              setError(err);
+            }}
           />
         )}
         {(status === EnumRequestStatus.error || status === EnumRequestStatus.success) && (

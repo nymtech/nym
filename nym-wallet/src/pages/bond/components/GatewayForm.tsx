@@ -1,81 +1,48 @@
 import React, { useContext, useEffect } from 'react';
-import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { useForm } from 'react-hook-form';
-import {
-  Gateway,
-  MixNode,
-  EnumNodeType,
-  MajorCurrencyAmount,
-  CurrencyDenom,
-  TransactionExecuteResult,
-} from '@nymproject/types';
+import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { TBondArgs } from 'src/types';
+import { CurrencyDenom, MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { useForm } from 'react-hook-form';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { bondGateway, simulateBondGateway, simulateVestingBondGateway, vestingBondGateway } from 'src/requests';
+import { TBondGatewayArgs } from 'src/types';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
-import { NodeTypeSelector } from '../../components/NodeTypeSelector';
-import { bond, vestingBond } from '../../requests';
-import { validationSchema } from './validationSchema';
-import { AppContext } from '../../context/main';
-import { Fee, TokenPoolSelector } from '../../components';
+import { Fee, TokenPoolSelector } from '../../../components';
+import { AppContext } from '../../../context/main';
+import { gatewayValidationSchema } from '../validationSchema';
+import { ConfirmationModal } from './ConfirmationModal';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 type TBondFormFields = {
   withAdvancedOptions: boolean;
-  nodeType: EnumNodeType;
   tokenPool: string;
   ownerSignature: string;
   identityKey: string;
   sphinxKey: string;
-  profitMarginPercent: number;
   amount: MajorCurrencyAmount;
   host: string;
   version: string;
-  location?: string;
+  location: string;
   mixPort: number;
-  verlocPort: number;
   clientsPort: number;
-  httpApiPort: number;
 };
 
 const defaultValues = {
   withAdvancedOptions: false,
-  nodeType: EnumNodeType.mixnode,
   tokenPool: 'balance',
-  identityKey: '',
-  sphinxKey: '',
-  ownerSignature: '',
-  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
-  host: '',
-  version: '',
-  profitMarginPercent: 10,
-  location: undefined,
+  identityKey: 'FTt1HD8ogUdTeqqzX41j3gxaw7t4VB5kMACgAt8nBFTX',
+  sphinxKey: 'JAwi4R5DcpaKndsydRqyTbQQZUrK5smBXT6RHiM8Tcqs',
+  ownerSignature: 'GcNpA7KWrKHzmDQQNZdms7f9dqrDnC9Z4NEMhtxAayqzhEAX7Jf5r7PcDztbqmrKnVonJNWm58aZZbVmkYTTcda',
+  amount: { amount: '100', denom: 'NYM' as CurrencyDenom },
+  host: '1.1.1.1',
+  version: '1.12.1',
+  location: '',
   mixPort: 1789,
-  verlocPort: 1790,
-  httpApiPort: 8000,
   clientsPort: 9000,
 };
 
-const formatData = (data: TBondFormFields): MixNode | Gateway => {
-  const payload: { [key: string]: any } = {
-    identity_key: data.identityKey,
-    sphinx_key: data.sphinxKey,
-    host: data.host,
-    version: data.version,
-    mix_port: data.mixPort,
-    profit_margin_percent: data.profitMarginPercent,
-  };
-
-  if (data.nodeType === EnumNodeType.mixnode) {
-    payload.verloc_port = data.verlocPort;
-    payload.http_api_port = data.httpApiPort;
-    return payload as MixNode;
-  }
-  payload.clients_port = data.clientsPort;
-  payload.location = data.location;
-  return payload as Gateway;
-};
-
-export const BondForm = ({
+export const GatewayForm = ({
   disabled,
   onError,
   onSuccess,
@@ -91,22 +58,26 @@ export const BondForm = ({
     watch,
     reset,
     setError,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<TBondFormFields>({
-    resolver: yupResolver(validationSchema),
+    resolver: yupResolver(gatewayValidationSchema),
     defaultValues,
   });
-
   const { userBalance, clientDetails } = useContext(AppContext);
+
+  const { fee, getFee, resetFeeState } = useGetFee();
 
   useEffect(() => {
     reset();
   }, [clientDetails]);
 
-  const watchNodeType = watch('nodeType', defaultValues.nodeType);
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
 
-  const onSubmit = async (data: TBondFormFields, cb: (data: TBondArgs) => Promise<TransactionExecuteResult>) => {
+  const handleValidateAndGetFee = async (
+    data: TBondFormFields,
+    cb: (data: TBondGatewayArgs) => Promise<TransactionExecuteResult>,
+  ) => {
     if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {
       return setError('amount.amount', { message: 'Not enough funds in wallet' });
     }
@@ -115,43 +86,73 @@ export const BondForm = ({
       return setError('amount.amount', { message: 'Not enough locked tokens' });
     }
 
-    const formattedData = formatData(data);
-
-    return cb({
-      type: data.nodeType,
-      ownerSignature: data.ownerSignature,
-      [data.nodeType]: formattedData,
-      pledge: data.amount,
-    } as TBondArgs)
-      .then(async () => {
-        if (data.tokenPool === 'balance') {
-          await userBalance.fetchBalance();
-        } else {
-          await userBalance.fetchTokenAllocation();
-        }
-        onSuccess({ address: data.identityKey, amount: data.amount.amount });
-      })
-      .catch((e) => {
-        onError(e);
+    try {
+      await getFee(data.tokenPool === 'locked' ? simulateVestingBondGateway : simulateBondGateway, {
+        ownerSignature: data.ownerSignature,
+        gateway: {
+          identity_key: data.identityKey,
+          sphinx_key: data.sphinxKey,
+          host: data.host,
+          version: data.version,
+          mix_port: data.mixPort,
+          location: data.location,
+          clients_port: data.clientsPort,
+        },
+        pledge: data.amount,
       });
+    } catch (e) {
+      onError(e as string);
+    }
+  };
+
+  const onSubmit = async (data: TBondFormFields) => {
+    const payload = {
+      ownerSignature: data.ownerSignature,
+      gateway: {
+        identity_key: data.identityKey,
+        sphinx_key: data.sphinxKey,
+        host: data.host,
+        version: data.version,
+        mix_port: data.mixPort,
+        location: data.location,
+        clients_port: data.clientsPort,
+      },
+      pledge: data.amount,
+      fee: fee?.fee,
+    };
+    try {
+      if (data.tokenPool === 'balance') {
+        await bondGateway(payload);
+        await userBalance.fetchBalance();
+      }
+
+      if (data.tokenPool === 'locked') {
+        await vestingBondGateway(payload);
+        await userBalance.fetchTokenAllocation();
+      }
+
+      onSuccess({ address: payload.gateway.identity_key, amount: payload.pledge.amount });
+    } catch (e) {
+      onError(e as string);
+    }
   };
 
   return (
     <FormControl fullWidth>
-      <Box sx={{ p: 3 }}>
+      {isSubmitting && <LoadingModal />}
+
+      {fee && !isSubmitting && (
+        <ConfirmationModal
+          identity={getValues('identityKey')}
+          amount={getValues('amount')}
+          fee={fee}
+          onPrev={resetFeeState}
+          onConfirm={handleSubmit(onSubmit)}
+        />
+      )}
+      <Box>
         <Grid container spacing={3}>
-          <Grid container item justifyContent="space-between">
-            <Grid item>
-              <NodeTypeSelector
-                nodeType={watchNodeType}
-                setNodeType={(nodeType) => {
-                  setValue('nodeType', nodeType);
-                  if (nodeType === EnumNodeType.mixnode) setValue('location', undefined);
-                }}
-                disabled={disabled}
-              />
-            </Grid>
-          </Grid>
+          <Grid container item justifyContent="space-between"></Grid>
           <Grid item xs={12}>
             <TextField
               {...register('identityKey')}
@@ -213,40 +214,20 @@ export const BondForm = ({
             />
           </Grid>
 
-          {watchNodeType === EnumNodeType.mixnode && (
-            <Grid item xs={12} sm={6}>
-              <TextField
-                {...register('profitMarginPercent')}
-                variant="outlined"
-                required
-                id="profitMarginPercent"
-                name="profitMarginPercent"
-                label="Profit percentage"
-                fullWidth
-                error={!!errors.profitMarginPercent}
-                helperText={errors.profitMarginPercent ? errors.profitMarginPercent.message : 'Default is 10%'}
-                disabled={disabled}
-              />
-            </Grid>
-          )}
-
-          {/* if it's a gateway - get location */}
-          {watchNodeType === EnumNodeType.gateway && (
-            <Grid item xs={6}>
-              <TextField
-                {...register('location')}
-                variant="outlined"
-                required
-                id="location"
-                name="location"
-                label="Location"
-                fullWidth
-                error={!!errors.location}
-                helperText={errors.location?.message}
-                disabled={disabled}
-              />
-            </Grid>
-          )}
+          <Grid item xs={6}>
+            <TextField
+              {...register('location')}
+              variant="outlined"
+              required
+              id="location"
+              name="location"
+              label="Location"
+              fullWidth
+              error={!!errors.location}
+              helperText={errors.location?.message}
+              disabled={disabled}
+            />
+          </Grid>
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -291,12 +272,6 @@ export const BondForm = ({
                       setValue('clientsPort', defaultValues.clientsPort, {
                         shouldValidate: true,
                       });
-                      setValue('verlocPort', defaultValues.verlocPort, {
-                        shouldValidate: true,
-                      });
-                      setValue('httpApiPort', defaultValues.httpApiPort, {
-                        shouldValidate: true,
-                      });
                       setValue('withAdvancedOptions', false);
                     } else {
                       setValue('withAdvancedOptions', true);
@@ -322,55 +297,24 @@ export const BondForm = ({
                   disabled={disabled}
                 />
               </Grid>
-              {watchNodeType === EnumNodeType.mixnode ? (
-                <>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      {...register('verlocPort', { valueAsNumber: true })}
-                      variant="outlined"
-                      id="verlocPort"
-                      name="verlocPort"
-                      label="Verloc Port"
-                      fullWidth
-                      error={!!errors.verlocPort}
-                      helperText={errors.verlocPort?.message && 'A valid port value is required'}
-                      disabled={disabled}
-                    />
-                  </Grid>
 
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      {...register('httpApiPort', { valueAsNumber: true })}
-                      variant="outlined"
-                      id="httpApiPort"
-                      name="httpApiPort"
-                      label="HTTP API Port"
-                      fullWidth
-                      error={!!errors.httpApiPort}
-                      helperText={errors.httpApiPort?.message && 'A valid port value is required'}
-                      disabled={disabled}
-                    />
-                  </Grid>
-                </>
-              ) : (
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    {...register('clientsPort', { valueAsNumber: true })}
-                    variant="outlined"
-                    id="clientsPort"
-                    name="clientsPort"
-                    label="client WS API Port"
-                    fullWidth
-                    error={!!errors.clientsPort}
-                    helperText={errors.clientsPort?.message && 'A valid port value is required'}
-                    disabled={disabled}
-                  />
-                </Grid>
-              )}
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  {...register('clientsPort', { valueAsNumber: true })}
+                  variant="outlined"
+                  id="clientsPort"
+                  name="clientsPort"
+                  label="client WS API Port"
+                  fullWidth
+                  error={!!errors.clientsPort}
+                  helperText={errors.clientsPort?.message && 'A valid port value is required'}
+                  disabled={disabled}
+                />
+              </Grid>
             </>
           )}
           <Grid item xs={12}>
-            {!disabled ? <Fee feeType={EnumNodeType.mixnode ? 'BondMixnode' : 'BondGateway'} /> : <div />}
+            {!disabled ? <Fee feeType="BondGateway" /> : <div />}
           </Grid>
         </Grid>
       </Box>
@@ -390,7 +334,9 @@ export const BondForm = ({
           type="submit"
           data-testid="submit-button"
           disableElevation
-          onClick={handleSubmit((data) => onSubmit(data, data.tokenPool === 'balance' ? bond : vestingBond))}
+          onClick={handleSubmit((data) =>
+            handleValidateAndGetFee(data, data.tokenPool === 'balance' ? bondGateway : vestingBondGateway),
+          )}
           endIcon={isSubmitting && <CircularProgress size={20} />}
           size="large"
         >

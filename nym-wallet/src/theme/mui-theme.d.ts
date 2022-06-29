@@ -37,6 +37,7 @@ declare module '@mui/material/styles' {
       light: string;
       dark: string;
       muted: string;
+      grey: string;
     };
     linkHover: string;
   }

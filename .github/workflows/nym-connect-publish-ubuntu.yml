@@ -46,18 +46,19 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: nym-connect.AppImage.tar.gz
-          path: nym-connect/target/release/bundle/macos/nym-connect.AppImage.tar.gz
-          retention-days: 5
-
       - name: Build app
         run: yarn build
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-connect.AppImage.tar.gz
+          path: nym-connect/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
+          retention-days: 30
+
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'release'

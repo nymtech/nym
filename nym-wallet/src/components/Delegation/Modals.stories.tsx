@@ -57,7 +57,6 @@ export const Delegate = () => {
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
         currency="NYM"
-        feeOverride="0.004375"
         estimatedReward={50.423}
         accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
@@ -82,7 +81,6 @@ export const DelegateBelowMinimum = () => {
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
         currency="NYM"
-        feeOverride="0.004375"
         estimatedReward={425.2345053}
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
@@ -109,7 +107,6 @@ export const DelegateMore = () => {
         header="Delegate more"
         buttonText="Delegate more"
         currency="NYM"
-        feeOverride="0.004375"
         estimatedReward={50.423}
         accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
@@ -132,9 +129,8 @@ export const Undelegate = () => {
       <UndelegateModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         currency="NYM"
-        fee={0.004375}
         amount={150}
         identityKey="AA6RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujyxx"
         usesVestingContractTokens={false}

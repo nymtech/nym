@@ -17,7 +17,7 @@ pub mod sandbox;
 cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
-       pub const MIX_DENOM: DenomDetails = mainnet::MIX_DENOM;
+        pub const MIX_DENOM: DenomDetails = mainnet::MIX_DENOM;
         pub const STAKE_DENOM: DenomDetails = mainnet::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
@@ -25,7 +25,7 @@ cfg_if::cfg_if! {
 
     } else if #[cfg(network = "qa")] {
         pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
-       pub const MIX_DENOM: DenomDetails = qa::MIX_DENOM;
+        pub const MIX_DENOM: DenomDetails = qa::MIX_DENOM;
         pub const STAKE_DENOM: DenomDetails = qa::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
@@ -41,10 +41,157 @@ cfg_if::cfg_if! {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct ChainDetails {
+    pub bech32_account_prefix: String,
+    pub mix_denom: DenomDetailsOwned,
+    pub stake_denom: DenomDetailsOwned,
+}
+
+// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
+impl Default for ChainDetails {
+    fn default() -> Self {
+        ChainDetails {
+            bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
+            mix_denom: mainnet::MIX_DENOM.into(),
+            stake_denom: mainnet::STAKE_DENOM.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct NymContracts {
+    pub mixnet_contract_address: Option<String>,
+    pub vesting_contract_address: Option<String>,
+    pub bandwidth_claim_contract_address: Option<String>,
+    pub coconut_bandwidth_contract_address: Option<String>,
+    pub multisig_contract_address: Option<String>,
+}
+
+// I wanted to use the simpler `NetworkDetails` name, but there's a clash
+// with `NetworkDetails` defined in all.rs...
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct NymNetworkDetails {
+    pub chain_details: ChainDetails,
+    pub endpoints: Vec<ValidatorDetails>,
+    pub contracts: NymContracts,
+}
+
+impl NymNetworkDetails {
+    pub fn new() -> Self {
+        NymNetworkDetails::default()
+    }
+
+    pub fn new_qa() -> Self {
+        (&*QA_DEFAULTS).into()
+    }
+
+    pub fn new_sandbox() -> Self {
+        (&*SANDBOX_DEFAULTS).into()
+    }
+
+    pub fn new_mainnet() -> Self {
+        (&*MAINNET_DEFAULTS).into()
+    }
+
+    pub fn current_default() -> Self {
+        // backwards compatibility reasons
+        DEFAULT_NETWORK.details()
+    }
+
+    pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
+        self.chain_details.bech32_account_prefix = prefix.into();
+        self
+    }
+
+    pub fn with_mix_denom(mut self, mix_denom: DenomDetailsOwned) -> Self {
+        self.chain_details.mix_denom = mix_denom;
+        self
+    }
+
+    pub fn with_stake_denom(mut self, stake_denom: DenomDetailsOwned) -> Self {
+        self.chain_details.stake_denom = stake_denom;
+        self
+    }
+
+    pub fn with_base_mix_denom<S: Into<String>>(mut self, base_mix_denom: S) -> Self {
+        self.chain_details.mix_denom = DenomDetailsOwned::base_only(base_mix_denom.into());
+        self
+    }
+
+    pub fn with_base_stake_denom<S: Into<String>>(mut self, base_stake_denom: S) -> Self {
+        self.chain_details.stake_denom = DenomDetailsOwned::base_only(base_stake_denom.into());
+        self
+    }
+
+    pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+        self.endpoints.push(endpoint);
+        self
+    }
+
+    pub fn with_mixnet_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.mixnet_contract_address = contract.map(Into::into);
+        self
+    }
+
+    pub fn with_vesting_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.vesting_contract_address = contract.map(Into::into);
+        self
+    }
+
+    pub fn with_bandwidth_claim_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.bandwidth_claim_contract_address = contract.map(Into::into);
+        self
+    }
+
+    pub fn with_coconut_bandwidth_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.coconut_bandwidth_contract_address = contract.map(Into::into);
+        self
+    }
+
+    pub fn with_multisig_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.multisig_contract_address = contract.map(Into::into);
+        self
+    }
+}
+
+// This conversion only exists for convenience reasons until
+// we can completely phase out `DefaultNetworkDetails`
+impl<'a> From<&'a DefaultNetworkDetails> for NymNetworkDetails {
+    fn from(details: &'a DefaultNetworkDetails) -> Self {
+        fn parse_optional_str(raw: &str) -> Option<String> {
+            if raw.is_empty() {
+                None
+            } else {
+                Some(raw.into())
+            }
+        }
+
+        NymNetworkDetails {
+            chain_details: ChainDetails {
+                bech32_account_prefix: details.bech32_prefix.into(),
+                mix_denom: details.mix_denom.into(),
+                stake_denom: details.stake_denom.into(),
+            },
+            endpoints: details.validators.clone(),
+            contracts: NymContracts {
+                mixnet_contract_address: parse_optional_str(details.mixnet_contract_address),
+                vesting_contract_address: parse_optional_str(details.vesting_contract_address),
+                bandwidth_claim_contract_address: parse_optional_str(
+                    details.bandwidth_claim_contract_address,
+                ),
+                coconut_bandwidth_contract_address: parse_optional_str(
+                    details.coconut_bandwidth_contract_address,
+                ),
+                multisig_contract_address: parse_optional_str(details.multisig_contract_address),
+            },
+        }
+    }
+}
+
 // Since these are lazily constructed, we can afford to switch some of them to stronger types in the
 // future. If we do this, and also get rid of the references we could potentially unify with
 // `NetworkDetails`.
-#[derive(Debug)]
 pub struct DefaultNetworkDetails {
     bech32_prefix: &'static str,
     mix_denom: DenomDetails,
@@ -54,6 +201,7 @@ pub struct DefaultNetworkDetails {
     bandwidth_claim_contract_address: &'static str,
     coconut_bandwidth_contract_address: &'static str,
     multisig_contract_address: &'static str,
+    #[allow(dead_code)]
     rewarding_validator_address: &'static str,
     statistics_service_url: &'static str,
     validators: Vec<ValidatorDetails>,
@@ -119,7 +267,7 @@ impl DenomDetails {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct DenomDetailsOwned {
     pub base: String,
     pub display: String,
@@ -137,27 +285,38 @@ impl From<DenomDetails> for DenomDetailsOwned {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+impl DenomDetailsOwned {
+    pub fn base_only(base: String) -> Self {
+        DenomDetailsOwned {
+            base: base.clone(),
+            display: base,
+            display_exponent: 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nymd_url: String,
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
+    // TODO: I'd argue this one should also have a field like `gas_price` since its a validator-specific setting
 }
 
 impl ValidatorDetails {
-    pub fn new(nymd_url: &str, api_url: Option<&str>) -> Self {
+    pub fn new<S: Into<String>>(nymd_url: S, api_url: Option<S>) -> Self {
         ValidatorDetails {
-            nymd_url: nymd_url.to_string(),
-            api_url: api_url.map(ToString::to_string),
+            nymd_url: nymd_url.into(),
+            api_url: api_url.map(Into::into),
         }
     }
 
-    pub fn new_with_name(nymd_url: &str, api_url: Option<&str>) -> Self {
+    pub fn new_nymd_only<S: Into<String>>(nymd_url: S) -> Self {
         ValidatorDetails {
-            nymd_url: nymd_url.to_string(),
-            api_url: api_url.map(ToString::to_string),
+            nymd_url: nymd_url.into(),
+            api_url: None,
         }
     }
 
@@ -184,6 +343,7 @@ pub fn default_statistics_service_url() -> Url {
 pub fn default_nymd_endpoints() -> Vec<Url> {
     DEFAULT_NETWORK
         .validators()
+        .iter()
         .map(ValidatorDetails::nymd_url)
         .collect()
 }
@@ -191,6 +351,7 @@ pub fn default_nymd_endpoints() -> Vec<Url> {
 pub fn default_api_endpoints() -> Vec<Url> {
     DEFAULT_NETWORK
         .validators()
+        .iter()
         .filter_map(ValidatorDetails::api_url)
         .collect()
 }

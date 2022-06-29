@@ -77,9 +77,9 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: nym-connect.AppImage.tar.gz
-          path: nym-connect/target/release/bundle/macos/nym-connect.msi.zip
-          retention-days: 5
+          name: nym-connect_1.0.0_x64_en-US.msi
+          path: nym-connect/target/release/bundle/msi/nym-connect_1.0.0_x64_en-US.msi
+          retention-days: 30
 
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1

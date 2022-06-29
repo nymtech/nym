@@ -1,5 +1,6 @@
 import {
   EnumNodeType,
+  FeeDetails,
   Gateway,
   MajorCurrencyAmount,
   MixNode,
@@ -65,10 +66,12 @@ export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
 export const vestingDelegateToMixnode = async ({
   identity,
   amount,
+  fee,
 }: {
   identity: string;
   amount: MajorCurrencyAmount;
-}) => invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { identity, amount });
+  fee?: FeeDetails;
+}) => invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { identity, amount, fee: fee?.fee });
 
 export const vestingUndelegateFromMixnode = async (identity: string) =>
   invokeWrapper<TransactionExecuteResult>('vesting_undelegate_from_mixnode', { identity });

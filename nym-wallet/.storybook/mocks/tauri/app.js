@@ -4,5 +4,5 @@
  */
 
 module.exports = {
-  getVersion: () => undefined
-}
+  getVersion: () => undefined,
+};

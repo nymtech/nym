@@ -56,11 +56,7 @@ export const DelegationContextProvider: FC<{
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
 
-  const addDelegation = async (
-    data: { identity: string; amount: MajorCurrencyAmount },
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => {
+  const addDelegation = async (data: { identity: string; amount: MajorCurrencyAmount }, tokenPool: TPoolOption) => {
     try {
       let tx;
 

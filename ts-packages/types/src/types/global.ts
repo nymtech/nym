@@ -1,13 +1,10 @@
 import { MixNode, MajorCurrencyAmount } from './rust';
 
-export enum EnumNodeType {
-  mixnode = 'mixnode',
-  gateway = 'gateway',
-}
+export type TNodeType = 'mixnode' | 'gateway';
 
 export type TNodeOwnership = {
   hasOwnership: boolean;
-  nodeType?: EnumNodeType;
+  nodeType?: TNodeType;
 };
 
 export type TDelegation = {

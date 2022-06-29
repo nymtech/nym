@@ -1,6 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::mixnode::NodeRewardResult;
 use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
@@ -394,26 +393,26 @@ pub fn new_zero_uptime_mix_operator_rewarding_event(
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_UPTIME_VALUE)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn new_mix_operator_rewarding_event(
-    interval_id: u32,
-    identity: IdentityKeyRef<'_>,
-    node_reward_result: NodeRewardResult,
-    node_pledge: Uint128,
-    node_delegation: Uint128,
-) -> Event {
-    Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
-        .add_attribute(NODE_IDENTITY_KEY, identity)
-        .add_attribute(TOTAL_PLEDGE_KEY, node_pledge)
-        .add_attribute(TOTAL_DELEGATIONS_KEY, node_delegation)
-        .add_attribute(
-            TOTAL_MIXNODE_REWARD_KEY,
-            node_reward_result.reward().to_string(),
-        )
-        .add_attribute(LAMBDA_KEY, node_reward_result.lambda().to_string())
-        .add_attribute(SIGMA_KEY, node_reward_result.sigma().to_string())
-}
+// #[allow(clippy::too_many_arguments)]
+// pub fn new_mix_operator_rewarding_event(
+//     interval_id: u32,
+//     identity: IdentityKeyRef<'_>,
+//     node_reward_result: NodeRewardResult,
+//     node_pledge: Uint128,
+//     node_delegation: Uint128,
+// ) -> Event {
+//     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
+//         .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
+//         .add_attribute(NODE_IDENTITY_KEY, identity)
+//         .add_attribute(TOTAL_PLEDGE_KEY, node_pledge)
+//         .add_attribute(TOTAL_DELEGATIONS_KEY, node_delegation)
+//         .add_attribute(
+//             TOTAL_MIXNODE_REWARD_KEY,
+//             node_reward_result.reward().to_string(),
+//         )
+//         .add_attribute(LAMBDA_KEY, node_reward_result.lambda().to_string())
+//         .add_attribute(SIGMA_KEY, node_reward_result.sigma().to_string())
+// }
 
 pub fn new_mix_delegators_rewarding_event(
     interval_id: u32,

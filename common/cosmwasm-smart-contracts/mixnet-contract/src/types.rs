@@ -1,12 +1,41 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnode::DelegatorRewardParams;
+use crate::error::MixnetContractError;
+// use crate::mixnode::DelegatorRewardParams;
 use crate::{Layer, RewardedSetNodeStatus};
+use cosmwasm_std::Decimal;
 use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
+
+pub type EpochId = u32;
+pub type NodeId = u64;
+
+/// Percent represents a value between 0 and 100%
+/// (i.e. between 0.0 and 1.0)
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+pub struct Percent(Decimal);
+
+impl Percent {
+    pub fn new(value: Decimal) -> Result<Self, MixnetContractError> {
+        if value > Decimal::one() {
+            Err(MixnetContractError::InvalidPercent)
+        } else {
+            Ok(Percent(value))
+        }
+    }
+
+    // essentially allows the TryFrom u8, u16, u32, u64, etc
+    pub fn from_percentage_value<P: Into<u64>>(value: P) -> Result<Self, MixnetContractError> {
+        Percent::new(Decimal::percent(value.into()))
+    }
+
+    pub fn value(&self) -> Decimal {
+        self.0
+    }
+}
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {
@@ -83,8 +112,7 @@ pub struct PendingDelegatorRewarding {
     pub running_results: RewardingResult,
 
     pub next_start: Addr,
-
-    pub rewarding_params: DelegatorRewardParams,
+    // pub rewarding_params: DelegatorRewardParams,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

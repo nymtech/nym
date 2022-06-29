@@ -176,76 +176,76 @@ impl NodeRewardParams {
 //         }
 //     }
 // }
-
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
-pub struct EpochRewardParams {
-    epoch_reward_pool: Uint128,
-    rewarded_set_size: Uint128,
-    active_set_size: Uint128,
-    #[serde(alias = "circulating_supply")]
-    staking_supply: Uint128,
-    sybil_resistance_percent: u8,
-    active_set_work_factor: u8,
-}
-
-impl EpochRewardParams {
-    pub fn new(
-        epoch_reward_pool: u128,
-        rewarded_set_size: u128,
-        active_set_size: u128,
-        staking_supply: u128,
-        sybil_resistance_percent: u8,
-        active_set_work_factor: u8,
-    ) -> EpochRewardParams {
-        EpochRewardParams {
-            epoch_reward_pool: Uint128::new(epoch_reward_pool),
-            rewarded_set_size: Uint128::new(rewarded_set_size),
-            active_set_size: Uint128::new(active_set_size),
-            staking_supply: Uint128::new(staking_supply),
-            sybil_resistance_percent,
-            active_set_work_factor,
-        }
-    }
-
-    // technically it's identical to what would have been derived with a Default implementation,
-    // however, I prefer to be explicit about it, as a `Default::default` value makes no sense
-    // apart from the `ValidatorCacheInner` context, where this value is not going to be touched anyway
-    // (it's guarded behind an `initialised` flag)
-    pub fn new_empty() -> Self {
-        EpochRewardParams {
-            epoch_reward_pool: Uint128::new(0),
-            staking_supply: Uint128::new(0),
-            sybil_resistance_percent: 0,
-            rewarded_set_size: Uint128::new(0),
-            active_set_size: Uint128::new(0),
-            active_set_work_factor: 0,
-        }
-    }
-
-    pub fn rewarded_set_size(&self) -> u128 {
-        self.rewarded_set_size.u128()
-    }
-
-    pub fn active_set_size(&self) -> u128 {
-        self.active_set_size.u128()
-    }
-
-    pub fn staking_supply(&self) -> u128 {
-        self.staking_supply.u128()
-    }
-
-    pub fn epoch_reward_pool(&self) -> u128 {
-        self.epoch_reward_pool.u128()
-    }
-
-    pub fn sybil_resistance_percent(&self) -> u8 {
-        self.sybil_resistance_percent
-    }
-
-    pub fn active_set_work_factor(&self) -> u8 {
-        self.active_set_work_factor
-    }
-}
+//
+// #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+// pub struct EpochRewardParams {
+//     epoch_reward_pool: Uint128,
+//     rewarded_set_size: Uint128,
+//     active_set_size: Uint128,
+//     #[serde(alias = "circulating_supply")]
+//     staking_supply: Uint128,
+//     sybil_resistance_percent: u8,
+//     active_set_work_factor: u8,
+// }
+//
+// impl EpochRewardParams {
+//     pub fn new(
+//         epoch_reward_pool: u128,
+//         rewarded_set_size: u128,
+//         active_set_size: u128,
+//         staking_supply: u128,
+//         sybil_resistance_percent: u8,
+//         active_set_work_factor: u8,
+//     ) -> EpochRewardParams {
+//         EpochRewardParams {
+//             epoch_reward_pool: Uint128::new(epoch_reward_pool),
+//             rewarded_set_size: Uint128::new(rewarded_set_size),
+//             active_set_size: Uint128::new(active_set_size),
+//             staking_supply: Uint128::new(staking_supply),
+//             sybil_resistance_percent,
+//             active_set_work_factor,
+//         }
+//     }
+//
+//     // technically it's identical to what would have been derived with a Default implementation,
+//     // however, I prefer to be explicit about it, as a `Default::default` value makes no sense
+//     // apart from the `ValidatorCacheInner` context, where this value is not going to be touched anyway
+//     // (it's guarded behind an `initialised` flag)
+//     pub fn new_empty() -> Self {
+//         EpochRewardParams {
+//             epoch_reward_pool: Uint128::new(0),
+//             staking_supply: Uint128::new(0),
+//             sybil_resistance_percent: 0,
+//             rewarded_set_size: Uint128::new(0),
+//             active_set_size: Uint128::new(0),
+//             active_set_work_factor: 0,
+//         }
+//     }
+//
+//     pub fn rewarded_set_size(&self) -> u128 {
+//         self.rewarded_set_size.u128()
+//     }
+//
+//     pub fn active_set_size(&self) -> u128 {
+//         self.active_set_size.u128()
+//     }
+//
+//     pub fn staking_supply(&self) -> u128 {
+//         self.staking_supply.u128()
+//     }
+//
+//     pub fn epoch_reward_pool(&self) -> u128 {
+//         self.epoch_reward_pool.u128()
+//     }
+//
+//     pub fn sybil_resistance_percent(&self) -> u8 {
+//         self.sybil_resistance_percent
+//     }
+//
+//     pub fn active_set_work_factor(&self) -> u8 {
+//         self.active_set_work_factor
+//     }
+// }
 //
 // #[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
 // pub struct NodeRewardParams {

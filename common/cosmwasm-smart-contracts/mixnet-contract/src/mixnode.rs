@@ -60,17 +60,15 @@ pub struct MixNodeRewarding {
     ///
     pub current_period: Period,
 
-    /// Cumulative reward earned by the "unit delegation" all previous periods, but excluding the current one,
-    /// i.e. it's for periods `[0, current_period - 1]`
-    pub past_periods_sum: Decimal,
+    /// Cumulative reward earned by the "unit delegation" since the block 0.
+    pub total_unit_reward: Decimal,
 
     /// Value of the theoretical "unit delegation" that has delegated to this mixnode at block 0.
     pub unit_delegation: Decimal,
 
-    // TODO: this might be possibly redundant
-    /// Rewards accumulated by the "unit delegation" in the current period.
-    pub current_period_reward: Decimal,
-
+    // // TODO: this might be possibly redundant
+    // /// Rewards accumulated by the "unit delegation" in the current period.
+    // pub current_period_reward: Decimal,
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
     pub last_rewarded_epoch: EpochId,
@@ -84,9 +82,9 @@ impl MixNodeRewarding {
             operator: Decimal::from_atomics(initial_pledge, 0).unwrap(),
             delegates: Decimal::zero(),
             current_period: 1,
-            past_periods_sum: Decimal::zero(),
+            total_unit_reward: Decimal::zero(),
             unit_delegation: UNIT_DELEGATION_BASE,
-            current_period_reward: Decimal::zero(),
+            // current_period_reward: Decimal::zero(),
             last_rewarded_epoch: 0,
         }
     }
@@ -185,14 +183,14 @@ impl MixNodeRewarding {
         distribution: RewardDistribution,
         epoch_id: EpochId,
     ) -> Result<(), MixnetContractError> {
-        let unit_delegation_reward =
-            distribution.delegates * self.delegator_share(self.unit_delegation);
+        let unit_delegation_reward = distribution.delegates
+            * self.delegator_share(self.unit_delegation + self.total_unit_reward);
 
         self.operator += distribution.operator;
         self.delegates += distribution.delegates;
 
-        self.current_period_reward += unit_delegation_reward;
-        self.unit_delegation += unit_delegation_reward;
+        // self.current_period_reward += unit_delegation_reward;
+        self.total_unit_reward += unit_delegation_reward;
         self.last_rewarded_epoch = epoch_id;
 
         Ok(())
@@ -211,14 +209,14 @@ impl MixNodeRewarding {
     }
 
     pub fn increment_period(&mut self) -> HistoricalRewards {
-        let rewards = self.current_period_reward;
+        // let rewards = self.current_period_reward;
 
-        self.past_periods_sum += rewards;
-        self.current_period_reward = Decimal::zero();
+        // self.past_periods_sum += rewards;
+        // self.current_period_reward = Decimal::zero();
         self.current_period += 1;
 
         // note: this already includes the sum for the period that just finished
-        HistoricalRewards::new(self.past_periods_sum)
+        HistoricalRewards::new(self.total_unit_reward)
     }
 
     // Special care must be taken when calling this method as it is expected it's called in conjunction
@@ -241,7 +239,7 @@ impl MixNodeRewarding {
     }
 
     pub fn full_reward_ratio(&self) -> Decimal {
-        self.past_periods_sum + self.current_period_reward
+        self.total_unit_reward //+ self.current_period_reward
     }
 
     pub fn delegator_share(&self, amount: Decimal) -> Decimal {

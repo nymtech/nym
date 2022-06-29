@@ -349,7 +349,7 @@ impl ServiceProvider {
 
     // Make the websocket connection so we can receive incoming Mixnet messages.
     async fn connect_websocket(&self, uri: &str) -> TSWebsocketStream {
-        let ws_stream = match websocket::Connection::new(uri).connect().await {
+        match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
                 info!("* connected to local websocket server at {}", uri);
                 ws_stream
@@ -357,7 +357,6 @@ impl ServiceProvider {
             Err(WebsocketConnectionError::ConnectionNotEstablished) => {
                 panic!("Error: websocket connection attempt failed, is the Nym client running?")
             }
-        };
-        ws_stream
+        }
     }
 }

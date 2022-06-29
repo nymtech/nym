@@ -204,8 +204,7 @@ mod tests {
     }
 
     fn compare_decimals(a: Decimal, b: Decimal) {
-        // TODO: somehow manage to increase the precision to more decimal places (it's possible with U128)
-        let epsilon = Decimal::from_ratio(1u128, 10_000u128);
+        let epsilon = Decimal::from_ratio(1u128, 100_000_000u128);
         if a > b {
             assert!(a - b < epsilon, "{} != {}", a, b)
         } else {
@@ -312,6 +311,7 @@ mod tests {
         let mut is_active = true;
         let mut performance = Percent::from_percentage_value(100u32).unwrap();
         for epoch in 0..720 {
+            println!("{}", epoch);
             if epoch == 0 {
                 simulator.delegate(Coin::new(18000_000000, "unym"))
             }

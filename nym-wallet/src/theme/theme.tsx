@@ -29,6 +29,7 @@ const nymPalette: NymPalette = {
     light: '#F2F2F2',
     dark: '#121726',
     muted: '#7D7D7D',
+    grey: '#5B6174',
   },
   linkHover: '#AF4D36',
 };
@@ -42,7 +43,7 @@ const darkMode: NymPaletteVariant = {
   },
   text: {
     main: '#FFFFFF',
-    muted: '#5B6174',
+    muted: '#7D7D7D',
     warn: '#FFE600',
     contrast: '#1D2125',
     grey: '#5B6174',
@@ -64,7 +65,7 @@ const lightMode: NymPaletteVariant = {
   },
   text: {
     main: '#121726',
-    muted: '#5B6174',
+    muted: '#7D7D7D',
     warn: '#FFE600',
     contrast: '#FFFFFF',
     grey: '#3A4053',

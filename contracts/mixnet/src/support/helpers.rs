@@ -7,8 +7,41 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::{constants, gateways::storage as gateways_storage};
 
 use crate::error::ContractError;
-use cosmwasm_std::{Addr, Deps, Storage};
+use cosmwasm_std::{Addr, Coin, Deps, Storage};
+use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{reward_params::EpochRewardParams, IdentityKeyRef};
+
+pub(crate) fn validate_pledge(
+    mut pledge: Vec<Coin>,
+    minimum_pledge: Coin,
+) -> Result<Coin, MixnetContractError> {
+    // check if anything was put as bond
+    if pledge.is_empty() {
+        return Err(MixnetContractError::NoBondFound);
+    }
+
+    if pledge.len() > 1 {
+        return Err(MixnetContractError::MultipleDenoms);
+    }
+
+    // check that the denomination is correct
+    if pledge[0].denom != minimum_pledge.denom {
+        return Err(MixnetContractError::WrongDenom {
+            received: pledge[0].denom.clone(),
+            expected: minimum_pledge.denom,
+        });
+    }
+
+    // check that the pledge contains the minimum amount of tokens
+    if pledge[0].amount < minimum_pledge {
+        return Err(MixnetContractError::InsufficientPledge {
+            received: pledge[0].clone(),
+            minimum: minimum_pledge,
+        });
+    }
+
+    Ok(pledge.pop().unwrap())
+}
 
 pub(crate) fn is_authorized(sender: String, storage: &dyn Storage) -> Result<(), ContractError> {
     if sender != crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
@@ -17,58 +50,58 @@ pub(crate) fn is_authorized(sender: String, storage: &dyn Storage) -> Result<(),
     Ok(())
 }
 
-pub fn epochs_in_interval(storage: &dyn Storage) -> Result<u64, ContractError> {
-    let epoch = current_epoch(storage)?;
-    Ok(INTERVAL_SECONDS / epoch.length_secs())
-}
-
-#[allow(dead_code)]
-pub fn current_operator_epoch_cost(storage: &dyn Storage) -> Result<u64, ContractError> {
-    Ok(DEFAULT_OPERATOR_INTERVAL_COST / epochs_in_interval(storage)?)
-}
-
-pub fn operator_cost_at_epoch(storage: &dyn Storage, epoch_id: u32) -> Result<u64, ContractError> {
-    let epoch = EPOCHS.load(storage, epoch_id)?;
-    // This is historical, so we can't use the function defined above
-    let epochs_in_interval = INTERVAL_SECONDS / epoch.length_secs();
-    Ok(DEFAULT_OPERATOR_INTERVAL_COST / epochs_in_interval)
-}
-
-pub(crate) fn epoch_reward_params(
-    storage: &dyn Storage,
-) -> Result<EpochRewardParams, ContractError> {
-    let state = crate::mixnet_contract_settings::storage::CONTRACT_STATE
-        .load(storage)
-        .map(|settings| settings.params)?;
-    let reward_pool = crate::rewards::storage::REWARD_POOL.load(storage)?;
-    let interval_reward_percent = crate::constants::INTERVAL_REWARD_PERCENT;
-    let epochs_in_interval = epochs_in_interval(storage)?;
-
-    let epoch_reward_params = EpochRewardParams::new(
-        (reward_pool.u128() / 100 / epochs_in_interval as u128) * interval_reward_percent as u128,
-        state.mixnode_rewarded_set_size as u128,
-        state.mixnode_active_set_size as u128,
-        state.staking_supply.u128(),
-        constants::SYBIL_RESISTANCE_PERCENT,
-        constants::ACTIVE_SET_WORK_FACTOR,
-    );
-
-    Ok(epoch_reward_params)
-}
+// pub fn epochs_in_interval(storage: &dyn Storage) -> Result<u64, ContractError> {
+//     let epoch = current_epoch(storage)?;
+//     Ok(INTERVAL_SECONDS / epoch.length_secs())
+// }
+//
+// #[allow(dead_code)]
+// pub fn current_operator_epoch_cost(storage: &dyn Storage) -> Result<u64, ContractError> {
+//     Ok(DEFAULT_OPERATOR_INTERVAL_COST / epochs_in_interval(storage)?)
+// }
+//
+// pub fn operator_cost_at_epoch(storage: &dyn Storage, epoch_id: u32) -> Result<u64, ContractError> {
+//     let epoch = EPOCHS.load(storage, epoch_id)?;
+//     // This is historical, so we can't use the function defined above
+//     let epochs_in_interval = INTERVAL_SECONDS / epoch.length_secs();
+//     Ok(DEFAULT_OPERATOR_INTERVAL_COST / epochs_in_interval)
+// }
+//
+// pub(crate) fn epoch_reward_params(
+//     storage: &dyn Storage,
+// ) -> Result<EpochRewardParams, ContractError> {
+//     let state = crate::mixnet_contract_settings::storage::CONTRACT_STATE
+//         .load(storage)
+//         .map(|settings| settings.params)?;
+//     let reward_pool = crate::rewards::storage::REWARD_POOL.load(storage)?;
+//     let interval_reward_percent = crate::constants::INTERVAL_REWARD_PERCENT;
+//     let epochs_in_interval = epochs_in_interval(storage)?;
+//
+//     let epoch_reward_params = EpochRewardParams::new(
+//         (reward_pool.u128() / 100 / epochs_in_interval as u128) * interval_reward_percent as u128,
+//         state.mixnode_rewarded_set_size as u128,
+//         state.mixnode_active_set_size as u128,
+//         state.staking_supply.u128(),
+//         constants::SYBIL_RESISTANCE_PERCENT,
+//         constants::ACTIVE_SET_WORK_FACTOR,
+//     );
+//
+//     Ok(epoch_reward_params)
+// }
 
 // check if the target address has already bonded a mixnode or gateway,
 // in either case, return an appropriate error
 pub(crate) fn ensure_no_existing_bond(
     storage: &dyn Storage,
     sender: &Addr,
-) -> Result<(), ContractError> {
+) -> Result<(), MixnetContractError> {
     if mixnodes_storage::mixnodes()
         .idx
         .owner
         .item(storage, sender.clone())?
         .is_some()
     {
-        return Err(ContractError::AlreadyOwnsMixnode);
+        return Err(MixnetContractError::AlreadyOwnsMixnode);
     }
 
     if gateways_storage::gateways()
@@ -77,7 +110,7 @@ pub(crate) fn ensure_no_existing_bond(
         .item(storage, sender.clone())?
         .is_some()
     {
-        return Err(ContractError::AlreadyOwnsGateway);
+        return Err(MixnetContractError::AlreadyOwnsGateway);
     }
 
     Ok(())

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+mod constants;
 pub mod delegation;
 pub mod error;
 pub mod events;
@@ -9,6 +10,7 @@ mod interval;
 pub mod mixnode;
 mod msg;
 pub mod reward_params;
+mod rewarding;
 mod types;
 
 pub const MIXNODE_DELEGATORS_PAGE_LIMIT: usize = 250;

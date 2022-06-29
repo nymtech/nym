@@ -2,7 +2,7 @@ import React from 'react';
 import { Typography } from '@mui/material';
 
 export const Title = ({ title }: { title: string }) => (
-  <Typography sx={{ color: 'common.white', fontWeight: 600 }}>{title}</Typography>
+  <Typography sx={{ color: 'common.white', fontWeight: 600, fontSize: 20 }}>{title}</Typography>
 );
 
 export const Subtitle = ({ subtitle }: { subtitle: string }) => (

@@ -51,7 +51,6 @@ validator-client = { path="../common/client-libs/validator-client" }
 version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
-serial_test = "0.5"
 tokio = { version="1.19.1", features = ["rt-multi-thread", "net", "signal", "test-util"] }
 
 nymsphinx-types = { path = "../common/nymsphinx/types" }

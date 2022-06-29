@@ -80,7 +80,7 @@ impl MixNodeBond {
                 .attempt_convert_to_display_dec_coin(bond.total_delegation.into())?,
             owner: bond.owner.into_string(),
             layer: bond.layer.into(),
-            block_height: bond.block_height,
+            bonding_height: block_height,
             mix_node: bond.mix_node.into(),
             proxy: bond.proxy.map(|p| p.to_string()),
             accumulated_rewards: bond

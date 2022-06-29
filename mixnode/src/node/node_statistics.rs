@@ -51,14 +51,14 @@ impl SharedNodeStats {
         guard.update_time = snapshot_time;
 
         guard.packets_received_since_startup += new_received;
-        for (mix, count) in new_sent.iter() {
+        for (mix, count) in &new_sent {
             *guard
                 .packets_sent_since_startup
                 .entry(mix.clone())
                 .or_insert(0) += *count;
         }
 
-        for (mix, count) in new_dropped.iter() {
+        for (mix, count) in &new_dropped {
             *guard
                 .packets_explicitly_dropped_since_last_update
                 .entry(mix.clone())

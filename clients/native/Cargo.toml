@@ -20,7 +20,7 @@ futures = "0.3" # bunch of futures stuff, however, now that I think about it, it
 url = "2.2"
 
 clap = "2.33.0" # for the command line arguments
-dirs = "3.0" # for determining default store directories in config
+dirs = "4.0"
 dotenv = "0.15.0" # for obtaining environmental variables (only used for RUST_LOG for time being)
 log = "0.4" # self explanatory
 pretty_env_logger = "0.4" # for formatting log messages

@@ -70,6 +70,14 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Not enough validator API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughValidatorAPIs { received: usize, needed: usize },
+
+    #[cfg(feature = "coconut")]
+    #[error("Validator API {url} misbehaved in the bandwidth redemption protocol: {reason}")]
+    MisbehavingAPI { url: String, reason: String },
+
+    #[cfg(feature = "coconut")]
+    #[error("Coconut interface error - {0}")]
+    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 }
 
 impl RequestHandlingError {

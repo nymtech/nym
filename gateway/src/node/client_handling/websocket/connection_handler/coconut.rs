@@ -8,7 +8,10 @@ use log::*;
 use coconut_interface::{Credential, VerificationKey};
 use network_defaults::MIX_DENOM;
 use validator_client::{
-    nymd::{traits::MultisigSigningClient, Coin, Fee, NymdClient, SigningNymdClient},
+    nymd::{
+        traits::{MultisigSigningClient, QueryClient},
+        Coin, Fee, NymdClient, SigningNymdClient,
+    },
     ApiClient,
 };
 
@@ -84,6 +87,14 @@ impl CoconutVerifier {
             .await?;
 
         let proposal_id = ret?.proposal_id;
+
+        let proposal = self.nymd_client.get_proposal(proposal_id).await?;
+        if !credential.has_blinded_serial_number(&proposal.description)? {
+            return Err(RequestHandlingError::MisbehavingAPI {
+                url: first_api_client.validator_api.current_url().to_string(),
+                reason: String::from("Created proposal with different serial number"),
+            });
+        }
 
         let req = validator_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),

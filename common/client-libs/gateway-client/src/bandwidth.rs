@@ -1,47 +1,49 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::GatewayClientError;
+use std::str::FromStr;
+
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::{Storage, StorageError};
-#[cfg(feature = "coconut")]
-use coconut_interface::Base58;
-#[cfg(feature = "coconut")]
-#[cfg(not(target_arch = "wasm32"))]
-use credential_storage::error::StorageError;
+use crate::wasm_storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::storage::Storage;
+
+#[cfg(all(target_arch = "wasm32", feature = "coconut"))]
+use crate::wasm_storage::StorageError;
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "coconut"))]
+use credential_storage::error::StorageError;
+
 #[cfg(feature = "coconut")]
-use credentials::coconut::{
-    bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
-};
-#[cfg(not(feature = "coconut"))]
-use credentials::token::bandwidth::TokenCredential;
-#[cfg(not(feature = "coconut"))]
-use crypto::asymmetric::identity;
-#[cfg(not(feature = "coconut"))]
-use network_defaults::{
-    eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE,
-    ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME,
-    ETH_ERC20_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
-};
-#[cfg(not(feature = "coconut"))]
-use pemstore::traits::PemStorableKeyPair;
-#[cfg(not(feature = "coconut"))]
-use rand::rngs::OsRng;
-#[cfg(not(feature = "coconut"))]
-use secp256k1::SecretKey;
-use std::str::FromStr;
-#[cfg(not(feature = "coconut"))]
-use web3::{
-    contract::{Contract, Options},
-    ethabi::Token,
-    signing::{Key, SecretKeyRef},
-    transports::Http,
-    types::{Address, U256, U64},
-    Web3,
+use {
+    coconut_interface::Base58,
+    credentials::coconut::{
+        bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
+    },
 };
 
-use crate::error::GatewayClientError;
+#[cfg(not(feature = "coconut"))]
+use {
+    credentials::token::bandwidth::TokenCredential,
+    crypto::asymmetric::identity,
+    network_defaults::{
+        eth_contract::ETH_ERC20_JSON_ABI, eth_contract::ETH_JSON_ABI, BANDWIDTH_VALUE,
+        ETH_BURN_FUNCTION_NAME, ETH_CONTRACT_ADDRESS, ETH_ERC20_APPROVE_FUNCTION_NAME,
+        ETH_ERC20_CONTRACT_ADDRESS, ETH_MIN_BLOCK_DEPTH, TOKENS_TO_BURN, UTOKENS_TO_BURN,
+    },
+    pemstore::traits::PemStorableKeyPair,
+    rand::rngs::OsRng,
+    secp256k1::SecretKey,
+    web3::{
+        contract::{Contract, Options},
+        ethabi::Token,
+        signing::{Key, SecretKeyRef},
+        transports::Http,
+        types::{Address, U256, U64},
+        Web3,
+    },
+};
 
 #[cfg(not(feature = "coconut"))]
 pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {

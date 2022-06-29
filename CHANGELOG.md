@@ -29,6 +29,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
 - mixnode: the mixnode learned how to shutdown gracefully
+- mixnode: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service.
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 - native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
 - native & socks5 clients: deduplicate big chunks of init logic

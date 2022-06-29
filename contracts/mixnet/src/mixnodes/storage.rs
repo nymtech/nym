@@ -3,76 +3,136 @@
 
 use config::defaults::MIX_DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
-use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Item, Map, Strategy, UniqueIndex};
+use cw_storage_plus::{
+    Index, IndexList, IndexedMap, IndexedSnapshotMap, Item, Map, Strategy, UniqueIndex,
+};
 use mixnet_contract_common::{
-    reward_params::NodeEpochRewards, Addr, Coin, IdentityKeyRef, Layer, MixNode, MixNodeBond,
+    Addr, Coin, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode, MixNodeBond, NodeId,
 };
 use mixnet_contract_common::{SphinxKey, U128};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-pub const MIXNODE_ID_COUNTER: Item<u64> = Item::new("mixnode_id_counter");
+// storage prefixes
+const MIXNODES_PK_NAMESPACE: &str = "mnn";
+const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
+const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
 
-pub(crate) fn next_mixnode_id_counter(store: &mut dyn Storage) -> StdResult<u64> {
-    let id: u64 = MIXNODE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
-    MIXNODE_ID_COUNTER.save(store, &id)?;
-    Ok(id)
-}
-
-//
-// // storage prefixes
-// const TOTAL_DELEGATION_NAMESPACE: &str = "td";
-// const MIXNODES_PK_NAMESPACE: &str = "mn";
-// const MIXNODES_PK_CHECKPOINTS: &str = "mn__check";
-// const MIXNODES_PK_CHANGELOG: &str = "mn__change";
-// const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
-// const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
-//
-// const LAST_PM_UPDATE_NAMESPACE: &str = "lpm";
-//
 // // paged retrieval limits for all queries and transactions
 // pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
 // pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 //
-// pub(crate) const TOTAL_DELEGATION: Map<'_, IdentityKeyRef<'_>, Uint128> =
-//     Map::new(TOTAL_DELEGATION_NAMESPACE);
 //
-// pub(crate) const LAST_PM_UPDATE_TIME: Map<'_, IdentityKeyRef<'_>, u64> =
-//     Map::new(LAST_PM_UPDATE_NAMESPACE);
-//
-// pub(crate) struct MixnodeBondIndex<'a> {
-//     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,
-//
-//     pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, StoredMixnodeBond>,
-// }
-//
-// // IndexList is just boilerplate code for fetching a struct's indexes
-// // note that from my understanding this will be converted into a macro at some point in the future
-// impl<'a> IndexList<StoredMixnodeBond> for MixnodeBondIndex<'a> {
-//     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<StoredMixnodeBond>> + '_> {
-//         let v: Vec<&dyn Index<StoredMixnodeBond>> = vec![&self.owner, &self.sphinx_key];
-//         Box::new(v.into_iter())
-//     }
-// }
-//
-// // mixnodes() is the storage access function.
-// pub(crate) fn mixnodes<'a>(
-// ) -> IndexedSnapshotMap<'a, IdentityKeyRef<'a>, StoredMixnodeBond, MixnodeBondIndex<'a>> {
-//     let indexes = MixnodeBondIndex {
-//         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
-//         sphinx_key: UniqueIndex::new(
-//             |d| d.mix_node.sphinx_key.clone(),
-//             MIXNODES_SPHINX_IDX_NAMESPACE,
-//         ),
-//     };
-//     IndexedSnapshotMap::new(
-//         MIXNODES_PK_NAMESPACE,
-//         MIXNODES_PK_CHECKPOINTS,
-//         MIXNODES_PK_CHANGELOG,
-//         Strategy::Selected,
-//         indexes,
-//     )
-// }
+
+pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
+
+pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    LAYERS
+        .update(storage, |mut distribution| {
+            match layer {
+                Layer::Gateway => distribution.gateways += 1,
+                Layer::One => distribution.layer1 += 1,
+                Layer::Two => distribution.layer2 += 1,
+                Layer::Three => distribution.layer3 += 1,
+            }
+            Ok(distribution)
+        })
+        .map(|_| ())
+}
+
+pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    todo!("remove 'expect' and propagate the error properly'")
+    // LAYERS
+    //     .update(storage, |mut distribution| {
+    //         match layer {
+    //             Layer::Gateway => {
+    //                 distribution.gateways = distribution
+    //                     .gateways
+    //                     .checked_sub(1)
+    //                     .expect("tried to subtract from unsigned zero!")
+    //             }
+    //             Layer::One => {
+    //                 distribution.layer1 = distribution
+    //                     .layer1
+    //                     .checked_sub(1)
+    //                     .expect("tried to subtract from unsigned zero!")
+    //             }
+    //             Layer::Two => {
+    //                 distribution.layer2 = distribution
+    //                     .layer2
+    //                     .checked_sub(1)
+    //                     .expect("tried to subtract from unsigned zero!")
+    //             }
+    //             Layer::Three => {
+    //                 distribution.layer3 = distribution
+    //                     .layer3
+    //                     .checked_sub(1)
+    //                     .expect("tried to subtract from unsigned zero!")
+    //             }
+    //         }
+    //         Ok(distribution)
+    //     })
+    //     .map(|_| ())
+}
+
+pub(crate) fn assign_layer(store: &mut dyn Storage) -> StdResult<Layer> {
+    // load current distribution
+    let mut layers = LAYERS.load(store)?;
+
+    // choose the one with fewest nodes
+    let fewest = layers.choose_with_fewest();
+
+    // increment the existing count
+    layers.increment_layer_count(fewest);
+
+    // and resave it
+    LAYERS.save(store, &layers);
+    Ok(fewest)
+}
+
+pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new("mixnode_id_counter");
+
+pub(crate) fn next_mixnode_id_counter(store: &mut dyn Storage) -> StdResult<NodeId> {
+    let id: NodeId = MIXNODE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+    MIXNODE_ID_COUNTER.save(store, &id)?;
+    Ok(id)
+}
+
+pub(crate) struct MixnodeBondIndex<'a> {
+    pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,
+
+    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, MixNodeBond>,
+
+    pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, MixNodeBond>,
+}
+
+// IndexList is just boilerplate code for fetching a struct's indexes
+// note that from my understanding this will be converted into a macro at some point in the future
+impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<MixNodeBond>> + '_> {
+        let v: Vec<&dyn Index<MixNodeBond>> =
+            vec![&self.owner, &self.identity_key, &self.sphinx_key];
+        Box::new(v.into_iter())
+    }
+}
+
+// mixnodes() is the storage access function.
+pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
+    let indexes = MixnodeBondIndex {
+        owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
+        identity_key: UniqueIndex::new(
+            |d| d.mix_node.identity_key.clone(),
+            MIXNODES_IDENTITY_IDX_NAMESPACE,
+        ),
+        sphinx_key: UniqueIndex::new(
+            |d| d.mix_node.sphinx_key.clone(),
+            MIXNODES_SPHINX_IDX_NAMESPACE,
+        ),
+    };
+    IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
+}
+
 //
 // #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 // pub struct StoredMixnodeBond {

@@ -4,7 +4,7 @@ import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { MajorCurrencyAmount } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
-import { ModalListItem } from '../Delegation/ModalListItem';
+import { ModalListItem } from '../Modals/ModalListItem';
 
 export const SendInputModal = ({
   fromAddress,
@@ -39,7 +39,7 @@ export const SendInputModal = ({
   }, []);
 
   return (
-    <SimpleModal header="Send" open onClose={onClose} okLabel="Next" onOk={onNext} okDisabled={!isValid}>
+    <SimpleModal header="Send" open onClose={onClose} okLabel="Next" onOk={async () => onNext()} okDisabled={!isValid}>
       <Stack gap={2} sx={{ mt: 2 }}>
         <TextField
           placeholder="Recipient address"

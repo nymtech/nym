@@ -897,6 +897,7 @@ dependencies = [
  "network-defaults",
  "thiserror",
  "url",
+ "validator-api-requests",
  "validator-client",
 ]
 
@@ -3391,7 +3392,6 @@ dependencies = [
  "futures",
  "log",
  "nym-socks5-client",
- "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3404,6 +3404,7 @@ dependencies = [
  "tendermint-rpc",
  "thiserror",
  "tokio",
+ "topology",
  "ts-rs",
  "url",
 ]
@@ -6297,6 +6298,10 @@ dependencies = [
 name = "validator-api-requests"
 version = "0.1.0"
 dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "getset",
  "mixnet-contract-common",
  "schemars",
  "serde",
@@ -6400,7 +6405,7 @@ checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "config",
  "cosmwasm-std",

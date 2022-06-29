@@ -10,6 +10,10 @@ pub enum BackendError {
     CouldNotConnect,
     #[error("Could not disconnect")]
     CouldNotDisconnect,
+    #[error("No service provider set")]
+    NoServiceProviderSet,
+    #[error("No gateway provider set")]
+    NoGatewaySet,
 }
 
 impl Serialize for BackendError {

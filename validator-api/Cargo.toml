@@ -70,7 +70,7 @@ console-subscriber = { version = "0.1.1", optional = true}
 cfg-if = "1.0"
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut"]
+coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut"]
 no-reward = []
 generate-ts = []
 

@@ -5,7 +5,15 @@ import { SimpleModal } from '../Modals/SimpleModal';
 import { TTransactionDetails } from './types';
 
 export const SendSuccessModal = ({ txDetails, onClose }: { txDetails: TTransactionDetails; onClose: () => void }) => (
-  <SimpleModal open onClose={onClose} onOk={onClose} okLabel="Close" header="" hideCloseIcon sx={{ width: 350 }}>
+  <SimpleModal
+    open
+    onClose={onClose}
+    onOk={async () => onClose()}
+    okLabel="Close"
+    header=""
+    hideCloseIcon
+    sx={{ width: 350 }}
+  >
     <Stack alignItems="center" spacing={2}>
       <Typography>You sent</Typography>
       {txDetails && (

@@ -1,11 +1,12 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
-import { DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
+import { DelegationWithEverything, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
 import { TPoolOption } from 'src/components';
+import { Console } from 'src/utils/console';
 import { CompoundModal } from 'src/components/Rewards/CompoundModal';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
@@ -17,7 +18,6 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { Console } from '../../utils/console';
 
 export const Delegation: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
@@ -99,7 +99,12 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleNewDelegation = async (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => {
+  const handleNewDelegation = async (
+    identityKey: string,
+    amount: MajorCurrencyAmount,
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'delegate',
@@ -113,6 +118,7 @@ export const Delegation: FC = () => {
           amount,
         },
         tokenPool,
+        fee,
       );
 
       const balances = await getAllBalances();
@@ -136,7 +142,12 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleDelegateMore = async (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => {
+  const handleDelegateMore = async (
+    identityKey: string,
+    amount: MajorCurrencyAmount,
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => {
     if (currentDelegationListActionItem?.node_identity !== identityKey || !clientDetails) {
       setConfirmationModalProps({
         status: 'error',
@@ -159,6 +170,7 @@ export const Delegation: FC = () => {
           amount,
         },
         tokenPool,
+        fee,
       );
       const balances = await getAllBalances();
 
@@ -180,7 +192,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleUndelegate = async (identityKey: string, usesVestingContractTokens: boolean) => {
+  const handleUndelegate = async (identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'undelegate',
@@ -189,7 +201,7 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const txs = await undelegate(identityKey, usesVestingContractTokens);
+      const txs = await undelegate(identityKey, usesVestingContractTokens, fee);
       const balances = await getAllBalances();
 
       setConfirmationModalProps({
@@ -211,7 +223,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleRedeem = async (identityKey: string) => {
+  const handleRedeem = async (identityKey: string, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'redeem',
@@ -220,7 +232,7 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const txs = await claimRewards(identityKey);
+      const txs = await claimRewards(identityKey, fee);
       const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
@@ -241,7 +253,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleCompound = async (identityKey: string) => {
+  const handleCompound = async (identityKey: string, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'compound',
@@ -250,7 +262,7 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const txs = await compoundRewards(identityKey);
+      const txs = await compoundRewards(identityKey, fee);
       const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
@@ -336,7 +348,6 @@ export const Delegation: FC = () => {
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
           currency={clientDetails!.denom}
-          estimatedReward={0}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
@@ -352,7 +363,6 @@ export const Delegation: FC = () => {
           onOk={handleUndelegate}
           usesVestingContractTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
           currency={currentDelegationListActionItem.amount.denom}
-          fee={0.1}
           amount={+currentDelegationListActionItem.amount.amount}
           identityKey={currentDelegationListActionItem.node_identity}
         />
@@ -362,12 +372,12 @@ export const Delegation: FC = () => {
         <RedeemModal
           open={showRedeemRewardsModal}
           onClose={() => setShowRedeemRewardsModal(false)}
-          onOk={(identity) => handleRedeem(identity)}
+          onOk={(identity, fee) => handleRedeem(identity, fee)}
           message="Redeem rewards"
           currency={clientDetails!.denom}
           identityKey={currentDelegationListActionItem?.node_identity}
-          fee={0.004375}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
+          usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
         />
       )}
 
@@ -375,12 +385,12 @@ export const Delegation: FC = () => {
         <CompoundModal
           open={showCompoundRewardsModal}
           onClose={() => setShowCompoundRewardsModal(false)}
-          onOk={(identity) => handleCompound(identity)}
+          onOk={(identity, fee) => handleCompound(identity, fee)}
           message="Compound rewards"
           currency={clientDetails!.denom}
           identityKey={currentDelegationListActionItem?.node_identity}
-          fee={0.004375}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
+          usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
         />
       )}
 

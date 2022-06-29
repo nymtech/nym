@@ -6,7 +6,7 @@ export const SendErrorModal = ({ onClose }: { onClose: () => void }) => (
     open
     hideCloseIcon
     displayErrorIcon
-    onOk={onClose}
+    onOk={async () => onClose()}
     header="Send"
     subHeader="An error occurred while sending. Please try again"
     okLabel="Close"

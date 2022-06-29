@@ -130,6 +130,8 @@ fn main() {
             simulate::mixnet::simulate_update_mixnode,
             simulate::mixnet::simulate_delegate_to_mixnode,
             simulate::mixnet::simulate_undelegate_from_mixnode,
+            simulate::vesting::simulate_vesting_delegate_to_mixnode,
+            simulate::vesting::simulate_vesting_undelegate_from_mixnode,
             simulate::vesting::simulate_vesting_bond_gateway,
             simulate::vesting::simulate_vesting_unbond_gateway,
             simulate::vesting::simulate_vesting_bond_mixnode,

@@ -27,6 +27,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
+use validator_client::nymd;
 
 use self::storage::PersistentStorage;
 
@@ -248,8 +249,11 @@ where
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
+        let client_config = nymd::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
+            .expect("failed to construct valid validator client config with the provided network");
+
         validator_client::nymd::NymdClient::connect_with_mnemonic(
-            DEFAULT_NETWORK,
+            client_config,
             validator_nymd.as_ref(),
             self.config.get_cosmos_mnemonic(),
             None,

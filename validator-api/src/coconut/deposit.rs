@@ -5,10 +5,10 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use coconut_interface::BlindSignRequestBody;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use crypto::asymmetric::encryption;
 use crypto::asymmetric::identity::{self, Signature};
+use validator_api_requests::coconut::BlindSignRequestBody;
 use validator_client::nymd::TxResponse;
 
 use super::error::{CoconutError, Result};

@@ -11,7 +11,7 @@ export const SimpleModal: React.FC<{
   headerStyles?: SxProps;
   subHeaderStyles?: SxProps;
   onClose?: () => void;
-  onOk?: () => void;
+  onOk?: () => Promise<void>;
   header: string;
   subHeader?: string;
   okLabel: string;

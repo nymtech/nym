@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::Gas;
-use cosmrs::tx;
+use cosmrs::{tx, AccountId};
 use serde::{Deserialize, Serialize};
 
 pub mod gas_price;
@@ -15,6 +15,7 @@ pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: GasAdjustment = 1.3;
 pub enum Fee {
     Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
     Auto(Option<GasAdjustment>),
+    PayerGranterAuto(Option<GasAdjustment>, Option<AccountId>, Option<AccountId>),
 }
 
 impl From<tx::Fee> for Fee {

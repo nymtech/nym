@@ -2,7 +2,7 @@ import React from 'react';
 import { Button, Stack } from '@mui/material';
 import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { SimpleModal } from '../Modals/SimpleModal';
-import { ModalListItem } from '../Delegation/ModalListItem';
+import { ModalListItem } from '../Modals/ModalListItem';
 
 export const SendDetailsModal = ({
   amount,
@@ -26,7 +26,7 @@ export const SendDetailsModal = ({
     open
     onClose={onClose}
     okLabel="Confirm"
-    onOk={() => amount && onSend({ val: amount, to: toAddress })}
+    onOk={async () => amount && onSend({ val: amount, to: toAddress })}
     SecondaryAction={
       <Button fullWidth size="large" sx={{ mt: 2 }} onClick={onPrev}>
         Back

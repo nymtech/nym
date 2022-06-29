@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Gateway.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct Gateway {
     pub host: String,
     pub mix_port: u16,
@@ -52,7 +52,7 @@ impl From<MixnetContractGateway> for Gateway {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/GatewayBond.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub pledge_amount: MajorCurrencyAmount,
     pub owner: String,

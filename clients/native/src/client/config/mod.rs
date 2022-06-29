@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 mod template;
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
 pub enum SocketType {
     WebSocket,
@@ -105,7 +105,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Socket {
     socket_type: SocketType,

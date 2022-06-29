@@ -4,10 +4,11 @@
 use crate::error::MixnetContractError;
 // use crate::mixnode::DelegatorRewardParams;
 use crate::{Layer, RewardedSetNodeStatus};
-use cosmwasm_std::Decimal;
 use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Coin, Decimal};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
 
 pub type EpochId = u32;
@@ -15,8 +16,8 @@ pub type NodeId = u64;
 
 /// Percent represents a value between 0 and 100%
 /// (i.e. between 0.0 and 1.0)
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
-pub struct Percent(Decimal);
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize, JsonSchema)]
+pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 
 impl Percent {
     pub fn new(value: Decimal) -> Result<Self, MixnetContractError> {
@@ -34,6 +35,21 @@ impl Percent {
 
     pub fn value(&self) -> Decimal {
         self.0
+    }
+}
+
+// implement custom Deserialize because we want to validate Percent has the correct range
+fn de_decimal_percent<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let v = Decimal::deserialize(deserializer)?;
+    if v > Decimal::one() {
+        Err(D::Error::custom(
+            "provided decimal percent is larger than 100%",
+        ))
+    } else {
+        Ok(v)
     }
 }
 
@@ -170,4 +186,28 @@ pub struct RewardedSetUpdateDetails {
 pub struct IntervalRewardedSetHeightsResponse {
     pub interval_id: u32,
     pub heights: Vec<u64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn percent_serde() {
+        let valid_value = Percent::from_percentage_value(80u32).unwrap();
+        let serialized = serde_json::to_string(&valid_value).unwrap();
+
+        println!("{}", serialized);
+        let deserialized: Percent = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(valid_value, deserialized);
+
+        let invalid_values = vec!["\"42\"", "\"1.1\"", "\"1.00000001\"", "\"foomp\"", "\"1a\""];
+        for invalid_value in invalid_values {
+            assert!(serde_json::from_str::<'_, Percent>(invalid_value).is_err())
+        }
+        assert_eq!(
+            serde_json::from_str::<'_, Percent>("\"0.95\"").unwrap(),
+            Percent::from_percentage_value(95u32).unwrap()
+        )
+    }
 }

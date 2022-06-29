@@ -6,6 +6,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
   const memoizedValue = useMemo<TAppContext>(
     () => ({
       mode: 'light',
+      handleSwitchMode: () => undefined,
       appEnv: {
         ADMIN_ADDRESS: null,
         SHOW_TERMINAL: null,

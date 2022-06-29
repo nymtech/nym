@@ -305,63 +305,63 @@ pub fn new_mixnode_unbonding_event(
     // coin implements Display trait and we use that implementation here
     event.add_attribute(AMOUNT_KEY, amount.to_string())
 }
-
-pub fn new_settings_update_event(
-    old_params: &ContractStateParams,
-    new_params: &ContractStateParams,
-) -> Event {
-    let mut event = Event::new(SETTINGS_UPDATE_EVENT_TYPE);
-
-    if old_params.minimum_mixnode_pledge != new_params.minimum_mixnode_pledge {
-        event = event
-            .add_attribute(
-                OLD_MINIMUM_MIXNODE_PLEDGE_KEY,
-                old_params.minimum_mixnode_pledge,
-            )
-            .add_attribute(
-                NEW_MINIMUM_MIXNODE_PLEDGE_KEY,
-                new_params.minimum_mixnode_pledge,
-            )
-    }
-
-    if old_params.minimum_gateway_pledge != new_params.minimum_gateway_pledge {
-        event = event
-            .add_attribute(
-                OLD_MINIMUM_GATEWAY_PLEDGE_KEY,
-                old_params.minimum_gateway_pledge,
-            )
-            .add_attribute(
-                NEW_MINIMUM_GATEWAY_PLEDGE_KEY,
-                new_params.minimum_gateway_pledge,
-            )
-    }
-
-    if old_params.mixnode_rewarded_set_size != new_params.mixnode_rewarded_set_size {
-        event = event
-            .add_attribute(
-                OLD_MIXNODE_REWARDED_SET_SIZE_KEY,
-                old_params.mixnode_rewarded_set_size.to_string(),
-            )
-            .add_attribute(
-                NEW_MIXNODE_REWARDED_SET_SIZE_KEY,
-                new_params.mixnode_rewarded_set_size.to_string(),
-            )
-    }
-
-    if old_params.mixnode_active_set_size != new_params.mixnode_active_set_size {
-        event = event
-            .add_attribute(
-                OLD_MIXNODE_ACTIVE_SET_SIZE_KEY,
-                old_params.mixnode_active_set_size.to_string(),
-            )
-            .add_attribute(
-                NEW_MIXNODE_ACTIVE_SET_SIZE_KEY,
-                new_params.mixnode_active_set_size.to_string(),
-            )
-    }
-
-    event
-}
+//
+// pub fn new_settings_update_event(
+//     old_params: &ContractStateParams,
+//     new_params: &ContractStateParams,
+// ) -> Event {
+//     let mut event = Event::new(SETTINGS_UPDATE_EVENT_TYPE);
+//
+//     if old_params.minimum_mixnode_pledge != new_params.minimum_mixnode_pledge {
+//         event = event
+//             .add_attribute(
+//                 OLD_MINIMUM_MIXNODE_PLEDGE_KEY,
+//                 old_params.minimum_mixnode_pledge,
+//             )
+//             .add_attribute(
+//                 NEW_MINIMUM_MIXNODE_PLEDGE_KEY,
+//                 new_params.minimum_mixnode_pledge,
+//             )
+//     }
+//
+//     if old_params.minimum_gateway_pledge != new_params.minimum_gateway_pledge {
+//         event = event
+//             .add_attribute(
+//                 OLD_MINIMUM_GATEWAY_PLEDGE_KEY,
+//                 old_params.minimum_gateway_pledge,
+//             )
+//             .add_attribute(
+//                 NEW_MINIMUM_GATEWAY_PLEDGE_KEY,
+//                 new_params.minimum_gateway_pledge,
+//             )
+//     }
+//
+//     if old_params.mixnode_rewarded_set_size != new_params.mixnode_rewarded_set_size {
+//         event = event
+//             .add_attribute(
+//                 OLD_MIXNODE_REWARDED_SET_SIZE_KEY,
+//                 old_params.mixnode_rewarded_set_size.to_string(),
+//             )
+//             .add_attribute(
+//                 NEW_MIXNODE_REWARDED_SET_SIZE_KEY,
+//                 new_params.mixnode_rewarded_set_size.to_string(),
+//             )
+//     }
+//
+//     if old_params.mixnode_active_set_size != new_params.mixnode_active_set_size {
+//         event = event
+//             .add_attribute(
+//                 OLD_MIXNODE_ACTIVE_SET_SIZE_KEY,
+//                 old_params.mixnode_active_set_size.to_string(),
+//             )
+//             .add_attribute(
+//                 NEW_MIXNODE_ACTIVE_SET_SIZE_KEY,
+//                 new_params.mixnode_active_set_size.to_string(),
+//             )
+//     }
+//
+//     event
+// }
 
 pub fn new_not_found_mix_operator_rewarding_event(
     interval_id: u32,

@@ -62,7 +62,6 @@ export const Loading = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  console.log('open', open);
   return (
     <Content handleClick={handleClick}>
       <DelegationModal

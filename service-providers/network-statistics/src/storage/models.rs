@@ -17,6 +17,7 @@ pub(crate) struct ServiceStatistics {
 pub(crate) struct GatewayStatistics {
     #[allow(dead_code)]
     pub(crate) id: i64,
+    pub(crate) gateway_id: String,
     pub(crate) inbox_count: i64,
     pub(crate) timestamp: NaiveDateTime,
 }

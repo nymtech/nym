@@ -47,16 +47,19 @@ impl StorageManager {
     ///
     /// # Arguments
     ///
+    /// * `gateway_id`: The gateway identity that collected the statstics.
     /// * `inbox_count`: Number of clients of a gateway.
     /// * `interval_seconds`: Duration in seconds in which the data was gathered.
     /// * `timestamp`: The moment in time when the data started being collected.
     pub(super) async fn insert_gateway_statistics(
         &self,
+        gateway_id: String,
         inbox_count: u32,
         timestamp: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO gateway_statistics(inbox_count, timestamp) VALUES (?, ?)",
+            "INSERT INTO gateway_statistics(gateway_id, inbox_count, timestamp) VALUES (?, ?, ?)",
+            gateway_id,
             inbox_count,
             timestamp,
         )

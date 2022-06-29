@@ -35,6 +35,7 @@ pub struct ServiceStatistic {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GatewayStatistic {
+    pub gateway_id: String,
     pub inbox_count: u32,
     pub timestamp: String,
 }
@@ -70,6 +71,7 @@ pub(crate) async fn post_all_statistics(
                 .into_iter()
                 .map(|data| {
                     GenericStatistic::Gateway(GatewayStatistic {
+                        gateway_id: data.gateway_id,
                         inbox_count: data.inbox_count as u32,
                         timestamp: data.timestamp.to_string(),
                     })

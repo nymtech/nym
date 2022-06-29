@@ -333,6 +333,7 @@ where
         if self.config.get_enabled_statistics() {
             let statistics_service_url = self.config.get_statistics_service_url();
             let stats_collector = GatewayStatisticsCollector::new(
+                self.identity_keypair.public_key().to_base58_string(),
                 active_clients_store.clone(),
                 statistics_service_url,
             );

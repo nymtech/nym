@@ -14,13 +14,19 @@ use statistics_common::{
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 
 pub(crate) struct GatewayStatisticsCollector {
+    gateway_id: String,
     active_clients_store: ActiveClientsStore,
     statistics_service_url: Url,
 }
 
 impl GatewayStatisticsCollector {
-    pub fn new(active_clients_store: ActiveClientsStore, statistics_service_url: Url) -> Self {
+    pub fn new(
+        gateway_id: String,
+        active_clients_store: ActiveClientsStore,
+        statistics_service_url: Url,
+    ) -> Self {
         GatewayStatisticsCollector {
+            gateway_id,
             active_clients_store,
             statistics_service_url,
         }
@@ -34,8 +40,10 @@ impl StatisticsCollector for GatewayStatisticsCollector {
         interval: Duration,
         timestamp: DateTime<Utc>,
     ) -> StatsMessage {
-        let inbox_count = self.active_clients_store.size() as u32;
-        let stats_data = vec![StatsData::Gateway(StatsGatewayData { inbox_count })];
+        let stats_data = vec![StatsData::Gateway(StatsGatewayData::new(
+            self.gateway_id.clone(),
+            self.active_clients_store.size() as u32,
+        ))];
         StatsMessage {
             stats_data,
             interval_seconds: interval.as_secs() as u32,

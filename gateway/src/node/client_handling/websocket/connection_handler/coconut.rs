@@ -67,7 +67,7 @@ impl CoconutVerifier {
                 SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
                 // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
                 vec![String::from("/cosmwasm.wasm.v1.MsgExecuteContract")],
-                format!("Create allowance to propose the release of funds"),
+                "Create allowance to propose the release of funds".to_string(),
                 None,
             )
             .await?;
@@ -81,7 +81,7 @@ impl CoconutVerifier {
         self.nymd_client
             .revoke_allowance(
                 &first_api_cosmos_addr,
-                format!("Cleanup the previous allowance for releasing funds"),
+                "Cleanup the previous allowance for releasing funds".to_string(),
                 revoke_fee.clone(),
             )
             .await?;
@@ -110,7 +110,7 @@ impl CoconutVerifier {
                     SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
                     // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
                     vec![String::from("/cosmwasm.wasm.v1.MsgExecuteContract")],
-                    format!("Create allowance to vote the release of funds"),
+                    "Create allowance to vote the release of funds".to_string(),
                     None,
                 )
                 .await?;
@@ -118,7 +118,7 @@ impl CoconutVerifier {
             self.nymd_client
                 .revoke_allowance(
                     &api_cosmos_addr,
-                    format!("Cleanup the previous allowance for releasing funds"),
+                    "Cleanup the previous allowance for releasing funds".to_string(),
                     revoke_fee.clone(),
                 )
                 .await?;

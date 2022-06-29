@@ -423,6 +423,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn grant_allowance(
         &self,
         granter: &AccountId,

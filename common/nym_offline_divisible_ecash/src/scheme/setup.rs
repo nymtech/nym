@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::net::ToSocketAddrs;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, pairing, Scalar};
 use ff::Field;
 use group::Curve;
 use rand::thread_rng;
@@ -59,6 +59,8 @@ pub struct Parameters {
     grp: GroupParameters,
     params_u: ParametersUser,
     params_a: ParametersAuthority,
+    tmp_sigma: G1Projective,
+    pub y: Scalar,
 }
 
 impl Parameters {
@@ -77,7 +79,6 @@ impl Parameters {
         let gamma1 = hash_g1("gamma1");
         let gamma2 = hash_g1("gamma2");
         let eta = hash_g1("eta");
-        let omega = hash_g1("omega");
 
         let z = grp.random_scalar();
         let y = grp.random_scalar();
@@ -101,11 +102,13 @@ impl Parameters {
 
         let etas_u: Vec<G1Projective> = vec_a.iter().map(|x| g1 * x).collect();
 
-        let mut etas_a: Vec<G2Projective> = Default::default();
+        let mut etas_a: Vec<Vec<G2Projective>> = Default::default();
         for l in 1..=L {
+            let mut etas_a_l: Vec<G2Projective> = Default::default();
             for k in 0..=l - 1 {
-                etas_a.push(g2 * (vec_a[l as usize - 1].neg() * (y.pow(&[k as u64, 0, 0, 0]))));
+                etas_a_l.push(g2 * (vec_a[l as usize - 1].neg() * (y.pow(&[k as u64, 0, 0, 0]))));
             }
+            etas_a.push(etas_a_l);
         }
 
         let sps_keypair = SPSKeyPair::new(grp.clone(), 2, 0);
@@ -123,7 +126,6 @@ impl Parameters {
             psi_g1,
             psi_g2,
             eta,
-            omega,
             etas: etas_u,
             sigmas: sigmas_u,
             thetas: thetas_u,
@@ -140,8 +142,14 @@ impl Parameters {
             grp,
             params_u,
             params_a,
+            tmp_sigma: sigma,
+            y,
         };
     }
+}
+
+impl Parameters {
+    pub(crate) fn get_sigma(&self) -> &G1Projective { &self.tmp_sigma }
 }
 
 #[derive(Debug, Clone)]
@@ -150,7 +158,6 @@ pub struct ParametersUser {
     psi_g1: G1Projective,
     psi_g2: G2Projective,
     eta: G1Projective,
-    omega: G1Projective,
     etas: Vec<G1Projective>,
     sigmas: Vec<G1Projective>,
     thetas: Vec<G1Projective>,
@@ -166,8 +173,6 @@ impl ParametersUser {
     pub(crate) fn get_psi_g2(&self) -> &G2Projective { &self.psi_g2 }
 
     pub(crate) fn get_eta(&self) -> &G1Projective { &self.eta }
-
-    pub(crate) fn get_omega(&self) -> &G1Projective { &self.omega }
 
     pub(crate) fn get_etas(&self) -> &[G1Projective] { &self.etas }
 
@@ -191,7 +196,7 @@ impl ParametersUser {
 #[derive(Debug, Clone)]
 pub struct ParametersAuthority {
     deltas: Vec<G2Projective>,
-    etas: Vec<G2Projective>,
+    etas: Vec<Vec<G2Projective>>,
 }
 
 impl ParametersAuthority {
@@ -199,7 +204,9 @@ impl ParametersAuthority {
 
     pub(crate) fn get_ith_delta(&self, idx: usize) -> &G2Projective { self.deltas.get(idx).unwrap() }
 
-    pub(crate) fn get_etas(&self) -> &[G2Projective] { &self.etas }
+    pub(crate) fn get_etas(&self) -> &Vec<Vec<G2Projective>> { &self.etas }
 
-    pub(crate) fn get_ith_eta(&self, idx: usize) -> &G2Projective { self.etas.get(idx).unwrap() }
+    pub(crate) fn get_eta_ith_row(&self, idx: usize) -> &[G2Projective] { self.etas.get(idx).unwrap() }
+
+    pub(crate) fn get_etas_ith_jth_elem(&self, row: usize, column: usize) -> &G2Projective { self.etas.get(row - 1).unwrap().get(column).unwrap() }
 }

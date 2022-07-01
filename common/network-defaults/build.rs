@@ -5,6 +5,7 @@ fn main() {
     match option_env!("NETWORK") {
         None | Some("mainnet") => println!("cargo:rustc-cfg=network=\"mainnet\"",),
         Some("sandbox") => println!("cargo:rustc-cfg=network=\"sandbox\"",),
+        Some("sandbox2") => println!("cargo:rustc-cfg=network=\"sandbox2\"",),
         Some("qa") => println!("cargo:rustc-cfg=network=\"qa\""),
         _ => panic!("No such network"),
     }

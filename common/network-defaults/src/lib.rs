@@ -10,6 +10,7 @@ pub mod eth_contract;
 pub mod mainnet;
 pub mod qa;
 pub mod sandbox;
+pub mod sandbox2;
 
 // The set of defaults that are decided at compile time. Ideally we want to reduce these to a
 // minimum.
@@ -38,6 +39,13 @@ cfg_if::cfg_if! {
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
+    } else if #[cfg(network = "sandbox2")] {
+        pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX2;
+        pub const MIX_DENOM: DenomDetails = sandbox2::MIX_DENOM;
+        pub const STAKE_DENOM: DenomDetails = sandbox2::STAKE_DENOM;
+
+        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox2::_ETH_CONTRACT_ADDRESS;
+        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox2::_ETH_ERC20_CONTRACT_ADDRESS;
     }
 }
 
@@ -233,6 +241,20 @@ static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetwo
     rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
     statistics_service_url: sandbox::STATISTICS_SERVICE_DOMAIN_ADDRESS,
     validators: sandbox::validators(),
+});
+
+static SANDBOX2_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
+    bech32_prefix: sandbox2::BECH32_PREFIX,
+    mix_denom: sandbox2::MIX_DENOM,
+    stake_denom: sandbox2::STAKE_DENOM,
+    mixnet_contract_address: sandbox2::MIXNET_CONTRACT_ADDRESS,
+    vesting_contract_address: sandbox2::VESTING_CONTRACT_ADDRESS,
+    bandwidth_claim_contract_address: sandbox2::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    coconut_bandwidth_contract_address: sandbox2::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+    multisig_contract_address: sandbox2::MULTISIG_CONTRACT_ADDRESS,
+    rewarding_validator_address: sandbox2::REWARDING_VALIDATOR_ADDRESS,
+    statistics_service_url: sandbox2::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    validators: sandbox2::validators(),
 });
 
 static QA_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {

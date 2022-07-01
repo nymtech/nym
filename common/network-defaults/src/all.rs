@@ -3,7 +3,7 @@
 
 use crate::{
     DefaultNetworkDetails, DenomDetailsOwned, NymNetworkDetails, ValidatorDetails,
-    MAINNET_DEFAULTS, QA_DEFAULTS, SANDBOX_DEFAULTS,
+    MAINNET_DEFAULTS, QA_DEFAULTS, SANDBOX_DEFAULTS, SANDBOX2_DEFAULTS
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, str::FromStr};
@@ -21,6 +21,7 @@ pub enum NetworkDefaultsError {
 pub enum Network {
     QA,
     SANDBOX,
+    SANDBOX2,
     MAINNET,
     CUSTOM { details: NymNetworkDetails },
 }
@@ -34,6 +35,7 @@ impl Network {
         match self {
             Self::QA => (&*QA_DEFAULTS).into(),
             Self::SANDBOX => (&*SANDBOX_DEFAULTS).into(),
+            Self::SANDBOX2 => (&*SANDBOX2_DEFAULTS).into(),
             Self::MAINNET => (&*MAINNET_DEFAULTS).into(),
             // I dislike the clone here, but for compatibility reasons we cannot define other networks with `NymNetworkDetails` directly yet
             Self::CUSTOM { details } => details.clone(),
@@ -89,6 +91,7 @@ impl Network {
         match self {
             Network::QA => crate::qa::REWARDING_VALIDATOR_ADDRESS,
             Network::SANDBOX => crate::sandbox::REWARDING_VALIDATOR_ADDRESS,
+            Network::SANDBOX2 => crate::sandbox2::REWARDING_VALIDATOR_ADDRESS,
             Network::MAINNET => crate::mainnet::REWARDING_VALIDATOR_ADDRESS,
             Network::CUSTOM { .. } => {
                 panic!("rewarding validator address is unavailable for a custom network")
@@ -114,6 +117,7 @@ impl FromStr for Network {
         match s.to_lowercase().as_str() {
             "qa" => Ok(Network::QA),
             "sandbox" => Ok(Network::SANDBOX),
+            "sandbox2" => Ok(Network::SANDBOX2),
             "mainnet" => Ok(Network::MAINNET),
             _ => Err(NetworkDefaultsError::MalformedNetworkProvided(
                 s.to_string(),
@@ -127,6 +131,7 @@ impl fmt::Display for Network {
         match *self {
             Network::QA => f.write_str("QA"),
             Network::SANDBOX => f.write_str("Sandbox"),
+            Network::SANDBOX2 => f.write_str("Sandbox2"),
             Network::MAINNET => f.write_str("Mainnet"),
             Network::CUSTOM { .. } => f.write_str("Custom"),
         }

@@ -103,7 +103,7 @@ impl Bytable for Signature {
 impl Base58 for Signature {}
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct BlindedSignature(G1Projective, G1Projective);
 
 impl Bytable for BlindedSignature {

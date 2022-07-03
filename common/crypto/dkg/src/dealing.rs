@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,
     pub ciphertexts: Ciphertexts,

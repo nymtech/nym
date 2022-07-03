@@ -23,7 +23,7 @@ use crate::utils::{
 use crate::Base58;
 
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SecretKey {
     pub(crate) x: Scalar,
     pub(crate) ys: Vec<Scalar>,
@@ -351,7 +351,7 @@ impl Bytable for VerificationKey {
 impl Base58 for VerificationKey {}
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct KeyPair {
     secret_key: SecretKey,
     verification_key: VerificationKey,

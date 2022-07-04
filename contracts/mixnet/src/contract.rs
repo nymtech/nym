@@ -23,6 +23,7 @@ use crate::mixnet_contract_settings::queries::{
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 // use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
+use crate::mixnodes::storage as mixnode_storage;
 // use crate::mixnodes::bonding_queries::{
 //     query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
 // };
@@ -32,8 +33,8 @@ use crate::mixnodes::bonding_queries as mixnode_queries;
 // };
 // use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Uint128,
+    entry_point, to_binary, Addr, Api, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Uint128,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
@@ -41,11 +42,11 @@ use mixnet_contract_common::{
 };
 use time::OffsetDateTime;
 
-// /// Constant specifying minimum of coin required to bond a gateway
-// pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
-//
-// /// Constant specifying minimum of coin required to bond a mixnode
-// pub const INITIAL_MIXNODE_PLEDGE: Uint128 = Uint128::new(100_000_000);
+/// Constant specifying minimum of coin amount required to bond a gateway
+pub const INITIAL_GATEWAY_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
+
+/// Constant specifying minimum of coin amount required to bond a mixnode
+pub const INITIAL_MIXNODE_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
 //
 // pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
 // pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
@@ -62,19 +63,26 @@ use time::OffsetDateTime;
 //     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 // }
 
-fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
-    todo!()
-    // ContractState {
-    //     owner,
-    //     rewarding_validator_address,
-    //     params: ContractStateParams {
-    //         minimum_mixnode_pledge: INITIAL_MIXNODE_PLEDGE,
-    //         minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
-    //         mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
-    //         mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-    //         staking_supply: INITIAL_STAKING_SUPPLY,
-    //     },
-    // }
+fn default_initial_state(
+    owner: Addr,
+    rewarding_validator_address: Addr,
+    rewarding_denom: String,
+) -> ContractState {
+    ContractState {
+        owner,
+        rewarding_validator_address,
+        rewarding_denom: rewarding_denom.clone(),
+        params: ContractStateParams {
+            minimum_mixnode_pledge: Coin {
+                denom: rewarding_denom.clone(),
+                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+            },
+            minimum_gateway_pledge: Coin {
+                denom: rewarding_denom,
+                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+            },
+        },
+    }
 }
 
 /// Instantiate the contract.
@@ -89,16 +97,19 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, MixnetContractError> {
-    todo!()
-    // let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
-    // let state = default_initial_state(info.sender, rewarding_validator_address);
+    let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
+    let state = default_initial_state(
+        info.sender,
+        rewarding_validator_address,
+        msg.rewarding_denom,
+    );
     // init_epoch(deps.storage, env)?;
     //
-    // mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
-    // mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
+    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
+    mixnode_storage::LAYERS.save(deps.storage, &Default::default())?;
     // rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
-    //
-    // Ok(Response::default())
+
+    Ok(Response::default())
 }
 
 /// Handle an incoming message
@@ -128,10 +139,19 @@ pub fn execute(
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
             crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
         }
+        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+            crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(
+                deps, info, address,
+            )
+        }
+        ExecuteMsg::UpdateContractStateParams { updated_parameters } => {
+            crate::mixnet_contract_settings::transactions::try_update_contract_settings(
+                deps,
+                info,
+                updated_parameters,
+            )
+        }
 
-        // ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
-        //     try_update_rewarding_validator_address(deps, info, address)
-        // }
         // ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
 
         // ExecuteMsg::UpdateMixnodeConfig {
@@ -164,11 +184,6 @@ pub fn execute(
         // ),
         // ExecuteMsg::UnbondGateway {} => {
         //     crate::gateways::transactions::try_remove_gateway(deps, info)
-        // }
-        // ExecuteMsg::UpdateContractStateParams(params) => {
-        //     crate::mixnet_contract_settings::transactions::try_update_contract_settings(
-        //         deps, info, params,
-        //     )
         // }
         // ExecuteMsg::RewardMixnode { identity, params } => {
         //     crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params)

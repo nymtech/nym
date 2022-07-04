@@ -15,7 +15,6 @@ export const CompoundModal: React.FC<{
   onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  minimum?: number;
   currency: string;
   message: string;
   usesVestingTokens: boolean;

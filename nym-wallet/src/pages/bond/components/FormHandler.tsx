@@ -6,11 +6,9 @@ import { GatewayForm } from './GatewayForm';
 import { MixnodeForm } from './MixnodeForm';
 
 export const FormHandler = ({
-  disabled,
   onSuccess,
   onError,
 }: {
-  disabled?: boolean;
   onSuccess: (details: { address: string; amount: string }) => void;
   onError: (msg?: string) => void;
 }) => {

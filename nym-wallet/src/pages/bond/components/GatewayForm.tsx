@@ -2,17 +2,16 @@ import React, { useContext, useEffect } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
 import { useForm } from 'react-hook-form';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { bondGateway, simulateBondGateway, simulateVestingBondGateway, vestingBondGateway } from 'src/requests';
-import { TBondGatewayArgs } from 'src/types';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { Fee, TokenPoolSelector } from '../../../components';
 import { AppContext } from '../../../context/main';
 import { gatewayValidationSchema } from '../validationSchema';
 import { ConfirmationModal } from './ConfirmationModal';
-import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 type TBondFormFields = {
   withAdvancedOptions: boolean;
@@ -74,10 +73,7 @@ export const GatewayForm = ({
 
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
 
-  const handleValidateAndGetFee = async (
-    data: TBondFormFields,
-    cb: (data: TBondGatewayArgs) => Promise<TransactionExecuteResult>,
-  ) => {
+  const handleValidateAndGetFee = async (data: TBondFormFields) => {
     if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {
       return setError('amount.amount', { message: 'Not enough funds in wallet' });
     }
@@ -103,6 +99,7 @@ export const GatewayForm = ({
     } catch (e) {
       onError(e as string);
     }
+    return undefined;
   };
 
   const onSubmit = async (data: TBondFormFields) => {
@@ -152,7 +149,6 @@ export const GatewayForm = ({
       )}
       <Box>
         <Grid container spacing={3}>
-          <Grid container item justifyContent="space-between"></Grid>
           <Grid item xs={12}>
             <TextField
               {...register('identityKey')}

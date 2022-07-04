@@ -127,6 +127,53 @@ pub async fn simulate_vesting_update_mixnode(
 }
 
 #[tauri::command]
+pub async fn simulate_vesting_delegate_to_mixnode(
+    identity: &str,
+    amount: MajorCurrencyAmount,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+    let amount = amount.into();
+
+    let client = guard.current_client()?;
+    let vesting_contract = client.nymd.vesting_contract_address();
+
+    let msg = client.nymd.wrap_contract_execute_message(
+        vesting_contract,
+        &ExecuteMsg::DelegateToMixnode {
+            mix_identity: identity.to_string(),
+            amount,
+        },
+        vec![],
+    )?;
+
+    let result = client.nymd.simulate(vec![msg]).await?;
+    Ok(detailed_fee(client, result))
+}
+
+#[tauri::command]
+pub async fn simulate_vesting_undelegate_from_mixnode(
+    identity: &str,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+
+    let client = guard.current_client()?;
+    let vesting_contract = client.nymd.vesting_contract_address();
+
+    let msg = client.nymd.wrap_contract_execute_message(
+        vesting_contract,
+        &ExecuteMsg::UndelegateFromMixnode {
+            mix_identity: identity.to_string(),
+        },
+        vec![],
+    )?;
+
+    let result = client.nymd.simulate(vec![msg]).await?;
+    Ok(detailed_fee(client, result))
+}
+
+#[tauri::command]
 pub async fn simulate_withdraw_vested_coins(
     amount: MajorCurrencyAmount,
     state: tauri::State<'_, Arc<RwLock<State>>>,

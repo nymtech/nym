@@ -1,14 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
-use web3::contract::tokens::Detokenize;
-use web3::contract::{Contract, Error};
-use web3::ethabi::Token;
-use web3::transports::Http;
-use web3::types::{BlockNumber, FilterBuilder, H256};
-use web3::Web3;
-
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use bandwidth_claim_contract::msg::ExecuteMsg;
 use bandwidth_claim_contract::payment::LinkPaymentData;
@@ -16,7 +8,14 @@ use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
+use std::str::FromStr;
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
+use web3::contract::tokens::Detokenize;
+use web3::contract::{Contract, Error};
+use web3::ethabi::Token;
+use web3::transports::Http;
+use web3::types::{BlockNumber, FilterBuilder, H256};
+use web3::Web3;
 
 pub(crate) struct ERC20Bridge {
     // This is needed because web3's Contract doesn't sufficiently expose it's eth interface

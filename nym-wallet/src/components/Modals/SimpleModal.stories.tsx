@@ -59,34 +59,25 @@ export const Default = () => {
 
   return (
     <BasePage handleClick={handleClick}>
-      <Box sx={{ width: '50%' }}>
-        <SimpleModal
-          open={open}
-          onClose={() => setOpen(false)}
-          onOk={() => setOpen(false)}
-          header="This is a modal"
-          subHeader="This is a sub header"
-          okLabel="Click to continue"
-          BackdropProps={backDropStyles(theme)}
-          sx={modalStyles(theme)}
-        >
-          <Typography sx={{ color: theme.palette.text.primary }}>
-            Lorem mollit minim duis cupidatat non. Consectetur sit deserunt
-          </Typography>
-          <Typography sx={{ color: theme.palette.text.primary }}>
-            Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-          </Typography>
-          <ModalDivider />
-          <Typography sx={{ color: theme.palette.text.primary }}>
-            Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eius
-          </Typography>
-
-          <Typography sx={{ color: theme.palette.text.primary }}>
-            Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore
-            magna elit ut mollit.
-          </Typography>
-        </SimpleModal>
-      </Box>
+      <SimpleModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
+        header="This is a modal"
+        subHeader="This is a sub header"
+        okLabel="Click to continue"
+      >
+        <p>Lorem mollit minim duis cupidatat non. Consectetur sit deserunt</p>
+        <p>
+          Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
+        </p>
+        <ModalDivider />
+        <p>Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eius</p>
+        <p>
+          Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
+          elit ut mollit.
+        </p>
+      </SimpleModal>
     </BasePage>
   );
 };
@@ -102,7 +93,7 @@ export const NoSubheader = () => {
       <SimpleModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
         BackdropProps={backDropStyles(theme)}
@@ -133,7 +124,7 @@ export const hideCloseIcon = () => {
         open={open}
         hideCloseIcon
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
         BackdropProps={backDropStyles(theme)}
@@ -165,7 +156,7 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
         hideCloseIcon
         displayErrorIcon
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         header="This modal announces an error !"
         okLabel="Kaplow!"
         BackdropProps={backDropStyles(theme)}

@@ -16,7 +16,7 @@ export const OverSaturatedBlockerModal: React.FC<{
     hideCloseIcon
     displayErrorIcon
     onClose={onClose}
-    onOk={onClose}
+    onOk={async () => onClose?.()}
     header={header || 'Delegate'}
     subHeader={subHeader || "This node is over saturated, you can't delegate more stake to it"}
     okLabel={buttonText || 'Close'}

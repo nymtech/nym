@@ -55,14 +55,14 @@ export const RedeemAllRewards = () => {
       <RedeemModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         message="Redeem all rewards"
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        fee={0.004375}
         amount={425.65843}
         BackdropProps={backDropStyles(theme)}
         sx={modalStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );
@@ -77,14 +77,14 @@ export const RedeemRewardForMixnode = () => {
       <RedeemModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         message="Redeem rewards"
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        fee={0.004375}
         amount={425.65843}
         BackdropProps={backDropStyles(theme)}
         sx={modalStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );
@@ -103,10 +103,10 @@ export const FeeIsMoreThanAllRewards = () => {
         message="Redeem all rewards"
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        fee={0.004375}
         amount={0.001}
         BackdropProps={backDropStyles(theme)}
         sx={modalStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );
@@ -121,14 +121,14 @@ export const FeeIsMoreThanMixnodeReward = () => {
       <RedeemModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         message="Redeem rewards"
         currency="NYM"
-        fee={0.004375}
         amount={0.001}
         BackdropProps={backDropStyles(theme)}
         sx={modalStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );

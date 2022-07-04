@@ -1,5 +1,5 @@
 use crate::nymd::error::NymdError;
-use crate::nymd::{NymdClient, QueryNymdClient};
+use crate::nymd::{Config as ClientConfig, NymdClient, QueryNymdClient};
 use crate::ApiClient;
 use network_defaults::all::Network;
 
@@ -54,10 +54,20 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
             .get(&network)
             .expect("No configured contract address")
             .clone();
-        NymdClient::<QueryNymdClient>::connect(url.as_str())
-            .map(|client| client.with_mixnet_contract_address(address))
-            .map(move |client| ClientForConnectionTest::Nymd(network, url, Box::new(client)))
-            .ok()
+        let config = ClientConfig::try_from_nym_network_details(&network.details())
+            .expect("failed to create valid nymd client config");
+
+        if let Ok(mut client) = NymdClient::<QueryNymdClient>::connect(config, url.as_str()) {
+            // possibly redundant, but lets just leave it here
+            client.set_mixnet_contract_address(address);
+            Some(ClientForConnectionTest::Nymd(
+                network,
+                url,
+                Box::new(client),
+            ))
+        } else {
+            None
+        }
     });
 
     let api_connection_test_clients = api_urls.map(|(network, url)| {
@@ -76,7 +86,7 @@ fn extract_and_collect_results_into_map(
         .filter(|c| &c.url_type() == url_type)
         .map(|c| {
             let (network, url, result) = c.result();
-            (*network, (url.clone(), *result))
+            (network.clone(), (url.clone(), *result))
         })
         .into_group_map()
 }

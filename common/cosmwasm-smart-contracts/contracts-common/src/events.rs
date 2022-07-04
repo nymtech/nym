@@ -28,3 +28,26 @@ pub fn may_find_attribute(event: &Event, key: &str) -> Option<String> {
     }
     None
 }
+
+pub trait OptionallyAddAttribute {
+    fn add_optional_argument(
+        self,
+        key: impl Into<String>,
+        value: Option<impl Into<String>>,
+    ) -> Self;
+}
+
+impl OptionallyAddAttribute for Event {
+    fn add_optional_argument(
+        self,
+        key: impl Into<String>,
+        value: Option<impl Into<String>>,
+    ) -> Self {
+        if let Some(value) = value {
+            self.add_attribute(key, value)
+        } else {
+            // TODO: perhaps if value doesn't exist, we should emit explicit 'null'?
+            self
+        }
+    }
+}

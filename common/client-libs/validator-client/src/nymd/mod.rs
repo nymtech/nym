@@ -1236,7 +1236,7 @@ impl<C> NymdClient<C> {
                         owner: bond.owner.to_string(),
                         owner_signature,
                     },
-                    vec![bond.pledge_amount.into()],
+                    vec![bond.original_pledge.into()],
                 )
             })
             .collect();

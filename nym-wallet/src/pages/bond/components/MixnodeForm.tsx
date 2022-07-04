@@ -348,9 +348,7 @@ export const MixnodeForm = ({
             type="submit"
             data-testid="submit-button"
             disableElevation
-            onClick={handleSubmit((data) =>
-              handleValidateAndGetFee(data, data.tokenPool === 'balance' ? bondMixNode : vestingBondMixNode),
-            )}
+            onClick={handleSubmit(handleValidateAndGetFee)}
             endIcon={isSubmitting && <CircularProgress size={20} />}
             size="large"
           >

@@ -330,9 +330,7 @@ export const GatewayForm = ({
           type="submit"
           data-testid="submit-button"
           disableElevation
-          onClick={handleSubmit((data) =>
-            handleValidateAndGetFee(data, data.tokenPool === 'balance' ? bondGateway : vestingBondGateway),
-          )}
+          onClick={handleSubmit(handleValidateAndGetFee)}
           endIcon={isSubmitting && <CircularProgress size={20} />}
           size="large"
         >

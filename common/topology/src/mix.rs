@@ -117,7 +117,7 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond.pledge_amount.amount.into(),
+            stake: bond.original_pledge.amount.into(),
             delegation: bond.total_delegation.amount.into(),
             host,
             mix_host,

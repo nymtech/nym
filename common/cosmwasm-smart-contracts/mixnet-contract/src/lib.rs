@@ -10,7 +10,7 @@ mod interval;
 pub mod mixnode;
 mod msg;
 pub mod reward_params;
-mod rewarding;
+pub mod rewarding;
 mod types;
 
 pub const MIXNODE_DELEGATORS_PAGE_LIMIT: usize = 250;

@@ -239,7 +239,7 @@ pub(crate) async fn compute_mixnode_reward_estimation(
             .unwrap_or_else(|| status.is_active());
 
         if let Some(pledge_amount) = user_reward_param.pledge_amount {
-            bond.mixnode_bond.pledge_amount.amount = pledge_amount.into();
+            bond.mixnode_bond.original_pledge.amount = pledge_amount.into();
         }
         if let Some(total_delegation) = user_reward_param.total_delegation {
             bond.mixnode_bond.total_delegation.amount = total_delegation.into();

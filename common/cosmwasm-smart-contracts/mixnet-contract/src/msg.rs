@@ -1,21 +1,28 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::NodeRewardParams;
 use crate::ContractStateParams;
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
-    pub mixnet_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    BondMixnode {
+        mix_node: MixNode,
+        cost_params: MixNodeCostParams,
+        owner_signature: String,
+    },
+
+    // un-re-implemented as of yet:
     UpdateRewardingValidatorAddress {
         address: String,
     },
@@ -33,16 +40,7 @@ pub enum ExecuteMsg {
     CompoundDelegatorReward {
         mix_identity: IdentityKey,
     },
-    CompoundReward {
-        operator: Option<String>,
-        delegator: Option<String>,
-        mix_identity: Option<IdentityKey>,
-        proxy: Option<String>,
-    },
-    BondMixnode {
-        mix_node: MixNode,
-        owner_signature: String,
-    },
+
     UnbondMixnode {},
     UpdateMixnodeConfig {
         profit_margin_percent: u8,
@@ -119,7 +117,7 @@ pub enum ExecuteMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetBlacklistedNodes {},

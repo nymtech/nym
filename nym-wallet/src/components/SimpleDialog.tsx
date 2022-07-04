@@ -14,7 +14,7 @@ import {
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import CloseIcon from '@mui/icons-material/Close';
 
-interface Props {
+export interface Props {
   open: boolean;
   onConfirm: () => void;
   onClose?: () => void;

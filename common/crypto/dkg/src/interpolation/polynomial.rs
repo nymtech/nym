@@ -10,7 +10,7 @@ use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};
 use zeroize::Zeroize;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicCoefficients {
     pub(crate) coefficients: Vec<G2Projective>,
 }

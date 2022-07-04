@@ -5,7 +5,7 @@ use std::{fs, io};
 
 pub(crate) const DESCRIPTION_FILE: &str = "description.toml";
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeDescription {
     pub(crate) name: String,
     pub(crate) description: String,

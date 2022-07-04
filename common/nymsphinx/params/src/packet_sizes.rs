@@ -21,7 +21,7 @@ const EXTENDED_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1
 pub struct InvalidPacketSize;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PacketSize {
     // for example instant messaging use case
     RegularPacket = 1,

@@ -28,7 +28,7 @@ pub mod verification;
 pub type SignerIndex = u64;
 
 // (h, s)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Signature(pub(crate) G1Projective, pub(crate) G1Projective);
 
 pub type PartialSignature = Signature;
@@ -103,7 +103,7 @@ impl Bytable for Signature {
 impl Base58 for Signature {}
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct BlindedSignature(G1Projective, G1Projective);
 
 impl Bytable for BlindedSignature {

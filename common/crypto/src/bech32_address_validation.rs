@@ -1,7 +1,7 @@
 use config::defaults::DEFAULT_NETWORK;
 use subtle_encoding::bech32;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Bech32Error {
     DecodeFailed(String),
     WrongPrefix(String),

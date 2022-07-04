@@ -52,7 +52,7 @@ struct OverrideConfig {
 pub(crate) async fn execute(args: Cli) {
     match &args.command {
         Commands::Describe(m) => describe::execute(m),
-        Commands::Init(m) => init::execute(m).await,
+        Commands::Init(m) => init::execute(m),
         Commands::Run(m) => run::execute(m).await,
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m),
@@ -136,7 +136,9 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
 pub(crate) fn version_check(cfg: &Config) -> bool {
     let binary_version = env!("CARGO_PKG_VERSION");
     let config_version = cfg.get_version();
-    if binary_version != config_version {
+    if binary_version == config_version {
+        true
+    } else {
         warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
         if version_checker::is_minor_version_compatible(binary_version, config_version) {
             info!("but they are still semver compatible. However, consider running the `upgrade` command");
@@ -145,7 +147,5 @@ pub(crate) fn version_check(cfg: &Config) -> bool {
             error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
             false
         }
-    } else {
-        true
     }
 }

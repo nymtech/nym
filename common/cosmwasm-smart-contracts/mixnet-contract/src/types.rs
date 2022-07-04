@@ -56,12 +56,12 @@ where
 // /// Represents a base58-encoded ed25519 signature on the bech32 address of the node owner.
 // #[derive(Debug, Serialize, Deserialize, Clone)]
 // pub struct OwnershipSignature(String);
-// 
+//
 // impl OwnershipSignature {
 //     pub fn from_bytes(bytes: [u8; 64]) -> Self {
 //         OwnershipSignature(bs58::encode(bytes).into_string())
 //     }
-// 
+//
 //     pub fn try_from_encoded_base58(raw: &str) -> Result<Self, MixnetContractError> {
 //         // we cannot do much validation without importing appropriate crypto library
 //         // (which we want to avoid at this point), but we can at least check for expected length
@@ -69,14 +69,14 @@ where
 //         let decoded = bs58::decode(raw)
 //             .into_vec()
 //             .map_err(|err| MixnetContractError::MalformedEd25519Signature(err.to_string()))?;
-// 
+//
 //         if decoded.len() != 64 {
 //             return Err(MixnetContractError::MalformedEd25519Signature(format!(
 //                 "Too few bytes provided for the signature. Got: {}, expected: 64",
 //                 decoded.len()
 //             )));
 //         }
-// 
+//
 //         Ok(OwnershipSignature(raw.into()))
 //     }
 // }
@@ -106,6 +106,48 @@ impl LayerDistribution {
             Layer::Two => self.layer2 += 1,
             Layer::Three => self.layer3 += 1,
         }
+    }
+
+    pub fn decrement_layer_count(&mut self, layer: Layer) -> Result<(), MixnetContractError> {
+        match layer {
+            Layer::Gateway => {
+                self.gateways = self.gateways.checked_sub(1).ok_or(
+                    MixnetContractError::OverflowSubtraction {
+                        minuend: self.gateways,
+                        subtrahend: 1,
+                    },
+                )?
+            }
+            Layer::One => {
+                self.layer1 =
+                    self.layer1
+                        .checked_sub(1)
+                        .ok_or(MixnetContractError::OverflowSubtraction {
+                            minuend: self.layer1,
+                            subtrahend: 1,
+                        })?
+            }
+            Layer::Two => {
+                self.layer2 =
+                    self.layer2
+                        .checked_sub(1)
+                        .ok_or(MixnetContractError::OverflowSubtraction {
+                            minuend: self.layer2,
+                            subtrahend: 1,
+                        })?
+            }
+            Layer::Three => {
+                self.layer3 =
+                    self.layer3
+                        .checked_sub(1)
+                        .ok_or(MixnetContractError::OverflowSubtraction {
+                            minuend: self.layer3,
+                            subtrahend: 1,
+                        })?
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -200,6 +242,7 @@ pub struct MixnetContractVersion {
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
+pub type SphinxKeyRef<'a> = &'a str;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PagedRewardedSetResponse {

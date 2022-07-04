@@ -5,6 +5,7 @@ use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub mod helpers;
 pub mod simulator;
 
 // since we're going to be storing a lot of those and json in all its wisdom keeps field names

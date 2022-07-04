@@ -15,6 +15,7 @@ pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
 pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
 pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
 pub const MIXNODE_UNBONDING_EVENT_TYPE: &str = "mixnode_unbonding";
+pub const REWARDING_VALIDATOR_UPDATE_EVENT_TYPE: &str = "rewarding_validator_address_update";
 pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
 pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
@@ -56,6 +57,9 @@ pub const NEW_MINIMUM_GATEWAY_PLEDGE_KEY: &str = "new_minimum_gateway_pledge";
 pub const NEW_MIXNODE_REWARDED_SET_SIZE_KEY: &str = "new_mixnode_rewarded_set_size";
 pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
 
+pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_address";
+pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
+
 // rewarding
 pub const INTERVAL_ID_KEY: &str = "interval_id";
 pub const TOTAL_MIXNODE_REWARD_KEY: &str = "total_node_reward";
@@ -83,6 +87,7 @@ pub const BLOCK_HEIGHT_KEY: &str = "block_height";
 pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
 pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
 
+// TODO: use this
 pub enum MixnetEvent {
     MixnodeBonding {
         owner: Addr,
@@ -100,6 +105,16 @@ pub enum MixnetEvent {
         identity: IdentityKey,
         node_id: NodeId,
     },
+
+    UpdateStateParams {
+        old: ContractStateParams,
+        new: ContractStateParams,
+    },
+
+    UpdateRewardingValidatorAddress {
+        old: Addr,
+        new: Addr,
+    },
 }
 
 impl MixnetEvent {
@@ -107,6 +122,10 @@ impl MixnetEvent {
         match self {
             MixnetEvent::MixnodeBonding { .. } => MIXNODE_BONDING_EVENT_TYPE,
             MixnetEvent::MixnodeUnbonding { .. } => MIXNODE_UNBONDING_EVENT_TYPE,
+            MixnetEvent::UpdateStateParams { .. } => SETTINGS_UPDATE_EVENT_TYPE,
+            MixnetEvent::UpdateRewardingValidatorAddress { .. } => {
+                REWARDING_VALIDATOR_UPDATE_EVENT_TYPE
+            }
         }
     }
 }
@@ -335,63 +354,45 @@ pub fn new_mixnode_unbonding_event(
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
-//
-// pub fn new_settings_update_event(
-//     old_params: &ContractStateParams,
-//     new_params: &ContractStateParams,
-// ) -> Event {
-//     let mut event = Event::new(SETTINGS_UPDATE_EVENT_TYPE);
-//
-//     if old_params.minimum_mixnode_pledge != new_params.minimum_mixnode_pledge {
-//         event = event
-//             .add_attribute(
-//                 OLD_MINIMUM_MIXNODE_PLEDGE_KEY,
-//                 old_params.minimum_mixnode_pledge,
-//             )
-//             .add_attribute(
-//                 NEW_MINIMUM_MIXNODE_PLEDGE_KEY,
-//                 new_params.minimum_mixnode_pledge,
-//             )
-//     }
-//
-//     if old_params.minimum_gateway_pledge != new_params.minimum_gateway_pledge {
-//         event = event
-//             .add_attribute(
-//                 OLD_MINIMUM_GATEWAY_PLEDGE_KEY,
-//                 old_params.minimum_gateway_pledge,
-//             )
-//             .add_attribute(
-//                 NEW_MINIMUM_GATEWAY_PLEDGE_KEY,
-//                 new_params.minimum_gateway_pledge,
-//             )
-//     }
-//
-//     if old_params.mixnode_rewarded_set_size != new_params.mixnode_rewarded_set_size {
-//         event = event
-//             .add_attribute(
-//                 OLD_MIXNODE_REWARDED_SET_SIZE_KEY,
-//                 old_params.mixnode_rewarded_set_size.to_string(),
-//             )
-//             .add_attribute(
-//                 NEW_MIXNODE_REWARDED_SET_SIZE_KEY,
-//                 new_params.mixnode_rewarded_set_size.to_string(),
-//             )
-//     }
-//
-//     if old_params.mixnode_active_set_size != new_params.mixnode_active_set_size {
-//         event = event
-//             .add_attribute(
-//                 OLD_MIXNODE_ACTIVE_SET_SIZE_KEY,
-//                 old_params.mixnode_active_set_size.to_string(),
-//             )
-//             .add_attribute(
-//                 NEW_MIXNODE_ACTIVE_SET_SIZE_KEY,
-//                 new_params.mixnode_active_set_size.to_string(),
-//             )
-//     }
-//
-//     event
-// }
+
+pub fn new_rewarding_validator_address_update_event(old: Addr, new: Addr) -> Event {
+    Event::new(REWARDING_VALIDATOR_UPDATE_EVENT_TYPE)
+        .add_attribute(OLD_REWARDING_VALIDATOR_ADDRESS_KEY, old)
+        .add_attribute(NEW_REWARDING_VALIDATOR_ADDRESS_KEY, new)
+}
+
+pub fn new_settings_update_event(
+    old_params: &ContractStateParams,
+    new_params: &ContractStateParams,
+) -> Event {
+    let mut event = Event::new(SETTINGS_UPDATE_EVENT_TYPE);
+
+    if old_params.minimum_mixnode_pledge != new_params.minimum_mixnode_pledge {
+        event = event
+            .add_attribute(
+                OLD_MINIMUM_MIXNODE_PLEDGE_KEY,
+                old_params.minimum_mixnode_pledge.to_string(),
+            )
+            .add_attribute(
+                NEW_MINIMUM_MIXNODE_PLEDGE_KEY,
+                new_params.minimum_mixnode_pledge.to_string(),
+            )
+    }
+
+    if old_params.minimum_gateway_pledge != new_params.minimum_gateway_pledge {
+        event = event
+            .add_attribute(
+                OLD_MINIMUM_GATEWAY_PLEDGE_KEY,
+                old_params.minimum_gateway_pledge.to_string(),
+            )
+            .add_attribute(
+                NEW_MINIMUM_GATEWAY_PLEDGE_KEY,
+                new_params.minimum_gateway_pledge.to_string(),
+            )
+    }
+
+    event
+}
 
 pub fn new_not_found_mix_operator_rewarding_event(
     interval_id: u32,

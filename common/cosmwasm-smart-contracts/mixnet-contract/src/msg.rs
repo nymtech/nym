@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
+    pub rewarding_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -25,11 +26,14 @@ pub enum ExecuteMsg {
     UnbondMixnodeOnBehalf {
         owner: String,
     },
-
-    // un-re-implemented as of yet:
     UpdateRewardingValidatorAddress {
         address: String,
     },
+    UpdateContractStateParams {
+        updated_parameters: ContractStateParams,
+    },
+
+    // un-re-implemented as of yet:
     InitEpoch {},
     ReconcileDelegations {},
     CheckpointMixnodes {},
@@ -57,7 +61,6 @@ pub enum ExecuteMsg {
         owner_signature: String,
     },
     UnbondGateway {},
-    UpdateContractStateParams(ContractStateParams),
 
     DelegateToMixnode {
         mix_identity: IdentityKey,

@@ -1,11 +1,13 @@
+use std::time::Duration;
+
 use futures::SinkExt;
-use log::info;
 use tauri::Manager;
 
 use nym_socks5::client::{Socks5ControlMessage, Socks5ControlMessageSender};
 
 use crate::{
     config::append_config_id,
+    error::BackendError,
     models::{
         AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
         APP_EVENT_CONNECTION_STATUS_CHANGED,
@@ -61,7 +63,7 @@ impl State {
         self.gateway = Some(gateway);
     }
 
-    pub async fn init_config(&self) {
+    pub async fn init_config(&self) -> Result<(), BackendError> {
         let service_provider = self
             .service_provider
             .as_ref()
@@ -70,16 +72,28 @@ impl State {
             .gateway
             .as_ref()
             .expect("Attempting to init without gateway");
-        crate::config::Config::init(service_provider, gateway).await;
+        crate::config::Config::init(service_provider, gateway).await
     }
 
-    pub async fn start_connecting(&mut self, window: &tauri::Window<tauri::Wry>) -> StatusReceiver {
-        info!("Connecting");
+    pub async fn start_connecting(
+        &mut self,
+        window: &tauri::Window<tauri::Wry>,
+    ) -> Result<StatusReceiver, BackendError> {
+        log::info!("Connecting");
         self.set_state(ConnectionStatusKind::Connecting, window);
         self.status = ConnectionStatusKind::Connecting;
 
         // Setup configuration by writing to file
-        self.init_config().await;
+        if let Err(err) = self.init_config().await {
+            log::warn!("Failed to initialize: {}", err);
+
+            // Wait a little to give the user some rudimentary feedback that the click actually
+            // registered.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            self.set_state(ConnectionStatusKind::Disconnected, window);
+            self.status = ConnectionStatusKind::Disconnected;
+            return Err(err);
+        }
 
         // Kick off the main task and get the channel for controlling it
         let id = append_config_id(
@@ -94,11 +108,11 @@ impl State {
         self.status = ConnectionStatusKind::Connected;
         self.set_state(ConnectionStatusKind::Connected, window);
 
-        status_receiver
+        Ok(status_receiver)
     }
 
     pub async fn start_disconnecting(&mut self, window: &tauri::Window<tauri::Wry>) {
-        info!("Disconnecting");
+        log::info!("Disconnecting");
         self.set_state(ConnectionStatusKind::Disconnecting, window);
         self.status = ConnectionStatusKind::Disconnecting;
 
@@ -109,7 +123,7 @@ impl State {
     }
 
     pub async fn mark_disconnected(&mut self, window: &tauri::Window<tauri::Wry>) {
-        info!("Disconnected");
+        log::info!("Disconnected");
         self.status = ConnectionStatusKind::Disconnected;
         self.set_state(ConnectionStatusKind::Disconnected, window);
     }

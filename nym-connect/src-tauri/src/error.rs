@@ -19,6 +19,8 @@ pub enum BackendError {
         #[from]
         source: reqwest::Error,
     },
+    #[error("Initialization failed with a panic")]
+    InitializationPanic,
 }
 
 impl Serialize for BackendError {

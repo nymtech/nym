@@ -26,3 +26,9 @@ pub(crate) fn minimum_gateway_pledge(storage: &dyn Storage) -> Result<Coin, Mixn
         .load(storage)
         .map(|state| state.params.minimum_gateway_pledge)?)
 }
+
+pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.rewarding_denom)?)
+}

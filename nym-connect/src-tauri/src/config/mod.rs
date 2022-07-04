@@ -18,8 +18,9 @@ const DEFAULT_ETH_PRIVATE_KEY: &str =
     "0000000000000000000000000000000000000000000000000000000000000001";
 
 pub fn append_config_id(gateway_id: &str) -> String {
+    use std::fmt::Write as _;
     let mut id = SOCKS5_CONFIG_ID.to_string();
-    id.push_str(&format!("-{}", gateway_id));
+    write!(id, "-{}", gateway_id).expect("Failed to set config id");
     id
 }
 

@@ -16,7 +16,13 @@ const Template: ComponentStory<typeof SimpleDialog> = (args) => {
       <Button variant="outlined" onClick={() => setOpen(true)}>
         Open simple dialog
       </Button>
-      <SimpleDialog {...args} open={open} confirmButton="Confirm">
+      <SimpleDialog
+        {...args}
+        open={open}
+        confirmButton="Confirm"
+        onClose={() => setOpen(false)}
+        onConfirm={() => setOpen(false)}
+      >
         Dialog content.
       </SimpleDialog>
     </>

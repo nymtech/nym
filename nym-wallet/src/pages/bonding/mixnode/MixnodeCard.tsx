@@ -9,6 +9,9 @@ import NodeSettings from './node-settings';
 import BondMore from './bond-more';
 import NodeMenu from './NodeMenu';
 import { MixnodeFlow } from './types';
+import RedeemRewards from './redeem';
+import Unbond from './unbond';
+import CompoundRewards from './compound';
 
 const headers: Header[] = [
   {
@@ -131,6 +134,9 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
       </Typography>
       <NodeSettings mixnode={mixnode} show={flow === 'nodeSettings'} onClose={() => setFlow(null)} />
       <BondMore mixnode={mixnode} show={flow === 'bondMore'} onClose={() => setFlow(null)} />
+      <RedeemRewards mixnode={mixnode} show={flow === 'redeem'} onClose={() => setFlow(null)} />
+      <Unbond mixnode={mixnode} show={flow === 'unbound'} onClose={() => setFlow(null)} />
+      <CompoundRewards mixnode={mixnode} show={flow === 'compound'} onClose={() => setFlow(null)} />
     </BondedNodeCard>
   );
 };

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleDialog } from '../../components';
+import { SimpleDialog } from '../../../../components';
 
 export interface Props {
   open: boolean;

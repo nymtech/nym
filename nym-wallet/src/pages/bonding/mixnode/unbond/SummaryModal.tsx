@@ -8,39 +8,40 @@ export interface Props {
   onClose: () => void;
   onConfirm: () => void;
   onCancel: () => void;
-  currentPm: number;
-  newPm: number;
+  bond: MajorCurrencyAmount;
+  rewards: MajorCurrencyAmount;
   fee: MajorCurrencyAmount;
 }
 
-const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentPm, newPm, fee }: Props) => (
+const SummaryModal = ({ open, onClose, onConfirm, onCancel, bond, rewards, fee }: Props) => (
   <SimpleDialog
     open={open}
     onClose={onClose}
     onConfirm={onConfirm}
     onCancel={onCancel}
-    title="Profit margin change"
-    subTitle="System Variables"
-    confirmButton="Confirm"
+    title="Unbond"
+    subTitle="Unbond and remove your node from the mixnet"
+    confirmButton="Unbond"
     closeButton
-    cancelButton
     maxWidth="xs"
     fullWidth
   >
     <Stack direction="row" justifyContent="space-between">
-      <Typography fontWeight={400}>Current profit margin</Typography>
-      <Typography fontWeight={400}>{`${currentPm}%`}</Typography>
+      <Typography fontWeight={400}>Amount to unbond</Typography>
+      <Typography fontWeight={400}>{`${bond.amount} ${bond.denom}`}</Typography>
     </Stack>
     <Divider sx={{ my: 1 }} />
     <Stack direction="row" justifyContent="space-between">
-      <Typography fontWeight={400}>New profit margin</Typography>
-      <Typography fontWeight={400}>{`${newPm}%`}</Typography>
+      <Typography fontWeight={400}>Operator rewards</Typography>
+      <Typography fontWeight={400}>{`${rewards.amount} ${rewards.denom}`}</Typography>
     </Stack>
     <Divider sx={{ my: 1 }} />
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Fee for this operation</Typography>
       <Typography fontWeight={400}>{`${fee.amount} ${fee.denom}`}</Typography>
     </Stack>
+    <Divider sx={{ my: 1 }} />
+    <Typography fontWeight={400}>Tokens will be transferred to account you are logged in with now</Typography>
   </SimpleDialog>
 );
 

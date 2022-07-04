@@ -12,7 +12,7 @@ export const Default = () => (
   <MockMainContextProvider>
     <MockDelegationContextProvider>
       <MockRewardsContextProvider>
-        <DelegationPage />
+        <DelegationPage isStorybook />
       </MockRewardsContextProvider>
     </MockDelegationContextProvider>
   </MockMainContextProvider>

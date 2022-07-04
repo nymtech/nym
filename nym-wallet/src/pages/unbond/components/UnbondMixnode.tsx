@@ -4,6 +4,7 @@ import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateUnbondMixnode, simulateVestingUnbondMixnode } from 'src/requests';
 import { FeeDetails } from '@nymproject/types';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 export const UnbondMixnode = ({
   isWithVestingTokens,
@@ -14,7 +15,7 @@ export const UnbondMixnode = ({
   onConfirm: (isWithVestingTokens: boolean, fee: FeeDetails) => Promise<void>;
   onError: (err?: string) => void;
 }) => {
-  const { fee, getFee, resetFeeState } = useGetFee();
+  const { fee, getFee, resetFeeState, isFeeLoading } = useGetFee();
 
   const handleGetFee = async () => {
     try {
@@ -24,6 +25,8 @@ export const UnbondMixnode = ({
       onError(e as string);
     }
   };
+
+  if (isFeeLoading) return <LoadingModal />;
 
   return (
     <Box sx={{ p: 3, display: 'flex', justifyContent: 'flex-end' }}>

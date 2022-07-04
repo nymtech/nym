@@ -19,6 +19,7 @@ mod menu;
 mod models;
 mod operations;
 mod state;
+mod tasks;
 mod window;
 
 fn main() {

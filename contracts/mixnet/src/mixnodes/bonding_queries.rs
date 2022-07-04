@@ -1,7 +1,12 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use super::storage::{self, StoredMixnodeBond};
+use super::storage::{self};
+use crate::mixnodes::helpers::get_mixnode_details_by_owner;
+use cosmwasm_std::{Deps, StdResult};
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::MixOwnershipResponse;
+
 // use cosmwasm_std::{Deps, Order, StdResult};
 // use cw_storage_plus::Bound;
 // use mixnet_contract_common::{
@@ -58,30 +63,17 @@
 //
 //     Ok(PagedMixnodeResponse::new(nodes, limit, start_next_after))
 // }
-//
-// pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwnershipResponse> {
-//     let validated_addr = deps.api.addr_validate(&address)?;
-//     let stored_bond = storage::mixnodes()
-//         .idx
-//         .owner
-//         .item(deps.storage, validated_addr.clone())?
-//         .map(|record| record.1);
-//
-//     let mixnode = match stored_bond {
-//         None => None,
-//         Some(bond) => {
-//             let total_delegation =
-//                 storage::TOTAL_DELEGATION.may_load(deps.storage, bond.identity())?;
-//             Some(bond.attach_delegation(total_delegation.unwrap_or_default()))
-//         }
-//     };
-//
-//     Ok(MixOwnershipResponse {
-//         address: validated_addr,
-//         mixnode,
-//     })
-// }
-//
+
+pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwnershipResponse> {
+    let validated_addr = deps.api.addr_validate(&address)?;
+    let mixnode_details = get_mixnode_details_by_owner(deps.storage, validated_addr.clone())?;
+
+    Ok(MixOwnershipResponse {
+        address: validated_addr,
+        mixnode_details,
+    })
+}
+
 // pub fn query_mixnode_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<MixnodeBondResponse> {
 //     Ok(MixnodeBondResponse {
 //         mixnode: storage::read_full_mixnode_bond(deps.storage, &identity)?,

@@ -4,6 +4,7 @@
 use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
+use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::{HistoricalRewards, RewardDistribution};
 use crate::{Delegation, EpochId, IdentityKey, NodeId, Percent, SphinxKey};
 use crate::{ONE, U128};
@@ -38,6 +39,15 @@ pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
 
     pub rewarding_details: MixNodeRewarding,
+}
+
+impl MixNodeDetails {
+    pub fn new(bond_information: MixNodeBond, rewarding_details: MixNodeRewarding) -> Self {
+        MixNodeDetails {
+            bond_information,
+            rewarding_details,
+        }
+    }
 }
 
 pub type Period = u64;
@@ -92,6 +102,10 @@ impl MixNodeRewarding {
             // current_period_reward: Decimal::zero(),
             last_rewarded_epoch: current_epoch,
         }
+    }
+
+    pub fn operator_reward(&self, denom: impl Into<String>) -> Coin {
+        truncate_reward(self.operator, denom)
     }
 
     pub fn node_bond(&self) -> Decimal {
@@ -236,7 +250,7 @@ impl MixNodeRewarding {
 
     pub fn decrease_delegates(&mut self, amount: Decimal) -> Result<(), MixnetContractError> {
         if self.delegates < amount {
-            return Err(MixnetContractError::OverflowSubtraction {
+            return Err(MixnetContractError::OverflowDecimalSubtraction {
                 minuend: self.delegates,
                 subtrahend: amount,
             });
@@ -520,13 +534,13 @@ impl PagedMixnodeResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixOwnershipResponse {
     pub address: Addr,
-    pub mixnode: Option<MixNodeBond>,
+    pub mixnode_details: Option<MixNodeDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixnodeBondResponse {
     pub identity: IdentityKey,
-    pub mixnode: Option<MixNodeBond>,
+    pub mixnode_details: Option<MixNodeBond>,
 }
 //
 // #[cfg(test)]

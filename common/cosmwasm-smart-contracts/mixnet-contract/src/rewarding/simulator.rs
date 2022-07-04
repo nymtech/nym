@@ -5,6 +5,7 @@ use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::mixnode::{MixNodeCostParams, MixNodeRewarding, Period};
 use crate::reward_params::{NodeRewardParams, RewardingParams};
+use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::{HistoricalRewards, RewardDistribution};
 use crate::{Delegation, Percent};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
@@ -77,14 +78,6 @@ impl Simulator {
         (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
     }
 
-    // TODO: move to some utils or something (even if it's simple)
-    pub fn truncate_reward(&self, reward: Decimal) -> Uint128 {
-        // truncates all decimal points so that the reward would fit in a `Coin` and so that we would
-        // never attempt to reward more than the owner is due
-        // for example it truncates "23.9" into "23"
-        reward * Uint128::new(1)
-    }
-
     fn decrement_historical_ref_count_or_remove(&mut self, period: Period) {
         let entry = self.node_historical_records.get_mut(&period).unwrap();
         if entry.reference_count == 1 {
@@ -108,8 +101,8 @@ impl Simulator {
         self.node_rewarding_details
             .decrease_delegates(delegation.dec_amount() + reward)?;
 
-        let truncated_reward = self.truncate_reward(reward);
-        let reward_denom = delegation.amount.denom.clone();
+        let reward_denom = &delegation.amount.denom;
+        let truncated_reward = truncate_reward(reward, reward_denom);
 
         // if this was last delegation, move all leftover decimal tokens to the operator
         // (this is literally in the order of a millionth of a micronym)
@@ -118,13 +111,7 @@ impl Simulator {
             self.node_rewarding_details.delegates = Decimal::zero();
         }
 
-        Ok((
-            delegation.amount,
-            Coin {
-                denom: reward_denom,
-                amount: truncated_reward,
-            },
-        ))
+        Ok((delegation.amount, truncated_reward))
     }
 
     pub fn determine_total_delegation_reward(&self) -> Decimal {

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::defaults::MIX_DENOM;
-use cosmwasm_std::{Env, StdResult, Storage, Uint128};
+use cosmwasm_std::{Decimal, Env, StdResult, Storage, Uint128};
 use cw_storage_plus::{
     Index, IndexList, IndexedMap, IndexedSnapshotMap, Item, Map, Strategy, UniqueIndex,
 };
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::{MixNodeCostParams, MixNodeRewarding, Period};
+use mixnet_contract_common::mixnode::{
+    MixNodeCostParams, MixNodeDetails, MixNodeRewarding, Period,
+};
 use mixnet_contract_common::rewarding::HistoricalRewards;
 use mixnet_contract_common::{
     Addr, Coin, EpochId, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode,
@@ -34,53 +36,22 @@ const MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE: &str = "mnh";
 
 pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
 
-pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
-    LAYERS
-        .update(storage, |mut distribution| {
-            match layer {
-                Layer::Gateway => distribution.gateways += 1,
-                Layer::One => distribution.layer1 += 1,
-                Layer::Two => distribution.layer2 += 1,
-                Layer::Three => distribution.layer3 += 1,
-            }
-            Ok(distribution)
-        })
-        .map(|_| ())
-}
+// pub fn increment_layer_count(
+//     storage: &mut dyn Storage,
+//     layer: Layer,
+// ) -> Result<(), MixnetContractError> {
+//     let mut layers = LAYERS.load(storage)?;
+//     layers.increment_layer_count(layer);
+//     Ok(LAYERS.save(storage, &layers)?)
+// }
 
-pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
-    todo!("remove 'expect' and propagate the error properly'")
-    // LAYERS
-    //     .update(storage, |mut distribution| {
-    //         match layer {
-    //             Layer::Gateway => {
-    //                 distribution.gateways = distribution
-    //                     .gateways
-    //                     .checked_sub(1)
-    //                     .expect("tried to subtract from unsigned zero!")
-    //             }
-    //             Layer::One => {
-    //                 distribution.layer1 = distribution
-    //                     .layer1
-    //                     .checked_sub(1)
-    //                     .expect("tried to subtract from unsigned zero!")
-    //             }
-    //             Layer::Two => {
-    //                 distribution.layer2 = distribution
-    //                     .layer2
-    //                     .checked_sub(1)
-    //                     .expect("tried to subtract from unsigned zero!")
-    //             }
-    //             Layer::Three => {
-    //                 distribution.layer3 = distribution
-    //                     .layer3
-    //                     .checked_sub(1)
-    //                     .expect("tried to subtract from unsigned zero!")
-    //             }
-    //         }
-    //         Ok(distribution)
-    //     })
-    //     .map(|_| ())
+pub fn decrement_layer_count(
+    storage: &mut dyn Storage,
+    layer: Layer,
+) -> Result<(), MixnetContractError> {
+    let mut layers = LAYERS.load(storage)?;
+    layers.decrement_layer_count(layer)?;
+    Ok(LAYERS.save(storage, &layers)?)
 }
 
 pub(crate) fn assign_layer(store: &mut dyn Storage) -> StdResult<Layer> {
@@ -94,7 +65,7 @@ pub(crate) fn assign_layer(store: &mut dyn Storage) -> StdResult<Layer> {
     layers.increment_layer_count(fewest);
 
     // and resave it
-    LAYERS.save(store, &layers);
+    LAYERS.save(store, &layers)?;
     Ok(fewest)
 }
 
@@ -124,8 +95,8 @@ impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
     }
 }
 
-// mixnodes() is the storage access function.
-pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
+// mixnode_bonds() is the storage access function.
+pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
         identity_key: UniqueIndex::new(
@@ -181,7 +152,7 @@ pub(crate) fn save_new_mixnode(
 
     // save mixnode bond data
     // note that this implicitly checks for uniqueness on identity key, sphinx key and owner
-    mixnodes().save(storage, node_id, &mixnode_bond)?;
+    mixnode_bonds().save(storage, node_id, &mixnode_bond)?;
 
     // save rewarding data
     MIXNODE_REWARDING.save(storage, node_id, &mixnode_rewarding)?;
@@ -190,6 +161,33 @@ pub(crate) fn save_new_mixnode(
     HISTORICAL_PERIODS_RECORDS.save(storage, (node_id, 0), &initial_record)?;
 
     Ok((node_id, layer))
+}
+
+pub(crate) fn cleanup_mixnode_storage(
+    storage: &mut dyn Storage,
+    current_details: &MixNodeDetails,
+) -> Result<(), MixnetContractError> {
+    let node_id = current_details.bond_information.id;
+    // remove all bond information (we don't need it anymore
+    // note that "normal" remove is `may_load` followed by `replace` with a `None`
+    // and we have already loaded the data from the storage
+    mixnode_bonds().replace(
+        storage,
+        node_id,
+        None,
+        Some(&current_details.bond_information),
+    )?;
+
+    // if there are no pending delegations to return, we can also
+    // purge all information regarding rewarding parameters
+    if current_details.rewarding_details.delegates == Decimal::zero() {
+        MIXNODE_REWARDING.remove(storage, node_id);
+    }
+
+    // TODO: this depends whether we are actually creating this entry or not
+    // HISTORICAL_PERIODS_RECORDS.remove(storage, (node_id, 0));
+
+    decrement_layer_count(storage, current_details.bond_information.layer)
 }
 
 //

@@ -92,12 +92,21 @@ pub enum MixnetEvent {
         node_id: NodeId,
         assigned_layer: Layer,
     },
+
+    MixnodeUnbonding {
+        owner: Addr,
+        proxy: Option<Addr>,
+        amount: Coin,
+        identity: IdentityKey,
+        node_id: NodeId,
+    },
 }
 
 impl MixnetEvent {
     pub fn event_type(&self) -> &str {
         match self {
             MixnetEvent::MixnodeBonding { .. } => MIXNODE_BONDING_EVENT_TYPE,
+            MixnetEvent::MixnodeUnbonding { .. } => MIXNODE_UNBONDING_EVENT_TYPE,
         }
     }
 }
@@ -316,17 +325,15 @@ pub fn new_mixnode_unbonding_event(
     proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
+    node_id: NodeId,
 ) -> Event {
-    let mut event = Event::new(MIXNODE_UNBONDING_EVENT_TYPE)
-        .add_attribute(OWNER_KEY, owner)
-        .add_attribute(NODE_IDENTITY_KEY, identity);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
     // coin implements Display trait and we use that implementation here
-    event.add_attribute(AMOUNT_KEY, amount.to_string())
+    Event::new(MIXNODE_UNBONDING_EVENT_TYPE)
+        .add_attribute(OWNER_KEY, owner)
+        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 //
 // pub fn new_settings_update_event(

@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // Serializable structures for what we find in common/crypto
-#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct PublicKey([u8; 32]);
 
 impl PublicKey {
@@ -24,7 +24,7 @@ impl AsRef<[u8]> for PublicKey {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Signature([u8; 32], [u8; 32]);
 
 impl Signature {

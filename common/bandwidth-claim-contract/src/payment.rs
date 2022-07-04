@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::keys::{PublicKey, Signature};
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Payment {
     verification_key: PublicKey,
     gateway_identity: PublicKey,
@@ -27,7 +27,7 @@ impl Payment {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct LinkPaymentData {
     pub verification_key: PublicKey,
     pub gateway_identity: PublicKey,
@@ -51,7 +51,7 @@ impl LinkPaymentData {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedPaymentResponse {
     pub payments: Vec<Payment>,
     pub per_page: usize,

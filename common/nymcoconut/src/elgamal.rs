@@ -20,7 +20,7 @@ pub type EphemeralKey = Scalar;
 
 /// Two G1 points representing ElGamal ciphertext
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Ciphertext(pub(crate) G1Projective, pub(crate) G1Projective);
 
 impl TryFrom<&[u8]> for Ciphertext {
@@ -73,7 +73,7 @@ impl Ciphertext {
 
 /// PrivateKey used in the ElGamal encryption scheme to recover the plaintext
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct PrivateKey(pub(crate) Scalar);
 
 impl PrivateKey {
@@ -121,7 +121,7 @@ impl Base58 for PrivateKey {}
 // TODO: perhaps be more explicit and apart from gamma also store generator and group order?
 /// PublicKey used in the ElGamal encryption scheme to produce the ciphertext
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct PublicKey(G1Projective);
 
 impl PublicKey {

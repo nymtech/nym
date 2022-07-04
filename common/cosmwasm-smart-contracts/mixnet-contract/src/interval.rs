@@ -59,7 +59,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,
     #[serde(with = "string_rfc3339_offset_date_time")]

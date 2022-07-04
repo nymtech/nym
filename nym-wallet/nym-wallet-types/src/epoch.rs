@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
     feature = "generate-ts",
     ts(export_to = "nym-wallet/src/types/rust/Epoch.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize)]
 pub struct Epoch {
     id: u32,
     start: i64,

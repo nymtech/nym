@@ -12,7 +12,7 @@ use bandwidth_claim_contract::payment::Payment;
 const PREFIX_PAYMENTS: &[u8] = b"payments";
 const PREFIX_STATUS: &[u8] = b"status";
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub enum Status {
     Unchecked,
     Checked,

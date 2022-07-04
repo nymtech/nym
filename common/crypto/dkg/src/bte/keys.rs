@@ -335,7 +335,7 @@ pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicK
     (dk, key_with_proof)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
@@ -345,7 +345,7 @@ impl PublicKey {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,
     pub(crate) proof: ProofOfDiscreteLog,

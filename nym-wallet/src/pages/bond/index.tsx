@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
-import { useSnackbar } from 'notistack';
+import { useNavigate } from 'react-router-dom';
 import { NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { PageLayout } from '../../layouts';
-import { unbond, vestingUnbond } from '../../requests';
 import { FormHandler } from './components/FormHandler';
 import { SuccessView } from './components/SuccessView';
 
@@ -15,7 +14,7 @@ export const Bond = () => {
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
   const { checkOwnership, ownership, isLoading } = useCheckOwnership();
-  const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
@@ -41,20 +40,7 @@ export const Bond = () => {
               action={
                 <Button
                   disabled={status === EnumRequestStatus.loading}
-                  onClick={async () => {
-                    setStatus(EnumRequestStatus.loading);
-                    try {
-                      if (ownership.vestingPledge) {
-                        await vestingUnbond(ownership.nodeType!);
-                      } else {
-                        await unbond(ownership.nodeType!);
-                      }
-                    } catch (e) {
-                      enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' });
-                    } finally {
-                      setStatus(EnumRequestStatus.initial);
-                    }
-                  }}
+                  onClick={() => navigate('/unbond')}
                   data-testid="unBond"
                   color="inherit"
                 >

@@ -81,4 +81,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly", "nym-wallet"]
+exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly", "nym-wallet", "nym-connect"]

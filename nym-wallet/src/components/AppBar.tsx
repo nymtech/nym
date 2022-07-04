@@ -77,23 +77,11 @@ export const AppBar = () => {
           </Grid>
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>
-              {/* <FormGroup>
-                <FormControlLabel
-                  control={
-                    <MaterialUISwitch
-                      checked={mode === 'dark'}
-                      onChange={handleSwitchMode}
-                      inputProps={{ 'aria-label': 'controlled' }}
-                    />
-                  }
-                  label=""
-                />
-              </FormGroup> */}
               <IconButton size="small" onClick={handleSwitchMode} sx={{ color: 'text.primary' }}>
                 {mode === 'light' ? (
-                  <ModeNightOutlinedIcon fontSize="small" />
-                ) : (
                   <LightModeOutlinedIcon fontSize="small" />
+                ) : (
+                  <ModeNightOutlinedIcon fontSize="small" sx={{ transform: 'rotate(180deg)' }} />
                 )}
               </IconButton>
             </Grid>

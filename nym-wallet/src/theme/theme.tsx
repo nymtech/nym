@@ -40,6 +40,8 @@ const darkMode: NymPaletteVariant = {
     main: '#1D2125',
     paper: '#292E34',
     warn: '#FFE600',
+    grey: '#3A4053',
+    greyStroke: '#545D6A',
   },
   text: {
     main: '#FFFFFF',
@@ -62,6 +64,8 @@ const lightMode: NymPaletteVariant = {
     main: '#E5E5E5',
     paper: '#FFFFFF',
     warn: '#FFE600',
+    grey: '#F5F5F5',
+    greyStroke: '#E6E6E6',
   },
   text: {
     main: '#121726',

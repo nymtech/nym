@@ -110,10 +110,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
     match msg {
-        // ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
-        //     try_update_rewarding_validator_address(deps, info, address)
-        // }
-        // ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
         ExecuteMsg::BondMixnode {
             mix_node,
             cost_params,
@@ -126,9 +122,18 @@ pub fn execute(
             cost_params,
             owner_signature,
         ),
-        // ExecuteMsg::UnbondMixnode {} => {
-        //     crate::mixnodes::transactions::try_remove_mixnode(env, deps, info)
+        ExecuteMsg::UnbondMixnode {} => {
+            crate::mixnodes::transactions::try_remove_mixnode(deps, info)
+        }
+        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+        }
+
+        // ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+        //     try_update_rewarding_validator_address(deps, info, address)
         // }
+        // ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
+
         // ExecuteMsg::UpdateMixnodeConfig {
         //     profit_margin_percent,
         // } => crate::mixnodes::transactions::try_update_mixnode_config(
@@ -220,9 +225,6 @@ pub fn execute(
         //     owner,
         //     owner_signature,
         // ),
-        // ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-        //     crate::mixnodes::transactions::try_remove_mixnode_on_behalf(env, deps, info, owner)
-        // }
         // ExecuteMsg::BondGatewayOnBehalf {
         //     gateway,
         //     owner,

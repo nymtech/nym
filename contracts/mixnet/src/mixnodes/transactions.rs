@@ -3,9 +3,12 @@
 
 use super::storage::{self};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnodes::bonding_queries::query_owns_mixnode;
+use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::support::helpers::{
-    ensure_no_existing_bond, validate_node_identity_signature, validate_pledge,
+    ensure_no_existing_bond, send_to_proxy_or_owner, validate_node_identity_signature,
+    validate_pledge,
 };
 use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
@@ -118,91 +121,86 @@ fn _try_add_mixnode(
     )))
 }
 //
-// pub fn try_remove_mixnode_on_behalf(
-//     env: Env,
-//     deps: DepsMut<'_>,
-//     info: MessageInfo,
-//     owner: String,
-// ) -> Result<Response, ContractError> {
-//     let proxy = info.sender;
-//     _try_remove_mixnode(env, deps, &owner, Some(proxy))
-// }
-//
-// pub fn try_remove_mixnode(
-//     env: Env,
-//     deps: DepsMut<'_>,
-//     info: MessageInfo,
-// ) -> Result<Response, ContractError> {
-//     _try_remove_mixnode(env, deps, info.sender.as_ref(), None)
-// }
-//
-// pub(crate) fn _try_remove_mixnode(
-//     env: Env,
-//     deps: DepsMut<'_>,
-//     owner: &str,
-//     proxy: Option<Addr>,
-// ) -> Result<Response, ContractError> {
-//     let owner = deps.api.addr_validate(owner)?;
-//
-//     crate::rewards::transactions::_try_compound_operator_reward(
-//         deps.storage,
-//         deps.api,
-//         env.block.height,
-//         &owner,
-//         None,
-//     )?;
-//
-//     // try to find the node of the sender
-//     let mixnode_bond = match storage::mixnodes()
-//         .idx
-//         .owner
-//         .item(deps.storage, owner.clone())?
-//     {
-//         Some(record) => record.1,
-//         None => return Err(ContractError::NoAssociatedMixNodeBond { owner }),
-//     };
-//
-//     if proxy != mixnode_bond.proxy {
-//         return Err(ContractError::ProxyMismatch {
-//             existing: mixnode_bond
-//                 .proxy
-//                 .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-//             incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-//         });
-//     }
-//     // send bonded funds back to the bond owner
-//     let return_tokens = BankMsg::Send {
-//         to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
-//         amount: vec![mixnode_bond.pledge_amount()],
-//     };
-//
-//     // remove the bond
-//     storage::mixnodes().remove(deps.storage, mixnode_bond.identity(), env.block.height)?;
-//
-//     // decrement layer count
-//     mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
-//
-//     let mut response = Response::new();
-//
-//     if let Some(proxy) = &proxy {
-//         let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
-//             owner: owner.as_str().to_string(),
-//             amount: mixnode_bond.pledge_amount(),
-//         };
-//
-//         let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
-//         response = response.add_message(track_unbond_message);
-//     }
-//
-//     let response = response.add_message(return_tokens);
-//
-//     Ok(response.add_event(new_mixnode_unbonding_event(
-//         &owner,
-//         &proxy,
-//         &mixnode_bond.pledge_amount,
-//         mixnode_bond.identity(),
-//     )))
-// }
+pub fn try_remove_mixnode_on_behalf(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    let proxy = info.sender;
+    _try_remove_mixnode(deps, &owner, Some(proxy))
+}
+
+pub fn try_remove_mixnode(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+) -> Result<Response, MixnetContractError> {
+    _try_remove_mixnode(deps, info.sender.as_ref(), None)
+}
+
+// TODO: rethinking whether this one should be done with the epoch ending events
+pub(crate) fn _try_remove_mixnode(
+    deps: DepsMut<'_>,
+    owner: &str,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    let owner = deps.api.addr_validate(owner)?;
+
+    // reading this entire thing might seem like an overkill, but it does exactly what we would have
+    // had to do anyway, i.e. grab node_id from the owner and grab earned operator reward
+    let node_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?.ok_or(
+        MixnetContractError::NoAssociatedMixNodeBond {
+            owner: owner.clone(),
+        },
+    )?;
+
+    // see if the proxy matches
+    if proxy != node_details.bond_information.proxy {
+        return Err(MixnetContractError::ProxyMismatch {
+            existing: node_details
+                .bond_information
+                .proxy
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
+
+    // the denom on the original pledge was validated at the time of bonding so we can safely reuse it here
+    let rewarding_denom = &node_details.bond_information.original_pledge.denom;
+    let reward = node_details
+        .rewarding_details
+        .operator_reward(rewarding_denom);
+
+    // send bonded funds (alongside all earned rewards) to the bond owner
+    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+
+    // remove the bond and if there are no delegations left, also the rewarding information
+    // decrement the associated layer count
+    storage::cleanup_mixnode_storage(deps.storage, &node_details)?;
+
+    let mut response = Response::new();
+
+    if let Some(proxy) = &proxy {
+        let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
+            owner: owner.clone().into_string(),
+            amount: reward.clone(),
+        };
+
+        // TODO: do we need to send the 1ucoin here?
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        response = response.add_message(track_unbond_message);
+    }
+
+    Ok(response
+        .add_message(return_tokens)
+        .add_event(new_mixnode_unbonding_event(
+            &owner,
+            &proxy,
+            &reward,
+            node_details.bond_information.identity(),
+            node_details.bond_information.id,
+        )))
+}
+
 //
 // pub(crate) fn try_update_mixnode_config(
 //     deps: DepsMut<'_>,

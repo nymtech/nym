@@ -7,9 +7,23 @@ use crate::mixnodes::storage as mixnodes_storage;
 // use crate::{constants, gateways::storage as gateways_storage};
 
 // use crate::error::ContractError;
-use cosmwasm_std::{Addr, Coin, Deps, Storage};
+use cosmwasm_std::{Addr, BankMsg, Coin, Deps, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::IdentityKeyRef;
+
+/// Attempts to construct a `BankMsg` to send specified tokens to the provided
+/// proxy address. If that's unavailable, the `BankMsg` will use the "owner" as the
+/// "to_address".
+pub(crate) fn send_to_proxy_or_owner(
+    proxy: &Option<Addr>,
+    owner: &Addr,
+    amount: Vec<Coin>,
+) -> BankMsg {
+    BankMsg::Send {
+        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        amount,
+    }
+}
 
 pub(crate) fn validate_pledge(
     mut pledge: Vec<Coin>,
@@ -98,7 +112,7 @@ pub(crate) fn ensure_no_existing_bond(
     storage: &dyn Storage,
     sender: &Addr,
 ) -> Result<(), MixnetContractError> {
-    if mixnodes_storage::mixnodes()
+    if mixnodes_storage::mixnode_bonds()
         .idx
         .owner
         .item(storage, sender.clone())?

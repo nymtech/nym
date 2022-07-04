@@ -21,6 +21,10 @@ pub enum ExecuteMsg {
         cost_params: MixNodeCostParams,
         owner_signature: String,
     },
+    UnbondMixnode {},
+    UnbondMixnodeOnBehalf {
+        owner: String,
+    },
 
     // un-re-implemented as of yet:
     UpdateRewardingValidatorAddress {
@@ -41,7 +45,6 @@ pub enum ExecuteMsg {
         mix_identity: IdentityKey,
     },
 
-    UnbondMixnode {},
     UpdateMixnodeConfig {
         profit_margin_percent: u8,
     },
@@ -86,9 +89,6 @@ pub enum ExecuteMsg {
         mix_node: MixNode,
         owner: String,
         owner_signature: String,
-    },
-    UnbondMixnodeOnBehalf {
-        owner: String,
     },
     BondGatewayOnBehalf {
         gateway: Gateway,

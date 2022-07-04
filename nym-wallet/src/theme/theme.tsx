@@ -24,7 +24,7 @@ const nymPalette: NymPalette = {
   success: '#21D073',
   info: '#60D7EF',
   fee: '#967FF0',
-  background: { light: '#F4F6F8', dark: '#121726' },
+  background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
     light: '#F2F2F2',
     dark: '#121726',

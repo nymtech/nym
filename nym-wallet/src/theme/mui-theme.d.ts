@@ -48,6 +48,8 @@ declare module '@mui/material/styles' {
       main: string;
       paper: string;
       warn: string;
+      grey: string;
+      greyStroke: string;
     };
     text: {
       main: string;

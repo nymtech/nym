@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, Dialog } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { NymCard } from '../../components';
 import { AppContext } from '../../context/main';
 import { Tabs } from './tabs';
@@ -31,12 +32,16 @@ export const Settings = () => {
     <Dialog open onClose={handleShowSettings} maxWidth="md" fullWidth>
       <NymCard
         title={
-          <Box display="flex" alignItems="center">
-            <NodeIcon sx={{ mr: 1 }} />
-            Node Settings
+          <Box width="100%" display="flex" justifyContent="space-between">
+            <Box display="flex" alignItems="center">
+              <NodeIcon sx={{ mr: 1 }} />
+              Node Settings
+            </Box>
+            <CloseIcon onClick={handleShowSettings} cursor="pointer" />
           </Box>
         }
         Action={<NodeStatus status={status} />}
+        dataTestid="node-settings"
         noPadding
       >
         <>

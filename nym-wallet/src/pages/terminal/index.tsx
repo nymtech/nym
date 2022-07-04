@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { Alert, Box, Dialog, Paper, Typography } from '@mui/material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CloseIcon from '@mui/icons-material/Close';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import { Console } from 'src/utils/console';
@@ -94,12 +95,16 @@ const TerminalInner: React.FC = () => {
     <Dialog open onClose={handleShowTerminal} maxWidth="md" fullWidth>
       <NymCard
         title={
-          <Box display="flex" alignItems="center">
-            <TerminalIcon sx={{ mr: 1 }} />
-            <Typography mr={4}>Terminal</Typography>
-            {!isBusy && <RefreshIcon onClick={refresh} />}
+          <Box width="100%" display="flex" justifyContent="space-between">
+            <Box display="flex" alignItems="center">
+              <TerminalIcon sx={{ mr: 1 }} />
+              <Typography mr={4}>Terminal</Typography>
+              {!isBusy && <RefreshIcon onClick={refresh} cursor="pointer" />}
+            </Box>
+            <CloseIcon onClick={handleShowTerminal} cursor="pointer" />
           </Box>
         }
+        dataTestid="terminal-page"
       >
         <h2>State Viewer</h2>
 

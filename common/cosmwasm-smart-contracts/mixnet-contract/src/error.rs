@@ -13,11 +13,14 @@ pub enum MixnetContractError {
     #[error("Provided percent value is greater than 100%")]
     InvalidPercent,
 
-    #[error("Attempted to subtract with overflow ({minuend}.sub({subtrahend}))")]
-    OverflowSubtraction {
+    #[error("Attempted to subtract decimals with overflow ({minuend}.sub({subtrahend}))")]
+    OverflowDecimalSubtraction {
         minuend: Decimal,
         subtrahend: Decimal,
     },
+
+    #[error("Attempted to subtract with overflow ({minuend}.sub({subtrahend}))")]
+    OverflowSubtraction { minuend: u64, subtrahend: u64 },
 
     #[error("Not enough funds sent for node pledge. (received {received}, minimum {minimum})")]
     InsufficientPledge { received: Coin, minimum: Coin },

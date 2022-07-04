@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { Button, Paper, Typography } from '@mui/material';
-import { useTheme, Theme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { DelegateModal } from './DelegateModal';
 import { UndelegateModal } from './UndelegateModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';

@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::defaults::MIX_DENOM;
-use cosmwasm_std::{StdResult, Storage, Uint128};
+use cosmwasm_std::{Env, StdResult, Storage, Uint128};
 use cw_storage_plus::{
     Index, IndexList, IndexedMap, IndexedSnapshotMap, Item, Map, Strategy, UniqueIndex,
 };
+use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::mixnode::{MixNodeCostParams, MixNodeRewarding, Period};
+use mixnet_contract_common::rewarding::HistoricalRewards;
 use mixnet_contract_common::{
-    Addr, Coin, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode, MixNodeBond, NodeId,
+    Addr, Coin, EpochId, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode,
+    MixNodeBond, NodeId,
 };
 use mixnet_contract_common::{SphinxKey, U128};
 use serde::{Deserialize, Serialize};
@@ -18,6 +22,9 @@ const MIXNODES_PK_NAMESPACE: &str = "mnn";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
 const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+
+const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
+const MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE: &str = "mnh";
 
 // // paged retrieval limits for all queries and transactions
 // pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
@@ -131,6 +138,58 @@ pub(crate) fn mixnodes<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondI
         ),
     };
     IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
+}
+
+pub const MIXNODE_REWARDING: Map<NodeId, MixNodeRewarding> =
+    Map::new(MIXNODES_REWARDING_PK_NAMESPACE);
+
+// TODO: should it exist here or in the rewards storage?
+pub(crate) const HISTORICAL_PERIODS_RECORDS: Map<(NodeId, Period), HistoricalRewards> =
+    Map::new(MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE);
+
+fn dummy_get_current_epoch() -> EpochId {
+    42
+}
+
+pub(crate) fn save_new_mixnode(
+    storage: &mut dyn Storage,
+    env: Env,
+    mixnode: MixNode,
+    cost_params: MixNodeCostParams,
+    owner: Addr,
+    proxy: Option<Addr>,
+    pledge: Coin,
+) -> Result<(NodeId, Layer), MixnetContractError> {
+    let layer = assign_layer(storage)?;
+    let node_id = next_mixnode_id_counter(storage)?;
+
+    // TODO: to be replaced with proper call on the epoch storage
+    let current_epoch = dummy_get_current_epoch();
+
+    let mixnode_rewarding = MixNodeRewarding::initialise_new(cost_params, &pledge, current_epoch);
+    let mixnode_bond = MixNodeBond::new(
+        node_id,
+        owner,
+        pledge,
+        layer,
+        mixnode,
+        proxy,
+        env.block.height,
+    );
+    // TODO: see if the zeroth record is still required
+    let initial_record = HistoricalRewards::new_zeroth();
+
+    // save mixnode bond data
+    // note that this implicitly checks for uniqueness on identity key, sphinx key and owner
+    mixnodes().save(storage, node_id, &mixnode_bond)?;
+
+    // save rewarding data
+    MIXNODE_REWARDING.save(storage, node_id, &mixnode_rewarding)?;
+
+    // save initial historical records
+    HISTORICAL_PERIODS_RECORDS.save(storage, (node_id, 0), &initial_record)?;
+
+    Ok((node_id, layer))
 }
 
 //

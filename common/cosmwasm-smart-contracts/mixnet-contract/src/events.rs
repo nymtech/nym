@@ -1,6 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer};
+use crate::{ContractStateParams, IdentityKey, IdentityKeyRef, Interval, Layer, NodeId};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 pub use contracts_common::events::*;
@@ -40,6 +40,7 @@ pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
 pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
 
 // bonding/unbonding
+pub const NODE_ID: &str = "node_id";
 pub const NODE_IDENTITY_KEY: &str = "identity";
 pub const ASSIGNED_LAYER_KEY: &str = "assigned_layer";
 
@@ -81,6 +82,31 @@ pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 pub const BLOCK_HEIGHT_KEY: &str = "block_height";
 pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
 pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
+
+pub enum MixnetEvent {
+    MixnodeBonding {
+        owner: Addr,
+        proxy: Option<Addr>,
+        pledged: Coin,
+        identity: IdentityKey,
+        node_id: NodeId,
+        assigned_layer: Layer,
+    },
+}
+
+impl MixnetEvent {
+    pub fn event_type(&self) -> &str {
+        match self {
+            MixnetEvent::MixnodeBonding { .. } => MIXNODE_BONDING_EVENT_TYPE,
+        }
+    }
+}
+
+// impl From<MixnetEvent> for Event {
+//     fn from(mixnet_event: MixnetEvent) -> Self {
+//
+//     }
+// }
 
 pub fn new_checkpoint_mixnodes_event(block_height: u64) -> Event {
     Event::new(CHECKPOINT_MIXNODES_EVENT)
@@ -272,18 +298,15 @@ pub fn new_mixnode_bonding_event(
     proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
+    node_id: NodeId,
     assigned_layer: Layer,
 ) -> Event {
-    let mut event = Event::new(MIXNODE_BONDING_EVENT_TYPE)
-        .add_attribute(OWNER_KEY, owner)
-        .add_attribute(NODE_IDENTITY_KEY, identity);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
     // coin implements Display trait and we use that implementation here
-    event
+    Event::new(MIXNODE_BONDING_EVENT_TYPE)
+        .add_attribute(OWNER_KEY, owner)
+        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(ASSIGNED_LAYER_KEY, assigned_layer)
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }

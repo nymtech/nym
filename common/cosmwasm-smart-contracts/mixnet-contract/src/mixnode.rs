@@ -5,7 +5,7 @@ use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::{HistoricalRewards, RewardDistribution};
-use crate::{Delegation, EpochId, IdentityKey, Percent, SphinxKey};
+use crate::{Delegation, EpochId, IdentityKey, NodeId, Percent, SphinxKey};
 use crate::{ONE, U128};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
@@ -38,9 +38,6 @@ pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
 
     pub rewarding_details: MixNodeRewarding,
-
-    /// Information provided by the operator that influence the cost function.    
-    pub cost_params: MixNodeCostParams,
 }
 
 pub type Period = u64;
@@ -49,6 +46,9 @@ pub type Period = u64;
 // I properly implement the thing
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
+    /// Information provided by the operator that influence the cost function.    
+    pub cost_params: MixNodeCostParams,
+
     // /// Unique id associated with the bonded mixnode
     // pub id: u64,
     /// Total pledge and compounded reward earned by the node operator.
@@ -77,15 +77,20 @@ pub struct MixNodeRewarding {
 impl MixNodeRewarding {
     // A very important note: whenever this is initialised, we HAVE TO write historical data for
     // period 0, otherwise rewarding will fail spectacularly.
-    pub fn initialise(initial_pledge: u128) -> Self {
+    pub fn initialise_new(
+        cost_params: MixNodeCostParams,
+        initial_pledge: &Coin,
+        current_epoch: EpochId,
+    ) -> Self {
         MixNodeRewarding {
-            operator: Decimal::from_atomics(initial_pledge, 0).unwrap(),
+            cost_params,
+            operator: Decimal::from_atomics(initial_pledge.amount, 0).unwrap(),
             delegates: Decimal::zero(),
             current_period: 1,
             total_unit_reward: Decimal::zero(),
             unit_delegation: UNIT_DELEGATION_BASE,
             // current_period_reward: Decimal::zero(),
-            last_rewarded_epoch: 0,
+            last_rewarded_epoch: current_epoch,
         }
     }
 
@@ -138,15 +143,17 @@ impl MixNodeRewarding {
     pub fn determine_reward_split(
         &self,
         node_reward: Decimal,
-        cost_params: &MixNodeCostParams,
         node_performance: Percent,
+        // I don't like this argument here, makes things look, idk, messy...
+        epochs_in_interval: u32,
     ) -> RewardDistribution {
-        let node_cost = cost_params.epoch_operating_cost * node_performance.value();
+        let node_cost =
+            self.cost_params.epoch_operating_cost(epochs_in_interval) * node_performance.value();
 
         // check if profit is positive
         if node_reward > node_cost {
             let profit = node_reward - node_cost;
-            let profit_margin = cost_params.profit_margin_percent.value();
+            let profit_margin = self.cost_params.profit_margin_percent.value();
             let one = Decimal::one();
 
             let operator_share = self.operator / self.node_bond();
@@ -172,10 +179,13 @@ impl MixNodeRewarding {
         &self,
         reward_params: &RewardingParams,
         node_params: NodeRewardParams,
-        cost_params: &MixNodeCostParams,
     ) -> RewardDistribution {
         let node_reward = self.node_reward(reward_params, node_params);
-        self.determine_reward_split(node_reward, cost_params, node_params.performance)
+        self.determine_reward_split(
+            node_reward,
+            node_params.performance,
+            reward_params.interval.epochs_in_interval,
+        )
     }
 
     pub fn distribute_rewards(
@@ -200,11 +210,9 @@ impl MixNodeRewarding {
         &mut self,
         reward_params: &RewardingParams,
         node_params: NodeRewardParams,
-        cost_params: &MixNodeCostParams,
         epoch_id: EpochId,
     ) -> Result<(), MixnetContractError> {
-        let reward_distribution =
-            self.calculate_epoch_reward(reward_params, node_params, cost_params);
+        let reward_distribution = self.calculate_epoch_reward(reward_params, node_params);
         self.distribute_rewards(reward_distribution, epoch_id)
     }
 
@@ -260,8 +268,9 @@ pub struct MixNodeBond {
     /// Address of the owner of this mixnode.
     pub owner: Addr,
 
+    // TODO: do we even care about this field?
     /// Original amount pledged by the operator of this node.
-    pub pledge_amount: Coin,
+    pub original_pledge: Coin,
 
     /// Layer assigned to this mixnode.
     pub layer: Layer,
@@ -275,6 +284,44 @@ pub struct MixNodeBond {
 
     /// Block height at which this mixnode has been bonded.
     pub bonding_height: u64,
+}
+
+impl MixNodeBond {
+    pub fn new(
+        id: NodeId,
+        owner: Addr,
+        original_pledge: Coin,
+        layer: Layer,
+        mix_node: MixNode,
+        proxy: Option<Addr>,
+        bonding_height: u64,
+    ) -> Self {
+        MixNodeBond {
+            id,
+            owner,
+            original_pledge,
+            layer,
+            mix_node,
+            proxy,
+            bonding_height,
+        }
+    }
+
+    pub fn identity(&self) -> &str {
+        &self.mix_node.identity_key
+    }
+
+    pub fn original_pledge(&self) -> &Coin {
+        &self.original_pledge
+    }
+
+    pub fn owner(&self) -> &Addr {
+        &self.owner
+    }
+
+    pub fn mix_node(&self) -> &MixNode {
+        &self.mix_node
+    }
 }
 
 // information provided by the operator
@@ -304,13 +351,28 @@ pub struct MixNodeCostParams {
 
     /// Operating cost of the associated mixnode per the entire interval.
     pub interval_operating_cost: Coin,
-
-    /// Computed value determining operating cost of this node per epoch.
-    /// It is recomputed every time operator changes its operating cost or the interval advances
-    /// (and thus the reward pool changes).
-    /// Note that the denom of this value is implicit from the interval operating cost.
-    pub epoch_operating_cost: Decimal,
+    // note: in the past we used to also hold here a computed per epoch operating costs,
+    // however, it's not really feasible to keep doing that as every time any interval related parameter
+    // got updated, we'd have to iterate through ALL mixnodes in order to update that
 }
+
+impl MixNodeCostParams {
+    pub fn epoch_operating_cost(&self, epochs_in_interval: u32) -> Decimal {
+        Decimal::from_ratio(self.interval_operating_cost.amount, epochs_in_interval)
+    }
+}
+
+// #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+// pub struct MixNodeCostParams {
+//     /// Operator-declared costs (i.e. profit margin and operating costs) of the associated mixnode.
+//     pub costs: DeclaredMixNodeCosts,
+//
+//     /// Computed value determining operating cost of this node per epoch.
+//     /// It is recomputed every time operator changes its operating cost or the interval advances
+//     /// (and thus the reward pool changes).
+//     /// Note that the denom of this value is implicit from the interval operating cost.
+//     pub epoch_operating_cost: Decimal,
+// }
 
 #[derive(
     Copy,
@@ -357,218 +419,6 @@ pub struct RewardEstimate {
     pub operator_cost: u64,
 }
 
-impl MixNodeBond {
-    pub fn new(
-        pledge_amount: Coin,
-        owner: Addr,
-        layer: Layer,
-        block_height: u64,
-        mix_node: MixNode,
-        proxy: Option<Addr>,
-    ) -> Self {
-        todo!()
-        // MixNodeBond {
-        //     total_delegation: coin(0, &pledge_amount.denom),
-        //     pledge_amount,
-        //     owner,
-        //     layer,
-        //     bonding_height: block_height,
-        //     mix_node,
-        //     proxy,
-        //     accumulated_rewards: None,
-        // }
-    }
-
-    // pub fn accumulated_rewards(&self) -> Uint128 {
-    //     self.accumulated_rewards.unwrap_or_else(Uint128::zero)
-    // }
-    //
-    // pub fn profit_margin(&self) -> U128 {
-    //     U128::from_num(self.mix_node.profit_margin_percent) / U128::from_num(100)
-    // }
-    //
-    // pub fn identity(&self) -> &String {
-    //     &self.mix_node.identity_key
-    // }
-    //
-    // pub fn pledge_amount(&self) -> Coin {
-    //     self.pledge_amount.clone()
-    // }
-    //
-    // pub fn owner(&self) -> &Addr {
-    //     &self.owner
-    // }
-    //
-    // pub fn mix_node(&self) -> &MixNode {
-    //     &self.mix_node
-    // }
-    //
-    // // Takes into account accumulated rewards as well as current pledge and delegation amounts
-    // pub fn total_bond(&self) -> Option<u128> {
-    //     if self.pledge_amount.denom != self.total_delegation.denom {
-    //         None
-    //     } else {
-    //         Some(
-    //             self.pledge_amount.amount.u128()
-    //                 + self.total_delegation.amount.u128()
-    //                 + self.accumulated_rewards().u128(),
-    //         )
-    //     }
-    // }
-    //
-    // pub fn total_delegation(&self) -> Coin {
-    //     self.total_delegation.clone()
-    // }
-    //
-    // pub fn stake_saturation(&self, staking_supply: u128, rewarded_set_size: u32) -> U128 {
-    //     self.total_bond_to_staking_supply(staking_supply) * U128::from_num(rewarded_set_size)
-    // }
-    //
-    // // TODO: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
-    // // affect lambda, but will affect sigma, in turn over time, if left unclaimed operator rewards will not compound, but
-    // // behave similarly to delegations.
-    // // The question is should this be taken into account when calculating operator rewards?
-    // pub fn pledge_to_staking_supply(&self, staking_supply: u128) -> U128 {
-    //     U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(staking_supply)
-    // }
-    //
-    // pub fn total_bond_to_staking_supply(&self, staking_supply: u128) -> U128 {
-    //     U128::from_num(self.pledge_amount().amount.u128() + self.total_delegation().amount.u128())
-    //         / U128::from_num(staking_supply)
-    // }
-    //
-    // pub fn lambda_ticked(&self, params: &RewardParams) -> U128 {
-    //     // Ratio of a bond to the token circulating supply
-    //     self.lambda(params).min(params.one_over_k())
-    // }
-    //
-    // pub fn lambda(&self, params: &RewardParams) -> U128 {
-    //     // Ratio of a bond to the token circulating supply
-    //     self.pledge_to_staking_supply(params.staking_supply())
-    // }
-    //
-    // pub fn sigma_ticked(&self, params: &RewardParams) -> U128 {
-    //     // Ratio of a delegation to the the token circulating supply
-    //     self.sigma(params).min(params.one_over_k())
-    // }
-    //
-    // pub fn sigma(&self, params: &RewardParams) -> U128 {
-    //     // Ratio of a delegation to the the token circulating supply
-    //     self.total_bond_to_staking_supply(params.staking_supply())
-    // }
-    //
-    // pub fn estimate_reward(
-    //     &self,
-    //     base_operator_cost: u64,
-    //     params: &RewardParams,
-    // ) -> Result<RewardEstimate, MixnetContractError> {
-    //     let total_node_reward = self
-    //         .reward(params)
-    //         .reward()
-    //         .checked_to_num::<u128>()
-    //         .unwrap_or_default();
-    //     let node_profit = self
-    //         .node_profit(params, base_operator_cost)
-    //         .checked_to_num::<u128>()
-    //         .unwrap_or_default();
-    //     let operator_cost = params
-    //         .node
-    //         .operator_cost(base_operator_cost)
-    //         .checked_to_num::<u128>()
-    //         .unwrap_or_default();
-    //     let operator_reward = self.operator_reward(params, base_operator_cost);
-    //     // Total reward has to be the sum of operator and delegator rewards
-    //     let delegators_reward = node_profit.saturating_sub(operator_reward);
-    //
-    //     Ok(RewardEstimate {
-    //         total_node_reward: total_node_reward.try_into()?,
-    //         operator_reward: operator_reward.try_into()?,
-    //         delegators_reward: delegators_reward.try_into()?,
-    //         node_profit: node_profit.try_into()?,
-    //         operator_cost: operator_cost.try_into()?,
-    //     })
-    // }
-    //
-    // // keybase://chat/nymtech#dev-core/14473
-    // pub fn reward(&self, params: &RewardParams) -> NodeRewardResult {
-    //     let lambda_ticked = self.lambda_ticked(params);
-    //     let sigma_ticked = self.sigma_ticked(params);
-    //
-    //     let reward = params.performance()
-    //         * params.epoch_reward_pool()
-    //         * (sigma_ticked * params.omega()
-    //             + params.alpha() * lambda_ticked * sigma_ticked * params.rewarded_set_size())
-    //         / (ONE + params.alpha());
-    //
-    //     // we only need regular lambda and sigma to calculate operator and delegator rewards
-    //     NodeRewardResult {
-    //         reward,
-    //         lambda: self.lambda(params),
-    //         sigma: self.sigma(params),
-    //     }
-    // }
-    //
-    // pub fn node_profit(&self, params: &RewardParams, base_operator_cost: u64) -> U128 {
-    //     self.reward(params)
-    //         .reward()
-    //         .saturating_sub(params.node.operator_cost(base_operator_cost))
-    // }
-    //
-    // pub fn operator_reward(&self, params: &RewardParams, base_operator_cost: u64) -> u128 {
-    //     let reward = self.reward(params);
-    //     if reward.sigma == 0u128 {
-    //         return 0;
-    //     }
-    //
-    //     let profit = reward
-    //         .reward
-    //         .saturating_sub(params.node.operator_cost(base_operator_cost));
-    //
-    //     let operator_base_reward = reward
-    //         .reward
-    //         .min(params.node.operator_cost(base_operator_cost));
-    //     // Div by zero checked above
-    //     let operator_reward = (self.profit_margin()
-    //         + (ONE - self.profit_margin()) * reward.lambda / reward.sigma)
-    //         * profit;
-    //
-    //     let reward = (operator_reward + operator_base_reward).max(U128::from_num(0));
-    //
-    //     if let Some(int_reward) = reward.checked_cast() {
-    //         int_reward
-    //     } else {
-    //         error!(
-    //             "Could not cast reward ({}) to u128, returning 0 - mixnode {}",
-    //             reward,
-    //             self.identity()
-    //         );
-    //         0u128
-    //     }
-    // }
-    //
-    // pub fn sigma_ratio(&self, params: &RewardParams) -> U128 {
-    //     if self.total_bond_to_staking_supply(params.staking_supply()) < params.one_over_k() {
-    //         self.total_bond_to_staking_supply(params.staking_supply())
-    //     } else {
-    //         params.one_over_k()
-    //     }
-    // }
-    //
-    // pub fn reward_delegation(
-    //     &self,
-    //     delegation_amount: Uint128,
-    //     params: &RewardParams,
-    //     base_operator_cost: u64,
-    // ) -> u128 {
-    //     let reward_params = DelegatorRewardParams::new(
-    //         self.sigma(params),
-    //         self.profit_margin(),
-    //         self.node_profit(params, base_operator_cost),
-    //         params.to_owned(),
-    //     );
-    //     reward_params.determine_delegation_reward(delegation_amount)
-    // }
-}
 //
 // impl PartialOrd for MixNodeBond {
 //     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -638,8 +488,8 @@ impl Display for MixNodeBond {
         write!(
             f,
             "amount: {} {}, owner: {}, identity: {}",
-            self.pledge_amount.amount,
-            self.pledge_amount.denom,
+            self.original_pledge.amount,
+            self.original_pledge.denom,
             self.owner,
             self.mix_node.identity_key
         )

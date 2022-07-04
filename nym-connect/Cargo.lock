@@ -3385,6 +3385,7 @@ dependencies = [
  "nym-socks5-client",
  "pretty_env_logger",
  "rand 0.7.3",
+ "reqwest",
  "serde",
  "serde_json",
  "tauri",

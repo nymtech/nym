@@ -14,6 +14,11 @@ pub enum BackendError {
     NoServiceProviderSet,
     #[error("No gateway provider set")]
     NoGatewaySet,
+    #[error("{source}")]
+    ReqwestError {
+        #[from]
+        source: reqwest::Error,
+    },
 }
 
 impl Serialize for BackendError {

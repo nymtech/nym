@@ -11,6 +11,9 @@ pub async fn start_connecting(
 ) -> Result<ConnectResult, BackendError> {
     let mut guard = state.write().await;
 
+    log::trace!("Start connecting with:");
+    log::trace!("  service_provider: {:?}", guard.get_service_provider());
+    log::trace!("  gateway: {:?}", guard.get_gateway());
     guard.start_connecting(&window).await;
 
     Ok(ConnectResult {
@@ -35,6 +38,7 @@ pub async fn set_service_provider(
     service_provider: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+    log::trace!("Setting service_provider: {service_provider}");
     let mut guard = state.write().await;
     guard.set_service_provider(service_provider);
     Ok(())
@@ -56,6 +60,7 @@ pub async fn set_gateway(
     gateway: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+    log::trace!("Setting gateway: {gateway}");
     let mut guard = state.write().await;
     guard.set_gateway(gateway);
     Ok(())

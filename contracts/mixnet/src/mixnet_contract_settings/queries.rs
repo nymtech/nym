@@ -31,50 +31,49 @@ pub(crate) fn query_contract_version() -> MixnetContractVersion {
     }
 }
 
-#[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use crate::mixnet_contract_settings::models::ContractState;
-    use crate::support::tests::test_helpers;
-
-    use cosmwasm_std::Addr;
-
-    #[test]
-    fn query_for_contract_settings_works() {
-        let mut deps = test_helpers::init_contract();
-
-        let dummy_state = ContractState {
-            owner: Addr::unchecked("someowner"),
-            mix_denom: String::from("unym"),
-            rewarding_validator_address: Addr::unchecked("monitor"),
-            params: ContractStateParams {
-                minimum_mixnode_pledge: 123u128.into(),
-                minimum_gateway_pledge: 456u128.into(),
-                mixnode_rewarded_set_size: 1000,
-                mixnode_active_set_size: 500,
-                staking_supply: 1000000u128.into(),
-            },
-        };
-
-        storage::CONTRACT_STATE
-            .save(deps.as_mut().storage, &dummy_state)
-            .unwrap();
-
-        assert_eq!(
-            dummy_state.params,
-            query_contract_settings_params(deps.as_ref()).unwrap()
-        )
-    }
-
-    #[test]
-    fn query_for_contract_version_works() {
-        // this basically means _something_ was grabbed from the environment at compilation time
-        let version = query_contract_version();
-        assert!(!version.build_timestamp.is_empty());
-        assert!(!version.build_version.is_empty());
-        assert!(!version.commit_sha.is_empty());
-        assert!(!version.commit_timestamp.is_empty());
-        assert!(!version.commit_branch.is_empty());
-        assert!(!version.rustc_version.is_empty());
-    }
-}
+// #[cfg(test)]
+// pub(crate) mod tests {
+//     use super::*;
+//     use crate::mixnet_contract_settings::models::ContractState;
+//     use crate::support::tests::test_helpers;
+//
+//     use cosmwasm_std::Addr;
+//
+//     #[test]
+//     fn query_for_contract_settings_works() {
+//         let mut deps = test_helpers::init_contract();
+//
+//         let dummy_state = ContractState {
+//             owner: Addr::unchecked("someowner"),
+//             rewarding_validator_address: Addr::unchecked("monitor"),
+//             params: ContractStateParams {
+//                 minimum_mixnode_pledge: 123u128.into(),
+//                 minimum_gateway_pledge: 456u128.into(),
+//                 mixnode_rewarded_set_size: 1000,
+//                 mixnode_active_set_size: 500,
+//                 staking_supply: 1000000u128.into(),
+//             },
+//         };
+//
+//         storage::CONTRACT_STATE
+//             .save(deps.as_mut().storage, &dummy_state)
+//             .unwrap();
+//
+//         assert_eq!(
+//             dummy_state.params,
+//             query_contract_settings_params(deps.as_ref()).unwrap()
+//         )
+//     }
+//
+//     #[test]
+//     fn query_for_contract_version_works() {
+//         // this basically means _something_ was grabbed from the environment at compilation time
+//         let version = query_contract_version();
+//         assert!(!version.build_timestamp.is_empty());
+//         assert!(!version.build_version.is_empty());
+//         assert!(!version.commit_sha.is_empty());
+//         assert!(!version.commit_timestamp.is_empty());
+//         assert!(!version.commit_branch.is_empty());
+//         assert!(!version.rustc_version.is_empty());
+//     }
+// }

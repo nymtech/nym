@@ -1,15 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{DEFAULT_OPERATOR_INTERVAL_COST, INTERVAL_SECONDS};
-use crate::interval::storage::{current_epoch, EPOCHS};
+// use crate::constants::{DEFAULT_OPERATOR_INTERVAL_COST, INTERVAL_SECONDS};
+// use crate::interval::storage::{current_epoch, EPOCHS};
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::{constants, gateways::storage as gateways_storage};
+// use crate::{constants, gateways::storage as gateways_storage};
 
-use crate::error::ContractError;
+// use crate::error::ContractError;
 use cosmwasm_std::{Addr, Coin, Deps, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{reward_params::EpochRewardParams, IdentityKeyRef};
+use mixnet_contract_common::IdentityKeyRef;
 
 pub(crate) fn validate_pledge(
     mut pledge: Vec<Coin>,
@@ -33,7 +33,7 @@ pub(crate) fn validate_pledge(
     }
 
     // check that the pledge contains the minimum amount of tokens
-    if pledge[0].amount < minimum_pledge {
+    if pledge[0].amount < minimum_pledge.amount {
         return Err(MixnetContractError::InsufficientPledge {
             received: pledge[0].clone(),
             minimum: minimum_pledge,
@@ -43,9 +43,12 @@ pub(crate) fn validate_pledge(
     Ok(pledge.pop().unwrap())
 }
 
-pub(crate) fn is_authorized(sender: String, storage: &dyn Storage) -> Result<(), ContractError> {
+pub(crate) fn is_authorized(
+    sender: String,
+    storage: &dyn Storage,
+) -> Result<(), MixnetContractError> {
     if sender != crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
-        return Err(ContractError::Unauthorized);
+        return Err(MixnetContractError::Unauthorized);
     }
     Ok(())
 }
@@ -104,16 +107,18 @@ pub(crate) fn ensure_no_existing_bond(
         return Err(MixnetContractError::AlreadyOwnsMixnode);
     }
 
-    if gateways_storage::gateways()
-        .idx
-        .owner
-        .item(storage, sender.clone())?
-        .is_some()
-    {
-        return Err(MixnetContractError::AlreadyOwnsGateway);
-    }
+    todo!()
 
-    Ok(())
+    // if gateways_storage::gateways()
+    //     .idx
+    //     .owner
+    //     .item(storage, sender.clone())?
+    //     .is_some()
+    // {
+    //     return Err(MixnetContractError::AlreadyOwnsGateway);
+    // }
+
+    // Ok(())
 }
 
 pub(crate) fn validate_node_identity_signature(
@@ -121,7 +126,7 @@ pub(crate) fn validate_node_identity_signature(
     owner: &Addr,
     signature: String,
     identity: IdentityKeyRef<'_>,
-) -> Result<(), ContractError> {
+) -> Result<(), MixnetContractError> {
     let owner_bytes = owner.as_bytes();
 
     let mut identity_bytes = [0u8; 32];
@@ -129,20 +134,20 @@ pub(crate) fn validate_node_identity_signature(
 
     let identity_used_bytes = bs58::decode(identity)
         .into(&mut identity_bytes)
-        .map_err(|err| ContractError::MalformedEd25519IdentityKey(err.to_string()))?;
+        .map_err(|err| MixnetContractError::MalformedEd25519IdentityKey(err.to_string()))?;
     let signature_used_bytes = bs58::decode(signature)
         .into(&mut signature_bytes)
-        .map_err(|err| ContractError::MalformedEd25519Signature(err.to_string()))?;
+        .map_err(|err| MixnetContractError::MalformedEd25519Signature(err.to_string()))?;
 
     if identity_used_bytes != 32 {
-        return Err(ContractError::MalformedEd25519IdentityKey(
-            "Too few bytes provided".into(),
+        return Err(MixnetContractError::MalformedEd25519IdentityKey(
+            "Too few bytes provided for the public key".into(),
         ));
     }
 
     if signature_used_bytes != 64 {
-        return Err(ContractError::MalformedEd25519Signature(
-            "Too few bytes provided".into(),
+        return Err(MixnetContractError::MalformedEd25519Signature(
+            "Too few bytes provided for the signature".into(),
         ));
     }
 
@@ -151,7 +156,7 @@ pub(crate) fn validate_node_identity_signature(
         .ed25519_verify(owner_bytes, &signature_bytes, &identity_bytes)
         .map_err(cosmwasm_std::StdError::verification_err)?;
     if !res {
-        Err(ContractError::InvalidEd25519Signature)
+        Err(MixnetContractError::InvalidEd25519Signature)
     } else {
         Ok(())
     }
@@ -195,7 +200,7 @@ mod tests {
             .to_base58_string();
 
         assert_eq!(
-            Err(ContractError::MalformedEd25519IdentityKey(
+            Err(MixnetContractError::MalformedEd25519IdentityKey(
                 "buffer provided to decode base58 encoded string into was too small".into()
             )),
             validate_node_identity_signature(
@@ -207,7 +212,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::MalformedEd25519Signature(
+            Err(MixnetContractError::MalformedEd25519Signature(
                 "buffer provided to decode base58 encoded string into was too small".into()
             )),
             validate_node_identity_signature(
@@ -219,7 +224,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::MalformedEd25519IdentityKey(
+            Err(MixnetContractError::MalformedEd25519IdentityKey(
                 "Too few bytes provided".into()
             )),
             validate_node_identity_signature(
@@ -231,7 +236,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::MalformedEd25519Signature(
+            Err(MixnetContractError::MalformedEd25519Signature(
                 "Too few bytes provided".into()
             )),
             validate_node_identity_signature(
@@ -243,7 +248,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::InvalidEd25519Signature),
+            Err(MixnetContractError::InvalidEd25519Signature),
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address1,
@@ -253,7 +258,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::InvalidEd25519Signature),
+            Err(MixnetContractError::InvalidEd25519Signature),
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address1,
@@ -263,7 +268,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::InvalidEd25519Signature),
+            Err(MixnetContractError::InvalidEd25519Signature),
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address2,
@@ -273,7 +278,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ContractError::InvalidEd25519Signature),
+            Err(MixnetContractError::InvalidEd25519Signature),
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address1,

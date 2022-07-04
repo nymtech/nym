@@ -141,7 +141,7 @@ impl ThreadsafeMixNodesCache {
             Some(bond) => Some(PrettyDetailedMixNodeBond {
                 location: location.and_then(|l| l.location.clone()),
                 status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
-                pledge_amount: bond.mixnode_bond.pledge_amount,
+                pledge_amount: bond.mixnode_bond.original_pledge,
                 total_delegation: bond.mixnode_bond.total_delegation,
                 owner: bond.mixnode_bond.owner,
                 layer: bond.mixnode_bond.layer,
@@ -168,7 +168,7 @@ impl ThreadsafeMixNodesCache {
                 PrettyDetailedMixNodeBond {
                     location: location.and_then(|l| l.location.clone()),
                     status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
-                    pledge_amount: copy.pledge_amount,
+                    pledge_amount: copy.original_pledge,
                     total_delegation: copy.total_delegation,
                     owner: copy.owner,
                     layer: copy.layer,

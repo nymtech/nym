@@ -1,40 +1,41 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
-use crate::delegations::queries::query_delegator_delegations_paged;
-use crate::delegations::queries::query_mixnode_delegation;
-use crate::delegations::queries::{
-    query_mixnode_delegations_paged, query_pending_delegation_events,
-};
-use crate::error::ContractError;
-use crate::gateways::queries::query_owns_gateway;
-use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
-use crate::interval::queries::query_current_epoch;
-use crate::interval::queries::{
-    query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
-};
-use crate::interval::transactions::{init_epoch, try_init_epoch};
+// use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
+// use crate::delegations::queries::query_delegator_delegations_paged;
+// use crate::delegations::queries::query_mixnode_delegation;
+// use crate::delegations::queries::{
+//     query_mixnode_delegations_paged, query_pending_delegation_events,
+// };
+// use crate::error::ContractError;
+// use crate::gateways::queries::query_owns_gateway;
+// use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
+// use crate::interval::queries::query_current_epoch;
+// use crate::interval::queries::{
+//     query_current_rewarded_set_height, query_rewarded_set,
+//     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
+// };
+// use crate::interval::transactions::{init_epoch, try_init_epoch};
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::queries::{
     query_contract_settings_params, query_contract_version, query_rewarding_validator_address,
 };
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
+// use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::{
-    query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
-};
-use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::rewards::queries::{
-    query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
-};
-use crate::rewards::storage as rewards_storage;
+// use crate::mixnodes::bonding_queries::{
+//     query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
+// };
+// use crate::mixnodes::layer_queries::query_layer_distribution;
+// use crate::rewards::queries::{
+//     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
+// };
+// use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
+use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -87,7 +88,7 @@ pub fn instantiate(
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     todo!()
     // let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     // let state = default_initial_state(info.sender, rewarding_validator_address);
@@ -107,23 +108,24 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     match msg {
-        _ => todo!(),
         // ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
         //     try_update_rewarding_validator_address(deps, info, address)
         // }
         // ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
-        // ExecuteMsg::BondMixnode {
-        //     mix_node,
-        //     owner_signature,
-        // } => crate::mixnodes::transactions::try_add_mixnode(
-        //     deps,
-        //     env,
-        //     info,
-        //     mix_node,
-        //     owner_signature,
-        // ),
+        ExecuteMsg::BondMixnode {
+            mix_node,
+            cost_params,
+            owner_signature,
+        } => crate::mixnodes::transactions::try_add_mixnode(
+            deps,
+            env,
+            info,
+            mix_node,
+            cost_params,
+            owner_signature,
+        ),
         // ExecuteMsg::UnbondMixnode {} => {
         //     crate::mixnodes::transactions::try_remove_mixnode(env, deps, info)
         // }
@@ -313,11 +315,16 @@ pub fn execute(
         //     owner,
         //     &mix_identity,
         // ),
+        _ => todo!(),
     }
 }
 
 #[entry_point]
-pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(
+    deps: Deps<'_>,
+    env: Env,
+    msg: QueryMsg,
+) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
         _ => todo!(),
         // QueryMsg::GetRewardingValidatorAddress {} => {
@@ -444,52 +451,57 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         // } => to_binary(&query_mixnode_at_height(deps, mix_identity, height)?),
     };
 
-    Ok(query_res?)
+    todo!()
+    // Ok(query_res?)
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    _deps: DepsMut<'_>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, MixnetContractError> {
     Ok(Default::default())
 }
 
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-    use crate::support::tests;
-    use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract_common::PagedMixnodeResponse;
-
-    #[test]
-    fn initialize_contract() {
-        let mut deps = mock_dependencies();
-        let env = mock_env();
-        let msg = InstantiateMsg {
-            rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
-        };
-        let info = mock_info("creator", &[]);
-
-        let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // mix_node_bonds should be empty after initialization
-        let res = query(
-            deps.as_ref(),
-            env.clone(),
-            QueryMsg::GetMixNodes {
-                start_after: None,
-                limit: Option::from(2),
-            },
-        )
-        .unwrap();
-        let page: PagedMixnodeResponse = from_binary(&res).unwrap();
-        assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
-
-        // Contract balance should match what we initialized it as
-        assert_eq!(
-            coins(0, MIX_DENOM.base),
-            tests::queries::query_contract_balance(env.contract.address, deps)
-        );
-    }
-}
+// #[cfg(test)]
+// pub mod tests {
+//     use super::*;
+//     use crate::support::tests;
+//     use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
+//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+//     use cosmwasm_std::{coins, from_binary};
+//     use mixnet_contract_common::PagedMixnodeResponse;
+//
+//     #[test]
+//     fn initialize_contract() {
+//         let mut deps = mock_dependencies();
+//         let env = mock_env();
+//         let msg = InstantiateMsg {
+//             rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
+//         };
+//         let info = mock_info("creator", &[]);
+//
+//         let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+//         assert_eq!(0, res.messages.len());
+//
+//         // mix_node_bonds should be empty after initialization
+//         let res = query(
+//             deps.as_ref(),
+//             env.clone(),
+//             QueryMsg::GetMixNodes {
+//                 start_after: None,
+//                 limit: Option::from(2),
+//             },
+//         )
+//         .unwrap();
+//         let page: PagedMixnodeResponse = from_binary(&res).unwrap();
+//         assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
+//
+//         // Contract balance should match what we initialized it as
+//         assert_eq!(
+//             coins(0, MIX_DENOM.base),
+//             tests::queries::query_contract_balance(env.contract.address, deps)
+//         );
+//     }
+// }

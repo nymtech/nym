@@ -12,7 +12,6 @@ use std::collections::HashMap;
 
 pub struct Simulator {
     pub node_rewarding_details: MixNodeRewarding,
-    pub node_cost_params: MixNodeCostParams,
 
     // note that delegations and historical data are stored under separate storage keys in the contract
     pub node_historical_records: HashMap<Period, HistoricalRewards>,
@@ -27,19 +26,19 @@ impl Simulator {
         profit_margin_percent: Percent,
         interval_operating_cost: Coin,
         system_rewarding_params: RewardingParams,
-        epochs_in_interval: u32,
         initial_pledge: Coin,
     ) -> Self {
+        let cost_params = MixNodeCostParams {
+            profit_margin_percent,
+            interval_operating_cost,
+        };
+
         Simulator {
-            node_rewarding_details: MixNodeRewarding::initialise(initial_pledge.amount.u128()),
-            node_cost_params: MixNodeCostParams {
-                epoch_operating_cost: Decimal::from_ratio(
-                    interval_operating_cost.amount,
-                    epochs_in_interval,
-                ),
-                profit_margin_percent,
-                interval_operating_cost,
-            },
+            node_rewarding_details: MixNodeRewarding::initialise_new(
+                cost_params,
+                &initial_pledge,
+                0,
+            ),
             node_historical_records: [(0, HistoricalRewards::new_zeroth())].into_iter().collect(),
             node_delegations: vec![],
             system_rewarding_params,
@@ -137,11 +136,9 @@ impl Simulator {
     }
 
     pub(crate) fn simulate_epoch(&mut self, node_params: NodeRewardParams) -> RewardDistribution {
-        let reward_distribution = self.node_rewarding_details.calculate_epoch_reward(
-            &self.system_rewarding_params,
-            node_params,
-            &self.node_cost_params,
-        );
+        let reward_distribution = self
+            .node_rewarding_details
+            .calculate_epoch_reward(&self.system_rewarding_params, node_params);
         self.node_rewarding_details
             .distribute_rewards(reward_distribution, self.epoch_id)
             .unwrap();
@@ -182,6 +179,7 @@ mod tests {
             interval: IntervalRewardParams {
                 reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(), // 250M * 1M (we're expressing it all in base tokens)
                 staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
+                epochs_in_interval,
                 epoch_reward_budget,
                 stake_saturation_point,
                 sybil_resistance_percent: Decimal::percent(30),
@@ -198,7 +196,6 @@ mod tests {
             profit_margin,
             interval_operating_cost,
             rewarding_params,
-            epochs_in_interval,
             initial_pledge,
         )
     }
@@ -311,7 +308,6 @@ mod tests {
         let mut is_active = true;
         let mut performance = Percent::from_percentage_value(100u32).unwrap();
         for epoch in 0..720 {
-            println!("{}", epoch);
             if epoch == 0 {
                 simulator.delegate(Coin::new(18000_000000, "unym"))
             }

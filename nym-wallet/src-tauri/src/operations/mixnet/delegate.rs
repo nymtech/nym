@@ -242,7 +242,7 @@ pub async fn get_all_mix_delegations(
             .find(|m| m.mix_node.identity_key == node_identity);
 
         let pledge_amount = mixnode
-            .map(|m| guard.attempt_convert_to_display_dec_coin(m.pledge_amount.clone().into()))
+            .map(|m| guard.attempt_convert_to_display_dec_coin(m.original_pledge.clone().into()))
             .transpose()?;
 
         let total_delegation = mixnode

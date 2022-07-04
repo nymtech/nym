@@ -15,6 +15,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
 };
+use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
@@ -24,17 +25,15 @@ pub fn try_add_mixnode(
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
+    cost_params: MixNodeCostParams,
     owner_signature: String,
 ) -> Result<Response, MixnetContractError> {
-    // check if the pledge contains any funds of the appropriate denomination
-    let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
-    let pledge = validate_pledge(info.funds, minimum_pledge)?;
-
     _try_add_mixnode(
         deps,
         env,
         mix_node,
-        pledge,
+        cost_params,
+        info.funds,
         info.sender.as_str(),
         owner_signature,
         None,
@@ -46,101 +45,76 @@ pub fn try_add_mixnode_on_behalf(
     env: Env,
     info: MessageInfo,
     mix_node: MixNode,
+    cost_params: MixNodeCostParams,
     owner: String,
     owner_signature: String,
 ) -> Result<Response, MixnetContractError> {
-    // check if the pledge contains any funds of the appropriate denomination
-    let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
-    let pledge = validate_mixnode_pledge(info.funds, minimum_pledge)?;
-
     let proxy = info.sender;
     _try_add_mixnode(
         deps,
         env,
         mix_node,
-        pledge,
+        cost_params,
+        info.funds,
         &owner,
         owner_signature,
         Some(proxy),
     )
 }
 
+// I'm not entirely sure how to deal with this warning at the current moment
+#[allow(clippy::too_many_arguments)]
 fn _try_add_mixnode(
     deps: DepsMut<'_>,
     env: Env,
-    mix_node: MixNode,
-    pledge_amount: Coin,
+    mixnode: MixNode,
+    cost_params: MixNodeCostParams,
+    pledge: Vec<Coin>,
     owner: &str,
     owner_signature: String,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
+    // check if the pledge contains any funds of the appropriate denomination
+    let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
+    let pledge = validate_pledge(pledge, minimum_pledge)?;
+
     let owner = deps.api.addr_validate(owner)?;
+
     // if the client has an active bonded mixnode or gateway, don't allow bonding
+    // note that this has to be done explicitly as `UniqueIndex` constraint would not protect us
+    // against attempting to use different node types (i.e. gateways and mixnodes)
     ensure_no_existing_bond(deps.storage, &owner)?;
 
-    // We don't have to check lower bound as its an u8
-    if mix_node.profit_margin_percent > 100 {
-        return Err(ContractError::InvalidProfitMarginPercent(
-            mix_node.profit_margin_percent,
-        ));
-    }
-
-    // check if somebody else has already bonded a mixnode with this identity
-    // TODO:
-    // if let Some(existing_bond) =
-    //     storage::mixnodes().may_load(deps.storage, &mix_node.identity_key)?
-    // {
-    //     if existing_bond.owner != owner {
-    //         return Err(ContractError::DuplicateMixnode {
-    //             owner: existing_bond.owner,
-    //         });
-    //     }
-    // }
+    // there's no need to explicitly check whether there already exists mixnode with the same
+    // identity or sphinx keys as this is going to be done implicitly when attempting to save
+    // the bond information due to `UniqueIndex` constraint defined on those fields.
 
     // check if this sender actually owns the mixnode by checking the signature
     validate_node_identity_signature(
         deps.as_ref(),
         &owner,
         owner_signature,
-        &mix_node.identity_key,
+        &mixnode.identity_key,
     )?;
 
-    let layer = storage::assign_layer(deps.storage)?;
-
-    let stored_bond = StoredMixnodeBond::new(
-        pledge_amount.clone(),
+    let node_identity = mixnode.identity_key.clone();
+    let (node_id, layer) = storage::save_new_mixnode(
+        deps.storage,
+        env,
+        mixnode,
+        cost_params,
         owner.clone(),
-        layer,
-        env.block.height,
-        mix_node,
         proxy.clone(),
-        None,
-        None,
-    );
-
-    // technically we don't have to set the total_delegation bucket, but it makes things easier
-    // in different places that we can guarantee that if node exists, so does the data behind the total delegation
-    let identity = stored_bond.identity();
-    storage::mixnodes().save(deps.storage, identity, &stored_bond, env.block.height)?;
-
-    // if this is a fresh mixnode - write 0 total delegation, otherwise, don't touch it since the node has just rebonded
-    if storage::TOTAL_DELEGATION
-        .may_load(deps.storage, identity)?
-        .is_none()
-    {
-        storage::TOTAL_DELEGATION.save(deps.storage, identity, &Uint128::zero())?;
-    }
-
-    storage::LAST_PM_UPDATE_TIME.save(deps.storage, identity, &env.block.time.seconds())?;
-
-    mixnet_params_storage::increment_layer_count(deps.storage, stored_bond.layer)?;
+        pledge.clone(),
+    )?;
 
     Ok(Response::new().add_event(new_mixnode_bonding_event(
         &owner,
         &proxy,
-        &pledge_amount,
-        identity,
-        stored_bond.layer,
+        &pledge,
+        &node_identity,
+        node_id,
+        layer,
     )))
 }
 //

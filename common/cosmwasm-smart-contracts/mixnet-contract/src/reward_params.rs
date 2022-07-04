@@ -15,6 +15,10 @@ pub struct IntervalRewardParams {
 
     pub sybil_resistance_percent: Decimal,
     pub active_set_work_factor: Decimal,
+
+    // TODO: I'm not convinced about this one yet as we might end up accidentally duplicating it
+    // I think it will be more clear after implementation matures a bit
+    pub epochs_in_interval: u32,
 }
 
 /// Parameters required by the mix-mining reward distribution that could change during an interval

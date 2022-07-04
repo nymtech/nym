@@ -100,8 +100,10 @@ impl Network {
     pub fn statistics_service_url(&self) -> &str {
         match self {
             Network::MAINNET => crate::mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-            _ => {
-                panic!("statistics service url is only available for mainnet!")
+            Network::SANDBOX => crate::mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+            Network::QA => crate::mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+            Network::CUSTOM { .. } => {
+                panic!("statistics service url is unavailable for a custom network")
             }
         }
     }

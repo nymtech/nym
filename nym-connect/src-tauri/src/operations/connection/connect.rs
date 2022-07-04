@@ -13,7 +13,7 @@ pub async fn start_connecting(
         log::trace!("Start connecting with:");
         log::trace!("  service_provider: {:?}", guard.get_service_provider());
         log::trace!("  gateway: {:?}", guard.get_gateway());
-        guard.start_connecting(&window).await
+        guard.start_connecting(&window).await?
     };
 
     // Setup task for checking status

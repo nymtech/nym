@@ -76,10 +76,22 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(service_provider: &str, chosen_gateway_id: &str) {
+    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<(), BackendError> {
         info!("Initialising...");
-        init_socks5(service_provider, chosen_gateway_id).await;
+
+        let service_provider = service_provider.to_owned();
+        let chosen_gateway_id = chosen_gateway_id.to_owned();
+
+        // The client initialization was originally not written for this use case, so there are
+        // lots of ways it can panic. Until we have proper error handling in the init code for the
+        // clients we'll catch any panics here.
+        std::panic::catch_unwind(move || {
+            futures::executor::block_on(init_socks5(service_provider, chosen_gateway_id));
+        })
+        .map_err(|_| BackendError::InitializationPanic)?;
+
         info!("Configuration saved 🚀");
+        Ok(())
     }
 
     pub fn config_file_location(id: &str) -> PathBuf {
@@ -87,11 +99,11 @@ impl Config {
     }
 }
 
-pub async fn init_socks5(provider_address: &str, chosen_gateway_id: &str) {
+pub async fn init_socks5(provider_address: String, chosen_gateway_id: String) {
     log::info!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
-    let id = append_config_id(chosen_gateway_id);
+    let id = append_config_id(&chosen_gateway_id);
 
     log::debug!(
         "Attempting to use config file location: {}",
@@ -112,7 +124,7 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: &str) {
     let register_gateway = !already_init || user_wants_force_register;
 
     log::trace!("Creating config for id: {}", id);
-    let mut config = Config::new(id.as_str(), provider_address);
+    let mut config = Config::new(id.as_str(), &provider_address);
 
     // As far as I'm aware, these two are not used, they are only set because the socks5 init code
     // requires them for initialising the bandwidth controller.
@@ -126,7 +138,7 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: &str) {
     let gateway = setup_gateway(
         &id,
         register_gateway,
-        Some(chosen_gateway_id),
+        Some(&chosen_gateway_id),
         config.get_socks5(),
     )
     .await;

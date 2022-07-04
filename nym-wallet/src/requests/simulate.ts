@@ -50,8 +50,7 @@ export const simulateVestingDelegateToMixnode = async (args: { identity: string 
 export const simulateVestingBondMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_bond_mixnode', args);
 
-export const simulateVestingUnbondMixnode = async (args: any) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_unbond_mixnode', args);
+export const simulateVestingUnbondMixnode = async () => invokeWrapper<FeeDetails>('simulate_vesting_unbond_mixnode');
 
 export const simulateVestingUpdateMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode', args);

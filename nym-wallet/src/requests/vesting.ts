@@ -10,8 +10,8 @@ import {
   TransactionExecuteResult,
   VestingAccountInfo,
 } from '@nymproject/types';
+import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { invokeWrapper } from './wrapper';
-import { TBondGatewayArgs, TBondMixNodeArgs } from '../types';
 
 export const getLockedCoins = async (): Promise<MajorCurrencyAmount> =>
   invokeWrapper<MajorCurrencyAmount>('locked_coins');
@@ -43,7 +43,8 @@ export const vestingBondGateway = async ({
   ownerSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_gateway', { gateway, ownerSignature, pledge });
 
-export const vestingUnbondGateway = async () => invokeWrapper<TransactionExecuteResult>('vesting_unbond_gateway');
+export const vestingUnbondGateway = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_unbond_gateway', { fee });
 
 export const vestingBondMixNode = async ({
   mixnode,
@@ -55,7 +56,8 @@ export const vestingBondMixNode = async ({
   ownerSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, ownerSignature, pledge });
 
-export const vestingUnbondMixnode = async () => invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode');
+export const vestingUnbondMixnode = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode', { fee });
 
 export const withdrawVestedCoins = async (amount: MajorCurrencyAmount) =>
   invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount });

@@ -4,10 +4,10 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { CurrencyInput, SimpleDialog, TextFieldInput } from '../../components';
+import { CurrencyInput, TextFieldInput } from '../../components';
 import schema from './schema';
 import { AppContext } from '../../../../context';
-import { TokenPoolSelector } from '../../../../components';
+import { TokenPoolSelector, SimpleDialog } from '../../../../components';
 
 export interface Props {
   open: boolean;

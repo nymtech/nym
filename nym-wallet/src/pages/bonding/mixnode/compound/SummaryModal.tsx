@@ -8,39 +8,34 @@ export interface Props {
   onClose: () => void;
   onConfirm: () => void;
   onCancel: () => void;
-  currentPm: number;
-  newPm: number;
+  rewards: MajorCurrencyAmount;
   fee: MajorCurrencyAmount;
 }
 
-const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentPm, newPm, fee }: Props) => (
+const SummaryModal = ({ open, onClose, onConfirm, onCancel, rewards, fee }: Props) => (
   <SimpleDialog
     open={open}
     onClose={onClose}
     onConfirm={onConfirm}
     onCancel={onCancel}
-    title="Profit margin change"
-    subTitle="System Variables"
-    confirmButton="Confirm"
+    title="Compound rewards"
+    subTitle="Get more rewards by compounding"
+    confirmButton="Compound"
     closeButton
-    cancelButton
     maxWidth="xs"
     fullWidth
   >
     <Stack direction="row" justifyContent="space-between">
-      <Typography fontWeight={400}>Current profit margin</Typography>
-      <Typography fontWeight={400}>{`${currentPm}%`}</Typography>
-    </Stack>
-    <Divider sx={{ my: 1 }} />
-    <Stack direction="row" justifyContent="space-between">
-      <Typography fontWeight={400}>New profit margin</Typography>
-      <Typography fontWeight={400}>{`${newPm}%`}</Typography>
+      <Typography fontWeight={400}>Operator rewards</Typography>
+      <Typography fontWeight={400}>{`${rewards.amount} ${rewards.denom}`}</Typography>
     </Stack>
     <Divider sx={{ my: 1 }} />
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Fee for this operation</Typography>
       <Typography fontWeight={400}>{`${fee.amount} ${fee.denom}`}</Typography>
     </Stack>
+    <Divider sx={{ my: 1 }} />
+    <Typography fontWeight={400}>Rewards will be added to your bonding pool</Typography>
   </SimpleDialog>
 );
 

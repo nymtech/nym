@@ -1,15 +1,16 @@
-import React, { useMemo } from 'react';
-import { IconButton } from '@mui/material';
-import { MoreVert } from '@mui/icons-material';
+import React, { useMemo, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
+import EditIcon from '@mui/icons-material/Edit';
 import { BondedGateway } from '../../../context';
-import { NodeTable, BondedNodeCard, Cell, Header } from '../components';
+import { NodeTable, BondedNodeCard, Cell, Header, NodeMenu } from '../components';
+import { GatewayFlow } from './types';
+import Unbond from '../unbond';
 
 const headers: Header[] = [
   {
     header: 'IP',
     id: 'ip-header',
-    sx: { pl: 0 },
+    sx: { pl: 0, width: 100 },
   },
   {
     header: 'Bond',
@@ -18,13 +19,16 @@ const headers: Header[] = [
   {
     id: 'menu-button',
     size: 'small',
-    sx: { pr: 0 },
+    sx: { width: 34, maxWidth: 34 },
   },
 ];
 
 const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
   const { ip, bond } = gateway;
+  const [flow, setFlow] = useState<GatewayFlow>(null);
+  const [nodeMenuOpen, setNodeMenuOpen] = useState(false);
   const theme = useTheme();
+
   const cells: Cell[] = useMemo(
     () => [
       {
@@ -38,21 +42,24 @@ const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
       },
       {
         cell: (
-          <IconButton sx={{ fontSize: '1rem', padding: 0 }}>
-            <MoreVert fontSize="inherit" sx={{ color: 'text.primary' }} />
-          </IconButton>
+          <NodeMenu
+            onFlowChange={(newFlow) => setFlow(newFlow as GatewayFlow)}
+            onOpen={(open) => setNodeMenuOpen(open)}
+            items={[{ label: 'Unbond', flow: 'unbond', icon: <EditIcon fontSize="inherit" /> }]}
+          />
         ),
         id: 'menu-button-cell',
         align: 'center',
         size: 'small',
-        sx: { pr: 0 },
+        sx: { backgroundColor: nodeMenuOpen ? '#FB6E4E0D' : undefined, px: 0 },
       },
     ],
-    [gateway, theme],
+    [gateway, theme, nodeMenuOpen],
   );
   return (
     <BondedNodeCard title="Valhalla gateway" identityKey={gateway.key}>
       <NodeTable headers={headers} cells={cells} />
+      <Unbond node={gateway} show={flow === 'unbond'} onClose={() => setFlow(null)} />
     </BondedNodeCard>
   );
 };

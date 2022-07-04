@@ -3,69 +3,54 @@ import { useContext, useEffect, useState } from 'react';
 import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
-import { AppContext, BondedMixnode, urls } from '../../../../context';
+import { AppContext, BondedGateway, BondedMixnode, urls } from '../../../context';
 import SummaryModal from './SummaryModal';
-import { ConfirmationModal } from '../../../../components';
-import BondModal from './BondModal';
+import { ConfirmationModal } from '../../../components';
 
 interface Props {
-  mixnode: BondedMixnode;
+  node: BondedMixnode | BondedGateway;
   show: boolean;
   onClose: () => void;
 }
 
-const BondMore = ({ mixnode, show, onClose }: Props) => {
-  const [addBond, setAddBond] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
-  const [signature, setSignature] = useState<string>();
+const Unbond = ({ node, show, onClose }: Props) => {
   const [fee, setFee] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [tx, setTx] = useState<TransactionExecuteResult>();
 
   const { network } = useContext(AppContext);
 
   useEffect(() => {
     setFee({ amount: '42', denom: 'NYM' }); // TODO fetch real fee amount
-  }, [addBond]);
+  }, []);
 
   const submit = () => {
-    // TODO send request to update bond
-    setStep(3); // on success
+    // TODO send request to unbond
+    setStep(2); // on success
     // setTx(requestResult)
   };
 
   const reset = () => {
-    setAddBond({ amount: '0', denom: 'NYM' });
-    setSignature('');
     setStep(1);
     onClose();
   };
 
   return (
     <>
-      <BondModal
-        open={show && step === 1}
-        onClose={onClose}
-        onConfirm={async (bond, sig) => {
-          setAddBond(bond);
-          setSignature(sig);
-          setStep(2);
-        }}
-        currentBond={mixnode.bond}
-      />
       <SummaryModal
-        open={show && step === 2}
+        open={show && step === 1}
         onClose={reset}
         onConfirm={submit}
-        onCancel={() => setStep(1)}
-        currentBond={mixnode.bond}
-        addBond={addBond}
+        onCancel={reset}
+        bond={node.bond}
+        rewards={(node as BondedMixnode).operatorRewards}
         fee={fee as MajorCurrencyAmount}
       />
       <ConfirmationModal
-        open={show && step === 3}
+        open={show && step === 2}
         onClose={reset}
         onConfirm={reset}
-        title="Bonding successful"
+        title="Unbonding succesfull"
         confirmButton="Done"
         maxWidth="xs"
       >
@@ -78,4 +63,4 @@ const BondMore = ({ mixnode, show, onClose }: Props) => {
   );
 };
 
-export default BondMore;
+export default Unbond;

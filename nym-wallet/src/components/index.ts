@@ -20,3 +20,4 @@ export * from './TokenPoolSelector';
 export * from './TransactionDetails';
 export * from './Warning';
 export * from './Modals/ConfirmationModal';
+export * from './SimpleDialog';

@@ -2,13 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
+import EditIcon from '@mui/icons-material/Edit';
 import { BondedMixnode } from '../../../context';
 import { Node as NodeIcon } from '../../../svg-icons/node';
-import { NodeTable, BondedNodeCard, Cell, Header } from '../components';
+import { NodeTable, BondedNodeCard, Cell, Header, NodeMenu } from '../components';
 import NodeSettings from './node-settings';
 import BondMore from './bond-more';
-import NodeMenu from './NodeMenu';
 import { MixnodeFlow } from './types';
+import RedeemRewards from './redeem';
+import Unbond from '../unbond';
+import CompoundRewards from './compound';
 
 const headers: Header[] = [
   {
@@ -49,13 +52,14 @@ const headers: Header[] = [
   {
     id: 'menu-button',
     size: 'small',
-    sx: { pr: 0 },
+    sx: { width: 34, maxWidth: 34 },
   },
 ];
 
 const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
   const { stake, bond, stakeSaturation, profitMargin, nodeRewards, operatorRewards, delegators } = mixnode;
   const [flow, setFlow] = useState<MixnodeFlow>(null);
+  const [nodeMenuOpen, setNodeMenuOpen] = useState(false);
   const theme = useTheme();
 
   const cells: Cell[] = useMemo(
@@ -91,14 +95,25 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
         id: 'delegators-cell',
       },
       {
-        cell: <NodeMenu onFlowChange={(newFlow) => setFlow(newFlow)} />,
+        cell: (
+          <NodeMenu
+            onFlowChange={(newFlow) => setFlow(newFlow as MixnodeFlow)}
+            onOpen={(open) => setNodeMenuOpen(open)}
+            items={[
+              { label: 'Bond more', flow: 'bondMore', icon: <EditIcon fontSize="inherit" /> },
+              { label: 'Unbond', flow: 'unbond', icon: <EditIcon fontSize="inherit" /> },
+              { label: 'Compound rewards', flow: 'compound', icon: <EditIcon fontSize="inherit" /> },
+              { label: 'Redeem rewards', flow: 'redeem', icon: <EditIcon fontSize="inherit" /> },
+            ]}
+          />
+        ),
         id: 'menu-button-cell',
         align: 'center',
         size: 'small',
-        sx: { pr: 0 },
+        sx: { backgroundColor: nodeMenuOpen ? '#FB6E4E0D' : undefined, px: 0 },
       },
     ],
-    [mixnode, theme],
+    [mixnode, theme, nodeMenuOpen],
   );
   return (
     <BondedNodeCard
@@ -131,6 +146,9 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
       </Typography>
       <NodeSettings mixnode={mixnode} show={flow === 'nodeSettings'} onClose={() => setFlow(null)} />
       <BondMore mixnode={mixnode} show={flow === 'bondMore'} onClose={() => setFlow(null)} />
+      <RedeemRewards mixnode={mixnode} show={flow === 'redeem'} onClose={() => setFlow(null)} />
+      <Unbond node={mixnode} show={flow === 'unbond'} onClose={() => setFlow(null)} />
+      <CompoundRewards mixnode={mixnode} show={flow === 'compound'} onClose={() => setFlow(null)} />
     </BondedNodeCard>
   );
 };

@@ -3,9 +3,10 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleDialog, TextFieldInput } from '../../components';
+import { TextFieldInput } from '../../components';
 import { Node as NodeIcon } from '../../../../svg-icons/node';
 import getSchema from './schema';
+import { SimpleDialog } from '../../../../components';
 
 export interface Props {
   open: boolean;

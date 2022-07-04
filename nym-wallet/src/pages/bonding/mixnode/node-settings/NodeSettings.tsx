@@ -6,7 +6,7 @@ import { Typography } from '@mui/material';
 import ProfitMarginModal from './ProfitMarginModal';
 import { AppContext, BondedMixnode, urls } from '../../../../context';
 import SummaryModal from './SummaryModal';
-import { SimpleDialog } from '../../components';
+import { ConfirmationModal } from '../../../../components';
 
 interface Props {
   mixnode: BondedMixnode;
@@ -62,20 +62,19 @@ const NodeSettings = ({ mixnode, show, onClose }: Props) => {
         newPm={profitMargin as number}
         fee={fee as MajorCurrencyAmount}
       />
-      <SimpleDialog
+      <ConfirmationModal
         open={show && step === 3}
         onClose={reset}
         onConfirm={reset}
         title="Operation successful"
         confirmButton="Done"
         maxWidth="xs"
-        sx={{ textAlign: 'center' }}
       >
         <Typography sx={{ mb: 2 }}>This operation can take up to one hour to process</Typography>
         <Link href={`${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`} noIcon>
           View on blockchain
         </Link>
-      </SimpleDialog>
+      </ConfirmationModal>
     </>
   );
 };

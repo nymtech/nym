@@ -4,7 +4,7 @@ import { MajorCurrencyAmount } from '@nymproject/types';
 import { getGasFee } from '../../../requests';
 import { NodeType } from '../types';
 import { AppContext } from '../../../context';
-import { SimpleDialog } from '../components';
+import { SimpleDialog } from '../../../components';
 
 export interface Props {
   open: boolean;

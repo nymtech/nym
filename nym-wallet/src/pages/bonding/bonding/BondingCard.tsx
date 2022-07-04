@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useReducer } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { Gateway, MajorCurrencyAmount, MixNode } from '@nymproject/types';
-import { NymCard } from '../../../components';
+import { ConfirmationModal, NymCard } from '../../../components';
 import NodeIdentityModal from './NodeIdentityModal';
 import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from '../types';
 import AmountModal from './AmountModal';
@@ -11,7 +11,6 @@ import SummaryModal from './SummaryModal';
 import { bond, vestingBond } from '../../../requests';
 import { TBondArgs } from '../../../types';
 import { Console } from '../../../utils/console';
-import { SimpleDialog } from '../components';
 
 const initialState: BondState = {
   showModal: false,
@@ -170,7 +169,7 @@ const BondingCard = () => {
         />
       )}
       {formStep === 4 && showModal && (
-        <SimpleDialog
+        <ConfirmationModal
           open={formStep === 4 && showModal}
           onConfirm={onConfirm}
           onClose={onConfirm}
@@ -178,12 +177,11 @@ const BondingCard = () => {
           confirmButton="Done"
           maxWidth="xs"
           fullWidth
-          sx={{ textAlign: 'center' }}
         >
           <Link href={`${urls(network).blockExplorer}/transaction/${state.tx?.transaction_hash}`} noIcon>
             View on blockchain
           </Link>
-        </SimpleDialog>
+        </ConfirmationModal>
       )}
     </NymCard>
   );

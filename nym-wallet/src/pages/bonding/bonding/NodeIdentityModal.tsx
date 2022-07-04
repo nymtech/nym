@@ -3,8 +3,9 @@ import { useForm, useWatch } from 'react-hook-form';
 import { Stack } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { NodeData, NodeType } from '../types';
-import { RadioInput, TextFieldInput, CheckboxInput, SimpleDialog } from '../components';
+import { RadioInput, TextFieldInput, CheckboxInput } from '../components';
 import nodeSchema from './nodeSchema';
+import { SimpleDialog } from '../../../components';
 
 export interface Props {
   open: boolean;

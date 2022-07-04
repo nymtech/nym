@@ -53,18 +53,18 @@ export const getNodeStatus = ({ status }: { status: MixnodeStatus }) => {
 
 const BondedNodeCard = (props: Props) => {
   const { title: rawTitle, identityKey, status: rawStatus, action, children } = props;
-  let title: string | React.ReactNode = (
+  let Title: string | React.ReactNode = (
     <Typography fontSize={20} fontWeight={600}>
       {rawTitle}
     </Typography>
   );
   if (rawStatus) {
-    title = (
-      <Stack direction="row" spacing={1.2} alignItems="center">
+    Title = (
+      <Stack direction="column" spacing={1.2}>
+        {getNodeStatus({ status: rawStatus })}
         <Typography fontSize={20} fontWeight={600}>
           {rawTitle}
         </Typography>
-        {getNodeStatus({ status: rawStatus })}
       </Stack>
     );
   }
@@ -72,7 +72,7 @@ const BondedNodeCard = (props: Props) => {
   return (
     <Card variant="outlined" sx={{ overflow: 'auto', border: 'none', dropShadow: 'none' }}>
       <CardHeader
-        title={title}
+        title={Title}
         subheader={<IdentityKey identityKey={identityKey} />}
         action={action}
         disableTypography

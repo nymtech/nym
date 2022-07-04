@@ -5,8 +5,8 @@ import { Box, Divider, Stack, Typography } from '@mui/material';
 import { AmountData, NodeType } from '../types';
 import { AppContext } from '../../../context';
 import amountSchema from './amountSchema';
-import { TokenPoolSelector } from '../../../components';
-import { TextFieldInput, CurrencyInput, SimpleDialog } from '../components';
+import { SimpleDialog, TokenPoolSelector } from '../../../components';
+import { TextFieldInput, CurrencyInput } from '../components';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../utils';
 
 export interface Props {

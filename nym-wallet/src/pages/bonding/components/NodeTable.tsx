@@ -39,12 +39,6 @@ const CellHeader = ({ children, tooltip, sx, size, align, color }: TableHeader) 
   </MUITableCell>
 );
 
-const CellValue = ({ children, align, size, color, sx }: TableCell) => (
-  <MUITableCell component="th" scope="row" sx={{ py: 1, color, ...sx }} align={align} size={size}>
-    {children}
-  </MUITableCell>
-);
-
 export type Header = Omit<TableHeader, 'children'> & { header?: React.ReactNode; id: string };
 export type Cell = Omit<TableCell, 'children'> & { cell: React.ReactNode; id: string };
 
@@ -68,9 +62,9 @@ const NodeTable = ({ headers, cells }: TableProps) => (
       <TableBody>
         <TableRow key="node-data">
           {cells.map(({ cell, id, align, size, color, sx }) => (
-            <CellValue align={align} size={size} key={id} sx={sx} color={color}>
+            <MUITableCell component="th" scope="row" sx={{ py: 1, color, ...sx }} align={align} size={size} key={id}>
               {cell}
-            </CellValue>
+            </MUITableCell>
           ))}
         </TableRow>
       </TableBody>

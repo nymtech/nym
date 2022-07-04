@@ -1,5 +1,6 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { useTheme, Theme } from '@mui/material/styles';
 import { DelegationWithEverything, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
@@ -18,8 +19,9 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
-export const Delegation: FC = () => {
+export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
@@ -45,6 +47,8 @@ export const Delegation: FC = () => {
     undelegate,
     refresh: refreshDelegations,
   } = useDelegationContext();
+
+  const theme = useTheme();
 
   const { refresh: refreshRewards, claimRewards, compoundRewards } = useRewardsContext();
 
@@ -283,6 +287,10 @@ export const Delegation: FC = () => {
     }
   };
 
+  const storybookStyles = (theme: Theme) => ({
+    BackdropProps: backDropStyles(theme),
+    sx: modalStyles(theme),
+  });
   return (
     <>
       <Paper elevation={0} sx={{ p: 4, mt: 4 }}>
@@ -336,6 +344,7 @@ export const Delegation: FC = () => {
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
+          {...storybookStyles(theme)}
         />
       )}
 
@@ -353,6 +362,7 @@ export const Delegation: FC = () => {
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
+          {...storybookStyles(theme)}
         />
       )}
 
@@ -365,6 +375,7 @@ export const Delegation: FC = () => {
           currency={currentDelegationListActionItem.amount.denom}
           amount={+currentDelegationListActionItem.amount.amount}
           identityKey={currentDelegationListActionItem.node_identity}
+          {...storybookStyles(theme)}
         />
       )}
 
@@ -402,6 +413,7 @@ export const Delegation: FC = () => {
             setConfirmationModalProps(undefined);
             await fetchBalance();
           }}
+          {...storybookStyles(theme)}
         />
       )}
 
@@ -417,12 +429,12 @@ export const Delegation: FC = () => {
   );
 };
 
-export const DelegationPage = () => {
+export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const { network } = useContext(AppContext);
   return (
     <DelegationContextProvider network={network}>
       <RewardsContextProvider network={network}>
-        <Delegation />
+        <Delegation isStorybook={isStorybook} />
       </RewardsContextProvider>
     </DelegationContextProvider>
   );

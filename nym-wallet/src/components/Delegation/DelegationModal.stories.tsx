@@ -6,6 +6,7 @@ import { useTheme, Theme } from '@mui/material/styles';
 import { Delegations } from './Delegations';
 import { items } from './DelegationList.stories';
 import { DelegationModal } from './DelegationModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
 const explorerUrl = 'https://sandbox-explorer.nymtech.net';
 
@@ -27,21 +28,6 @@ const balance = '104 NYMT';
 const balanceVested = '12 NYMT';
 const recipient = 'nymt1923pujepxfnv8dqyxqrl078s4ysf3xn2p7z2xa';
 
-const backDropStyles = (theme: Theme) => {
-  const { mode } = theme.palette;
-  return {
-    style: {
-      left: mode === 'light' ? '0' : '50%',
-      width: '50%',
-    },
-  };
-};
-
-const modalStyles = (theme: Theme) => {
-  const { mode } = theme.palette;
-  return { left: mode === 'light' ? '25%' : '75%' };
-};
-
 const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
   children,
   handleClick,
@@ -62,7 +48,6 @@ export const Loading = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  console.log('open', open);
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -81,7 +66,6 @@ export const DelegateSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -93,14 +77,9 @@ export const DelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
+        BackdropProps={backDropStyles(theme)}
         sx={{
-          left: mode === 'light' ? '25%' : '75%',
+          ...modalStyles(theme),
         }}
       />
     </Content>
@@ -111,7 +90,6 @@ export const UndelegateSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -123,14 +101,9 @@ export const UndelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
+        BackdropProps={backDropStyles(theme)}
         sx={{
-          left: mode === 'light' ? '25%' : '75%',
+          ...modalStyles(theme),
         }}
       />
     </Content>
@@ -141,7 +114,6 @@ export const RedeemSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -157,14 +129,9 @@ export const RedeemSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
+        BackdropProps={backDropStyles(theme)}
         sx={{
-          left: mode === 'light' ? '25%' : '75%',
+          ...modalStyles(theme),
         }}
       />
     </Content>
@@ -175,7 +142,6 @@ export const RedeemWithVestedSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -192,14 +158,9 @@ export const RedeemWithVestedSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
+        BackdropProps={backDropStyles(theme)}
         sx={{
-          left: mode === 'light' ? '25%' : '75%',
+          ...modalStyles(theme),
         }}
       />
     </Content>
@@ -210,7 +171,6 @@ export const RedeemAllSuccess = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -226,14 +186,9 @@ export const RedeemAllSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
+        BackdropProps={backDropStyles(theme)}
         sx={{
-          left: mode === 'light' ? '25%' : '75%',
+          ...modalStyles(theme),
         }}
       />
     </Content>
@@ -244,7 +199,6 @@ export const Error = () => {
   const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
   const theme = useTheme();
-  const { mode } = theme.palette;
   return (
     <Content handleClick={handleClick}>
       <DelegationModal
@@ -256,14 +210,9 @@ export const Error = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={{
-          style: {
-            left: mode === 'light' ? '0' : '50%',
-            width: '50%',
-          },
-        }}
+        BackdropProps={backDropStyles(theme)}
         sx={{
-          left: mode === 'light' ? '25%' : '75%',
+          ...modalStyles(theme),
         }}
       />
     </Content>

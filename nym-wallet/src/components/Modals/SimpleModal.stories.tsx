@@ -66,17 +66,23 @@ export const Default = () => {
         header="This is a modal"
         subHeader="This is a sub header"
         okLabel="Click to continue"
+        BackdropProps={backDropStyles(theme)}
+        sx={modalStyles(theme)}
       >
-        <p>Lorem mollit minim duis cupidatat non. Consectetur sit deserunt</p>
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
+          Lorem mollit minim duis cupidatat non. Consectetur sit deserunt
+        </Typography>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-        </p>
+        </Typography>
         <ModalDivider />
-        <p>Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eius</p>
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
+          Occaecat commodo excepteur anim ut officia dolor laboris dolore id occaecat enim qui eius
+        </Typography>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
           elit ut mollit.
-        </p>
+        </Typography>
       </SimpleModal>
     </BasePage>
   );

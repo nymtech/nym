@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Button } from '@mui/material';
-import ConfirmationModal from './ConfirmationModal';
+import { ConfirmationModal } from './ConfirmationModal';
 
 export default {
   title: 'Modals/ConfirmationModal',

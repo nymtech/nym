@@ -20,4 +20,4 @@ export * from './Title';
 export * from './TokenPoolSelector';
 export * from './TransactionDetails';
 export * from './Warning';
-export { default as ConfirmationModal } from './Modals/ConfirmationModal';
+export * from './Modals/ConfirmationModal';

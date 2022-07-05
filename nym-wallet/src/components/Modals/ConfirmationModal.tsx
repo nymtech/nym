@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 
-export interface Props {
+export interface ConfirmationModalProps {
   open: boolean;
   onConfirm: () => void;
   onClose?: () => void;
@@ -24,7 +24,7 @@ export interface Props {
   maxWidth?: Breakpoint;
 }
 
-const ConfirmationModal = ({
+export const ConfirmationModal = ({
   open,
   onConfirm,
   onClose,
@@ -36,8 +36,8 @@ const ConfirmationModal = ({
   sx,
   fullWidth,
   maxWidth,
-}: Props) => {
-  const titleComp = (
+}: ConfirmationModalProps) => {
+  const Title = (
     <DialogTitle id="responsive-dialog-title" sx={{ py: 3, pb: 2, fontWeight: 600 }} color="black">
       {title}
       {subTitle &&
@@ -50,7 +50,7 @@ const ConfirmationModal = ({
         ))}
     </DialogTitle>
   );
-  const confirmButtonComp =
+  const ConfirmButton =
     typeof confirmButton === 'string' ? (
       <Button onClick={onConfirm} variant="contained" fullWidth disabled={disabled} sx={{ py: 1.6 }}>
         <Typography variant="button" fontSize="large">
@@ -69,11 +69,9 @@ const ConfirmationModal = ({
       sx={{ textAlign: 'center', ...sx }}
       fullWidth={fullWidth}
     >
-      {titleComp}
+      {Title}
       <DialogContent>{children}</DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>{confirmButtonComp}</DialogActions>
+      <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
     </Dialog>
   );
 };
-
-export default ConfirmationModal;

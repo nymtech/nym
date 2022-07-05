@@ -19,10 +19,10 @@
 Cargo.* @durch @futurechimp @jstuczyn @neacsu @octol
 
 # JS rules:
-*.js @mmsinclair @fmtabbara @Aid19801
-*.ts @mmsinclair @fmtabbara @Aid19801
-*.tsx @mmsinclair @fmtabbara @Aid19801
-*.jsx @mmsinclair @fmtabbara @Aid19801
+*.js @mmsinclair @fmtabbara
+*.ts @mmsinclair @fmtabbara
+*.tsx @mmsinclair @fmtabbara
+*.jsx @mmsinclair @fmtabbara
 
 # Something looking like possible documentation rules:
 *.md @mfahampshire

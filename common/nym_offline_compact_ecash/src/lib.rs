@@ -7,18 +7,17 @@ pub use scheme::aggregation::aggregate_wallets;
 pub use scheme::keygen::generate_keypair_user;
 pub use scheme::keygen::ttp_keygen;
 pub use scheme::keygen::VerificationKeyAuth;
+pub use scheme::PartialWallet;
+pub use scheme::PayInfo;
 pub use scheme::setup;
 pub use scheme::withdrawal::issue_verify;
 pub use scheme::withdrawal::issue_wallet;
 pub use scheme::withdrawal::withdrawal_request;
-pub use scheme::PartialWallet;
-pub use scheme::PayInfo;
 pub use traits::Base58;
 
 use crate::error::CompactEcashError;
 use crate::traits::Bytable;
 
-mod constants;
 mod error;
 mod proofs;
 mod scheme;

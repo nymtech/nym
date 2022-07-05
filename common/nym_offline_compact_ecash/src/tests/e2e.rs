@@ -1,23 +1,23 @@
 use itertools::izip;
 
-use crate::constants::MAX_WALLET_VALUE;
 use crate::error::CompactEcashError;
+use crate::scheme::{PartialWallet, Payment, pseudorandom_fgt};
 use crate::scheme::aggregation::{
     aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets,
 };
 use crate::scheme::identify::identify;
 use crate::scheme::keygen::{
-    generate_keypair_user, ttp_keygen, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    generate_keypair_user, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth,
 };
-use crate::scheme::setup::{setup, GroupParameters, Parameters};
-use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 use crate::scheme::PayInfo;
-use crate::scheme::{pseudorandom_fgt, PartialWallet, Payment};
+use crate::scheme::setup::{GroupParameters, Parameters, setup};
+use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
 use crate::utils::{hash_to_scalar, SignatureShare};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
-    let params = setup(MAX_WALLET_VALUE);
+    let L = 32;
+    let params = setup(L);
     let grparams = params.grp();
     let user_keypair = generate_keypair_user(&grparams);
 
@@ -46,8 +46,8 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-    .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-    .collect();
+        .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(

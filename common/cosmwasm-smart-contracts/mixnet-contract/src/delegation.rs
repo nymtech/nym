@@ -123,7 +123,7 @@ impl Display for Delegation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<(String, u64)>,
@@ -138,7 +138,7 @@ impl PagedMixDelegationsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedDelegatorDelegationsResponse {
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<IdentityKey>,
@@ -153,7 +153,7 @@ impl PagedDelegatorDelegationsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedAllDelegationsResponse {
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<(IdentityKey, Vec<u8>, u64)>,

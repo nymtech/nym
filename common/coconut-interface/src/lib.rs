@@ -10,7 +10,7 @@ use error::CoconutInterfaceError;
 
 pub use nymcoconut::*;
 
-#[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]
 pub struct Credential {
     #[getset(get = "pub")]
     n_params: u32,

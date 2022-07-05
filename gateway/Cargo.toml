@@ -19,7 +19,7 @@ bs58 = "0.4.0"
 clap = { version = "3.0.10", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
-dirs = "3.0"
+dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"

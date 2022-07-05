@@ -19,7 +19,7 @@ use std::fmt::Display;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,
@@ -106,7 +106,7 @@ impl PendingUndelegate {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,
@@ -245,7 +245,7 @@ impl DelegatorRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
 

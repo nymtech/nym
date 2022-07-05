@@ -7,6 +7,7 @@ import { ConnectedLayout } from './layouts/ConnectedLayout';
 export const App: React.FC = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
+
   const handleConnectClick = React.useCallback(async () => {
     const oldStatus = context.connectionStatus;
     if (oldStatus === ConnectionStatusKind.connected || oldStatus === ConnectionStatusKind.disconnected) {
@@ -29,7 +30,15 @@ export const App: React.FC = () => {
     context.connectionStatus === ConnectionStatusKind.disconnected ||
     context.connectionStatus === ConnectionStatusKind.connecting
   ) {
-    return <DefaultLayout status={context.connectionStatus} busy={busy} onConnectClick={handleConnectClick} />;
+    return (
+      <DefaultLayout
+        status={context.connectionStatus}
+        busy={busy}
+        onConnectClick={handleConnectClick}
+        services={context.services}
+        onServiceProviderChange={context.setServiceProvider}
+      />
+    );
   }
 
   return (
@@ -40,6 +49,7 @@ export const App: React.FC = () => {
       ipAddress="127.0.0.1"
       port={1080}
       connectedSince={context.connectedSince}
+      serviceProvider={context.serviceProvider}
       stats={[
         {
           label: 'in:',

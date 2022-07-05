@@ -590,7 +590,7 @@ version = "1.0.1"
 dependencies = [
  "config",
  "crypto",
- "dirs 3.0.2",
+ "dirs",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -1293,15 +1293,6 @@ dependencies = [
  "block-buffer 0.10.0",
  "crypto-common",
  "subtle 2.4.1",
-]
-
-[[package]]
-name = "dirs"
-version = "3.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30baa043103c9d0c2a57cf537cc2f35623889dc0d405e6c3cccfadbc81c71309"
-dependencies = [
- "dirs-sys",
 ]
 
 [[package]]
@@ -3386,7 +3377,7 @@ dependencies = [
  "bip39",
  "client-core",
  "config",
- "dirs 4.0.0",
+ "dirs",
  "eyre",
  "fix-path-env",
  "futures",
@@ -3394,6 +3385,7 @@ dependencies = [
  "nym-socks5-client",
  "pretty_env_logger",
  "rand 0.7.3",
+ "reqwest",
  "serde",
  "serde_json",
  "tauri",
@@ -3418,7 +3410,7 @@ dependencies = [
  "config",
  "credential-storage",
  "crypto",
- "dirs 3.0.2",
+ "dirs",
  "dotenv",
  "futures",
  "gateway-client",

@@ -21,7 +21,7 @@ bs58 = "0.4.0"
 clap = { version = "3.0.10", features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
-dirs = "3.0"
+dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3.0"
 humantime-serde = "1.0"
@@ -51,7 +51,6 @@ validator-client = { path="../common/client-libs/validator-client" }
 version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
-serial_test = "0.5"
 tokio = { version="1.19.1", features = ["rt-multi-thread", "net", "signal", "test-util"] }
 
 nymsphinx-types = { path = "../common/nymsphinx/types" }

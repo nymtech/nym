@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalFee } from 'src/components/Modals/ModalFee';
@@ -18,18 +18,7 @@ export const ConfirmationModal = ({
   onPrev: () => void;
   onConfirm: () => Promise<void>;
 }) => (
-  <SimpleModal
-    header="Bond confirmation"
-    open
-    onOk={onConfirm}
-    okLabel="Confirm"
-    hideCloseIcon
-    SecondaryAction={
-      <Button size="large" fullWidth onClick={onPrev} sx={{ mt: 1 }}>
-        Back
-      </Button>
-    }
-  >
+  <SimpleModal header="Bond confirmation" open onOk={onConfirm} okLabel="Confirm" hideCloseIcon onBack={onPrev}>
     <Box sx={{ mt: 3 }}>
       <ModalListItem label="Mixnode identity" value={identity} />
       <ModalListItem label="Amount" value={`${amount.amount} ${amount.denom}`} />

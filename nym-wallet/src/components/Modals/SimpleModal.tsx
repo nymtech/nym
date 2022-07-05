@@ -13,7 +13,7 @@ export const SimpleModal: React.FC<{
   subHeaderStyles?: SxProps;
   onClose?: () => void;
   onOk?: () => Promise<void>;
-  onSecondaryAction?: () => void;
+  onBack?: () => void;
   header: string;
   subHeader?: string;
   okLabel: string;
@@ -28,7 +28,7 @@ export const SimpleModal: React.FC<{
   onClose,
   okDisabled,
   onOk,
-  onSecondaryAction,
+  onBack,
   header,
   subHeader,
   okLabel,
@@ -59,7 +59,7 @@ export const SimpleModal: React.FC<{
       {children}
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-        {onSecondaryAction && <StyledBackButton onBack={onSecondaryAction} />}
+        {onBack && <StyledBackButton onBack={onBack} />}
         <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
           {okLabel}
         </Button>

@@ -20,7 +20,7 @@ export const ConfirmTx: React.FC<{
     okLabel="Confirm"
     onOk={onConfirm}
     onClose={onClose}
-    onSecondaryAction={onPrev}
+    onBack={onPrev}
   >
     <Box sx={{ mt: 3 }}>
       {children}

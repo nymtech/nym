@@ -4,12 +4,13 @@ import { Box, Button } from '@mui/material';
 import { useTheme, Theme } from '@mui/material/styles';
 import { SimpleModal } from './Modals/SimpleModal';
 import { ModalFee } from './Modals/ModalFee';
-import { backDropStyles } from '../../.storybook/storiesStyles';
+import { backDropStyles, modalStyles } from '../../.storybook/storiesStyles';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   !!isStorybook
     ? {
         backdropProps: { ...backDropStyles(theme), ...backdropProps },
+        sx: modalStyles(theme),
       }
     : {};
 

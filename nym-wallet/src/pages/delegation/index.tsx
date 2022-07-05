@@ -19,7 +19,15 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { backDropStyles } from '../../../.storybook/storiesStyles';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+
+const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
+  !!isStorybook
+    ? {
+        backdropProps: { ...backDropStyles(theme), ...backdropProps },
+        sx: modalStyles(theme),
+      }
+    : {};
 
 export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
@@ -287,11 +295,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const storybookStyles = (theme: Theme) => ({
-    backdropProps: backDropStyles(theme),
-    sx: '50%',
-  });
-
   return (
     <>
       <Paper elevation={0} sx={{ p: 4, mt: 4 }}>
@@ -345,7 +348,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
-          {...storybookStyles(theme)}
+          {...storybookStyles(theme, isStorybook)}
         />
       )}
 
@@ -363,7 +366,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
-          {...storybookStyles(theme)}
         />
       )}
 
@@ -376,7 +378,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           currency={currentDelegationListActionItem.amount.denom}
           amount={+currentDelegationListActionItem.amount.amount}
           identityKey={currentDelegationListActionItem.node_identity}
-          {...storybookStyles(theme)}
         />
       )}
 
@@ -414,7 +415,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
             setConfirmationModalProps(undefined);
             await fetchBalance();
           }}
-          {...storybookStyles(theme)}
         />
       )}
 

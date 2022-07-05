@@ -36,7 +36,7 @@ export const SimpleModal: React.FC<{
   children,
   backdropProps,
 }) => (
-  <Modal open={open} onClose={onClose} {...backdropProps}>
+  <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">

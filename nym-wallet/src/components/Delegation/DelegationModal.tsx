@@ -59,7 +59,7 @@ export const DelegationModal: React.FC<
 }) => {
   if (status === 'loading') {
     return (
-      <Modal open backdropProps={backdropProps}>
+      <Modal open BackdropProps={backdropProps}>
         <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Stack spacing={4} direction="row" alignItems="center">
             <CircularProgress />
@@ -72,7 +72,7 @@ export const DelegationModal: React.FC<
 
   if (status === 'error') {
     return (
-      <Modal open={open} onClose={onClose} backdropProps={backdropProps}>
+      <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
         <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
@@ -90,7 +90,7 @@ export const DelegationModal: React.FC<
   }
 
   return (
-    <Modal open={open} onClose={onClose} backdropProps={backdropProps}>
+    <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
       <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}

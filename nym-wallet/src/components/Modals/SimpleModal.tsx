@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
+import { StyledBackButton } from 'src/components/StyledBackButton';
 import { modalStyle } from './styles';
 
 export const SimpleModal: React.FC<{
@@ -59,15 +59,7 @@ export const SimpleModal: React.FC<{
       {children}
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-        {onSecondaryAction && (
-          <Button
-            disableFocusRipple
-            size="large"
-            variant="outlined"
-            startIcon={<ArrowBackIosNewIcon sx={{ width: 20 }} />}
-            onClick={onSecondaryAction}
-          />
-        )}
+        {onSecondaryAction && <StyledBackButton onBack={onSecondaryAction} />}
         <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
           {okLabel}
         </Button>

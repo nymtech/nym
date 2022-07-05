@@ -180,7 +180,7 @@ export const withBackButton = () => {
         onOk={async () => setOpen(false)}
         header="This is a modal"
         okLabel="Primary action"
-        onSecondaryAction={() => {}}
+        onSecondaryAction={() => setOpen(false)}
       >
         <p>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna

@@ -2,7 +2,7 @@ import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { useTheme } from '@mui/material/styles';
 import { Button, Paper, Typography } from '@mui/material';
-import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { backDropStyles } from '../../../.storybook/storiesStyles';
 
 import { OverSaturatedBlockerModal } from './DelegateBlocker';
 
@@ -32,8 +32,7 @@ export const Default = () => {
         open={open}
         header="Node saturation: 114%"
         onClose={() => setOpen(false)}
-        BackdropProps={backDropStyles(theme)}
-        sx={modalStyles(theme)}
+        backdropProps={backDropStyles(theme)}
       />
     </>
   );

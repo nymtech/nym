@@ -17,8 +17,8 @@ export const UndelegateModal: React.FC<{
   currency: string;
   usesVestingContractTokens: boolean;
   sx?: SxProps;
-  BackdropProps?: object;
-}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, BackdropProps }) => {
+  backdropProps?: object;
+}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export const UndelegateModal: React.FC<{
       okLabel="Undelegate stake"
       okDisabled={!fee}
       sx={{ ...sx }}
-      BackdropProps={BackdropProps}
+      BackdropProps={backdropProps}
     >
       <IdentityKeyFormField
         readOnly

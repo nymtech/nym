@@ -55,7 +55,7 @@ export const Loading = () => {
         onClose={() => setOpen(false)}
         status="loading"
         action="delegate"
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={modalStyles(theme)}
       />
     </Content>
@@ -77,7 +77,7 @@ export const DelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           ...modalStyles(theme),
         }}
@@ -101,7 +101,7 @@ export const UndelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           ...modalStyles(theme),
         }}
@@ -129,7 +129,7 @@ export const RedeemSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           ...modalStyles(theme),
         }}
@@ -158,7 +158,7 @@ export const RedeemWithVestedSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           ...modalStyles(theme),
         }}
@@ -186,7 +186,7 @@ export const RedeemAllSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           ...modalStyles(theme),
         }}
@@ -210,7 +210,7 @@ export const Error = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           ...modalStyles(theme),
         }}

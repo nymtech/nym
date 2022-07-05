@@ -35,7 +35,7 @@ export const DelegateModal: React.FC<{
   initialAmount?: string;
   hasVestingContract: boolean;
   sx?: SxProps;
-  BackdropProps?: object;
+  backdropProps?: object;
 }> = ({
   open,
   onIdentityKeyChanged,
@@ -54,7 +54,7 @@ export const DelegateModal: React.FC<{
   initialAmount,
   hasVestingContract,
   sx,
-  BackdropProps,
+  backdropProps,
 }) => {
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
@@ -189,7 +189,7 @@ export const DelegateModal: React.FC<{
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
       sx={{ ...sx }}
-      BackdropProps={BackdropProps}
+      backdropProps={backdropProps}
     >
       <IdentityKeyFormField
         required

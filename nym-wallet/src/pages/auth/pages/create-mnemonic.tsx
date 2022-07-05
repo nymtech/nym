@@ -27,7 +27,7 @@ export const CreateMnemonic = () => {
           disableElevation
           size="large"
           onClick={() => navigate('/verify-mnemonic')}
-          sx={{ width: 250 }}
+          sx={{ width: '100%', fontSize: 15 }}
           disabled={!copied}
         >
           I saved my mnemonic

@@ -10,7 +10,12 @@ export const Tabs: React.FC<{
   <MuiTabs
     value={selectedTab}
     onChange={onChange}
-    sx={{ bgcolor: 'grey.200', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'grey.300' }}
+    sx={{
+      bgcolor: (theme) => theme.palette.nym.nymWallet.background.grey,
+      borderTop: '1px solid',
+      borderBottom: '1px solid',
+      borderColor: (theme) => theme.palette.nym.nymWallet.background.greyStroke,
+    }}
     textColor="inherit"
   >
     {tabs.map((tabName) => (

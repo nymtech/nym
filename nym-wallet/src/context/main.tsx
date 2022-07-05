@@ -32,6 +32,7 @@ type TLoginType = 'mnemonic' | 'password';
 
 export type TAppContext = {
   mode: 'light' | 'dark';
+  handleSwitchMode: () => void;
   appEnv?: AppEnv;
   appVersion?: string;
   clientDetails?: Account;
@@ -69,7 +70,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [appEnv, setAppEnv] = useState<AppEnv>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [mode] = useState<'light' | 'dark'>('light');
+  const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -211,6 +212,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
   const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleSwitchMode = () => setMode(mode === 'light' ? 'dark' : 'light');
 
   const memoizedValue = useMemo(
     () => ({
@@ -240,6 +242,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       logOut,
       onAccountChange,
       handleShowSettings,
+      handleSwitchMode,
     }),
     [
       appVersion,

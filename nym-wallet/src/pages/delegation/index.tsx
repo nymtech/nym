@@ -306,6 +306,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               target="_blank"
               rel="noreferrer"
               text="Network Explorer"
+              fontSize={14}
+              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+              noIcon
             />
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -314,7 +317,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5 }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
             >
               Delegate
             </Button>

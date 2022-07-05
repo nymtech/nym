@@ -112,7 +112,7 @@ const TokenTransfer = () => {
           Transferable tokens
         </Typography>
 
-        <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
+        <Typography data-testid="refresh-success" sx={{ color: 'nym.text.dark' }} variant="h5" fontWeight="700">
           {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.denom}
         </Typography>
       </Grid>

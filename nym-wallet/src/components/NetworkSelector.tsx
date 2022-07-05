@@ -57,7 +57,7 @@ export const NetworkSelector = () => {
         onClose={handleClose}
       >
         <List>
-          <ListSubheader>Network selection</ListSubheader>
+          <ListSubheader sx={{ backgroundColor: 'transparent' }}>Network selection</ListSubheader>
           {networks
             .filter(({ networkName }) => {
               // show all networks when in dev more or the user wants QA mode enabled

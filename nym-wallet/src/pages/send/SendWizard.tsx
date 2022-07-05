@@ -111,7 +111,14 @@ export const SendWizard = () => {
           }}
         >
           {steps.map((s) => (
-            <Step key={s}>
+            <Step
+              key={s}
+              sx={{
+                '& .MuiStepLabel-root .Mui-active': {
+                  color: 'text.primary',
+                },
+              }}
+            >
               <StepLabel>{s}</StepLabel>
             </Step>
           ))}

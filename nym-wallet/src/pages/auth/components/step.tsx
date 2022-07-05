@@ -28,7 +28,7 @@ export const Step = () => {
   const { value, type, total } = mapPage();
   return (
     <Typography
-      sx={{ color: (t) => t.palette.nym.nymWallet.text.muted, fontWeight: 400 }}
+      sx={{ color: (t) => t.palette.nym.nymWallet.text.grey, fontWeight: 400 }}
     >{`Create ${type}. Step ${value}/${total}`}</Typography>
   );
 };

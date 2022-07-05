@@ -3388,6 +3388,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tap",
  "tauri",
  "tauri-build",
  "tauri-codegen",

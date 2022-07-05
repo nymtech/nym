@@ -1,7 +1,7 @@
 use client_core::config::GatewayEndpoint;
 use futures::channel::mpsc;
-use log::info;
 use std::sync::Arc;
+use tap::TapFallible;
 use tokio::sync::RwLock;
 
 use config::NymConfig;
@@ -9,7 +9,7 @@ use config::NymConfig;
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::Socks5ControlMessageSender;
 
-use crate::state::State;
+use crate::{error::Result, state::State};
 
 pub type StatusReceiver = futures::channel::oneshot::Receiver<Socks5StatusMessage>;
 
@@ -21,14 +21,14 @@ pub enum Socks5StatusMessage {
 
 pub fn start_nym_socks5_client(
     id: &str,
-) -> (Socks5ControlMessageSender, GatewayEndpoint, StatusReceiver) {
-    info!("Loading config from file: {id}");
-    // TODO: handle this gracefully!
-    let config = nym_socks5::client::config::Config::load_from_file(Some(id)).unwrap();
+) -> Result<(Socks5ControlMessageSender, StatusReceiver, GatewayEndpoint)> {
+    log::info!("Loading config from file: {id}");
+    let config = nym_socks5::client::config::Config::load_from_file(Some(id))
+        .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
     let mut socks5_client = Socks5NymClient::new(config);
-    info!("Starting socks5 client");
+    log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client
     let (socks5_ctrl_tx, socks5_ctrl_rx) = mpsc::unbounded();
@@ -38,17 +38,20 @@ pub fn start_nym_socks5_client(
 
     // Spawn a separate runtime for the socks5 client so we can forcefully terminate.
     // Once we can gracefully shutdown the socks5 client we can get rid of this.
+    // The status channel is used to both get the state of the task, and if it's closed, to check
+    // for panic.
     std::thread::spawn(|| {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            socks5_client.run_and_listen(socks5_ctrl_rx).await;
-        });
+        tokio::runtime::Runtime::new()
+            .expect("Failed to create runtime for SOCKS5 client")
+            .block_on(async move { socks5_client.run_and_listen(socks5_ctrl_rx).await });
 
         log::info!("SOCKS5 task finished");
-        socks5_status_tx.send(Socks5StatusMessage::Stopped).unwrap();
+        socks5_status_tx
+            .send(Socks5StatusMessage::Stopped)
+            .expect("Failed to send status message back to main task");
     });
 
-    (socks5_ctrl_tx, used_gateway, socks5_status_rx)
+    Ok((socks5_ctrl_tx, socks5_status_rx, used_gateway))
 }
 
 pub fn start_disconnect_listener(
@@ -64,10 +67,12 @@ pub fn start_disconnect_listener(
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");
+                // TODO: we should probably generate some events here, or otherwise signal to the
+                // frontend.
             }
         }
 
         let mut state_w = state.write().await;
-        state_w.mark_disconnected(&window).await;
+        state_w.mark_disconnected(&window);
     });
 }

@@ -1,24 +1,32 @@
 use std::time::Duration;
 
 use futures::SinkExt;
+use tap::TapFallible;
 use tauri::Manager;
 
 use nym_socks5::client::{Socks5ControlMessage, Socks5ControlMessageSender};
 
 use crate::{
-    config::append_config_id,
-    error::BackendError,
+    config::{self, socks5_config_id_appended_with},
+    error::{BackendError, Result},
     models::{
         AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
         APP_EVENT_CONNECTION_STATUS_CHANGED,
     },
-    tasks::{start_nym_socks5_client, StatusReceiver},
+    tasks::{self, StatusReceiver},
 };
 
 pub struct State {
+    /// The current connection status
     status: ConnectionStatusKind,
+
+    /// The service provider
     service_provider: Option<String>,
+
+    /// The gateway used. Note that this is also used to create the configuration id
     gateway: Option<String>,
+
+    /// Channel that is used to send command messages to the SOCKS5 client, such as to disconnect
     socks5_client_sender: Option<Socks5ControlMessageSender>,
 }
 
@@ -38,13 +46,15 @@ impl State {
     }
 
     fn set_state(&mut self, status: ConnectionStatusKind, window: &tauri::Window<tauri::Wry>) {
+        log::info!("{status}");
         self.status = status.clone();
         window
             .emit_all(
                 APP_EVENT_CONNECTION_STATUS_CHANGED,
                 AppEventConnectionStatusChangedPayload { status },
             )
-            .unwrap();
+            .tap_err(|err| log::warn!("{err}"))
+            .ok();
     }
 
     pub fn get_service_provider(&self) -> &Option<String> {
@@ -63,25 +73,21 @@ impl State {
         self.gateway = Some(gateway);
     }
 
-    pub async fn init_config(&self) -> Result<(), BackendError> {
-        let service_provider = self
-            .service_provider
+    /// The effective config id is the static config id appended with the id of the gateway
+    pub fn get_config_id(&self) -> Result<String> {
+        self.get_gateway()
             .as_ref()
-            .expect("Attempting to init without service provider");
-        let gateway = self
-            .gateway
-            .as_ref()
-            .expect("Attempting to init without gateway");
-        crate::config::Config::init(service_provider, gateway).await
+            .ok_or(BackendError::CouldNotGetIdWithoutGateway)
+            .and_then(|gateway_id| socks5_config_id_appended_with(gateway_id))
     }
 
+    /// Start connecting by first creating a config file, followed by starting a thread running the
+    /// SOCKS5 client.
     pub async fn start_connecting(
         &mut self,
         window: &tauri::Window<tauri::Wry>,
-    ) -> Result<StatusReceiver, BackendError> {
-        log::info!("Connecting");
+    ) -> Result<StatusReceiver> {
         self.set_state(ConnectionStatusKind::Connecting, window);
-        self.status = ConnectionStatusKind::Connecting;
 
         // Setup configuration by writing to file
         if let Err(err) = self.init_config().await {
@@ -91,40 +97,67 @@ impl State {
             // registered.
             tokio::time::sleep(Duration::from_secs(1)).await;
             self.set_state(ConnectionStatusKind::Disconnected, window);
-            self.status = ConnectionStatusKind::Disconnected;
             return Err(err);
         }
 
         // Kick off the main task and get the channel for controlling it
-        let id = append_config_id(
-            self.gateway
-                .as_ref()
-                .expect("Attempting to start without gateway"),
-        );
-        let (sender, used_gateway, status_receiver) = start_nym_socks5_client(&id);
-        self.gateway = Some(used_gateway.gateway_id);
-        self.socks5_client_sender = Some(sender);
-
-        self.status = ConnectionStatusKind::Connected;
+        let status_receiver = self.start_nym_socks5_client().await?;
         self.set_state(ConnectionStatusKind::Connected, window);
-
         Ok(status_receiver)
     }
 
-    pub async fn start_disconnecting(&mut self, window: &tauri::Window<tauri::Wry>) {
-        log::info!("Disconnecting");
+    /// Create a configuration file
+    async fn init_config(&self) -> Result<()> {
+        let service_provider = self
+            .get_service_provider()
+            .as_ref()
+            .ok_or(BackendError::CouldNotInitWithoutServiceProvider)?;
+        let gateway = self
+            .get_gateway()
+            .as_ref()
+            .ok_or(BackendError::CouldNotInitWithoutGateway)?;
+        log::trace!("  service_provider: {:?}", service_provider);
+        log::trace!("  gateway: {:?}", gateway);
+
+        config::Config::init(service_provider, gateway).await
+    }
+
+    /// Spawn a new thread running the SOCKS5 client
+    async fn start_nym_socks5_client(&mut self) -> Result<StatusReceiver> {
+        let id = self.get_config_id()?;
+        let (control_tx, status_rx, used_gateway) = tasks::start_nym_socks5_client(&id)?;
+        self.socks5_client_sender = Some(control_tx);
+        self.gateway = Some(used_gateway.gateway_id);
+        Ok(status_rx)
+    }
+
+    /// Disconnect by sending a message to the SOCKS5 client thread. Once it has finished and is
+    /// disconnected, the disconnect handler will mark it as disconnected.
+    pub async fn start_disconnecting(&mut self, window: &tauri::Window<tauri::Wry>) -> Result<()> {
         self.set_state(ConnectionStatusKind::Disconnecting, window);
-        self.status = ConnectionStatusKind::Disconnecting;
 
         // Send shutdown message
-        if let Some(ref mut sender) = self.socks5_client_sender {
-            sender.send(Socks5ControlMessage::Stop).await.unwrap();
+        match self.socks5_client_sender {
+            Some(ref mut sender) => sender
+                .send(Socks5ControlMessage::Stop)
+                .await
+                .map_err(|err| {
+                    log::warn!("Failed trying to send disconnect signal: {err}");
+                    BackendError::CoundNotSendDisconnectSignal
+                }),
+            None => {
+                log::warn!(
+                    "Trying to disconnect without being able to talk to the SOCKS5 client, \
+                    is it running?"
+                );
+                Err(BackendError::CoundNotSendDisconnectSignal)
+            }
         }
     }
 
-    pub async fn mark_disconnected(&mut self, window: &tauri::Window<tauri::Wry>) {
-        log::info!("Disconnected");
-        self.status = ConnectionStatusKind::Disconnected;
+    /// Once the SOCKS5 client has stopped, this should be called by the disconnect handler to mark
+    /// the state as disconnected.
+    pub fn mark_disconnected(&mut self, window: &tauri::Window<tauri::Wry>) {
         self.set_state(ConnectionStatusKind::Disconnected, window);
     }
 }

@@ -32,15 +32,15 @@ use crate::mixnodes::storage as mixnode_storage;
 //     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 // };
 // use crate::rewards::storage as rewards_storage;
+use crate::interval::storage as interval_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
-use time::OffsetDateTime;
 
 /// Constant specifying minimum of coin amount required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
@@ -103,8 +103,10 @@ pub fn instantiate(
         rewarding_validator_address,
         msg.rewarding_denom,
     );
-    // init_epoch(deps.storage, env)?;
-    //
+    let starting_interval =
+        Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
+
+    interval_storage::save_interval(deps.storage, &starting_interval)?;
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnode_storage::LAYERS.save(deps.storage, &Default::default())?;
     // rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
@@ -151,8 +153,16 @@ pub fn execute(
                 updated_parameters,
             )
         }
-
-        // ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
+        ExecuteMsg::AdvanceCurrentEpoch {
+            new_rewarded_set,
+            expected_active_set_size,
+        } => crate::interval::transactions::try_advance_epoch(
+            env,
+            deps,
+            info,
+            new_rewarded_set,
+            expected_active_set_size,
+        ),
 
         // ExecuteMsg::UpdateMixnodeConfig {
         //     profit_margin_percent,
@@ -255,21 +265,7 @@ pub fn execute(
         // ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
         //     crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         // }
-        // ExecuteMsg::WriteRewardedSet {
-        //     rewarded_set,
-        //     expected_active_set_size,
-        // } => crate::interval::transactions::try_write_rewarded_set(
-        //     deps,
-        //     env,
-        //     info,
-        //     rewarded_set,
-        //     expected_active_set_size,
-        // ),
-        // ExecuteMsg::AdvanceCurrentEpoch {} => crate::interval::transactions::try_advance_epoch(
-        //     env,
-        //     deps.storage,
-        //     info.sender.to_string(),
-        // ),
+
         // ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
         //     crate::rewards::transactions::try_compound_delegator_reward(
         //         deps,

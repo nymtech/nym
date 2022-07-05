@@ -166,7 +166,7 @@ impl JsonSchema for Interval {
 
 impl Interval {
     /// Initialize epoch in the contract with default values.
-    pub fn init_interval(epochs_in_interval: u32, epoch_length: Duration, env: Env) -> Self {
+    pub fn init_interval(epochs_in_interval: u32, epoch_length: Duration, env: &Env) -> Self {
         Interval {
             id: 0,
             epochs_in_interval,

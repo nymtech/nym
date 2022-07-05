@@ -58,7 +58,7 @@ pub(crate) fn validate_pledge(
 }
 
 pub(crate) fn is_authorized(
-    sender: String,
+    sender: Addr,
     storage: &dyn Storage,
 ) -> Result<(), MixnetContractError> {
     if sender != crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {

@@ -3,15 +3,24 @@
 
 use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::NodeRewardParams;
-use crate::ContractStateParams;
+use crate::{ContractStateParams, NodeId};
 use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
     pub rewarding_denom: String,
+    pub epochs_in_interval: u32,
+    pub epoch_duration: Duration,
+}
+
+impl InstantiateMsg {
+    pub fn new_with_defaults(rewarding_validator_address: String) -> Self {
+        todo!()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,6 +40,10 @@ pub enum ExecuteMsg {
     },
     UpdateContractStateParams {
         updated_parameters: ContractStateParams,
+    },
+    AdvanceCurrentEpoch {
+        new_rewarded_set: Vec<NodeId>,
+        expected_active_set_size: u32,
     },
 
     // un-re-implemented as of yet:
@@ -101,12 +114,11 @@ pub enum ExecuteMsg {
     UnbondGatewayOnBehalf {
         owner: String,
     },
-    WriteRewardedSet {
-        rewarded_set: Vec<IdentityKey>,
-        expected_active_set_size: u32,
-    },
+    // WriteRewardedSet {
+    //     rewarded_set: Vec<IdentityKey>,
+    //     expected_active_set_size: u32,
+    // },
     // AdvanceCurrentInterval {},
-    AdvanceCurrentEpoch {},
     ClaimOperatorReward {},
     ClaimOperatorRewardOnBehalf {
         owner: String,

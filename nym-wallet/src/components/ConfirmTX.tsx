@@ -1,6 +1,6 @@
 import React from 'react';
 import { FeeDetails } from '@nymproject/types';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { SimpleModal } from './Modals/SimpleModal';
 import { ModalFee } from './Modals/ModalFee';
 

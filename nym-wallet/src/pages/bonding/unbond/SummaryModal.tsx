@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleDialog } from '../../../../components';
+import { SimpleDialog } from '../../../components';
 
 export interface Props {
   open: boolean;
@@ -9,7 +9,7 @@ export interface Props {
   onConfirm: () => void;
   onCancel: () => void;
   bond: MajorCurrencyAmount;
-  rewards: MajorCurrencyAmount;
+  rewards?: MajorCurrencyAmount;
   fee: MajorCurrencyAmount;
 }
 
@@ -31,11 +31,15 @@ const SummaryModal = ({ open, onClose, onConfirm, onCancel, bond, rewards, fee }
       <Typography fontWeight={400}>{`${bond.amount} ${bond.denom}`}</Typography>
     </Stack>
     <Divider sx={{ my: 1 }} />
-    <Stack direction="row" justifyContent="space-between">
-      <Typography fontWeight={400}>Operator rewards</Typography>
-      <Typography fontWeight={400}>{`${rewards.amount} ${rewards.denom}`}</Typography>
-    </Stack>
-    <Divider sx={{ my: 1 }} />
+    {rewards?.amount && (
+      <>
+        <Stack direction="row" justifyContent="space-between">
+          <Typography fontWeight={400}>Operator rewards</Typography>
+          <Typography fontWeight={400}>{`${rewards.amount} ${rewards.denom}`}</Typography>
+        </Stack>
+        <Divider sx={{ my: 1 }} />
+      </>
+    )}
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Fee for this operation</Typography>
       <Typography fontWeight={400}>{`${fee.amount} ${fee.denom}`}</Typography>

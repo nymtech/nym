@@ -3,17 +3,17 @@ import { useContext, useEffect, useState } from 'react';
 import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
-import { AppContext, BondedMixnode, urls } from '../../../../context';
+import { AppContext, BondedGateway, BondedMixnode, urls } from '../../../context';
 import SummaryModal from './SummaryModal';
-import { ConfirmationModal } from '../../../../components';
+import { ConfirmationModal } from '../../../components';
 
 interface Props {
-  mixnode: BondedMixnode;
+  node: BondedMixnode | BondedGateway;
   show: boolean;
   onClose: () => void;
 }
 
-const Unbond = ({ mixnode, show, onClose }: Props) => {
+const Unbond = ({ node, show, onClose }: Props) => {
   const [fee, setFee] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
   const [step, setStep] = useState<1 | 2>(1);
   const [tx, setTx] = useState<TransactionExecuteResult>();
@@ -42,8 +42,8 @@ const Unbond = ({ mixnode, show, onClose }: Props) => {
         onClose={reset}
         onConfirm={submit}
         onCancel={reset}
-        bond={mixnode.bond}
-        rewards={mixnode.operatorRewards}
+        bond={node.bond}
+        rewards={(node as BondedMixnode).operatorRewards}
         fee={fee as MajorCurrencyAmount}
       />
       <ConfirmationModal

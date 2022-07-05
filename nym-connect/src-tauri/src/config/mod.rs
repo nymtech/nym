@@ -84,10 +84,13 @@ impl Config {
 
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
-        // clients we'll catch any panics here.
-        std::panic::catch_unwind(move || {
-            futures::executor::block_on(init_socks5(service_provider, chosen_gateway_id));
+        // clients we'll catch any panics here by spawning a new runtime in a separate thread.
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime")
+                .block_on(async move { init_socks5(service_provider, chosen_gateway_id).await })
         })
+        .join()
         .map_err(|_| BackendError::InitializationPanic)?;
 
         info!("Configuration saved 🚀");

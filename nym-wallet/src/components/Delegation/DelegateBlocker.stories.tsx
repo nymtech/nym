@@ -32,7 +32,7 @@ export const Default = () => {
         open={open}
         header="Node saturation: 114%"
         onClose={() => setOpen(false)}
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={modalStyles(theme)}
       />
     </>

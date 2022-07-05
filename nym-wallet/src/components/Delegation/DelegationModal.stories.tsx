@@ -10,6 +10,11 @@ import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
 const explorerUrl = 'https://sandbox-explorer.nymtech.net';
 
+const storybookStyles = (theme: Theme) => ({
+  backdropProps: backDropStyles(theme),
+  sx: modalStyles(theme),
+});
+
 export default {
   title: 'Delegation/Components/Delegation Modals',
   component: Delegations,
@@ -55,8 +60,7 @@ export const Loading = () => {
         onClose={() => setOpen(false)}
         status="loading"
         action="delegate"
-        BackdropProps={backDropStyles(theme)}
-        sx={modalStyles(theme)}
+        {...storybookStyles(theme)}
       />
     </Content>
   );
@@ -77,10 +81,7 @@ export const DelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={backDropStyles(theme)}
-        sx={{
-          ...modalStyles(theme),
-        }}
+        {...storybookStyles(theme)}
       />
     </Content>
   );
@@ -101,10 +102,7 @@ export const UndelegateSuccess = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={backDropStyles(theme)}
-        sx={{
-          ...modalStyles(theme),
-        }}
+        {...storybookStyles(theme)}
       />
     </Content>
   );
@@ -129,10 +127,7 @@ export const RedeemSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={backDropStyles(theme)}
-        sx={{
-          ...modalStyles(theme),
-        }}
+        {...storybookStyles(theme)}
       />
     </Content>
   );
@@ -158,10 +153,7 @@ export const RedeemWithVestedSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={backDropStyles(theme)}
-        sx={{
-          ...modalStyles(theme),
-        }}
+        {...storybookStyles(theme)}
       />
     </Content>
   );
@@ -186,10 +178,7 @@ export const RedeemAllSuccess = () => {
             ? [transaction, transaction]
             : [transactionForDarkTheme, transactionForDarkTheme]
         }
-        BackdropProps={backDropStyles(theme)}
-        sx={{
-          ...modalStyles(theme),
-        }}
+        {...storybookStyles(theme)}
       />
     </Content>
   );
@@ -210,10 +199,7 @@ export const Error = () => {
         recipient={recipient}
         balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
-        BackdropProps={backDropStyles(theme)}
-        sx={{
-          ...modalStyles(theme),
-        }}
+        {...storybookStyles(theme)}
       />
     </Content>
   );

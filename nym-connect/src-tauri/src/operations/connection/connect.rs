@@ -1,6 +1,4 @@
-use crate::error::BackendError;
-use crate::models::ConnectResult;
-use crate::State;
+use crate::{error::BackendError, models::ConnectResult, tasks::start_disconnect_listener, State};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -9,9 +7,18 @@ pub async fn start_connecting(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult, BackendError> {
-    let mut guard = state.write().await;
+    let status_receiver = {
+        let mut guard = state.write().await;
 
-    guard.start_connecting(&window).await;
+        log::trace!("Start connecting with:");
+        log::trace!("  service_provider: {:?}", guard.get_service_provider());
+        log::trace!("  gateway: {:?}", guard.get_gateway());
+        guard.start_connecting(&window).await?
+    };
+
+    // Setup task for checking status
+    let state = state.inner().clone();
+    start_disconnect_listener(state, window, status_receiver);
 
     Ok(ConnectResult {
         // WIP(JON): fixme
@@ -35,6 +42,7 @@ pub async fn set_service_provider(
     service_provider: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+    log::trace!("Setting service_provider: {service_provider}");
     let mut guard = state.write().await;
     guard.set_service_provider(service_provider);
     Ok(())
@@ -56,6 +64,7 @@ pub async fn set_gateway(
     gateway: String,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<(), BackendError> {
+    log::trace!("Setting gateway: {gateway}");
     let mut guard = state.write().await;
     guard.set_gateway(gateway);
     Ok(())

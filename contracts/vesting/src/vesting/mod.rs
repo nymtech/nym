@@ -7,7 +7,7 @@ pub use account::*;
 
 use vesting_contract_common::messages::VestingSpecification;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct VestingPeriod {
     pub start_time: u64,
     pub period_seconds: u64,

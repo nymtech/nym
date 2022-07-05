@@ -1,6 +1,6 @@
 import React from 'react';
 import { FeeDetails } from '@nymproject/types';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { SimpleModal } from './Modals/SimpleModal';
 import { ModalFee } from './Modals/ModalFee';
 
@@ -20,11 +20,7 @@ export const ConfirmTx: React.FC<{
     okLabel="Confirm"
     onOk={onConfirm}
     onClose={onClose}
-    SecondaryAction={
-      <Button fullWidth sx={{ mt: 1 }} size="large" onClick={onPrev}>
-        Cancel
-      </Button>
-    }
+    onBack={onPrev}
   >
     <Box sx={{ mt: 3 }}>
       {children}

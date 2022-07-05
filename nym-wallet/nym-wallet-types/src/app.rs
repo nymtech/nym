@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
     feature = "generate-ts",
     ts(export, export_to = "nym-wallet/src/types/rust/AppEnv.ts")
 )]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct AppEnv {
     pub ADMIN_ADDRESS: Option<String>,
     pub SHOW_TERMINAL: Option<String>,

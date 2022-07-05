@@ -15,7 +15,7 @@ use std::ops::Neg;
 use zeroize::Zeroize;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(Clone, PartialEq))]
+#[cfg_attr(test, derive(Clone, PartialEq, Eq))]
 pub struct Ciphertexts {
     pub rr: [G1Projective; NUM_CHUNKS],
     pub ss: [G1Projective; NUM_CHUNKS],

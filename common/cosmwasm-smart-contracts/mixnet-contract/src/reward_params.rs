@@ -4,7 +4,7 @@ use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct NodeEpochRewards {
     params: NodeRewardParams,
     result: StoredNodeRewardResult,
@@ -105,7 +105,7 @@ impl NodeEpochRewards {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct EpochRewardParams {
     epoch_reward_pool: Uint128,
     rewarded_set_size: Uint128,
@@ -175,7 +175,7 @@ impl EpochRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
     reward_blockstamp: u64,
     uptime: Uint128,
@@ -208,7 +208,7 @@ impl NodeRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct RewardParams {
     pub epoch: EpochRewardParams,
     pub node: NodeRewardParams,

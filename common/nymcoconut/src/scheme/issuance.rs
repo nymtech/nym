@@ -25,7 +25,7 @@ use crate::utils::{hash_g1, try_deserialize_g1_projective};
 // TODO NAMING: double check this one
 // Lambda
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct BlindSignRequest {
     // cm
     commitment: G1Projective,

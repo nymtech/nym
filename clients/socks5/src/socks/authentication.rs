@@ -9,7 +9,7 @@ pub(crate) enum AuthenticationMethods {
     NoMethods = 0xFF,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// A socks5 user with a matching password.
 pub struct User {
     pub username: String,

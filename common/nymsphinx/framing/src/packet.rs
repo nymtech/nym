@@ -46,7 +46,7 @@ impl FramedSphinxPacket {
 // Contains any metadata that might be useful for sending between mix nodes.
 // TODO: in theory all those data could be put in a single `u8` by setting appropriate bits,
 // but would that really be worth it?
-#[derive(Debug, Default, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
 pub struct Header {
     /// Represents type and consequently size of the included SphinxPacket.
     pub(crate) packet_size: PacketSize,

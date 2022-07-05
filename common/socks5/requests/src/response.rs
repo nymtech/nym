@@ -1,6 +1,6 @@
 use crate::ConnectionId;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ResponseError {
     ConnectionIdTooShort,
     NoData,

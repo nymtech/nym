@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,
@@ -56,7 +56,7 @@ impl From<MixnetContractMixNode> for MixNode {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeBond.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     pub pledge_amount: MajorCurrencyAmount,
     pub total_delegation: MajorCurrencyAmount,

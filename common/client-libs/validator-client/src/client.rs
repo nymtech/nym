@@ -28,9 +28,8 @@ use mixnet_contract_common::{
     MixnetContractVersion, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
     RewardedSetUpdateDetails,
 };
-use network_defaults::all::Network;
 #[cfg(feature = "nymd-client")]
-use network_defaults::NymNetworkDetails;
+use network_defaults::{all::Network, NymNetworkDetails};
 #[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
 

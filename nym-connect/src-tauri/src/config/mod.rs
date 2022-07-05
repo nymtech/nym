@@ -2,31 +2,52 @@ use std::path::PathBuf;
 
 use client_core::config::GatewayEndpoint;
 use log::info;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use client_core::config::Config as BaseConfig;
 use config::NymConfig;
 use nym_socks5::client::config::Config as Socks5Config;
 
-pub static SOCKS5_CONFIG_ID: &str = "nym-connect";
+use crate::{error::BackendError, state::State};
 
-// This is an open-proxy network-requester for testing
-// TODO: make this configurable from the UI
-// TODO: once we can set this is the UI, consider just removing it, and put in guards to halt if
-//       user hasn't chosen the provider
-pub static PROVIDER_ADDRESS: &str = "8CrdmK4mYgZ5caMxGU4AvNeT1dXL8VSbgMYAjSFvnfut.2GLdZ1Jn9vkTBMf858evGNGDsPoeivUPw7zFNceLiLX3@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv";
+pub static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 const DEFAULT_ETH_PRIVATE_KEY: &str =
     "0000000000000000000000000000000000000000000000000000000000000001";
 
-#[tauri::command]
-pub fn get_config_file_location() -> String {
-    let id: &str = SOCKS5_CONFIG_ID;
-    Config::config_file_location(id)
-        .to_string_lossy()
-        .to_string()
+pub fn append_config_id(gateway_id: &str) -> String {
+    use std::fmt::Write as _;
+    let mut id = SOCKS5_CONFIG_ID.to_string();
+    write!(id, "-{}", gateway_id).expect("Failed to set config id");
+    id
 }
 
+#[tauri::command]
+pub async fn get_config_id(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<String, BackendError> {
+    let guard = state.read().await;
+    // TODO: return error instead
+    let gateway_id = guard
+        .get_gateway()
+        .as_ref()
+        .expect("The config id can not be determined before setting the gateway");
+    Ok(append_config_id(gateway_id))
+}
+
+#[tauri::command]
+pub async fn get_config_file_location(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<String, BackendError> {
+    let id = get_config_id(state).await?;
+    Ok(Config::config_file_location(&id)
+        .to_string_lossy()
+        .to_string())
+}
+
+#[derive(Debug)]
 pub struct Config {
     socks5: Socks5Config,
 }
@@ -55,11 +76,22 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(service_provider: Option<&String>) {
-        let service_provider = service_provider.map_or(PROVIDER_ADDRESS, String::as_str);
+    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<(), BackendError> {
         info!("Initialising...");
-        init_socks5(service_provider, None).await;
+
+        let service_provider = service_provider.to_owned();
+        let chosen_gateway_id = chosen_gateway_id.to_owned();
+
+        // The client initialization was originally not written for this use case, so there are
+        // lots of ways it can panic. Until we have proper error handling in the init code for the
+        // clients we'll catch any panics here.
+        std::panic::catch_unwind(move || {
+            futures::executor::block_on(init_socks5(service_provider, chosen_gateway_id));
+        })
+        .map_err(|_| BackendError::InitializationPanic)?;
+
         info!("Configuration saved 🚀");
+        Ok(())
     }
 
     pub fn config_file_location(id: &str) -> PathBuf {
@@ -67,16 +99,17 @@ impl Config {
     }
 }
 
-pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>) {
+pub async fn init_socks5(provider_address: String, chosen_gateway_id: String) {
     log::info!("Initialising client...");
 
-    let id: &str = SOCKS5_CONFIG_ID;
+    // Append the gateway id to the name id that we store the config under
+    let id = append_config_id(&chosen_gateway_id);
 
     log::debug!(
         "Attempting to use config file location: {}",
-        Config::config_file_location(id).to_string_lossy(),
+        Config::config_file_location(&id).to_string_lossy(),
     );
-    let already_init = Config::config_file_location(id).exists();
+    let already_init = Config::config_file_location(&id).exists();
     if already_init {
         log::info!(
             "SOCKS5 client \"{}\" was already initialised before! \
@@ -91,7 +124,7 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
     let register_gateway = !already_init || user_wants_force_register;
 
     log::trace!("Creating config for id: {}", id);
-    let mut config = Config::new(id, provider_address);
+    let mut config = Config::new(id.as_str(), &provider_address);
 
     // As far as I'm aware, these two are not used, they are only set because the socks5 init code
     // requires them for initialising the bandwidth controller.
@@ -102,7 +135,13 @@ pub async fn init_socks5(provider_address: &str, chosen_gateway_id: Option<&str>
         .get_base_mut()
         .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
 
-    let gateway = setup_gateway(id, register_gateway, chosen_gateway_id, config.get_socks5()).await;
+    let gateway = setup_gateway(
+        &id,
+        register_gateway,
+        Some(&chosen_gateway_id),
+        config.get_socks5(),
+    )
+    .await;
     config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_socks5().get_config_file_save_location();

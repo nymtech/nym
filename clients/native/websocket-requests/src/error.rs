@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // no need to go fancy here like we've done in other places.
-#[derive(PartialEq, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Error {
     pub kind: ErrorKind,
     pub message: String,
@@ -30,7 +30,7 @@ impl Error {
 }
 
 #[repr(u8)]
-#[derive(PartialEq, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ErrorKind {
     /// The received request contained no data.
     EmptyRequest = 0x01,

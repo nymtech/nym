@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 pub struct InvalidPacketMode;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PacketMode {
     /// Represents 'normal' packet sent through the network that should be delayed by an appropriate
     /// value at each hop.

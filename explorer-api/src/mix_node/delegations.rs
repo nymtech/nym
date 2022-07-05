@@ -12,7 +12,7 @@ pub(crate) async fn get_single_mixnode_delegations(
     client: &ThreadsafeValidatorClient,
     pubkey: &str,
 ) -> Vec<Delegation> {
-    let delegates = match client
+    match client
         .0
         .get_all_nymd_single_mixnode_delegations(pubkey.to_string())
         .await
@@ -22,8 +22,7 @@ pub(crate) async fn get_single_mixnode_delegations(
             error!("Could not get delegations for mix node {}: {:?}", pubkey, e);
             vec![]
         }
-    };
-    delegates
+    }
 }
 
 pub(crate) async fn get_single_mixnode_delegations_summed(

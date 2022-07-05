@@ -306,7 +306,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Gateway {
     /// Version of the gateway for which this configuration was created.
     #[serde(default = "missing_string_value")]

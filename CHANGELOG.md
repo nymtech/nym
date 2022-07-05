@@ -9,6 +9,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added
+- nym-connect: add ability to select network requester and gateway ([#1427]).
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - explorer-api: add apy values to `mix_nodes` endpoint
@@ -29,6 +30,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - mixnode, gateway: attempting to determine reconnection backoff to persistently failing mixnode could result in a crash ([#1260])
 - mixnode: the mixnode learned how to shutdown gracefully
+- mixnode: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service.
 - native & socks5 clients: fail early when clients try to re-init with a different gateway, which is not supported yet ([#1322])
 - native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
 - native & socks5 clients: deduplicate big chunks of init logic
@@ -62,6 +64,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1388]: https://github.com/nymtech/nym/pull/1388
 [#1393]: https://github.com/nymtech/nym/pull/1393
 [#1404]: https://github.com/nymtech/nym/pull/1404
+[#1427]: https://github.com/nymtech/nym/pull/1427
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

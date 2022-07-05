@@ -58,7 +58,7 @@ jobs:
         name: Clippy checks
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --workspace --all-features
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

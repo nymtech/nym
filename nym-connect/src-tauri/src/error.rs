@@ -10,8 +10,17 @@ pub enum BackendError {
     CouldNotConnect,
     #[error("Could not disconnect")]
     CouldNotDisconnect,
-    #[error("No serverice provider set")]
+    #[error("No service provider set")]
     NoServiceProviderSet,
+    #[error("No gateway provider set")]
+    NoGatewaySet,
+    #[error("{source}")]
+    ReqwestError {
+        #[from]
+        source: reqwest::Error,
+    },
+    #[error("Initialization failed with a panic")]
+    InitializationPanic,
 }
 
 impl Serialize for BackendError {

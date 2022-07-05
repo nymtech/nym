@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
+import { StyledBackButton } from 'src/components/StyledBackButton';
 import { modalStyle } from './styles';
 
 export const SimpleModal: React.FC<{
@@ -12,12 +13,12 @@ export const SimpleModal: React.FC<{
   subHeaderStyles?: SxProps;
   onClose?: () => void;
   onOk?: () => Promise<void>;
+  onBack?: () => void;
   header: string;
   subHeader?: string;
   okLabel: string;
   okDisabled?: boolean;
   sx?: SxProps;
-  SecondaryAction?: React.ReactNode;
 }> = ({
   open,
   hideCloseIcon,
@@ -27,11 +28,11 @@ export const SimpleModal: React.FC<{
   onClose,
   okDisabled,
   onOk,
+  onBack,
   header,
   subHeader,
   okLabel,
   sx,
-  SecondaryAction,
   children,
 }) => (
   <Modal open={open} onClose={onClose}>
@@ -57,11 +58,12 @@ export const SimpleModal: React.FC<{
 
       {children}
 
-      <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} sx={{ mt: 2 }}>
-        {okLabel}
-      </Button>
-
-      {SecondaryAction}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+        {onBack && <StyledBackButton onBack={onBack} />}
+        <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+          {okLabel}
+        </Button>
+      </Box>
     </Box>
   </Modal>
 );

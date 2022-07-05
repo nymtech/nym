@@ -1,9 +1,10 @@
 import React from 'react';
 import { Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { SimpleModal } from 'src/components/Modals/SimpleModal';
+import { ConfirmationModal } from 'src/components';
+import { ErrorOutline } from '@mui/icons-material';
 
-export const ConfirmationModal = ({
+export const Confirmation = ({
   txUrl,
   message,
   success,
@@ -14,16 +15,15 @@ export const ConfirmationModal = ({
   success: boolean;
   onClose: () => void;
 }) => (
-  <SimpleModal
+  <ConfirmationModal
     open
-    header={success ? 'Successfully Unbonded' : 'Unbonding failed'}
-    displayErrorIcon={!success}
-    onOk={async () => onClose()}
-    okLabel="Done"
-    hideCloseIcon
-    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}
+    title={success ? 'Successfully Unbonded' : 'Unbonding failed'}
+    onConfirm={onClose}
+    onClose={onClose}
+    confirmButton="Done"
   >
     {message && <Typography variant="caption">Error: {message}</Typography>}
+    {!success && <ErrorOutline color="error" />}
     {txUrl && <Link href={txUrl} target="_blank" sx={{ ml: 1 }} text="View on blockchain" />}
-  </SimpleModal>
+  </ConfirmationModal>
 );

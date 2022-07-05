@@ -6,7 +6,7 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context';
 import { unbondGateway, unbondMixNode, vestingUnbondGateway, vestingUnbondMixnode } from 'src/requests';
 import { EnumNodeType } from 'src/types';
-import { ConfirmationModal } from './components/ConfirmationModal';
+import { Confirmation } from './components/ConfirmationModal';
 import { UnbondGateway } from './components/UnbondGateway';
 import { UnbondMixnode } from './components/UnbondMixnode';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
@@ -115,77 +115,9 @@ export const Unbond = () => {
         )}
         {isLoading && <LoadingModal />}
         {confirmationDetails && (
-          <ConfirmationModal {...confirmationDetails} onClose={() => setConfirmationDetails(undefined)} />
+          <Confirmation {...confirmationDetails} onClose={() => setConfirmationDetails(undefined)} />
         )}
       </NymCard>
     </PageLayout>
   );
 };
-
-// {fee && <ConfirmationModal fee={fee} nodeType={ownership.nodeType} onPrev={resetFeeState} onConfirm={async () => {
-//   setIsLoading(true);
-//   try {
-//     if (ownership.vestingPledge) {
-//       await vestingUnbond(ownership.nodeType!);
-//     } else {
-//       await unbond(ownership.nodeType!);
-//     }
-//   } catch (e) {
-//     enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' });
-//   } finally {
-//     await getBondDetails();
-//     await checkOwnership();
-//     await userBalance.fetchBalance();
-//     setIsLoading(false);
-//   }
-// }}/>}
-// <NymCard title="Unbond" subheader="Unbond a mixnode or gateway" noPadding>
-// {ownership?.hasOwnership ? (
-// <>
-// <Alert
-// severity="info"
-// data-testid="bond-noded"
-// action={
-// <Button
-// data-testid="un-bond"
-// disabled={isLoading}
-// onClick={async () => {
-//   setIsLoading(true)
-//   if (ownership.vestingPledge) {
-//     await getFee(simulateVestingUnbondMixnode);
-//   } else {
-//     await getFee(unbond, {type: ownership.nodeType})
-//   }
-// }}
-// color="inherit"
-// >
-// Unbond
-// </Button>
-// }
-// sx={{ m: 2 }}
-// >
-// {`Looks like you already have a ${ownership.nodeType} bonded.`}
-// </Alert>
-
-// <Box sx={{ p: 3 }}>
-// <Fee feeType="UnbondMixnode" />
-// </Box>
-// </>
-// ) : (
-// <Alert severity="info" sx={{ m: 3 }} data-testid="no-bond">
-// You do not currently have a bonded node
-// </Alert>
-// )}
-// {isLoading && (
-// <Box
-// sx={{
-// display: 'flex',
-// justifyContent: 'center',
-// p: 3,
-// pt: 0,
-// }}
-// >
-// <CircularProgress size={48} />
-// </Box>
-// )}
-// </NymCard>

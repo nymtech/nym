@@ -19,7 +19,7 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { backDropStyles } from '../../../.storybook/storiesStyles';
 
 export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
@@ -288,9 +288,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const storybookStyles = (theme: Theme) => ({
-    BackdropProps: backDropStyles(theme),
-    sx: modalStyles(theme),
+    backdropProps: backDropStyles(theme),
+    sx: '50%',
   });
+
   return (
     <>
       <Paper elevation={0} sx={{ p: 4, mt: 4 }}>

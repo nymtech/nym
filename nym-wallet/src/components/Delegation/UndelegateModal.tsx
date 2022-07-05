@@ -17,8 +17,8 @@ export const UndelegateModal: React.FC<{
   currency: string;
   usesVestingContractTokens: boolean;
   sx?: SxProps;
-  BackdropProps?: object;
-}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, BackdropProps }) => {
+  backdropProps?: object;
+}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export const UndelegateModal: React.FC<{
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
       sx={{ ...sx }}
-      BackdropProps={BackdropProps}
+      backdropProps={backdropProps}
       okDisabled={!fee}
     >
       <IdentityKeyFormField

@@ -1,11 +1,10 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
-
 import { Button, Paper, Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SimpleModal } from './SimpleModal';
 import { ModalDivider } from './ModalDivider';
-import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { backDropStyles } from '../../../.storybook/storiesStyles';
 
 export default {
   title: 'Modals/Simple Modal',
@@ -66,8 +65,7 @@ export const Default = () => {
         header="This is a modal"
         subHeader="This is a sub header"
         okLabel="Click to continue"
-        BackdropProps={backDropStyles(theme)}
-        sx={modalStyles(theme)}
+        backdropProps={backDropStyles(theme)}
       >
         <Typography sx={{ color: theme.palette.text.primary }}>
           Lorem mollit minim duis cupidatat non. Consectetur sit deserunt
@@ -102,8 +100,7 @@ export const NoSubheader = () => {
         onOk={async () => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
-        BackdropProps={backDropStyles(theme)}
-        sx={modalStyles(theme)}
+        backdropProps={backDropStyles(theme)}
       >
         <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
@@ -133,8 +130,7 @@ export const hideCloseIcon = () => {
         onOk={async () => setOpen(false)}
         header="This is a modal"
         okLabel="Kaplow!"
-        BackdropProps={backDropStyles(theme)}
-        sx={modalStyles(theme)}
+        backdropProps={backDropStyles(theme)}
       >
         <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
@@ -165,13 +161,12 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
         onOk={async () => setOpen(false)}
         header="This modal announces an error !"
         okLabel="Kaplow!"
-        BackdropProps={backDropStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          ...modalStyles(theme),
         }}
         headerStyles={{
           width: '100%',

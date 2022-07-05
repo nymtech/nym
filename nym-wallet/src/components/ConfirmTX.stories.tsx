@@ -25,4 +25,5 @@ Default.args = {
   onClose: () => {},
   onConfirm: async () => {},
   onPrev: () => {},
+  isStorybook: true,
 };

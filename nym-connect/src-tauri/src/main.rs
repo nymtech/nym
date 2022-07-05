@@ -19,6 +19,7 @@ mod menu;
 mod models;
 mod operations;
 mod state;
+mod tasks;
 mod window;
 
 fn main() {
@@ -35,6 +36,7 @@ fn main() {
         .manage(Arc::new(RwLock::new(State::new())))
         .invoke_handler(tauri::generate_handler![
             crate::config::get_config_file_location,
+            crate::config::get_config_id,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,
@@ -42,6 +44,7 @@ fn main() {
             crate::operations::connection::connect::start_connecting,
             crate::operations::connection::disconnect::start_disconnecting,
             crate::operations::window::hide_window,
+            crate::operations::directory::get_services,
         ])
         .menu(Menu::new().add_default_app_submenu_if_macos())
         .system_tray(create_tray_menu())
@@ -61,5 +64,10 @@ fn setup_logging() {
 
     log_builder
         .filter_module("handlebars", log::LevelFilter::Warn)
+        .filter_module("mio", log::LevelFilter::Warn)
+        .filter_module("sled", log::LevelFilter::Warn)
+        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+        .filter_module("tungstenite", log::LevelFilter::Warn)
+        .filter_module("want", log::LevelFilter::Warn)
         .init();
 }

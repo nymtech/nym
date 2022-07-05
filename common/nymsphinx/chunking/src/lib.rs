@@ -45,7 +45,7 @@ pub mod set;
 /// Both of those concepts as well as their structures, i.e. `Set` and `Fragment`
 /// are further explained in the respective files.
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum ChunkingError {
     InvalidPayloadLengthError,
     TooBigMessageToSplit,

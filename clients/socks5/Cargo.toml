@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [dependencies]
 clap = "2.33.0"
-dirs = "3.0" # for determining default store directories in config
+dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3"
 log = "0.4"

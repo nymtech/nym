@@ -1,19 +1,19 @@
-use client_core::config::GatewayEndpoint;
-use futures::channel::mpsc;
-use futures::SinkExt;
-use log::info;
+use std::time::Duration;
 
-use config::NymConfig;
-#[cfg(not(feature = "coconut"))]
-use nym_socks5::client::NymClient as Socks5NymClient;
+use futures::SinkExt;
+use tauri::Manager;
+
 use nym_socks5::client::{Socks5ControlMessage, Socks5ControlMessageSender};
 
-use crate::config::SOCKS5_CONFIG_ID;
-use crate::models::{
-    AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
-    APP_EVENT_CONNECTION_STATUS_CHANGED,
+use crate::{
+    config::append_config_id,
+    error::BackendError,
+    models::{
+        AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
+        APP_EVENT_CONNECTION_STATUS_CHANGED,
+    },
+    tasks::{start_nym_socks5_client, StatusReceiver},
 };
-use tauri::Manager;
 
 pub struct State {
     status: ConnectionStatusKind,
@@ -63,29 +63,56 @@ impl State {
         self.gateway = Some(gateway);
     }
 
-    pub async fn init_config(&self) {
-        crate::config::Config::init(self.service_provider.as_ref(), self.gateway.as_ref()).await;
+    pub async fn init_config(&self) -> Result<(), BackendError> {
+        let service_provider = self
+            .service_provider
+            .as_ref()
+            .expect("Attempting to init without service provider");
+        let gateway = self
+            .gateway
+            .as_ref()
+            .expect("Attempting to init without gateway");
+        crate::config::Config::init(service_provider, gateway).await
     }
 
-    pub async fn start_connecting(&mut self, window: &tauri::Window<tauri::Wry>) {
-        info!("Connecting");
+    pub async fn start_connecting(
+        &mut self,
+        window: &tauri::Window<tauri::Wry>,
+    ) -> Result<StatusReceiver, BackendError> {
+        log::info!("Connecting");
         self.set_state(ConnectionStatusKind::Connecting, window);
         self.status = ConnectionStatusKind::Connecting;
 
         // Setup configuration by writing to file
-        self.init_config().await;
+        if let Err(err) = self.init_config().await {
+            log::warn!("Failed to initialize: {}", err);
 
-        // Kick of the main task and get the channel for controlling it
-        let (sender, used_gateway) = start_nym_socks5_client();
+            // Wait a little to give the user some rudimentary feedback that the click actually
+            // registered.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            self.set_state(ConnectionStatusKind::Disconnected, window);
+            self.status = ConnectionStatusKind::Disconnected;
+            return Err(err);
+        }
+
+        // Kick off the main task and get the channel for controlling it
+        let id = append_config_id(
+            self.gateway
+                .as_ref()
+                .expect("Attempting to start without gateway"),
+        );
+        let (sender, used_gateway, status_receiver) = start_nym_socks5_client(&id);
         self.gateway = Some(used_gateway.gateway_id);
         self.socks5_client_sender = Some(sender);
 
         self.status = ConnectionStatusKind::Connected;
         self.set_state(ConnectionStatusKind::Connected, window);
+
+        Ok(status_receiver)
     }
 
     pub async fn start_disconnecting(&mut self, window: &tauri::Window<tauri::Wry>) {
-        info!("Disconnecting");
+        log::info!("Disconnecting");
         self.set_state(ConnectionStatusKind::Disconnecting, window);
         self.status = ConnectionStatusKind::Disconnecting;
 
@@ -93,32 +120,11 @@ impl State {
         if let Some(ref mut sender) = self.socks5_client_sender {
             sender.send(Socks5ControlMessage::Stop).await.unwrap();
         }
+    }
 
+    pub async fn mark_disconnected(&mut self, window: &tauri::Window<tauri::Wry>) {
+        log::info!("Disconnected");
         self.status = ConnectionStatusKind::Disconnected;
         self.set_state(ConnectionStatusKind::Disconnected, window);
     }
-}
-
-fn start_nym_socks5_client() -> (Socks5ControlMessageSender, GatewayEndpoint) {
-    let id: &str = SOCKS5_CONFIG_ID;
-
-    info!("Loading config from file");
-    let config = nym_socks5::client::config::Config::load_from_file(Some(id)).unwrap();
-    let used_gateway = config.get_base().get_gateway_endpoint().clone();
-
-    let mut socks5_client = Socks5NymClient::new(config);
-    info!("Starting socks5 client");
-
-    let (sender, receiver) = mpsc::unbounded();
-
-    // Spawn a separate runtime for the socks5 client so we can forcefully terminate.
-    // Once we can gracefully shutdown the socks5 client we can get rid of this.
-    std::thread::spawn(|| {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            socks5_client.run_and_listen(receiver).await;
-        });
-    });
-
-    (sender, used_gateway)
 }

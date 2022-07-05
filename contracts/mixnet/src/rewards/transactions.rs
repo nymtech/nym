@@ -43,7 +43,7 @@ pub fn try_claim_operator_reward(
     env: &Env,
     info: &MessageInfo,
 ) -> Result<Response, ContractError> {
-    _try_claim_operator_reward(deps.storage, deps.api, env, &info.sender.to_string(), None)
+    _try_claim_operator_reward(deps.storage, deps.api, env, info.sender.as_ref(), None)
 }
 
 pub fn try_claim_operator_reward_on_behalf(
@@ -206,7 +206,7 @@ pub fn try_claim_delegator_reward(
         deps.storage,
         deps.api,
         env,
-        &info.sender.to_string(),
+        info.sender.as_ref(),
         mix_identity,
         None,
     )

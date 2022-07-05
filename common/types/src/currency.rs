@@ -26,6 +26,7 @@ use validator_client::nymd::{Coin, CosmosCoin};
     EnumString,
     EnumVariantNames,
     PartialEq,
+    Eq,
     JsonSchema,
 )]
 #[serde(rename_all = "UPPERCASE")]
@@ -59,7 +60,7 @@ impl TryFrom<CosmosDenom> for CurrencyDenom {
     type Error = TypesError;
 
     fn try_from(value: CosmosDenom) -> Result<Self, Self::Error> {
-        CurrencyDenom::parse(&value.to_string())
+        CurrencyDenom::parse(value.as_ref())
     }
 }
 
@@ -68,7 +69,7 @@ impl TryFrom<CosmosDenom> for CurrencyDenom {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/CurrencyStringMajorAmount.ts")
 )]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-rs/issues/51 for exporting type aliases
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -77,7 +78,7 @@ pub struct MajorAmountString(String); // see https://github.com/Aleph-Alpha/ts-r
     ts(export_to = "ts-packages/types/src/types/rust/Currency.ts")
 )]
 // #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct MajorCurrencyAmount {
     // temporarly going back to original impl to speed up merge
     pub amount: MajorAmountString,

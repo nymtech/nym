@@ -23,7 +23,7 @@ use crate::Attribute;
 type ChallengeDigest = Sha256;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct ProofCmCs {
     challenge: Scalar,
     response_opening: Scalar,
@@ -327,7 +327,7 @@ impl ProofCmCs {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ProofKappaZeta {
     // c
     challenge: Scalar,

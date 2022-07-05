@@ -22,7 +22,7 @@ use std::fmt::Display;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,

@@ -63,6 +63,13 @@ pub enum MixnetContractError {
 
     #[error("Provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
+
+    #[error("Can't advance the epoch as the current one is still in progress. It started at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}")]
+    EpochInProgress {
+        current_block_time: u64,
+        epoch_start: i64,
+        epoch_end: i64,
+    },
     //
     // #[error("Overflow Error")]
     // OverflowError(#[from] cosmwasm_std::OverflowError),

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::EpochId;
 use cosmwasm_std::Env;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
@@ -62,9 +63,13 @@ pub(crate) mod string_rfc3339_offset_date_time {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,
+    epochs_in_interval: u32,
+
+    // TODO: possibly put into separate struct?
     #[serde(with = "string_rfc3339_offset_date_time")]
-    start: OffsetDateTime,
-    length: Duration,
+    current_epoch_start: OffsetDateTime,
+    current_epoch_id: EpochId,
+    epoch_length: Duration,
 }
 
 impl JsonSchema for Interval {
@@ -84,220 +89,238 @@ impl JsonSchema for Interval {
             .insert("id".to_owned(), gen.subschema_for::<u32>());
         object_validation.required.insert("id".to_owned());
 
-        // PrimitiveDateTime does not implement JsonSchema. However it has a custom
-        // serialization to string, so we just specify the schema to be String.
         object_validation
             .properties
-            .insert("start".to_owned(), gen.subschema_for::<String>());
-        object_validation.required.insert("start".to_owned());
+            .insert("epochs_in_interval".to_owned(), gen.subschema_for::<u32>());
+        object_validation
+            .required
+            .insert("epochs_in_interval".to_owned());
+
+        // PrimitiveDateTime does not implement JsonSchema. However it has a custom
+        // serialization to string, so we just specify the schema to be String.
+        object_validation.properties.insert(
+            "current_epoch_start".to_owned(),
+            gen.subschema_for::<String>(),
+        );
+        object_validation
+            .required
+            .insert("current_epoch_start".to_owned());
+
+        object_validation.properties.insert(
+            "current_epoch_id".to_owned(),
+            gen.subschema_for::<EpochId>(),
+        );
+        object_validation
+            .required
+            .insert("current_epoch_id".to_owned());
 
         object_validation
             .properties
-            .insert("length".to_owned(), gen.subschema_for::<Duration>());
-        object_validation.required.insert("length".to_owned());
+            .insert("epoch_length".to_owned(), gen.subschema_for::<Duration>());
+        object_validation.required.insert("epoch_length".to_owned());
 
         Schema::Object(schema_object)
     }
 }
+//
+// #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
+// pub struct Interval {
+//     id: u32,
+//     #[serde(with = "string_rfc3339_offset_date_time")]
+//     start: OffsetDateTime,
+//     length: Duration,
+// }
+//
+// impl JsonSchema for Interval {
+//     fn schema_name() -> String {
+//         "Interval".to_owned()
+//     }
+//
+//     fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+//         let mut schema_object = SchemaObject {
+//             instance_type: Some(InstanceType::Object.into()),
+//             ..SchemaObject::default()
+//         };
+//
+//         let object_validation = schema_object.object();
+//         object_validation
+//             .properties
+//             .insert("id".to_owned(), gen.subschema_for::<u32>());
+//         object_validation.required.insert("id".to_owned());
+//
+//         // PrimitiveDateTime does not implement JsonSchema. However it has a custom
+//         // serialization to string, so we just specify the schema to be String.
+//         object_validation
+//             .properties
+//             .insert("start".to_owned(), gen.subschema_for::<String>());
+//         object_validation.required.insert("start".to_owned());
+//
+//         object_validation
+//             .properties
+//             .insert("length".to_owned(), gen.subschema_for::<Duration>());
+//         object_validation.required.insert("length".to_owned());
+//
+//         Schema::Object(schema_object)
+//     }
+// }
 
 impl Interval {
     /// Initialize epoch in the contract with default values.
-    pub fn init_epoch(env: Env) -> Self {
+    pub fn init_interval(epochs_in_interval: u32, epoch_length: Duration, env: Env) -> Self {
         Interval {
             id: 0,
+            epochs_in_interval,
             // I really don't see a way for this to fail, unless the blockchain is lying to us
-            start: OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64)
-                .expect("Invalid timestamp from env.block.time"),
-            length: Duration::from_secs(3600),
+            current_epoch_start: OffsetDateTime::from_unix_timestamp(
+                env.block.time.seconds() as i64
+            )
+            .expect("Invalid timestamp from env.block.time"),
+            current_epoch_id: 0,
+            epoch_length,
         }
     }
 
-    pub fn is_over(&self, env: Env) -> bool {
-        self.end_unix_timestamp() <= env.block.time.seconds() as i64
+    pub fn is_current_epoch_over(&self, env: &Env) -> bool {
+        self.current_epoch_end_unix_timestamp() <= env.block.time.seconds() as i64
     }
 
-    pub fn in_progress(&self, env: Env) -> bool {
+    pub fn is_current_interval_over(&self, env: &Env) -> bool {
+        self.current_interval_end_unix_timestamp() <= env.block.time.seconds() as i64
+    }
+
+    pub fn current_epoch_in_progress(&self, env: &Env) -> bool {
         let block_time = env.block.time.seconds() as i64;
-        self.start_unix_timestamp() <= block_time && block_time < self.end_unix_timestamp()
+        self.current_epoch_start_unix_timestamp() <= block_time
+            && block_time < self.current_epoch_end_unix_timestamp()
     }
 
-    pub fn update_duration(&mut self, secs: u64) {
-        self.length = Duration::from_secs(secs);
+    pub fn update_epoch_duration(&mut self, secs: u64) {
+        self.epoch_length = Duration::from_secs(secs);
     }
 
-    pub const fn length_secs(&self) -> u64 {
-        self.length.as_secs()
+    pub const fn epoch_length_secs(&self) -> u64 {
+        self.epoch_length.as_secs()
     }
 
-    /// Returns the next interval.
+    /// Returns the next epoch. If if would result in advancing the interval,
+    /// the relevant changes are applied.
     #[must_use]
-    pub fn next(&self) -> Self {
-        Interval {
-            id: self.id + 1,
-            start: self.end(),
-            length: self.length,
-        }
-    }
-
-    pub fn next_on_chain(&self, env: Env) -> Self {
-        let start = self
-            .end()
-            .max(OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap());
-        Interval {
-            id: self.id + 1,
-            start,
-            length: self.length,
-        }
-    }
-
-    /// Returns the last interval.
-    pub fn previous(&self) -> Option<Self> {
-        if self.id > 0 {
-            Some(Interval {
-                id: self.id - 1,
-                start: self.start - self.length,
-                length: self.length,
-            })
-        } else {
-            None
-        }
-    }
-
-    /// Determines whether the provided datetime is contained within the interval
-    ///
-    /// # Arguments
-    ///
-    /// * `datetime`: specified datetime
-    pub fn contains(&self, datetime: OffsetDateTime) -> bool {
-        self.start <= datetime && datetime <= self.end()
-    }
-
-    /// Determines whether the provided unix timestamp is contained within the interval
-    ///
-    /// # Arguments
-    ///
-    /// * `timestamp`: specified timestamp
-    pub fn contains_timestamp(&self, timestamp: i64) -> bool {
-        self.start_unix_timestamp() <= timestamp && timestamp <= self.end_unix_timestamp()
-    }
-
-    /// Returns new instance of [Interval] such that the provided datetime would be within
-    /// its duration.
-    ///
-    /// # Arguments
-    ///
-    /// * `now`: current datetime
-    pub fn current(&self, now: OffsetDateTime) -> Option<Self> {
-        let mut candidate = *self;
-
-        if now > self.start {
-            loop {
-                if candidate.contains(now) {
-                    return Some(candidate);
-                }
-                candidate = candidate.next();
+    pub fn advance_epoch(&self) -> Self {
+        // remember we start from 0th epoch, so if we're supposed to have 100 epochs in interval,
+        // epoch 99 is going to be the last one
+        if self.current_epoch_id == self.epochs_in_interval - 1 {
+            Interval {
+                id: self.id + 1,
+                epochs_in_interval: self.epochs_in_interval,
+                current_epoch_start: self.current_epoch_end(),
+                current_epoch_id: 0,
+                epoch_length: self.epoch_length,
             }
         } else {
-            loop {
-                if candidate.contains(now) {
-                    return Some(candidate);
-                }
-                candidate = candidate.previous()?;
+            Interval {
+                id: self.id,
+                epochs_in_interval: self.epochs_in_interval,
+                current_epoch_start: self.current_epoch_end(),
+                current_epoch_id: self.current_epoch_id + 1,
+                epoch_length: self.epoch_length,
             }
         }
     }
 
-    /// Returns new instance of [Interval] such that the provided unix timestamp would be within
-    /// its duration.
-    ///
-    /// # Arguments
-    ///
-    /// * `now_unix`: current unix time
-    pub fn current_with_timestamp(&self, now_unix: i64) -> Option<Self> {
-        let mut candidate = *self;
-
-        if now_unix > self.start_unix_timestamp() {
-            loop {
-                if candidate.contains_timestamp(now_unix) {
-                    return Some(candidate);
-                }
-                candidate = candidate.next();
-            }
-        } else {
-            loop {
-                if candidate.contains_timestamp(now_unix) {
-                    return Some(candidate);
-                }
-                candidate = candidate.previous()?;
-            }
-        }
-    }
-
-    /// Checks whether this interval has already finished
-    ///
-    /// # Arguments
-    ///
-    /// * `now`: current datetime
-    pub fn has_elapsed(&self, now: OffsetDateTime) -> bool {
-        self.end() < now
-    }
-
-    /// Returns id of this interval
-    pub const fn id(&self) -> u32 {
-        self.id
-    }
-
-    /// Determines amount of time left until this interval finishes.
-    ///
-    /// # Arguments
-    ///
-    /// * `now`: current datetime
-    pub fn until_end(&self, now: OffsetDateTime) -> Option<Duration> {
-        let remaining = self.end() - now;
-        if remaining.is_negative() {
-            None
-        } else {
-            remaining.try_into().ok()
-        }
-    }
+    //
+    // pub fn next_on_chain(&self, env: Env) -> Self {
+    //     let start = self
+    //         .end()
+    //         .max(OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap());
+    //     Interval {
+    //         id: self.id + 1,
+    //         start,
+    //         length: self.length,
+    //     }
+    // }
+    //
+    //
+    //
+    // /// Checks whether this interval has already finished
+    // ///
+    // /// # Arguments
+    // ///
+    // /// * `now`: current datetime
+    // pub fn has_elapsed(&self, now: OffsetDateTime) -> bool {
+    //     self.end() < now
+    // }
+    //
+    // /// Returns id of this interval
+    // pub const fn id(&self) -> u32 {
+    //     self.id
+    // }
+    //
+    // /// Determines amount of time left until this interval finishes.
+    // ///
+    // /// # Arguments
+    // ///
+    // /// * `now`: current datetime
+    // pub fn until_end(&self, now: OffsetDateTime) -> Option<Duration> {
+    //     let remaining = self.end() - now;
+    //     if remaining.is_negative() {
+    //         None
+    //     } else {
+    //         remaining.try_into().ok()
+    //     }
+    // }
 
     /// Returns the starting datetime of this interval.
-    pub const fn start(&self) -> OffsetDateTime {
-        self.start
+    pub const fn current_epoch_start(&self) -> OffsetDateTime {
+        self.current_epoch_start
     }
 
     /// Returns the length of this interval.
-    pub const fn length(&self) -> Duration {
-        self.length
+    pub const fn epoch_length(&self) -> Duration {
+        self.epoch_length
     }
 
-    /// Returns the ending datetime of this interval.
-    pub fn end(&self) -> OffsetDateTime {
-        self.start + self.length
+    /// Returns the ending datetime of the current epoch.
+    pub fn current_epoch_end(&self) -> OffsetDateTime {
+        self.current_epoch_start + self.epoch_length
     }
 
-    /// Returns the unix timestamp of the start of this interval.
-    pub const fn start_unix_timestamp(&self) -> i64 {
-        self.start().unix_timestamp()
+    pub fn epochs_until_interval_end(&self) -> u32 {
+        self.epochs_in_interval - self.current_epoch_id
     }
 
-    /// Returns the unix timestamp of the end of this interval.
-    pub fn end_unix_timestamp(&self) -> i64 {
-        self.end().unix_timestamp()
+    /// Returns the ending datetime of the current interval.
+    pub fn current_interval_end(&self) -> OffsetDateTime {
+        self.current_epoch_start + self.epochs_until_interval_end() * self.epoch_length
+    }
+
+    /// Returns the unix timestamp of the start of the current epoch.
+    pub const fn current_epoch_start_unix_timestamp(&self) -> i64 {
+        self.current_epoch_start().unix_timestamp()
+    }
+
+    /// Returns the unix timestamp of the end of the current epoch.
+    pub fn current_epoch_end_unix_timestamp(&self) -> i64 {
+        self.current_epoch_end().unix_timestamp()
+    }
+
+    /// Returns the unix timestamp of the end of the current interval.
+    pub fn current_interval_end_unix_timestamp(&self) -> i64 {
+        self.current_interval_end().unix_timestamp()
     }
 }
 
 impl Display for Interval {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let length = self.length().as_secs();
+        let length = self.epoch_length_secs();
         let full_hours = length / 3600;
         let rem = length % 3600;
         write!(
             f,
-            "Interval {}: {} - {} ({}h {}s)",
+            "Interval {}: epoch {}/{} (current epoch begun at: {}; epoch lengths: {}h {}s)",
             self.id,
-            self.start(),
-            self.end(),
+            self.current_epoch_id + 1,
+            self.current_epoch_start,
+            self.epochs_in_interval,
             full_hours,
             rem
         )
@@ -307,123 +330,236 @@ impl Display for Interval {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmwasm_std::testing::mock_env;
 
     #[test]
-    fn previous() {
+    fn advancing_epoch() {
+        // just advancing epoch
         let interval = Interval {
-            id: 1,
-            start: time::macros::datetime!(2021-08-23 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
+            id: 0,
+            epochs_in_interval: 100,
+            current_epoch_start: time::macros::datetime!(2021-08-23 12:00 UTC),
+            current_epoch_id: 23,
+            epoch_length: Duration::from_secs(24 * 60 * 60),
         };
         let expected = Interval {
             id: 0,
-            start: time::macros::datetime!(2021-08-22 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
+            epochs_in_interval: 100,
+            current_epoch_start: time::macros::datetime!(2021-08-24 12:00 UTC),
+            current_epoch_id: 24,
+            epoch_length: Duration::from_secs(24 * 60 * 60),
         };
-        assert_eq!(expected, interval.previous().unwrap());
+        assert_eq!(expected, interval.advance_epoch());
 
-        let genesis_interval = Interval {
-            id: 0,
-            start: time::macros::datetime!(2021-08-23 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
-        };
-        assert!(genesis_interval.previous().is_none());
-    }
-
-    #[test]
-    fn next() {
+        // results in advancing interval
         let interval = Interval {
             id: 0,
-            start: time::macros::datetime!(2021-08-23 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
+            epochs_in_interval: 100,
+            current_epoch_start: time::macros::datetime!(2021-08-23 12:00 UTC),
+            current_epoch_id: 99,
+            epoch_length: Duration::from_secs(24 * 60 * 60),
         };
         let expected = Interval {
             id: 1,
-            start: time::macros::datetime!(2021-08-24 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
+            epochs_in_interval: 100,
+            current_epoch_start: time::macros::datetime!(2021-08-24 12:00 UTC),
+            current_epoch_id: 0,
+            epoch_length: Duration::from_secs(24 * 60 * 60),
         };
 
-        assert_eq!(expected, interval.next())
+        assert_eq!(expected, interval.advance_epoch())
     }
 
     #[test]
-    fn checking_for_datetime_inclusion() {
+    fn checking_for_epoch_ends() {
+        let env = mock_env();
+
+        // epoch just begun
         let interval = Interval {
-            id: 100,
-            start: time::macros::datetime!(2021-08-23 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
+            id: 0,
+            epochs_in_interval: 100,
+            current_epoch_start: OffsetDateTime::from_unix_timestamp(
+                env.block.time.seconds() as i64 - 100,
+            )
+            .unwrap(),
+            current_epoch_id: 23,
+            epoch_length: Duration::from_secs(24 * 60 * 60),
         };
+        assert!(!interval.is_current_epoch_over(&env));
 
-        // it must contain its own boundaries
-        assert!(interval.contains(interval.start));
-        assert!(interval.contains(interval.end()));
+        // current time == current epoch start
+        let mut interval = interval;
+        interval.current_epoch_start =
+            OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap();
+        assert!(!interval.is_current_epoch_over(&env));
 
-        let in_the_midle = interval.start + Duration::from_secs(interval.length.as_secs() / 2);
-        assert!(interval.contains(in_the_midle));
+        // epoch HASN'T yet begun (weird edge case, but can happen if we decide to manually adjust things)
+        let mut interval = interval;
+        interval.current_epoch_start =
+            OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64 + 100).unwrap();
+        assert!(!interval.is_current_epoch_over(&env));
 
-        assert!(!interval.contains(interval.next().end()));
-        assert!(!interval.contains(interval.previous().unwrap().start()));
+        // current_time = EXACTLY end of the epoch
+        let mut interval = interval;
+        interval.current_epoch_start =
+            OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap()
+                - interval.epoch_length;
+        assert!(interval.is_current_epoch_over(&env));
+
+        // revert time a bit more
+        interval.current_epoch_start -= Duration::from_secs(42);
+        assert!(interval.is_current_epoch_over(&env));
+
+        // revert by A LOT -> epoch still should be in finished state
+        interval.current_epoch_start -= Duration::from_secs(5 * 31 * 24 * 60 * 60);
+        assert!(interval.is_current_epoch_over(&env));
     }
 
     #[test]
-    fn determining_current_interval() {
-        let first_interval = Interval {
-            id: 100,
-            start: time::macros::datetime!(2021-08-23 12:00 UTC),
-            length: Duration::from_secs(24 * 60 * 60),
+    fn interval_end() {
+        let mut interval = Interval {
+            id: 0,
+            epochs_in_interval: 100,
+            current_epoch_start: time::macros::datetime!(2021-08-23 12:00 UTC),
+            current_epoch_id: 99,
+            epoch_length: Duration::from_secs(24 * 60 * 60),
         };
 
-        // interval just before
-        let fake_now = first_interval.start - Duration::from_secs(123);
-        assert_eq!(first_interval.previous(), first_interval.current(fake_now));
-
-        // this interval (start boundary)
         assert_eq!(
-            first_interval,
-            first_interval.current(first_interval.start).unwrap()
+            interval.current_epoch_start + interval.epoch_length,
+            interval.current_interval_end()
         );
 
-        // this interval (in the middle)
-        let fake_now = first_interval.start + Duration::from_secs(123);
-        assert_eq!(first_interval, first_interval.current(fake_now).unwrap());
-
-        // this interval (end boundary)
+        interval.current_epoch_id -= 1;
         assert_eq!(
-            first_interval,
-            first_interval.current(first_interval.end()).unwrap()
+            interval.current_epoch_start + 2 * interval.epoch_length,
+            interval.current_interval_end()
         );
 
-        // next interval
-        let fake_now = first_interval.end() + Duration::from_secs(123);
+        interval.current_epoch_id -= 10;
         assert_eq!(
-            first_interval.next(),
-            first_interval.current(fake_now).unwrap()
+            interval.current_epoch_start + 12 * interval.epoch_length,
+            interval.current_interval_end()
         );
 
-        // few intervals in the past
-        let fake_now = first_interval.start()
-            - first_interval.length
-            - first_interval.length
-            - first_interval.length;
+        interval.current_epoch_id = 0;
         assert_eq!(
-            first_interval
-                .previous()
-                .unwrap()
-                .previous()
-                .unwrap()
-                .previous()
-                .unwrap(),
-            first_interval.current(fake_now).unwrap()
-        );
-
-        // few intervals in the future
-        let fake_now = first_interval.end()
-            + first_interval.length
-            + first_interval.length
-            + first_interval.length;
-        assert_eq!(
-            first_interval.next().next().next(),
-            first_interval.current(fake_now).unwrap()
+            interval.current_epoch_start + interval.epochs_in_interval * interval.epoch_length,
+            interval.current_interval_end()
         );
     }
+
+    #[test]
+    fn checking_for_interval_ends() {
+        let env = mock_env();
+
+        let epoch_length = Duration::from_secs(24 * 60 * 60);
+
+        let mut interval = Interval {
+            id: 0,
+            epochs_in_interval: 100,
+            current_epoch_start: OffsetDateTime::from_unix_timestamp(
+                env.block.time.seconds() as i64
+            )
+            .unwrap(),
+            current_epoch_id: 98,
+            epoch_length,
+        };
+
+        // current epoch just started (we still have to finish 2 epochs)
+        assert!(!interval.is_current_interval_over(&env));
+
+        // still need to finish the 99th epoch
+        interval.current_epoch_start -= epoch_length;
+        assert!(!interval.is_current_interval_over(&env));
+
+        // it JUST finished
+        interval.current_epoch_start -= epoch_length;
+        assert!(interval.is_current_interval_over(&env));
+
+        // nobody updated the interval data, but the current one should still be in finished state
+        interval.current_epoch_start -= 10 * epoch_length;
+        assert!(interval.is_current_interval_over(&env));
+    }
+
+    // #[test]
+    // fn checking_for_datetime_inclusion() {
+    //     let interval = Interval {
+    //         id: 100,
+    //         start: time::macros::datetime!(2021-08-23 12:00 UTC),
+    //         length: Duration::from_secs(24 * 60 * 60),
+    //     };
+    //
+    //     // it must contain its own boundaries
+    //     assert!(interval.contains(interval.start));
+    //     assert!(interval.contains(interval.end()));
+    //
+    //     let in_the_midle = interval.start + Duration::from_secs(interval.length.as_secs() / 2);
+    //     assert!(interval.contains(in_the_midle));
+    //
+    //     assert!(!interval.contains(interval.next().end()));
+    //     assert!(!interval.contains(interval.previous().unwrap().start()));
+    // }
+    //
+    // #[test]
+    // fn determining_current_interval() {
+    //     let first_interval = Interval {
+    //         id: 100,
+    //         start: time::macros::datetime!(2021-08-23 12:00 UTC),
+    //         length: Duration::from_secs(24 * 60 * 60),
+    //     };
+    //
+    //     // interval just before
+    //     let fake_now = first_interval.start - Duration::from_secs(123);
+    //     assert_eq!(first_interval.previous(), first_interval.current(fake_now));
+    //
+    //     // this interval (start boundary)
+    //     assert_eq!(
+    //         first_interval,
+    //         first_interval.current(first_interval.start).unwrap()
+    //     );
+    //
+    //     // this interval (in the middle)
+    //     let fake_now = first_interval.start + Duration::from_secs(123);
+    //     assert_eq!(first_interval, first_interval.current(fake_now).unwrap());
+    //
+    //     // this interval (end boundary)
+    //     assert_eq!(
+    //         first_interval,
+    //         first_interval.current(first_interval.end()).unwrap()
+    //     );
+    //
+    //     // next interval
+    //     let fake_now = first_interval.end() + Duration::from_secs(123);
+    //     assert_eq!(
+    //         first_interval.next(),
+    //         first_interval.current(fake_now).unwrap()
+    //     );
+    //
+    //     // few intervals in the past
+    //     let fake_now = first_interval.start()
+    //         - first_interval.length
+    //         - first_interval.length
+    //         - first_interval.length;
+    //     assert_eq!(
+    //         first_interval
+    //             .previous()
+    //             .unwrap()
+    //             .previous()
+    //             .unwrap()
+    //             .previous()
+    //             .unwrap(),
+    //         first_interval.current(fake_now).unwrap()
+    //     );
+    //
+    //     // few intervals in the future
+    //     let fake_now = first_interval.end()
+    //         + first_interval.length
+    //         + first_interval.length
+    //         + first_interval.length;
+    //     assert_eq!(
+    //         first_interval.next().next().next(),
+    //         first_interval.current(fake_now).unwrap()
+    //     );
+    // }
 }

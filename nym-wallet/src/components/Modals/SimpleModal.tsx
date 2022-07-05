@@ -58,13 +58,13 @@ export const SimpleModal: React.FC<{
 
       {children}
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mt: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
         {onSecondaryAction && (
           <Button
             disableFocusRipple
             size="large"
             variant="outlined"
-            startIcon={<ArrowBackIosNewIcon sx={{ width: 15 }} />}
+            startIcon={<ArrowBackIosNewIcon sx={{ width: 20 }} />}
             onClick={onSecondaryAction}
           />
         )}

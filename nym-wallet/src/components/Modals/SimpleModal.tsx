@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
 import { modalStyle } from './styles';
@@ -12,12 +13,12 @@ export const SimpleModal: React.FC<{
   subHeaderStyles?: SxProps;
   onClose?: () => void;
   onOk?: () => Promise<void>;
+  onSecondaryAction?: () => void;
   header: string;
   subHeader?: string;
   okLabel: string;
   okDisabled?: boolean;
   sx?: SxProps;
-  SecondaryAction?: React.ReactNode;
 }> = ({
   open,
   hideCloseIcon,
@@ -27,11 +28,11 @@ export const SimpleModal: React.FC<{
   onClose,
   okDisabled,
   onOk,
+  onSecondaryAction,
   header,
   subHeader,
   okLabel,
   sx,
-  SecondaryAction,
   children,
 }) => (
   <Modal open={open} onClose={onClose}>
@@ -57,11 +58,20 @@ export const SimpleModal: React.FC<{
 
       {children}
 
-      <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} sx={{ mt: 2 }}>
-        {okLabel}
-      </Button>
-
-      {SecondaryAction}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mt: 2 }}>
+        {onSecondaryAction && (
+          <Button
+            disableFocusRipple
+            size="large"
+            variant="outlined"
+            startIcon={<ArrowBackIosNewIcon sx={{ width: 15 }} />}
+            onClick={onSecondaryAction}
+          />
+        )}
+        <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+          {okLabel}
+        </Button>
+      </Box>
     </Box>
   </Modal>
 );

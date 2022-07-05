@@ -20,11 +20,7 @@ export const ConfirmTx: React.FC<{
     okLabel="Confirm"
     onOk={onConfirm}
     onClose={onClose}
-    SecondaryAction={
-      <Button fullWidth sx={{ mt: 1 }} size="large" onClick={onPrev}>
-        Cancel
-      </Button>
-    }
+    onSecondaryAction={onPrev}
   >
     <Box sx={{ mt: 3 }}>
       {children}

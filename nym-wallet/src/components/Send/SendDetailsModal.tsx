@@ -27,11 +27,7 @@ export const SendDetailsModal = ({
     onClose={onClose}
     okLabel="Confirm"
     onOk={async () => amount && onSend({ val: amount, to: toAddress })}
-    SecondaryAction={
-      <Button fullWidth size="large" sx={{ mt: 2 }} onClick={onPrev}>
-        Back
-      </Button>
-    }
+    onBack={onPrev}
   >
     <Stack gap={0.5} sx={{ mt: 4 }}>
       <ModalListItem label="From" value={fromAddress} divider />

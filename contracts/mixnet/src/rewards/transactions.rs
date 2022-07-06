@@ -65,18 +65,17 @@ pub(crate) fn try_reward_mixnode(
 
     // there's a chance of this failing to load the details if the mixnode unbonded before rewards
     // were distributed and all of its delegators are also gone
-    let mut mix_rewarding =
-        match mixnodes_storage::MIXNODE_REWARDING.may_load(deps.storage, node_id)? {
-            Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
-            // don't fail if the node has unbonded as we don't want to fail the underlying transaction
-            _ => {
-                return Ok(
-                    Response::new().add_event(new_not_found_mix_operator_rewarding_event(
-                        interval, node_id,
-                    )),
-                );
-            }
-        };
+    let mut mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, node_id)? {
+        Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
+        // don't fail if the node has unbonded as we don't want to fail the underlying transaction
+        _ => {
+            return Ok(
+                Response::new().add_event(new_not_found_mix_operator_rewarding_event(
+                    interval, node_id,
+                )),
+            );
+        }
+    };
 
     // check if this node has already been rewarded for the current epoch.
     // unlike the previous check, this one should be a hard error since this cannot be
@@ -101,7 +100,7 @@ pub(crate) fn try_reward_mixnode(
     // however, we still need to update last_rewarded_epoch field
     if node_performance.is_zero() {
         mix_rewarding.last_rewarded_epoch = epoch_details;
-        mixnodes_storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
+        storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
                 interval, node_id,
@@ -122,7 +121,7 @@ pub(crate) fn try_reward_mixnode(
     mix_rewarding.distribute_rewards(reward_distribution, epoch_details);
 
     // persist changes happened to the storage
-    mixnodes_storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
+    storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
     storage::reward_accounting(deps.storage, node_reward)?;
 
     Ok(Response::new().add_event(new_mix_rewarding_event(

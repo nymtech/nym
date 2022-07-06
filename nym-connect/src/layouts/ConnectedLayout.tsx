@@ -8,6 +8,7 @@ import { ConnectionStats, ConnectionStatsItem } from '../components/ConnectionSt
 import { NeedHelp } from '../components/NeedHelp';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { IpAddressAndPort } from '../components/IpAddressAndPort';
+import { ServiceProvider } from '../types/directory';
 
 export const ConnectedLayout: React.FC<{
   status: ConnectionStatusKind;
@@ -18,15 +19,16 @@ export const ConnectedLayout: React.FC<{
   busy?: boolean;
   isError?: boolean;
   onConnectClick?: (status: ConnectionStatusKind) => void;
-}> = ({ status, stats, ipAddress, port, connectedSince, busy, isError, onConnectClick }) => (
+  serviceProvider?: ServiceProvider;
+}> = ({ status, stats, ipAddress, port, connectedSince, busy, isError, serviceProvider, onConnectClick }) => (
   <AppWindowFrame>
     <Box pb={4}>
-      <ConnectionStatus status={status} connectedSince={connectedSince} />
+      <ConnectionStatus status={status} connectedSince={connectedSince} serviceProvider={serviceProvider} />
     </Box>
     <Box pb={4}>
       <IpAddressAndPort label="SOCKS5 Proxy" ipAddress={ipAddress} port={port} />
     </Box>
-    <ConnectionStats stats={stats} />
+    {/* <ConnectionStats stats={stats} /> */}
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
     <NeedHelp />
   </AppWindowFrame>

@@ -193,3 +193,31 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
     </BasePage>
   );
 };
+
+export const withBackButton = () => {
+  const [open, setOpen] = React.useState<boolean>(true);
+  const handleClick = () => setOpen(true);
+
+  return (
+    <BasePage handleClick={handleClick}>
+      <SimpleModal
+        open={open}
+        hideCloseIcon
+        onClose={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
+        header="This is a modal"
+        okLabel="Primary action"
+        onBack={() => setOpen(false)}
+      >
+        <p>
+          Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
+          elit ut mollit.
+        </p>
+        <ModalDivider />
+        <p>
+          Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
+        </p>
+      </SimpleModal>
+    </BasePage>
+  );
+};

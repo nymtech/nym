@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{Decimal, Env, StdResult, Storage, Uint128};
 use cw_storage_plus::{
     Index, IndexList, IndexedMap, IndexedSnapshotMap, Item, Map, Strategy, UniqueIndex,

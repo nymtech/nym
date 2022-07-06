@@ -15,7 +15,7 @@ use std::hash::{Hash, Hasher};
 type OwnerAddressBytes = Vec<u8>;
 type BlockHeight = u64;
 
-pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> Vec<u8> {
+pub fn generate_storage_key(address: &Addr, proxy: Option<&Addr>) -> OwnerAddressBytes {
     if let Some(proxy) = &proxy {
         address
             .as_bytes()
@@ -89,13 +89,14 @@ impl Delegation {
         Decimal::from_atomics(self.amount.amount, 0).unwrap()
     }
 
-    // pub fn storage_key(&self) -> (IdentityKey, OwnerAddressBytes, BlockHeight) {
-    //     (
-    //         self.node_identity(),
-    //         self.proxy_storage_key(),
-    //         self.block_height(),
-    //     )
-    // }
+    pub fn proxy_storage_key(&self) -> OwnerAddressBytes {
+        generate_storage_key(&self.owner, self.proxy.as_ref())
+    }
+
+    pub fn storage_key(&self) -> (NodeId, OwnerAddressBytes) {
+        (self.node_id, self.proxy_storage_key())
+    }
+
     //
     // pub fn event_storage_key(&self) -> (OwnerAddressBytes, BlockHeight, IdentityKey) {
     //     (
@@ -105,9 +106,6 @@ impl Delegation {
     //     )
     // }
     //
-    // pub fn proxy_storage_key(&self) -> OwnerAddressBytes {
-    //     generate_storage_key(&self.owner, self.proxy.as_ref())
-    // }
     //
     // pub fn proxy(&self) -> Option<&Addr> {
     //     self.proxy.as_ref()

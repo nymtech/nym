@@ -3,7 +3,7 @@
 
 mod constants;
 pub mod contract;
-// mod delegations;
+mod delegations;
 // mod error;
 // mod gateways;
 mod interval;

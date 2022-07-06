@@ -26,8 +26,11 @@ pub enum MixnetContractError {
     #[error("Not enough funds sent for node pledge. (received {received}, minimum {minimum})")]
     InsufficientPledge { received: Coin, minimum: Coin },
 
-    #[error("Mixnode ({identity}) does not exist")]
-    MixNodeBondNotFound { identity: IdentityKey },
+    #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
+    InsufficientDelegation { received: Coin, minimum: Coin },
+
+    #[error("Mixnode ({id}) does not exist")]
+    MixNodeBondNotFound { id: NodeId },
 
     #[error("{owner} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: Addr },
@@ -46,6 +49,9 @@ pub enum MixnetContractError {
 
     #[error("No tokens were sent for the bonding")]
     NoBondFound,
+
+    #[error("No funds were provided for the delegation")]
+    EmptyDelegation,
 
     #[error("Wrong coin denomination. Received: {received}, expected: {expected}")]
     WrongDenom { received: String, expected: String },

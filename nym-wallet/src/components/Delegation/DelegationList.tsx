@@ -146,7 +146,7 @@ export const DelegationList: React.FC<{
                     href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
                     text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
                     color="text.primary"
-                    noIcon={true}
+                    noIcon
                   />
                 </TableCell>
                 <TableCell>{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>

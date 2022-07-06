@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
+import { FeeDetails } from '@nymproject/types';
 import { simulateCompoundDelgatorReward, simulateVestingCompoundDelgatorReward } from 'src/requests';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalFee } from '../Modals/ModalFee';
-import { FeeDetails } from '@nymproject/types';
 import { FeeWarning } from '../FeeWarning';
 
 export const CompoundModal: React.FC<{
@@ -14,7 +14,6 @@ export const CompoundModal: React.FC<{
   onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  minimum?: number;
   currency: string;
   message: string;
   usesVestingTokens: boolean;

@@ -4,7 +4,7 @@
  */
 module.exports = {
   invoke: (operation, args) => {
-    switch(operation) {
+    switch (operation) {
       case 'get_balance': {
         return {
           amount: {
@@ -12,20 +12,30 @@ module.exports = {
             denom: 'NYMT',
           },
           printable_balance: '100 NYMT',
-        }
+        };
       }
       case 'delegate_to_mixnode': {
-        return ({
+        return {
           logs_json: '[]',
           data_json: '{}',
           transaction_hash: '12345',
-        });
+        };
+      }
+      case 'simulate_send': {
+        return {
+          amount: {
+            amount: '0.01',
+            denom: 'NYM',
+          },
+        };
       }
     }
 
-    console.error(`Tauri cannot be used in Storybook. The operation requested was "${operation}". You can add mock responses to "nym_wallet/.storybook/mocks/tauri.js" if you need. The default response is "void".`);
+    console.error(
+      `Tauri cannot be used in Storybook. The operation requested was "${operation}". You can add mock responses to "nym_wallet/.storybook/mocks/tauri.js" if you need. The default response is "void".`,
+    );
     return new Promise((resolve, reject) => {
       reject(new Error(`Tauri operation ${operation} not available in storybook.`));
     });
   },
-}
+};

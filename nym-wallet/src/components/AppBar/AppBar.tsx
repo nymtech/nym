@@ -1,17 +1,16 @@
 import React, { useContext } from 'react';
-import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 import { Logout } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';
-import { AppContext } from '../context/main';
-import { NetworkSelector } from './NetworkSelector';
-import { Node as NodeIcon } from '../svg-icons/node';
-import { MultiAccounts } from './Accounts';
-import { config } from '../config';
+import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
+import { Node } from 'src/svg-icons/node';
+import { config } from '../../config';
+import { AppContext } from '../../context/main';
+import { MultiAccounts } from '../Accounts';
+import { NetworkSelector } from '../NetworkSelector';
 
 export const AppBar = () => {
-  const { logOut, handleShowTerminal, appEnv, handleShowSettings, showSettings } = useContext(AppContext);
-  const navigate = useNavigate();
+  const { showSettings, handleShowTerminal, appEnv, handleShowSettings, logOut } = useContext(AppContext);
+
   return (
     <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent' }}>
       <Toolbar disableGutters>
@@ -24,7 +23,7 @@ export const AppBar = () => {
               <NetworkSelector />
             </Grid>
           </Grid>
-          <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
+          <Grid item container justifyContent="flex-end" alignItems="center" md={12} lg={5} spacing={2}>
             {(appEnv?.SHOW_TERMINAL || config.IS_DEV_MODE) && (
               <Grid item>
                 <IconButton size="small" onClick={handleShowTerminal} sx={{ color: 'nym.background.dark' }}>
@@ -38,18 +37,11 @@ export const AppBar = () => {
                 sx={{ color: showSettings ? 'primary.main' : 'nym.background.dark' }}
                 size="small"
               >
-                <NodeIcon fontSize="small" />
+                <Node fontSize="small" />
               </IconButton>
             </Grid>
             <Grid item>
-              <IconButton
-                size="small"
-                onClick={async () => {
-                  await logOut();
-                  navigate('/');
-                }}
-                sx={{ color: 'nym.background.dark' }}
-              >
+              <IconButton size="small" onClick={logOut} sx={{ color: 'nym.background.dark' }}>
                 <Logout fontSize="small" />
               </IconButton>
             </Grid>

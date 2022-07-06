@@ -1,4 +1,5 @@
 import { Gateway, MajorCurrencyAmount, MixNode, PledgeData } from '@nymproject/types';
+import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -28,15 +29,15 @@ export type TBondGatewayArgs = {
   gateway: Gateway;
   pledge: MajorCurrencyAmount;
   ownerSignature: string;
+  fee?: Fee;
 };
 
 export type TBondMixNodeArgs = {
   mixnode: MixNode;
   pledge: MajorCurrencyAmount;
   ownerSignature: string;
+  fee?: Fee;
 };
-
-export type TBondArgs = { type: EnumNodeType } & (TBondGatewayArgs | TBondMixNodeArgs);
 
 export type TDelegateArgs = {
   identity: string;

@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, CircularProgress, Modal, Stack, Typography } from '@mui/material';
 
 const modalStyle = {
-  position: 'absolute' as 'absolute',
+  position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',

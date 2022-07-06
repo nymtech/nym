@@ -3,6 +3,7 @@ import { FeeDetails } from '@nymproject/types';
 import { Box } from '@mui/material';
 import { SimpleModal } from './Modals/SimpleModal';
 import { ModalFee } from './Modals/ModalFee';
+import { ModalDivider } from './Modals/ModalDivider';
 
 export const ConfirmTx: React.FC<{
   open: boolean;
@@ -25,6 +26,7 @@ export const ConfirmTx: React.FC<{
     <Box sx={{ mt: 3 }}>
       {children}
       <ModalFee fee={fee} isLoading={false} />
+      <ModalDivider />
     </Box>
   </SimpleModal>
 );

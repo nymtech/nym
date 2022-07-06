@@ -1,5 +1,4 @@
-use std::{ffi::OsStr, fmt::Write, fs, sync::Arc};
-use tap::TapFallible;
+use std::{ffi::OsStr, fs, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{

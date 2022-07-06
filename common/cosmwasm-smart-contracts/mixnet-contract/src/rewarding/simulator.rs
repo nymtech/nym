@@ -4,10 +4,10 @@
 use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::mixnode::{MixNodeCostParams, MixNodeRewarding, Period};
-use crate::reward_params::{NodeRewardParams, RewardingParams};
+use crate::reward_params::{IntervalRewardParams, NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::{HistoricalRewards, RewardDistribution};
-use crate::{Delegation, Percent};
+use crate::{Delegation, Interval, Percent};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use std::collections::HashMap;
 
@@ -19,7 +19,7 @@ pub struct Simulator {
     pub node_delegations: Vec<Delegation>,
     pub system_rewarding_params: RewardingParams,
 
-    epoch_id: u32,
+    interval: Interval,
 }
 
 impl Simulator {
@@ -28,6 +28,7 @@ impl Simulator {
         interval_operating_cost: Coin,
         system_rewarding_params: RewardingParams,
         initial_pledge: Coin,
+        interval: Interval,
     ) -> Self {
         let cost_params = MixNodeCostParams {
             profit_margin_percent,
@@ -38,12 +39,12 @@ impl Simulator {
             node_rewarding_details: MixNodeRewarding::initialise_new(
                 cost_params,
                 &initial_pledge,
-                0,
+                Default::default(),
             ),
             node_historical_records: [(0, HistoricalRewards::new_zeroth())].into_iter().collect(),
             node_delegations: vec![],
             system_rewarding_params,
-            epoch_id: 0,
+            interval,
         }
     }
 
@@ -122,14 +123,15 @@ impl Simulator {
         total
     }
 
-    pub(crate) fn simulate_epoch(&mut self, node_params: NodeRewardParams) -> RewardDistribution {
-        let reward_distribution = self
-            .node_rewarding_details
-            .calculate_epoch_reward(&self.system_rewarding_params, node_params);
+    pub fn simulate_epoch(&mut self, node_params: NodeRewardParams) -> RewardDistribution {
+        let reward_distribution = self.node_rewarding_details.calculate_epoch_reward(
+            &self.system_rewarding_params,
+            node_params,
+            self.interval.epochs_in_interval(),
+        );
         self.node_rewarding_details
-            .distribute_rewards(reward_distribution, self.epoch_id)
-            .unwrap();
-        self.epoch_id += 1;
+            .distribute_rewards(reward_distribution, self.interval.current_full_epoch_id());
+        self.interval = self.interval.advance_epoch();
 
         // self.node_rewarding_details
         //     .epoch_rewarding(
@@ -142,15 +144,55 @@ impl Simulator {
 
         reward_distribution
     }
+
+    // assume node state doesn't change in the interval (kinda unrealistic)
+    pub fn simulate_interval(&mut self, node_params: NodeRewardParams) {
+        assert_eq!(self.interval.current_epoch_id(), 0);
+        let id = self.interval.current_interval_id();
+        let mut distributed = Decimal::zero();
+        for _ in 0..self.interval.epochs_in_interval() {
+            let distr = self.simulate_epoch(node_params);
+            distributed += distr.operator;
+            distributed += distr.delegates;
+        }
+        assert_eq!(id + 1, self.interval.current_interval_id());
+
+        // update reward pool and all of that
+        let old = self.system_rewarding_params.interval;
+        let reward_pool = old.reward_pool - distributed;
+        let staking_supply = old.staking_supply + distributed;
+        let epoch_reward_budget = reward_pool
+            / Decimal::from_atomics(self.interval.epochs_in_interval(), 0).unwrap()
+            * Decimal::percent(2);
+        let stake_saturation_point = staking_supply
+            / Decimal::from_atomics(self.system_rewarding_params.epoch.rewarded_set_size, 0)
+                .unwrap();
+
+        let updated_params = RewardingParams {
+            interval: IntervalRewardParams {
+                reward_pool,
+                staking_supply,
+                epoch_reward_budget,
+                stake_saturation_point,
+                sybil_resistance_percent: old.sybil_resistance_percent,
+                active_set_work_factor: old.active_set_work_factor,
+            },
+            epoch: self.system_rewarding_params.epoch,
+        };
+
+        self.system_rewarding_params = updated_params;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::reward_params::{EpochRewardParamsNew, IntervalRewardParams};
+    use crate::reward_params::{EpochRewardParams, IntervalRewardParams};
+    use cosmwasm_std::testing::mock_env;
+    use std::time::Duration;
 
     fn base_simulator(initial_pledge: u128) -> Simulator {
-        let profit_margin = Percent::from_percentage_value(10u32).unwrap();
+        let profit_margin = Percent::from_percentage_value(10).unwrap();
         let interval_operating_cost = Coin::new(40_000_000, "unym");
         let epochs_in_interval = 720u32;
         let rewarded_set_size = 240;
@@ -166,24 +208,29 @@ mod tests {
             interval: IntervalRewardParams {
                 reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(), // 250M * 1M (we're expressing it all in base tokens)
                 staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
-                epochs_in_interval,
                 epoch_reward_budget,
                 stake_saturation_point,
-                sybil_resistance_percent: Decimal::percent(30),
+                sybil_resistance_percent: Percent::from_percentage_value(30).unwrap(),
                 active_set_work_factor: Decimal::percent(1000), // value '10'
             },
-            epoch: EpochRewardParamsNew {
+            epoch: EpochRewardParams {
                 rewarded_set_size,
                 active_set_size,
             },
         };
 
+        let interval = Interval::init_interval(
+            epochs_in_interval,
+            Duration::from_secs(24 * 60 * 60),
+            &mock_env(),
+        );
         let initial_pledge = Coin::new(initial_pledge, "unym");
         Simulator::new(
             profit_margin,
             interval_operating_cost,
             rewarding_params,
             initial_pledge,
+            interval,
         )
     }
 
@@ -215,7 +262,7 @@ mod tests {
         let mut simulator = base_simulator(10000_000000);
 
         let epoch_params =
-            NodeRewardParams::new(Percent::from_percentage_value(100u32).unwrap(), true);
+            NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
         let rewards = simulator.simulate_epoch(epoch_params);
 
         assert_eq!(rewards.delegates, Decimal::zero());
@@ -227,8 +274,7 @@ mod tests {
         let mut simulator = base_simulator(10000_000000);
         simulator.delegate(Coin::new(18000_000000, "unym"));
 
-        let node_params =
-            NodeRewardParams::new(Percent::from_percentage_value(100u32).unwrap(), true);
+        let node_params = NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
         let rewards = simulator.simulate_epoch(node_params);
 
         compare_decimals(rewards.delegates, "1795950.2602660495".parse().unwrap());
@@ -251,8 +297,7 @@ mod tests {
     #[test]
     fn delegation_and_undelegation() {
         let mut simulator = base_simulator(10000_000000);
-        let node_params =
-            NodeRewardParams::new(Percent::from_percentage_value(100u32).unwrap(), true);
+        let node_params = NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
 
         let rewards1 = simulator.simulate_epoch(node_params);
         let expected_operator1 = "1128452.5416104363".parse().unwrap();
@@ -293,7 +338,7 @@ mod tests {
         let mut simulator = base_simulator(10000_000000);
 
         let mut is_active = true;
-        let mut performance = Percent::from_percentage_value(100u32).unwrap();
+        let mut performance = Percent::from_percentage_value(100).unwrap();
         for epoch in 0..720 {
             if epoch == 0 {
                 simulator.delegate(Coin::new(18000_000000, "unym"))
@@ -308,7 +353,7 @@ mod tests {
                 simulator.delegate(Coin::new(6666_000000, "unym"))
             }
             if epoch == 167 {
-                performance = Percent::from_percentage_value(90u32).unwrap();
+                performance = Percent::from_percentage_value(90).unwrap();
             }
             if epoch == 245 {
                 simulator.delegate(Coin::new(2050_000000, "unym"))
@@ -323,7 +368,7 @@ mod tests {
                 is_active = true;
             }
             if epoch == 358 {
-                performance = Percent::from_percentage_value(100u32).unwrap();
+                performance = Percent::from_percentage_value(100).unwrap();
             }
             if epoch == 458 {
                 let (delegation, _reward) = simulator.undelegate(0).unwrap();

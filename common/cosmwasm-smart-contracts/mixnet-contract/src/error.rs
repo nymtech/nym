@@ -1,4 +1,5 @@
-use crate::IdentityKey;
+use crate::interval::FullEpochId;
+use crate::{IdentityKey, NodeId};
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
 
@@ -64,11 +65,23 @@ pub enum MixnetContractError {
     #[error("Provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
 
-    #[error("Can't advance the epoch as the current one is still in progress. It started at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}")]
+    #[error("Can't perform the specified action as the current epoch is still progress. It started at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}")]
     EpochInProgress {
         current_block_time: u64,
         epoch_start: i64,
         epoch_end: i64,
+    },
+
+    #[error("Mixnode {node_id} has already been rewarded during the current rewarding epoch ({epoch_details})")]
+    MixnodeAlreadyRewarded {
+        node_id: NodeId,
+        epoch_details: FullEpochId,
+    },
+
+    #[error("Mixnode {node_id} hasn't been selected to the rewarding set in this epoch ({epoch_details})")]
+    MixnodeNotInRewardedSet {
+        node_id: NodeId,
+        epoch_details: FullEpochId,
     },
     //
     // #[error("Overflow Error")]

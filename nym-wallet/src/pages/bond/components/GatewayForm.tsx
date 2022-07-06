@@ -8,7 +8,7 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { bondGateway, simulateBondGateway, simulateVestingBondGateway, vestingBondGateway } from 'src/requests';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
-import { Fee, TokenPoolSelector } from '../../../components';
+import { TokenPoolSelector } from '../../../components';
 import { AppContext } from '../../../context/main';
 import { gatewayValidationSchema } from '../validationSchema';
 import { ConfirmationModal } from './ConfirmationModal';

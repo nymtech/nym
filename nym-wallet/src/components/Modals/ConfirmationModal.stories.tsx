@@ -1,9 +1,8 @@
-import * as React from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { ErrorOutline } from '@mui/icons-material';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Button } from '@mui/material';
 import { ConfirmationModal } from './ConfirmationModal';
-import { ErrorOutline } from '@mui/icons-material';
 
 export default {
   title: 'Modals/ConfirmationModal',

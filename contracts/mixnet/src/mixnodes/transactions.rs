@@ -175,7 +175,7 @@ pub(crate) fn _try_remove_mixnode(
 
     // remove the bond and if there are no delegations left, also the rewarding information
     // decrement the associated layer count
-    storage::cleanup_mixnode_storage(deps.storage, &node_details)?;
+    storage::cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
 
     let mut response = Response::new();
 

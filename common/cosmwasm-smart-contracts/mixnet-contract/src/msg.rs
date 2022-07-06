@@ -2,19 +2,56 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::MixNodeCostParams;
-use crate::reward_params::NodeRewardParams;
-use crate::{ContractStateParams, NodeId};
+use crate::reward_params::{
+    EpochRewardParams, IntervalRewardParams, NodeRewardParams, RewardingParams,
+};
+use crate::{ContractStateParams, NodeId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
+use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
     pub rewarding_denom: String,
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,
+    pub rewarding_parameters: InitialRewardingParams,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct InitialRewardingParams {
+    pub initial_reward_pool: Decimal,
+    pub initial_staking_supply: Decimal,
+    pub sybil_resistance: Percent,
+    pub active_set_work_factor: Decimal,
+    pub rewarded_set_size: u32,
+    pub active_set_size: u32,
+}
+
+impl From<InitialRewardingParams> for RewardingParams {
+    fn from(init: InitialRewardingParams) -> Self {
+        todo!()
+        // RewardingParams {
+        //     interval: IntervalRewardParams {
+        //         reward_pool: Default::default(),
+        //         staking_supply: Default::default(),
+        //         epoch_reward_budget: Default::default(),
+        //         stake_saturation_point: Default::default(),
+        //         sybil_resistance_percent: (),
+        //         active_set_work_factor: Default::default(),
+        //         epochs_in_interval: 0,
+        //     },
+        //     epoch: EpochRewardParams {
+        //         rewarded_set_size: 0,
+        //         active_set_size: 0,
+        //     },
+        // }
+    }
 }
 
 impl InstantiateMsg {

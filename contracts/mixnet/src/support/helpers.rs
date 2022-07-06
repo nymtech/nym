@@ -57,7 +57,7 @@ pub(crate) fn validate_pledge(
     Ok(pledge.pop().unwrap())
 }
 
-pub(crate) fn is_authorized(
+pub(crate) fn ensure_is_authorized(
     sender: Addr,
     storage: &dyn Storage,
 ) -> Result<(), MixnetContractError> {

@@ -12,8 +12,8 @@ use mixnet_contract_common::mixnode::{
 };
 use mixnet_contract_common::rewarding::HistoricalRewards;
 use mixnet_contract_common::{
-    Addr, Coin, EpochId, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNode,
-    MixNodeBond, NodeId,
+    Addr, Coin, EpochId, FullEpochId, IdentityKey, IdentityKeyRef, Layer, LayerDistribution,
+    MixNode, MixNodeBond, NodeId,
 };
 use mixnet_contract_common::{SphinxKey, U128};
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,35 @@ const MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE: &str = "mnh";
 //
 //
 
+// TODO: perhaps introduce another `Map` like OLD_MIXNODES, where we would
+// keep track of `node_id -> IdentityKey` so we'd known a bit more about past mixnodes
+
 pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
+pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new("mixnode_id_counter");
+
+// TODO: after using it for a while, this one should definitely be moved to rewards storage
+pub const MIXNODE_REWARDING: Map<NodeId, MixNodeRewarding> =
+    Map::new(MIXNODES_REWARDING_PK_NAMESPACE);
+
+// TODO: should it exist here or in the rewards storage?
+pub(crate) const HISTORICAL_PERIODS_RECORDS: Map<(NodeId, Period), HistoricalRewards> =
+    Map::new(MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE);
+
+// mixnode_bonds() is the storage access function.
+pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
+    let indexes = MixnodeBondIndex {
+        owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
+        identity_key: UniqueIndex::new(
+            |d| d.mix_node.identity_key.clone(),
+            MIXNODES_IDENTITY_IDX_NAMESPACE,
+        ),
+        sphinx_key: UniqueIndex::new(
+            |d| d.mix_node.sphinx_key.clone(),
+            MIXNODES_SPHINX_IDX_NAMESPACE,
+        ),
+    };
+    IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
+}
 
 // pub fn increment_layer_count(
 //     storage: &mut dyn Storage,
@@ -69,8 +97,6 @@ pub(crate) fn assign_layer(store: &mut dyn Storage) -> StdResult<Layer> {
     Ok(fewest)
 }
 
-pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new("mixnode_id_counter");
-
 pub(crate) fn next_mixnode_id_counter(store: &mut dyn Storage) -> StdResult<NodeId> {
     let id: NodeId = MIXNODE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     MIXNODE_ID_COUNTER.save(store, &id)?;
@@ -95,31 +121,8 @@ impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
     }
 }
 
-// mixnode_bonds() is the storage access function.
-pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
-    let indexes = MixnodeBondIndex {
-        owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
-        identity_key: UniqueIndex::new(
-            |d| d.mix_node.identity_key.clone(),
-            MIXNODES_IDENTITY_IDX_NAMESPACE,
-        ),
-        sphinx_key: UniqueIndex::new(
-            |d| d.mix_node.sphinx_key.clone(),
-            MIXNODES_SPHINX_IDX_NAMESPACE,
-        ),
-    };
-    IndexedMap::new(MIXNODES_PK_NAMESPACE, indexes)
-}
-
-pub const MIXNODE_REWARDING: Map<NodeId, MixNodeRewarding> =
-    Map::new(MIXNODES_REWARDING_PK_NAMESPACE);
-
-// TODO: should it exist here or in the rewards storage?
-pub(crate) const HISTORICAL_PERIODS_RECORDS: Map<(NodeId, Period), HistoricalRewards> =
-    Map::new(MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE);
-
-fn dummy_get_current_epoch() -> EpochId {
-    42
+fn dummy_get_current_epoch() -> FullEpochId {
+    Default::default()
 }
 
 pub(crate) fn save_new_mixnode(
@@ -163,7 +166,7 @@ pub(crate) fn save_new_mixnode(
     Ok((node_id, layer))
 }
 
-pub(crate) fn cleanup_mixnode_storage(
+pub(crate) fn cleanup_post_unbond_mixnode_storage(
     storage: &mut dyn Storage,
     current_details: &MixNodeDetails,
 ) -> Result<(), MixnetContractError> {
@@ -182,6 +185,13 @@ pub(crate) fn cleanup_mixnode_storage(
     // purge all information regarding rewarding parameters
     if current_details.rewarding_details.delegates == Decimal::zero() {
         MIXNODE_REWARDING.remove(storage, node_id);
+    } else {
+        // otherwise just set operator's tokens to zero as to indicate they have unbonded
+        // and already claimed those
+        let mut zeroed = current_details.rewarding_details.clone();
+        zeroed.operator = Decimal::zero();
+
+        MIXNODE_REWARDING.save(storage, node_id, &zeroed)?;
     }
 
     // TODO: this depends whether we are actually creating this entry or not
@@ -189,6 +199,8 @@ pub(crate) fn cleanup_mixnode_storage(
 
     decrement_layer_count(storage, current_details.bond_information.layer)
 }
+
+//
 
 //
 // #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]

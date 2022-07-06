@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::EpochId;
+use crate::{EpochId, IntervalId};
 use cosmwasm_std::Env;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
@@ -60,9 +60,26 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize)]
+// uniquely identifies particular epoch
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct FullEpochId {
+    interval_id: IntervalId,
+    epoch_id: EpochId,
+}
+
+impl Display for FullEpochId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "(interval: {}, epoch: {})",
+            self.interval_id, self.epoch_id
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Interval {
-    id: u32,
+    id: IntervalId,
     epochs_in_interval: u32,
 
     // TODO: possibly put into separate struct?
@@ -86,7 +103,7 @@ impl JsonSchema for Interval {
         let object_validation = schema_object.object();
         object_validation
             .properties
-            .insert("id".to_owned(), gen.subschema_for::<u32>());
+            .insert("id".to_owned(), gen.subschema_for::<IntervalId>());
         object_validation.required.insert("id".to_owned());
 
         object_validation
@@ -177,6 +194,25 @@ impl Interval {
             .expect("Invalid timestamp from env.block.time"),
             current_epoch_id: 0,
             epoch_length,
+        }
+    }
+
+    pub const fn current_epoch_id(&self) -> EpochId {
+        self.current_epoch_id
+    }
+
+    pub const fn current_interval_id(&self) -> IntervalId {
+        self.id
+    }
+
+    pub const fn epochs_in_interval(&self) -> u32 {
+        self.epochs_in_interval
+    }
+
+    pub const fn current_full_epoch_id(&self) -> FullEpochId {
+        FullEpochId {
+            interval_id: self.id,
+            epoch_id: self.current_epoch_id,
         }
     }
 

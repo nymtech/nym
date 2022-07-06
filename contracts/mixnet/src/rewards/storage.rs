@@ -2,17 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Decimal, StdResult, Storage, Uint128};
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::mixnode::{MixNodeRewarding, Period};
 use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::InitialRewardingParams;
+use mixnet_contract_common::rewarding::HistoricalRewards;
+use mixnet_contract_common::{InitialRewardingParams, NodeId};
 use serde::{Deserialize, Serialize};
 
 const REWARDING_PARAMS_KEY: &str = "rparams";
 const PENDING_REWARD_POOL_KEY: &str = "prp";
+const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
+const MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE: &str = "mnh";
 
 // current parameters used for rewarding purposes
 pub(crate) const REWARDING_PARAMS: Item<'_, RewardingParams> = Item::new(REWARDING_PARAMS_KEY);
+pub(crate) const PENDING_REWARD_POOL_CHANGE: Item<'_, RewardPoolChange> =
+    Item::new(PENDING_REWARD_POOL_KEY);
+
+pub const MIXNODE_REWARDING: Map<NodeId, MixNodeRewarding> =
+    Map::new(MIXNODES_REWARDING_PK_NAMESPACE);
+pub(crate) const HISTORICAL_PERIODS_RECORDS: Map<(NodeId, Period), HistoricalRewards> =
+    Map::new(MIXNODES_HISTORICAL_RECORDS_PK_NAMESPACE);
 
 #[derive(Serialize, Deserialize, Default)]
 pub(crate) struct RewardPoolChange {
@@ -26,9 +37,6 @@ pub(crate) struct RewardPoolChange {
     #[allow(unused)]
     added: Decimal,
 }
-
-pub(crate) const PENDING_REWARD_POOL_CHANGE: Item<'_, RewardPoolChange> =
-    Item::new(PENDING_REWARD_POOL_KEY);
 
 pub fn reward_accounting(
     storage: &mut dyn Storage,

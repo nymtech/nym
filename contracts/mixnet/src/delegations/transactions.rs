@@ -131,28 +131,28 @@ pub(crate) fn _try_delegate_to_mixnode(
 
     let delegate = deps.api.addr_validate(delegate)?;
 
-    // check if the target node actually exists
-    if mixnodes_storage::mixnode_bonds()
-        .may_load(deps.storage, mix_id)?
-        .is_none()
-    {
-        return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
-    }
+    // check if the target node actually exists and if so, grab rewarding-related details
+    let mut mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(storage, mix_id)? {
+        Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
+        _ => {
+            return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
+        }
+    };
 
-    // add the delegation amount to the node and finish the current period
-
-    todo!()
-
-    // let period = 42;
+    // TODO: this should be done only at the time of actually putting the delegation in
+    // // update rewarding parameters with the new delegation
+    // mix_rewarding.add_base_delegation(&delegation);
+    // rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding);
     //
     // let delegation = Delegation::new(
     //     delegate,
     //     mix_id,
-    //     period,
+    //     mix_rewarding.total_unit_reward,
     //     delegation.clone(),
     //     block_height,
     //     proxy.clone(),
     // );
+
     //
     // if storage::PENDING_DELEGATION_EVENTS
     //     .may_load(deps.storage, delegation.event_storage_key())?

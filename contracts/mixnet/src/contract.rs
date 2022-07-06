@@ -73,6 +73,7 @@ fn default_initial_state(
         rewarding_validator_address,
         rewarding_denom: rewarding_denom.clone(),
         params: ContractStateParams {
+            minimum_mixnode_delegation: None,
             minimum_mixnode_pledge: Coin {
                 denom: rewarding_denom.clone(),
                 amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,

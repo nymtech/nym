@@ -159,17 +159,22 @@ impl LayerDistribution {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractStateParams {
-    pub minimum_mixnode_pledge: Coin, // minimum amount a mixnode must pledge to get into the system
-    pub minimum_gateway_pledge: Coin, // minimum amount a gateway must pledge to get into the system
+    /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
+    pub minimum_mixnode_delegation: Option<Coin>,
 
-                                      // // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
-                                      // // based on overall demand for private bandwidth-
-                                      // pub mixnode_rewarded_set_size: u32,
-                                      //
-                                      // // subset of rewarded mixnodes that are actively receiving mix traffic
-                                      // // used to handle shorter-term (e.g. hourly) fluctuations of demand
-                                      // pub mixnode_active_set_size: u32,
-                                      // pub staking_supply: Uint128,
+    /// Minimum amount a mixnode must pledge to get into the system.
+    pub minimum_mixnode_pledge: Coin,
+
+    /// Minimum amount a gateway must pledge to get into the system.
+    pub minimum_gateway_pledge: Coin,
+    // // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
+    // // based on overall demand for private bandwidth-
+    // pub mixnode_rewarded_set_size: u32,
+    //
+    // // subset of rewarded mixnodes that are actively receiving mix traffic
+    // // used to handle shorter-term (e.g. hourly) fluctuations of demand
+    // pub mixnode_active_set_size: u32,
+    // pub staking_supply: Uint128,
 }
 
 impl Display for ContractStateParams {
@@ -184,7 +189,12 @@ impl Display for ContractStateParams {
             f,
             "minimum gateway pledge: {}; ",
             self.minimum_gateway_pledge
-        )
+        )?;
+        if let Some(minimum_delegation) = &self.minimum_mixnode_delegation {
+            write!(f, "minimum delegation: {}; ", minimum_delegation)?;
+        }
+
+        Ok(())
         // write!(
         //     f,
         //     "mixnode rewarded set size: {}",

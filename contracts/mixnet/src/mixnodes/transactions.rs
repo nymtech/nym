@@ -1,7 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage::{self};
+use super::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries::query_owns_mixnode;
 use crate::mixnodes::helpers::{
@@ -12,7 +12,6 @@ use crate::support::helpers::{
     ensure_no_existing_bond, send_to_proxy_or_owner, validate_node_identity_signature,
     validate_pledge,
 };
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };

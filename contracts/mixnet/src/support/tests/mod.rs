@@ -11,12 +11,14 @@
 #[cfg(test)]
 pub mod test_helpers {
     use crate::contract::instantiate;
+    use crate::delegations::storage as delegations_storage;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
-    use cosmwasm_std::{Empty, MemoryStorage, OwnedDeps};
-    use mixnet_contract_common::InstantiateMsg;
+    use cosmwasm_std::{Decimal, Empty, MemoryStorage, OwnedDeps, Storage};
+    use mixnet_contract_common::{
+        Delegation, InitialRewardingParams, InstantiateMsg, NodeId, Percent,
+    };
+    use std::time::Duration;
 
-    // use crate::contract::instantiate;
-    // use crate::delegations::storage as delegations_storage;
     // use crate::gateways::transactions::try_add_gateway;
     // use crate::interval;
     // use crate::interval::storage as interval_storage;
@@ -88,11 +90,28 @@ pub mod test_helpers {
     //     key
     // }
 
+    fn initial_rewarding_params() -> InitialRewardingParams {
+        let reward_pool = 250_000_000_000_000u128;
+        let staking_supply = 100_000_000_000_000u128;
+
+        InitialRewardingParams {
+            initial_reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(), // 250M * 1M (we're expressing it all in base tokens)
+            initial_staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
+            sybil_resistance: Percent::from_percentage_value(30).unwrap(),
+            active_set_work_factor: Decimal::percent(1000), // value '10'
+            rewarded_set_size: 240,
+            active_set_size: 100,
+        }
+    }
+
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
             rewarding_validator_address: "rewarder".into(),
             rewarding_denom: "unym".to_string(),
+            epochs_in_interval: 720,
+            epoch_duration: Duration::from_secs(60 * 60),
+            rewarding_parameters: initial_rewarding_params(),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);
@@ -127,18 +146,17 @@ pub mod test_helpers {
     //         .save(storage, delegation.storage_key(), &delegation)
     //         .unwrap();
     // }
-    //
-    // pub(crate) fn read_delegation(
-    //     storage: &dyn Storage,
-    //     mix: impl Into<String>,
-    //     owner: impl Into<Vec<u8>>,
-    //     block_height: u64,
-    // ) -> Option<Delegation> {
-    //     delegations_storage::delegations()
-    //         .may_load(storage, (mix.into(), owner.into(), block_height))
-    //         .unwrap()
-    // }
-    //
+
+    pub(crate) fn read_delegation(
+        storage: &dyn Storage,
+        mix: NodeId,
+        owner: impl Into<Vec<u8>>,
+    ) -> Option<Delegation> {
+        delegations_storage::delegations()
+            .may_load(storage, (mix, owner.into()))
+            .unwrap()
+    }
+
     // pub(crate) fn update_env_and_progress_interval(env: &mut Env, storage: &mut dyn Storage) {
     //     // make sure current block time is within the expected next interval
     //     env.block.time = Timestamp::from_seconds(

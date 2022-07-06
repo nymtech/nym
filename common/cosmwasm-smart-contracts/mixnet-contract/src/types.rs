@@ -12,11 +12,14 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
 
 pub type EpochId = u32;
+pub type IntervalId = u32;
 pub type NodeId = u64;
 
 /// Percent represents a value between 0 and 100%
 /// (i.e. between 0.0 and 1.0)
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, PartialOrd, Serialize, Deserialize, JsonSchema,
+)]
 pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 
 impl Percent {
@@ -28,9 +31,12 @@ impl Percent {
         }
     }
 
-    // essentially allows the TryFrom u8, u16, u32, u64, etc
-    pub fn from_percentage_value<P: Into<u64>>(value: P) -> Result<Self, MixnetContractError> {
-        Percent::new(Decimal::percent(value.into()))
+    pub fn is_zero(&self) -> bool {
+        self.0 == Decimal::zero()
+    }
+
+    pub fn from_percentage_value(value: u64) -> Result<Self, MixnetContractError> {
+        Percent::new(Decimal::percent(value))
     }
 
     pub fn value(&self) -> Decimal {
@@ -270,7 +276,7 @@ mod tests {
 
     #[test]
     fn percent_serde() {
-        let valid_value = Percent::from_percentage_value(80u32).unwrap();
+        let valid_value = Percent::from_percentage_value(80).unwrap();
         let serialized = serde_json::to_string(&valid_value).unwrap();
 
         println!("{}", serialized);
@@ -283,7 +289,7 @@ mod tests {
         }
         assert_eq!(
             serde_json::from_str::<'_, Percent>("\"0.95\"").unwrap(),
-            Percent::from_percentage_value(95u32).unwrap()
+            Percent::from_percentage_value(95).unwrap()
         )
     }
 }

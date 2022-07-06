@@ -3,7 +3,9 @@
 use crate::{ContractStateParams, IdentityKey, IdentityKeyRef, Interval, Layer, NodeId};
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
+use crate::rewarding::RewardDistribution;
 pub use contracts_common::events::*;
+
 // FIXME: This should becoma an Enum
 // event types
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
@@ -17,7 +19,7 @@ pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
 pub const MIXNODE_UNBONDING_EVENT_TYPE: &str = "mixnode_unbonding";
 pub const REWARDING_VALIDATOR_UPDATE_EVENT_TYPE: &str = "rewarding_validator_address_update";
 pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
-pub const OPERATOR_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
+pub const MIXNODE_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_INTERVAL_EVENT_TYPE: &str = "advance_interval";
@@ -61,13 +63,13 @@ pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_a
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
 
 // rewarding
-pub const INTERVAL_ID_KEY: &str = "interval_id";
+pub const INTERVAL_KEY: &str = "interval_details";
 pub const TOTAL_MIXNODE_REWARD_KEY: &str = "total_node_reward";
-pub const OPERATOR_REWARD_KEY: &str = "operator_reward";
 pub const TOTAL_PLEDGE_KEY: &str = "pledge";
 pub const TOTAL_DELEGATIONS_KEY: &str = "delegated";
-pub const LAMBDA_KEY: &str = "lambda";
-pub const SIGMA_KEY: &str = "sigma";
+pub const OPERATOR_REWARD_KEY: &str = "operator_reward";
+pub const DELEGATES_REWARD_KEY: &str = "delegates_reward";
+
 pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
 pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
 pub const NO_REWARD_REASON_KEY: &str = "no_reward_reason";
@@ -115,6 +117,10 @@ pub enum MixnetEvent {
         old: Addr,
         new: Addr,
     },
+
+    MixnodeRewarding {
+        //
+    },
 }
 
 impl MixnetEvent {
@@ -126,6 +132,7 @@ impl MixnetEvent {
             MixnetEvent::UpdateRewardingValidatorAddress { .. } => {
                 REWARDING_VALIDATOR_UPDATE_EVENT_TYPE
             }
+            MixnetEvent::MixnodeRewarding { .. } => MIXNODE_REWARDING_EVENT_TYPE,
         }
     }
 }
@@ -394,56 +401,37 @@ pub fn new_settings_update_event(
     event
 }
 
-pub fn new_not_found_mix_operator_rewarding_event(
-    interval_id: u32,
-    identity: IdentityKeyRef<'_>,
-) -> Event {
-    Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
-        .add_attribute(NODE_IDENTITY_KEY, identity)
+pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
+    Event::new(MIXNODE_REWARDING_EVENT_TYPE)
+        .add_attribute(INTERVAL_KEY, interval.to_string())
+        .add_attribute(NODE_ID, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
-pub fn new_too_fresh_bond_mix_operator_rewarding_event(
-    interval_id: u32,
-    identity: IdentityKeyRef<'_>,
-) -> Event {
-    Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
-        .add_attribute(NODE_IDENTITY_KEY, identity)
-        .add_attribute(NO_REWARD_REASON_KEY, BOND_TOO_FRESH_VALUE)
-}
-
-pub fn new_zero_uptime_mix_operator_rewarding_event(
-    interval_id: u32,
-    identity: IdentityKeyRef<'_>,
-) -> Event {
-    Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-        .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
-        .add_attribute(NODE_IDENTITY_KEY, identity)
+pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
+    Event::new(MIXNODE_REWARDING_EVENT_TYPE)
+        .add_attribute(INTERVAL_KEY, interval.to_string())
+        .add_attribute(NODE_ID, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_UPTIME_VALUE)
 }
 
-// #[allow(clippy::too_many_arguments)]
-// pub fn new_mix_operator_rewarding_event(
-//     interval_id: u32,
-//     identity: IdentityKeyRef<'_>,
-//     node_reward_result: NodeRewardResult,
-//     node_pledge: Uint128,
-//     node_delegation: Uint128,
-// ) -> Event {
-//     Event::new(OPERATOR_REWARDING_EVENT_TYPE)
-//         .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
-//         .add_attribute(NODE_IDENTITY_KEY, identity)
-//         .add_attribute(TOTAL_PLEDGE_KEY, node_pledge)
-//         .add_attribute(TOTAL_DELEGATIONS_KEY, node_delegation)
-//         .add_attribute(
-//             TOTAL_MIXNODE_REWARD_KEY,
-//             node_reward_result.reward().to_string(),
-//         )
-//         .add_attribute(LAMBDA_KEY, node_reward_result.lambda().to_string())
-//         .add_attribute(SIGMA_KEY, node_reward_result.sigma().to_string())
-// }
+pub fn new_mix_rewarding_event(
+    interval: Interval,
+    node_id: NodeId,
+    reward_distribution: RewardDistribution,
+) -> Event {
+    Event::new(MIXNODE_REWARDING_EVENT_TYPE)
+        .add_attribute(INTERVAL_KEY, interval.to_string())
+        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(
+            OPERATOR_REWARD_KEY,
+            reward_distribution.operator.to_string(),
+        )
+        .add_attribute(
+            DELEGATES_REWARD_KEY,
+            reward_distribution.delegates.to_string(),
+        )
+}
 
 pub fn new_mix_delegators_rewarding_event(
     interval_id: u32,
@@ -452,7 +440,7 @@ pub fn new_mix_delegators_rewarding_event(
     further_delegations: bool,
 ) -> Event {
     Event::new(MIX_DELEGATORS_REWARDING_EVENT_TYPE)
-        .add_attribute(INTERVAL_ID_KEY, interval_id.to_string())
+        .add_attribute(INTERVAL_KEY, interval_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(
             DISTRIBUTED_DELEGATION_REWARDS_KEY,

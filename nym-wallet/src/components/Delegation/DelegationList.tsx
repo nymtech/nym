@@ -16,7 +16,6 @@ import {
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
@@ -54,12 +53,12 @@ interface HeadCell {
 
 const headCells: HeadCell[] = [
   { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
-  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'center' },
-  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'center' },
-  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'center' },
-  { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'center' },
-  { id: 'amount', label: 'Delegation', sortable: true, align: 'center' },
-  { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'center' },
+  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'left' },
+  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
+  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
+  { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
+  { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
+  { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -142,40 +141,21 @@ export const DelegationList: React.FC<{
             items.sort(getComparator(order, orderBy)).map((item) => (
               <TableRow key={item.node_identity}>
                 <TableCell>
-                  <CopyToClipboard
-                    sx={{ fontSize: 16, mr: 1 }}
-                    value={item.node_identity}
-                    tooltip={
-                      <>
-                        Copy identity key <strong>{item.node_identity}</strong> to clipboard
-                      </>
-                    }
+                  <Link
+                    target="_blank"
+                    href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
+                    text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                    color="text.primary"
+                    noIcon={true}
                   />
-                  <Tooltip
-                    title={
-                      <>
-                        Click to view <strong>{item.node_identity}</strong> in the Network Explorer
-                      </>
-                    }
-                    placement="right"
-                    arrow
-                  >
-                    <Link
-                      target="_blank"
-                      href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                      text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
-                    />
-                  </Tooltip>
                 </TableCell>
-                <TableCell align="center">{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
-                <TableCell align="center">
-                  {!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}
-                </TableCell>
-                <TableCell align="center">
+                <TableCell>{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
+                <TableCell>{!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}</TableCell>
+                <TableCell>
                   {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
                 </TableCell>
-                <TableCell align="center">{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
-                <TableCell align="center">
+                <TableCell>{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
+                <TableCell>
                   <Tooltip
                     placement="right"
                     title={
@@ -216,7 +196,7 @@ export const DelegationList: React.FC<{
                     <span style={{ cursor: 'pointer' }}>{`${item.amount.amount} ${item.amount.denom}`}</span>
                   </Tooltip>
                 </TableCell>
-                <TableCell align="center">
+                <TableCell>
                   {!item.accumulated_rewards
                     ? '-'
                     : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}

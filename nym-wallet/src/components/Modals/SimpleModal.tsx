@@ -44,7 +44,7 @@ export const SimpleModal: React.FC<{
         <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
           {header}
         </Typography>
-        {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" color="primary" />}
+        {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
       </Stack>
       {subHeader && (
         <Typography

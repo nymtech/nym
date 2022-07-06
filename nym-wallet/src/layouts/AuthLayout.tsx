@@ -31,7 +31,7 @@ export const AuthLayout: React.FC = ({ children }) => {
         }}
       >
         <Stack spacing={3} alignItems="center" sx={{ width: 1080 }}>
-          <NymWordmark width={75} />
+          <NymWordmark width={75} fill="#FFFFFF" />
           <Step />
           {children}
         </Stack>

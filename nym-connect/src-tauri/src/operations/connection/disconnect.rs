@@ -1,4 +1,4 @@
-use crate::error::BackendError;
+use crate::error::Result;
 use crate::models::ConnectResult;
 use crate::State;
 use std::sync::Arc;
@@ -8,13 +8,12 @@ use tokio::sync::RwLock;
 pub async fn start_disconnecting(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
-) -> Result<ConnectResult, BackendError> {
+) -> Result<ConnectResult> {
     let mut guard = state.write().await;
 
-    guard.start_disconnecting(&window).await;
+    guard.start_disconnecting(&window).await?;
 
     Ok(ConnectResult {
-        // WIP(JON): fixme
-        address: "Test".to_string(),
+        address: "PLACEHOLDER".to_string(),
     })
 }

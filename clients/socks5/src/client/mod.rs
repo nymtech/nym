@@ -287,12 +287,15 @@ impl NymClient {
     pub async fn run_and_listen(&mut self, mut receiver: Socks5ControlMessageReceiver) {
         self.start().await;
         tokio::select! {
-            message = receiver.next() =>  match message {
-                Some(Socks5ControlMessage::Stop) => {
-                    log::info!("Received: {:?}", message);
-                    log::info!("Shutting down");
+            message = receiver.next() => {
+                log::debug!("Received message: {:?}", message);
+                match message {
+                    Some(Socks5ControlMessage::Stop) => {
+                        log::info!("Shutting down");
+                        log::info!("Graceful shutdown of tasks not yet implemented, you might see (harmless) panics until then");
+                    }
+                    None => log::debug!("None"),
                 }
-                None => log::info!("none"),
             }
         }
     }

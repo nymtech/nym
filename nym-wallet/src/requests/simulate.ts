@@ -60,3 +60,6 @@ export const simulateVestingUpdateMixnode = async (args: any) =>
 
 export const simulateWithdrawVestedCoins = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', args);
+
+export const simulateSend = async ({ address, amount }: { address: string; amount: MajorCurrencyAmount }) =>
+  invokeWrapper<FeeDetails>('simulate_send', { address, amount });

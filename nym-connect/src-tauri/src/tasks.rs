@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 use config::NymConfig;
 #[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
-use nym_socks5::client::Socks5ControlMessageSender;
+use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
 use crate::{error::Result, state::State};
 
@@ -25,7 +25,7 @@ pub fn start_nym_socks5_client(
     id: &str,
 ) -> Result<(Socks5ControlMessageSender, StatusReceiver, GatewayEndpoint)> {
     log::info!("Loading config from file: {id}");
-    let config = nym_socks5::client::config::Config::load_from_file(Some(id))
+    let config = Socks5Config::load_from_file(Some(id))
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 

@@ -1,10 +1,13 @@
 use std::time::Duration;
 
+use ::config::NymConfig;
 use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;
 
-use nym_socks5::client::{Socks5ControlMessage, Socks5ControlMessageSender};
+use nym_socks5::client::{
+    config::Config as Socks5Config, Socks5ControlMessage, Socks5ControlMessageSender,
+};
 
 use crate::{
     config::{self, socks5_config_id_appended_with},
@@ -79,6 +82,13 @@ impl State {
             .as_ref()
             .ok_or(BackendError::CouldNotGetIdWithoutGateway)
             .and_then(|gateway_id| socks5_config_id_appended_with(gateway_id))
+    }
+
+    pub fn load_socks5_config(&self) -> Result<Socks5Config> {
+        let id = self.get_config_id()?;
+        let config = Socks5Config::load_from_file(Some(&id))
+            .tap_err(|_| log::warn!("Failed to load configuration file"))?;
+        Ok(config)
     }
 
     /// Start connecting by first creating a config file, followed by starting a thread running the

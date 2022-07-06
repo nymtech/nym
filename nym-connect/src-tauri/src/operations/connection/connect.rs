@@ -11,6 +11,10 @@ pub async fn start_connecting(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult> {
+    let a = crate::operations::export::export_keys(state.clone()).await?;
+    println!("{}", a);
+
+
     let status_receiver = {
         let mut state_w = state.write().await;
         state_w.start_connecting(&window).await?

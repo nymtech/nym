@@ -43,8 +43,9 @@ fn main() {
             crate::operations::connection::connect::set_service_provider,
             crate::operations::connection::connect::start_connecting,
             crate::operations::connection::disconnect::start_disconnecting,
-            crate::operations::window::hide_window,
             crate::operations::directory::get_services,
+            crate::operations::export::export_keys,
+            crate::operations::window::hide_window,
         ])
         .menu(Menu::new().add_default_app_submenu_if_macos())
         .system_tray(create_tray_menu())

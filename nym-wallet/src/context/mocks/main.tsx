@@ -32,6 +32,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
         clearBalance: () => undefined,
         fetchBalance: async () => undefined,
         fetchTokenAllocation: async () => undefined,
+        refreshBalances: async () => {},
       },
       showAdmin: false,
       showTerminal: false,

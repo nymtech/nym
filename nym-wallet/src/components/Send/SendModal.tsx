@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
-import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { MajorCurrencyAmount } from '@nymproject/types';
 import { AppContext, urls } from 'src/context';
+import { useGetFee } from 'src/hooks/useGetFee';
 import { send } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { simulateSend } from 'src/requests/simulate';
@@ -15,21 +16,20 @@ export const SendModal = ({ onClose }: { onClose: () => void }) => {
   const [toAddress, setToAddress] = useState<string>('');
   const [amount, setAmount] = useState<MajorCurrencyAmount>();
   const [modal, setModal] = useState<'send' | 'send details'>('send');
-  const [fee, setFee] = useState<FeeDetails>();
   const [error, setError] = useState<string>();
   const [sendError, setSendError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
 
   const { clientDetails, userBalance, network } = useContext(AppContext);
+  const { fee, getFee } = useGetFee();
 
   const handleOnNext = async () => {
     if (amount) {
       setIsLoading(true);
       setError(undefined);
       try {
-        const simulatedFee = await simulateSend({ address: toAddress, amount });
-        setFee(simulatedFee);
+        await getFee(simulateSend, { address: toAddress, amount });
         setModal('send details');
       } catch (e) {
         setError(e as string);
@@ -45,7 +45,7 @@ export const SendModal = ({ onClose }: { onClose: () => void }) => {
     setIsLoading(true);
     setError(undefined);
     try {
-      const txResponse = await send({ amount: val, address: to, memo: '' });
+      const txResponse = await send({ amount: val, address: to, memo: '', fee: fee?.fee });
       setTxDetails({
         amount: `${amount?.amount} ${clientDetails?.denom}`,
         txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,

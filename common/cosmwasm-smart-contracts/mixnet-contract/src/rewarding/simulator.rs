@@ -3,19 +3,15 @@
 
 use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
-use crate::mixnode::{MixNodeCostParams, MixNodeRewarding, Period};
+use crate::mixnode::{MixNodeCostParams, MixNodeRewarding};
 use crate::reward_params::{IntervalRewardParams, NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
-use crate::rewarding::{HistoricalRewards, RewardDistribution};
+use crate::rewarding::RewardDistribution;
 use crate::{Delegation, Interval, Percent};
-use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use std::collections::HashMap;
+use cosmwasm_std::{Addr, Coin, Decimal};
 
 pub struct Simulator {
     pub node_rewarding_details: MixNodeRewarding,
-
-    // note that delegations and historical data are stored under separate storage keys in the contract
-    pub node_historical_records: HashMap<Period, HistoricalRewards>,
     pub node_delegations: Vec<Delegation>,
     pub system_rewarding_params: RewardingParams,
 
@@ -41,7 +37,7 @@ impl Simulator {
                 &initial_pledge,
                 Default::default(),
             ),
-            node_historical_records: [(0, HistoricalRewards::new_zeroth())].into_iter().collect(),
+            // node_historical_records: [(0, HistoricalRewards::new_zeroth())].into_iter().collect(),
             node_delegations: vec![],
             system_rewarding_params,
             interval,
@@ -49,16 +45,16 @@ impl Simulator {
     }
 
     pub fn delegate(&mut self, amount: Coin) {
-        let period = self.node_rewarding_details.current_period;
-        let record = self.node_rewarding_details.increment_period();
-        self.node_historical_records.insert(period, record);
+        let cumulative_reward_ratio = self.node_rewarding_details.total_unit_reward;
+        // let record = self.node_rewarding_details.increment_period();
+        // self.node_historical_records.insert(period, record);
         self.node_rewarding_details.add_base_delegation(&amount);
 
         // we don't care about the owner/node details here
         self.node_delegations.push(Delegation::new(
             Addr::unchecked("bob"),
             42,
-            period,
+            cumulative_reward_ratio,
             amount,
             123,
             None,
@@ -67,25 +63,22 @@ impl Simulator {
 
     // TODO: ending period and all that stuff, to optimise it later
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
-        let starting_entry = self
-            .node_historical_records
-            .get(&delegation.period)
-            .expect("the delegation has been incorrectly saved");
+        // let starting_entry = self
+        //     .node_historical_records
+        //     .get(&delegation.period)
+        //     .expect("the delegation has been incorrectly saved");
+        //
+        // let starting_ratio = starting_entry.cumulative_reward_ratio;
+        // let ending_ratio = self.node_rewarding_details.full_reward_ratio();
+        // let adjust = starting_entry.cumulative_reward_ratio + UNIT_DELEGATION_BASE;
+        //
+        // (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
 
-        let starting_ratio = starting_entry.cumulative_reward_ratio;
+        let starting_ratio = delegation.cumulative_reward_ratio;
         let ending_ratio = self.node_rewarding_details.full_reward_ratio();
-        let adjust = starting_entry.cumulative_reward_ratio + UNIT_DELEGATION_BASE;
+        let adjust = starting_ratio + UNIT_DELEGATION_BASE;
 
         (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
-    }
-
-    fn decrement_historical_ref_count_or_remove(&mut self, period: Period) {
-        let entry = self.node_historical_records.get_mut(&period).unwrap();
-        if entry.reference_count == 1 {
-            self.node_historical_records.remove(&period);
-        } else {
-            entry.reference_count -= 1;
-        }
     }
 
     // since this is a simulator only, not something to be used in the production code, the unwraps are fine
@@ -94,11 +87,8 @@ impl Simulator {
         &mut self,
         delegation_index: usize,
     ) -> Result<(Coin, Coin), MixnetContractError> {
-        self.node_rewarding_details.increment_period();
-
         let delegation = self.node_delegations.remove(delegation_index);
         let reward = self.determine_delegation_reward(&delegation);
-        self.decrement_historical_ref_count_or_remove(delegation.period);
         self.node_rewarding_details
             .decrease_delegates(delegation.dec_amount() + reward)?;
 
@@ -189,6 +179,7 @@ mod tests {
     use super::*;
     use crate::reward_params::{EpochRewardParams, IntervalRewardParams};
     use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::Uint128;
     use std::time::Duration;
 
     fn base_simulator(initial_pledge: u128) -> Simulator {

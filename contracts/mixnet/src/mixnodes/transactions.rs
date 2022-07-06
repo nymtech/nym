@@ -4,7 +4,9 @@
 use super::storage::{self};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries::query_owns_mixnode;
-use crate::mixnodes::helpers::get_mixnode_details_by_owner;
+use crate::mixnodes::helpers::{
+    cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_owner, save_new_mixnode,
+};
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::support::helpers::{
     ensure_no_existing_bond, send_to_proxy_or_owner, validate_node_identity_signature,
@@ -101,7 +103,7 @@ fn _try_add_mixnode(
     )?;
 
     let node_identity = mixnode.identity_key.clone();
-    let (node_id, layer) = storage::save_new_mixnode(
+    let (node_id, layer) = save_new_mixnode(
         deps.storage,
         env,
         mixnode,
@@ -175,7 +177,7 @@ pub(crate) fn _try_remove_mixnode(
 
     // remove the bond and if there are no delegations left, also the rewarding information
     // decrement the associated layer count
-    storage::cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
+    cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
 
     let mut response = Response::new();
 

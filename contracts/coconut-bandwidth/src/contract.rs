@@ -44,6 +44,9 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::DepositFunds { data } => transactions::deposit_funds(deps, env, info, data),
+        ExecuteMsg::SpendCredential { data } => {
+            transactions::spend_credential(deps, env, info, data)
+        }
         ExecuteMsg::ReleaseFunds { funds } => transactions::release_funds(deps, env, info, funds),
     }
 }

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialData;
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
@@ -37,6 +38,15 @@ pub(crate) fn deposit_funds(
         .add_attribute(DEPOSIT_ENCRYPTION_KEY, data.encryption_key());
 
     Ok(Response::new().add_event(event))
+}
+
+pub(crate) fn spend_credential(
+    _deps: DepsMut<'_>,
+    _env: Env,
+    _info: MessageInfo,
+    _data: SpendCredentialData,
+) -> Result<Response, ContractError> {
+    Ok(Response::new())
 }
 
 pub(crate) fn release_funds(

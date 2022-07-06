@@ -5,7 +5,7 @@ use cosmwasm_std::Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::deposit::DepositData;
+use crate::{deposit::DepositData, spend_credential::SpendCredentialData};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -17,6 +17,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     DepositFunds { data: DepositData },
+    SpendCredential { data: SpendCredentialData },
     ReleaseFunds { funds: Coin },
 }
 

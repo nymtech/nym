@@ -3,7 +3,7 @@
 
 use super::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::support::helpers::is_authorized;
+use crate::support::helpers::ensure_is_authorized;
 use cosmwasm_std::{ensure, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
@@ -76,7 +76,7 @@ pub fn try_advance_epoch(
     // all checks have succeeded.
 
     // Only rewarding validator can attempt to advance epoch
-    is_authorized(info.sender, deps.storage)?;
+    ensure_is_authorized(info.sender, deps.storage)?;
 
     // we must make sure that we roll into new epoch / interval with up to date state
     // with no pending actions (like somebody wanting to update their profit margin)
@@ -94,6 +94,7 @@ pub fn try_advance_epoch(
         storage::save_interval(deps.storage, &current_interval.advance_epoch())?;
         update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
 
+        // TODO:  make sure we emit information about rewarding parameters
         todo!("produce response with events and stuff")
     } else {
         Err(MixnetContractError::EpochInProgress {

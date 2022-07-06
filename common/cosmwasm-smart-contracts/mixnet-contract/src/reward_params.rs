@@ -1,8 +1,9 @@
 use crate::{error::MixnetContractError, Percent, ONE, U128};
-use az::CheckedCast;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+pub type Performance = Percent;
 
 /// Parameters required by the mix-mining reward distribution that do not change during an interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
@@ -13,22 +14,18 @@ pub struct IntervalRewardParams {
     pub epoch_reward_budget: Decimal,
     pub stake_saturation_point: Decimal,
 
-    pub sybil_resistance_percent: Decimal,
+    pub sybil_resistance_percent: Percent,
     pub active_set_work_factor: Decimal,
-
-    // TODO: I'm not convinced about this one yet as we might end up accidentally duplicating it
-    // I think it will be more clear after implementation matures a bit
-    pub epochs_in_interval: u32,
 }
 
 /// Parameters required by the mix-mining reward distribution that could change during an interval
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
-pub struct EpochRewardParamsNew {
+pub struct EpochRewardParams {
     pub rewarded_set_size: u32,
     pub active_set_size: u32,
 }
 
-impl EpochRewardParamsNew {
+impl EpochRewardParams {
     pub(crate) fn dec_rewarded_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
@@ -45,7 +42,7 @@ impl EpochRewardParamsNew {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct RewardingParams {
     pub interval: IntervalRewardParams,
-    pub epoch: EpochRewardParamsNew,
+    pub epoch: EpochRewardParams,
 }
 
 impl RewardingParams {
@@ -65,6 +62,7 @@ impl RewardingParams {
     }
 }
 
+// TODO: possibly refactor this
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct NodeRewardParams {
     pub performance: Percent,

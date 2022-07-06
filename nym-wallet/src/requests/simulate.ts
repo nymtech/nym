@@ -50,5 +50,5 @@ export const simulateVestingUnbondMixnode = async (args: any) =>
 export const simulateVestingUpdateMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode', args);
 
-export const simulateWithdrawVestedCoins = async (args: any) =>
-  invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', args);
+export const simulateWithdrawVestedCoins = async ({ amount }: { amount: MajorCurrencyAmount }) =>
+  invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', { amount });

@@ -18,9 +18,6 @@ import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
-import { OverviewSVG } from '../icons/OverviewSVG';
-import { NetworkComponentsSVG } from '../icons/NetworksSVG';
-import { NodemapSVG } from '../icons/NodemapSVG';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
 import { DarkLightSwitchDesktop } from './Switch';
@@ -155,19 +152,17 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
 
   const linkProps = isExternal
     ? {
+        component: 'a',
         href: url,
         target: '_blank',
       }
-    : {
-        to: url,
-      };
+    : { component: !nested ? Link : 'div', to: url };
 
   return (
     <>
       <ListItem
         disablePadding
         disableGutters
-        component={!nested ? (isExternal ? 'a' : Link) : 'div'}
         {...linkProps}
         sx={{
           borderBottom: isChild ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',

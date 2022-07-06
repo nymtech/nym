@@ -66,9 +66,6 @@ pub(crate) fn save_new_mixnode(
     // save rewarding data
     rewards_storage::MIXNODE_REWARDING.save(storage, node_id, &mixnode_rewarding)?;
 
-    // save initial historical records
-    rewards_storage::HISTORICAL_PERIODS_RECORDS.save(storage, (node_id, 0), &initial_record)?;
-
     Ok((node_id, layer))
 }
 

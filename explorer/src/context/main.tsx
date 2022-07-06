@@ -10,6 +10,7 @@ import {
   SummaryOverviewResponse,
   ValidatorsResponse,
 } from '../typeDefs/explorer-api';
+import { TFilters } from '../components/Filters/Filters';
 import { Api } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
 
@@ -27,7 +28,7 @@ interface StateData {
 
 interface StateApi {
   fetchMixnodes: (status?: MixnodeStatus) => void;
-  filterMixnodes: (mixnodes: MixNodeResponse) => void;
+  filterMixnodes: (filters: any, status: any) => void;
   toggleMode: () => void;
   updateNavState: (id: number) => void;
 }
@@ -89,9 +90,21 @@ export const MainContextProvider: React.FC = ({ children }) => {
       });
     }
   };
-  const filterMixnodes = (arr: MixNodeResponse) => {
-    setMixnodes({ data: arr, isLoading: false });
+
+  const filterMixnodes = async (filters: TFilters, status?: any) => {
+    console.log(filters);
+    setMixnodes((d) => ({ ...d, isLoading: true }));
+    const mixnodes = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+    const filtered = mixnodes?.filter(
+      (m) =>
+        m.mix_node.profit_margin_percent >= filters.profitMargin.value[0] &&
+        m.mix_node.profit_margin_percent <= filters.profitMargin.value[1] &&
+        m.stake_saturation >= filters.stakeSaturation.value[0] / 100 &&
+        m.stake_saturation <= filters.stakeSaturation.value[1] / 100,
+    );
+    setMixnodes({ data: filtered, isLoading: false });
   };
+
   const fetchGateways = async () => {
     try {
       const data = await Api.fetchGateways();
@@ -144,6 +157,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }));
     updateNav(updated);
   };
+
   React.useEffect(() => {
     Promise.all([fetchOverviewSummary(), fetchGateways(), fetchValidators(), fetchBlock(), fetchCountryData()]);
   }, []);

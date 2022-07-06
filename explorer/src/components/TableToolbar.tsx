@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Box, useMediaQuery, TextField, MenuItem } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { Filters } from './Filters/Filters';
 
 type TableToolBarProps = {
   onChangeSearch: (arg: string) => void;
@@ -57,7 +58,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           </MenuItem>
         </Select>
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'middle' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <TextField
           sx={{
             width: matches ? '100%' : 350,
@@ -68,6 +69,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           placeholder="search"
           onChange={(event) => onChangeSearch(event.target.value)}
         />
+        <Filters />
         {childrenAfter}
       </Box>
     </Box>

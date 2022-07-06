@@ -6,9 +6,7 @@ use cw_storage_plus::{
     Index, IndexList, IndexedMap, IndexedSnapshotMap, Item, Map, Strategy, UniqueIndex,
 };
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::{
-    MixNodeCostParams, MixNodeDetails, MixNodeRewarding, Period,
-};
+use mixnet_contract_common::mixnode::{MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
 use mixnet_contract_common::rewarding::HistoricalRewards;
 use mixnet_contract_common::{
     Addr, Coin, EpochId, FullEpochId, IdentityKey, IdentityKeyRef, Layer, LayerDistribution,

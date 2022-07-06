@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::rewards::storage as rewards_storage;
-use cosmwasm_std::{Coin, Storage};
+use cosmwasm_std::{Coin, Decimal, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::Period;
 use mixnet_contract_common::NodeId;
 
 pub(crate) fn add_delegation(
     storage: &mut dyn Storage,
     amount: Coin,
     mix_id: NodeId,
-) -> Result<Period, MixnetContractError> {
+) -> Result<Decimal, MixnetContractError> {
     let mut mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(storage, mix_id)? {
         Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
         _ => {
@@ -19,8 +18,7 @@ pub(crate) fn add_delegation(
         }
     };
 
-    let period = mix_rewarding.current_period;
-    let record = mix_rewarding.increment_period();
-
+    let cumulative_reward_ratio = mix_rewarding.total_unit_reward;
+    mix_rewarding.add_base_delegation(&amount);
     todo!()
 }

@@ -381,7 +381,7 @@ mod tests {
         let expected = Interval {
             id: 0,
             epochs_in_interval: 100,
-            current_epoch_start: time::macros::datetime!(2021-08-24 12:00 UTC),
+            current_epoch_start: time::macros::datetime!(2021-08-23 13:00 UTC),
             current_epoch_id: 24,
             epoch_length: Duration::from_secs(60 * 60),
         };
@@ -398,7 +398,7 @@ mod tests {
         let expected = Interval {
             id: 1,
             epochs_in_interval: 100,
-            current_epoch_start: time::macros::datetime!(2021-08-24 12:00 UTC),
+            current_epoch_start: time::macros::datetime!(2021-08-23 13:00 UTC),
             current_epoch_id: 0,
             epoch_length: Duration::from_secs(60 * 60),
         };

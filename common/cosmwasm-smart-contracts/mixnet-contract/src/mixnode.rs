@@ -51,8 +51,6 @@ impl MixNodeDetails {
     }
 }
 
-pub type Period = u64;
-
 // the fields on this one are not really finalised yet and I don't think they're going to be until
 // I properly implement the thing
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -65,9 +63,6 @@ pub struct MixNodeRewarding {
 
     /// Total delegation and compounded reward earned by all node delegators.
     pub delegates: Decimal,
-
-    ///
-    pub current_period: Period,
 
     /// Cumulative reward earned by the "unit delegation" since the block 0.
     pub total_unit_reward: Decimal,
@@ -84,8 +79,6 @@ pub struct MixNodeRewarding {
 }
 
 impl MixNodeRewarding {
-    // A very important note: whenever this is initialised, we HAVE TO write historical data for
-    // period 0, otherwise rewarding will fail spectacularly.
     pub fn initialise_new(
         cost_params: MixNodeCostParams,
         initial_pledge: &Coin,
@@ -95,10 +88,8 @@ impl MixNodeRewarding {
             cost_params,
             operator: Decimal::from_atomics(initial_pledge.amount, 0).unwrap(),
             delegates: Decimal::zero(),
-            current_period: 1,
             total_unit_reward: Decimal::zero(),
             unit_delegation: UNIT_DELEGATION_BASE,
-            // current_period_reward: Decimal::zero(),
             last_rewarded_epoch: current_epoch,
         }
     }
@@ -234,16 +225,16 @@ impl MixNodeRewarding {
         self.distribute_rewards(reward_distribution, full_epoch_id)
     }
 
-    pub fn increment_period(&mut self) -> HistoricalRewards {
-        // let rewards = self.current_period_reward;
-
-        // self.past_periods_sum += rewards;
-        // self.current_period_reward = Decimal::zero();
-        self.current_period += 1;
-
-        // note: this already includes the sum for the period that just finished
-        HistoricalRewards::new(self.total_unit_reward)
-    }
+    // pub fn increment_period(&mut self) -> HistoricalRewards {
+    //     // let rewards = self.current_period_reward;
+    //
+    //     // self.past_periods_sum += rewards;
+    //     // self.current_period_reward = Decimal::zero();
+    //     self.current_period += 1;
+    //
+    //     // note: this already includes the sum for the period that just finished
+    //     HistoricalRewards::new(self.total_unit_reward)
+    // }
 
     // Special care must be taken when calling this method as it is expected it's called in conjunction
     // with `increment_period`

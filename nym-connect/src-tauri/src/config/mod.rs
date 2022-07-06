@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use client_core::config::GatewayEndpoint;
-use log::info;
 use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
@@ -15,7 +14,7 @@ use crate::{
     state::State,
 };
 
-pub static SOCKS5_CONFIG_ID: &str = "nym-connect";
+static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 const DEFAULT_ETH_PRIVATE_KEY: &str =
@@ -73,7 +72,7 @@ impl Config {
     }
 
     pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<()> {
-        info!("Initialising...");
+        log::info!("Initialising...");
 
         let service_provider = service_provider.to_owned();
         let chosen_gateway_id = chosen_gateway_id.to_owned();
@@ -91,7 +90,7 @@ impl Config {
         .join()
         .map_err(|_| BackendError::InitializationPanic)??;
 
-        info!("Configuration saved 🚀");
+        log::info!("Configuration saved 🚀");
         Ok(())
     }
 
@@ -101,7 +100,7 @@ impl Config {
 }
 
 pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
-    log::info!("Initialising client...");
+    log::trace!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
     let id = socks5_config_id_appended_with(&chosen_gateway_id)?;
@@ -166,7 +165,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         "Service provider port: {}",
         config.get_socks5().get_listening_port()
     );
-    info!("Client configuration completed.");
+    log::info!("Client configuration completed.");
 
     client_core::init::show_address(config.get_base());
     Ok(())

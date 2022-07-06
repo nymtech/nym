@@ -13,12 +13,14 @@ use crate::{error::Result, state::State};
 
 pub type StatusReceiver = futures::channel::oneshot::Receiver<Socks5StatusMessage>;
 
+/// Status messages sent by the SOCKS5 client task to the main tauri task.
 #[derive(Debug)]
 pub enum Socks5StatusMessage {
     /// The SOCKS5 task successfully stopped
     Stopped,
 }
 
+/// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub fn start_nym_socks5_client(
     id: &str,
 ) -> Result<(Socks5ControlMessageSender, StatusReceiver, GatewayEndpoint)> {
@@ -54,6 +56,8 @@ pub fn start_nym_socks5_client(
     Ok((socks5_ctrl_tx, socks5_status_rx, used_gateway))
 }
 
+/// The disconnect listener listens to the channel setup between the socks5 proxy task and the main
+/// tauri task. Primarily it listens for shutdown messages, and updates the state accordingly.
 pub fn start_disconnect_listener(
     state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,

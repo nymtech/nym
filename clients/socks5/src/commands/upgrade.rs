@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, MISSING_VALUE};
-use clap::{App, Arg, ArgMatches};
+use clap::{Args};
 use config::defaults::default_api_endpoints;
 use config::NymConfig;
 use std::fmt::Display;
@@ -49,14 +49,11 @@ fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> !
     process::exit(1)
 }
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("upgrade").about("Try to upgrade the client").arg(
-        Arg::with_name("id")
-            .long("id")
-            .help("Id of the nym-client we want to upgrade")
-            .takes_value(true)
-            .required(true),
-    )
+#[derive(Args, Clone)]
+pub(crate) struct Upgrade {
+    /// Id of the nym-client we want to upgrade
+    #[clap(long)]
+    id: String,
 }
 
 fn parse_config_version(config: &Config) -> Version {
@@ -95,7 +92,7 @@ fn parse_package_version() -> Version {
 
 fn minor_0_12_upgrade(
     mut config: Config,
-    _matches: &ArgMatches<'_>,
+    _args: &Upgrade,
     config_version: &Version,
     package_version: &Version,
 ) -> Config {
@@ -131,7 +128,7 @@ fn minor_0_12_upgrade(
     config
 }
 
-fn do_upgrade(mut config: Config, matches: &ArgMatches<'_>, package_version: Version) {
+fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
 
@@ -143,7 +140,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches<'_>, package_version: Ver
         config = match config_version.major {
             0 => match config_version.minor {
                 9 | 10 => outdated_upgrade(&config_version, &package_version),
-                11 => minor_0_12_upgrade(config, matches, &config_version, &package_version),
+                11 => minor_0_12_upgrade(config, args, &config_version, &package_version),
                 _ => unsupported_upgrade(&config_version, &package_version),
             },
             _ => unsupported_upgrade(&config_version, &package_version),
@@ -151,10 +148,10 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches<'_>, package_version: Ver
     }
 }
 
-pub fn execute(matches: &ArgMatches<'_>) {
+pub(crate) fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let id = matches.value_of("id").unwrap();
+    let id = &args.id;
 
     let existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {:?}", err);
@@ -167,5 +164,5 @@ pub fn execute(matches: &ArgMatches<'_>) {
     }
 
     // here be upgrade path to 0.9.X and beyond based on version number from config
-    do_upgrade(existing_config, matches, package_version)
+    do_upgrade(existing_config, args, package_version)
 }

@@ -7,23 +7,25 @@ use tokio::sync::RwLock;
 use config::NymConfig;
 #[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
-use nym_socks5::client::Socks5ControlMessageSender;
+use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
 use crate::{error::Result, state::State};
 
 pub type StatusReceiver = futures::channel::oneshot::Receiver<Socks5StatusMessage>;
 
+/// Status messages sent by the SOCKS5 client task to the main tauri task.
 #[derive(Debug)]
 pub enum Socks5StatusMessage {
     /// The SOCKS5 task successfully stopped
     Stopped,
 }
 
+/// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub fn start_nym_socks5_client(
     id: &str,
 ) -> Result<(Socks5ControlMessageSender, StatusReceiver, GatewayEndpoint)> {
     log::info!("Loading config from file: {id}");
-    let config = nym_socks5::client::config::Config::load_from_file(Some(id))
+    let config = Socks5Config::load_from_file(Some(id))
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
@@ -54,6 +56,8 @@ pub fn start_nym_socks5_client(
     Ok((socks5_ctrl_tx, socks5_status_rx, used_gateway))
 }
 
+/// The disconnect listener listens to the channel setup between the socks5 proxy task and the main
+/// tauri task. Primarily it listens for shutdown messages, and updates the state accordingly.
 pub fn start_disconnect_listener(
     state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,

@@ -24,6 +24,11 @@ pub enum BackendError {
         #[from]
         source: tauri::Error,
     },
+    #[error("{source}")]
+    SerdeJsonError {
+        #[from]
+        source: serde_json::Error,
+    },
 
     #[error("State error")]
     StateError,
@@ -45,6 +50,8 @@ pub enum BackendError {
     CouldNotInitWithoutGateway,
     #[error("Could initialize without service provider set")]
     CouldNotInitWithoutServiceProvider,
+    #[error("Could not get file name")]
+    CouldNotGetFilename,
 }
 
 impl Serialize for BackendError {

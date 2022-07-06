@@ -54,12 +54,6 @@ impl From<InitialRewardingParams> for RewardingParams {
     }
 }
 
-impl InstantiateMsg {
-    pub fn new_with_defaults(rewarding_validator_address: String) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {

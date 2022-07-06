@@ -10,5 +10,5 @@ mod interval;
 // mod epoch;
 mod mixnet_contract_settings;
 mod mixnodes;
-// mod rewards;
+mod rewards;
 mod support;

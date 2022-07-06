@@ -3,10 +3,11 @@
 
 use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
+use crate::interval::FullEpochId;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::{HistoricalRewards, RewardDistribution};
-use crate::{Delegation, EpochId, IdentityKey, NodeId, Percent, SphinxKey};
+use crate::{Delegation, EpochId, IdentityKey, IntervalId, NodeId, Percent, SphinxKey};
 use crate::{ONE, U128};
 use az::CheckedCast;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
@@ -59,8 +60,6 @@ pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.    
     pub cost_params: MixNodeCostParams,
 
-    // /// Unique id associated with the bonded mixnode
-    // pub id: u64,
     /// Total pledge and compounded reward earned by the node operator.
     pub operator: Decimal,
 
@@ -81,7 +80,7 @@ pub struct MixNodeRewarding {
     // pub current_period_reward: Decimal,
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
-    pub last_rewarded_epoch: EpochId,
+    pub last_rewarded_epoch: FullEpochId,
 }
 
 impl MixNodeRewarding {
@@ -90,7 +89,7 @@ impl MixNodeRewarding {
     pub fn initialise_new(
         cost_params: MixNodeCostParams,
         initial_pledge: &Coin,
-        current_epoch: EpochId,
+        current_epoch: FullEpochId,
     ) -> Self {
         MixNodeRewarding {
             cost_params,
@@ -102,6 +101,14 @@ impl MixNodeRewarding {
             // current_period_reward: Decimal::zero(),
             last_rewarded_epoch: current_epoch,
         }
+    }
+
+    /// Determines whether this node is still bonded. This is performed via a simple check,
+    /// if there are no tokens left associated with the operator, it means they have unbonded
+    /// and those params only exist for the purposes of calculating rewards for delegators that
+    /// have not yet removed their tokens.
+    pub fn still_bonded(&self) -> bool {
+        self.operator != Decimal::zero()
     }
 
     pub fn operator_reward(&self, denom: impl Into<String>) -> Coin {
@@ -149,9 +156,9 @@ impl MixNodeRewarding {
             * node_params.performance.value()
             * self.bond_saturation(reward_params)
             * (work
-                + alpha * self.pledge_saturation(reward_params)
+                + alpha.value() * self.pledge_saturation(reward_params)
                     / reward_params.epoch.dec_rewarded_set_size())
-            / (Decimal::one() + alpha)
+            / (Decimal::one() + alpha.value())
     }
 
     pub fn determine_reward_split(
@@ -193,20 +200,17 @@ impl MixNodeRewarding {
         &self,
         reward_params: &RewardingParams,
         node_params: NodeRewardParams,
+        epochs_in_interval: u32,
     ) -> RewardDistribution {
         let node_reward = self.node_reward(reward_params, node_params);
-        self.determine_reward_split(
-            node_reward,
-            node_params.performance,
-            reward_params.interval.epochs_in_interval,
-        )
+        self.determine_reward_split(node_reward, node_params.performance, epochs_in_interval)
     }
 
     pub fn distribute_rewards(
         &mut self,
         distribution: RewardDistribution,
-        epoch_id: EpochId,
-    ) -> Result<(), MixnetContractError> {
+        full_epoch_id: FullEpochId,
+    ) {
         let unit_delegation_reward = distribution.delegates
             * self.delegator_share(self.unit_delegation + self.total_unit_reward);
 
@@ -215,19 +219,19 @@ impl MixNodeRewarding {
 
         // self.current_period_reward += unit_delegation_reward;
         self.total_unit_reward += unit_delegation_reward;
-        self.last_rewarded_epoch = epoch_id;
-
-        Ok(())
+        self.last_rewarded_epoch = full_epoch_id;
     }
 
     pub fn epoch_rewarding(
         &mut self,
         reward_params: &RewardingParams,
         node_params: NodeRewardParams,
-        epoch_id: EpochId,
-    ) -> Result<(), MixnetContractError> {
-        let reward_distribution = self.calculate_epoch_reward(reward_params, node_params);
-        self.distribute_rewards(reward_distribution, epoch_id)
+        epochs_in_interval: u32,
+        full_epoch_id: FullEpochId,
+    ) {
+        let reward_distribution =
+            self.calculate_epoch_reward(reward_params, node_params, epochs_in_interval);
+        self.distribute_rewards(reward_distribution, full_epoch_id)
     }
 
     pub fn increment_period(&mut self) -> HistoricalRewards {

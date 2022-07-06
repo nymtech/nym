@@ -57,6 +57,41 @@ pub(crate) fn validate_pledge(
     Ok(pledge.pop().unwrap())
 }
 
+pub(crate) fn validate_delegation_stake(
+    mut delegation: Vec<Coin>,
+    minimum_delegation: Option<Coin>,
+    expected_denom: String,
+) -> Result<Coin, MixnetContractError> {
+    // check if anything was put as delegation
+    if delegation.is_empty() {
+        return Err(MixnetContractError::EmptyDelegation);
+    }
+
+    if delegation.len() > 1 {
+        return Err(MixnetContractError::MultipleDenoms);
+    }
+
+    // check that the denomination is correct
+    if delegation[0].denom != expected_denom {
+        return Err(MixnetContractError::WrongDenom {
+            received: delegation[0].denom.clone(),
+            expected: expected_denom,
+        });
+    }
+
+    // if we have a minimum set, check if enough tokens were sent, otherwise just check if its non-zero
+    if let Some(minimum_delegation) = minimum_delegation {
+        return Err(MixnetContractError::InsufficientDelegation {
+            received: delegation[0].clone(),
+            minimum: minimum_delegation,
+        });
+    } else if delegation[0].amount.is_zero() {
+        return Err(MixnetContractError::EmptyDelegation);
+    }
+
+    Ok(delegation.pop().unwrap())
+}
+
 pub(crate) fn ensure_is_authorized(
     sender: Addr,
     storage: &dyn Storage,

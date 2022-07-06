@@ -376,14 +376,14 @@ mod tests {
             epochs_in_interval: 100,
             current_epoch_start: time::macros::datetime!(2021-08-23 12:00 UTC),
             current_epoch_id: 23,
-            epoch_length: Duration::from_secs(24 * 60 * 60),
+            epoch_length: Duration::from_secs(60 * 60),
         };
         let expected = Interval {
             id: 0,
             epochs_in_interval: 100,
             current_epoch_start: time::macros::datetime!(2021-08-24 12:00 UTC),
             current_epoch_id: 24,
-            epoch_length: Duration::from_secs(24 * 60 * 60),
+            epoch_length: Duration::from_secs(60 * 60),
         };
         assert_eq!(expected, interval.advance_epoch());
 
@@ -393,14 +393,14 @@ mod tests {
             epochs_in_interval: 100,
             current_epoch_start: time::macros::datetime!(2021-08-23 12:00 UTC),
             current_epoch_id: 99,
-            epoch_length: Duration::from_secs(24 * 60 * 60),
+            epoch_length: Duration::from_secs(60 * 60),
         };
         let expected = Interval {
             id: 1,
             epochs_in_interval: 100,
             current_epoch_start: time::macros::datetime!(2021-08-24 12:00 UTC),
             current_epoch_id: 0,
-            epoch_length: Duration::from_secs(24 * 60 * 60),
+            epoch_length: Duration::from_secs(60 * 60),
         };
 
         assert_eq!(expected, interval.advance_epoch())
@@ -419,7 +419,7 @@ mod tests {
             )
             .unwrap(),
             current_epoch_id: 23,
-            epoch_length: Duration::from_secs(24 * 60 * 60),
+            epoch_length: Duration::from_secs(60 * 60),
         };
         assert!(!interval.is_current_epoch_over(&env));
 
@@ -447,7 +447,7 @@ mod tests {
         assert!(interval.is_current_epoch_over(&env));
 
         // revert by A LOT -> epoch still should be in finished state
-        interval.current_epoch_start -= Duration::from_secs(5 * 31 * 24 * 60 * 60);
+        interval.current_epoch_start -= Duration::from_secs(5 * 31 * 60 * 60);
         assert!(interval.is_current_epoch_over(&env));
     }
 
@@ -458,7 +458,7 @@ mod tests {
             epochs_in_interval: 100,
             current_epoch_start: time::macros::datetime!(2021-08-23 12:00 UTC),
             current_epoch_id: 99,
-            epoch_length: Duration::from_secs(24 * 60 * 60),
+            epoch_length: Duration::from_secs(60 * 60),
         };
 
         assert_eq!(
@@ -489,7 +489,7 @@ mod tests {
     fn checking_for_interval_ends() {
         let env = mock_env();
 
-        let epoch_length = Duration::from_secs(24 * 60 * 60);
+        let epoch_length = Duration::from_secs(60 * 60);
 
         let mut interval = Interval {
             id: 0,
@@ -523,7 +523,7 @@ mod tests {
     //     let interval = Interval {
     //         id: 100,
     //         start: time::macros::datetime!(2021-08-23 12:00 UTC),
-    //         length: Duration::from_secs(24 * 60 * 60),
+    //         length: Duration::from_secs(60 * 60),
     //     };
     //
     //     // it must contain its own boundaries
@@ -542,7 +542,7 @@ mod tests {
     //     let first_interval = Interval {
     //         id: 100,
     //         start: time::macros::datetime!(2021-08-23 12:00 UTC),
-    //         length: Duration::from_secs(24 * 60 * 60),
+    //         length: Duration::from_secs(60 * 60),
     //     };
     //
     //     // interval just before

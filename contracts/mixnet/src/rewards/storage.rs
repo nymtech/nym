@@ -48,6 +48,15 @@ pub fn reward_accounting(
     Ok(PENDING_REWARD_POOL_CHANGE.save(storage, &pending_changes)?)
 }
 
+pub fn add_mix_historical_record(
+    storage: &mut dyn Storage,
+    period: Period,
+    node: NodeId,
+    record: HistoricalRewards,
+) {
+    //
+}
+
 // use crate::error::ContractError;
 // use crate::mixnet_contract_settings::storage as settings_storage;
 // use config::defaults::TOTAL_SUPPLY;

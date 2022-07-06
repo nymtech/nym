@@ -221,7 +221,7 @@ mod tests {
 
         let interval = Interval::init_interval(
             epochs_in_interval,
-            Duration::from_secs(24 * 60 * 60),
+            Duration::from_secs(60 * 60),
             &mock_env(),
         );
         let initial_pledge = Coin::new(initial_pledge, "unym");

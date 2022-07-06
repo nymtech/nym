@@ -9,6 +9,7 @@ pub mod gateway;
 mod interval;
 pub mod mixnode;
 mod msg;
+pub mod pending_events;
 pub mod reward_params;
 pub mod rewarding;
 mod types;
@@ -23,7 +24,7 @@ pub use delegation::{
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
 };
-pub use interval::{Interval, FullEpochId};
+pub use interval::{FullEpochId, Interval};
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeBondResponse, PagedMixnodeResponse,
     RewardedSetNodeStatus,

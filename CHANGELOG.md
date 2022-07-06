@@ -10,6 +10,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added
 - nym-connect: add ability to select network requester and gateway ([#1427]).
+- nym-connect: add ability to export gateway keys as JSON.
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - explorer-api: add apy values to `mix_nodes` endpoint

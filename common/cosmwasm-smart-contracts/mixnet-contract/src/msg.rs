@@ -27,8 +27,11 @@ pub struct InstantiateMsg {
 pub struct InitialRewardingParams {
     pub initial_reward_pool: Decimal,
     pub initial_staking_supply: Decimal,
+
     pub sybil_resistance: Percent,
     pub active_set_work_factor: Decimal,
+    pub interval_pool_emission: Percent,
+
     pub rewarded_set_size: u32,
     pub active_set_size: u32,
 }
@@ -75,6 +78,9 @@ pub enum ExecuteMsg {
     AdvanceCurrentEpoch {
         new_rewarded_set: Vec<NodeId>,
         expected_active_set_size: u32,
+    },
+    ReconcileEpochEvents {
+        limit: Option<usize>,
     },
 
     // un-re-implemented as of yet:

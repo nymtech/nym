@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::interval::pending_events::ContractExecutableEvent;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::rewards;
+use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::ensure_is_authorized;
 use cosmwasm_std::{ensure, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -14,11 +17,71 @@ use mixnet_contract_common::{IdentityKey, Interval, NodeId};
 // however, it should also be called when advancing epoch itself in case somebody
 // manage to sneak in a transaction between those two operations
 // (but then the amount of work is going to be minimal)
-fn perform_pending_epoch_actions() -> Result<(), MixnetContractError> {
-    todo!()
+// TODO: incorporate limit
+fn perform_pending_epoch_actions(
+    mut deps: DepsMut<'_>,
+    env: &Env,
+) -> Result<(), MixnetContractError> {
+    let last_executed = storage::LAST_PROCESSED_EPOCH_EVENT.load(deps.storage)?;
+    let last_inserted = storage::EPOCH_EVENT_ID_COUNTER.load(deps.storage)?;
+
+    // no pending events
+    if last_executed == last_inserted {
+        return Ok(());
+    }
+
+    // no need to use the [cosmwasm] range iterator as we know the exact keys in order
+    for event_id in last_executed + 1..=last_inserted {
+        let event = storage::PENDING_EPOCH_EVENTS.load(deps.storage, event_id)?;
+        event.execute(deps.branch(), env)?;
+        storage::PENDING_EPOCH_EVENTS.remove(deps.storage, event_id);
+    }
+
+    storage::LAST_PROCESSED_EPOCH_EVENT.save(deps.storage, &last_inserted)?;
+
+    Ok(())
 }
 
-fn perform_pending_interval_actions() -> Result<(), MixnetContractError> {
+// TODO: incorporate limit
+fn perform_pending_interval_actions(
+    mut deps: DepsMut<'_>,
+    env: &Env,
+) -> Result<(), MixnetContractError> {
+    let last_executed = storage::LAST_PROCESSED_INTERVAL_EVENT.load(deps.storage)?;
+    let last_inserted = storage::INTERVAL_EVENT_ID_COUNTER.load(deps.storage)?;
+
+    // no pending events
+    if last_executed == last_inserted {
+        return Ok(());
+    }
+
+    // no need to use the [cosmwasm] range iterator as we know the exact keys in order
+    for event_id in last_executed + 1..=last_inserted {
+        let event = storage::PENDING_INTERVAL_EVENTS.load(deps.storage, event_id)?;
+        event.execute(deps.branch(), env)?;
+        storage::PENDING_INTERVAL_EVENTS.remove(deps.storage, event_id);
+    }
+
+    storage::LAST_PROCESSED_INTERVAL_EVENT.save(deps.storage, &last_inserted)?;
+
+    Ok(())
+}
+
+pub fn try_reconcile_epoch_events(
+    mut deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    limit: Option<usize>,
+) -> Result<Response, MixnetContractError> {
+    // Only rewarding validator can attempt to reconcile those events
+    ensure_is_authorized(info.sender, deps.storage)?;
+
+    // TODO: use events
+
+    // first clear epoch events queue and then touch the interval actions
+    perform_pending_epoch_actions(deps.branch(), &env)?;
+    perform_pending_interval_actions(deps.branch(), &env)?;
+
     todo!()
 }
 
@@ -30,6 +93,8 @@ fn update_rewarded_set(
     new_rewarded_set: Vec<NodeId>,
     expected_active_set_size: u32,
 ) -> Result<(), MixnetContractError> {
+    let reward_params = rewards_storage::REWARDING_PARAMS.load(storage)?;
+
     //
     // // We don't want more then we need, less should be fine, as we could have less nodes bonded overall
     // if active_set_size > state.params.mixnode_active_set_size {
@@ -65,8 +130,8 @@ fn update_rewarded_set(
 }
 
 pub fn try_advance_epoch(
+    mut deps: DepsMut<'_>,
     env: Env,
-    deps: DepsMut<'_>,
     info: MessageInfo,
     new_rewarded_set: Vec<NodeId>,
     expected_active_set_size: u32,
@@ -83,13 +148,16 @@ pub fn try_advance_epoch(
     let current_interval = storage::current_interval(deps.storage)?;
     if current_interval.is_current_interval_over(&env) {
         // the interval has finished -> we can change things such as the profit margin
-        perform_pending_interval_actions()?;
-        todo!("perform rewarding chores -> update reward pool, recalculate saturation points, etc")
+        perform_pending_interval_actions(deps.branch(), &env)?;
+
+        // TODO: since the rest of the function is not yet implemented, be extremely careful about this one
+        // to make sure it doesn't influence epoch events results
+        rewards::helpers::recompute_interval_rewarding_params(deps.storage)?;
     }
     // if interval has finished, so MUST had the epoch
     if current_interval.is_current_epoch_over(&env) {
         // the epoch has finished -> we can change things such as the active(not rewarded) set size
-        perform_pending_epoch_actions()?;
+        perform_pending_epoch_actions(deps.branch(), &env)?;
 
         storage::save_interval(deps.storage, &current_interval.advance_epoch())?;
         update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;

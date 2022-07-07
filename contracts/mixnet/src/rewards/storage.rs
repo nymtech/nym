@@ -26,13 +26,13 @@ pub const MIXNODE_REWARDING: Map<NodeId, MixNodeRewarding> =
 pub(crate) struct RewardPoolChange {
     /// Indicates amount that shall get moved from the reward pool to the staking supply
     /// upon the current interval finishing.
-    removed: Decimal,
+    pub removed: Decimal,
 
     // this will be used once coconut credentials are in use;
-    /// Indicates amount that shall get added to both reward pool and the staking supply
+    /// Indicates amount that shall get added to the both reward pool and not touch the staking supply
     /// upon the current interval finishing.
     #[allow(unused)]
-    added: Decimal,
+    pub added: Decimal,
 }
 
 pub fn reward_accounting(

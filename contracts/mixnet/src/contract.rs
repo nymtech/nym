@@ -107,7 +107,10 @@ pub fn instantiate(
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
 
+    // TODO: perhaps for each storage create a function like "initialise storage"
     interval_storage::save_interval(deps.storage, &starting_interval)?;
+    interval_storage::LAST_PROCESSED_EPOCH_EVENT.save(deps.storage, &0)?;
+    interval_storage::LAST_PROCESSED_INTERVAL_EVENT.save(deps.storage, &0)?;
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     mixnode_storage::LAYERS.save(deps.storage, &Default::default())?;
     // rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
@@ -158,8 +161,8 @@ pub fn execute(
             new_rewarded_set,
             expected_active_set_size,
         } => crate::interval::transactions::try_advance_epoch(
-            env,
             deps,
+            env,
             info,
             new_rewarded_set,
             expected_active_set_size,

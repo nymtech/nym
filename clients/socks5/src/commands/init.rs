@@ -57,7 +57,7 @@ pub(crate) struct Init {
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(
         long,
-        default_value = DEFAULT_ETH_ENDPOINT
+        default_value_if("enabled-credentials-mode", None, Some(DEFAULT_ETH_ENDPOINT))
     )]
     eth_endpoint: String,
 
@@ -66,7 +66,7 @@ pub(crate) struct Init {
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(
         long,
-        default_value = DEFAULT_ETH_PRIVATE_KEY
+        default_value_if("enabled-credentials-mode", None, Some(DEFAULT_ETH_PRIVATE_KEY))
     )]
     eth_private_key: String,
 }

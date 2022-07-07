@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mixnode::MixNodeCostParams;
 use crate::NodeId;
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,7 @@ pub enum PendingEpochEvent {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PendingIntervalEvent {
     ChangeMixCostParams {
-        //
+        mix: NodeId,
+        new_costs: MixNodeCostParams,
     },
 }

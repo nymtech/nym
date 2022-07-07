@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, MISSING_VALUE};
-use clap::{Args};
-use config::defaults::default_api_endpoints;
-use config::NymConfig;
-use std::fmt::Display;
-use std::process;
+
+use config::{defaults::default_api_endpoints, NymConfig};
 use version_checker::Version;
+
+use clap::Args;
+use std::{fmt::Display, process};
 
 #[allow(dead_code)]
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {

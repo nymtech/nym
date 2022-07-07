@@ -3,8 +3,8 @@
 
 use clap::{crate_version, Parser};
 
-mod commands;
 pub mod client;
+mod commands;
 pub mod socks;
 
 #[tokio::main]

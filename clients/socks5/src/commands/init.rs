@@ -5,11 +5,12 @@ use clap::Args;
 use client_core::config::GatewayEndpoint;
 use config::NymConfig;
 
-use crate::commands::override_config;
-use crate::{client::config::Config, commands::OverrideConfig};
+use crate::{
+    client::config::Config,
+    commands::{override_config, OverrideConfig},
+};
 
-#[cfg(feature = "eth")]
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(feature = "eth", not(feature = "coconut")))]
 use crate::commands::{DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY};
 
 #[derive(Args, Clone)]
@@ -114,13 +115,13 @@ pub(crate) async fn execute(args: &Init) {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway.as_ref().map(String::as_str);
+    let user_chosen_gateway_id = args.gateway.as_deref();
 
     let mut config = Config::new(id, provider_address);
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);
 
-    let gateway = setup_gateway(&id, register_gateway, user_chosen_gateway_id, &config).await;
+    let gateway = setup_gateway(id, register_gateway, user_chosen_gateway_id, &config).await;
     config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_config_file_save_location();

@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, CircularProgress, Modal, Stack, Typography } from '@mui/material';
 import { SxProps } from '@mui/system';
 
-const modalStyle = {
+const modalStyle: SxProps = {
   position: 'absolute',
   top: '50%',
   left: '50%',

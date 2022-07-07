@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 // use crate::constants::{DEFAULT_OPERATOR_INTERVAL_COST, INTERVAL_SECONDS};
@@ -10,7 +10,7 @@ use crate::mixnodes::storage as mixnodes_storage;
 // use crate::error::ContractError;
 use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Deps, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::IdentityKeyRef;
+use mixnet_contract_common::{IdentityKeyRef, MixNodeBond};
 
 // helper trait to attach `Msg` to a response if it's provided
 pub(crate) trait AttachOptionalMessage<T> {
@@ -131,6 +131,13 @@ pub(crate) fn ensure_proxy_match(
                 .as_ref()
                 .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
         });
+    }
+    Ok(())
+}
+
+pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractError> {
+    if bond.is_unbonding {
+        return Err(MixnetContractError::MixnodeIsUnbonding { node_id: bond.id });
     }
     Ok(())
 }

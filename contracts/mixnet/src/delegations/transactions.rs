@@ -116,6 +116,7 @@ pub(crate) fn _try_delegate_to_mixnode(
     )?;
 
     let delegate = deps.api.addr_validate(delegate)?;
+    todo!("check for is_unbonding()");
 
     // check if the target node actually exists
     if mixnodes_storage::mixnode_bonds()

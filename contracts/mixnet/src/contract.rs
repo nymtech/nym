@@ -167,6 +167,9 @@ pub fn execute(
             new_rewarded_set,
             expected_active_set_size,
         ),
+        ExecuteMsg::ReconcileEpochEvents { limit } => {
+            crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
+        }
 
         // ExecuteMsg::UpdateMixnodeConfig {
         //     profit_margin_percent,

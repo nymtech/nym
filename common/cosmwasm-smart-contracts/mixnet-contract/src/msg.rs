@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnode::MixNodeCostParams;
+use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
-    EpochRewardParams, IntervalRewardParams, NodeRewardParams, RewardingParams,
+    EpochRewardParams, IntervalRewardParams, NodeRewardParams, Performance, RewardingParams,
 };
 use crate::{ContractStateParams, NodeId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
@@ -82,30 +82,22 @@ pub enum ExecuteMsg {
     ReconcileEpochEvents {
         limit: Option<usize>,
     },
-
-    // un-re-implemented as of yet:
-    InitEpoch {},
-    ReconcileDelegations {},
-    CheckpointMixnodes {},
-    CompoundOperatorRewardOnBehalf {
+    UpdateMixnodeCostParams {
+        new_costs: MixNodeCostParams,
+    },
+    UpdateMixnodeCostParamsOnBehalf {
+        new_costs: MixNodeCostParams,
         owner: String,
     },
-    CompoundDelegatorRewardOnBehalf {
-        owner: String,
-        mix_identity: IdentityKey,
-    },
-    CompoundOperatorReward {},
-    CompoundDelegatorReward {
-        mix_identity: IdentityKey,
-    },
-
     UpdateMixnodeConfig {
-        profit_margin_percent: u8,
+        new_config: MixNodeConfigUpdate,
     },
     UpdateMixnodeConfigOnBehalf {
-        profit_margin_percent: u8,
+        new_config: MixNodeConfigUpdate,
         owner: String,
     },
+
+    // to reimplement:
     BondGateway {
         gateway: Gateway,
         owner_signature: String,
@@ -115,29 +107,24 @@ pub enum ExecuteMsg {
     DelegateToMixnode {
         mix_identity: IdentityKey,
     },
-
-    UndelegateFromMixnode {
-        mix_identity: IdentityKey,
-    },
-
-    RewardMixnode {
-        identity: IdentityKey,
-        // percentage value in range 0-100
-        params: NodeRewardParams,
-    },
-    // RewardNextMixDelegators {
-    //     mix_identity: IdentityKey,
-    //     // id of the current rewarding interval
-    //     interval_id: u32,
-    // },
     DelegateToMixnodeOnBehalf {
         mix_identity: IdentityKey,
         delegate: String,
+    },
+
+    UndelegateFromMixnode {
+        mix_identity: IdentityKey,
     },
     UndelegateFromMixnodeOnBehalf {
         mix_identity: IdentityKey,
         delegate: String,
     },
+
+    RewardMixnode {
+        mix_id: NodeId,
+        performance: Performance,
+    },
+
     BondMixnodeOnBehalf {
         mix_node: MixNode,
         owner: String,
@@ -151,11 +138,6 @@ pub enum ExecuteMsg {
     UnbondGatewayOnBehalf {
         owner: String,
     },
-    // WriteRewardedSet {
-    //     rewarded_set: Vec<IdentityKey>,
-    //     expected_active_set_size: u32,
-    // },
-    // AdvanceCurrentInterval {},
     ClaimOperatorReward {},
     ClaimOperatorRewardOnBehalf {
         owner: String,

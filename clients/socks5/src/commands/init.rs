@@ -1,91 +1,100 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use client_core::config::GatewayEndpoint;
 use config::NymConfig;
 
-use crate::client::config::Config;
-use crate::commands::override_config;
-#[cfg(feature = "eth")]
-#[cfg(not(feature = "coconut"))]
-use crate::commands::{
-    DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY, ENABLED_CREDENTIALS_MODE_ARG_NAME,
-    ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME,
+use crate::{
+    client::config::Config,
+    commands::{override_config, OverrideConfig},
 };
 
-pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
-    let app = App::new("init")
-        .about("Initialise a Nym client. Do this first!")
-        .arg(Arg::with_name("id")
-            .long("id")
-            .help("Id of the nym-mixnet-client we want to create config for.")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(Arg::with_name("provider")
-            .long("provider")
-            .help("Address of the socks5 provider to send messages to.")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(Arg::with_name("gateway")
-            .long("gateway")
-            .help("Id of the gateway we are going to connect to.")
-            .takes_value(true)
-        )
-        .arg(Arg::with_name("force-register-gateway")
-            .long("force-register-gateway")
-            .help("Force register gateway. WARNING: this will overwrite any existing keys for the given id, potentially causing loss of access.")
-            .takes_value(false)
-        )
-        .arg(Arg::with_name("validators")
-                 .long("validators")
-                 .help("Comma separated list of rest endpoints of the validators")
-                 .takes_value(true),
-        )
-        .arg(Arg::with_name("port")
-            .short("p")
-            .long("port")
-            .help("Port for the socket to listen on in all subsequent runs")
-            .takes_value(true)
-        )
-        .arg(Arg::with_name("fastmode")
-            .long("fastmode")
-            .hidden(true) // this will prevent this flag from being displayed in `--help`
-            .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
-        );
-    #[cfg(feature = "eth")]
-    #[cfg(not(feature = "coconut"))]
-        let app = app
-        .arg(
-            Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
-                .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
-                .help("Set this client to work in a enabled credentials mode that would attempt to use gateway with bandwidth credential requirement. If this value is set, --eth_endpoint and --eth_private_key don't need to be set.")
-                .conflicts_with_all(&[ETH_ENDPOINT_ARG_NAME, ETH_PRIVATE_KEY_ARG_NAME])
-        )
-        .arg(Arg::with_name(ETH_ENDPOINT_ARG_NAME)
-            .long(ETH_ENDPOINT_ARG_NAME)
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
-            .takes_value(true)
-            .default_value_if(ENABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_ENDPOINT)
-            .required(true))
-        .arg(Arg::with_name(ETH_PRIVATE_KEY_ARG_NAME)
-            .long(ETH_PRIVATE_KEY_ARG_NAME)
-            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't want to set this value, use --testnet-mode instead")
-            .takes_value(true)
-            .default_value_if(ENABLED_CREDENTIALS_MODE_ARG_NAME, None, DEFAULT_ETH_PRIVATE_KEY)
-            .required(true)
-        );
+#[cfg(all(feature = "eth", not(feature = "coconut")))]
+use crate::commands::{DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY};
 
-    app
+#[derive(Args, Clone)]
+pub(crate) struct Init {
+    /// Id of the nym-mixnet-client we want to create config for.
+    #[clap(long)]
+    id: String,
+
+    /// Address of the socks5 provider to send messages to.
+    #[clap(long)]
+    provider: String,
+
+    /// Id of the gateway we are going to connect to.
+    #[clap(long)]
+    gateway: Option<String>,
+
+    /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
+    /// potentially causing loss of access.
+    #[clap(long)]
+    force_register_gateway: bool,
+
+    /// Comma separated list of rest endpoints of the validators
+    #[clap(long)]
+    validators: Option<String>,
+
+    /// Port for the socket to listen on in all subsequent runs
+    #[clap(short, long)]
+    port: Option<u16>,
+
+    /// Mostly debug-related option to increase default traffic rate so that you would not need to
+    /// modify config post init
+    #[clap(long, hidden = true)]
+    fastmode: bool,
+
+    /// Set this client to work in a enabled credentials mode that would attempt to use gateway
+    /// with bandwidth credential requirement. If this value is set, --eth-endpoint and
+    /// --eth-private_key don't need to be set.
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(long, conflicts_with_all = &["eth-endpoint", "eth-private-key"])]
+    enabled_credentials_mode: bool,
+
+    /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20
+    /// tokens. If you don't want to set this value, use --enabled-credentials-mode instead
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(
+        long,
+        default_value_if("enabled-credentials-mode", None, Some(DEFAULT_ETH_ENDPOINT))
+    )]
+    eth_endpoint: String,
+
+    /// Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't
+    /// want to set this value, use --enabled-credentials-mode instead")
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[clap(
+        long,
+        default_value_if("enabled-credentials-mode", None, Some(DEFAULT_ETH_PRIVATE_KEY))
+    )]
+    eth_private_key: String,
 }
 
-pub async fn execute(matches: ArgMatches<'static>) {
+impl From<Init> for OverrideConfig {
+    fn from(init_config: Init) -> Self {
+        OverrideConfig {
+            validators: init_config.validators,
+            port: init_config.port,
+            fastmode: init_config.fastmode,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            enabled_credentials_mode: init_config.enabled_credentials_mode,
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            eth_private_key: Some(init_config.eth_private_key),
+
+            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            eth_endpoint: Some(init_config.eth_endpoint),
+        }
+    }
+}
+
+pub(crate) async fn execute(args: &Init) {
     println!("Initialising client...");
 
-    let id = matches.value_of("id").unwrap(); // required for now
-    let provider_address = matches.value_of("provider").unwrap();
+    let id = &args.id;
+    let provider_address = &args.provider;
 
     let already_init = Config::default_config_file_path(Some(id)).exists();
     if already_init {
@@ -98,7 +107,7 @@ pub async fn execute(matches: ArgMatches<'static>) {
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
-    let user_wants_force_register = matches.is_present("force-register-gateway");
+    let user_wants_force_register = args.force_register_gateway;
 
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
@@ -106,14 +115,11 @@ pub async fn execute(matches: ArgMatches<'static>) {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = matches.value_of("gateway");
+    let user_chosen_gateway_id = args.gateway.as_deref();
 
     let mut config = Config::new(id, provider_address);
-
-    config = override_config(config, &matches);
-    if matches.is_present("fastmode") {
-        config.get_base_mut().set_high_default_traffic_volume();
-    }
+    let override_config_fields = OverrideConfig::from(args.clone());
+    config = override_config(config, override_config_fields);
 
     let gateway = setup_gateway(id, register_gateway, user_chosen_gateway_id, &config).await;
     config.get_base_mut().with_gateway_endpoint(gateway);

@@ -66,9 +66,9 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     /// Initialise a Nym client. Do this first!
     Init(init::Init),
-    // Run the Nym client with provided configuration client optionally overriding set parameters
+    /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
-    // Try to upgrade the client
+    /// Try to upgrade the client
     Upgrade(upgrade::Upgrade),
 }
 

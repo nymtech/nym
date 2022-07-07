@@ -58,7 +58,7 @@ export const DelegationModal: React.FC<
   sx,
   backdropProps,
 }) => {
-  if (status === 'loading') return <LoadingModal />;
+  if (status === 'loading') return <LoadingModal sx={sx} backdropProps={backdropProps} />;
 
   if (status === 'error') {
     return (

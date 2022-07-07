@@ -44,7 +44,7 @@ export const RedeemModal: React.FC<{
       header={message}
       subHeader="Rewards from delegations"
       okLabel="Redeem rewards"
-      sx={{ ...sx }}
+      sx={sx}
       backdropProps={backdropProps}
     >
       {identityKey && <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} />}

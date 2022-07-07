@@ -43,8 +43,8 @@ export const UndelegateModal: React.FC<{
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
       okDisabled={!fee}
-      sx={{ ...sx }}
-      BackdropProps={backdropProps}
+      sx={sx}
+      backdropProps={backdropProps}
     >
       <IdentityKeyFormField
         readOnly

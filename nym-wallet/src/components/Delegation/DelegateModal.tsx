@@ -188,7 +188,7 @@ export const DelegateModal: React.FC<{
       subHeader="Delegate to mixnode"
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
-      sx={{ ...sx }}
+      sx={sx}
       backdropProps={backdropProps}
     >
       <IdentityKeyFormField

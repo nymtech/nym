@@ -166,12 +166,13 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
         onOk={async () => setOpen(false)}
         header="This modal announces an error !"
         okLabel="Kaplow!"
-        {...storybookStyles(theme)}
+        backdropProps={backDropStyles(theme)}
         sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
+          ...modalStyles(theme),
         }}
         headerStyles={{
           width: '100%',
@@ -195,8 +196,10 @@ export const hideCloseIconAndDisplayErrorIcon = () => {
 };
 
 export const withBackButton = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
   const handleClick = () => setOpen(true);
+
+  const theme = useTheme();
 
   return (
     <BasePage handleClick={handleClick}>
@@ -208,15 +211,16 @@ export const withBackButton = () => {
         header="This is a modal"
         okLabel="Primary action"
         onBack={() => setOpen(false)}
+        {...storybookStyles(theme)}
       >
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
           elit ut mollit.
-        </p>
+        </Typography>
         <ModalDivider />
-        <p>
+        <Typography sx={{ color: theme.palette.text.primary }}>
           Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
-        </p>
+        </Typography>
       </SimpleModal>
     </BasePage>
   );

@@ -22,6 +22,7 @@ export interface ConfirmationModalProps {
   sx?: SxProps;
   fullWidth?: boolean;
   maxWidth?: Breakpoint;
+  backdropProps?: object;
 }
 
 export const ConfirmationModal = ({
@@ -36,9 +37,10 @@ export const ConfirmationModal = ({
   sx,
   fullWidth,
   maxWidth,
+  backdropProps,
 }: ConfirmationModalProps) => {
   const Title = (
-    <DialogTitle id="responsive-dialog-title" sx={{ py: 3, pb: 2, fontWeight: 600 }} color="black">
+    <DialogTitle id="responsive-dialog-title" sx={{ py: 3, pb: 2, fontWeight: 600 }} color="text.primary">
       {title}
       {subTitle &&
         (typeof subTitle === 'string' ? (
@@ -66,8 +68,9 @@ export const ConfirmationModal = ({
       onClose={onClose}
       aria-labelledby="responsive-dialog-title"
       maxWidth={maxWidth || 'sm'}
-      sx={{ textAlign: 'center', ...sx }}
+      sx={{ textAlign: 'center', bgcolor: 'background.paper', backgroundImage: 'none', ...sx }}
       fullWidth={fullWidth}
+      BackdropProps={backdropProps}
     >
       {Title}
       <DialogContent>{children}</DialogContent>

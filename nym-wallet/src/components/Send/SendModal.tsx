@@ -12,7 +12,7 @@ import { SendInputModal } from './SendInputModal';
 import { SendSuccessModal } from './SendSuccessModal';
 import { TTransactionDetails } from './types';
 
-export const SendModal = ({ onClose }: { onClose: () => void }) => {
+export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void; hasStorybookStyles?: {} }) => {
   const [toAddress, setToAddress] = useState<string>('');
   const [amount, setAmount] = useState<MajorCurrencyAmount>();
   const [modal, setModal] = useState<'send' | 'send details'>('send');
@@ -74,6 +74,7 @@ export const SendModal = ({ onClose }: { onClose: () => void }) => {
         onClose={onClose}
         onPrev={() => setModal('send')}
         onSend={handleSend}
+        {...hasStorybookStyles}
       />
     );
 
@@ -88,6 +89,7 @@ export const SendModal = ({ onClose }: { onClose: () => void }) => {
       error={error}
       onAmountChange={(value) => setAmount(value)}
       onAddressChange={(value) => setToAddress(value)}
+      {...hasStorybookStyles}
     />
   );
 };

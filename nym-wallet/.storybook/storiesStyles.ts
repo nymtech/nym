@@ -14,3 +14,8 @@ export const modalStyles = (theme: Theme) => {
     const { mode } = theme.palette;
     return { left: mode === 'light' ? '25%' : '75%' };
 };
+
+export const dialogStyles = (theme: Theme) => {
+    const { mode } = theme.palette;
+    return { left: mode === 'light' ? '-50%' : '50%' };
+};

@@ -45,6 +45,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - all: updated `rocket` to `0.5.0-rc.2`.
 - network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
 - gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
+- socks5 client/websocket client: upgrade to latest clap and switched to declarative commandline parsing.
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256

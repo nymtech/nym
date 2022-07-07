@@ -11,6 +11,23 @@ use mixnet_contract_common::mixnode::{MixNodeCostParams, MixNodeDetails, MixNode
 use mixnet_contract_common::rewarding::HistoricalRewards;
 use mixnet_contract_common::{Layer, MixNode, MixNodeBond, NodeId};
 
+pub(crate) fn get_mixnode_details_by_id(
+    store: &dyn Storage,
+    node_id: NodeId,
+) -> StdResult<Option<MixNodeDetails>> {
+    if let Some(bond_information) = storage::mixnode_bonds().may_load(store, node_id)? {
+        // if bond exists, rewarding details MUST also exist
+        let rewarding_details =
+            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.id)?;
+        Ok(Some(MixNodeDetails::new(
+            bond_information,
+            rewarding_details,
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
 pub(crate) fn get_mixnode_details_by_owner(
     store: &dyn Storage,
     address: Addr,

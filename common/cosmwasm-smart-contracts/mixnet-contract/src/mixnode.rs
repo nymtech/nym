@@ -6,16 +6,12 @@ use crate::error::MixnetContractError;
 use crate::interval::FullEpochId;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
-use crate::rewarding::{HistoricalRewards, RewardDistribution};
-use crate::{Delegation, EpochId, IdentityKey, IntervalId, NodeId, Percent, SphinxKey};
-use crate::{ONE, U128};
-use az::CheckedCast;
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
-use log::error;
+use crate::rewarding::RewardDistribution;
+use crate::{Delegation, IdentityKey, NodeId, Percent, SphinxKey};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::cmp::Ordering;
 use std::fmt::Display;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -108,7 +104,7 @@ impl MixNodeRewarding {
         self.operator != Decimal::zero()
     }
 
-    pub fn operator_reward(&self, denom: impl Into<String>) -> Coin {
+    pub fn operator_pledge_with_reward(&self, denom: impl Into<String>) -> Coin {
         truncate_reward(self.operator, denom)
     }
 
@@ -307,6 +303,10 @@ pub struct MixNodeBond {
 
     /// Block height at which this mixnode has been bonded.
     pub bonding_height: u64,
+
+    /// Flag to indicate whether this node is in the process of unbonding,
+    /// that will conclude upon the epoch finishing.
+    pub is_unbonding: bool,
 }
 
 impl MixNodeBond {
@@ -327,6 +327,7 @@ impl MixNodeBond {
             mix_node,
             proxy,
             bonding_height,
+            is_unbonding: false,
         }
     }
 

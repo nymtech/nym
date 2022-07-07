@@ -11,11 +11,17 @@ pub struct IntervalRewardParams {
     pub reward_pool: Decimal,
     pub staking_supply: Decimal,
 
+    // computed values
     pub epoch_reward_budget: Decimal,
     pub stake_saturation_point: Decimal,
 
+    // constants(-ish)
+    // default: 30%
     pub sybil_resistance_percent: Percent,
+    // default: 10
     pub active_set_work_factor: Decimal,
+    // default: 2%
+    pub interval_pool_emission: Percent,
 }
 
 /// Parameters required by the mix-mining reward distribution that could change during an interval

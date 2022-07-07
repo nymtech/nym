@@ -48,7 +48,9 @@ impl Simulator {
         let cumulative_reward_ratio = self.node_rewarding_details.total_unit_reward;
         // let record = self.node_rewarding_details.increment_period();
         // self.node_historical_records.insert(period, record);
-        self.node_rewarding_details.add_base_delegation(&amount);
+        self.node_rewarding_details
+            .add_base_delegation(amount.amount);
+        self.node_rewarding_details.unique_delegations += 1;
 
         // we don't care about the owner/node details here
         self.node_delegations.push(Delegation::new(
@@ -63,22 +65,25 @@ impl Simulator {
 
     // TODO: ending period and all that stuff, to optimise it later
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
-        // let starting_entry = self
-        //     .node_historical_records
-        //     .get(&delegation.period)
-        //     .expect("the delegation has been incorrectly saved");
+        self.node_rewarding_details
+            .determine_delegation_reward(delegation)
+
+        // // let starting_entry = self
+        // //     .node_historical_records
+        // //     .get(&delegation.period)
+        // //     .expect("the delegation has been incorrectly saved");
+        // //
+        // // let starting_ratio = starting_entry.cumulative_reward_ratio;
+        // // let ending_ratio = self.node_rewarding_details.full_reward_ratio();
+        // // let adjust = starting_entry.cumulative_reward_ratio + UNIT_DELEGATION_BASE;
+        // //
+        // // (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
         //
-        // let starting_ratio = starting_entry.cumulative_reward_ratio;
+        // let starting_ratio = delegation.cumulative_reward_ratio;
         // let ending_ratio = self.node_rewarding_details.full_reward_ratio();
-        // let adjust = starting_entry.cumulative_reward_ratio + UNIT_DELEGATION_BASE;
+        // let adjust = starting_ratio + UNIT_DELEGATION_BASE;
         //
         // (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
-
-        let starting_ratio = delegation.cumulative_reward_ratio;
-        let ending_ratio = self.node_rewarding_details.full_reward_ratio();
-        let adjust = starting_ratio + UNIT_DELEGATION_BASE;
-
-        (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
     }
 
     // since this is a simulator only, not something to be used in the production code, the unwraps are fine
@@ -91,6 +96,7 @@ impl Simulator {
         let reward = self.determine_delegation_reward(&delegation);
         self.node_rewarding_details
             .decrease_delegates(delegation.dec_amount() + reward)?;
+        self.node_rewarding_details.unique_delegations -= 1;
 
         let reward_denom = &delegation.amount.denom;
         let truncated_reward = truncate_reward(reward, reward_denom);
@@ -98,6 +104,7 @@ impl Simulator {
         // if this was last delegation, move all leftover decimal tokens to the operator
         // (this is literally in the order of a millionth of a micronym)
         if self.node_delegations.is_empty() {
+            assert_eq!(self.node_rewarding_details.unique_delegations, 0);
             self.node_rewarding_details.operator += self.node_rewarding_details.delegates;
             self.node_rewarding_details.delegates = Decimal::zero();
         }
@@ -153,7 +160,7 @@ impl Simulator {
         let staking_supply = old.staking_supply + distributed;
         let epoch_reward_budget = reward_pool
             / Decimal::from_atomics(self.interval.epochs_in_interval(), 0).unwrap()
-            * Decimal::percent(2);
+            * old.interval_pool_emission.value();
         let stake_saturation_point = staking_supply
             / Decimal::from_atomics(self.system_rewarding_params.epoch.rewarded_set_size, 0)
                 .unwrap();
@@ -166,6 +173,7 @@ impl Simulator {
                 stake_saturation_point,
                 sybil_resistance_percent: old.sybil_resistance_percent,
                 active_set_work_factor: old.active_set_work_factor,
+                interval_pool_emission: old.interval_pool_emission,
             },
             epoch: self.system_rewarding_params.epoch,
         };
@@ -188,11 +196,12 @@ mod tests {
         let epochs_in_interval = 720u32;
         let rewarded_set_size = 240;
         let active_set_size = 100;
+        let interval_pool_emission = Percent::from_percentage_value(2).unwrap();
 
         let reward_pool = 250_000_000_000_000u128;
         let staking_supply = 100_000_000_000_000u128;
         let epoch_reward_budget =
-            Decimal::from_ratio(reward_pool, epochs_in_interval) * Decimal::percent(2);
+            interval_pool_emission * Decimal::from_ratio(reward_pool, epochs_in_interval);
         let stake_saturation_point = Decimal::from_ratio(staking_supply, rewarded_set_size);
 
         let rewarding_params = RewardingParams {
@@ -203,6 +212,7 @@ mod tests {
                 stake_saturation_point,
                 sybil_resistance_percent: Percent::from_percentage_value(30).unwrap(),
                 active_set_work_factor: Decimal::percent(1000), // value '10'
+                interval_pool_emission,
             },
             epoch: EpochRewardParams {
                 rewarded_set_size,

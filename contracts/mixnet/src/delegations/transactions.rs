@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::storage as rewards_storage;
@@ -11,6 +12,8 @@ use cosmwasm_std::{
     Response, Storage, Uint128, WasmMsg,
 };
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::events::new_pending_delegation_event;
+use mixnet_contract_common::pending_events::PendingEpochEvent;
 use mixnet_contract_common::{Delegation, NodeId};
 
 // // use crate::contract::debug_with_visibility;
@@ -82,40 +85,23 @@ use mixnet_contract_common::{Delegation, NodeId};
 
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut<'_>,
-    env: Env,
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
-    _try_delegate_to_mixnode(
-        deps,
-        env.block.height,
-        mix_id,
-        info.sender.as_str(),
-        info.funds,
-        None,
-    )
+    _try_delegate_to_mixnode(deps, mix_id, info.sender.as_str(), info.funds, None)
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
     deps: DepsMut<'_>,
-    env: Env,
     info: MessageInfo,
     mix_id: NodeId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
-    _try_delegate_to_mixnode(
-        deps,
-        env.block.height,
-        mix_id,
-        &delegate,
-        info.funds,
-        Some(info.sender),
-    )
+    _try_delegate_to_mixnode(deps, mix_id, &delegate, info.funds, Some(info.sender))
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
     deps: DepsMut<'_>,
-    block_height: u64,
     mix_id: NodeId,
     delegate: &str,
     amount: Vec<Coin>,
@@ -131,52 +117,26 @@ pub(crate) fn _try_delegate_to_mixnode(
 
     let delegate = deps.api.addr_validate(delegate)?;
 
-    // check if the target node actually exists and if so, grab rewarding-related details
-    let mut mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(storage, mix_id)? {
-        Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
-        _ => {
-            return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
-        }
+    // check if the target node actually exists
+    if mixnodes_storage::mixnode_bonds()
+        .may_load(deps.storage, mix_id)?
+        .is_none()
+    {
+        return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
+    }
+
+    // push the event onto the queue and wait for it to be picked up at the end of the epoch
+    let cosmos_event = new_pending_delegation_event(&delegate, &proxy, &delegation, mix_id);
+
+    let epoch_event = PendingEpochEvent::Delegate {
+        owner: delegate,
+        mix_id,
+        amount: delegation,
+        proxy,
     };
+    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
 
-    // TODO: this should be done only at the time of actually putting the delegation in
-    // // update rewarding parameters with the new delegation
-    // mix_rewarding.add_base_delegation(&delegation);
-    // rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding);
-    //
-    // let delegation = Delegation::new(
-    //     delegate,
-    //     mix_id,
-    //     mix_rewarding.total_unit_reward,
-    //     delegation.clone(),
-    //     block_height,
-    //     proxy.clone(),
-    // );
-
-    //
-    // if storage::PENDING_DELEGATION_EVENTS
-    //     .may_load(deps.storage, delegation.event_storage_key())?
-    //     .is_some()
-    // {
-    //     return Err(MixnetContractError::DelegationEventAlreadyPending {
-    //         block_height,
-    //         identity: mix_identity.to_string(),
-    //         kind: "delgation".to_string(),
-    //     });
-    // }
-    //
-    // storage::PENDING_DELEGATION_EVENTS.save(
-    //     deps.storage,
-    //     delegation.event_storage_key(),
-    //     &DelegationEvent::Delegate(delegation),
-    // )?;
-    //
-    // Ok(Response::new().add_event(new_pending_delegation_event(
-    //     &delegate,
-    //     &proxy,
-    //     &amount,
-    //     mix_identity,
-    // )))
+    Ok(Response::new().add_event(cosmos_event))
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode(

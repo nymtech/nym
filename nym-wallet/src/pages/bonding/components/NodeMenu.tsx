@@ -1,13 +1,20 @@
 import * as React from 'react';
-import { IconButton, Menu, MenuItem, Stack } from '@mui/material';
+import { Box, IconButton, Menu, MenuItem, Stack, Typography } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
 import { useEffect } from 'react';
 import { MixnodeFlow } from '../mixnode/types';
 import { GatewayFlow } from '../gateway/types';
 
+interface Item {
+  label: string;
+  flow: MixnodeFlow | GatewayFlow;
+  icon: React.ReactNode;
+  description?: string;
+}
+
 interface Props {
   onFlowChange: (flow: MixnodeFlow | GatewayFlow) => void;
-  items: { label: string; flow: MixnodeFlow | GatewayFlow; icon: React.ReactNode }[];
+  items: Item[];
   onOpen: (open: boolean) => void;
 }
 
@@ -54,11 +61,18 @@ const NodeMenu = ({ onFlowChange, items, onOpen }: Props) => {
           },
         }}
       >
-        {items.map(({ label, flow, icon }) => (
-          <MenuItem onClick={() => onClick(flow)} key={flow} disableRipple>
-            <Stack direction="row" spacing={2} gap={1}>
-              {icon}
-              {label}
+        {items.map(({ label, flow, icon, description }) => (
+          <MenuItem onClick={() => onClick(flow)} key={flow} sx={{ px: 1.6 }} disableRipple>
+            <Stack direction="row" spacing={1}>
+              <Stack display="flex" alignItems="flex-end" width={16} alignSelf="start">
+                {icon}
+              </Stack>
+              <Stack alignItems="flex-start" justifyContent="flex-start">
+                <Typography>{label}</Typography>
+                <Typography variant="subtitle2" color="nym.text.muted">
+                  {description}
+                </Typography>
+              </Stack>
             </Stack>
           </MenuItem>
         ))}

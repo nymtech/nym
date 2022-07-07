@@ -10,6 +10,7 @@ use schemars::JsonSchema;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
+use std::ops::Mul;
 
 pub type EpochId = u32;
 pub type IntervalId = u32;
@@ -41,6 +42,30 @@ impl Percent {
 
     pub fn value(&self) -> Decimal {
         self.0
+    }
+}
+
+impl Mul<Decimal> for Percent {
+    type Output = Decimal;
+
+    fn mul(self, rhs: Decimal) -> Self::Output {
+        self.0 * rhs
+    }
+}
+
+impl Mul<Percent> for Decimal {
+    type Output = Decimal;
+
+    fn mul(self, rhs: Percent) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl Mul<Uint128> for Percent {
+    type Output = Uint128;
+
+    fn mul(self, rhs: Uint128) -> Self::Output {
+        self.0 * rhs
     }
 }
 

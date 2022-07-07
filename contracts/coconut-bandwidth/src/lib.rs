@@ -4,5 +4,6 @@
 pub mod contract;
 mod error;
 mod state;
+mod storage;
 mod support;
 mod transactions;

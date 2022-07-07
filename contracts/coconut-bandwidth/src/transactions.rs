@@ -6,6 +6,7 @@ use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::state::{ADMIN, CONFIG};
+use crate::storage;
 
 use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::events::{
@@ -41,11 +42,26 @@ pub(crate) fn deposit_funds(
 }
 
 pub(crate) fn spend_credential(
-    _deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
-    _data: SpendCredentialData,
+    data: SpendCredentialData,
 ) -> Result<Response, ContractError> {
+    if data.funds().denom != MIX_DENOM.base {
+        return Err(ContractError::WrongDenom);
+    }
+
+    let gateway_cosmos_address = deps.api.addr_validate(data.gateway_cosmos_address())?;
+    storage::spent_credentials().save(
+        deps.storage,
+        data.blinded_serial_number(),
+        &storage::SpendCredential::new(
+            data.funds().to_owned(),
+            data.blinded_serial_number().to_owned(),
+            gateway_cosmos_address,
+        ),
+    )?;
+
     Ok(Response::new())
 }
 

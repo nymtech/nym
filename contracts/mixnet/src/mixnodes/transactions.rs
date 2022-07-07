@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::interval::storage as interval_storage;
 use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::bonding_queries::query_owns_mixnode;
@@ -10,7 +11,7 @@ use crate::mixnodes::helpers::{
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::support::helpers::{
-    ensure_no_existing_bond, ensure_proxy_match, return_proxy_execute_funds,
+    ensure_bonded, ensure_no_existing_bond, ensure_proxy_match, return_proxy_execute_funds,
     send_to_proxy_or_owner, validate_node_identity_signature, validate_pledge,
     AttachOptionalMessage,
 };
@@ -22,7 +23,7 @@ use mixnet_contract_common::events::{
     new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::pending_events::PendingIntervalEvent;
+use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
@@ -150,78 +151,79 @@ pub(crate) fn _try_remove_mixnode(
 ) -> Result<Response, MixnetContractError> {
     let owner = deps.api.addr_validate(owner)?;
 
-    // reading this entire thing might seem like an overkill, but it does exactly what we would have
-    // had to do anyway, i.e. grab node_id from the owner and grab earned operator reward
-    let node_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?.ok_or(
-        MixnetContractError::NoAssociatedMixNodeBond {
-            owner: owner.clone(),
-        },
-    )?;
+    let existing_bond = storage::mixnode_bonds()
+        .idx
+        .owner
+        .item(deps.storage, owner.clone())?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
+        .1;
 
     // see if the proxy matches
-    ensure_proxy_match(&proxy, &node_details.bond_information.proxy)?;
+    ensure_proxy_match(&proxy, &existing_bond.proxy)?;
+    ensure_bonded(&existing_bond)?;
 
-    // the denom on the original pledge was validated at the time of bonding so we can safely reuse it here
-    let rewarding_denom = &node_details.bond_information.original_pledge.denom;
-    let reward = node_details
-        .rewarding_details
-        .operator_reward(rewarding_denom);
+    // set `is_unbonding` field
+    let mut updated_bond = existing_bond.clone();
+    updated_bond.is_unbonding = true;
+    storage::mixnode_bonds().replace(
+        deps.storage,
+        existing_bond.id,
+        Some(&updated_bond),
+        Some(&existing_bond),
+    )?;
 
-    // send bonded funds (alongside all earned rewards) to the bond owner
-    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+    // push the event to execute it at the end of the epoch
+    let epoch_event = PendingEpochEvent::UnbondMixnode {
+        mix_id: existing_bond.id,
+    };
+    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
 
-    // remove the bond and if there are no delegations left, also the rewarding information
-    // decrement the associated layer count
-    cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
-
-    let mut response = Response::new();
-
-    if let Some(proxy) = &proxy {
-        let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
-            owner: owner.clone().into_string(),
-            amount: reward.clone(),
-        };
-
-        // TODO: do we need to send the 1ucoin here?
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
-        response = response.add_message(track_unbond_message);
-    }
-
-    Ok(response
-        .add_message(return_tokens)
+    Ok(Response::new()
+        .add_optional_message(return_proxy_execute_funds(proxy, funds))
         .add_event(new_mixnode_unbonding_event(
-            &owner,
-            &proxy,
-            &reward,
-            node_details.bond_information.identity(),
-            node_details.bond_information.id,
+            &existing_bond.owner,
+            &existing_bond.proxy,
+            existing_bond.identity(),
+            existing_bond.id,
         )))
-}
 
-/*
-   UpdateMixnodeCostParams {
-       new_costs: MixNodeCostParams,
-   },
-   UpdateMixnodeCostParamsOnBehalf {
-       new_costs: MixNodeCostParams,
-       owner: String,
-   },
-   UpdateMixnodeConfig {
-       host: String,
-       mix_port: u16,
-       verloc_port: u16,
-       http_api_port: u16,
-       version: String,
-   },
-   UpdateMixnodeConfigOnBehalf {
-       host: String,
-       mix_port: u16,
-       verloc_port: u16,
-       http_api_port: u16,
-       version: String,
-       owner: String,
-   },
-*/
+    // TODO: move below to epoch events
+    //
+    // // reading this entire thing might seem like an overkill, but it does exactly what we would have
+    // // had to do anyway, i.e. grab node_id from the owner and grab earned operator reward
+    // let node_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?.ok_or(
+    //     MixnetContractError::NoAssociatedMixNodeBond {
+    //         owner: owner.clone(),
+    //     },
+    // )?;
+    //
+    // // the denom on the original pledge was validated at the time of bonding so we can safely reuse it here
+    // let rewarding_denom = &node_details.bond_information.original_pledge.denom;
+    // let reward = node_details
+    //     .rewarding_details
+    //     .operator_reward(rewarding_denom);
+    //
+    // // send bonded funds (alongside all earned rewards) to the bond owner
+    // let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+    //
+    // // remove the bond and if there are no delegations left, also the rewarding information
+    // // decrement the associated layer count
+    // cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
+    //
+    // let mut response = Response::new();
+    //
+    // if let Some(proxy) = &proxy {
+    //     let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
+    //         owner: owner.clone().into_string(),
+    //         amount: reward.clone(),
+    //     };
+    //
+    //     // TODO: do we need to send the 1ucoin here?
+    //     let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+    //     response = response.add_message(track_unbond_message);
+    // }
+    //
+}
 
 pub(crate) fn try_update_mixnode_config(
     deps: DepsMut<'_>,
@@ -256,6 +258,8 @@ pub(crate) fn _try_update_mixnode_config(
         .item(deps.storage, owner.clone())?
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
         .1;
+
+    todo!("check for is_unbonding()");
 
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
 
@@ -313,6 +317,7 @@ pub(crate) fn _try_update_mixnode_cost_params(
         .1;
 
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
+    todo!("check for is_unbonding()");
 
     // push the interval event
     let interval_event = PendingIntervalEvent::ChangeMixCostParams {

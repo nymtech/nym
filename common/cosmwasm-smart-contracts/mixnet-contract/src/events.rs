@@ -343,7 +343,6 @@ pub fn new_mixnode_bonding_event(
 pub fn new_mixnode_unbonding_event(
     owner: &Addr,
     proxy: &Option<Addr>,
-    amount: &Coin,
     identity: IdentityKeyRef<'_>,
     node_id: NodeId,
 ) -> Event {
@@ -353,7 +352,6 @@ pub fn new_mixnode_unbonding_event(
         .add_attribute(NODE_ID, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
-        .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
 pub fn new_rewarding_validator_address_update_event(old: Addr, new: Addr) -> Event {

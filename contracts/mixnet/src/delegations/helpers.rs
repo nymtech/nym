@@ -1,24 +1,54 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::delegations::storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Coin, Decimal, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::mixnode::MixNodeRewarding;
+use mixnet_contract_common::rewarding::helpers::{truncate_reward, truncate_reward_amount};
+use mixnet_contract_common::{Delegation, NodeId};
 
-pub(crate) fn add_delegation(
-    storage: &mut dyn Storage,
-    amount: Coin,
-    mix_id: NodeId,
-) -> Result<Decimal, MixnetContractError> {
-    let mut mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(storage, mix_id)? {
-        Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
-        _ => {
-            return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
-        }
-    };
+// pub(crate) fn add_delegation(
+//     storage: &mut dyn Storage,
+//     amount: Coin,
+//     mix_id: NodeId,
+// ) -> Result<Decimal, MixnetContractError> {
+//     let mut mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(storage, mix_id)? {
+//         Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
+//         _ => {
+//             return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
+//         }
+//     };
+//
+//     let cumulative_reward_ratio = mix_rewarding.total_unit_reward;
+//     mix_rewarding.add_base_delegation(&amount);
+//     todo!()
+// }
 
-    let cumulative_reward_ratio = mix_rewarding.total_unit_reward;
-    mix_rewarding.add_base_delegation(&amount);
-    todo!()
+pub(crate) fn undelegate(
+    store: &mut dyn Storage,
+    delegation: Delegation,
+    mut mix_rewarding: MixNodeRewarding,
+) -> Result<Coin, MixnetContractError> {
+    let reward = mix_rewarding.determine_delegation_reward(&delegation);
+
+    mix_rewarding.decrease_delegates(delegation.dec_amount() + reward)?;
+    mix_rewarding.unique_delegations -= 1;
+
+    // if this was last delegation, move all leftover decimal tokens to the operator
+    // (this is literally in the order of a millionth of a micronym)
+    if mix_rewarding.unique_delegations == 1 {
+        mix_rewarding.operator += mix_rewarding.delegates;
+        mix_rewarding.delegates = Decimal::zero();
+    }
+
+    let truncated_reward = truncate_reward_amount(reward);
+    let mut amount = delegation.amount.clone();
+    amount.amount += truncated_reward;
+
+    rewards_storage::MIXNODE_REWARDING.save(store, delegation.node_id, &mix_rewarding)?;
+    storage::delegations().replace(store, delegation.storage_key(), None, Some(&delegation))?;
+
+    Ok(amount)
 }

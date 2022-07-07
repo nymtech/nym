@@ -76,6 +76,11 @@ pub struct MixNodeRewarding {
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
     pub last_rewarded_epoch: FullEpochId,
+
+    // technically we don't need that field to determine reward magnitude or anything
+    // but it saves on extra queries to determine if we're removing the final delegation
+    // (so that we could zero the field correctly)
+    pub unique_delegations: u32,
 }
 
 impl MixNodeRewarding {
@@ -91,6 +96,7 @@ impl MixNodeRewarding {
             total_unit_reward: Decimal::zero(),
             unit_delegation: UNIT_DELEGATION_BASE,
             last_rewarded_epoch: current_epoch,
+            unique_delegations: 0,
         }
     }
 
@@ -236,11 +242,19 @@ impl MixNodeRewarding {
     //     HistoricalRewards::new(self.total_unit_reward)
     // }
 
+    pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
+        let starting_ratio = delegation.cumulative_reward_ratio;
+        let ending_ratio = self.full_reward_ratio();
+        let adjust = starting_ratio + UNIT_DELEGATION_BASE;
+
+        (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
+    }
+
     // Special care must be taken when calling this method as it is expected it's called in conjunction
     // with `increment_period`
-    pub fn add_base_delegation(&mut self, amount: &Coin) {
+    pub fn add_base_delegation(&mut self, amount: Uint128) {
         // the unwrap here is fine as the value is guaranteed to fit under provided constraints
-        self.delegates += Decimal::from_atomics(amount.amount, 0).unwrap()
+        self.delegates += Decimal::from_atomics(amount, 0).unwrap()
     }
 
     pub fn decrease_delegates(&mut self, amount: Decimal) -> Result<(), MixnetContractError> {

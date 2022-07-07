@@ -174,19 +174,13 @@ pub fn new_pending_delegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
     amount: &Coin,
-    mix_identity: IdentityKeyRef<'_>,
+    mix_id: NodeId,
 ) -> Event {
-    let mut event =
-        Event::new(PENDING_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event
+    Event::new(PENDING_DELEGATION_EVENT_TYPE)
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+        .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
 
 pub fn new_reconcile_delegation_event(

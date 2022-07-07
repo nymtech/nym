@@ -7,9 +7,13 @@ use cosmwasm_std::{Coin, Decimal, Uint128};
 /// never attempt to reward more than the owner is due
 /// for example it truncates "23.9" into "23"
 pub fn truncate_reward(reward: Decimal, denom: impl Into<String>) -> Coin {
-    let amount = reward * Uint128::new(1);
+    let amount = truncate_reward_amount(reward);
     Coin {
         denom: denom.into(),
         amount,
     }
+}
+
+pub fn truncate_reward_amount(reward: Decimal) -> Uint128 {
+    reward * Uint128::new(1)
 }

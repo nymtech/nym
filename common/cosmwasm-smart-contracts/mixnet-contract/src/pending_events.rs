@@ -21,6 +21,9 @@ pub enum PendingEpochEvent {
         mix_id: NodeId,
         proxy: Option<Addr>,
     },
+    UnbondMixnode {
+        mix_id: NodeId,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

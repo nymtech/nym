@@ -89,6 +89,12 @@ pub enum MixnetContractError {
         node_id: NodeId,
         epoch_details: FullEpochId,
     },
+
+    #[error("Mixnode {node_id} is currently in the process of unbonding")]
+    MixnodeIsUnbonding { node_id: NodeId },
+
+    #[error("The contract has ended up in a state that was deemed impossible: {comment}")]
+    InconsistentState { comment: String },
     //
     // #[error("Overflow Error")]
     // OverflowError(#[from] cosmwasm_std::OverflowError),

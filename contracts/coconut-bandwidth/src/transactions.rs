@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialData;
+use coconut_bandwidth_contract_common::spend_credential::{SpendCredential, SpendCredentialData};
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
@@ -50,12 +50,15 @@ pub(crate) fn spend_credential(
     if data.funds().denom != MIX_DENOM.base {
         return Err(ContractError::WrongDenom);
     }
+    if storage::spent_credentials().has(deps.storage, data.blinded_serial_number()) {
+        return Err(ContractError::DuplicateBlindedSerialNumber);
+    }
 
     let gateway_cosmos_address = deps.api.addr_validate(data.gateway_cosmos_address())?;
     storage::spent_credentials().save(
         deps.storage,
         data.blinded_serial_number(),
-        &storage::SpendCredential::new(
+        &SpendCredential::new(
             data.funds().to_owned(),
             data.blinded_serial_number().to_owned(),
             gateway_cosmos_address,
@@ -96,8 +99,8 @@ pub(crate) fn release_funds(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{MULTISIG_CONTRACT, POOL_CONTRACT};
+    use crate::support::tests::fixtures::spend_credential_data_fixture;
+    use crate::support::tests::helpers::{self, MULTISIG_CONTRACT, POOL_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Coin, CosmosMsg};
     use cw_controllers::AdminError;
@@ -250,6 +253,55 @@ mod tests {
                 to_address: String::from(POOL_CONTRACT),
                 amount: vec![coin]
             })
+        );
+    }
+    #[test]
+    fn valid_spend() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let info = mock_info("requester", &[]);
+        let data = spend_credential_data_fixture("blinded_serial_number");
+        let ret = spend_credential(deps.as_mut(), env, info, data);
+        assert!(ret.is_ok());
+    }
+
+    #[test]
+    fn invalid_spend_attempts() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let info = mock_info("requester", &[]);
+
+        let invalid_data = SpendCredentialData::new(
+            Coin::new(1, "invalid_denom".to_string()),
+            String::new(),
+            String::new(),
+        );
+        let ret = spend_credential(deps.as_mut(), env.clone(), info.clone(), invalid_data);
+        assert_eq!(ret.unwrap_err(), ContractError::WrongDenom);
+
+        let invalid_data = SpendCredentialData::new(
+            Coin::new(1, MIX_DENOM.base),
+            String::new(),
+            "Blinded Serial Number".to_string(),
+        );
+        let ret = spend_credential(deps.as_mut(), env.clone(), info.clone(), invalid_data);
+        assert_eq!(
+            ret.unwrap_err().to_string(),
+            "Generic error: Invalid input: address not normalized".to_string()
+        );
+
+        let invalid_data = spend_credential_data_fixture("blined_serial_number");
+        spend_credential(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            invalid_data.clone(),
+        )
+        .unwrap();
+        let ret = spend_credential(deps.as_mut(), env, info, invalid_data);
+        assert_eq!(
+            ret.unwrap_err(),
+            ContractError::DuplicateBlindedSerialNumber
         );
     }
 }

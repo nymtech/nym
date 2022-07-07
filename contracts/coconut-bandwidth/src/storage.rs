@@ -1,43 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, Coin};
+use coconut_bandwidth_contract_common::spend_credential::SpendCredential;
 use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub enum SpendCredentialStatus {
-    InProgress,
-    Spent,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct SpendCredential {
-    funds: Coin,
-    blinded_serial_number: String,
-    gateway_cosmos_address: Addr,
-    status: SpendCredentialStatus,
-}
-
-impl SpendCredential {
-    pub fn new(funds: Coin, blinded_serial_number: String, gateway_cosmos_address: Addr) -> Self {
-        SpendCredential {
-            funds,
-            blinded_serial_number,
-            gateway_cosmos_address,
-            status: SpendCredentialStatus::InProgress,
-        }
-    }
-
-    pub fn mark_as_spent(&mut self) {
-        self.status = SpendCredentialStatus::Spent;
-    }
-}
 
 // storage prefixes
 const SPEND_CREDENTIAL_PK_NAMESPACE: &str = "sc";
 const SPEND_CREDENTIAL_BLINDED_SERIAL_NO_IDX_NAMESPACE: &str = "scn";
+
+// paged retrieval limits for all queries and transactions
+pub(crate) const SPEND_CREDENTIAL_PAGE_MAX_LIMIT: u32 = 75;
+pub(crate) const SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 pub(crate) struct SpendCredentialIndex<'a> {
     pub(crate) blinded_serial_number: UniqueIndex<'a, String, SpendCredential>,
@@ -57,7 +30,7 @@ pub(crate) fn spent_credentials<'a>(
 ) -> IndexedMap<'a, &'a str, SpendCredential, SpendCredentialIndex<'a>> {
     let indexes = SpendCredentialIndex {
         blinded_serial_number: UniqueIndex::new(
-            |d| d.blinded_serial_number.clone(),
+            |d| d.blinded_serial_number().to_string(),
             SPEND_CREDENTIAL_BLINDED_SERIAL_NO_IDX_NAMESPACE,
         ),
     };
@@ -69,8 +42,8 @@ pub(crate) fn spent_credentials<'a>(
 mod tests {
     use super::super::storage;
     use crate::storage::SpendCredential;
-    use crate::storage::SpendCredentialStatus;
     use crate::support::tests::fixtures;
+    use coconut_bandwidth_contract_common::spend_credential::SpendCredentialStatus;
     use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::Addr;
@@ -128,6 +101,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(ret, spend_credential);
-        assert_eq!(ret.status, SpendCredentialStatus::Spent);
+        assert_eq!(ret.status(), SpendCredentialStatus::Spent);
     }
 }

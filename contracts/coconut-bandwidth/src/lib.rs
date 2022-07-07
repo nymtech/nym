@@ -3,6 +3,7 @@
 
 pub mod contract;
 mod error;
+mod queries;
 mod state;
 mod storage;
 mod support;

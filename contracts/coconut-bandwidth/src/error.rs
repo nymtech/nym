@@ -28,6 +28,9 @@ pub enum ContractError {
     #[error("There aren't enough funds in the contract")]
     NotEnoughFunds,
 
+    #[error("Credential already spent or in process of spending")]
+    DuplicateBlindedSerialNumber,
+
     #[error("{0}")]
     Admin(#[from] AdminError),
 }

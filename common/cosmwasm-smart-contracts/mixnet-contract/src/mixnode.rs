@@ -428,6 +428,15 @@ impl From<Layer> for String {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixNodeConfigUpdate {
+    pub host: String,
+    pub mix_port: u16,
+    pub verloc_port: u16,
+    pub http_api_port: u16,
+    pub version: String,
+}
+
 // // cosmwasm's limited serde doesn't work with U128 directly
 
 // // everything required to reward delegator of given mixnode

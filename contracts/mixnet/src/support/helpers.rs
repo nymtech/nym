@@ -102,6 +102,23 @@ pub(crate) fn ensure_is_authorized(
     Ok(())
 }
 
+pub(crate) fn ensure_proxy_match(
+    actual: &Option<Addr>,
+    expected: &Option<Addr>,
+) -> Result<(), MixnetContractError> {
+    if actual != expected {
+        return Err(MixnetContractError::ProxyMismatch {
+            existing: expected
+                .as_ref()
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+            incoming: actual
+                .as_ref()
+                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
+        });
+    }
+    todo!()
+}
+
 // pub fn epochs_in_interval(storage: &dyn Storage) -> Result<u64, ContractError> {
 //     let epoch = current_epoch(storage)?;
 //     Ok(INTERVAL_SECONDS / epoch.length_secs())

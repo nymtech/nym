@@ -9,8 +9,8 @@ use crate::mixnodes::helpers::{
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::support::helpers::{
-    ensure_no_existing_bond, send_to_proxy_or_owner, validate_node_identity_signature,
-    validate_pledge,
+    ensure_no_existing_bond, ensure_proxy_match, send_to_proxy_or_owner,
+    validate_node_identity_signature, validate_pledge,
 };
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
@@ -19,7 +19,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
 };
-use mixnet_contract_common::mixnode::MixNodeCostParams;
+use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::MixNode;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
@@ -121,7 +121,7 @@ fn _try_add_mixnode(
         layer,
     )))
 }
-//
+
 pub fn try_remove_mixnode_on_behalf(
     deps: DepsMut<'_>,
     info: MessageInfo,
@@ -155,15 +155,7 @@ pub(crate) fn _try_remove_mixnode(
     )?;
 
     // see if the proxy matches
-    if proxy != node_details.bond_information.proxy {
-        return Err(MixnetContractError::ProxyMismatch {
-            existing: node_details
-                .bond_information
-                .proxy
-                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-            incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-        });
-    }
+    ensure_proxy_match(&proxy, &node_details.bond_information.proxy)?;
 
     // the denom on the original pledge was validated at the time of bonding so we can safely reuse it here
     let rewarding_denom = &node_details.bond_information.original_pledge.denom;
@@ -202,104 +194,97 @@ pub(crate) fn _try_remove_mixnode(
         )))
 }
 
-//
-// pub(crate) fn try_update_mixnode_config(
-//     deps: DepsMut<'_>,
-//     env: Env,
-//     info: MessageInfo,
-//     profit_margin_percent: u8,
-// ) -> Result<Response, ContractError> {
-//     let owner = deps.api.addr_validate(info.sender.as_ref())?;
-//     _try_update_mixnode_config(deps, env, profit_margin_percent, owner, None)
-// }
-//
-// pub(crate) fn try_update_mixnode_config_on_behalf(
-//     deps: DepsMut,
-//     env: Env,
-//     info: MessageInfo,
-//     profit_margin_percent: u8,
-//     owner: String,
-// ) -> Result<Response, ContractError> {
-//     let owner = deps.api.addr_validate(&owner)?;
-//     let proxy = deps.api.addr_validate(info.sender.as_ref())?;
-//     _try_update_mixnode_config(deps, env, profit_margin_percent, owner, Some(proxy))
-// }
-//
-// pub(crate) fn _try_update_mixnode_config(
-//     deps: DepsMut,
-//     env: Env,
-//     profit_margin_percent: u8,
-//     owner: Addr,
-//     proxy: Option<Addr>,
-// ) -> Result<Response, ContractError> {
-//     let mixnode_bond = storage::mixnodes()
-//         .idx
-//         .owner
-//         .item(deps.storage, owner.clone())?
-//         .ok_or(ContractError::NoAssociatedMixNodeBond { owner })?
-//         .1;
-//
-//     if proxy != mixnode_bond.proxy {
-//         return Err(ContractError::ProxyMismatch {
-//             existing: mixnode_bond
-//                 .proxy
-//                 .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-//             incoming: proxy.map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-//         });
-//     }
-//
-//     let last_update_time = storage::LAST_PM_UPDATE_TIME
-//         .load(deps.storage, mixnode_bond.identity())
-//         .unwrap_or(0);
-//
-//     let current_block_time = env.block.time.seconds();
-//
-//     if current_block_time - last_update_time < MIN_PM_UPDATE_INTERVAL {
-//         return Err(ContractError::UpdatePMTooSoon {
-//             last_update_time,
-//             current_block_time,
-//         });
-//     }
-//
-//     // We don't have to check lower bound as its an u8
-//     if profit_margin_percent > 100 {
-//         return Err(ContractError::InvalidProfitMarginPercent(
-//             profit_margin_percent,
-//         ));
-//     }
-//
-//     storage::mixnodes().update(
-//         deps.storage,
-//         mixnode_bond.identity(),
-//         env.block.height,
-//         |mixnode_bond_opt| {
-//             mixnode_bond_opt
-//                 .map(|mut mixnode_bond| {
-//                     mixnode_bond.mix_node.profit_margin_percent = profit_margin_percent;
-//                     mixnode_bond.block_height = env.block.height;
-//                     mixnode_bond
-//                 })
-//                 .ok_or(ContractError::NoBondFound)
-//         },
-//     )?;
-//
-//     LAST_PM_UPDATE_TIME.save(deps.storage, mixnode_bond.identity(), &current_block_time)?;
-//
-//     let mut response = Response::new();
-//
-//     if let Some(proxy) = proxy {
-//         // Returns one_ucoin proxy had to send in order to execute the contract to contract transaction, this is potentially leaky as anyone can say that they're a proxy,
-//         // and they could potentially leak 1 unym per transaction, altough I'm pretty sure transaction fees make that silly.
-//         let return_one_ucoint = BankMsg::Send {
-//             to_address: proxy.as_str().to_string(),
-//             amount: vec![one_ucoin()],
-//         };
-//         response = response.add_message(return_one_ucoint);
-//     }
-//
-//     Ok(response)
-// }
-//
+/*
+   UpdateMixnodeCostParams {
+       new_costs: MixNodeCostParams,
+   },
+   UpdateMixnodeCostParamsOnBehalf {
+       new_costs: MixNodeCostParams,
+       owner: String,
+   },
+   UpdateMixnodeConfig {
+       host: String,
+       mix_port: u16,
+       verloc_port: u16,
+       http_api_port: u16,
+       version: String,
+   },
+   UpdateMixnodeConfigOnBehalf {
+       host: String,
+       mix_port: u16,
+       verloc_port: u16,
+       http_api_port: u16,
+       version: String,
+       owner: String,
+   },
+*/
+
+pub(crate) fn try_update_mixnode_config(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    new_config: MixNodeConfigUpdate,
+) -> Result<Response, MixnetContractError> {
+    let owner = info.sender;
+    _try_update_mixnode_config(deps, new_config, owner, None)
+}
+
+pub(crate) fn try_update_mixnode_config_on_behalf(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_config: MixNodeConfigUpdate,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    let owner = deps.api.addr_validate(&owner)?;
+    let proxy = info.sender;
+    _try_update_mixnode_config(deps, new_config, owner, Some(proxy))
+}
+
+pub(crate) fn _try_update_mixnode_config(
+    deps: DepsMut,
+    new_config: MixNodeConfigUpdate,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    let existing_bond = storage::mixnode_bonds()
+        .idx
+        .owner
+        .item(deps.storage, owner.clone())?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
+        .1;
+
+    ensure_proxy_match(&proxy, &existing_bond.proxy)?;
+
+    let mut updated_bond = existing_bond.clone();
+    updated_bond.mix_node.host = new_config.host;
+    updated_bond.mix_node.mix_port = new_config.mix_port;
+    updated_bond.mix_node.verloc_port = new_config.verloc_port;
+    updated_bond.mix_node.http_api_port = new_config.http_api_port;
+    updated_bond.mix_node.version = new_config.version;
+
+    storage::mixnode_bonds().replace(
+        deps.storage,
+        existing_bond.id,
+        Some(&updated_bond),
+        Some(&existing_bond),
+    )?;
+
+    let mut response = Response::new();
+
+    if let Some(proxy) = proxy {
+        // TODO1: do we still need that?
+        // Returns one_ucoin proxy had to send in order to execute the contract to contract transaction, this is potentially leaky as anyone can say that they're a proxy,
+        // and they could potentially leak 1 unym per transaction, altough I'm pretty sure transaction fees make that silly.
+        let return_one_ucoint = BankMsg::Send {
+            to_address: proxy.as_str().to_string(),
+            amount: vec![one_ucoin()],
+        };
+        response = response.add_message(return_one_ucoint);
+    }
+
+    // TODO2: attach events
+    Ok(response)
+}
+
 // #[cfg(test)]
 // pub mod tests {
 //     use super::*;

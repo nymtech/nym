@@ -36,7 +36,7 @@ pub(crate) struct Init {
     #[clap(long)]
     validators: Option<String>,
 
-    /// Port for the socket to listen on in all subsequent runs")
+    /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
     port: Option<u16>,
 

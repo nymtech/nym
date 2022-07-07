@@ -25,7 +25,8 @@ pub(crate) struct Run {
     #[clap(long)]
     provider: Option<String>,
 
-    /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to ensure prior registration happened
+    /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
+    /// ensure prior registration happened
     #[clap(long)]
     gateway: Option<String>,
 
@@ -37,9 +38,9 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
-    /// Set this client to work in a disabled credentials mode that would attempt to use gateway
-    /// without bandwidth credential requirement. If this value is set, --eth-endpoint and
-    /// --eth-private-key don't need to be set.")
+    /// Set this client to work in a enabled credentials mode that would attempt to use gateway
+    /// with bandwidth credential requirement. If this value is set, --eth-endpoint and
+    /// --eth-private-key don't need to be set.
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long, conflicts_with_all = &["eth-endpoint", "eth-private-key"])]
     enabled_credentials_mode: bool,
@@ -51,7 +52,7 @@ pub(crate) struct Run {
     eth_endpoint: Option<String>,
 
     /// Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't
-    /// want to set this value, use --enabled-credentials-mode instead")
+    /// want to set this value, use --enabled-credentials-mode instead
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     #[clap(long)]
     eth_private_key: Option<String>,

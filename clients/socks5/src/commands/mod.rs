@@ -130,16 +130,14 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     {
+        if args.enabled_credentials_mode {
+            config.get_base_mut().with_disabled_credentials(false)
+        }
         if let Some(eth_endpoint) = args.eth_endpoint {
             config.get_base_mut().with_eth_endpoint(eth_endpoint);
         }
         if let Some(eth_private_key) = args.eth_private_key {
             config.get_base_mut().with_eth_private_key(eth_private_key);
-        }
-
-        #[cfg(all(feature = "eth", not(feature = "coconut")))]
-        if args.enabled_credentials_mode {
-            config.get_base_mut().with_disabled_credentials(false)
         }
     }
 

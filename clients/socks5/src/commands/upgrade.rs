@@ -128,22 +128,22 @@ fn minor_0_12_upgrade(
     config
 }
 
-fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
+fn do_upgrade(mut config: Config, args: &Upgrade, package_version: &Version) {
     loop {
         let config_version = parse_config_version(&config);
 
-        if config_version == package_version {
+        if &config_version == package_version {
             println!("You're using the most recent version!");
             return;
         }
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 | 10 => outdated_upgrade(&config_version, &package_version),
-                11 => minor_0_12_upgrade(config, args, &config_version, &package_version),
-                _ => unsupported_upgrade(&config_version, &package_version),
+                9 | 10 => outdated_upgrade(&config_version, package_version),
+                11 => minor_0_12_upgrade(config, args, &config_version, package_version),
+                _ => unsupported_upgrade(&config_version, package_version),
             },
-            _ => unsupported_upgrade(&config_version, &package_version),
+            _ => unsupported_upgrade(&config_version, package_version),
         }
     }
 }
@@ -164,5 +164,5 @@ pub(crate) fn execute(args: &Upgrade) {
     }
 
     // here be upgrade path to 0.9.X and beyond based on version number from config
-    do_upgrade(existing_config, args, package_version)
+    do_upgrade(existing_config, args, &package_version)
 }

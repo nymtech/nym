@@ -46,7 +46,7 @@ pub fn compute_apy_from_reward(
     let estimated_delegators_apy = compute_apy(
         epochs_per_hour,
         reward_estimate.delegators_reward as f64,
-        pledge as f64,
+        total_delegations as f64,
     );
     (estimated_operator_apy, estimated_delegators_apy)
 }

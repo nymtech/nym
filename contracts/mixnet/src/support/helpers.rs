@@ -3,13 +3,29 @@
 
 // use crate::constants::{DEFAULT_OPERATOR_INTERVAL_COST, INTERVAL_SECONDS};
 // use crate::interval::storage::{current_epoch, EPOCHS};
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 // use crate::{constants, gateways::storage as gateways_storage};
 
 // use crate::error::ContractError;
-use cosmwasm_std::{Addr, BankMsg, Coin, Deps, Storage};
+use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Deps, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::IdentityKeyRef;
+
+// helper trait to attach `Msg` to a response if it's provided
+pub(crate) trait AttachOptionalMessage<T> {
+    fn add_optional_message(self, msg: Option<impl Into<CosmosMsg<T>>>) -> Self;
+}
+
+impl<T> AttachOptionalMessage<T> for Response<T> {
+    fn add_optional_message(self, msg: Option<impl Into<CosmosMsg<T>>>) -> Self {
+        if let Some(msg) = msg {
+            self.add_message(msg)
+        } else {
+            self
+        }
+    }
+}
 
 /// Attempts to construct a `BankMsg` to send specified tokens to the provided
 /// proxy address. If that's unavailable, the `BankMsg` will use the "owner" as the
@@ -116,8 +132,26 @@ pub(crate) fn ensure_proxy_match(
                 .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
         });
     }
-    todo!()
+    Ok(())
 }
+
+// Currently (well, last we checked), there was a bug such that in order to execute the contract to contract transaction,
+// you had to send SOME funds alongside, even if it was a single 1unym. This function
+// creates a BankMsg to return those funds to the sender (which in all legit cases is going to be the vesting contract)
+pub(crate) fn return_proxy_execute_funds(proxy: Option<Addr>, funds: Vec<Coin>) -> Option<BankMsg> {
+    proxy.map(|proxy| BankMsg::Send {
+        to_address: proxy.into_string(),
+        amount: funds,
+    })
+}
+
+// pub(crate) fn contains_at_least_1ucoin(storage: &dyn Storage, funds: Vec<Coin>) -> bool {
+//     let expected_denom = mixnet_params_storage::rewarding_denom(storage);
+//     for coin in funds {
+//
+//     }
+//
+// }
 
 // pub fn epochs_in_interval(storage: &dyn Storage) -> Result<u64, ContractError> {
 //     let epoch = current_epoch(storage)?;

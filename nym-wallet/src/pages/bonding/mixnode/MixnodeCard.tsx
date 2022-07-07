@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
-import EditIcon from '@mui/icons-material/Edit';
 import { BondedMixnode } from '../../../context';
 import { Node as NodeIcon } from '../../../svg-icons/node';
 import { NodeTable, BondedNodeCard, Cell, Header, NodeMenu } from '../components';
@@ -12,6 +11,7 @@ import { MixnodeFlow } from './types';
 import RedeemRewards from './redeem';
 import Unbond from '../unbond';
 import CompoundRewards from './compound';
+import { Bond as BondIcon, Unbond as UnbondIcon } from '../../../svg-icons';
 
 const headers: Header[] = [
   {
@@ -100,10 +100,20 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
             onFlowChange={(newFlow) => setFlow(newFlow as MixnodeFlow)}
             onOpen={(open) => setNodeMenuOpen(open)}
             items={[
-              { label: 'Bond more', flow: 'bondMore', icon: <EditIcon fontSize="inherit" /> },
-              { label: 'Unbond', flow: 'unbond', icon: <EditIcon fontSize="inherit" /> },
-              { label: 'Compound rewards', flow: 'compound', icon: <EditIcon fontSize="inherit" /> },
-              { label: 'Redeem rewards', flow: 'redeem', icon: <EditIcon fontSize="inherit" /> },
+              { label: 'Bond more', flow: 'bondMore', icon: <BondIcon fontSize="inherit" /> },
+              { label: 'Unbond', flow: 'unbond', icon: <UnbondIcon fontSize="inherit" /> },
+              {
+                label: 'Compound rewards',
+                flow: 'compound',
+                icon: <Typography fontWeight={700}>C</Typography>,
+                description: 'Add operator rewards to bond',
+              },
+              {
+                label: 'Redeem rewards',
+                flow: 'redeem',
+                icon: <Typography fontWeight={700}>R</Typography>,
+                description: 'Add your rewards to bonding pool',
+              },
             ]}
           />
         ),

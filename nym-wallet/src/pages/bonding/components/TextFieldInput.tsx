@@ -15,6 +15,7 @@ interface Props {
   helperText?: string;
   sx?: SxProps;
   registerOptions?: RegisterOptions;
+  disabled?: boolean;
 }
 
 const TextFieldInput = ({
@@ -29,6 +30,7 @@ const TextFieldInput = ({
   helperText,
   registerOptions,
   sx,
+  disabled,
 }: Props) => {
   const {
     field: { onChange, onBlur, value, ref },
@@ -54,6 +56,7 @@ const TextFieldInput = ({
       helperText={helperText}
       {...muiTextFieldProps}
       sx={sx}
+      disabled={disabled}
     />
   );
 };

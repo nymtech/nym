@@ -59,15 +59,6 @@ export const RedeemModal: React.FC<{
       <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
         Rewards will be transferred to account you are logged in with now
       </Typography>
-
-      <Stack direction="row" justifyContent="space-between">
-        <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          Est. fee for this transaction:
-        </Typography>
-        <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          {fee} {currency}
-        </Typography>
-      </Stack>
       {fee && <FeeWarning amount={amount} fee={fee} />}
       <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>

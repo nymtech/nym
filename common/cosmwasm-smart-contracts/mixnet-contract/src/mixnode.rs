@@ -413,7 +413,6 @@ impl MixNodeCostParams {
 )]
 #[repr(u8)]
 pub enum Layer {
-    Gateway = 0,
     One = 1,
     Two = 2,
     Three = 3,
@@ -421,11 +420,7 @@ pub enum Layer {
 
 impl From<Layer> for String {
     fn from(layer: Layer) -> Self {
-        if layer == Layer::Gateway {
-            "gateway".to_string()
-        } else {
-            (layer as u8).to_string()
-        }
+        (layer as u8).to_string()
     }
 }
 

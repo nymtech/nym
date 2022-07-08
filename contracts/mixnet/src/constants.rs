@@ -15,3 +15,9 @@
 // pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
 // pub const INTERVAL_SECONDS: u64 = 86400 * 30; // 30 days
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000;
+
+// retrieval limits
+pub const GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT: u32 = 50;
+pub const GATEWAY_BOND_MAX_RETRIEVAL_LIMIT: u32 = 75;
+
+// storage keys

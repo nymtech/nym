@@ -130,7 +130,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const getModeFromStorage = async () => {
     try {
       const modeFromStorage = await forage.getItem({ key: 'nym-wallet-mode' })();
-      setMode(modeFromStorage);
+      if (modeFromStorage) setMode(modeFromStorage);
     } catch (e) {
       Console.error(e);
     }
@@ -235,9 +235,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowSendModal = () => setShowSendModal((show) => !show);
   const handleSwitchMode = () =>
-    setMode((mode) => {
-      setModeInStorage(mode);
-      return mode === 'light' ? 'dark' : 'light';
+    setMode((currentMode) => {
+      const newMode = currentMode === 'light' ? 'dark' : 'light';
+      setModeInStorage(newMode);
+      return newMode;
     });
 
   const memoizedValue = useMemo(

@@ -1,3 +1,4 @@
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,7 @@ pub struct Config {
     pub max_voting_period: Duration,
     // Total weight and voters are queried from this contract
     pub group_addr: Cw4Contract,
+    pub coconut_bandwidth_addr: Addr,
 }
 
 // unique items

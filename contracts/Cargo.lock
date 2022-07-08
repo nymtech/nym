@@ -521,6 +521,7 @@ dependencies = [
  "cw4",
  "cw4-group",
  "multisig-contract-common",
+ "network-defaults",
  "schemars",
  "serde",
  "thiserror",

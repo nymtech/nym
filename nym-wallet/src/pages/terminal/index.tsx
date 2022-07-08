@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Alert, Box, Dialog, Paper, Typography } from '@mui/material';
+import { Alert, Box, Paper, Dialog, Typography } from '@mui/material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
@@ -93,95 +93,97 @@ const TerminalInner: React.FC = () => {
 
   return (
     <Dialog open onClose={handleShowTerminal} maxWidth="md" fullWidth>
-      <NymCard
-        title={
-          <Box width="100%" display="flex" justifyContent="space-between">
-            <Box display="flex" alignItems="center">
-              <TerminalIcon sx={{ mr: 1 }} />
-              <Typography mr={4}>Terminal</Typography>
-              {!isBusy && <RefreshIcon onClick={refresh} cursor="pointer" />}
+      <Paper>
+        <NymCard
+          title={
+            <Box width="100%" display="flex" justifyContent="space-between">
+              <Box display="flex" alignItems="center">
+                <TerminalIcon sx={{ mr: 1 }} />
+                <Typography mr={4}>Terminal</Typography>
+                {!isBusy && <RefreshIcon onClick={refresh} cursor="pointer" />}
+              </Box>
+              <CloseIcon onClick={handleShowTerminal} cursor="pointer" />
             </Box>
-            <CloseIcon onClick={handleShowTerminal} cursor="pointer" />
-          </Box>
-        }
-        dataTestid="terminal-page"
-      >
-        <h2>State Viewer</h2>
-
-        {error && <Alert color="error">{error}</Alert>}
-
-        {status ? (
-          <Alert color="info" icon={<RefreshIcon />} sx={{ mb: 2 }}>
-            <strong>{status}</strong>
-          </Alert>
-        ) : (
-          <Alert color="success" sx={{ mb: 2 }}>
-            <strong>Data loading complete</strong>
-          </Alert>
-        )}
-
-        <TerminalSection heading="App Environment">
-          <pre>{JSON.stringify(appEnv, null, 2)}</pre>
-        </TerminalSection>
-
-        <TerminalSection heading="Client Details">
-          <pre>{JSON.stringify(clientDetails, null, 2)}</pre>
-        </TerminalSection>
-
-        <TerminalSection heading="User Balance">
-          <pre>{JSON.stringify(userBalance, null, 2)}</pre>
-        </TerminalSection>
-
-        <TerminalSection
-          heading={
-            <>
-              <code>useGetBalance</code> Balance
-            </>
           }
+          dataTestid="terminal-page"
         >
-          <pre>{JSON.stringify(userBalance.balance, null, 2)}</pre>
-        </TerminalSection>
+          <h2>State Viewer</h2>
 
-        <TerminalSection
-          heading={
-            <>
-              <code>useGetBalance</code> Vesting Account Info
-            </>
-          }
-        >
-          <pre>{JSON.stringify(userBalance.vestingAccountInfo, null, 2)}</pre>
-        </TerminalSection>
+          {error && <Alert color="error">{error}</Alert>}
 
-        <TerminalSection
-          heading={
-            <>
-              <code>useGetBalance</code> Current Vest Period
-            </>
-          }
-        >
-          <pre>{JSON.stringify(userBalance.currentVestingPeriod, null, 2)}</pre>
-        </TerminalSection>
+          {status ? (
+            <Alert color="info" icon={<RefreshIcon />} sx={{ mb: 2 }}>
+              <strong>{status}</strong>
+            </Alert>
+          ) : (
+            <Alert color="success" sx={{ mb: 2 }}>
+              <strong>Data loading complete</strong>
+            </Alert>
+          )}
 
-        <TerminalSection heading="Original Vesting">
-          <pre>{JSON.stringify(userBalance.originalVesting, null, 2)}</pre>
-        </TerminalSection>
+          <TerminalSection heading="App Environment">
+            <pre>{JSON.stringify(appEnv, null, 2)}</pre>
+          </TerminalSection>
 
-        <TerminalSection heading="Mixnode Delegations">
-          <pre>{JSON.stringify(mixnodeDelegations, null, 2)}</pre>
-        </TerminalSection>
+          <TerminalSection heading="Client Details">
+            <pre>{JSON.stringify(clientDetails, null, 2)}</pre>
+          </TerminalSection>
 
-        <TerminalSection heading="Pending Delegation Events">
-          <pre>{JSON.stringify(pendingEvents, null, 2)}</pre>
-        </TerminalSection>
+          <TerminalSection heading="User Balance">
+            <pre>{JSON.stringify(userBalance, null, 2)}</pre>
+          </TerminalSection>
 
-        <TerminalSection heading="Pending Vesting Delegation Events">
-          <pre>{JSON.stringify(pendingVestingEvents, null, 2)}</pre>
-        </TerminalSection>
+          <TerminalSection
+            heading={
+              <>
+                <code>useGetBalance</code> Balance
+              </>
+            }
+          >
+            <pre>{JSON.stringify(userBalance.balance, null, 2)}</pre>
+          </TerminalSection>
 
-        <TerminalSection heading="Epoch">
-          <pre>{JSON.stringify(epoch, null, 2)}</pre>
-        </TerminalSection>
-      </NymCard>
+          <TerminalSection
+            heading={
+              <>
+                <code>useGetBalance</code> Vesting Account Info
+              </>
+            }
+          >
+            <pre>{JSON.stringify(userBalance.vestingAccountInfo, null, 2)}</pre>
+          </TerminalSection>
+
+          <TerminalSection
+            heading={
+              <>
+                <code>useGetBalance</code> Current Vest Period
+              </>
+            }
+          >
+            <pre>{JSON.stringify(userBalance.currentVestingPeriod, null, 2)}</pre>
+          </TerminalSection>
+
+          <TerminalSection heading="Original Vesting">
+            <pre>{JSON.stringify(userBalance.originalVesting, null, 2)}</pre>
+          </TerminalSection>
+
+          <TerminalSection heading="Mixnode Delegations">
+            <pre>{JSON.stringify(mixnodeDelegations, null, 2)}</pre>
+          </TerminalSection>
+
+          <TerminalSection heading="Pending Delegation Events">
+            <pre>{JSON.stringify(pendingEvents, null, 2)}</pre>
+          </TerminalSection>
+
+          <TerminalSection heading="Pending Vesting Delegation Events">
+            <pre>{JSON.stringify(pendingVestingEvents, null, 2)}</pre>
+          </TerminalSection>
+
+          <TerminalSection heading="Epoch">
+            <pre>{JSON.stringify(epoch, null, 2)}</pre>
+          </TerminalSection>
+        </NymCard>
+      </Paper>
     </Dialog>
   );
 };

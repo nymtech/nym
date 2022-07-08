@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Breakpoint,
   Button,
+  Paper,
   Dialog,
   DialogActions,
   DialogContent,
@@ -72,9 +73,11 @@ export const ConfirmationModal = ({
       fullWidth={fullWidth}
       BackdropProps={backdropProps}
     >
-      {Title}
-      <DialogContent>{children}</DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
+      <Paper>
+        {Title}
+        <DialogContent>{children}</DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
+      </Paper>
     </Dialog>
   );
 };

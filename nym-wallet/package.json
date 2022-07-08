@@ -21,7 +21,6 @@
     "storybook:build": "build-storybook"
   },
   "dependencies": {
-    "@babel/preset-typescript": "^7.15.0",
     "@emotion/react": "^11.7.0",
     "@emotion/styled": "^11.6.0",
     "@hookform/resolvers": "^2.8.0",
@@ -32,7 +31,6 @@
     "@nymproject/mui-theme": "^1.0.0",
     "@nymproject/react": "^1.0.0",
     "@nymproject/types": "^1.0.0",
-    "@storybook/react": "^6.5.8",
     "@tauri-apps/api": "^1.0.0-rc.1",
     "bs58": "^4.0.1",
     "clsx": "^1.1.1",
@@ -56,8 +54,10 @@
     "@babel/plugin-transform-async-to-generator": "^7.14.5",
     "@babel/preset-env": "^7.15.0",
     "@babel/preset-react": "^7.14.5",
+    "@babel/preset-typescript": "^7.15.0",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
+    "@storybook/react": "^6.5.8",
     "@svgr/webpack": "^6.1.1",
     "@tauri-apps/cli": "^1.0.0-rc.5",
     "@testing-library/jest-dom": "^5.14.1",

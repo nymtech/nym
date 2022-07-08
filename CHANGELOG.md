@@ -9,8 +9,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added
-- nym-connect: add ability to select network requester and gateway ([#1427]).
-- nym-connect: add ability to export gateway keys as JSON.
+- nym-connect: add ability to select network requester and gateway ([#1427])
+- nym-connect: add ability to export gateway keys as JSON
+- nym-connect: add auto updater
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - explorer-api: add apy values to `mix_nodes` endpoint
@@ -39,7 +40,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Changed
 
-- nym-connect: reuse config id instead of creating a new id on each connection.
+- nym-connect: reuse config id instead of creating a new id on each connection
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - all: updated `rocket` to `0.5.0-rc.2`.

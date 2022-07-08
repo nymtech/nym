@@ -128,9 +128,19 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getModeFromStorage = async () => {
-    const mode = await forage.getKeyValue({ key: 'nym-wallet-mode' })();
-    setMode(mode);
-    console.log(mode);
+    try {
+      const modeFromStorage = await forage.getItem({ key: 'nym-wallet-mode' })();
+      setMode(modeFromStorage);
+    } catch (e) {
+      Console.error(e);
+    }
+  };
+
+  const setModeInStorage = async (mode: 'light' | 'dark') => {
+    await forage.setItem({
+      key: 'nym-wallet-mode',
+      value: mode,
+    })();
   };
 
   useEffect(() => {
@@ -151,13 +161,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       getEnv().then(setAppEnv);
     }
   }, [network]);
-
-  useEffect(() => {
-    forage.setItem({
-      key: 'nym-wallet-mode',
-      value: mode,
-    })();
-  }, [mode]);
 
   useEffect(() => {
     let newValue = false;
@@ -231,7 +234,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const switchNetwork = (_network: Network) => setNetwork(_network);
   const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowSendModal = () => setShowSendModal((show) => !show);
-  const handleSwitchMode = () => setMode(mode === 'light' ? 'dark' : 'light');
+  const handleSwitchMode = () =>
+    setMode((mode) => {
+      setModeInStorage(mode);
+      return mode === 'light' ? 'dark' : 'light';
+    });
 
   const memoizedValue = useMemo(
     () => ({

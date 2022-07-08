@@ -48,7 +48,12 @@
       }
     },
     "updater": {
-      "active": false
+      "active": true,
+      "endpoints": [
+        "https://nymtech.net/.wellknown/connect/updater.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCNzQ2M0E5N0VFODE2NApSV1JrZ2U2WE9rYTNETTg1OTBKdE5uWUEra0hML2syOVUvQ2lxZmFZRzZ1T3NWbGM0eVRzUTVhVwo="
     },
     "allowlist": {
       "shell": {

@@ -108,6 +108,30 @@ impl MixNodeRewarding {
         truncate_reward(self.operator, denom)
     }
 
+    pub fn withdraw_operator_reward(&mut self, original_pledge: &Coin) -> Coin {
+        let initial_dec = Decimal::from_atomics(original_pledge.amount, 0).unwrap();
+        if initial_dec > self.operator {
+            panic!(
+                "seems slashing has occurred while it has not been implemented nor accounted for!"
+            )
+        }
+        let diff = self.operator - initial_dec;
+        self.operator = initial_dec;
+
+        truncate_reward(diff, &original_pledge.denom)
+    }
+
+    pub fn withdraw_delegator_reward(
+        &mut self,
+        delegation: &mut Delegation,
+    ) -> Result<Coin, MixnetContractError> {
+        let reward = self.determine_delegation_reward(delegation);
+        self.decrease_delegates(reward)?;
+
+        delegation.cumulative_reward_ratio = self.full_reward_ratio();
+        Ok(truncate_reward(reward, &delegation.amount.denom))
+    }
+
     pub fn node_bond(&self) -> Decimal {
         self.operator + self.delegates
     }
@@ -262,6 +286,18 @@ impl MixNodeRewarding {
         }
 
         self.delegates -= amount;
+        Ok(())
+    }
+
+    pub fn decrease_operator(&mut self, amount: Decimal) -> Result<(), MixnetContractError> {
+        if self.operator < amount {
+            return Err(MixnetContractError::OverflowDecimalSubtraction {
+                minuend: self.operator,
+                subtrahend: amount,
+            });
+        }
+
+        self.operator -= amount;
         Ok(())
     }
 

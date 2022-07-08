@@ -47,7 +47,7 @@ export const MnemonicModal = () => {
             <ArrowBackSharp />
           </IconButton>
         </Box>
-        <Typography variant="body1" sx={{ color: 'grey.600' }}>
+        <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
           {`Display mnemonic for: ${accountMnemonic?.accountName}`}
         </Typography>
       </DialogTitle>

@@ -24,7 +24,7 @@ export const ConfirmPasswordModal = ({
             <ArrowBack />
           </IconButton>
         </Box>
-        <Typography variant="body1" sx={{ color: 'grey.600' }}>
+        <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
           Confirm password
         </Typography>
       </DialogTitle>

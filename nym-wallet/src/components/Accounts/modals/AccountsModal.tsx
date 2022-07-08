@@ -40,7 +40,7 @@ export const AccountsModal = () => {
             <Close />
           </IconButton>
         </Box>
-        <Typography variant="body1" sx={{ color: 'grey.600' }}>
+        <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
           Switch between accounts
         </Typography>
       </DialogTitle>

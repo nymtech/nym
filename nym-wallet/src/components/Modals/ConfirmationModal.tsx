@@ -68,7 +68,7 @@ export const ConfirmationModal = ({
       onClose={onClose}
       aria-labelledby="responsive-dialog-title"
       maxWidth={maxWidth || 'sm'}
-      sx={{ textAlign: 'center', bgcolor: 'background.paper', backgroundImage: 'none', ...sx }}
+      sx={{ textAlign: 'center', ...sx }}
       fullWidth={fullWidth}
       BackdropProps={backdropProps}
     >

@@ -116,14 +116,14 @@ pub(crate) fn _try_delegate_to_mixnode(
     )?;
 
     let delegate = deps.api.addr_validate(delegate)?;
-    todo!("check for is_unbonding()");
 
-    // check if the target node actually exists
-    if mixnodes_storage::mixnode_bonds()
-        .may_load(deps.storage, mix_id)?
-        .is_none()
-    {
-        return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
+    // check if the target node actually exists and is still bonded
+    match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
+        None => return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id }),
+        Some(bond) if bond.is_unbonding => {
+            return Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
+        }
+        _ => (),
     }
 
     // push the event onto the queue and wait for it to be picked up at the end of the epoch

@@ -192,6 +192,10 @@ pub struct ContractStateParams {
 
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
+
+    /// Address of the vesting contract to which the mixnet contract would be sending all
+    /// track-related messages.
+    pub vesting_contract_address: Addr,
     // // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
     // // based on overall demand for private bandwidth-
     // pub mixnode_rewarded_set_size: u32,
@@ -204,22 +208,23 @@ pub struct ContractStateParams {
 
 impl Display for ContractStateParams {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Contract state parameters: ")?;
-        write!(
-            f,
-            "minimum mixnode pledge: {}; ",
-            self.minimum_mixnode_pledge
-        )?;
-        write!(
-            f,
-            "minimum gateway pledge: {}; ",
-            self.minimum_gateway_pledge
-        )?;
-        if let Some(minimum_delegation) = &self.minimum_mixnode_delegation {
-            write!(f, "minimum delegation: {}; ", minimum_delegation)?;
-        }
-
-        Ok(())
+        todo!()
+        // write!(f, "Contract state parameters: ")?;
+        // write!(
+        //     f,
+        //     "minimum mixnode pledge: {}; ",
+        //     self.minimum_mixnode_pledge
+        // )?;
+        // write!(
+        //     f,
+        //     "minimum gateway pledge: {}; ",
+        //     self.minimum_gateway_pledge
+        // )?;
+        // if let Some(minimum_delegation) = &self.minimum_mixnode_delegation {
+        //     write!(f, "minimum delegation: {}; ", minimum_delegation)?;
+        // }
+        //
+        // Ok(())
         // write!(
         //     f,
         //     "mixnode rewarded set size: {}",

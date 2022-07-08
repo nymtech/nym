@@ -173,12 +173,7 @@ export const AddAccountModal = () => {
   }, [step]);
 
   return (
-    <Dialog
-      open={dialogToDisplay === 'Add' || dialogToDisplay === 'Import'}
-      onClose={handleClose}
-      fullWidth
-      hideBackdrop
-    >
+    <Dialog open={dialogToDisplay === 'Add' || dialogToDisplay === 'Import'} onClose={handleClose} fullWidth>
       <Paper>
         <DialogTitle sx={{ pb: 0 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">

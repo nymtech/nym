@@ -24,7 +24,7 @@ export const EditAccountModal = () => {
   }, [accountToEdit]);
 
   return (
-    <Dialog open={dialogToDisplay === 'Edit'} onClose={() => setDialogToDisplay('Accounts')} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Edit'} onClose={() => setDialogToDisplay('Accounts')} fullWidth>
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

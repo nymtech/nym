@@ -11,7 +11,7 @@ const passwordCreationSteps = [
 ];
 
 export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handleClose: () => void }) => (
-  <Dialog open={show} onClose={handleClose} fullWidth hideBackdrop>
+  <Dialog open={show} onClose={handleClose} fullWidth>
     <Paper>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">

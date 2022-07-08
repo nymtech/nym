@@ -25,7 +25,7 @@ export const ImportAccountModal = () => {
   };
 
   return (
-    <Dialog open={dialogToDisplay === 'Import'} onClose={handleClose} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Import'} onClose={handleClose} fullWidth>
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

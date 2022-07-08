@@ -16,7 +16,7 @@ export const ConfirmPasswordModal = ({
   const { isLoading, error } = useContext(AccountsContext);
 
   return (
-    <Dialog open={Boolean(accountName)} onClose={onClose} fullWidth hideBackdrop>
+    <Dialog open={Boolean(accountName)} onClose={onClose} fullWidth>
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

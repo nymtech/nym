@@ -42,7 +42,7 @@ export const AccountsModal = () => {
     );
 
   return (
-    <Dialog open={dialogToDisplay === 'Accounts'} onClose={handleClose} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Accounts'} onClose={handleClose} fullWidth>
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

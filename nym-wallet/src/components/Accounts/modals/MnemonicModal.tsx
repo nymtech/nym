@@ -40,7 +40,7 @@ export const MnemonicModal = () => {
   };
 
   return (
-    <Dialog open={dialogToDisplay === 'Mnemonic'} onClose={handleClose} fullWidth hideBackdrop>
+    <Dialog open={dialogToDisplay === 'Mnemonic'} onClose={handleClose} fullWidth>
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

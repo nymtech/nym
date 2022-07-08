@@ -76,6 +76,7 @@ mod tests {
     use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
+    use cw_controllers::AdminError;
     use cw_multi_test::Executor;
 
     #[test]
@@ -110,6 +111,7 @@ mod tests {
         let mut app = mock_app(&init_funds);
         let multisig_addr = String::from(MULTISIG_CONTRACT);
         let pool_addr = String::from(POOL_CONTRACT);
+        let random_addr = String::from(RANDOM_ADDRESS);
 
         let code_id = app.store_code(contract_bandwidth());
         let msg = InstantiateMsg {
@@ -155,6 +157,23 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(ContractError::NotEnoughFunds, err.downcast().unwrap());
+
+        // try to call release from non-admin
+        let msg = ExecuteMsg::ReleaseFunds {
+            funds: deposit_funds[0].clone(),
+        };
+        let err = app
+            .execute_contract(
+                Addr::unchecked(random_addr),
+                contract_addr.clone(),
+                &msg,
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(
+            ContractError::Admin(AdminError::NotAdmin {}),
+            err.downcast().unwrap()
+        );
 
         let msg = ExecuteMsg::ReleaseFunds {
             funds: deposit_funds[0].clone(),

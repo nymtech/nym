@@ -95,6 +95,11 @@ pub enum MixnetContractError {
 
     #[error("The contract has ended up in a state that was deemed impossible: {comment}")]
     InconsistentState { comment: String },
+
+    #[error(
+        "Could not find any delegation information associated with mixnode {mix_id} for {address}"
+    )]
+    NoMixnodeDelegationFound { mix_id: NodeId, address: String },
     //
     // #[error("Overflow Error")]
     // OverflowError(#[from] cosmwasm_std::OverflowError),

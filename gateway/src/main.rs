@@ -107,3 +107,17 @@ fn setup_logging() {
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .init();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        LONG_VERSION
+            .set(long_version())
+            .expect("Failed to set long about text");
+        Cli::command().debug_assert();
+    }
+}

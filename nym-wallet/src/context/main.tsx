@@ -1,4 +1,5 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
@@ -126,8 +127,25 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const getModeFromStorage = async () => {
+    try {
+      const modeFromStorage = await forage.getItem({ key: 'nym-wallet-mode' })();
+      setMode(modeFromStorage);
+    } catch (e) {
+      Console.error(e);
+    }
+  };
+
+  const setModeInStorage = async (mode: 'light' | 'dark') => {
+    await forage.setItem({
+      key: 'nym-wallet-mode',
+      value: mode,
+    })();
+  };
+
   useEffect(() => {
     getVersion().then(setAppVersion);
+    getModeFromStorage();
   }, []);
 
   useEffect(() => {
@@ -216,7 +234,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const switchNetwork = (_network: Network) => setNetwork(_network);
   const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowSendModal = () => setShowSendModal((show) => !show);
-  const handleSwitchMode = () => setMode(mode === 'light' ? 'dark' : 'light');
+  const handleSwitchMode = () =>
+    setMode((mode) => {
+      setModeInStorage(mode);
+      return mode === 'light' ? 'dark' : 'light';
+    });
 
   const memoizedValue = useMemo(
     () => ({

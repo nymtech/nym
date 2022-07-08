@@ -106,3 +106,14 @@ fn setup_logging() {
         .filter_module("want", log::LevelFilter::Warn)
         .init();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
+}

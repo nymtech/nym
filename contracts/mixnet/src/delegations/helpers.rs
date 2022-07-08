@@ -38,7 +38,7 @@ pub(crate) fn undelegate(
 
     // if this was last delegation, move all leftover decimal tokens to the operator
     // (this is literally in the order of a millionth of a micronym)
-    if mix_rewarding.unique_delegations == 1 {
+    if mix_rewarding.unique_delegations == 0 {
         mix_rewarding.operator += mix_rewarding.delegates;
         mix_rewarding.delegates = Decimal::zero();
     }

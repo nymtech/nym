@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
+use crate::support::helpers::{
+    ensure_no_existing_bond, validate_node_identity_signature, validate_pledge,
+};
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
+use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
 use mixnet_contract_common::{Gateway, GatewayBond, Layer};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
@@ -19,20 +21,12 @@ pub fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
     owner_signature: String,
-) -> Result<Response, ContractError> {
-    // check if the pledge contains any funds of the appropriate denomination
-    let minimum_pledge = mixnet_params_storage::CONTRACT_STATE
-        .load(deps.storage)?
-        .params
-        .minimum_mixnode_pledge;
-    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
-    let pledge = validate_gateway_pledge(info.funds, minimum_pledge, mix_denom)?;
-
+) -> Result<Response, MixnetContractError> {
     _try_add_gateway(
         deps,
         env,
         gateway,
-        pledge,
+        info.funds,
         info.sender.as_str(),
         owner_signature,
         None,
@@ -46,21 +40,13 @@ pub fn try_add_gateway_on_behalf(
     gateway: Gateway,
     owner: String,
     owner_signature: String,
-) -> Result<Response, ContractError> {
-    // check if the pledge contains any funds of the appropriate denomination
-    let minimum_pledge = mixnet_params_storage::CONTRACT_STATE
-        .load(deps.storage)?
-        .params
-        .minimum_mixnode_pledge;
-    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
-    let pledge = validate_gateway_pledge(info.funds, minimum_pledge, mix_denom)?;
-
+) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
     _try_add_gateway(
         deps,
         env,
         gateway,
-        pledge,
+        info.funds,
         &owner,
         owner_signature,
         Some(proxy),
@@ -71,11 +57,15 @@ pub(crate) fn _try_add_gateway(
     deps: DepsMut<'_>,
     env: Env,
     gateway: Gateway,
-    pledge: Coin,
+    pledge: Vec<Coin>,
     owner: &str,
     owner_signature: String,
     proxy: Option<Addr>,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
+    // check if the pledge contains any funds of the appropriate denomination
+    let minimum_pledge = mixnet_params_storage::minimum_gateway_pledge(deps.storage)?;
+    let pledge = validate_pledge(pledge, minimum_pledge)?;
+
     let owner = deps.api.addr_validate(owner)?;
 
     // if the client has an active bonded mixnode or gateway, don't allow bonding
@@ -86,7 +76,7 @@ pub(crate) fn _try_add_gateway(
         storage::gateways().may_load(deps.storage, &gateway.identity_key)?
     {
         if existing_bond.owner != owner {
-            return Err(ContractError::DuplicateGateway {
+            return Err(MixnetContractError::DuplicateGateway {
                 owner: existing_bond.owner,
             });
         }
@@ -110,7 +100,6 @@ pub(crate) fn _try_add_gateway(
     );
 
     storage::gateways().save(deps.storage, bond.identity(), &bond)?;
-    mixnet_params_storage::increment_layer_count(deps.storage, Layer::Gateway)?;
 
     Ok(Response::new().add_event(new_gateway_bonding_event(
         &owner,
@@ -124,12 +113,15 @@ pub fn try_remove_gateway_on_behalf(
     deps: DepsMut<'_>,
     info: MessageInfo,
     owner: String,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
     _try_remove_gateway(deps, &owner, Some(proxy))
 }
 
-pub fn try_remove_gateway(deps: DepsMut<'_>, info: MessageInfo) -> Result<Response, ContractError> {
+pub fn try_remove_gateway(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+) -> Result<Response, MixnetContractError> {
     _try_remove_gateway(deps, info.sender.as_ref(), None)
 }
 
@@ -137,9 +129,8 @@ pub(crate) fn _try_remove_gateway(
     deps: DepsMut<'_>,
     owner: &str,
     proxy: Option<Addr>,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     let owner = deps.api.addr_validate(owner)?;
-    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
     // try to find the node of the sender
     let gateway_bond = match storage::gateways()
         .idx
@@ -147,11 +138,11 @@ pub(crate) fn _try_remove_gateway(
         .item(deps.storage, owner.clone())?
     {
         Some(record) => record.1,
-        None => return Err(ContractError::NoAssociatedGatewayBond { owner }),
+        None => return Err(MixnetContractError::NoAssociatedGatewayBond { owner }),
     };
 
     if proxy != gateway_bond.proxy {
-        return Err(ContractError::ProxyMismatch {
+        return Err(MixnetContractError::ProxyMismatch {
             existing: gateway_bond
                 .proxy
                 .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
@@ -168,9 +159,6 @@ pub(crate) fn _try_remove_gateway(
     // remove the bond
     storage::gateways().remove(deps.storage, gateway_bond.identity())?;
 
-    // decrement layer count
-    mixnet_params_storage::decrement_layer_count(deps.storage, Layer::Gateway)?;
-
     let mut response = Response::new().add_message(return_tokens);
 
     if let Some(proxy) = &proxy {
@@ -179,7 +167,7 @@ pub(crate) fn _try_remove_gateway(
             amount: gateway_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
         response = response.add_message(track_unbond_message);
     }
 
@@ -191,48 +179,19 @@ pub(crate) fn _try_remove_gateway(
     )))
 }
 
-fn validate_gateway_pledge(
-    mut pledge: Vec<Coin>,
-    minimum_pledge: Uint128,
-    mix_denom: String,
-) -> Result<Coin, ContractError> {
-    // check if anything was put as bond
-    if pledge.is_empty() {
-        return Err(ContractError::NoBondFound { mix_denom });
-    }
-
-    if pledge.len() > 1 {
-        return Err(ContractError::MultipleDenoms);
-    }
-
-    // check that the denomination is correct
-    if pledge[0].denom != mix_denom {
-        return Err(ContractError::WrongDenom { mix_denom });
-    }
-
-    // check that we have at least 100 coins in our pledge
-    if pledge[0].amount < minimum_pledge {
-        return Err(ContractError::InsufficientGatewayBond {
-            received: pledge[0].amount.into(),
-            minimum: minimum_pledge.into(),
-        });
-    }
-
-    Ok(pledge.pop().unwrap())
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
     use crate::contract::{execute, query, INITIAL_GATEWAY_PLEDGE};
-    use crate::error::ContractError;
+    use crate::error::MixnetContractError;
     use crate::gateways::transactions::validate_gateway_pledge;
     use crate::support::tests;
-    use crate::support::tests::fixtures::TEST_COIN_DENOM;
     use crate::support::tests::test_helpers;
+    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
+    use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::{ExecuteMsg, Gateway, PagedGatewayResponse, QueryMsg};
 
     #[test]
@@ -241,14 +200,14 @@ pub mod tests {
 
         // if we fail validation (by say not sending enough funds
         let insufficient_bond = Into::<u128>::into(INITIAL_GATEWAY_PLEDGE) - 1;
-        let info = mock_info("anyone", &coins(insufficient_bond, TEST_COIN_DENOM));
+        let info = mock_info("anyone", &coins(insufficient_bond, MIX_DENOM.base));
         let (msg, _) = tests::messages::valid_bond_gateway_msg("anyone");
 
         // we are informed that we didn't send enough funds
         let result = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(
             result,
-            Err(ContractError::InsufficientGatewayBond {
+            Err(MixnetContractError::InsufficientGatewayBond {
                 received: insufficient_bond,
                 minimum: INITIAL_GATEWAY_PLEDGE.into(),
             })
@@ -305,7 +264,10 @@ pub mod tests {
 
         // it fails
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
-        assert_eq!(Err(ContractError::AlreadyOwnsGateway), execute_response);
+        assert_eq!(
+            Err(MixnetContractError::AlreadyOwnsGateway),
+            execute_response
+        );
 
         // bonding fails if the user already owns a mixnode
         test_helpers::add_mixnode(
@@ -318,7 +280,10 @@ pub mod tests {
         let (msg, _) = tests::messages::valid_bond_gateway_msg("mixnode-owner");
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
-        assert_eq!(execute_response, Err(ContractError::AlreadyOwnsMixnode));
+        assert_eq!(
+            execute_response,
+            Err(MixnetContractError::AlreadyOwnsMixnode)
+        );
 
         // but after he unbonds it, it's all fine again
         let info = mock_info("mixnode-owner", &[]);
@@ -393,7 +358,7 @@ pub mod tests {
 
         let execute_response = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(
-            Err(ContractError::DuplicateGateway {
+            Err(MixnetContractError::DuplicateGateway {
                 owner: Addr::unchecked("gateway-owner")
             }),
             execute_response
@@ -414,7 +379,7 @@ pub mod tests {
         let (msg, _) = tests::messages::valid_bond_gateway_msg("gateway-owner");
 
         let res = execute(deps.as_mut(), mock_env(), info, msg);
-        assert_eq!(Err(ContractError::AlreadyOwnsGateway), res);
+        assert_eq!(Err(MixnetContractError::AlreadyOwnsGateway), res);
     }
 
     #[test]
@@ -429,7 +394,7 @@ pub mod tests {
         // we're told that there is no node for our address
         assert_eq!(
             result,
-            Err(ContractError::NoAssociatedGatewayBond {
+            Err(MixnetContractError::NoAssociatedGatewayBond {
                 owner: Addr::unchecked("anyone")
             })
         );
@@ -443,7 +408,7 @@ pub mod tests {
         let result = execute(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(
             result,
-            Err(ContractError::NoAssociatedGatewayBond {
+            Err(MixnetContractError::NoAssociatedGatewayBond {
                 owner: Addr::unchecked("fred")
             })
         );
@@ -541,77 +506,6 @@ pub mod tests {
                 .unwrap()
                 .1
                 .identity()
-        );
-    }
-
-    #[test]
-    fn validating_gateway_bond() {
-        // you must send SOME funds
-        let result = validate_gateway_pledge(
-            Vec::new(),
-            INITIAL_GATEWAY_PLEDGE,
-            TEST_COIN_DENOM.to_string(),
-        );
-        assert_eq!(
-            result,
-            Err(ContractError::NoBondFound {
-                mix_denom: TEST_COIN_DENOM.to_string()
-            })
-        );
-
-        // you must send at least 100 coins...
-        let mut bond = tests::fixtures::good_gateway_pledge();
-        bond[0].amount = INITIAL_GATEWAY_PLEDGE.checked_sub(Uint128::new(1)).unwrap();
-        let result = validate_gateway_pledge(
-            bond.clone(),
-            INITIAL_GATEWAY_PLEDGE,
-            TEST_COIN_DENOM.to_string(),
-        );
-        assert_eq!(
-            result,
-            Err(ContractError::InsufficientGatewayBond {
-                received: Into::<u128>::into(INITIAL_GATEWAY_PLEDGE) - 1,
-                minimum: INITIAL_GATEWAY_PLEDGE.into(),
-            })
-        );
-
-        // more than that is still fine
-        let mut bond = tests::fixtures::good_gateway_pledge();
-        bond[0].amount = INITIAL_GATEWAY_PLEDGE + Uint128::new(1);
-        let result = validate_gateway_pledge(
-            bond.clone(),
-            INITIAL_GATEWAY_PLEDGE,
-            TEST_COIN_DENOM.to_string(),
-        );
-        assert!(result.is_ok());
-
-        // it must be sent in the defined denom!
-        let mut bond = tests::fixtures::good_gateway_pledge();
-        bond[0].denom = "baddenom".to_string();
-        let result = validate_gateway_pledge(
-            bond.clone(),
-            INITIAL_GATEWAY_PLEDGE,
-            TEST_COIN_DENOM.to_string(),
-        );
-        assert_eq!(
-            result,
-            Err(ContractError::WrongDenom {
-                mix_denom: TEST_COIN_DENOM.to_string()
-            })
-        );
-
-        let mut bond = tests::fixtures::good_gateway_pledge();
-        bond[0].denom = "foomp".to_string();
-        let result = validate_gateway_pledge(
-            bond.clone(),
-            INITIAL_GATEWAY_PLEDGE,
-            TEST_COIN_DENOM.to_string(),
-        );
-        assert_eq!(
-            result,
-            Err(ContractError::WrongDenom {
-                mix_denom: TEST_COIN_DENOM.to_string()
-            })
         );
     }
 }

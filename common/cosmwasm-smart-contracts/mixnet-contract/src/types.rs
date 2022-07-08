@@ -114,7 +114,6 @@ where
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {
-    pub gateways: u64,
     pub layer1: u64,
     pub layer2: u64,
     pub layer3: u64,
@@ -132,7 +131,6 @@ impl LayerDistribution {
 
     pub fn increment_layer_count(&mut self, layer: Layer) {
         match layer {
-            Layer::Gateway => self.gateways += 1,
             Layer::One => self.layer1 += 1,
             Layer::Two => self.layer2 += 1,
             Layer::Three => self.layer3 += 1,
@@ -141,14 +139,6 @@ impl LayerDistribution {
 
     pub fn decrement_layer_count(&mut self, layer: Layer) -> Result<(), MixnetContractError> {
         match layer {
-            Layer::Gateway => {
-                self.gateways = self.gateways.checked_sub(1).ok_or(
-                    MixnetContractError::OverflowSubtraction {
-                        minuend: self.gateways,
-                        subtrahend: 1,
-                    },
-                )?
-            }
             Layer::One => {
                 self.layer1 =
                     self.layer1

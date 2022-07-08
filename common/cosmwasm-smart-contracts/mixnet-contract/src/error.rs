@@ -44,6 +44,9 @@ pub enum MixnetContractError {
     #[error("This address has already bonded a gateway")]
     AlreadyOwnsGateway,
 
+    #[error("Gateway with this identity already exists. Its owner is {owner}")]
+    DuplicateGateway { owner: Addr },
+
     #[error("Unauthorized")]
     Unauthorized,
 

@@ -152,3 +152,14 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     config
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
+}

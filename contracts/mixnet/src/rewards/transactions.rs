@@ -131,6 +131,38 @@ pub(crate) fn try_reward_mixnode(
     )))
 }
 
+pub(crate) fn try_withdraw_operator_reward(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+) -> Result<Response, MixnetContractError> {
+    todo!()
+}
+
+pub(crate) fn try_withdraw_operator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    todo!()
+}
+
+pub(crate) fn try_withdraw_delegator_reward(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    mix_id: NodeId,
+) -> Result<Response, MixnetContractError> {
+    todo!()
+}
+
+pub(crate) fn try_withdraw_delegator_reward_on_behalf(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    mix_id: NodeId,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    todo!()
+}
+
 // // All four of the below methods need to do the following things:
 // // 1. Calculate currently available rewards
 // // 2. Send the rewards back to whoever claimed them

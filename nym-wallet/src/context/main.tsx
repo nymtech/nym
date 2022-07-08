@@ -1,4 +1,5 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
@@ -126,8 +127,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const getModeFromStorage = async () => {
+    const mode = await forage.getKeyValue({ key: 'nym-wallet-mode' })();
+    setMode(mode);
+    console.log(mode);
+  };
+
   useEffect(() => {
     getVersion().then(setAppVersion);
+    getModeFromStorage();
   }, []);
 
   useEffect(() => {
@@ -143,6 +151,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       getEnv().then(setAppEnv);
     }
   }, [network]);
+
+  useEffect(() => {
+    forage.setItem({
+      key: 'nym-wallet-mode',
+      value: mode,
+    })();
+  }, [mode]);
 
   useEffect(() => {
     let newValue = false;

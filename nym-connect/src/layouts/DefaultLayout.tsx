@@ -22,11 +22,14 @@ export const DefaultLayout: React.FC<{
   };
   return (
     <AppWindowFrame>
-      <Typography fontWeight="700" fontSize="14px" textAlign="center">
-        Connect, your privacy will be 100% protected thanks to the Nym Mixnet
+      <Typography fontWeight="400" fontSize="12px" textAlign="center" sx={{ opacity: 0.6 }}>
+        This is experimental software. <br />
+        Do not rely on it for strong anonymity (yet).
       </Typography>
-      <Typography fontWeight="700" fontSize="14px" textAlign="center" color="#60D6EF" pt={2}>
-        You are not protected now
+      <Typography fontWeight="700" fontSize="14px" textAlign="center" pt={2}>
+        Connect to the
+        <br />
+        Nym mixnet for privacy.
       </Typography>
       <ServiceProviderSelector services={services} onChange={handleServiceProviderChange} />
       <ConnectionButton

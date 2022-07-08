@@ -35,17 +35,18 @@ impl MixnodeBondingAccount for Account {
         &self,
         storage: &dyn Storage,
     ) -> Result<Response, ContractError> {
-        let msg = MixnetExecuteMsg::CompoundOperatorRewardOnBehalf {
-            owner: self.owner_address().into_string(),
-        };
-
-        let compound_operator_reward_msg = wasm_execute(
-            MIXNET_CONTRACT_ADDRESS.load(storage)?,
-            &msg,
-            vec![one_ucoin(MIX_DENOM.load(storage)?)],
-        )?;
-
-        Ok(Response::new().add_message(compound_operator_reward_msg))
+        todo!()
+        // let msg = MixnetExecuteMsg::CompoundOperatorRewardOnBehalf {
+        //     owner: self.owner_address().into_string(),
+        // };
+        //
+        // let compound_operator_reward_msg = wasm_execute(
+        //     MIXNET_CONTRACT_ADDRESS.load(storage)?,
+        //     &msg,
+        //     vec![one_ucoin(MIX_DENOM.load(storage)?)],
+        // )?;
+        //
+        // Ok(Response::new().add_message(compound_operator_reward_msg))
     }
 
     fn try_update_mixnode_config(
@@ -53,20 +54,21 @@ impl MixnodeBondingAccount for Account {
         profit_margin_percent: u8,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
-        let msg = MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
-            profit_margin_percent,
-            owner: self.owner_address().into_string(),
-        };
-
-        let update_mixnode_config_msg = wasm_execute(
-            MIXNET_CONTRACT_ADDRESS.load(storage)?,
-            &msg,
-            vec![one_ucoin(MIX_DENOM.load(storage)?)],
-        )?;
-
-        Ok(Response::new()
-            .add_message(update_mixnode_config_msg)
-            .add_event(new_vesting_update_mixnode_config_event()))
+        todo!()
+        // let msg = MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
+        //     profit_margin_percent,
+        //     owner: self.owner_address().into_string(),
+        // };
+        //
+        // let update_mixnode_config_msg = wasm_execute(
+        //     MIXNET_CONTRACT_ADDRESS.load(storage)?,
+        //     &msg,
+        //     vec![one_ucoin(MIX_DENOM.load(storage)?)],
+        // )?;
+        //
+        // Ok(Response::new()
+        //     .add_message(update_mixnode_config_msg)
+        //     .add_event(new_vesting_update_mixnode_config_event()))
     }
 
     fn try_bond_mixnode(

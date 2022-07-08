@@ -16,6 +16,8 @@ use std::time::Duration;
 #[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
+    pub vesting_contract_address: String,
+
     pub rewarding_denom: String,
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,

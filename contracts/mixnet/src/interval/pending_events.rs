@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::delegations::storage as delegations_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
-use cosmwasm_std::{Addr, Coin, Decimal, DepsMut, Env};
+use cosmwasm_std::{coin, coins, wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::{Delegation, NodeId};
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) trait ContractExecutableEvent {
     // note: the error only means a HARD error like we failed to read from storage.
     // if, for example, delegating fails because mixnode no longer exists, we return an Ok(()),
     // because it's not a hard error and we don't want to fail the entire transaction
-    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<(), MixnetContractError>;
+    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError>;
 }
 
 fn delegate(
@@ -25,17 +27,29 @@ fn delegate(
     mix_id: NodeId,
     mut amount: Coin,
     proxy: Option<Addr>,
-) -> Result<(), MixnetContractError> {
-    todo!("check for is_unbonding()");
-
+) -> Result<Response, MixnetContractError> {
     // check if the target node still exists (it might have unbonded between this event getting created
     // and being executed). Do note that it's absolutely possible for a mixnode to get immediately
-    // unbonded at this very block (if the event was pending), but that's tough luck
-    let mut mix_rewarding =
-        match rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
-            Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
-            _ => return Ok(()),
-        };
+    // unbonded at this very block (if the event was pending), but that's tough luck, then it's up
+    // to the delegator to click the undelegate button
+    let mixnode_details = match get_mixnode_details_by_id(deps.storage, mix_id)? {
+        Some(details)
+            if details.rewarding_details.still_bonded()
+                && !details.bond_information.is_unbonding =>
+        {
+            details
+        }
+        _ => {
+            // if mixnode is no longer bonded or in the process of unbonding, return the tokens back to the
+            // delegator;
+            // TODO: do we need to do any vesting-specific tracking here?
+            // to be figured out after undelegate is re-implemented
+            let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![amount]);
+            return Ok(Response::new().add_message(return_tokens));
+        }
+    };
+
+    let mut mix_rewarding = mixnode_details.rewarding_details;
 
     // if there's an existing delegation, then withdraw the full reward and create a new delegation
     // with the sum of both
@@ -85,10 +99,14 @@ fn delegate(
     )?;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
 
-    Ok(())
+    Ok(Response::new())
 }
 
-fn unbond_mixnode(deps: DepsMut<'_>, env: &Env, mix_id: NodeId) -> Result<(), MixnetContractError> {
+fn unbond_mixnode(
+    deps: DepsMut<'_>,
+    _env: &Env,
+    mix_id: NodeId,
+) -> Result<Response, MixnetContractError> {
     // if we're here it means user executed `_try_remove_mixnode` and as a result node was set to be
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
     // thus the node with all its associated information MUST exist in the storage.
@@ -115,26 +133,31 @@ fn unbond_mixnode(deps: DepsMut<'_>, env: &Env, mix_id: NodeId) -> Result<(), Mi
     // decrement the associated layer count
     cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
 
-    // TODO: what if the proxy is NOT the vesting contract?
+    let mut response = Response::new().add_message(return_tokens);
 
-    // let mut response = Response::new();
-    //
-    // if let Some(proxy) = &proxy {
-    //     let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
-    //         owner: owner.clone().into_string(),
-    //         amount: reward.clone(),
-    //     };
-    //
-    //     // TODO: do we need to send the 1ucoin here?
-    //     let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
-    //     response = response.add_message(track_unbond_message);
-    // }
+    if let Some(proxy) = &proxy {
+        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
+        // otherwise, we don't care
+        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
+        if proxy == &vesting_contract {
+            let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
+                owner: owner.clone().into_string(),
+                amount: tokens.clone(),
+            };
 
-    todo!()
+            // TODO: do we need to send the 1ucoin here?
+            let min_coin = coins(1, &tokens.denom);
+            let track_unbond_message = wasm_execute(proxy, &msg, min_coin)?;
+            response = response.add_message(track_unbond_message);
+        }
+    }
+
+    // TODO: slap events on it
+    Ok(response)
 }
 
 impl ContractExecutableEvent for PendingEpochEvent {
-    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<(), MixnetContractError> {
+    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self {
@@ -151,7 +174,7 @@ impl ContractExecutableEvent for PendingEpochEvent {
 }
 
 impl ContractExecutableEvent for PendingIntervalEvent {
-    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<(), MixnetContractError> {
+    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
+use crate::constants::{GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT, GATEWAY_BOND_MAX_RETRIEVAL_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
@@ -15,8 +15,8 @@ pub(crate) fn query_gateways_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayResponse> {
     let limit = limit
-        .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
-        .min(BOND_PAGE_MAX_LIMIT) as usize;
+        .unwrap_or(GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT)
+        .min(GATEWAY_BOND_MAX_RETRIEVAL_LIMIT) as usize;
 
     let start = start_after.as_deref().map(Bound::exclusive);
 
@@ -95,7 +95,10 @@ pub(crate) mod tests {
         // query without explicitly setting a limit
         let page1 = query_gateways_paged(deps.as_ref(), None, None).unwrap();
 
-        assert_eq!(BOND_PAGE_DEFAULT_LIMIT, page1.nodes.len() as u32);
+        assert_eq!(
+            GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT,
+            page1.nodes.len() as u32
+        );
     }
 
     #[test]
@@ -107,11 +110,11 @@ pub(crate) mod tests {
         }
 
         // query with a crazily high limit in an attempt to use too many resources
-        let crazy_limit = 1000 * BOND_PAGE_DEFAULT_LIMIT;
+        let crazy_limit = 1000 * GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT;
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = BOND_PAGE_MAX_LIMIT;
+        let expected_limit = GATEWAY_BOND_MAX_RETRIEVAL_LIMIT;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 

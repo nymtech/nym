@@ -1,13 +1,9 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use crate::constants::{DEFAULT_OPERATOR_INTERVAL_COST, INTERVAL_SECONDS};
-// use crate::interval::storage::{current_epoch, EPOCHS};
+use crate::gateways::storage as gateways_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-// use crate::{constants, gateways::storage as gateways_storage};
-
-// use crate::error::ContractError;
 use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Deps, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{IdentityKeyRef, MixNodeBond};
@@ -214,18 +210,16 @@ pub(crate) fn ensure_no_existing_bond(
         return Err(MixnetContractError::AlreadyOwnsMixnode);
     }
 
-    todo!()
+    if gateways_storage::gateways()
+        .idx
+        .owner
+        .item(storage, sender.clone())?
+        .is_some()
+    {
+        return Err(MixnetContractError::AlreadyOwnsGateway);
+    }
 
-    // if gateways_storage::gateways()
-    //     .idx
-    //     .owner
-    //     .item(storage, sender.clone())?
-    //     .is_some()
-    // {
-    //     return Err(MixnetContractError::AlreadyOwnsGateway);
-    // }
-
-    // Ok(())
+    Ok(())
 }
 
 pub(crate) fn validate_node_identity_signature(

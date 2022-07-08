@@ -13,6 +13,7 @@
     "prebuild": "yarn --cwd .. build",
     "build": "run-s webpack:prod tauri:build",
     "storybook": "start-storybook -p 6006",
+    "prestorybook:build": "yarn --cwd .. build",
     "storybook:build": "build-storybook",
     "tsc": "tsc --noEmit true",
     "tsc:watch": "tsc --noEmit true --watch",

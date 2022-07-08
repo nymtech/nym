@@ -1,20 +1,34 @@
 import React, { useContext, useEffect, useReducer } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { Gateway, MajorCurrencyAmount, MixNode } from '@nymproject/types';
+import { TransactionExecuteResult } from '@nymproject/types';
 import { ConfirmationModal, NymCard } from '../../../components';
 import NodeIdentityModal from './NodeIdentityModal';
-import { ACTIONTYPE, AmountData, BondState, FormStep, NodeData, NodeType } from '../types';
+import {
+  ACTIONTYPE,
+  BondState,
+  FormStep,
+  GatewayAmount,
+  GatewayData,
+  MixnodeAmount,
+  MixnodeData,
+  NodeData,
+} from '../types';
 import AmountModal from './AmountModal';
 import { AppContext, urls } from '../../../context';
 import SummaryModal from './SummaryModal';
-import { bond, vestingBond } from '../../../requests';
-import { TBondArgs } from '../../../types';
-import { Console } from '../../../utils/console';
+import {
+  bondGateway as bondGatewayRequest,
+  bondMixNode as bondMixNodeRequest,
+  vestingBondGateway,
+  vestingBondMixNode,
+} from '../../../requests';
+import { useGetFee } from '../../../hooks/useGetFee';
 
 const initialState: BondState = {
   showModal: false,
   formStep: 1,
+  bondStatus: 'init',
 };
 
 function reducer(state: BondState, action: ACTIONTYPE) {
@@ -30,6 +44,8 @@ function reducer(state: BondState, action: ACTIONTYPE) {
       return { ...state, formStep: action.payload };
     case 'set_tx':
       return { ...state, tx: action.payload };
+    case 'set_bond_status':
+      return { ...state, bondStatus: action.payload };
     case 'next_step':
       step = state.formStep + 1;
       return { ...state, formStep: step <= 4 ? (step as FormStep) : 4 };
@@ -50,62 +66,107 @@ function reducer(state: BondState, action: ACTIONTYPE) {
 const BondingCard = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
-  console.log(state);
 
   const { userBalance, clientDetails, network } = useContext(AppContext);
+  const { fee } = useGetFee();
 
   useEffect(() => {
     dispatch({ type: 'reset' });
   }, [clientDetails]);
 
-  const formatData = (nodeType: NodeType, nodeData: NodeData, amountData: AmountData): MixNode | Gateway =>
-    nodeType === 'mixnode'
-      ? {
-          host: nodeData.host,
-          mix_port: nodeData.mixPort,
-          verloc_port: nodeData.verlocPort,
-          http_api_port: nodeData.httpApiPort,
-          sphinx_key: nodeData.sphinxKey,
-          identity_key: nodeData.identityKey,
-          version: nodeData.version,
-          profit_margin_percent: amountData.profitMargin as number,
-        }
-      : {
-          host: nodeData.host,
-          mix_port: nodeData.mixPort,
-          clients_port: nodeData.clientsPort,
-          location: nodeData.location as string,
-          sphinx_key: nodeData.sphinxKey,
-          identity_key: nodeData.identityKey,
-          version: nodeData.version,
-        };
+  const bondMixnode = async () => {
+    let tx: TransactionExecuteResult | undefined;
+    const { signature, identityKey, sphinxKey, host, version, mixPort, verlocPort, httpApiPort } =
+      state.nodeData as NodeData<MixnodeData>;
+    const { profitMargin, amount, tokenPool } = state.amountData as MixnodeAmount;
+    const payload = {
+      ownerSignature: signature,
+      mixnode: {
+        identity_key: identityKey,
+        sphinx_key: sphinxKey,
+        host,
+        version,
+        mix_port: mixPort,
+        profit_margin_percent: profitMargin,
+        verloc_port: verlocPort,
+        http_api_port: httpApiPort,
+      },
+      pledge: amount,
+      fee: fee?.fee,
+    };
+    if (tokenPool !== 'locked' && tokenPool !== 'balance') {
+      throw new Error(`token pool [${tokenPool}] not supported`);
+    }
+    try {
+      if (tokenPool === 'balance') {
+        tx = await bondMixNodeRequest(payload);
+        await userBalance.fetchBalance();
+      }
+      if (tokenPool === 'locked') {
+        tx = await vestingBondMixNode(payload);
+        await userBalance.fetchTokenAllocation();
+      }
+      dispatch({ type: 'set_bond_status', payload: 'success' });
+      return tx;
+    } catch (e) {
+      dispatch({ type: 'set_bond_status', payload: 'error' });
+    }
+    return undefined;
+  };
+
+  const bondGateway = async () => {
+    let tx: TransactionExecuteResult | undefined;
+    const { signature, identityKey, sphinxKey, host, version, location, mixPort, clientsPort } =
+      state.nodeData as NodeData<GatewayData>;
+    const { amount, tokenPool } = state.amountData as GatewayAmount;
+    const payload = {
+      ownerSignature: signature,
+      gateway: {
+        identity_key: identityKey,
+        sphinx_key: sphinxKey,
+        host,
+        version,
+        mix_port: mixPort,
+        location,
+        clients_port: clientsPort,
+      },
+      pledge: amount,
+      fee: fee?.fee,
+    };
+    try {
+      if (tokenPool === 'balance') {
+        tx = await bondGatewayRequest(payload);
+        await userBalance.fetchBalance();
+      }
+      if (tokenPool === 'locked') {
+        tx = await vestingBondGateway(payload);
+        await userBalance.fetchTokenAllocation();
+      }
+      dispatch({ type: 'set_bond_status', payload: 'success' });
+      return tx;
+    } catch (e) {
+      dispatch({ type: 'set_bond_status', payload: 'error' });
+    }
+    return tx;
+  };
 
   const onSubmit = async () => {
-    const { nodeData, amountData } = state;
-    if (!nodeData || !amountData) {
-      throw new Error('');
+    const { nodeData } = state;
+    let tx: TransactionExecuteResult | undefined;
+    // TODO show a special UI for loading state
+    dispatch({ type: 'set_bond_status', payload: 'loading' });
+    if ((nodeData as NodeData).nodeType === 'mixnode') {
+      tx = await bondMixnode();
+    } else {
+      tx = await bondGateway();
     }
-    const request = amountData.tokenPool === 'balance' ? bond : vestingBond;
-    dispatch({ type: 'next_step' });
-    return request({
-      type: nodeData.nodeType,
-      ownerSignature: nodeData.signature,
-      [nodeData.nodeType]: formatData(nodeData.nodeType, nodeData, amountData),
-      pledge: amountData.amount,
-    } as TBondArgs)
-      .then(async (tx) => {
-        if (amountData.tokenPool === 'balance') {
-          await userBalance.fetchBalance();
-        } else {
-          await userBalance.fetchTokenAllocation();
-        }
-        dispatch({ type: 'set_tx', payload: tx });
-        dispatch({ type: 'next_step' });
-      })
-      .catch((e: any) => {
-        Console.error('Failed to bond', e);
-        // TODO do something
-      });
+    dispatch({ type: 'set_tx', payload: tx });
+    if (state.bondStatus === 'success') {
+      dispatch({ type: 'next_step' });
+    }
+    if (state.bondStatus === 'error') {
+      // TODO show a special UI for error
+    }
   };
 
   const onConfirm = () => {
@@ -163,9 +224,9 @@ const BondingCard = () => {
           onClose={() => dispatch({ type: 'reset' })}
           onCancel={() => dispatch({ type: 'prev_step' })}
           onSubmit={onSubmit}
-          nodeType={state.nodeData?.nodeType as NodeType}
-          identityKey={state.nodeData?.identityKey as string}
-          amount={state.amountData?.amount as MajorCurrencyAmount}
+          node={state.nodeData as NodeData}
+          amount={state.amountData as MixnodeAmount | GatewayAmount}
+          onError={() => {}}
         />
       )}
       {formStep === 4 && showModal && (

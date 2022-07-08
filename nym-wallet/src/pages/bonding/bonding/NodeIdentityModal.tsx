@@ -2,7 +2,8 @@ import React from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Stack } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { NodeData, NodeType } from '../types';
+import { FieldErrors } from 'react-hook-form/dist/types/errors';
+import { GatewayData, MixnodeData, NodeData, NodeType } from '../types';
 import { RadioInput, TextFieldInput, CheckboxInput } from '../components';
 import nodeSchema from './nodeSchema';
 import { SimpleDialog } from '../../../components';
@@ -32,7 +33,7 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
     formState: { errors },
   } = useForm<NodeData>({
     defaultValues: {
-      nodeType: radioOptions[0].value,
+      nodeType: 'mixnode',
       advancedOpt: false,
       mixPort: 1789,
       verlocPort: 1790,
@@ -111,8 +112,8 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
             defaultValue=""
             label="Location"
             placeholder="Location"
-            error={Boolean(errors.location)}
-            helperText={errors.location?.message}
+            error={Boolean((errors as FieldErrors<NodeData<GatewayData>>).location)}
+            helperText={(errors as FieldErrors<NodeData<GatewayData>>).location?.message}
             required
             muiTextFieldProps={{ fullWidth: true }}
             sx={{ mb: 2.5 }}
@@ -171,8 +172,11 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
                   control={control}
                   label="Verloc Port"
                   placeholder="Verloc Port"
-                  error={Boolean(errors.verlocPort)}
-                  helperText={errors.verlocPort?.message && 'A valid port value is required'}
+                  error={Boolean((errors as FieldErrors<NodeData<MixnodeData>>).verlocPort)}
+                  helperText={
+                    (errors as FieldErrors<NodeData<MixnodeData>>).verlocPort?.message &&
+                    'A valid port value is required'
+                  }
                   required
                   registerOptions={{ valueAsNumber: true }}
                   sx={{ mb: 2.5 }}
@@ -182,8 +186,11 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
                   control={control}
                   label="HTTP API Port"
                   placeholder="HTTP API Port"
-                  error={Boolean(errors.httpApiPort)}
-                  helperText={errors.httpApiPort?.message && 'A valid port value is required'}
+                  error={Boolean((errors as FieldErrors<NodeData<MixnodeData>>).httpApiPort)}
+                  helperText={
+                    (errors as FieldErrors<NodeData<MixnodeData>>).httpApiPort?.message &&
+                    'A valid port value is required'
+                  }
                   required
                   registerOptions={{ valueAsNumber: true }}
                   sx={{ mb: 2.5 }}
@@ -195,8 +202,11 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
                 control={control}
                 label="client WS API Port"
                 placeholder="client WS API Port"
-                error={Boolean(errors.clientsPort)}
-                helperText={errors.clientsPort?.message && 'A valid port value is required'}
+                error={Boolean((errors as FieldErrors<NodeData<GatewayData>>).clientsPort)}
+                helperText={
+                  (errors as FieldErrors<NodeData<GatewayData>>).clientsPort?.message &&
+                  'A valid port value is required'
+                }
                 required
                 registerOptions={{ valueAsNumber: true }}
                 sx={{ mb: 2.5 }}

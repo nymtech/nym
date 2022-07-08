@@ -186,8 +186,9 @@ impl Simulator {
 mod tests {
     use super::*;
     use crate::reward_params::{EpochRewardParams, IntervalRewardParams};
+    use crate::rewarding::helpers::truncate_reward_amount;
     use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::Uint128;
+    use cosmwasm_std::{coin, Uint128};
     use std::time::Duration;
 
     fn base_simulator(initial_pledge: u128) -> Simulator {
@@ -332,6 +333,103 @@ mod tests {
             base_op + expected_operator1 + expected_operator2 + expected_operator3,
         );
         assert_eq!(Decimal::zero(), simulator.node_rewarding_details.delegates);
+    }
+
+    #[test]
+    fn withdrawing_operator_reward() {
+        // essentially all delegators' rewards (and the operator itself) are still correctly computed
+        let original_pledge = coin(10000_000000, "unym");
+        let mut simulator = base_simulator(original_pledge.amount.u128());
+        let node_params = NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+
+        // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
+        // delegating at different times still work)
+        simulator.delegate(Coin::new(18000_000000, "unym"));
+        simulator.delegate(Coin::new(4000_000000, "unym"));
+
+        // "normal", sanity check rewarding
+        let rewards1 = simulator.simulate_epoch(node_params);
+        let expected_operator1 = "1411087.1007647323".parse().unwrap();
+        let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
+        compare_decimals(rewards1.delegates, expected_delegator_reward1);
+        compare_decimals(rewards1.operator, expected_operator1);
+        check_rewarding_invariant(&simulator);
+
+        let reward = simulator
+            .node_rewarding_details
+            .withdraw_operator_reward(&original_pledge);
+        assert_eq!(reward.amount, truncate_reward_amount(expected_operator1));
+        assert_eq!(
+            simulator.node_rewarding_details.operator,
+            Decimal::from_atomics(original_pledge.amount, 0).unwrap()
+        );
+
+        let rewards2 = simulator.simulate_epoch(node_params);
+        let expected_operator2 = "1411113.0004067947".parse().unwrap();
+        let expected_delegator_reward2 = "2200183.3879084454".parse().unwrap();
+        compare_decimals(rewards2.delegates, expected_delegator_reward2);
+        compare_decimals(rewards2.operator, expected_operator2);
+        check_rewarding_invariant(&simulator);
+    }
+
+    #[test]
+    fn withdrawing_delegator_reward() {
+        // essentially all delegators' rewards (and the operator itself) are still correctly computed
+        let mut simulator = base_simulator(10000_000000);
+        let node_params = NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+
+        // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
+        // delegating at different times still work)
+        simulator.delegate(Coin::new(18000_000000, "unym"));
+        simulator.delegate(Coin::new(4000_000000, "unym"));
+
+        // "normal", sanity check rewarding
+        let rewards1 = simulator.simulate_epoch(node_params);
+        let expected_operator1 = "1411087.1007647323".parse().unwrap();
+        let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
+        compare_decimals(rewards1.delegates, expected_delegator_reward1);
+        compare_decimals(rewards1.operator, expected_operator1);
+        check_rewarding_invariant(&simulator);
+
+        // reference to our `18000_000000` delegation
+        let delegation1 = &mut simulator.node_delegations[0];
+        let reward = simulator
+            .node_rewarding_details
+            .withdraw_delegator_reward(delegation1)
+            .unwrap();
+        let expected_del1_reward = "1799968.1174089068".parse().unwrap();
+        assert_eq!(reward.amount, truncate_reward_amount(expected_del1_reward));
+
+        // new reward after withdrawal
+        let rewards2 = simulator.simulate_epoch(node_params);
+        let expected_operator2 = "1411250.1907492676".parse().unwrap();
+        let expected_delegator_reward2 = "2200004.051009689".parse().unwrap();
+        compare_decimals(rewards2.delegates, expected_delegator_reward2);
+        compare_decimals(rewards2.operator, expected_operator2);
+        check_rewarding_invariant(&simulator);
+
+        // check final values
+        let reward_del1 = simulator
+            .node_rewarding_details
+            .withdraw_delegator_reward(&mut simulator.node_delegations[0])
+            .unwrap();
+        let expected_del1_reward = "1799970.5883041779".parse().unwrap();
+        assert_eq!(
+            reward_del1.amount,
+            truncate_reward_amount(expected_del1_reward)
+        );
+
+        let reward_del2 = simulator
+            .node_rewarding_details
+            .withdraw_delegator_reward(&mut simulator.node_delegations[1])
+            .unwrap();
+        let first: Decimal = "399992.91497975704".parse().unwrap();
+        let second: Decimal = "400033.4627055114".parse().unwrap();
+        let expected_del2_reward = first + second;
+        assert_eq!(
+            reward_del2.amount,
+            truncate_reward_amount(expected_del2_reward)
+        );
     }
 
     #[test]

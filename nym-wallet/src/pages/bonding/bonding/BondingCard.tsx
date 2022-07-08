@@ -7,6 +7,7 @@ import NodeIdentityModal from './NodeIdentityModal';
 import {
   ACTIONTYPE,
   BondState,
+  BondStatus,
   FormStep,
   GatewayAmount,
   GatewayData,
@@ -46,6 +47,8 @@ function reducer(state: BondState, action: ACTIONTYPE) {
       return { ...state, tx: action.payload };
     case 'set_bond_status':
       return { ...state, bondStatus: action.payload };
+    case 'set_error':
+      return { ...state, error: action.payload, bondStatus: 'error' as BondStatus };
     case 'next_step':
       step = state.formStep + 1;
       return { ...state, formStep: step <= 4 ? (step as FormStep) : 4 };
@@ -108,8 +111,8 @@ const BondingCard = () => {
       }
       dispatch({ type: 'set_bond_status', payload: 'success' });
       return tx;
-    } catch (e) {
-      dispatch({ type: 'set_bond_status', payload: 'error' });
+    } catch (e: any) {
+      dispatch({ type: 'set_error', payload: e });
     }
     return undefined;
   };
@@ -144,8 +147,8 @@ const BondingCard = () => {
       }
       dispatch({ type: 'set_bond_status', payload: 'success' });
       return tx;
-    } catch (e) {
-      dispatch({ type: 'set_bond_status', payload: 'error' });
+    } catch (e: any) {
+      dispatch({ type: 'set_error', payload: e });
     }
     return tx;
   };
@@ -163,9 +166,6 @@ const BondingCard = () => {
     dispatch({ type: 'set_tx', payload: tx });
     if (state.bondStatus === 'success') {
       dispatch({ type: 'next_step' });
-    }
-    if (state.bondStatus === 'error') {
-      // TODO show a special UI for error
     }
   };
 
@@ -226,10 +226,13 @@ const BondingCard = () => {
           onSubmit={onSubmit}
           node={state.nodeData as NodeData}
           amount={state.amountData as MixnodeAmount | GatewayAmount}
-          onError={() => {}}
+          onError={(msg: string) => {
+            // TODO do something on gas fee error
+            dispatch({ type: 'set_error', payload: msg });
+          }}
         />
       )}
-      {formStep === 4 && showModal && (
+      {state.bondStatus === 'success' && formStep === 4 && showModal && (
         <ConfirmationModal
           open={formStep === 4 && showModal}
           onConfirm={onConfirm}

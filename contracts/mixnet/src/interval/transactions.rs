@@ -85,8 +85,11 @@ pub fn try_reconcile_epoch_events(
     info: MessageInfo,
     limit: Option<usize>,
 ) -> Result<Response, MixnetContractError> {
-    // Only rewarding validator can attempt to reconcile those events
-    ensure_is_authorized(info.sender, deps.storage)?;
+    // // Only rewarding validator can attempt to reconcile those events
+    // ensure_is_authorized(info.sender, deps.storage)?;
+    
+    // actually anyone willing to pay the fees should be allowed to reconcile
+    // contract events ASSUMING the corresponding epoch/interval has finished
 
     // TODO: use events
 

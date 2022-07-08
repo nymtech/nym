@@ -4,11 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "prewebpack:dev": "yarn --cwd .. build",
     "webpack:dev": "yarn webpack serve --config webpack.dev.js",
     "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
     "tauri:dev": "RUST_DEBUG=1 yarn tauri dev",
     "tauri:build": "yarn tauri build",
     "dev": "run-p webpack:dev tauri:dev",
+    "prebuild": "yarn --cwd .. build",
     "build": "run-s webpack:prod tauri:build",
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook",

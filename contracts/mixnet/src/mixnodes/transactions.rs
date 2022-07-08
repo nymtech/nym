@@ -259,8 +259,7 @@ pub(crate) fn _try_update_mixnode_config(
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
         .1;
 
-    todo!("check for is_unbonding()");
-
+    ensure_bonded(&existing_bond)?;
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
 
     let mut updated_bond = existing_bond.clone();
@@ -317,7 +316,7 @@ pub(crate) fn _try_update_mixnode_cost_params(
         .1;
 
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
-    todo!("check for is_unbonding()");
+    ensure_bonded(&existing_bond)?;
 
     // push the interval event
     let interval_event = PendingIntervalEvent::ChangeMixCostParams {

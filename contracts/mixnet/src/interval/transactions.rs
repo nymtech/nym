@@ -21,50 +21,62 @@ use mixnet_contract_common::{IdentityKey, Interval, NodeId};
 fn perform_pending_epoch_actions(
     mut deps: DepsMut<'_>,
     env: &Env,
-) -> Result<(), MixnetContractError> {
+) -> Result<Response, MixnetContractError> {
     let last_executed = storage::LAST_PROCESSED_EPOCH_EVENT.load(deps.storage)?;
     let last_inserted = storage::EPOCH_EVENT_ID_COUNTER.load(deps.storage)?;
 
     // no pending events
     if last_executed == last_inserted {
-        return Ok(());
+        return Ok(Response::default());
     }
 
+    let mut response = Response::new();
     // no need to use the [cosmwasm] range iterator as we know the exact keys in order
     for event_id in last_executed + 1..=last_inserted {
         let event = storage::PENDING_EPOCH_EVENTS.load(deps.storage, event_id)?;
-        event.execute(deps.branch(), env)?;
+        let mut sub_response = event.execute(deps.branch(), env)?;
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
+        // response.data.append(&mut sub_response.data);
+
         storage::PENDING_EPOCH_EVENTS.remove(deps.storage, event_id);
     }
 
     storage::LAST_PROCESSED_EPOCH_EVENT.save(deps.storage, &last_inserted)?;
 
-    Ok(())
+    Ok(response)
 }
 
 // TODO: incorporate limit
 fn perform_pending_interval_actions(
     mut deps: DepsMut<'_>,
     env: &Env,
-) -> Result<(), MixnetContractError> {
+) -> Result<Response, MixnetContractError> {
     let last_executed = storage::LAST_PROCESSED_INTERVAL_EVENT.load(deps.storage)?;
     let last_inserted = storage::INTERVAL_EVENT_ID_COUNTER.load(deps.storage)?;
 
     // no pending events
     if last_executed == last_inserted {
-        return Ok(());
+        return Ok(Response::default());
     }
 
+    let mut response = Response::new();
     // no need to use the [cosmwasm] range iterator as we know the exact keys in order
     for event_id in last_executed + 1..=last_inserted {
         let event = storage::PENDING_INTERVAL_EVENTS.load(deps.storage, event_id)?;
-        event.execute(deps.branch(), env)?;
+        let mut sub_response = event.execute(deps.branch(), env)?;
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
+        // response.data.append(&mut sub_response.data);
+
         storage::PENDING_INTERVAL_EVENTS.remove(deps.storage, event_id);
     }
 
     storage::LAST_PROCESSED_INTERVAL_EVENT.save(deps.storage, &last_inserted)?;
 
-    Ok(())
+    Ok(response)
 }
 
 pub fn try_reconcile_epoch_events(

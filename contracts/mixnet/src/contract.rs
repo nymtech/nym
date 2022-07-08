@@ -67,6 +67,7 @@ fn default_initial_state(
     owner: Addr,
     rewarding_validator_address: Addr,
     rewarding_denom: String,
+    vesting_contract_address: Addr,
 ) -> ContractState {
     ContractState {
         owner,
@@ -82,6 +83,7 @@ fn default_initial_state(
                 denom: rewarding_denom,
                 amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
             },
+            vesting_contract_address,
         },
     }
 }
@@ -99,10 +101,12 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, MixnetContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
+    let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
         info.sender,
         rewarding_validator_address,
         msg.rewarding_denom,
+        vesting_contract_address,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);

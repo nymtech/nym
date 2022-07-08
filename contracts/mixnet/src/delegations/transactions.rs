@@ -12,7 +12,9 @@ use cosmwasm_std::{
     Response, Storage, Uint128, WasmMsg,
 };
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::new_pending_delegation_event;
+use mixnet_contract_common::events::{
+    new_pending_delegation_event, new_pending_undelegation_event,
+};
 use mixnet_contract_common::pending_events::PendingEpochEvent;
 use mixnet_contract_common::{Delegation, NodeId};
 
@@ -142,63 +144,53 @@ pub(crate) fn _try_delegate_to_mixnode(
 
 pub(crate) fn try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
-    env: Env,
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_delegation_from_mixnode(deps, env, mix_id, info.sender.as_str(), None)
+    _try_remove_delegation_from_mixnode(deps, mix_id, info.sender.as_str(), None)
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     deps: DepsMut<'_>,
-    env: Env,
     info: MessageInfo,
     mix_id: NodeId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_delegation_from_mixnode(deps, env, mix_id, &delegate, Some(info.sender))
+    _try_remove_delegation_from_mixnode(deps, mix_id, &delegate, Some(info.sender))
 }
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
-    env: Env,
     mix_id: NodeId,
     delegate: &str,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let delegate = deps.api.addr_validate(delegate)?;
 
-    todo!()
-    //
-    // let event = PendingUndelegate::new(
-    //     mix_identity.to_string(),
-    //     delegate.clone(),
-    //     proxy.clone(),
-    //     env.block.height,
-    // );
-    //
-    // if storage::PENDING_DELEGATION_EVENTS
-    //     .may_load(deps.storage, event.event_storage_key())?
-    //     .is_some()
-    // {
-    //     return Err(ContractError::DelegationEventAlreadyPending {
-    //         block_height: event.block_height(),
-    //         identity: mix_identity,
-    //         kind: "undelgation".to_string(),
-    //     });
-    // }
-    //
-    // PENDING_DELEGATION_EVENTS.save(
-    //     deps.storage,
-    //     event.event_storage_key(),
-    //     &DelegationEvent::Undelegate(event),
-    // )?;
-    //
-    // Ok(Response::new().add_event(new_pending_undelegation_event(
-    //     &delegate,
-    //     &proxy,
-    //     &mix_identity,
-    // )))
+    // see if the delegation even exists
+    let storage_key = Delegation::generate_storage_key(mix_id, &delegate, proxy.as_ref());
+
+    if storage::delegations()
+        .may_load(deps.storage, storage_key)?
+        .is_none()
+    {
+        return Err(MixnetContractError::NoMixnodeDelegationFound {
+            mix_id,
+            address: delegate.into_string(),
+        });
+    }
+
+    // push the event onto the queue and wait for it to be picked up at the end of the epoch
+    let cosmos_event = new_pending_undelegation_event(&delegate, &proxy, mix_id);
+
+    let epoch_event = PendingEpochEvent::Undelegate {
+        owner: delegate,
+        mix_id,
+        proxy,
+    };
+    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
+
+    Ok(Response::new().add_event(cosmos_event))
 }
 
 //

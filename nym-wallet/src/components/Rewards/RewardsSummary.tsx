@@ -13,13 +13,13 @@ export const RewardsSummary: React.FC<{
       <Stack direction="row" spacing={4}>
         <Stack direction="row" spacing={2}>
           <Typography>Total delegations:</Typography>
-          <Typography fontWeight={600}>
+          <Typography fontWeight={600} fontSize={16}>
             {isLoading ? <CircularProgress size={theme.typography.fontSize} /> : totalDelegation || '-'}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={2}>
           <Typography>New rewards:</Typography>
-          <Typography fontWeight={600}>
+          <Typography fontWeight={600} fontSize={16}>
             {isLoading ? <CircularProgress size={theme.typography.fontSize} /> : totalRewards || '-'}
           </Typography>
         </Stack>

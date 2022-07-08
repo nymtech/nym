@@ -1,11 +1,32 @@
 import React from 'react';
 import { Stack, Typography } from '@mui/material';
+import { SxProps } from '@mui/system';
 import { Link } from '@nymproject/react/link/Link';
 import { TTransactionDetails } from './types';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';
 
-export const SendSuccessModal = ({ txDetails, onClose }: { txDetails: TTransactionDetails; onClose: () => void }) => (
-  <ConfirmationModal open onConfirm={onClose} onClose={onClose} title="" confirmButton="Done" maxWidth="xs" fullWidth>
+export const SendSuccessModal = ({
+  txDetails,
+  onClose,
+  sx,
+  backdropProps,
+}: {
+  txDetails: TTransactionDetails;
+  onClose: () => void;
+  sx?: SxProps;
+  backdropProps?: object;
+}) => (
+  <ConfirmationModal
+    open
+    onConfirm={onClose}
+    onClose={onClose}
+    title=""
+    confirmButton="Done"
+    maxWidth="xs"
+    fullWidth
+    sx={sx}
+    backdropProps={backdropProps}
+  >
     <Stack alignItems="center" spacing={2}>
       <Typography>You sent</Typography>
       {txDetails && (

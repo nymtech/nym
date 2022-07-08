@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, CircularProgress, Modal, Stack, Typography } from '@mui/material';
+import { SxProps } from '@mui/system';
 
-const modalStyle = {
+const modalStyle: SxProps = {
   position: 'absolute',
   top: '50%',
   left: '50%',
@@ -13,12 +14,15 @@ const modalStyle = {
   p: 4,
 };
 
-export const LoadingModal = () => (
-  <Modal open>
-    <Box sx={modalStyle} textAlign="center">
+export const LoadingModal: React.FC<{
+  sx?: SxProps;
+  backdropProps?: object;
+}> = ({ sx, backdropProps }) => (
+  <Modal open BackdropProps={backdropProps}>
+    <Box sx={sx ? { ...modalStyle, ...sx } : { ...modalStyle }} textAlign="center">
       <Stack spacing={4} direction="row" alignItems="center">
         <CircularProgress />
-        <Typography>Please wait...</Typography>
+        <Typography sx={{ color: 'text.primary' }}>Please wait...</Typography>
       </Stack>
     </Box>
   </Modal>

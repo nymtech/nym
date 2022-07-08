@@ -117,7 +117,9 @@ export const SystemVariables = ({
                 ? errors.profitMarginPercent.message
                 : "The percentage of your delegators' rewards that you as the node operator will take"
             }
-            InputProps={{ endAdornment: <PercentOutlined fontSize="small" sx={{ color: 'grey.500' }} /> }}
+            InputProps={{
+              endAdornment: <PercentOutlined fontSize="small" sx={{ color: (theme) => theme.palette.text.disabled }} />,
+            }}
             error={!!errors.profitMarginPercent}
             disabled={isSubmitting}
           />

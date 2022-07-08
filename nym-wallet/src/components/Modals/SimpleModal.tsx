@@ -19,6 +19,7 @@ export const SimpleModal: React.FC<{
   okLabel: string;
   okDisabled?: boolean;
   sx?: SxProps;
+  backdropProps?: object;
 }> = ({
   open,
   hideCloseIcon,
@@ -34,12 +35,13 @@ export const SimpleModal: React.FC<{
   okLabel,
   sx,
   children,
+  backdropProps,
 }) => (
-  <Modal open={open} onClose={onClose}>
+  <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography fontSize={22} fontWeight={600} sx={{ ...headerStyles }}>
+        <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
           {header}
         </Typography>
         {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
@@ -48,9 +50,9 @@ export const SimpleModal: React.FC<{
         <Typography
           mt={0.5}
           mb={3}
-          fontSize="small"
+          fontSize={12}
           color={(theme) => theme.palette.text.secondary}
-          sx={{ ...subHeaderStyles }}
+          sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
         >
           {subHeader}
         </Typography>

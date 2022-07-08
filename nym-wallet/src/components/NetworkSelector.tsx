@@ -40,10 +40,10 @@ export const NetworkSelector = () => {
       <Button
         variant="text"
         color="primary"
-        sx={{ color: (theme) => `${theme.palette.nym.background.dark}` }}
+        sx={{ color: 'text.primary' }}
         onClick={handleClick}
         disableElevation
-        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
+        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.text.primary}` }} />}
       >
         {networks.find((n) => n.networkName === network)?.name}
       </Button>
@@ -57,7 +57,7 @@ export const NetworkSelector = () => {
         onClose={handleClose}
       >
         <List>
-          <ListSubheader>Network selection</ListSubheader>
+          <ListSubheader sx={{ backgroundColor: 'transparent' }}>Network selection</ListSubheader>
           {networks
             .filter(({ networkName }) => {
               // show all networks when in dev more or the user wants QA mode enabled

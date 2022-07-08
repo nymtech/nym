@@ -1,7 +1,16 @@
 import React from 'react';
+import { SxProps } from '@mui/system';
 import { SimpleModal } from '../Modals/SimpleModal';
 
-export const SendErrorModal = ({ onClose }: { onClose: () => void }) => (
+export const SendErrorModal = ({
+  onClose,
+  sx,
+  backdropProps,
+}: {
+  onClose: () => void;
+  sx?: SxProps;
+  backdropProps?: {};
+}) => (
   <SimpleModal
     open
     hideCloseIcon
@@ -10,7 +19,7 @@ export const SendErrorModal = ({ onClose }: { onClose: () => void }) => (
     header="Send"
     subHeader="An error occurred while sending. Please try again"
     okLabel="Close"
-    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', ...sx }}
     headerStyles={{
       width: '100%',
       mb: 3,
@@ -20,5 +29,6 @@ export const SendErrorModal = ({ onClose }: { onClose: () => void }) => (
       textTransform: 'capitalize',
     }}
     subHeaderStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
+    backdropProps={backdropProps}
   />
 );

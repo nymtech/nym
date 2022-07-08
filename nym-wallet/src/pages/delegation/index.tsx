@@ -1,5 +1,6 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { useTheme, Theme } from '@mui/material/styles';
 import { DelegationWithEverything, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
@@ -18,8 +19,17 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
-export const Delegation: FC = () => {
+const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
+  !!isStorybook
+    ? {
+        backdropProps: { ...backDropStyles(theme), ...backdropProps },
+        sx: modalStyles(theme),
+      }
+    : {};
+
+export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
@@ -28,6 +38,8 @@ export const Delegation: FC = () => {
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
   const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: number }>();
+
+  const theme = useTheme();
 
   const {
     clientDetails,
@@ -294,6 +306,9 @@ export const Delegation: FC = () => {
               target="_blank"
               rel="noreferrer"
               text="Network Explorer"
+              fontSize={14}
+              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+              noIcon
             />
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -302,7 +317,7 @@ export const Delegation: FC = () => {
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5 }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
             >
               Delegate
             </Button>
@@ -336,6 +351,7 @@ export const Delegation: FC = () => {
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
+          {...storybookStyles(theme, isStorybook)}
         />
       )}
 
@@ -417,12 +433,12 @@ export const Delegation: FC = () => {
   );
 };
 
-export const DelegationPage = () => {
+export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const { network } = useContext(AppContext);
   return (
     <DelegationContextProvider network={network}>
       <RewardsContextProvider network={network}>
-        <Delegation />
+        <Delegation isStorybook={isStorybook} />
       </RewardsContextProvider>
     </DelegationContextProvider>
   );

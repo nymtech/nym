@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Breakpoint,
   Button,
+  Paper,
   Dialog,
   DialogActions,
   DialogContent,
@@ -22,6 +23,7 @@ export interface ConfirmationModalProps {
   sx?: SxProps;
   fullWidth?: boolean;
   maxWidth?: Breakpoint;
+  backdropProps?: object;
 }
 
 export const ConfirmationModal = ({
@@ -36,9 +38,10 @@ export const ConfirmationModal = ({
   sx,
   fullWidth,
   maxWidth,
+  backdropProps,
 }: ConfirmationModalProps) => {
   const Title = (
-    <DialogTitle id="responsive-dialog-title" sx={{ py: 3, pb: 2, fontWeight: 600 }} color="black">
+    <DialogTitle id="responsive-dialog-title" sx={{ py: 3, pb: 2, fontWeight: 600 }} color="text.primary">
       {title}
       {subTitle &&
         (typeof subTitle === 'string' ? (
@@ -68,10 +71,13 @@ export const ConfirmationModal = ({
       maxWidth={maxWidth || 'sm'}
       sx={{ textAlign: 'center', ...sx }}
       fullWidth={fullWidth}
+      BackdropProps={backdropProps}
     >
-      {Title}
-      <DialogContent>{children}</DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
+      <Paper>
+        {Title}
+        <DialogContent>{children}</DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
+      </Paper>
     </Dialog>
   );
 };

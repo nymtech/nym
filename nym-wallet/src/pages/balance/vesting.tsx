@@ -59,7 +59,7 @@ const VestingSchedule = () => {
         <TableHead>
           <TableRow>
             {columnsHeaders.map((header) => (
-              <TableCell key={header.title} sx={{ color: 'grey.500' }} align={header.align}>
+              <TableCell key={header.title} sx={{ color: (t) => t.palette.nym.text.muted }} align={header.align}>
                 {header.title}
               </TableCell>
             ))}
@@ -105,11 +105,11 @@ const TokenTransfer = () => {
         <Title title="Transfer unlocked tokens" Icon={icon} />
       </Grid>
       <Grid item>
-        <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 2 }}>
+        <Typography variant="subtitle2" sx={{ color: (t) => t.palette.nym.text.muted, mt: 2 }}>
           Transferable tokens
         </Typography>
 
-        <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
+        <Typography data-testid="refresh-success" sx={{ color: 'text.primary' }} variant="h5" fontWeight="700">
           {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.denom}
         </Typography>
       </Grid>

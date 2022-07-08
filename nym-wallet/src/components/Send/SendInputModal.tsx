@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, TextField, Typography } from '@mui/material';
+import { SxProps } from '@mui/system';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { MajorCurrencyAmount } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
@@ -16,6 +17,8 @@ export const SendInputModal = ({
   onClose,
   onAmountChange,
   onAddressChange,
+  sx,
+  backdropProps,
 }: {
   fromAddress?: string;
   toAddress: string;
@@ -26,6 +29,8 @@ export const SendInputModal = ({
   onClose: () => void;
   onAmountChange: (value: MajorCurrencyAmount) => void;
   onAddressChange: (value: string) => void;
+  sx?: SxProps;
+  backdropProps?: object;
 }) => {
   const [isValid, setIsValid] = useState(false);
 
@@ -39,7 +44,16 @@ export const SendInputModal = ({
   }, []);
 
   return (
-    <SimpleModal header="Send" open onClose={onClose} okLabel="Next" onOk={async () => onNext()} okDisabled={!isValid}>
+    <SimpleModal
+      header="Send"
+      open
+      onClose={onClose}
+      okLabel="Next"
+      onOk={async () => onNext()}
+      okDisabled={!isValid}
+      sx={sx}
+      backdropProps={backdropProps}
+    >
       <Stack gap={2} sx={{ mt: 2 }}>
         <TextField
           placeholder="Recipient address"
@@ -63,7 +77,9 @@ export const SendInputModal = ({
       <Stack gap={0.5} sx={{ mt: 2 }}>
         <ModalListItem label="Account balance" value={balance} divider strong />
         <ModalListItem label="Your address" value={fromAddress} divider />
-        <Typography fontSize="smaller">Est. fee for this transaction will be show on the next page</Typography>
+        <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
+          Est. fee for this transaction will be show on the next page
+        </Typography>
       </Stack>
     </SimpleModal>
   );

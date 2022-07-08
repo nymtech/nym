@@ -115,7 +115,7 @@ const Unbond = ({ node, show, onClose }: Props) => {
       )}
       {status === 'error' && (
         <ConfirmationModal
-          open={show && step === 2}
+          open={show}
           onClose={reset}
           onConfirm={reset}
           title="Unbonding failed"

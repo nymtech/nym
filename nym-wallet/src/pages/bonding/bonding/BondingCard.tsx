@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useReducer } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TransactionExecuteResult } from '@nymproject/types';
+import { ErrorOutline } from '@mui/icons-material';
 import { ConfirmationModal, NymCard } from '../../../components';
 import NodeIdentityModal from './NodeIdentityModal';
 import {
@@ -227,7 +228,6 @@ const BondingCard = () => {
           node={state.nodeData as NodeData}
           amount={state.amountData as MixnodeAmount | GatewayAmount}
           onError={(msg: string) => {
-            // TODO do something on gas fee error
             dispatch({ type: 'set_error', payload: msg });
           }}
         />
@@ -245,6 +245,19 @@ const BondingCard = () => {
           <Link href={`${urls(network).blockExplorer}/transaction/${state.tx?.transaction_hash}`} noIcon>
             View on blockchain
           </Link>
+        </ConfirmationModal>
+      )}
+      {state.bondStatus === 'error' && (
+        <ConfirmationModal
+          open={showModal}
+          onClose={() => dispatch({ type: 'reset' })}
+          onConfirm={() => dispatch({ type: 'reset' })}
+          title="Unbonding failed"
+          confirmButton="Done"
+          maxWidth="xs"
+        >
+          <Typography variant="caption">Error: {state.error}</Typography>
+          <ErrorOutline color="error" />
         </ConfirmationModal>
       )}
     </NymCard>

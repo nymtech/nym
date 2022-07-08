@@ -10,6 +10,7 @@ export type ACTIONTYPE =
   | { type: 'set_amount_data'; payload: AmountData }
   | { type: 'set_step'; payload: FormStep }
   | { type: 'set_tx'; payload: TransactionExecuteResult | undefined }
+  | { type: 'set_error'; payload: string | null | undefined }
   | { type: 'set_bond_status'; payload: BondStatus }
   | { type: 'next_step' }
   | { type: 'prev_step' }
@@ -62,4 +63,5 @@ export interface BondState {
   amountData?: MixnodeAmount | GatewayAmount;
   tx?: TransactionExecuteResult;
   bondStatus: BondStatus;
+  error?: string | null;
 }

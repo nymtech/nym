@@ -9,7 +9,7 @@ import NodeSettings from './node-settings';
 import BondMore from './bond-more';
 import { MixnodeFlow } from './types';
 import RedeemRewards from './redeem';
-import Unbond from '../unbond';
+import Unbond from './unbond';
 import CompoundRewards from './compound';
 import { Bond as BondIcon, Unbond as UnbondIcon } from '../../../svg-icons';
 

@@ -4,7 +4,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { BondedGateway } from '../../../context';
 import { NodeTable, BondedNodeCard, Cell, Header, NodeMenu } from '../components';
 import { GatewayFlow } from './types';
-import Unbond from '../unbond';
+import Unbond from './unbond';
 
 const headers: Header[] = [
   {

@@ -15,7 +15,7 @@ export interface Props {
   onClose: () => void;
   onCancel: () => void;
   onSubmit: () => Promise<void>;
-  onError: (message?: string) => void;
+  onError: (message: string) => void;
   node: NodeData;
   amount: MixnodeAmount | GatewayAmount;
 }

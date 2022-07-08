@@ -43,7 +43,7 @@ pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
 pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
 
 // bonding/unbonding
-pub const NODE_ID: &str = "node_id";
+pub const NODE_ID_KEY: &str = "node_id";
 pub const NODE_IDENTITY_KEY: &str = "identity";
 pub const ASSIGNED_LAYER_KEY: &str = "assigned_layer";
 
@@ -273,17 +273,12 @@ pub fn new_undelegation_event(
 pub fn new_pending_undelegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
-    mix_identity: IdentityKeyRef<'_>,
+    mix_id: NodeId,
 ) -> Event {
-    let mut event =
-        Event::new(PENDING_UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event.add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+    Event::new(PENDING_UNDELEGATION_EVENT_TYPE)
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_attribute(NODE_ID_KEY, mix_id.to_string())
 }
 
 pub fn new_gateway_bonding_event(
@@ -333,7 +328,7 @@ pub fn new_mixnode_bonding_event(
     // coin implements Display trait and we use that implementation here
     Event::new(MIXNODE_BONDING_EVENT_TYPE)
         .add_attribute(OWNER_KEY, owner)
-        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(ASSIGNED_LAYER_KEY, assigned_layer)
@@ -349,7 +344,7 @@ pub fn new_mixnode_unbonding_event(
     // coin implements Display trait and we use that implementation here
     Event::new(MIXNODE_UNBONDING_EVENT_TYPE)
         .add_attribute(OWNER_KEY, owner)
-        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
 }
@@ -396,14 +391,14 @@ pub fn new_settings_update_event(
 pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
     Event::new(MIXNODE_REWARDING_EVENT_TYPE)
         .add_attribute(INTERVAL_KEY, interval.to_string())
-        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
 pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
     Event::new(MIXNODE_REWARDING_EVENT_TYPE)
         .add_attribute(INTERVAL_KEY, interval.to_string())
-        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_UPTIME_VALUE)
 }
 
@@ -414,7 +409,7 @@ pub fn new_mix_rewarding_event(
 ) -> Event {
     Event::new(MIXNODE_REWARDING_EVENT_TYPE)
         .add_attribute(INTERVAL_KEY, interval.to_string())
-        .add_attribute(NODE_ID, node_id.to_string())
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,
             reward_distribution.operator.to_string(),

@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::delegations;
 use crate::delegations::storage as delegations_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
@@ -61,7 +62,7 @@ fn delegate(
         let reward = mix_rewarding.determine_delegation_reward(&existing_delegation);
         mix_rewarding.decrease_delegates(existing_delegation.dec_amount() + reward)?;
 
-        // TODO: code duplication
+        // TODO: code duplication with 'undelegate'
         // if this is the only delegation, move all leftover decimal tokens to the operator
         // (this is literally in the order of a millionth of a micronym)
         if mix_rewarding.unique_delegations == 1 {
@@ -100,6 +101,57 @@ fn delegate(
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
 
     Ok(Response::new())
+}
+
+fn undelegate(
+    deps: DepsMut<'_>,
+    _env: &Env,
+    owner: Addr,
+    mix_id: NodeId,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    // see if the delegation still exists (in case of impatient user who decided to send multiple
+    // undelegation requests in an epoch)
+    let storage_key = Delegation::generate_storage_key(mix_id, &owner, proxy.as_ref());
+    let delegation = match delegations_storage::delegations().may_load(deps.storage, storage_key)? {
+        None => return Ok(Response::default()),
+        Some(delegation) => delegation,
+    };
+    let mix_rewarding =
+        rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::InconsistentState {
+            comment: "mixnode rewarding got removed from the storage whilst there's still an existing delegation"
+                .into(),
+        })?;
+
+    // this also appropriately adjusts the storage
+    let tokens_to_return =
+        delegations::helpers::undelegate(deps.storage, delegation, mix_rewarding)?;
+
+    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![tokens_to_return.clone()]);
+    let mut response = Response::new().add_message(return_tokens);
+
+    if let Some(proxy) = &proxy {
+        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
+        // otherwise, we don't care
+        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
+        if proxy == &vesting_contract {
+            // TODO: do we need to send the 1ucoin here?
+            // TODO2: why not just send the tokens alongside the execute?
+            let min_coin = coins(1, &tokens_to_return.denom);
+
+            let msg = VestingContractExecuteMsg::TrackUndelegation {
+                owner: owner.clone().into_string(),
+                mix_identity: "".to_string(),
+                amount: tokens_to_return,
+            };
+            let msg = todo!("we no longer have mix_identity on hand -> this needs adjustments");
+            let track_unbond_message = wasm_execute(proxy, &msg, min_coin)?;
+            response = response.add_message(track_unbond_message);
+        }
+    }
+
+    // TODO: slap events on it
+    Ok(response)
 }
 
 fn unbond_mixnode(
@@ -167,8 +219,12 @@ impl ContractExecutableEvent for PendingEpochEvent {
                 amount,
                 proxy,
             } => delegate(deps, env, owner, mix_id, amount, proxy),
-            PendingEpochEvent::Undelegate { .. } => todo!(),
-            PendingEpochEvent::UnbondMixnode { .. } => todo!(),
+            PendingEpochEvent::Undelegate {
+                owner,
+                mix_id,
+                proxy,
+            } => undelegate(deps, env, owner, mix_id, proxy),
+            PendingEpochEvent::UnbondMixnode { mix_id } => unbond_mixnode(deps, env, mix_id),
         }
     }
 }

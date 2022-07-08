@@ -9,6 +9,7 @@ use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
 use cosmwasm_std::{coin, coins, wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::{Delegation, NodeId};
@@ -229,12 +230,40 @@ impl ContractExecutableEvent for PendingEpochEvent {
     }
 }
 
+fn change_mix_cost_params(
+    deps: DepsMut<'_>,
+    _env: &Env,
+    mix_id: NodeId,
+    new_costs: MixNodeCostParams,
+) -> Result<Response, MixnetContractError> {
+    // almost an entire interval might have passed since the request was issued -> check if the
+    // node still exists
+
+    // note: there's no check if the bond is in "unbonding" state, as epoch actions would get
+    // cleared before touching interval actions
+    let mut mix_rewarding =
+        match rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
+            Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
+            // if node doesn't exist anymore, don't do anything, simple as that.
+            _ => return Ok(Response::default()),
+        };
+    // TODO: can we just change cost_params without breaking rewarding calculation?
+    // (I'm almost certain we can, but well, it has to be tested)
+    mix_rewarding.cost_params = new_costs;
+    rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
+
+    // TODO: slap events on it
+    Ok(Response::new())
+}
+
 impl ContractExecutableEvent for PendingIntervalEvent {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self {
-            PendingIntervalEvent::ChangeMixCostParams { .. } => todo!(),
+            PendingIntervalEvent::ChangeMixCostParams { mix, new_costs } => {
+                change_mix_cost_params(deps, env, mix, new_costs)
+            }
         }
     }
 }

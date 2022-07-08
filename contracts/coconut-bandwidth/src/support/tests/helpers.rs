@@ -4,6 +4,7 @@
 pub const OWNER: &str = "admin0001";
 pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 pub const POOL_CONTRACT: &str = "mix pool contract address";
+pub const RANDOM_ADDRESS: &str = "random address";
 
 use crate::contract::instantiate;
 use coconut_bandwidth_contract_common::msg::InstantiateMsg;

@@ -227,6 +227,7 @@ dependencies = [
  "cw-controllers",
  "cw-multi-test",
  "cw-storage-plus",
+ "multisig-contract-common",
  "schemars",
  "serde",
  "thiserror",

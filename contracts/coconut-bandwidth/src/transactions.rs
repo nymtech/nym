@@ -1,8 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use coconut_bandwidth_contract_common::msg::ExecuteMsg;
 use coconut_bandwidth_contract_common::spend_credential::{SpendCredential, SpendCredentialData};
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{
+    to_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response, WasmMsg,
+};
+use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
 use crate::error::ContractError;
 use crate::state::{ADMIN, CONFIG};
@@ -43,7 +47,7 @@ pub(crate) fn deposit_funds(
 
 pub(crate) fn spend_credential(
     deps: DepsMut<'_>,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     data: SpendCredentialData,
 ) -> Result<Response, ContractError> {
@@ -53,6 +57,7 @@ pub(crate) fn spend_credential(
     if storage::spent_credentials().has(deps.storage, data.blinded_serial_number()) {
         return Err(ContractError::DuplicateBlindedSerialNumber);
     }
+    let cfg = CONFIG.load(deps.storage)?;
 
     let gateway_cosmos_address = deps.api.addr_validate(data.gateway_cosmos_address())?;
     storage::spent_credentials().save(
@@ -65,7 +70,27 @@ pub(crate) fn spend_credential(
         ),
     )?;
 
-    Ok(Response::new())
+    let release_funds_req = ExecuteMsg::ReleaseFunds {
+        funds: data.funds().to_owned(),
+    };
+    let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.into_string(),
+        msg: to_binary(&release_funds_req)?,
+        funds: vec![],
+    });
+    let req = MultisigExecuteMsg::Propose {
+        title: String::from("Release funds, as ordered by Coconut Bandwidth Contract"),
+        description: data.blinded_serial_number().to_string(),
+        msgs: vec![release_funds_msg],
+        latest: None,
+    };
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cfg.multisig_addr.into_string(),
+        msg: to_binary(&req)?,
+        funds: vec![],
+    });
+
+    Ok(Response::new().add_message(msg))
 }
 
 pub(crate) fn release_funds(
@@ -102,7 +127,7 @@ mod tests {
     use crate::support::tests::fixtures::spend_credential_data_fixture;
     use crate::support::tests::helpers::{self, MULTISIG_CONTRACT, POOL_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Coin, CosmosMsg};
+    use cosmwasm_std::{from_binary, Coin, CosmosMsg};
     use cw_controllers::AdminError;
 
     #[test]
@@ -261,8 +286,46 @@ mod tests {
         let env = mock_env();
         let info = mock_info("requester", &[]);
         let data = spend_credential_data_fixture("blinded_serial_number");
-        let ret = spend_credential(deps.as_mut(), env, info, data);
-        assert!(ret.is_ok());
+        let res = spend_credential(deps.as_mut(), env.clone(), info, data.clone()).unwrap();
+        if let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds,
+        }) = &res.messages[0].msg
+        {
+            assert_eq!(contract_addr, MULTISIG_CONTRACT);
+            assert!(funds.is_empty());
+            let multisig_msg: MultisigExecuteMsg = from_binary(&msg).unwrap();
+            if let MultisigExecuteMsg::Propose {
+                title: _,
+                description,
+                msgs,
+                latest,
+            } = multisig_msg
+            {
+                assert_eq!(description, data.blinded_serial_number().to_string());
+                assert!(latest.is_none());
+                if let CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr,
+                    msg,
+                    funds,
+                }) = &msgs[0]
+                {
+                    assert_eq!(*contract_addr, env.contract.address.into_string());
+                    assert!(funds.is_empty());
+                    let release_funds_req: ExecuteMsg = from_binary(&msg).unwrap();
+                    if let ExecuteMsg::ReleaseFunds { funds } = release_funds_req {
+                        assert_eq!(funds, *data.funds());
+                    } else {
+                        panic!("Could not extract release funds message from proposal");
+                    }
+                }
+            } else {
+                panic!("Could not extract proposal from binary blob");
+            }
+        } else {
+            panic!("Wasm execute message not found");
+        }
     }
 
     #[test]

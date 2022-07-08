@@ -9,15 +9,15 @@ mod commands;
 mod config;
 mod node;
 
-static LONG_ABOUT: OnceCell<String> = OnceCell::new();
+static LONG_VERSION: OnceCell<String> = OnceCell::new();
 
 // Helper for passing LONG_ABOUT to clap
-fn long_about() -> &'static str {
-    LONG_ABOUT.get().expect("Failed to get long about text")
+fn long_version_static() -> &'static str {
+    LONG_VERSION.get().expect("Failed to get long about text")
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_about = Some(long_about()))]
+#[clap(author = "Nymtech", version, about, long_version = long_version_static())]
 struct Cli {
     #[clap(subcommand)]
     command: commands::Commands,
@@ -28,7 +28,7 @@ async fn main() {
     dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
-    LONG_ABOUT
+    LONG_VERSION
         .set(long_version())
         .expect("Failed to set long about text");
 

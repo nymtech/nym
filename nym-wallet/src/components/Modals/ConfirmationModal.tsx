@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Breakpoint,
   Button,
+  Paper,
   Dialog,
   DialogActions,
   DialogContent,
@@ -63,18 +64,20 @@ export const ConfirmationModal = ({
       confirmButton
     );
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      aria-labelledby="responsive-dialog-title"
-      maxWidth={maxWidth || 'sm'}
-      sx={{ textAlign: 'center', ...sx }}
-      fullWidth={fullWidth}
-      BackdropProps={backdropProps}
-    >
-      {Title}
-      <DialogContent>{children}</DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
-    </Dialog>
+    <Paper>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        aria-labelledby="responsive-dialog-title"
+        maxWidth={maxWidth || 'sm'}
+        sx={{ textAlign: 'center', ...sx }}
+        fullWidth={fullWidth}
+        BackdropProps={backdropProps}
+      >
+        {Title}
+        <DialogContent>{children}</DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
+      </Dialog>
+    </Paper>
   );
 };

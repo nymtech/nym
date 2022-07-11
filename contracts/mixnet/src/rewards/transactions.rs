@@ -4,6 +4,7 @@
 use super::storage;
 use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
+use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::rewards::helpers;
@@ -16,7 +17,10 @@ use mixnet_contract_common::events::{
     new_mix_rewarding_event, new_not_found_mix_operator_rewarding_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::reward_params::{NodeRewardParams, Performance};
+use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use mixnet_contract_common::reward_params::{
+    IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
+};
 use mixnet_contract_common::{Delegation, NodeId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
@@ -229,6 +233,70 @@ pub(crate) fn _try_withdraw_delegator_reward(
 
     // TODO: insert events and all of that
     Ok(response)
+}
+
+pub(crate) fn try_update_active_set_size(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    active_set_size: u32,
+    force_immediately: bool,
+) -> Result<Response, MixnetContractError> {
+    ensure_is_authorized(info.sender, deps.storage)?;
+
+    let mut rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
+    if active_set_size == 0 {
+        return Err(MixnetContractError::ZeroActiveSet);
+    }
+
+    if active_set_size > rewarding_params.rewarded_set_size {
+        return Err(MixnetContractError::InvalidActiveSetSize);
+    }
+
+    let interval = interval_storage::current_interval(deps.storage)?;
+    if force_immediately || interval.is_current_epoch_over(&env) {
+        rewarding_params.try_change_active_set_size(active_set_size)?;
+        storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+    } else {
+        // push the epoch event
+        let epoch_event = PendingEpochEvent::UpdateActiveSetSize {
+            new_size: active_set_size,
+        };
+        push_new_epoch_event(deps.storage, &epoch_event)?;
+    }
+
+    // TODO: slap events
+    Ok(Response::new())
+}
+
+pub(crate) fn try_update_rewarding_params(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    updated_params: IntervalRewardingParamsUpdate,
+    force_immediately: bool,
+) -> Result<Response, MixnetContractError> {
+    ensure_is_authorized(info.sender, deps.storage)?;
+
+    if !updated_params.contains_updates() {
+        return Err(MixnetContractError::EmptyParamsChangeMsg);
+    }
+
+    let interval = interval_storage::current_interval(deps.storage)?;
+    if force_immediately || interval.is_current_interval_over(&env) {
+        let mut rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
+        rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
+        storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+    } else {
+        // push the interval event
+        let interval_event = PendingIntervalEvent::UpdateRewardingParams {
+            update: updated_params,
+        };
+        push_new_interval_event(deps.storage, &interval_event)?;
+    }
+
+    // TODO: slap events
+    Ok(Response::new())
 }
 
 // // All four of the below methods need to do the following things:

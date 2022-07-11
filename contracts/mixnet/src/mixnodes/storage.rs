@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
-    MIXNODES_IDENTITY_IDX_NAMESPACE, MIXNODES_OWNER_IDX_NAMESPACE, MIXNODES_PK_NAMESPACE,
-    MIXNODES_SPHINX_IDX_NAMESPACE,
+    LAYER_DISTRIBUTION_KEY, MIXNODES_IDENTITY_IDX_NAMESPACE, MIXNODES_OWNER_IDX_NAMESPACE,
+    MIXNODES_PK_NAMESPACE, MIXNODES_SPHINX_IDX_NAMESPACE, NODE_ID_COUNTER_KEY,
+    UNBONDED_MIXNODES_PK_NAMESPACE,
 };
 use cosmwasm_std::{StdResult, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, UniqueIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::mixnode::UnbondedMixnode;
 use mixnet_contract_common::SphinxKey;
 use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNodeBond, NodeId};
 
@@ -19,11 +21,12 @@ use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNod
 //
 //
 
-// TODO: perhaps introduce another `Map` like OLD_MIXNODES, where we would
-// keep track of `node_id -> IdentityKey` so we'd known a bit more about past mixnodes
+// keeps track of `node_id -> IdentityKey` so we'd known a bit more about past mixnodes
+pub(crate) const UNBONDED_MIXNODES: Map<NodeId, UnbondedMixnode> =
+    Map::new(UNBONDED_MIXNODES_PK_NAMESPACE);
 
-pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
-pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new("mixnode_id_counter");
+pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
+pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new(NODE_ID_COUNTER_KEY);
 
 // mixnode_bonds() is the storage access function.
 pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {

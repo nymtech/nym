@@ -59,10 +59,13 @@ pub(crate) const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
 
 pub(crate) const CONTRACT_STATE_KEY: &str = "state";
 
+pub(crate) const LAYER_DISTRIBUTION_KEY: &str = "layers";
+pub(crate) const NODE_ID_COUNTER_KEY: &str = "nic";
 pub(crate) const MIXNODES_PK_NAMESPACE: &str = "mnn";
 pub(crate) const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 pub(crate) const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
 pub(crate) const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+pub(crate) const UNBONDED_MIXNODES_PK_NAMESPACE: &str = "ubm";
 
 pub(crate) const REWARDING_PARAMS_KEY: &str = "rparams";
 pub(crate) const PENDING_REWARD_POOL_KEY: &str = "prp";

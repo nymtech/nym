@@ -245,27 +245,6 @@ pub struct MixnodeRewardingStatusResponse {
     pub status: Option<RewardingStatus>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MixnetContractVersion {
-    // VERGEN_BUILD_TIMESTAMP
-    pub build_timestamp: String,
-
-    // VERGEN_BUILD_SEMVER
-    pub build_version: String,
-
-    // VERGEN_GIT_SHA
-    pub commit_sha: String,
-
-    // VERGEN_GIT_COMMIT_TIMESTAMP
-    pub commit_timestamp: String,
-
-    // VERGEN_GIT_BRANCH
-    pub commit_branch: String,
-
-    // VERGEN_RUSTC_SEMVER
-    pub rustc_version: String,
-}
-
 // type aliases for better reasoning about available data
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;

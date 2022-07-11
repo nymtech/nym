@@ -8,24 +8,48 @@ pub type Performance = Percent;
 /// Parameters required by the mix-mining reward distribution that do not change during an interval.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct IntervalRewardParams {
+    /// Current value of the rewarding pool.
+    /// It is expected to be constant throughout the interval.
     pub reward_pool: Decimal,
+
+    /// Current value of the staking supply.
+    /// It is expected to be constant throughout the interval.
     pub staking_supply: Decimal,
 
     // computed values
+    /// Current value of the computed reward budget per epoch, per node.
+    /// It is expected to be constant throughout the interval.
     pub epoch_reward_budget: Decimal,
+
+    /// Current value of the stake saturation point.
+    /// It is expected to be constant throughout the interval.
     pub stake_saturation_point: Decimal,
 
     // constants(-ish)
     // default: 30%
+    /// Current value of the sybil resistance percent (`alpha`).
+    /// It is not really expected to be changing very often.
+    /// As a matter of fact, unless there's a very specific reason, it should remain constant.
     pub sybil_resistance: Percent,
+
     // default: 10
+    /// Current active set work factor.
+    /// It is not really expected to be changing very often.
+    /// As a matter of fact, unless there's a very specific reason, it should remain constant.
     pub active_set_work_factor: Decimal,
+
     // default: 2%
+    /// Current maximum interval pool emission.
+    /// Assuming all nodes in the rewarded set are fully saturated and have 100% performance,
+    /// this % of the reward pool would get distributed in rewards to all operators and its delegators.
+    /// It is not really expected to be changing very often.
+    /// As a matter of fact, unless there's a very specific reason, it should remain constant.
     pub interval_pool_emission: Percent,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct RewardingParams {
+    /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
 
     // while the active set size can change between epochs to accommodate for bandwidth demands,

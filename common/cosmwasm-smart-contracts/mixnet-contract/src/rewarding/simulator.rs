@@ -162,8 +162,7 @@ impl Simulator {
             / Decimal::from_atomics(self.interval.epochs_in_interval(), 0).unwrap()
             * old.interval_pool_emission.value();
         let stake_saturation_point = staking_supply
-            / Decimal::from_atomics(self.system_rewarding_params.epoch.rewarded_set_size, 0)
-                .unwrap();
+            / Decimal::from_atomics(self.system_rewarding_params.rewarded_set_size, 0).unwrap();
 
         let updated_params = RewardingParams {
             interval: IntervalRewardParams {
@@ -175,7 +174,8 @@ impl Simulator {
                 active_set_work_factor: old.active_set_work_factor,
                 interval_pool_emission: old.interval_pool_emission,
             },
-            epoch: self.system_rewarding_params.epoch,
+            rewarded_set_size: self.system_rewarding_params.rewarded_set_size,
+            active_set_size: self.system_rewarding_params.active_set_size,
         };
 
         self.system_rewarding_params = updated_params;
@@ -185,7 +185,7 @@ impl Simulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::reward_params::{EpochRewardParams, IntervalRewardParams};
+    use crate::reward_params::IntervalRewardParams;
     use crate::rewarding::helpers::truncate_reward_amount;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{coin, Uint128};
@@ -215,10 +215,8 @@ mod tests {
                 active_set_work_factor: Decimal::percent(1000), // value '10'
                 interval_pool_emission,
             },
-            epoch: EpochRewardParams {
-                rewarded_set_size,
-                active_set_size,
-            },
+            rewarded_set_size,
+            active_set_size,
         };
 
         let interval = Interval::init_interval(

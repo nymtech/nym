@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::interval::helpers::change_epochs_in_interval;
 use crate::interval::pending_events::ContractExecutableEvent;
+use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
@@ -10,7 +12,9 @@ use crate::support::helpers::ensure_is_authorized;
 use cosmwasm_std::{ensure, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
+use mixnet_contract_common::pending_events::PendingIntervalEvent;
 use mixnet_contract_common::{IdentityKey, Interval, NodeId};
+use std::time::Duration;
 
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
@@ -87,7 +91,7 @@ pub fn try_reconcile_epoch_events(
 ) -> Result<Response, MixnetContractError> {
     // // Only rewarding validator can attempt to reconcile those events
     // ensure_is_authorized(info.sender, deps.storage)?;
-    
+
     // actually anyone willing to pay the fees should be allowed to reconcile
     // contract events ASSUMING the corresponding epoch/interval has finished
 
@@ -167,7 +171,7 @@ pub fn try_advance_epoch(
 
         // TODO: since the rest of the function is not yet implemented, be extremely careful about this one
         // to make sure it doesn't influence epoch events results
-        rewards::helpers::recompute_interval_rewarding_params(deps.storage)?;
+        rewards::helpers::apply_reward_pool_changes(deps.storage)?;
     }
     // if interval has finished, so MUST had the epoch
     if current_interval.is_current_epoch_over(&env) {
@@ -196,6 +200,34 @@ pub fn try_advance_epoch(
     //     return Ok(Response::new().add_event(new_advance_interval_event(next_epoch)));
     // }
 }
+
+pub(crate) fn try_update_interval_config(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    epochs_in_interval: u32,
+    epoch_duration_secs: u64,
+    force_immediately: bool,
+) -> Result<Response, MixnetContractError> {
+    ensure_is_authorized(info.sender, deps.storage)?;
+
+    let mut interval = storage::current_interval(deps.storage)?;
+    if force_immediately || interval.is_current_interval_over(&env) {
+        interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
+        change_epochs_in_interval(deps.storage, Some(interval), epochs_in_interval)?;
+    } else {
+        // push the interval event
+        let interval_event = PendingIntervalEvent::UpdateIntervalConfig {
+            epochs_in_interval,
+            epoch_duration_secs,
+        };
+        push_new_interval_event(deps.storage, &interval_event)?;
+    }
+
+    // TODO: slap events
+    Ok(Response::new())
+}
+
 //
 // #[cfg(test)]
 // mod tests {

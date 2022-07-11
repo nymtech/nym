@@ -193,7 +193,7 @@ impl MixNodeRewarding {
             * self.bond_saturation(reward_params)
             * (work
                 + alpha.value() * self.pledge_saturation(reward_params)
-                    / reward_params.epoch.dec_rewarded_set_size())
+                    / reward_params.dec_rewarded_set_size())
             / (Decimal::one() + alpha.value())
     }
 

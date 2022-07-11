@@ -3,6 +3,8 @@
 
 use crate::delegations;
 use crate::delegations::storage as delegations_storage;
+use crate::interval::helpers::change_epochs_in_interval;
+use crate::interval::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::rewards::storage as rewards_storage;
@@ -11,8 +13,10 @@ use cosmwasm_std::{coin, coins, wasm_execute, Addr, Coin, Decimal, DepsMut, Env,
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::{Delegation, NodeId};
+use std::time::Duration;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) trait ContractExecutableEvent {
@@ -106,7 +110,6 @@ fn delegate(
 
 fn undelegate(
     deps: DepsMut<'_>,
-    _env: &Env,
     owner: Addr,
     mix_id: NodeId,
     proxy: Option<Addr>,
@@ -155,11 +158,7 @@ fn undelegate(
     Ok(response)
 }
 
-fn unbond_mixnode(
-    deps: DepsMut<'_>,
-    _env: &Env,
-    mix_id: NodeId,
-) -> Result<Response, MixnetContractError> {
+fn unbond_mixnode(deps: DepsMut<'_>, mix_id: NodeId) -> Result<Response, MixnetContractError> {
     // if we're here it means user executed `_try_remove_mixnode` and as a result node was set to be
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
     // thus the node with all its associated information MUST exist in the storage.
@@ -209,6 +208,24 @@ fn unbond_mixnode(
     Ok(response)
 }
 
+fn update_active_set_size(
+    deps: DepsMut<'_>,
+    active_set_size: u32,
+) -> Result<Response, MixnetContractError> {
+    // We don't have to check for authorization as this event can only be pushed
+    // by the authorized entity.
+    // Furthermore, we don't need to check whether the epoch is finished as the
+    // queue is only emptied upon the epoch finishing.
+    // Also, we know the update is valid as we checked for that before pushing the event onto the queue.
+
+    let mut rewarding_params = rewards_storage::REWARDING_PARAMS.load(deps.storage)?;
+    rewarding_params.try_change_active_set_size(active_set_size)?;
+    rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+
+    // TODO: slap events on it
+    Ok(Response::new())
+}
+
 impl ContractExecutableEvent for PendingEpochEvent {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
@@ -224,15 +241,17 @@ impl ContractExecutableEvent for PendingEpochEvent {
                 owner,
                 mix_id,
                 proxy,
-            } => undelegate(deps, env, owner, mix_id, proxy),
-            PendingEpochEvent::UnbondMixnode { mix_id } => unbond_mixnode(deps, env, mix_id),
+            } => undelegate(deps, owner, mix_id, proxy),
+            PendingEpochEvent::UnbondMixnode { mix_id } => unbond_mixnode(deps, mix_id),
+            PendingEpochEvent::UpdateActiveSetSize { new_size } => {
+                update_active_set_size(deps, new_size)
+            }
         }
     }
 }
 
 fn change_mix_cost_params(
     deps: DepsMut<'_>,
-    _env: &Env,
     mix_id: NodeId,
     new_costs: MixNodeCostParams,
 ) -> Result<Response, MixnetContractError> {
@@ -256,14 +275,57 @@ fn change_mix_cost_params(
     Ok(Response::new())
 }
 
+fn update_rewarding_params(
+    deps: DepsMut<'_>,
+    updated_params: IntervalRewardingParamsUpdate,
+) -> Result<Response, MixnetContractError> {
+    // We don't have to check for authorization as this event can only be pushed
+    // by the authorized entity.
+    // Furthermore, we don't need to check whether the interval is finished as the
+    // queue is only emptied upon the interval finishing.
+    // Also, we know the update is valid as we checked for that before pushing the event onto the queue.
+    let interval = storage::current_interval(deps.storage)?;
+
+    let mut rewarding_params = rewards_storage::REWARDING_PARAMS.load(deps.storage)?;
+    rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
+    rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+
+    // TODO: slap events on it
+    Ok(Response::new())
+}
+
+fn update_interval_config(
+    deps: DepsMut,
+    epochs_in_interval: u32,
+    epoch_duration_secs: u64,
+) -> Result<Response, MixnetContractError> {
+    // We don't have to check for authorization as this event can only be pushed
+    // by the authorized entity.
+    // Furthermore, we don't need to check whether the interval is finished as the
+    // queue is only emptied upon the interval finishing.
+    let mut interval = storage::current_interval(deps.storage)?;
+    interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
+    change_epochs_in_interval(deps.storage, Some(interval), epochs_in_interval)?;
+
+    // TODO: slap events on it
+    Ok(Response::new())
+}
+
 impl ContractExecutableEvent for PendingIntervalEvent {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self {
             PendingIntervalEvent::ChangeMixCostParams { mix, new_costs } => {
-                change_mix_cost_params(deps, env, mix, new_costs)
+                change_mix_cost_params(deps, mix, new_costs)
             }
+            PendingIntervalEvent::UpdateRewardingParams { update } => {
+                update_rewarding_params(deps, update)
+            }
+            PendingIntervalEvent::UpdateIntervalConfig {
+                epochs_in_interval,
+                epoch_duration_secs,
+            } => update_interval_config(deps, epochs_in_interval, epoch_duration_secs),
         }
     }
 }

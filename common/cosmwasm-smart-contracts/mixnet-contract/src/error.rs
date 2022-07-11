@@ -103,23 +103,19 @@ pub enum MixnetContractError {
         "Could not find any delegation information associated with mixnode {mix_id} for {address}"
     )]
     NoMixnodeDelegationFound { mix_id: NodeId, address: String },
-    //
-    // #[error("Overflow Error")]
-    // OverflowError(#[from] cosmwasm_std::OverflowError),
-    // #[error("reward_blockstamp field not set, set_reward_blockstamp must be called before attempting to issue rewards")]
-    // BlockstampNotSet,
-    // #[error("{source}")]
-    // TryFromIntError {
-    //     #[from]
-    //     source: std::num::TryFromIntError,
-    // },
-    // #[error("Error casting from U128")]
-    // CastError,
-    // #[error("{source}")]
-    // StdErr {
-    //     #[from]
-    //     source: cosmwasm_std::StdError,
-    // },
-    // #[error("Division by zero at {}")]
-    // DivisionByZero,
+
+    #[error("Provided message to update rewarding params did not contain any updates")]
+    EmptyParamsChangeMsg,
+
+    #[error("Provided active set size is bigger than the rewarded set")]
+    InvalidActiveSetSize,
+
+    #[error("Provided rewarded set size is smaller than the active set")]
+    InvalidRewardedSetSize,
+
+    #[error("Provided active set size is zero")]
+    ZeroActiveSet,
+
+    #[error("Provided rewarded set size is zero")]
+    ZeroRewardedSet,
 }

@@ -144,6 +144,38 @@ pub fn execute(
                 updated_parameters,
             )
         }
+        ExecuteMsg::UpdateActiveSetSize {
+            active_set_size,
+            force_immediately,
+        } => crate::rewards::transactions::try_update_active_set_size(
+            deps,
+            env,
+            info,
+            active_set_size,
+            force_immediately,
+        ),
+        ExecuteMsg::UpdateRewardingParams {
+            updated_params,
+            force_immediately,
+        } => crate::rewards::transactions::try_update_rewarding_params(
+            deps,
+            env,
+            info,
+            updated_params,
+            force_immediately,
+        ),
+        ExecuteMsg::UpdateIntervalConfig {
+            epochs_in_interval,
+            epoch_duration_secs,
+            force_immediately,
+        } => crate::interval::transactions::try_update_interval_config(
+            deps,
+            env,
+            info,
+            epochs_in_interval,
+            epoch_duration_secs,
+            force_immediately,
+        ),
         ExecuteMsg::AdvanceCurrentEpoch {
             new_rewarded_set,
             expected_active_set_size,

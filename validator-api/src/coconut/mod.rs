@@ -24,8 +24,7 @@ use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nymd::Fee;
@@ -175,8 +174,7 @@ impl InternalSignRequest {
                     get_verification_key,
                     get_cosmos_address,
                     post_partial_bandwidth_credential,
-                    verify_bandwidth_credential,
-                    post_propose_release_funds
+                    verify_bandwidth_credential
                 ],
             )
         })
@@ -294,38 +292,4 @@ pub async fn verify_bandwidth_credential(
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
-}
-
-#[post("/propose-release-funds", data = "<propose_release_funds>")]
-pub async fn post_propose_release_funds(
-    propose_release_funds: Json<ProposeReleaseFundsRequestBody>,
-    state: &RocketState<State>,
-) -> Result<Json<ProposeReleaseFundsResponse>> {
-    let verification_key = state.verification_key().await?;
-    if !propose_release_funds
-        .0
-        .credential()
-        .verify(&verification_key)
-    {
-        return Err(CoconutError::CreateProposalError);
-    }
-
-    let title = String::from("Create proposal to spend a coconut credential");
-    let blinded_serial_number = propose_release_funds.0.credential().blinded_serial_number();
-    let voucher_value = propose_release_funds.0.credential().voucher_value() as u128;
-    let proposal_id = state
-        .client
-        .propose_release_funds(
-            title,
-            blinded_serial_number,
-            voucher_value,
-            Some(Fee::PayerGranterAuto(
-                None,
-                None,
-                Some(propose_release_funds.0.gateway_cosmos_addr().to_owned()),
-            )),
-        )
-        .await?;
-
-    Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
 }

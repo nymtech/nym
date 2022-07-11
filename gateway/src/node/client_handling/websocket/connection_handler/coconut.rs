@@ -9,7 +9,8 @@ use coconut_interface::{Credential, VerificationKey};
 use network_defaults::MIX_DENOM;
 use validator_client::{
     nymd::{
-        traits::{MultisigSigningClient, QueryClient},
+        cosmwasm_client::logs::find_attribute,
+        traits::{CoconutBandwidthSigningClient, MultisigSigningClient, QueryClient},
         Coin, Fee, NymdClient, SigningNymdClient,
     },
     ApiClient,
@@ -54,45 +55,29 @@ impl CoconutVerifier {
         // isn't enough
         let revoke_fee = Some(Fee::Auto(Some(1.5)));
 
-        let first_api_client = self
-            .api_clients
-            .get(0)
-            .expect("This shouldn't happen, as we check for length in constructor");
-
-        let first_api_cosmos_addr = first_api_client.get_cosmos_address().await?.addr;
-        self.nymd_client
-            .grant_allowance(
-                &first_api_cosmos_addr,
-                vec![Coin::new(MAX_FEEGRANT_UNYM, MIX_DENOM.base)],
-                SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
-                // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
-                vec![String::from("/cosmwasm.wasm.v1.MsgExecuteContract")],
-                "Create allowance to propose the release of funds".to_string(),
+        let res = self
+            .nymd_client
+            .spend_credential(
+                Coin::new(credential.voucher_value().into(), MIX_DENOM.base),
+                credential.blinded_serial_number(),
+                self.nymd_client.address().to_string(),
                 None,
             )
             .await?;
-
-        let req = validator_api_requests::coconut::ProposeReleaseFundsRequestBody::new(
-            credential.clone(),
-            self.nymd_client.address().clone(),
-        );
-        let ret = first_api_client.propose_release_funds(&req).await;
-
-        self.nymd_client
-            .revoke_allowance(
-                &first_api_cosmos_addr,
-                "Cleanup the previous allowance for releasing funds".to_string(),
-                revoke_fee.clone(),
-            )
-            .await?;
-
-        let proposal_id = ret?.proposal_id;
+        let proposal_id = find_attribute(&res.logs, "wasm", "proposal_id")
+            .ok_or(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal id not found"),
+            })?
+            .key
+            .parse::<u64>()
+            .or(Err(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal id could not be parsed to u64"),
+            }))?;
 
         let proposal = self.nymd_client.get_proposal(proposal_id).await?;
         if !credential.has_blinded_serial_number(&proposal.description)? {
-            return Err(RequestHandlingError::MisbehavingAPI {
-                url: first_api_client.validator_api.current_url().to_string(),
-                reason: String::from("Created proposal with different serial number"),
+            return Err(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal has different serial number"),
             });
         }
 
@@ -101,7 +86,7 @@ impl CoconutVerifier {
             proposal_id,
             self.nymd_client.address().clone(),
         );
-        for client in self.api_clients.iter().skip(1) {
+        for client in self.api_clients.iter() {
             let api_cosmos_addr = client.get_cosmos_address().await?.addr;
             self.nymd_client
                 .grant_allowance(

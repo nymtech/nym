@@ -72,8 +72,8 @@ pub(crate) enum RequestHandlingError {
     NotEnoughValidatorAPIs { received: usize, needed: usize },
 
     #[cfg(feature = "coconut")]
-    #[error("Validator API {url} misbehaved in the bandwidth redemption protocol: {reason}")]
-    MisbehavingAPI { url: String, reason: String },
+    #[error("There was a problem with the proposal id: {reason}")]
+    ProposalIdError { reason: String },
 
     #[cfg(feature = "coconut")]
     #[error("Coconut interface error - {0}")]

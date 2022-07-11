@@ -63,9 +63,6 @@ pub enum CoconutError {
     #[error("Error in coconut interface - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 
-    #[error("Could not create proposal for spending credential")]
-    CreateProposalError,
-
     #[error("Storage error - {0}")]
     StorageError(#[from] ValidatorApiStorageError),
 

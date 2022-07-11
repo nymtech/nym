@@ -45,6 +45,18 @@ impl MixNodeDetails {
             rewarding_details,
         }
     }
+
+    pub fn mix_id(&self) -> NodeId {
+        self.bond_information.id
+    }
+
+    pub fn is_unbonding(&self) -> bool {
+        self.bond_information.is_unbonding
+    }
+
+    pub fn original_pledge(&self) -> &Coin {
+        &self.bond_information.original_pledge
+    }
 }
 
 // the fields on this one are not really finalised yet and I don't think they're going to be until
@@ -52,18 +64,23 @@ impl MixNodeDetails {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.    
+    #[serde(rename = "cp")]
     pub cost_params: MixNodeCostParams,
 
     /// Total pledge and compounded reward earned by the node operator.
+    #[serde(rename = "op")]
     pub operator: Decimal,
 
     /// Total delegation and compounded reward earned by all node delegators.
+    #[serde(rename = "dg")]
     pub delegates: Decimal,
 
     /// Cumulative reward earned by the "unit delegation" since the block 0.
+    #[serde(rename = "tur")]
     pub total_unit_reward: Decimal,
 
     /// Value of the theoretical "unit delegation" that has delegated to this mixnode at block 0.
+    #[serde(rename = "ud")]
     pub unit_delegation: Decimal,
 
     // // TODO: this might be possibly redundant
@@ -71,11 +88,13 @@ pub struct MixNodeRewarding {
     // pub current_period_reward: Decimal,
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
+    #[serde(rename = "le")]
     pub last_rewarded_epoch: FullEpochId,
 
     // technically we don't need that field to determine reward magnitude or anything
     // but it saves on extra queries to determine if we're removing the final delegation
     // (so that we could zero the field correctly)
+    #[serde(rename = "uqd")]
     pub unique_delegations: u32,
 }
 

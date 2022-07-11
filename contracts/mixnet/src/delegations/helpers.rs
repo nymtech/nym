@@ -6,25 +6,8 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Coin, Decimal, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeRewarding;
-use mixnet_contract_common::rewarding::helpers::{truncate_reward, truncate_reward_amount};
-use mixnet_contract_common::{Delegation, NodeId};
-
-// pub(crate) fn add_delegation(
-//     storage: &mut dyn Storage,
-//     amount: Coin,
-//     mix_id: NodeId,
-// ) -> Result<Decimal, MixnetContractError> {
-//     let mut mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(storage, mix_id)? {
-//         Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
-//         _ => {
-//             return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id });
-//         }
-//     };
-//
-//     let cumulative_reward_ratio = mix_rewarding.total_unit_reward;
-//     mix_rewarding.add_base_delegation(&amount);
-//     todo!()
-// }
+use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+use mixnet_contract_common::Delegation;
 
 pub(crate) fn undelegate(
     store: &mut dyn Storage,

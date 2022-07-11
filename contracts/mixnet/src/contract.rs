@@ -1,67 +1,19 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
-// use crate::delegations::queries::query_delegator_delegations_paged;
-// use crate::delegations::queries::query_mixnode_delegation;
-// use crate::delegations::queries::{
-//     query_mixnode_delegations_paged, query_pending_delegation_events,
-// };
-// use crate::error::ContractError;
-// use crate::gateways::queries::query_owns_gateway;
-// use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
-// use crate::interval::queries::query_current_epoch;
-// use crate::interval::queries::{
-//     query_current_rewarded_set_height, query_rewarded_set,
-//     query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
-// };
-// use crate::interval::transactions::{init_epoch, try_init_epoch};
-use crate::mixnet_contract_settings::models::ContractState;
-use crate::mixnet_contract_settings::queries::{
-    query_contract_settings_params, query_contract_version, query_rewarding_validator_address,
-};
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-// use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
-use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::storage as mixnode_storage;
-// use crate::mixnodes::bonding_queries::{
-//     query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
-// };
-// use crate::mixnodes::layer_queries::query_layer_distribution;
-// use crate::rewards::queries::{
-//     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
-// };
-// use crate::rewards::storage as rewards_storage;
+use crate::constants::INITIAL_MIXNODE_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
+use crate::mixnet_contract_settings::models::ContractState;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnodes::storage as mixnode_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Api, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Uint128,
+    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    Uint128,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
-
-/// Constant specifying minimum of coin amount required to bond a gateway
-pub const INITIAL_GATEWAY_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
-
-/// Constant specifying minimum of coin amount required to bond a mixnode
-pub const INITIAL_MIXNODE_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
-//
-// pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
-// pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
-//
-// pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
-// pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
-//
-// pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
-//     time::macros::datetime!(2022-01-01 12:00 UTC);
-//
-// pub const INITIAL_STAKING_SUPPLY: Uint128 = Uint128::new(100_000_000_000_000);
-
-// pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
-//     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
-// }
 
 fn default_initial_state(
     owner: Addr,
@@ -187,7 +139,7 @@ pub fn execute(
             expected_active_set_size,
         ),
         ExecuteMsg::ReconcileEpochEvents { limit } => {
-            crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
+            crate::interval::transactions::try_reconcile_epoch_events(deps, env, limit)
         }
 
         // mixnode-related:

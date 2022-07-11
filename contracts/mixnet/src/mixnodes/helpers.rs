@@ -8,7 +8,6 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Coin, Decimal, Env, StdResult, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::{MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
-use mixnet_contract_common::rewarding::HistoricalRewards;
 use mixnet_contract_common::{Layer, MixNode, MixNodeBond, NodeId};
 
 pub(crate) fn get_mixnode_details_by_id(
@@ -73,8 +72,6 @@ pub(crate) fn save_new_mixnode(
         proxy,
         env.block.height,
     );
-    // TODO: see if the zeroth record is still required
-    let initial_record = HistoricalRewards::new_zeroth();
 
     // save mixnode bond data
     // note that this implicitly checks for uniqueness on identity key, sphinx key and owner

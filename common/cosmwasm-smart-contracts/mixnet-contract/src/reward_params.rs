@@ -17,7 +17,7 @@ pub struct IntervalRewardParams {
 
     // constants(-ish)
     // default: 30%
-    pub sybil_resistance_percent: Percent,
+    pub sybil_resistance: Percent,
     // default: 10
     pub active_set_work_factor: Decimal,
     // default: 2%
@@ -109,7 +109,7 @@ impl RewardingParams {
         }
 
         if let Some(sybil_resistance_percent) = updates.sybil_resistance_percent {
-            self.interval.sybil_resistance_percent = sybil_resistance_percent;
+            self.interval.sybil_resistance = sybil_resistance_percent;
         }
 
         if let Some(active_set_work_factor) = updates.active_set_work_factor {

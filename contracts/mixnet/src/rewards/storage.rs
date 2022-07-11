@@ -1,6 +1,9 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{
+    MIXNODES_REWARDING_PK_NAMESPACE, PENDING_REWARD_POOL_KEY, REWARDING_PARAMS_KEY,
+};
 use crate::rewards::models::RewardPoolChange;
 use cosmwasm_std::{Decimal, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
@@ -8,10 +11,6 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeRewarding;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{InitialRewardingParams, NodeId};
-
-const REWARDING_PARAMS_KEY: &str = "rparams";
-const PENDING_REWARD_POOL_KEY: &str = "prp";
-const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
 
 // current parameters used for rewarding purposes
 pub(crate) const REWARDING_PARAMS: Item<'_, RewardingParams> = Item::new(REWARDING_PARAMS_KEY);

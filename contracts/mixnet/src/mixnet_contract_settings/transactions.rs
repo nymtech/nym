@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use cosmwasm_std::Addr;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
@@ -49,20 +48,6 @@ pub(crate) fn try_update_contract_settings(
         return Err(MixnetContractError::Unauthorized);
     }
 
-    // if params.mixnode_rewarded_set_size == 0 {
-    //     return Err(MixnetContractError::ZeroRewardedSet);
-    // }
-    //
-    // if params.mixnode_active_set_size == 0 {
-    //     return Err(MixnetContractError::ZeroActiveSet);
-    // }
-    //
-    // // note: rewarded_set = active_set + idle_set
-    // // hence rewarded set must always be bigger than (or equal to) the active set
-    // if params.mixnode_rewarded_set_size < params.mixnode_active_set_size {
-    //     return Err(MixnetContractError::InvalidActiveSetSize);
-    // }
-
     let response = Response::new().add_event(new_settings_update_event(&state.params, &params));
 
     state.params = params;
@@ -80,7 +65,7 @@ pub mod tests {
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::{Coin, Response, Uint128};
+    use cosmwasm_std::{Addr, Coin, Response, Uint128};
     use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::ContractStateParams;
 

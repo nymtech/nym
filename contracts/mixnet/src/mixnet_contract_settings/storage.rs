@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnet_contract_settings::models::ContractState;
+use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Storage};
-use cosmwasm_std::{Coin, StdResult};
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 

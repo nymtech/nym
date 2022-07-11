@@ -15,6 +15,25 @@
 // pub const REWARDED_SET_REFRESH_BLOCKS: u64 = 720; // with blocktime being approximately 5s, it should be roughly 1h
 // pub const INTERVAL_SECONDS: u64 = 86400 * 30; // 30 days
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000;
+use cosmwasm_std::Uint128;
+
+//
+// pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
+// pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
+//
+// pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
+// pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
+//
+// pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
+//     time::macros::datetime!(2022-01-01 12:00 UTC);
+//
+// pub const INITIAL_STAKING_SUPPLY: Uint128 = Uint128::new(100_000_000_000_000);
+
+/// Constant specifying minimum of coin amount required to bond a gateway
+pub const INITIAL_GATEWAY_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
+
+/// Constant specifying minimum of coin amount required to bond a mixnode
+pub const INITIAL_MIXNODE_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
 
 // retrieval limits
 pub const GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT: u32 = 50;

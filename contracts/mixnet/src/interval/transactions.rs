@@ -5,15 +5,13 @@ use super::storage;
 use crate::interval::helpers::change_epochs_in_interval;
 use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::ensure_is_authorized;
-use cosmwasm_std::{ensure, DepsMut, Env, MessageInfo, Response, Storage};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{new_advance_interval_event, new_change_rewarded_set_event};
 use mixnet_contract_common::pending_events::PendingIntervalEvent;
-use mixnet_contract_common::{IdentityKey, Interval, NodeId};
+use mixnet_contract_common::NodeId;
 use std::time::Duration;
 
 // those two should be called in separate tx (from advancing epoch),
@@ -86,22 +84,30 @@ fn perform_pending_interval_actions(
 pub fn try_reconcile_epoch_events(
     mut deps: DepsMut<'_>,
     env: Env,
-    info: MessageInfo,
-    limit: Option<usize>,
+    // TODO: use that field
+    limit: Option<u32>,
 ) -> Result<Response, MixnetContractError> {
-    // // Only rewarding validator can attempt to reconcile those events
-    // ensure_is_authorized(info.sender, deps.storage)?;
-
-    // actually anyone willing to pay the fees should be allowed to reconcile
+    // there's no need for authorization, as anyone willing to pay the fees should be allowed to reconcile
     // contract events ASSUMING the corresponding epoch/interval has finished
+    let interval = storage::current_interval(deps.storage)?;
+    if interval.is_current_epoch_over(&env) {
+        // if the current epoch is in progress, so must be the interval so there's no need to check that
+        return Err(MixnetContractError::EpochInProgress {
+            current_block_time: env.block.time.seconds(),
+            epoch_start: interval.current_epoch_start_unix_timestamp(),
+            epoch_end: interval.current_epoch_end_unix_timestamp(),
+        });
+    } else {
+        perform_pending_epoch_actions(deps.branch(), &env)?;
+    }
 
-    // TODO: use events
+    if interval.is_current_interval_over(&env) {
+        // first clear epoch events queue and then touch the interval actions
+        perform_pending_interval_actions(deps.branch(), &env)?;
+    }
 
-    // first clear epoch events queue and then touch the interval actions
-    perform_pending_epoch_actions(deps.branch(), &env)?;
-    perform_pending_interval_actions(deps.branch(), &env)?;
-
-    todo!()
+    // TODO: emit events and all of that
+    Ok(Response::new())
 }
 
 // We've distributed the rewards to the rewarded set from the validator api before making this call (implicit order, should be solved in the future)
@@ -110,40 +116,28 @@ pub fn try_reconcile_epoch_events(
 fn update_rewarded_set(
     storage: &mut dyn Storage,
     new_rewarded_set: Vec<NodeId>,
-    expected_active_set_size: u32,
+    active_set_size: u32,
 ) -> Result<(), MixnetContractError> {
     let reward_params = rewards_storage::REWARDING_PARAMS.load(storage)?;
 
-    //
-    // // We don't want more then we need, less should be fine, as we could have less nodes bonded overall
-    // if active_set_size > state.params.mixnode_active_set_size {
-    //     return Err(ContractError::UnexpectedActiveSetSize {
-    //         received: active_set_size,
-    //         expected: state.params.mixnode_active_set_size,
-    //     });
-    // }
-    //
-    // if rewarded_set.len() as u32 > state.params.mixnode_rewarded_set_size {
-    //     return Err(ContractError::UnexpectedRewardedSetSize {
-    //         received: rewarded_set.len() as u32,
-    //         expected: state.params.mixnode_rewarded_set_size,
-    //     });
-    // }
-    //
-    // let block_height = env.block.height;
-    // let num_nodes = rewarded_set.len();
-    //
-    // storage::save_rewarded_set(deps.storage, block_height, active_set_size, rewarded_set)?;
-    // storage::CURRENT_REWARDED_SET_HEIGHT.save(deps.storage, &block_height)?;
-    //
-    // Ok(Response::new().add_event(new_change_rewarded_set_event(
-    //     state.params.mixnode_active_set_size,
-    //     state.params.mixnode_rewarded_set_size,
-    //     num_nodes as u32,
-    // )))
+    // We don't want more then we need, less should be fine, as we could have less nodes bonded overall
+    if active_set_size > reward_params.active_set_size {
+        return Err(MixnetContractError::UnexpectedActiveSetSize {
+            received: active_set_size,
+            expected: reward_params.active_set_size,
+        });
+    }
+
+    if new_rewarded_set.len() as u32 > reward_params.rewarded_set_size {
+        return Err(MixnetContractError::UnexpectedRewardedSetSize {
+            received: new_rewarded_set.len() as u32,
+            expected: reward_params.rewarded_set_size,
+        });
+    }
+
     Ok(storage::update_rewarded_set(
         storage,
-        expected_active_set_size,
+        active_set_size,
         new_rewarded_set,
     )?)
 }
@@ -155,16 +149,23 @@ pub fn try_advance_epoch(
     new_rewarded_set: Vec<NodeId>,
     expected_active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
-    // in theory, we could have just changed the state and relied on its reversal upon failed
-    // execution, but better safe than sorry and do not modify the state at all unless we know
-    // all checks have succeeded.
-
     // Only rewarding validator can attempt to advance epoch
     ensure_is_authorized(info.sender, deps.storage)?;
 
     // we must make sure that we roll into new epoch / interval with up to date state
     // with no pending actions (like somebody wanting to update their profit margin)
     let current_interval = storage::current_interval(deps.storage)?;
+    if !current_interval.is_current_epoch_over(&env) {
+        return Err(MixnetContractError::EpochInProgress {
+            current_block_time: env.block.time.seconds(),
+            epoch_start: current_interval.current_epoch_start_unix_timestamp(),
+            epoch_end: current_interval.current_epoch_end_unix_timestamp(),
+        });
+    } else {
+        perform_pending_epoch_actions(deps.branch(), &env)?;
+    }
+
+    // first clear epoch events queue and then touch the interval actions
     if current_interval.is_current_interval_over(&env) {
         // the interval has finished -> we can change things such as the profit margin
         perform_pending_interval_actions(deps.branch(), &env)?;
@@ -173,32 +174,14 @@ pub fn try_advance_epoch(
         // to make sure it doesn't influence epoch events results
         rewards::helpers::apply_reward_pool_changes(deps.storage)?;
     }
-    // if interval has finished, so MUST had the epoch
-    if current_interval.is_current_epoch_over(&env) {
-        // the epoch has finished -> we can change things such as the active(not rewarded) set size
-        perform_pending_epoch_actions(deps.branch(), &env)?;
 
-        storage::save_interval(deps.storage, &current_interval.advance_epoch())?;
-        update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
+    // finally save updated interval and the rewarded set
+    storage::save_interval(deps.storage, &current_interval.advance_epoch())?;
+    update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
 
-        // TODO:  make sure we emit information about rewarding parameters
-        todo!("produce response with events and stuff")
-    } else {
-        Err(MixnetContractError::EpochInProgress {
-            current_block_time: env.block.time.seconds(),
-            epoch_start: current_interval.current_epoch_start_unix_timestamp(),
-            epoch_end: current_interval.current_epoch_end_unix_timestamp(),
-        })
-    }
-
-    // if current_epoch.is_over(env.clone()) {
-    //     let next_epoch = current_epoch.next_on_chain(env);
-    //
-    //     storage::save_epoch(storage, &next_epoch)?;
-    //     storage::save_epoch_reward_params(next_epoch.id(), storage)?;
-    //
+    // TODO:  make sure we emit information about rewarding parameters
+    todo!("produce response with events and stuff")
     //     return Ok(Response::new().add_event(new_advance_interval_event(next_epoch)));
-    // }
 }
 
 pub(crate) fn try_update_interval_config(

@@ -7,7 +7,9 @@ use crate::mixnodes::storage::{assign_layer, next_mixnode_id_counter};
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Coin, Decimal, Env, StdResult, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::{MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
+use mixnet_contract_common::mixnode::{
+    MixNodeCostParams, MixNodeDetails, MixNodeRewarding, UnbondedMixnode,
+};
 use mixnet_contract_common::{Layer, MixNode, MixNodeBond, NodeId};
 
 pub(crate) fn get_mixnode_details_by_id(
@@ -85,6 +87,7 @@ pub(crate) fn save_new_mixnode(
 
 pub(crate) fn cleanup_post_unbond_mixnode_storage(
     storage: &mut dyn Storage,
+    env: &Env,
     current_details: &MixNodeDetails,
 ) -> Result<(), MixnetContractError> {
     let node_id = current_details.bond_information.id;
@@ -111,8 +114,15 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
         rewards_storage::MIXNODE_REWARDING.save(storage, node_id, &zeroed)?;
     }
 
-    // TODO: this depends whether we are actually creating this entry or not
-    // HISTORICAL_PERIODS_RECORDS.remove(storage, (node_id, 0));
-
+    let identity = current_details.bond_information.identity().to_owned();
+    // save minimal information about this mixnode
+    storage::UNBONDED_MIXNODES.save(
+        storage,
+        node_id,
+        &UnbondedMixnode {
+            identity,
+            unbonding_height: env.block.height,
+        },
+    )?;
     storage::decrement_layer_count(storage, current_details.bond_information.layer)
 }

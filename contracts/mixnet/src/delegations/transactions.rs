@@ -470,7 +470,6 @@ mod tests {
     use crate::support::tests;
     use crate::support::tests::test_helpers;
 
-    use super::storage;
     use super::*;
 
     #[cfg(test)]
@@ -1062,17 +1061,13 @@ mod tests {
 
     #[cfg(test)]
     mod removing_mix_stake_delegation {
-        use crate::delegations::queries::query_mixnode_delegation;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Addr;
-        use cosmwasm_std::Uint128;
 
-        use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests;
 
-        use super::storage;
         use super::*;
 
         // TODO: Probably delete due to reconciliation logic

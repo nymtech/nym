@@ -9,7 +9,7 @@ export interface Props {
   onConfirm: () => Promise<void>;
   onCancel: () => void;
   rewards: MajorCurrencyAmount;
-  fee: MajorCurrencyAmount;
+  fee?: MajorCurrencyAmount | null;
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, rewards, fee }: Props) => (
@@ -29,7 +29,7 @@ const SummaryModal = ({ open, onClose, onConfirm, onCancel, rewards, fee }: Prop
     <Divider sx={{ my: 1 }} />
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Fee for this operation</Typography>
-      <Typography fontWeight={400}>{`${fee.amount} ${fee.denom}`}</Typography>
+      <Typography fontWeight={400}>{fee ? `${fee?.amount} ${fee?.denom}` : ''}</Typography>
     </Stack>
     <Divider sx={{ my: 1 }} />
     <Typography fontWeight={400}>Rewards will be added to your bonding pool</Typography>

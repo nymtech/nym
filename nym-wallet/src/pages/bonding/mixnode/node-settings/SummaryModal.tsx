@@ -10,7 +10,7 @@ export interface Props {
   onCancel: () => void;
   currentPm: number;
   newPm: number;
-  fee: MajorCurrencyAmount;
+  fee?: MajorCurrencyAmount | null;
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentPm, newPm, fee }: Props) => (
@@ -35,7 +35,7 @@ const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentPm, newPm, fe
     <Divider sx={{ my: 1 }} />
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Fee for this operation</Typography>
-      <Typography fontWeight={400}>{`${fee.amount} ${fee.denom}`}</Typography>
+      <Typography fontWeight={400}>{fee ? `${fee?.amount} ${fee?.denom}` : ''}</Typography>
     </Stack>
   </SimpleModal>
 );

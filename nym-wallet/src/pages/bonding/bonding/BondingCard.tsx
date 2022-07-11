@@ -17,15 +17,8 @@ import {
   NodeData,
 } from '../types';
 import AmountModal from './AmountModal';
-import { AppContext, urls } from '../../../context';
+import { AppContext, urls, useBondingContext } from '../../../context';
 import SummaryModal from './SummaryModal';
-import {
-  bondGateway as bondGatewayRequest,
-  bondMixNode as bondMixNodeRequest,
-  vestingBondGateway,
-  vestingBondMixNode,
-} from '../../../requests';
-import { useGetFee } from '../../../hooks/useGetFee';
 
 const initialState: BondState = {
   showModal: false,
@@ -71,15 +64,20 @@ const BondingCard = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
 
-  const { userBalance, clientDetails, network } = useContext(AppContext);
-  const { fee } = useGetFee();
+  const { clientDetails, network } = useContext(AppContext);
+  const { error, bondMixnode: bondMixnodeRequest, bondGateway: bondGatewayRequest } = useBondingContext();
 
   useEffect(() => {
     dispatch({ type: 'reset' });
   }, [clientDetails]);
 
+  useEffect(() => {
+    if (error) {
+      dispatch({ type: 'set_error', payload: error });
+    }
+  }, [error]);
+
   const bondMixnode = async () => {
-    let tx: TransactionExecuteResult | undefined;
     const { signature, identityKey, sphinxKey, host, version, mixPort, verlocPort, httpApiPort } =
       state.nodeData as NodeData<MixnodeData>;
     const { profitMargin, amount, tokenPool } = state.amountData as MixnodeAmount;
@@ -96,30 +94,20 @@ const BondingCard = () => {
         http_api_port: httpApiPort,
       },
       pledge: amount,
-      fee: fee?.fee,
     };
     if (tokenPool !== 'locked' && tokenPool !== 'balance') {
       throw new Error(`token pool [${tokenPool}] not supported`);
     }
-    try {
-      if (tokenPool === 'balance') {
-        tx = await bondMixNodeRequest(payload);
-        await userBalance.fetchBalance();
-      }
-      if (tokenPool === 'locked') {
-        tx = await vestingBondMixNode(payload);
-        await userBalance.fetchTokenAllocation();
-      }
+    const tx = await bondMixnodeRequest(payload, tokenPool);
+    if (tx) {
       dispatch({ type: 'set_bond_status', payload: 'success' });
-      return tx;
-    } catch (e: any) {
-      dispatch({ type: 'set_error', payload: e });
+    } else {
+      dispatch({ type: 'set_bond_status', payload: 'error' });
     }
-    return undefined;
+    return tx;
   };
 
   const bondGateway = async () => {
-    let tx: TransactionExecuteResult | undefined;
     const { signature, identityKey, sphinxKey, host, version, location, mixPort, clientsPort } =
       state.nodeData as NodeData<GatewayData>;
     const { amount, tokenPool } = state.amountData as GatewayAmount;
@@ -135,21 +123,15 @@ const BondingCard = () => {
         clients_port: clientsPort,
       },
       pledge: amount,
-      fee: fee?.fee,
     };
-    try {
-      if (tokenPool === 'balance') {
-        tx = await bondGatewayRequest(payload);
-        await userBalance.fetchBalance();
-      }
-      if (tokenPool === 'locked') {
-        tx = await vestingBondGateway(payload);
-        await userBalance.fetchTokenAllocation();
-      }
+    if (tokenPool !== 'locked' && tokenPool !== 'balance') {
+      throw new Error(`token pool [${tokenPool}] not supported`);
+    }
+    const tx = await bondGatewayRequest(payload, tokenPool);
+    if (tx) {
       dispatch({ type: 'set_bond_status', payload: 'success' });
-      return tx;
-    } catch (e: any) {
-      dispatch({ type: 'set_error', payload: e });
+    } else {
+      dispatch({ type: 'set_bond_status', payload: 'error' });
     }
     return tx;
   };

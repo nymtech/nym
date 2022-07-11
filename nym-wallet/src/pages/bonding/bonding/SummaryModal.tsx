@@ -1,14 +1,8 @@
 import React, { useEffect } from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
-import {
-  simulateBondGateway,
-  simulateBondMixnode,
-  simulateVestingBondGateway,
-  simulateVestingBondMixnode,
-} from '../../../requests';
 import { GatewayAmount, GatewayData, MixnodeAmount, MixnodeData, NodeData } from '../types';
-import { useGetFee } from '../../../hooks/useGetFee';
 import { SimpleModal } from '../../../components/Modals/SimpleModal';
+import { useBondingContext } from '../../../context';
 
 export interface Props {
   open: boolean;
@@ -21,7 +15,7 @@ export interface Props {
 }
 
 const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError }: Props) => {
-  const { fee, getFee, resetFeeState, feeError, isFeeLoading } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError, feeLoading } = useBondingContext();
 
   useEffect(() => {
     if (feeError) onError(feeError);
@@ -31,7 +25,7 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
     const { signature, host, version, mixPort, identityKey, sphinxKey } = node;
     try {
       if (node.nodeType === 'mixnode') {
-        await getFee(amount.tokenPool === 'locked' ? simulateVestingBondMixnode : simulateBondMixnode, {
+        await getFee(amount.tokenPool === 'locked' ? 'bondMixnodeWithVesting' : 'bondMixnode', {
           ownerSignature: signature,
           mixnode: {
             identity_key: identityKey,
@@ -46,7 +40,7 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
           pledge: amount.amount,
         });
       } else {
-        await getFee(amount.tokenPool === 'locked' ? simulateVestingBondGateway : simulateBondGateway, {
+        await getFee(amount.tokenPool === 'locked' ? 'bondGatewayWithVesting' : 'bondGateway', {
           ownerSignature: signature,
           gateway: {
             identity_key: identityKey,
@@ -98,7 +92,7 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
       <Divider sx={{ my: 1 }} />
       <Stack direction="row" justifyContent="space-between">
         <Typography>Fee for this operation</Typography>
-        {isFeeLoading ? (
+        {feeLoading ? (
           <Typography>loading</Typography>
         ) : (
           <Typography>{fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : ''}</Typography>

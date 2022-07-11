@@ -68,7 +68,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1404]: https://github.com/nymtech/nym/pull/1404
 [#1427]: https://github.com/nymtech/nym/pull/1427
 
-## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-06-21)
+## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
 
 - wallet: dark mode
 - wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).

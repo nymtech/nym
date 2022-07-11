@@ -186,14 +186,6 @@ pub struct ContractStateParams {
     /// Address of the vesting contract to which the mixnet contract would be sending all
     /// track-related messages.
     pub vesting_contract_address: Addr,
-    // // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
-    // // based on overall demand for private bandwidth-
-    // pub mixnode_rewarded_set_size: u32,
-    //
-    // // subset of rewarded mixnodes that are actively receiving mix traffic
-    // // used to handle shorter-term (e.g. hourly) fluctuations of demand
-    // pub mixnode_active_set_size: u32,
-    // pub staking_supply: Uint128,
 }
 
 impl Display for ContractStateParams {

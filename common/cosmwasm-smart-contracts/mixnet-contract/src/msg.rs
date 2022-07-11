@@ -3,7 +3,8 @@
 
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
-    EpochRewardParams, IntervalRewardParams, NodeRewardParams, Performance, RewardingParams,
+    IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
+    RewardingParams,
 };
 use crate::{ContractStateParams, NodeId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
@@ -68,6 +69,19 @@ pub enum ExecuteMsg {
     },
     UpdateContractStateParams {
         updated_parameters: ContractStateParams,
+    },
+    UpdateActiveSetSize {
+        active_set_size: u32,
+        force_immediately: bool,
+    },
+    UpdateRewardingParams {
+        updated_params: IntervalRewardingParamsUpdate,
+        force_immediately: bool,
+    },
+    UpdateIntervalConfig {
+        epochs_in_interval: u32,
+        epoch_duration_secs: u64,
+        force_immediately: bool,
     },
     AdvanceCurrentEpoch {
         new_rewarded_set: Vec<NodeId>,

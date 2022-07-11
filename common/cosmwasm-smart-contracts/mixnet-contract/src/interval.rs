@@ -209,6 +209,17 @@ impl Interval {
         self.epochs_in_interval
     }
 
+    pub fn force_change_epochs_in_interval(&mut self, epochs_in_interval: u32) {
+        self.epochs_in_interval = epochs_in_interval;
+        if self.current_epoch_id >= epochs_in_interval {
+            self.current_epoch_id = self.current_epoch_id % epochs_in_interval;
+        }
+    }
+
+    pub fn change_epoch_length(&mut self, epoch_length: Duration) {
+        self.epoch_length = epoch_length
+    }
+
     pub const fn current_full_epoch_id(&self) -> FullEpochId {
         FullEpochId {
             interval_id: self.id,

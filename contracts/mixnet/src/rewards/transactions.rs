@@ -1,48 +1,24 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{
-    coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response,
-    Storage, Uint128,
+use super::storage;
+use crate::delegations::storage as delegations_storage;
+use crate::interval::storage as interval_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnodes::helpers::get_mixnode_details_by_owner;
+use crate::rewards::helpers;
+use crate::support::helpers::{
+    ensure_bonded, ensure_is_authorized, ensure_proxy_match, send_to_proxy_or_owner,
 };
-
+use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mix_rewarding_event, new_not_found_mix_operator_rewarding_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
 use mixnet_contract_common::reward_params::{NodeRewardParams, Performance};
-use mixnet_contract_common::{NodeId, Percent};
-
-use crate::interval::storage as interval_storage;
-// use crate::constants;
-// use crate::contract::debug_with_visibility;
-// use crate::delegations::storage as delegations_storage;
-// use crate::delegations::transactions::_try_delegate_to_mixnode;
-// use crate::error::ContractError;
-// use crate::mixnodes::storage::mixnodes;
-use crate::mixnodes::storage as mixnodes_storage;
-use crate::support::helpers::ensure_is_authorized;
-
-use super::storage;
-
-// use crate::rewards::helpers;
-// use crate::support::helpers::{is_authorized, operator_cost_at_epoch};
-// use config::defaults::MIX_DENOM;
-// use cw_storage_plus::Bound;
-// use mixnet_contract_common::events::{
-//     new_claim_delegator_reward_event, new_claim_operator_reward_event,
-//     new_compound_delegator_reward_event, new_compound_operator_reward_event,
-//     new_mix_operator_rewarding_event, new_not_found_mix_operator_rewarding_event,
-//     new_too_fresh_bond_mix_operator_rewarding_event, new_zero_uptime_mix_operator_rewarding_event,
-// };
-// use mixnet_contract_common::mixnode::StoredNodeRewardResult;
-// use mixnet_contract_common::reward_params::{NodeEpochRewards, NodeRewardParams, RewardParams};
-// use mixnet_contract_common::{Delegation, IdentityKey, RewardingStatus};
-//
-// use mixnet_contract_common::RewardingResult;
-// use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
-// use vesting_contract_common::one_ucoin;
+use mixnet_contract_common::{Delegation, NodeId};
+use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
@@ -135,7 +111,7 @@ pub(crate) fn try_withdraw_operator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    todo!()
+    _try_withdraw_operator_reward(deps, info.sender, None, info.funds)
 }
 
 pub(crate) fn try_withdraw_operator_reward_on_behalf(
@@ -143,7 +119,51 @@ pub(crate) fn try_withdraw_operator_reward_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
-    todo!()
+    let proxy = info.sender;
+    let owner = deps.api.addr_validate(&owner)?;
+    _try_withdraw_operator_reward(deps, owner, Some(proxy), info.funds)
+}
+
+pub(crate) fn _try_withdraw_operator_reward(
+    deps: DepsMut<'_>,
+    owner: Addr,
+    proxy: Option<Addr>,
+    funds: Vec<Coin>,
+) -> Result<Response, MixnetContractError> {
+    // we need to grab all of the node's details so we'd known original pledge alongside
+    // all the earned rewards (and obviously to know if this node even exists and is still
+    // in the bonded state)
+    let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?.ok_or(
+        MixnetContractError::NoAssociatedMixNodeBond {
+            owner: owner.clone(),
+        },
+    )?;
+
+    ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
+    ensure_bonded(&mix_details.bond_information)?;
+
+    let reward = helpers::withdraw_operator_reward(deps.storage, mix_details)?;
+    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+    let mut response = Response::new().add_message(return_tokens);
+
+    if let Some(proxy) = &proxy {
+        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
+        // otherwise, we don't care
+        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
+        if proxy == &vesting_contract {
+            // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
+            // to use the same call for both operator and delegators?
+            let msg = VestingContractExecuteMsg::TrackReward {
+                amount: reward,
+                address: owner.into_string(),
+            };
+            let track_reward_message = wasm_execute(proxy, &msg, funds)?;
+            response = response.add_message(track_reward_message);
+        }
+    }
+
+    // TODO: insert events and all of that
+    Ok(response)
 }
 
 pub(crate) fn try_withdraw_delegator_reward(
@@ -151,7 +171,7 @@ pub(crate) fn try_withdraw_delegator_reward(
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
-    todo!()
+    _try_withdraw_delegator_reward(deps, mix_id, info.sender, None, info.funds)
 }
 
 pub(crate) fn try_withdraw_delegator_reward_on_behalf(
@@ -160,7 +180,55 @@ pub(crate) fn try_withdraw_delegator_reward_on_behalf(
     mix_id: NodeId,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
-    todo!()
+    let proxy = info.sender;
+    let owner = deps.api.addr_validate(&owner)?;
+    _try_withdraw_delegator_reward(deps, mix_id, owner, Some(proxy), info.funds)
+}
+
+pub(crate) fn _try_withdraw_delegator_reward(
+    deps: DepsMut<'_>,
+    mix_id: NodeId,
+    owner: Addr,
+    proxy: Option<Addr>,
+    funds: Vec<Coin>,
+) -> Result<Response, MixnetContractError> {
+    // see if the delegation even exists
+    let storage_key = Delegation::generate_storage_key(mix_id, &owner, proxy.as_ref());
+    let delegation = match delegations_storage::delegations().may_load(deps.storage, storage_key)? {
+        None => return Ok(Response::default()),
+        Some(delegation) => delegation,
+    };
+    // grab associated mixnode rewarding details
+    let mix_rewarding =
+        storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::InconsistentState {
+            comment: "mixnode rewarding got removed from the storage whilst there's still an existing delegation"
+                .into(),
+        })?;
+
+    ensure_proxy_match(&proxy, &delegation.proxy)?;
+
+    let reward = helpers::withdraw_delegator_reward(deps.storage, delegation, mix_rewarding)?;
+    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+    let mut response = Response::new().add_message(return_tokens);
+
+    if let Some(proxy) = &proxy {
+        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
+        // otherwise, we don't care
+        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
+        if proxy == &vesting_contract {
+            // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
+            // to use the same call for both operator and delegators?
+            let msg = VestingContractExecuteMsg::TrackReward {
+                amount: reward,
+                address: owner.into_string(),
+            };
+            let track_reward_message = wasm_execute(proxy, &msg, funds)?;
+            response = response.add_message(track_reward_message);
+        }
+    }
+
+    // TODO: insert events and all of that
+    Ok(response)
 }
 
 // // All four of the below methods need to do the following things:

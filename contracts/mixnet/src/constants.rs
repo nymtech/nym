@@ -40,3 +40,30 @@ pub const GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT: u32 = 50;
 pub const GATEWAY_BOND_MAX_RETRIEVAL_LIMIT: u32 = 75;
 
 // storage keys
+pub(crate) const DELEGATION_PK_NAMESPACE: &str = "dl";
+pub(crate) const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
+pub(crate) const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
+
+pub(crate) const GATEWAYS_PK_NAMESPACE: &str = "gt";
+pub(crate) const GATEWAYS_OWNER_IDX_NAMESPACE: &str = "gto";
+
+pub(crate) const REWARDED_SET_KEY: &str = "rs";
+pub(crate) const CURRENT_INTERVAL_KEY: &str = "ci";
+pub(crate) const EPOCH_EVENT_ID_COUNTER_KEY: &str = "eic";
+pub(crate) const INTERVAL_EVENT_ID_COUNTER_KEY: &str = "iic";
+pub(crate) const PENDING_EPOCH_EVENTS_NAMESPACE: &str = "pee";
+pub(crate) const PENDING_INTERVAL_EVENTS_NAMESPACE: &str = "pie";
+
+pub(crate) const LAST_EPOCH_EVENT_ID_KEY: &str = "lee";
+pub(crate) const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
+
+pub(crate) const CONTRACT_STATE_KEY: &str = "state";
+
+pub(crate) const MIXNODES_PK_NAMESPACE: &str = "mnn";
+pub(crate) const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+pub(crate) const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
+pub(crate) const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+
+pub(crate) const REWARDING_PARAMS_KEY: &str = "rparams";
+pub(crate) const PENDING_REWARD_POOL_KEY: &str = "prp";
+pub(crate) const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";

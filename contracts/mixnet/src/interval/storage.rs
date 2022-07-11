@@ -1,6 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{
+    CURRENT_INTERVAL_KEY, EPOCH_EVENT_ID_COUNTER_KEY, INTERVAL_EVENT_ID_COUNTER_KEY,
+    LAST_EPOCH_EVENT_ID_KEY, LAST_INTERVAL_EVENT_ID_KEY, PENDING_EPOCH_EVENTS_NAMESPACE,
+    PENDING_INTERVAL_EVENTS_NAMESPACE, REWARDED_SET_KEY,
+};
 use cosmwasm_std::{Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::error::MixnetContractError;
@@ -9,16 +14,6 @@ use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
 use std::collections::HashMap;
 
 type EventId = u32;
-
-const REWARDED_SET_KEY: &str = "rs";
-const CURRENT_INTERVAL_KEY: &str = "ci";
-const EPOCH_EVENT_ID_COUNTER_KEY: &str = "eic";
-const INTERVAL_EVENT_ID_COUNTER_KEY: &str = "iic";
-const PENDING_EPOCH_EVENTS_NAMESPACE: &str = "pee";
-const PENDING_INTERVAL_EVENTS_NAMESPACE: &str = "pie";
-
-const LAST_EPOCH_EVENT_ID_KEY: &str = "lee";
-const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
 
 pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new(CURRENT_INTERVAL_KEY);
 pub(crate) const REWARDED_SET: Map<NodeId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);

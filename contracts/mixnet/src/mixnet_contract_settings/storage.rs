@@ -1,13 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::CONTRACT_STATE_KEY;
 use crate::mixnet_contract_settings::models::ContractState;
 use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Storage};
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 
-pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new("config");
+pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 
 pub fn rewarding_validator_address(storage: &dyn Storage) -> Result<Addr, MixnetContractError> {
     Ok(CONTRACT_STATE

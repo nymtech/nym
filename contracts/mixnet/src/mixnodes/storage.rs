@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{
+    MIXNODES_IDENTITY_IDX_NAMESPACE, MIXNODES_OWNER_IDX_NAMESPACE, MIXNODES_PK_NAMESPACE,
+    MIXNODES_SPHINX_IDX_NAMESPACE,
+};
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, UniqueIndex};
 use mixnet_contract_common::error::MixnetContractError;
@@ -8,10 +12,6 @@ use mixnet_contract_common::SphinxKey;
 use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNodeBond, NodeId};
 
 // storage prefixes
-const MIXNODES_PK_NAMESPACE: &str = "mnn";
-const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
-const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
-const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
 
 // // paged retrieval limits for all queries and transactions
 // pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;

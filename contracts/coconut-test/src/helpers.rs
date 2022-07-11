@@ -8,9 +8,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub const OWNER: &str = "admin0001";
-pub const VOTER1: &str = "voter1";
-pub const VOTER2: &str = "voter2";
-pub const VOTER3: &str = "voter3";
 pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 pub const POOL_CONTRACT: &str = "mix pool contract address";
 pub const RANDOM_ADDRESS: &str = "random address";

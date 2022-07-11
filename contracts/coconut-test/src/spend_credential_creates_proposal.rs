@@ -1,3 +1,4 @@
+use crate::helpers::*;
 use coconut_bandwidth::error::ContractError;
 use coconut_bandwidth_contract_common::{
     msg::{
@@ -5,7 +6,6 @@ use coconut_bandwidth_contract_common::{
     },
     spend_credential::SpendCredentialData,
 };
-use coconut_test::helpers::*;
 use config::defaults::MIX_DENOM;
 use cosmwasm_std::{coins, Addr, Coin, Decimal};
 use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;

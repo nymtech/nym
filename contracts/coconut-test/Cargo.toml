@@ -25,3 +25,7 @@ coconut-bandwidth = { path = "../coconut-bandwidth" }
 cw-multi-test = { version = "0.13.2" }
 cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig" }
 cw4-group = { path = "../multisig/cw4-group" }
+
+[[test]]
+name = "coconut-test"
+path = "src/tests.rs"

@@ -1,12 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::*;
 use coconut_bandwidth::error::ContractError;
 use coconut_bandwidth_contract_common::{
     deposit::DepositData,
     msg::{ExecuteMsg, InstantiateMsg},
 };
-use coconut_test::helpers::*;
 use config::defaults::MIX_DENOM;
 use cosmwasm_std::{coins, Addr};
 use cw_controllers::AdminError;

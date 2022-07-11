@@ -3,7 +3,7 @@ import { isValidHostname, validateKey, validateLocation, validateRawPort, valida
 import { NodeType } from '../types';
 
 const nodeSchema = object().shape({
-  nodeType: string<NodeType>().required(),
+  nodeType: string().required().oneOf(['mixnode', 'gateway']),
   identityKey: string()
     .required('An indentity key is required')
     .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),

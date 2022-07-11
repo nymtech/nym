@@ -7,7 +7,8 @@ import { MajorCurrencyAmount } from '@nymproject/types';
 import { CurrencyInput, TextFieldInput } from '../../components';
 import schema from './schema';
 import { AppContext } from '../../../../context';
-import { TokenPoolSelector, SimpleDialog } from '../../../../components';
+import { TokenPoolSelector } from '../../../../components';
+import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export interface Props {
   open: boolean;
@@ -36,18 +37,17 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
   const { userBalance, clientDetails } = useContext(AppContext);
 
   return (
-    <SimpleDialog
+    <SimpleModal
       open={open}
       onClose={() => {
         reset();
         onClose();
       }}
-      onConfirm={handleSubmit(async (data) => onConfirm(data.amount, data.signature))}
-      title="Bond more"
-      subTitle="Bond more tokens on your node and receive more rewards"
-      confirmButton="Next"
-      closeButton
-      disabled={Boolean(errors?.amount || errors?.signature)}
+      onOk={handleSubmit(async (data) => onConfirm(data.amount, data.signature))}
+      header="Bond more"
+      subHeader="Bond more tokens on your node and receive more rewards"
+      okLabel="Next"
+      okDisabled={Boolean(errors?.amount || errors?.signature)}
     >
       <Box sx={{ mt: 1 }}>
         <form>
@@ -90,7 +90,7 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
         <Divider sx={{ my: 1 }} />
         <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>
       </Box>
-    </SimpleDialog>
+    </SimpleModal>
   );
 };
 

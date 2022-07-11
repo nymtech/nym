@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, IconButton, Menu, MenuItem, Stack, Typography } from '@mui/material';
+import { IconButton, Menu, MenuItem, Stack, Typography } from '@mui/material';
 import { MoreVert } from '@mui/icons-material';
 import { useEffect } from 'react';
 import { MixnodeFlow } from '../mixnode/types';

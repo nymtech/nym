@@ -3,8 +3,9 @@ import { useContext, useEffect, useState } from 'react';
 import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
+import { ErrorOutline } from '@mui/icons-material';
 import ProfitMarginModal from './ProfitMarginModal';
-import { AppContext, BondedMixnode, urls } from '../../../../context';
+import { AppContext, BondedMixnode, urls, useBondingContext } from '../../../../context';
 import SummaryModal from './SummaryModal';
 import { ConfirmationModal } from '../../../../components';
 
@@ -18,21 +19,36 @@ interface Props {
 const MOCK_ESTIMATED_OP_REWARD: MajorCurrencyAmount = { amount: '42', denom: 'NYM' };
 
 const NodeSettings = ({ mixnode, show, onClose }: Props) => {
+  const [status, setStatus] = useState<'success' | 'error'>();
   const [profitMargin, setProfitMargin] = useState<number>();
-  const [fee, setFee] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [tx, setTx] = useState<TransactionExecuteResult>();
 
   const { network } = useContext(AppContext);
+  const { updateMixnode, error, fee, getFee } = useBondingContext();
 
   useEffect(() => {
-    setFee({ amount: '42', denom: 'NYM' }); // TODO fetch real fee amount
-  }, [profitMargin]);
+    if (error) {
+      setStatus('error');
+    }
+  }, [error]);
 
-  const submit = () => {
-    // TODO send request to update profit margin
-    setStep(3); // on success
-    // setTx(requestResult)
+  const fetchFee = async () => {
+    await getFee('updateMixnode', {});
+  };
+
+  useEffect(() => {
+    fetchFee();
+  }, []);
+
+  const submit = async () => {
+    const txResult = await updateMixnode(profitMargin as number);
+    if (txResult) {
+      setStatus('success');
+    } else {
+      setStatus('error');
+    }
+    setTx(txResult);
   };
 
   const reset = () => {
@@ -60,21 +76,36 @@ const NodeSettings = ({ mixnode, show, onClose }: Props) => {
         onCancel={() => setStep(1)}
         currentPm={mixnode.profitMargin}
         newPm={profitMargin as number}
-        fee={fee as MajorCurrencyAmount}
+        fee={fee?.amount}
       />
-      <ConfirmationModal
-        open={show && step === 3}
-        onClose={reset}
-        onConfirm={reset}
-        title="Operation successful"
-        confirmButton="Done"
-        maxWidth="xs"
-      >
-        <Typography sx={{ mb: 2 }}>This operation can take up to one hour to process</Typography>
-        <Link href={`${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`} noIcon>
-          View on blockchain
-        </Link>
-      </ConfirmationModal>
+      {status === 'success' && (
+        <ConfirmationModal
+          open={show}
+          onClose={reset}
+          onConfirm={reset}
+          title="Operation successful"
+          confirmButton="Done"
+          maxWidth="xs"
+        >
+          <Typography sx={{ mb: 2 }}>This operation can take up to one hour to process</Typography>
+          <Link href={`${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`} noIcon>
+            View on blockchain
+          </Link>
+        </ConfirmationModal>
+      )}
+      {status === 'error' && (
+        <ConfirmationModal
+          open={show}
+          onClose={reset}
+          onConfirm={reset}
+          title="Operation failed"
+          confirmButton="Done"
+          maxWidth="xs"
+        >
+          <Typography variant="caption">Error: {error}</Typography>
+          <ErrorOutline color="error" />
+        </ConfirmationModal>
+      )}
     </>
   );
 };

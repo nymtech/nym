@@ -9,7 +9,7 @@ import NodeSettings from './node-settings';
 import BondMore from './bond-more';
 import { MixnodeFlow } from './types';
 import RedeemRewards from './redeem';
-import Unbond from './unbond';
+import Unbond from '../unbond';
 import CompoundRewards from './compound';
 import { Bond as BondIcon, Unbond as UnbondIcon } from '../../../svg-icons';
 
@@ -26,7 +26,7 @@ const headers: Header[] = [
   {
     header: 'Stake saturation',
     id: 'stake-saturation',
-    tooltip: 'TODO',
+    tooltip: 'TODO', // TODO
   },
   {
     header: 'PM',

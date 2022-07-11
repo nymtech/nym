@@ -1,34 +1,22 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { AppContext } from 'src/context/main';
 import { Box } from '@mui/material';
 import { useBondingContext, BondingContextProvider } from '../../context';
 import { PageLayout } from '../../layouts';
 import BondingCard from './bonding';
-/* import MixnodeCard from './mixnode';
-import GatewayCard from './gateway'; */
-import { EnumRequestStatus } from '../../components';
-import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import MixnodeCard from './mixnode';
+import GatewayCard from './gateway';
 
 const Bonding = () => {
-  const [status] = useState(EnumRequestStatus.initial);
-  const { bondedMixnode, bondedGateway } = useBondingContext();
-  const { checkOwnership, ownership, isLoading } = useCheckOwnership();
+  const { bondedMixnode, bondedGateway, loading } = useBondingContext();
 
-  useEffect(() => {
-    if (status === EnumRequestStatus.initial) {
-      const initialiseForm = async () => {
-        await checkOwnership();
-      };
-      initialiseForm();
-    }
-  }, [status, checkOwnership]);
-
+  // TODO display a special UI on loading state
   return (
     <PageLayout>
       <Box display="flex" flexDirection="column" gap={2}>
-        <BondingCard />
-        {/* {bondedMixnode && <MixnodeCard mixnode={bondedMixnode} />}
-        {bondedGateway && <GatewayCard gateway={bondedGateway} />} */}
+        {!bondedMixnode && !bondedGateway && <BondingCard />}
+        {bondedMixnode && <MixnodeCard mixnode={bondedMixnode} />}
+        {bondedGateway && <GatewayCard gateway={bondedGateway} />}
       </Box>
     </PageLayout>
   );

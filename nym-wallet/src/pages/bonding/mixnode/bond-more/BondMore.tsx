@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useState } from 'react';
 import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
-import { AppContext, BondedMixnode, urls } from '../../../../context';
+import { ErrorOutline } from '@mui/icons-material';
+import { AppContext, BondedMixnode, urls, useBondingContext } from '../../../../context';
 import SummaryModal from './SummaryModal';
 import { ConfirmationModal } from '../../../../components';
 import BondModal from './BondModal';
@@ -17,20 +18,18 @@ interface Props {
 const BondMore = ({ mixnode, show, onClose }: Props) => {
   const [addBond, setAddBond] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
   const [signature, setSignature] = useState<string>();
-  const [fee, setFee] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [tx, setTx] = useState<TransactionExecuteResult>();
 
   const { network } = useContext(AppContext);
+  const { bondMore, error } = useBondingContext();
 
-  useEffect(() => {
-    setFee({ amount: '42', denom: 'NYM' }); // TODO fetch real fee amount
-  }, [addBond]);
-
-  const submit = () => {
-    // TODO send request to update bond
-    setStep(3); // on success
-    // setTx(requestResult)
+  const submit = async () => {
+    const txResult = await bondMore(signature as string, addBond);
+    if (txResult) {
+      setStep(3);
+    }
+    setTx(txResult);
   };
 
   const reset = () => {
@@ -59,10 +58,9 @@ const BondMore = ({ mixnode, show, onClose }: Props) => {
         onCancel={() => setStep(1)}
         currentBond={mixnode.bond}
         addBond={addBond}
-        fee={fee as MajorCurrencyAmount}
       />
       <ConfirmationModal
-        open={show && step === 3}
+        open={show && step === 3 && !error}
         onClose={reset}
         onConfirm={reset}
         title="Bonding successful"
@@ -74,6 +72,19 @@ const BondMore = ({ mixnode, show, onClose }: Props) => {
           View on blockchain
         </Link>
       </ConfirmationModal>
+      {error && (
+        <ConfirmationModal
+          open={show}
+          onClose={reset}
+          onConfirm={reset}
+          title="Operation failed"
+          confirmButton="Done"
+          maxWidth="xs"
+        >
+          <Typography variant="caption">Error: {error}</Typography>
+          <ErrorOutline color="error" />
+        </ConfirmationModal>
+      )}
     </>
   );
 };

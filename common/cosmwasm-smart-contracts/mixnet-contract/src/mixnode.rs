@@ -186,7 +186,7 @@ impl MixNodeRewarding {
             reward_params.standby_node_work()
         };
 
-        let alpha = reward_params.interval.sybil_resistance_percent;
+        let alpha = reward_params.interval.sybil_resistance;
 
         reward_params.interval.epoch_reward_budget
             * node_params.performance.value()

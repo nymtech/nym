@@ -170,7 +170,7 @@ impl Simulator {
                 staking_supply,
                 epoch_reward_budget,
                 stake_saturation_point,
-                sybil_resistance_percent: old.sybil_resistance_percent,
+                sybil_resistance: old.sybil_resistance,
                 active_set_work_factor: old.active_set_work_factor,
                 interval_pool_emission: old.interval_pool_emission,
             },
@@ -211,7 +211,7 @@ mod tests {
                 staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
                 epoch_reward_budget,
                 stake_saturation_point,
-                sybil_resistance_percent: Percent::from_percentage_value(30).unwrap(),
+                sybil_resistance: Percent::from_percentage_value(30).unwrap(),
                 active_set_work_factor: Decimal::percent(1000), // value '10'
                 interval_pool_emission,
             },

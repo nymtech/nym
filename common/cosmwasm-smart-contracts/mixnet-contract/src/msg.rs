@@ -88,7 +88,7 @@ pub enum ExecuteMsg {
         expected_active_set_size: u32,
     },
     ReconcileEpochEvents {
-        limit: Option<usize>,
+        limit: Option<u32>,
     },
 
     // mixnode-related:

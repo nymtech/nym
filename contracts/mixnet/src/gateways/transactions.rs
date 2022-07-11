@@ -6,12 +6,10 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::support::helpers::{
     ensure_no_existing_bond, validate_node_identity_signature, validate_pledge,
 };
-use cosmwasm_std::{
-    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
-};
+use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
-use mixnet_contract_common::{Gateway, GatewayBond, Layer};
+use mixnet_contract_common::{Gateway, GatewayBond};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
 

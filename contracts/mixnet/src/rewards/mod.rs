@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod helpers;
+pub mod models;
 pub mod queries;
 pub mod storage;
 pub mod transactions;

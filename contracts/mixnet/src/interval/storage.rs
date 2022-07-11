@@ -108,8 +108,6 @@ pub(crate) fn update_rewarded_set(
     active_set_size: u32,
     new_set: Vec<NodeId>,
 ) -> StdResult<()> {
-    // TODO: read here the size of our current rewarded set
-
     // our goal is to reduce the number of reads and writes to the underlying storage,
     // whilst completely overwriting the current rewarded set.
     // the naive implementation would be to read the entire current rewarded set,

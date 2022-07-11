@@ -3,7 +3,7 @@
 
 use super::storage;
 use crate::interval::storage as interval_storage;
-use crate::mixnodes::storage::{assign_layer, mixnode_bonds, next_mixnode_id_counter};
+use crate::mixnodes::storage::{assign_layer, next_mixnode_id_counter};
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Coin, Decimal, Env, StdResult, Storage};
 use mixnet_contract_common::error::MixnetContractError;

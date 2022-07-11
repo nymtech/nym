@@ -158,7 +158,11 @@ fn undelegate(
     Ok(response)
 }
 
-fn unbond_mixnode(deps: DepsMut<'_>, mix_id: NodeId) -> Result<Response, MixnetContractError> {
+fn unbond_mixnode(
+    deps: DepsMut<'_>,
+    env: &Env,
+    mix_id: NodeId,
+) -> Result<Response, MixnetContractError> {
     // if we're here it means user executed `_try_remove_mixnode` and as a result node was set to be
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
     // thus the node with all its associated information MUST exist in the storage.
@@ -183,7 +187,7 @@ fn unbond_mixnode(deps: DepsMut<'_>, mix_id: NodeId) -> Result<Response, MixnetC
 
     // remove the bond and if there are no delegations left, also the rewarding information
     // decrement the associated layer count
-    cleanup_post_unbond_mixnode_storage(deps.storage, &node_details)?;
+    cleanup_post_unbond_mixnode_storage(deps.storage, env, &node_details)?;
 
     let mut response = Response::new().add_message(return_tokens);
 
@@ -242,7 +246,7 @@ impl ContractExecutableEvent for PendingEpochEvent {
                 mix_id,
                 proxy,
             } => undelegate(deps, owner, mix_id, proxy),
-            PendingEpochEvent::UnbondMixnode { mix_id } => unbond_mixnode(deps, mix_id),
+            PendingEpochEvent::UnbondMixnode { mix_id } => unbond_mixnode(deps, env, mix_id),
             PendingEpochEvent::UpdateActiveSetSize { new_size } => {
                 update_active_set_size(deps, new_size)
             }

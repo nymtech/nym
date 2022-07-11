@@ -1,12 +1,9 @@
 [package]
-name = "coconut-bandwidth"
+name = "coconut-test"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
@@ -18,7 +15,13 @@ cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"
 cw-storage-plus = "0.13.4"
 cw-controllers = "0.13.4"
+cw-utils = "0.13.4"
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
+
+coconut-bandwidth = { path = "../coconut-bandwidth" }
+cw-multi-test = { version = "0.13.2" }
+cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig" }
+cw4-group = { path = "../multisig/cw4-group" }

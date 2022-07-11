@@ -225,7 +225,6 @@ dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
- "cw-multi-test",
  "cw-storage-plus",
  "multisig-contract-common",
  "schemars",
@@ -240,6 +239,28 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "coconut-test"
+version = "0.1.0"
+dependencies = [
+ "bandwidth-claim-contract",
+ "coconut-bandwidth",
+ "coconut-bandwidth-contract-common",
+ "config",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw3-flex-multisig",
+ "cw4-group",
+ "multisig-contract-common",
+ "schemars",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

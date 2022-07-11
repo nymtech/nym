@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod contract;
-mod error;
+pub mod error;
 mod queries;
 mod state;
 mod storage;

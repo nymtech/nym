@@ -99,6 +99,7 @@ pub mod test_helpers {
             initial_staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
             sybil_resistance: Percent::from_percentage_value(30).unwrap(),
             active_set_work_factor: Decimal::percent(1000), // value '10'
+            interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
             rewarded_set_size: 240,
             active_set_size: 100,
         }
@@ -108,6 +109,7 @@ pub mod test_helpers {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
             rewarding_validator_address: "rewarder".into(),
+            vesting_contract_address: "vesting-contract".to_string(),
             rewarding_denom: "unym".to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),

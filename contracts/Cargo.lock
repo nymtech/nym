@@ -286,6 +286,7 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "serde",
 ]
 
 [[package]]

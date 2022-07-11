@@ -1,22 +1,14 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use super::storage;
-// use crate::error::ContractError;
-// use cosmwasm_std::Uint128;
-// use cosmwasm_std::{Deps, StdResult};
-// use mixnet_contract_common::{IdentityKey, MixnodeRewardingStatusResponse};
-//
-// pub(crate) fn query_reward_pool(deps: Deps<'_>) -> StdResult<Uint128> {
-//     storage::REWARD_POOL.load(deps.storage)
-// }
-//
-// pub(crate) fn query_circulating_supply(deps: Deps<'_>) -> StdResult<Uint128> {
-//     storage::circulating_supply(deps.storage)
-// }
-//
-// pub(crate) fn query_staking_supply(deps: Deps<'_>) -> StdResult<Uint128> {
-//     storage::staking_supply(deps.storage)
+use super::storage;
+use cosmwasm_std::{Deps, StdResult};
+use mixnet_contract_common::reward_params::RewardingParams;
+
+pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
+    storage::REWARDING_PARAMS.load(deps.storage)
+}
+
 // }
 //
 // pub(crate) fn query_rewarding_status(

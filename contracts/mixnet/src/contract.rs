@@ -270,11 +270,22 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
-        _ => todo!(),
-        // QueryMsg::GetRewardingValidatorAddress {} => {
-        //     to_binary(&query_rewarding_validator_address(deps)?)
-        // }
-        // QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
+        QueryMsg::GetContractVersion {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
+        }
+        QueryMsg::GetStateParams {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
+        ),
+        QueryMsg::GetRewardingValidatorAddress {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_rewarding_validator_address(deps)?,
+        ),
+        QueryMsg::GetState {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
+        }
+        QueryMsg::GetRewardingParams {} => {
+            to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
+        }
+
         // QueryMsg::GetMixNodes { start_after, limit } => {
         //     to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
         // }
@@ -289,7 +300,6 @@ pub fn query(
         // }
         // QueryMsg::GetGatewayBond { identity } => to_binary(&query_gateway_bond(deps, identity)?),
         // QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-        // QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
         // QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
         // QueryMsg::GetMixnodeDelegations {
         //     mix_identity,
@@ -393,10 +403,10 @@ pub fn query(
         //     mix_identity,
         //     height,
         // } => to_binary(&query_mixnode_at_height(deps, mix_identity, height)?),
+        _ => todo!(),
     };
 
-    todo!()
-    // Ok(query_res?)
+    Ok(query_res?)
 }
 
 #[entry_point]

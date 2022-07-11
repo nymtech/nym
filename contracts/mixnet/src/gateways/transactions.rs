@@ -27,7 +27,7 @@ pub fn try_add_gateway(
         env,
         gateway,
         info.funds,
-        info.sender.as_str(),
+        info.sender,
         owner_signature,
         None,
     )
@@ -42,12 +42,13 @@ pub fn try_add_gateway_on_behalf(
     owner_signature: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
+    let owner = deps.api.addr_validate(&owner)?;
     _try_add_gateway(
         deps,
         env,
         gateway,
         info.funds,
-        &owner,
+        owner,
         owner_signature,
         Some(proxy),
     )
@@ -58,15 +59,13 @@ pub(crate) fn _try_add_gateway(
     env: Env,
     gateway: Gateway,
     pledge: Vec<Coin>,
-    owner: &str,
+    owner: Addr,
     owner_signature: String,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the pledge contains any funds of the appropriate denomination
     let minimum_pledge = mixnet_params_storage::minimum_gateway_pledge(deps.storage)?;
     let pledge = validate_pledge(pledge, minimum_pledge)?;
-
-    let owner = deps.api.addr_validate(owner)?;
 
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &owner)?;
@@ -115,22 +114,22 @@ pub fn try_remove_gateway_on_behalf(
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
-    _try_remove_gateway(deps, &owner, Some(proxy))
+    let owner = deps.api.addr_validate(&owner)?;
+    _try_remove_gateway(deps, owner, Some(proxy))
 }
 
 pub fn try_remove_gateway(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_gateway(deps, info.sender.as_ref(), None)
+    _try_remove_gateway(deps, info.sender, None)
 }
 
 pub(crate) fn _try_remove_gateway(
     deps: DepsMut<'_>,
-    owner: &str,
+    owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let owner = deps.api.addr_validate(owner)?;
     // try to find the node of the sender
     let gateway_bond = match storage::gateways()
         .idx

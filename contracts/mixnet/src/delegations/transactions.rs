@@ -90,7 +90,7 @@ pub(crate) fn try_delegate_to_mixnode(
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
-    _try_delegate_to_mixnode(deps, mix_id, info.sender.as_str(), info.funds, None)
+    _try_delegate_to_mixnode(deps, mix_id, info.sender, info.funds, None)
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
@@ -99,13 +99,14 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     mix_id: NodeId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
-    _try_delegate_to_mixnode(deps, mix_id, &delegate, info.funds, Some(info.sender))
+    let delegate = deps.api.addr_validate(&delegate)?;
+    _try_delegate_to_mixnode(deps, mix_id, delegate, info.funds, Some(info.sender))
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
     deps: DepsMut<'_>,
     mix_id: NodeId,
-    delegate: &str,
+    delegate: Addr,
     amount: Vec<Coin>,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -116,8 +117,6 @@ pub(crate) fn _try_delegate_to_mixnode(
         contract_state.params.minimum_mixnode_delegation,
         contract_state.rewarding_denom,
     )?;
-
-    let delegate = deps.api.addr_validate(delegate)?;
 
     // check if the target node actually exists and is still bonded
     match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
@@ -147,7 +146,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_delegation_from_mixnode(deps, mix_id, info.sender.as_str(), None)
+    _try_remove_delegation_from_mixnode(deps, mix_id, info.sender, None)
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
@@ -156,17 +155,16 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     mix_id: NodeId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_delegation_from_mixnode(deps, mix_id, &delegate, Some(info.sender))
+    let delegate = deps.api.addr_validate(&delegate)?;
+    _try_remove_delegation_from_mixnode(deps, mix_id, delegate, Some(info.sender))
 }
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
     mix_id: NodeId,
-    delegate: &str,
+    delegate: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let delegate = deps.api.addr_validate(delegate)?;
-
     // see if the delegation even exists
     let storage_key = Delegation::generate_storage_key(mix_id, &delegate, proxy.as_ref());
 

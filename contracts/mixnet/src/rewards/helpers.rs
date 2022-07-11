@@ -11,7 +11,7 @@ use mixnet_contract_common::Delegation;
 
 /// Recomputes rewarding parameters (such as staking supply, saturation point, etc) based on
 /// pending changes currently stored in `PENDING_REWARD_POOL_CHANGE`.
-pub(crate) fn recompute_interval_rewarding_params(
+pub(crate) fn apply_reward_pool_changes(
     store: &mut dyn Storage,
 ) -> Result<(), MixnetContractError> {
     let mut rewarding_params = storage::REWARDING_PARAMS.load(store)?;
@@ -24,8 +24,8 @@ pub(crate) fn recompute_interval_rewarding_params(
     let epoch_reward_budget = reward_pool
         / Decimal::from_atomics(interval.epochs_in_interval(), 0).unwrap()
         * rewarding_params.interval.interval_pool_emission;
-    let stake_saturation_point = staking_supply
-        / Decimal::from_atomics(rewarding_params.epoch.rewarded_set_size, 0).unwrap();
+    let stake_saturation_point =
+        staking_supply / Decimal::from_atomics(rewarding_params.rewarded_set_size, 0).unwrap();
 
     rewarding_params.interval.reward_pool = reward_pool;
     rewarding_params.interval.staking_supply = staking_supply;

@@ -5,9 +5,10 @@ import { Box, Divider, Stack, Typography } from '@mui/material';
 import { AmountData, NodeType } from '../types';
 import { AppContext } from '../../../context';
 import amountSchema from './amountSchema';
-import { SimpleDialog, TokenPoolSelector } from '../../../components';
+import { TokenPoolSelector } from '../../../components';
 import { TextFieldInput, CurrencyInput } from '../components';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../utils';
+import { SimpleModal } from '../../../components/Modals/SimpleModal';
 
 export interface Props {
   nodeType: NodeType;
@@ -45,14 +46,13 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
   };
 
   return (
-    <SimpleDialog
+    <SimpleModal
       open={open}
       onClose={onClose}
-      onConfirm={handleSubmit(onSubmitForm)}
-      title="Bond"
-      subTitle="Step 2/2"
-      confirmButton="Next"
-      closeButton
+      onOk={handleSubmit(onSubmitForm)}
+      header="Bond"
+      subHeader="Step 2/2"
+      okLabel="Next"
     >
       <Box sx={{ mt: 1 }}>
         <form>
@@ -92,7 +92,7 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
         <Divider sx={{ my: 1 }} />
         <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>
       </Box>
-    </SimpleDialog>
+    </SimpleModal>
   );
 };
 

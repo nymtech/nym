@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleDialog } from '../../../../components';
+import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export interface Props {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
   onCancel: () => void;
   currentBond: MajorCurrencyAmount;
   addBond: MajorCurrencyAmount;
@@ -14,17 +14,13 @@ export interface Props {
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentBond, addBond, fee }: Props) => (
-  <SimpleDialog
+  <SimpleModal
     open={open}
     onClose={onClose}
-    onConfirm={onConfirm}
-    onCancel={onCancel}
-    title="Bond mor details"
-    confirmButton="Confirm"
-    closeButton
-    cancelButton
-    maxWidth="xs"
-    fullWidth
+    onOk={onConfirm}
+    onBack={onCancel}
+    header="Bond mor details"
+    okLabel="Confirm"
   >
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Current bond</Typography>
@@ -40,7 +36,7 @@ const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentBond, addBond
       <Typography fontWeight={400}>Fee for this operation</Typography>
       <Typography fontWeight={400}>{`${fee.amount} ${fee.denom}`}</Typography>
     </Stack>
-  </SimpleDialog>
+  </SimpleModal>
 );
 
 export default SummaryModal;

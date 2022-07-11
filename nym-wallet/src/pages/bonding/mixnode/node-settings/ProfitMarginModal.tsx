@@ -4,9 +4,8 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
 import { TextFieldInput } from '../../components';
-import { Node as NodeIcon } from '../../../../svg-icons/node';
 import getSchema from './schema';
-import { SimpleDialog } from '../../../../components';
+import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export interface Props {
   open: boolean;
@@ -34,23 +33,17 @@ const NodeSettingsModal = ({ open, onClose, onConfirm, estimatedOpReward, curren
   });
 
   return (
-    <SimpleDialog
+    <SimpleModal
       open={open}
       onClose={() => {
         reset();
         onClose();
       }}
-      onConfirm={handleSubmit(async (data) => onConfirm(data.profitMargin))}
-      title={
-        <Stack direction="row" alignItems="center">
-          <NodeIcon sx={{ mr: 1, fontSize: 14 }} />
-          Node Settings
-        </Stack>
-      }
-      subTitle="System Variables"
-      confirmButton="Next"
-      closeButton
-      disabled={Boolean(errors?.profitMargin)}
+      onOk={handleSubmit(async (data) => onConfirm(data.profitMargin))}
+      header="Node Settings"
+      subHeader="System Variables"
+      okLabel="Next"
+      okDisabled={Boolean(errors?.profitMargin)}
     >
       <Box sx={{ mt: 1 }}>
         <form>
@@ -84,7 +77,7 @@ const NodeSettingsModal = ({ open, onClose, onConfirm, estimatedOpReward, curren
         <Divider sx={{ my: 1 }} />
         <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>
       </Box>
-    </SimpleDialog>
+    </SimpleModal>
   );
 };
 

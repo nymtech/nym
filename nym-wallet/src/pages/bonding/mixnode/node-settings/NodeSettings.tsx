@@ -29,7 +29,7 @@ const NodeSettings = ({ mixnode, show, onClose }: Props) => {
     setFee({ amount: '42', denom: 'NYM' }); // TODO fetch real fee amount
   }, [profitMargin]);
 
-  const submit = () => {
+  const submit = async () => {
     // TODO send request to update profit margin
     setStep(3); // on success
     // setTx(requestResult)

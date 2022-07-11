@@ -24,7 +24,7 @@ const RedeemRewards = ({ mixnode, show, onClose }: Props) => {
     setFee({ amount: '42', denom: 'NYM' }); // TODO fetch real fee amount
   }, []);
 
-  const submit = () => {
+  const submit = async () => {
     // TODO send request to redeem rewards
     setStep(2); // on success
     // setTx(requestResult)

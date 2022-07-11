@@ -70,7 +70,7 @@ const Unbond = ({ node, show, onClose }: Props) => {
     fetchFee();
   }, [node, isVesting]);
 
-  const submit = () => {
+  const submit = async () => {
     if (status === 'error') {
       // Fetch fee failed
       return;

@@ -6,7 +6,7 @@ import { FieldErrors } from 'react-hook-form/dist/types/errors';
 import { GatewayData, MixnodeData, NodeData, NodeType } from '../types';
 import { RadioInput, TextFieldInput, CheckboxInput } from '../components';
 import nodeSchema from './nodeSchema';
-import { SimpleDialog } from '../../../components';
+import { SimpleModal } from '../../../components/Modals/SimpleModal';
 
 export interface Props {
   open: boolean;
@@ -51,14 +51,13 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
   };
 
   return (
-    <SimpleDialog
+    <SimpleModal
       open={open}
       onClose={onClose}
-      onConfirm={handleSubmit(onSubmitForm)}
-      title="Bond"
-      subTitle="Step 1/2"
-      confirmButton="Next"
-      closeButton
+      onOk={handleSubmit(onSubmitForm)}
+      header="Bond"
+      subHeader="Step 1/2"
+      okLabel="Next"
     >
       <form>
         <RadioInput
@@ -215,7 +214,7 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
           </Stack>
         )}
       </form>
-    </SimpleDialog>
+    </SimpleModal>
   );
 };
 

@@ -27,7 +27,7 @@ const BondMore = ({ mixnode, show, onClose }: Props) => {
     setFee({ amount: '42', denom: 'NYM' }); // TODO fetch real fee amount
   }, [addBond]);
 
-  const submit = () => {
+  const submit = async () => {
     // TODO send request to update bond
     setStep(3); // on success
     // setTx(requestResult)

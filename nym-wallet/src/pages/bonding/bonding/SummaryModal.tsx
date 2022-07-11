@@ -7,8 +7,8 @@ import {
   simulateVestingBondMixnode,
 } from '../../../requests';
 import { GatewayAmount, GatewayData, MixnodeAmount, MixnodeData, NodeData } from '../types';
-import { SimpleDialog } from '../../../components';
 import { useGetFee } from '../../../hooks/useGetFee';
+import { SimpleModal } from '../../../components/Modals/SimpleModal';
 
 export interface Props {
   open: boolean;
@@ -72,23 +72,19 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
   const onConfirm = async () => onSubmit();
 
   return (
-    <SimpleDialog
+    <SimpleModal
       open={open}
       onClose={() => {
         resetFeeState();
         onClose();
       }}
-      onCancel={() => {
+      onBack={() => {
         resetFeeState();
         onCancel();
       }}
-      onConfirm={onConfirm}
-      title="Bond details"
-      confirmButton="Confirm"
-      maxWidth="xs"
-      fullWidth
-      cancelButton
-      closeButton
+      onOk={onConfirm}
+      header="Bond details"
+      okLabel="Confirm"
     >
       <Stack direction="row" justifyContent="space-between">
         <Typography>Identity Key</Typography>
@@ -108,7 +104,7 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
           <Typography>{fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : ''}</Typography>
         )}
       </Stack>
-    </SimpleDialog>
+    </SimpleModal>
   );
 };
 

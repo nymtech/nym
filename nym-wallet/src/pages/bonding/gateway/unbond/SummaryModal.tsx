@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { MajorCurrencyAmount } from '@nymproject/types';
-import { SimpleDialog } from '../../../../components';
+import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export interface Props {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
   onCancel: () => void;
   bond: MajorCurrencyAmount;
   rewards?: MajorCurrencyAmount;
@@ -14,17 +14,14 @@ export interface Props {
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, bond, rewards, fee }: Props) => (
-  <SimpleDialog
+  <SimpleModal
     open={open}
     onClose={onClose}
-    onConfirm={onConfirm}
-    onCancel={onCancel}
-    title="Unbond"
-    subTitle="Unbond and remove your node from the mixnet"
-    confirmButton="Unbond"
-    closeButton
-    maxWidth="xs"
-    fullWidth
+    onOk={onConfirm}
+    onBack={onCancel}
+    header="Unbond"
+    subHeader="Unbond and remove your node from the mixnet"
+    okLabel="Unbond"
   >
     <Stack direction="row" justifyContent="space-between">
       <Typography fontWeight={400}>Amount to unbond</Typography>
@@ -46,7 +43,7 @@ const SummaryModal = ({ open, onClose, onConfirm, onCancel, bond, rewards, fee }
     </Stack>
     <Divider sx={{ my: 1 }} />
     <Typography fontWeight={400}>Tokens will be transferred to account you are logged in with now</Typography>
-  </SimpleDialog>
+  </SimpleModal>
 );
 
 export default SummaryModal;

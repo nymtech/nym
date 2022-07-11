@@ -441,18 +441,6 @@ impl MixNodeCostParams {
     }
 }
 
-// #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-// pub struct MixNodeCostParams {
-//     /// Operator-declared costs (i.e. profit margin and operating costs) of the associated mixnode.
-//     pub costs: DeclaredMixNodeCosts,
-//
-//     /// Computed value determining operating cost of this node per epoch.
-//     /// It is recomputed every time operator changes its operating cost or the interval advances
-//     /// (and thus the reward pool changes).
-//     /// Note that the denom of this value is implicit from the interval operating cost.
-//     pub epoch_operating_cost: Decimal,
-// }
-
 #[derive(
     Copy,
     Clone,
@@ -480,6 +468,12 @@ impl From<Layer> for String {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct UnbondedMixnode {
+    pub identity: IdentityKey,
+    pub unbonding_height: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeConfigUpdate {
     pub host: String,
     pub mix_port: u16,
@@ -487,12 +481,6 @@ pub struct MixNodeConfigUpdate {
     pub http_api_port: u16,
     pub version: String,
 }
-
-// // cosmwasm's limited serde doesn't work with U128 directly
-
-// // everything required to reward delegator of given mixnode
-
-// impl DelegatorRewardParams {
 
 pub struct RewardEstimate {
     pub total_node_reward: u64,

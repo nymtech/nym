@@ -174,12 +174,17 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    // state/sys-params-related
+    GetContractVersion {},
+    GetRewardingValidatorAddress {},
+    GetStateParams {},
+    GetState {},
+    GetRewardingParams {},
+
     // TODO: COMPLETELY NOT DEALT WITH YET
     GetCurrentOperatorCost {},
-    GetRewardingValidatorAddress {},
     GetAllDelegationKeys {},
     DebugGetAllDelegationValues {},
-    GetContractVersion {},
     GetMixNodes {
         limit: Option<u32>,
         start_after: Option<IdentityKey>,
@@ -200,7 +205,6 @@ pub enum QueryMsg {
     GetGatewayBond {
         identity: IdentityKey,
     },
-    StateParams {},
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {
         mix_identity: IdentityKey,
@@ -224,23 +228,13 @@ pub enum QueryMsg {
         proxy: Option<String>,
     },
     LayerDistribution {},
-    GetRewardPool {},
-    GetCirculatingSupply {},
-    GetStakingSupply {},
-    GetIntervalRewardPercent {},
-    GetSybilResistancePercent {},
-    GetActiveSetWorkFactor {},
-    GetRewardingStatus {
-        mix_identity: IdentityKey,
-        interval_id: u32,
-    },
+
     GetRewardedSet {
         height: Option<u64>,
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
     GetRewardedSetUpdateDetails {},
-    GetCurrentRewardedSetHeight {},
     GetRewardedSetRefreshBlocks {},
     GetCurrentEpoch {},
     GetEpochsInInterval {},
@@ -255,13 +249,6 @@ pub enum QueryMsg {
     GetPendingDelegationEvents {
         owner_address: String,
         proxy_address: Option<String>,
-    },
-    GetCheckpointsForMixnode {
-        mix_identity: IdentityKey,
-    },
-    GetMixnodeAtHeight {
-        mix_identity: IdentityKey,
-        height: u64,
     },
 }
 

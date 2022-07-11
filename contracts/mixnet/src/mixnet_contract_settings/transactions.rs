@@ -59,7 +59,7 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
+    use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
@@ -107,6 +107,7 @@ pub mod tests {
         let denom = rewarding_denom(deps.as_ref().storage).unwrap();
 
         let new_params = ContractStateParams {
+            minimum_mixnode_delegation: None,
             minimum_mixnode_pledge: Coin {
                 denom: denom.clone(),
                 amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
@@ -115,6 +116,7 @@ pub mod tests {
                 denom,
                 amount: INITIAL_GATEWAY_PLEDGE_AMOUNT + Uint128::new(1234),
             },
+            vesting_contract_address: Addr::unchecked("foomp"),
         };
 
         let initial_params = storage::CONTRACT_STATE

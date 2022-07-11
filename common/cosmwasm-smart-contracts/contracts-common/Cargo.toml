@@ -8,3 +8,4 @@ edition = "2021"
 
 [dependencies]
 cosmwasm-std = "1.0.0"
+serde = { version = "1.0", features = ["derive"] }

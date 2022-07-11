@@ -40,6 +40,7 @@ pub struct Delegation {
     // Note to UI/UX devs: there's absolutely no point in displaying this value to the users,
     // it would serve them no purpose. It's only used for calculating rewards
     /// Value of the "unit delegation" associated with the mixnode at the time of delegation.
+    #[serde(rename = "crr")]
     pub cumulative_reward_ratio: Decimal,
 
     /// Original delegation amount. Note that it is never mutated as delegation accumulates rewards.

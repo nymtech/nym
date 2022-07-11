@@ -42,7 +42,7 @@ pub fn try_add_mixnode(
         mix_node,
         cost_params,
         info.funds,
-        info.sender.as_str(),
+        info.sender,
         owner_signature,
         None,
     )
@@ -58,13 +58,14 @@ pub fn try_add_mixnode_on_behalf(
     owner_signature: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
+    let owner = deps.api.addr_validate(&owner)?;
     _try_add_mixnode(
         deps,
         env,
         mix_node,
         cost_params,
         info.funds,
-        &owner,
+        owner,
         owner_signature,
         Some(proxy),
     )
@@ -78,15 +79,13 @@ fn _try_add_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
     pledge: Vec<Coin>,
-    owner: &str,
+    owner: Addr,
     owner_signature: String,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the pledge contains any funds of the appropriate denomination
     let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
     let pledge = validate_pledge(pledge, minimum_pledge)?;
-
-    let owner = deps.api.addr_validate(owner)?;
 
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     // note that this has to be done explicitly as `UniqueIndex` constraint would not protect us
@@ -132,25 +131,24 @@ pub fn try_remove_mixnode_on_behalf(
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
-    _try_remove_mixnode(deps, &owner, Some(proxy), info.funds)
+    let owner = deps.api.addr_validate(&owner)?;
+    _try_remove_mixnode(deps, owner, Some(proxy), info.funds)
 }
 
 pub fn try_remove_mixnode(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_mixnode(deps, info.sender.as_ref(), None, info.funds)
+    _try_remove_mixnode(deps, info.sender, None, info.funds)
 }
 
 // TODO: rethinking whether this one should be done with the epoch ending events
 pub(crate) fn _try_remove_mixnode(
     deps: DepsMut<'_>,
-    owner: &str,
+    owner: Addr,
     proxy: Option<Addr>,
     funds: Vec<Coin>,
 ) -> Result<Response, MixnetContractError> {
-    let owner = deps.api.addr_validate(owner)?;
-
     let existing_bond = storage::mixnode_bonds()
         .idx
         .owner
@@ -177,6 +175,10 @@ pub(crate) fn _try_remove_mixnode(
         mix_id: existing_bond.id,
     };
     interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
+
+    // TODO: presumably we need to add a vesting track message here!
+    // TODO: presumably we need to add a vesting track message here!
+    // TODO: presumably we need to add a vesting track message here!
 
     Ok(Response::new()
         .add_optional_message(return_proxy_execute_funds(proxy, funds))

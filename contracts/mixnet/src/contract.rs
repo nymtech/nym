@@ -1,7 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::INITIAL_MIXNODE_PLEDGE_AMOUNT;
+use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -33,7 +33,7 @@ fn default_initial_state(
             },
             minimum_gateway_pledge: Coin {
                 denom: rewarding_denom,
-                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+                amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
             },
             vesting_contract_address,
         },

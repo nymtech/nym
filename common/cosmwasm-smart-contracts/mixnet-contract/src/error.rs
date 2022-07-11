@@ -118,4 +118,10 @@ pub enum MixnetContractError {
 
     #[error("Provided rewarded set size is zero")]
     ZeroRewardedSet,
+
+    #[error("Received unexpected value for the active set. Got: {received}, expected: {expected}")]
+    UnexpectedActiveSetSize { received: u32, expected: u32 },
+
+    #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
+    UnexpectedRewardedSetSize { received: u32, expected: u32 },
 }

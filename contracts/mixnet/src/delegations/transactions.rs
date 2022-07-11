@@ -5,11 +5,9 @@ use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::validate_delegation_stake;
 use cosmwasm_std::{
-    coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Order,
-    Response, Storage, Uint128, WasmMsg,
+    Addr, Coin, DepsMut, Env, Event, MessageInfo, Order, Response, Storage, Uint128, WasmMsg,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
@@ -17,73 +15,6 @@ use mixnet_contract_common::events::{
 };
 use mixnet_contract_common::pending_events::PendingEpochEvent;
 use mixnet_contract_common::{Delegation, NodeId};
-
-// // use crate::contract::debug_with_visibility;
-// // use crate::contract::debug_with_visibility;
-// use crate::error::ContractError;
-// use config::defaults::MIX_DENOM;
-// use mixnet_contract_common::events::{
-//     new_error_event, new_pending_delegation_event, new_pending_undelegation_event,
-//     new_undelegation_event,
-// };
-// use mixnet_contract_common::mixnode::{DelegationEvent, PendingUndelegate};
-// use mixnet_contract_common::{Delegation, IdentityKey};
-// use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
-// use vesting_contract_common::one_ucoin;
-//
-// pub fn try_reconcile_all_delegation_events(
-//     deps: DepsMut<'_>,
-//     info: MessageInfo,
-// ) -> Result<Response, ContractError> {
-//     let state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-//     // check if this is executed by the permitted validator, if not reject the transaction
-//     if info.sender != state.rewarding_validator_address {
-//         return Err(ContractError::Unauthorized);
-//     }
-//
-//     _try_reconcile_all_delegation_events(deps.storage, deps.api)
-// }
-//
-// // TODO: Error handling?
-// pub(crate) fn _try_reconcile_all_delegation_events(
-//     storage: &mut dyn Storage,
-//     api: &dyn Api,
-// ) -> Result<Response, ContractError> {
-//     let pending_delegation_events = PENDING_DELEGATION_EVENTS
-//         .range(storage, None, None, Order::Ascending)
-//         .filter_map(|r| r.ok())
-//         .collect::<Vec<((Vec<u8>, u64, String), DelegationEvent)>>();
-//
-//     let mut response = Response::new();
-//
-//     // debug_with_visibility(api, "Reconciling delegation events");
-//
-//     for (key, delegation_event) in pending_delegation_events {
-//         match delegation_event {
-//             DelegationEvent::Delegate(delegation) => {
-//                 // if for some reason the delegation is zero, don't do anything since it should be a no-op anyway
-//                 if delegation.amount.amount == Uint128::zero() {
-//                     continue;
-//                 }
-//                 let event = try_reconcile_delegation(storage, delegation)?;
-//                 response = response.add_event(event);
-//             }
-//             DelegationEvent::Undelegate(pending_undelegate) => {
-//                 let undelegate_response =
-//                     try_reconcile_undelegation(storage, api, &pending_undelegate)?;
-//                 response = response.add_event(undelegate_response.event);
-//                 if let Some(msg) = undelegate_response.bank_msg {
-//                     response = response.add_message(msg);
-//                 }
-//                 if let Some(msg) = undelegate_response.wasm_msg {
-//                     response = response.add_message(msg);
-//                 }
-//             }
-//         }
-//         PENDING_DELEGATION_EVENTS.remove(storage, key);
-//     }
-//     Ok(response)
-// }
 
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut<'_>,

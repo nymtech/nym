@@ -117,6 +117,20 @@ pub(crate) fn ensure_is_authorized(
     Ok(())
 }
 
+pub(crate) fn ensure_is_owner(
+    sender: Addr,
+    storage: &dyn Storage,
+) -> Result<(), MixnetContractError> {
+    if sender
+        != crate::mixnet_contract_settings::storage::CONTRACT_STATE
+            .load(storage)?
+            .owner
+    {
+        return Err(MixnetContractError::Unauthorized);
+    }
+    Ok(())
+}
+
 pub(crate) fn ensure_proxy_match(
     actual: &Option<Addr>,
     expected: &Option<Addr>,

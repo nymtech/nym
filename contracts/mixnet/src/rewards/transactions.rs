@@ -9,7 +9,8 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::rewards::helpers;
 use crate::support::helpers::{
-    ensure_bonded, ensure_is_authorized, ensure_proxy_match, send_to_proxy_or_owner,
+    ensure_bonded, ensure_is_authorized, ensure_is_owner, ensure_proxy_match,
+    send_to_proxy_or_owner,
 };
 use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -242,7 +243,7 @@ pub(crate) fn try_update_active_set_size(
     active_set_size: u32,
     force_immediately: bool,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    ensure_is_owner(info.sender, deps.storage)?;
 
     let mut rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
     if active_set_size == 0 {
@@ -276,7 +277,7 @@ pub(crate) fn try_update_rewarding_params(
     updated_params: IntervalRewardingParamsUpdate,
     force_immediately: bool,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    ensure_is_owner(info.sender, deps.storage)?;
 
     if !updated_params.contains_updates() {
         return Err(MixnetContractError::EmptyParamsChangeMsg);

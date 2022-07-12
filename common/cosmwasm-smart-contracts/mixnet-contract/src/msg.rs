@@ -191,6 +191,10 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<NodeId>,
     },
+    GetUnbondedMixNodes {
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    },
     GetOwnedMixnode {
         address: String,
     },

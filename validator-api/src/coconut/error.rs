@@ -73,9 +73,6 @@ pub enum CoconutError {
         "Incorrect credential proposal description. Expected blinded serial number in base 58"
     )]
     IncorrectProposal,
-
-    #[error("Internal error: {0}")]
-    InternalError(String),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

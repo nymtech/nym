@@ -4,8 +4,6 @@
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
 use serde::Serialize;
-#[cfg(feature = "coconut")]
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -18,16 +16,15 @@ use mixnet_contract_common::{
 };
 #[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
-#[cfg(feature = "coconut")]
-use validator_client::nymd::{
-    cosmwasm_client::logs::find_attribute,
-    traits::{MultisigSigningClient, QueryClient},
-    AccountId,
-};
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
     Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
+};
+#[cfg(feature = "coconut")]
+use validator_client::nymd::{
+    traits::{MultisigSigningClient, QueryClient},
+    AccountId,
 };
 use validator_client::ValidatorClientError;
 
@@ -453,34 +450,6 @@ where
         proposal_id: u64,
     ) -> crate::coconut::error::Result<ProposalResponse> {
         Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
-    }
-
-    async fn propose_release_funds(
-        &self,
-        title: String,
-        blinded_serial_number: String,
-        voucher_value: u128,
-        fee: Option<Fee>,
-    ) -> Result<u64, CoconutError> {
-        let res = self
-            .0
-            .read()
-            .await
-            .nymd
-            .propose_release_funds(title, blinded_serial_number, voucher_value, fee)
-            .await?;
-        let proposal_id = u64::from_str(
-            &find_attribute(&res.logs, "wasm", "proposal_id")
-                .ok_or_else(|| {
-                    CoconutError::InternalError("No attribute with proposal_id as key".to_string())
-                })?
-                .value,
-        )
-        .map_err(|_| {
-            CoconutError::InternalError("proposal_id could not be parsed to u64".to_string())
-        })?;
-
-        Ok(proposal_id)
     }
 
     async fn vote_proposal(

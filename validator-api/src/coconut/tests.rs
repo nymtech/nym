@@ -68,16 +68,6 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
-    async fn propose_release_funds(
-        &self,
-        _title: String,
-        _blinded_serial_number: String,
-        _voucher_value: u128,
-        _fee: Option<Fee>,
-    ) -> Result<u64> {
-        todo!()
-    }
-
     async fn vote_proposal(
         &self,
         _proposal_id: u64,

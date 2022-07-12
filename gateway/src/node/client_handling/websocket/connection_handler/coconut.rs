@@ -68,7 +68,7 @@ impl CoconutVerifier {
             .ok_or(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal id not found"),
             })?
-            .key
+            .value
             .parse::<u64>()
             .or(Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal id could not be parsed to u64"),

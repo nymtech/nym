@@ -5,18 +5,14 @@ use crate::constants::{
     DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE, DELEGATION_PK_NAMESPACE,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
+use mixnet_contract_common::delegation::OwnerProxySubKey;
 use mixnet_contract_common::{Addr, Delegation, NodeId};
 
-// paged retrieval limits for all queries and transactions
-pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
-pub(crate) const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
-
 // type BlockHeight = u64;
-type OwnerAddress = Vec<u8>;
 
 // It's a composite key on node's id and delegator address
 // type PrimaryKey = (IdentityKey, OwnerAddress, BlockHeight);
-type PrimaryKey = (NodeId, OwnerAddress);
+type PrimaryKey = (NodeId, OwnerProxySubKey);
 
 pub(crate) struct DelegationIndex<'a> {
     pub(crate) owner: MultiIndex<'a, Addr, Delegation, PrimaryKey>,

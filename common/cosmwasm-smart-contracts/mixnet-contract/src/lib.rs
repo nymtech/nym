@@ -20,7 +20,7 @@ pub use contracts_common::types::*;
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedMixDelegationsResponse,
+    PagedMixNodeDelegationsResponse,
 };
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,

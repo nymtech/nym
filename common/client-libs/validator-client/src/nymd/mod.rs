@@ -657,7 +657,7 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let request = QueryMsg::OwnsGateway {
+        let request = QueryMsg::GetOwnedGateway {
             address: address.to_string(),
         };
         let response: GatewayOwnershipResponse = self

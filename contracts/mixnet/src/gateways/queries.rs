@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
@@ -31,7 +31,7 @@ pub(crate) fn query_gateways_paged(
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
-pub(crate) fn query_owns_gateway(
+pub(crate) fn query_owned_gateway(
     deps: Deps<'_>,
     address: String,
 ) -> StdResult<GatewayOwnershipResponse> {

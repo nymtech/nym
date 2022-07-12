@@ -310,17 +310,17 @@ pub fn query(
             &crate::mixnodes::layer_queries::query_layer_distribution(deps)?,
         ),
 
-        // QueryMsg::GetGateways { limit, start_after } => {
-        //     to_binary(&query_gateways_paged(deps, start_after, limit)?)
-        // }
-        // QueryMsg::OwnsMixnode { address } => {
-        //     to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
-        // }
-        // QueryMsg::GetMixnodeBond { identity } => {
-        //     to_binary(&mixnode_queries::query_mixnode_bond(deps, identity)?)
-        // }
-        // QueryMsg::GetGatewayBond { identity } => to_binary(&query_gateway_bond(deps, identity)?),
-        // QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
+        // gateway-related:
+        QueryMsg::GetGateways { limit, start_after } => to_binary(
+            &crate::gateways::queries::query_gateways_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetGatewayBond { identity } => to_binary(
+            &crate::gateways::queries::query_gateway_bond(deps, identity)?,
+        ),
+        QueryMsg::GetOwnedGateway { address } => to_binary(
+            &crate::gateways::queries::query_owned_gateway(deps, address)?,
+        ),
+
         // QueryMsg::GetMixnodeDelegations {
         //     mix_identity,
         //     start_after,

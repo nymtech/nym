@@ -24,6 +24,9 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetSpentCredential {
+        blinded_serial_number: String,
+    },
     GetSpentCredentials {
         limit: Option<u32>,
         start_after: Option<String>,

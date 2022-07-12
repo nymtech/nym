@@ -69,10 +69,11 @@ pub enum CoconutError {
     #[error("Credentials error - {0}")]
     CredentialsError(#[from] credentials::error::Error),
 
-    #[error(
-        "Incorrect credential proposal description. Expected blinded serial number in base 58"
-    )]
-    IncorrectProposal,
+    #[error("Incorrect credential proposal description: {reason}")]
+    IncorrectProposal { reason: String },
+
+    #[error("Invalid status of credential: {status}")]
+    InvalidCredentialStatus { status: String },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

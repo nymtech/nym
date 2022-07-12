@@ -91,3 +91,14 @@ impl PagedSpendCredentialResponse {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct SpendCredentialResponse {
+    pub spend_credential: Option<SpendCredential>,
+}
+
+impl SpendCredentialResponse {
+    pub fn new(spend_credential: Option<SpendCredential>) -> Self {
+        SpendCredentialResponse { spend_credential }
+    }
+}

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_bandwidth_contract_common::spend_credential::{
-    PagedSpendCredentialResponse, SpendCredential,
+    PagedSpendCredentialResponse, SpendCredential, SpendCredentialResponse,
 };
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
@@ -35,6 +35,15 @@ pub(crate) fn query_spent_credentials_paged(
         limit,
         start_next_after,
     ))
+}
+
+pub(crate) fn query_spent_credential(
+    deps: Deps<'_>,
+    blinded_serial_number: String,
+) -> StdResult<SpendCredentialResponse> {
+    let spend_credential =
+        storage::spent_credentials().may_load(deps.storage, &blinded_serial_number)?;
+    Ok(SpendCredentialResponse::new(spend_credential))
 }
 
 #[cfg(test)]

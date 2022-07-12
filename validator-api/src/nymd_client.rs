@@ -3,6 +3,8 @@
 
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
+#[cfg(feature = "coconut")]
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,7 +25,7 @@ use validator_client::nymd::{
 };
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
-    traits::{MultisigSigningClient, QueryClient},
+    traits::{CoconutBandwidthQueryClient, MultisigQueryClient, MultisigSigningClient},
     AccountId,
 };
 use validator_client::ValidatorClientError;
@@ -450,6 +452,19 @@ where
         proposal_id: u64,
     ) -> crate::coconut::error::Result<ProposalResponse> {
         Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
+    }
+
+    async fn get_spent_credential(
+        &self,
+        blinded_serial_number: String,
+    ) -> crate::coconut::error::Result<SpendCredentialResponse> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .nymd
+            .get_spent_credential(blinded_serial_number)
+            .await?)
     }
 
     async fn vote_proposal(

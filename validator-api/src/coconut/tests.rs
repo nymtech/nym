@@ -7,6 +7,7 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
@@ -65,6 +66,13 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_proposal(&self, _proposal_id: u64) -> Result<ProposalResponse> {
+        todo!()
+    }
+
+    async fn get_spent_credential(
+        &self,
+        _blinded_serial_number: String,
+    ) -> Result<SpendCredentialResponse> {
         todo!()
     }
 

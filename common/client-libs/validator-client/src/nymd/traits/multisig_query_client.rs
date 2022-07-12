@@ -9,12 +9,12 @@ use multisig_contract_common::msg::{ProposalResponse, QueryMsg};
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait QueryClient {
+pub trait MultisigQueryClient {
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse, NymdError>;
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send> QueryClient for NymdClient<C> {
+impl<C: CosmWasmClient + Sync + Send> MultisigQueryClient for NymdClient<C> {
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse, NymdError> {
         let request = QueryMsg::Proposal { proposal_id };
         self.client

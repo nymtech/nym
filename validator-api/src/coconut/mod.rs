@@ -12,6 +12,7 @@ use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::ValidatorApiStorage;
 
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialStatus;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
 };
@@ -269,7 +270,29 @@ pub async fn verify_bandwidth_credential(
         .credential()
         .has_blinded_serial_number(&proposal.description)?
     {
-        return Err(CoconutError::IncorrectProposal);
+        return Err(CoconutError::IncorrectProposal {
+            reason: String::from("incorrect blinded serial number in description"),
+        });
+    }
+    // Credential has not been spent before, and is on its way of being spent
+    let credential_status = state
+        .client
+        .get_spent_credential(
+            verify_credential_body
+                .0
+                .credential()
+                .blinded_serial_number(),
+        )
+        .await?
+        .spend_credential
+        .ok_or(CoconutError::InvalidCredentialStatus {
+            status: String::from("Inexistent"),
+        })?
+        .status();
+    if credential_status != SpendCredentialStatus::InProgress {
+        return Err(CoconutError::InvalidCredentialStatus {
+            status: format!("{:?}", credential_status),
+        });
     }
     let verification_key = state.verification_key().await?;
     let verification_result = verify_credential_body

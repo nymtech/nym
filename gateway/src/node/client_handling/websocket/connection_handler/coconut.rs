@@ -10,7 +10,7 @@ use network_defaults::MIX_DENOM;
 use validator_client::{
     nymd::{
         cosmwasm_client::logs::find_attribute,
-        traits::{CoconutBandwidthSigningClient, MultisigSigningClient, QueryClient},
+        traits::{CoconutBandwidthSigningClient, MultisigQueryClient, MultisigSigningClient},
         Coin, Fee, NymdClient, SigningNymdClient,
     },
     ApiClient,

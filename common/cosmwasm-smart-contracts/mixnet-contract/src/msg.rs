@@ -180,28 +180,46 @@ pub enum QueryMsg {
     GetStateParams {},
     GetState {},
     GetRewardingParams {},
+    GetCurrentIntervalDetails {},
+
+    // mixnode-related:
+    GetMixNodeBonds {
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    },
+    GetMixNodesDetailed {
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    },
+    GetOwnedMixnode {
+        address: String,
+    },
+    GetMixnodeDetails {
+        mix_id: NodeId,
+    },
+    GetUnbondedMixNodeInformation {
+        mix_id: NodeId,
+    },
+    GetLayerDistribution {},
 
     // TODO: COMPLETELY NOT DEALT WITH YET
     GetCurrentOperatorCost {},
     GetAllDelegationKeys {},
     DebugGetAllDelegationValues {},
-    GetMixNodes {
-        limit: Option<u32>,
+    GetRewardedSet {
+        height: Option<u64>,
         start_after: Option<IdentityKey>,
+        limit: Option<u32>,
     },
     GetGateways {
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    OwnsMixnode {
-        address: String,
-    },
+
     OwnsGateway {
         address: String,
     },
-    GetMixnodeBond {
-        identity: IdentityKey,
-    },
+
     GetGatewayBond {
         identity: IdentityKey,
     },
@@ -227,16 +245,9 @@ pub enum QueryMsg {
         delegator: String,
         proxy: Option<String>,
     },
-    LayerDistribution {},
 
-    GetRewardedSet {
-        height: Option<u64>,
-        start_after: Option<IdentityKey>,
-        limit: Option<u32>,
-    },
     GetRewardedSetUpdateDetails {},
     GetRewardedSetRefreshBlocks {},
-    GetCurrentEpoch {},
     GetEpochsInInterval {},
     QueryOperatorReward {
         address: String,

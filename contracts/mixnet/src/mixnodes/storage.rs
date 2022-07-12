@@ -22,6 +22,8 @@ use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNod
 //
 
 // keeps track of `node_id -> IdentityKey` so we'd known a bit more about past mixnodes
+// if we ever decide it's too bloaty, we can deprecate it and start removing all data in
+// subsequent migrations
 pub(crate) const UNBONDED_MIXNODES: Map<NodeId, UnbondedMixnode> =
     Map::new(UNBONDED_MIXNODES_PK_NAMESPACE);
 

@@ -25,7 +25,7 @@ pub use delegation::{
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
 };
-pub use interval::{FullEpochId, Interval};
+pub use interval::{CurrentIntervalResponse, FullEpochId, Interval};
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeDetailsResponse,
     PagedMixnodeBondsResponse, RewardedSetNodeStatus,

@@ -369,77 +369,21 @@ pub fn query(
             &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
         ),
 
-        // QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
-        // QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
-        // QueryMsg::GetStakingSupply {} => to_binary(&query_staking_supply(deps)?),
-        // QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
-        // QueryMsg::GetSybilResistancePercent {} => to_binary(&SYBIL_RESISTANCE_PERCENT),
-        // QueryMsg::GetActiveSetWorkFactor {} => to_binary(&ACTIVE_SET_WORK_FACTOR),
-        // QueryMsg::GetRewardingStatus {
-        //     mix_identity,
-        //     interval_id,
-        // } => to_binary(&query_rewarding_status(deps, mix_identity, interval_id)?),
-        // QueryMsg::GetRewardedSet {
-        //     height,
-        //     start_after,
-        //     limit,
-        // } => to_binary(&query_rewarded_set(
-        //     deps.storage,
-        //     height,
-        //     start_after,
-        //     limit,
-        // )?),
-        // QueryMsg::GetRewardedSetUpdateDetails {} => {
-        //     to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
-        // }
-        // QueryMsg::GetCurrentRewardedSetHeight {} => {
-        //     to_binary(&query_current_rewarded_set_height(deps.storage)?)
-        // }
-        // // QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
-        // QueryMsg::GetRewardedSetRefreshBlocks {} => {
-        //     to_binary(&query_rewarded_set_refresh_minimum_blocks())
-        // }
-        // QueryMsg::GetEpochsInInterval {} => {
-        //     to_binary(&crate::support::helpers::epochs_in_interval(deps.storage)?)
-        // }
-        // QueryMsg::GetCurrentOperatorCost {} => to_binary(
-        //     &crate::support::helpers::current_operator_epoch_cost(deps.storage)?,
-        // ),
-        // QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
-        // QueryMsg::QueryOperatorReward { address } => to_binary(
-        //     &crate::rewards::queries::query_operator_reward(deps, address)?,
-        // ),
-        // QueryMsg::QueryDelegatorReward {
-        //     address,
-        //     mix_identity,
-        //     proxy,
-        // } => to_binary(&crate::rewards::queries::query_delegator_reward(
-        //     deps,
-        //     address,
-        //     mix_identity,
-        //     proxy,
-        // )?),
-        // QueryMsg::GetPendingDelegationEvents {
-        //     owner_address,
-        //     proxy_address,
-        // } => to_binary(&query_pending_delegation_events(
-        //     deps,
-        //     owner_address,
-        //     proxy_address,
-        // )?),
-        // QueryMsg::GetAllDelegationKeys {} => to_binary(
-        //     &crate::delegations::queries::query_all_delegation_keys(deps.storage)?,
-        // ),
-        // QueryMsg::DebugGetAllDelegationValues {} => to_binary(
-        //     &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
-        // ),
-        // QueryMsg::GetCheckpointsForMixnode { mix_identity } => {
-        //     to_binary(&query_checkpoints_for_mixnode(deps, mix_identity)?)
-        // }
-        // QueryMsg::GetMixnodeAtHeight {
-        //     mix_identity,
-        //     height,
-        // } => to_binary(&query_mixnode_at_height(deps, mix_identity, height)?),
+        // rewards related
+        QueryMsg::GetPendingOperatorReward { address } => to_binary(
+            &crate::rewards::queries::query_pending_operator_reward(deps, address)?,
+        ),
+        QueryMsg::GetPendingMixNodeOperatorReward { mix_id } => to_binary(
+            &crate::rewards::queries::query_pending_mixnode_operator_reward(deps, mix_id)?,
+        ),
+        QueryMsg::GetPendingDelegatorReward {
+            address,
+            mix_id,
+            proxy,
+        } => to_binary(&crate::rewards::queries::query_pending_delegator_reward(
+            deps, address, mix_id, proxy,
+        )?),
+
         _ => todo!(),
     };
 

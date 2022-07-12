@@ -182,6 +182,9 @@ pub enum QueryMsg {
     GetRewardingParams {},
     GetCurrentIntervalDetails {},
 
+    // TODO: implement
+    GetRewardedSet {},
+
     // mixnode-related:
     GetMixNodeBonds {
         limit: Option<u32>,
@@ -248,33 +251,26 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
-    //
-    //
-
-    // TODO: COMPLETELY NOT DEALT WITH YET
-    GetCurrentOperatorCost {},
-    GetAllDelegationKeys {},
-    GetRewardedSet {
-        height: Option<u64>,
-        start_after: Option<IdentityKey>,
-        limit: Option<u32>,
-    },
-
-    GetRewardedSetUpdateDetails {},
-    GetRewardedSetRefreshBlocks {},
-    GetEpochsInInterval {},
-    QueryOperatorReward {
+    // rewards related
+    GetPendingOperatorReward {
         address: String,
     },
-    QueryDelegatorReward {
+    GetPendingMixNodeOperatorReward {
+        mix_id: NodeId,
+    },
+    GetPendingDelegatorReward {
         address: String,
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
         proxy: Option<String>,
     },
+
+    // TODO: COMPLETELY NOT DEALT WITH YET
     GetPendingDelegationEvents {
         owner_address: String,
         proxy_address: Option<String>,
     },
+    // pending-events related
+    // TODO: figure out how to handle those gracefully-ish
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

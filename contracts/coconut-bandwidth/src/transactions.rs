@@ -1,12 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::msg::ExecuteMsg;
 use coconut_bandwidth_contract_common::spend_credential::{SpendCredential, SpendCredentialData};
-use cosmwasm_std::{
-    to_binary, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response, WasmMsg,
-};
-use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::state::{ADMIN, CONFIG};
@@ -70,25 +66,10 @@ pub(crate) fn spend_credential(
         ),
     )?;
 
-    let release_funds_req = ExecuteMsg::ReleaseFunds {
-        funds: data.funds().to_owned(),
-    };
-    let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.contract.address.into_string(),
-        msg: to_binary(&release_funds_req)?,
-        funds: vec![],
-    });
-    let req = MultisigExecuteMsg::Propose {
-        title: String::from("Release funds, as ordered by Coconut Bandwidth Contract"),
-        description: data.blinded_serial_number().to_string(),
-        msgs: vec![release_funds_msg],
-        latest: None,
-    };
-    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.multisig_addr.into_string(),
-        msg: to_binary(&req)?,
-        funds: vec![],
-    });
+    let msg = data.to_cosmos_msg(
+        env.contract.address.into_string(),
+        cfg.multisig_addr.into_string(),
+    )?;
 
     Ok(Response::new().add_message(msg))
 }
@@ -126,9 +107,11 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::spend_credential_data_fixture;
     use crate::support::tests::helpers::{self, MULTISIG_CONTRACT, POOL_CONTRACT};
+    use coconut_bandwidth_contract_common::msg::ExecuteMsg;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{from_binary, Coin, CosmosMsg};
+    use cosmwasm_std::{from_binary, Coin, CosmosMsg, WasmMsg};
     use cw_controllers::AdminError;
+    use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
     #[test]
     fn invalid_deposit() {

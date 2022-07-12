@@ -12,11 +12,13 @@ use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::ValidatorApiStorage;
 
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialStatus;
+use coconut_bandwidth_contract_common::spend_credential::{
+    SpendCredentialData, SpendCredentialStatus,
+};
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
 };
-use config::defaults::VALIDATOR_API_VERSION;
+use config::defaults::{MIX_DENOM, VALIDATOR_API_VERSION};
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
@@ -28,7 +30,7 @@ use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_client::nymd::Fee;
+use validator_client::nymd::{Coin, Fee};
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
@@ -262,11 +264,10 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    let proposal_id = *verify_credential_body.0.proposal_id();
+    let proposal_id = *verify_credential_body.proposal_id();
     let proposal = state.client.get_proposal(proposal_id).await?;
     // Proposal description is the blinded serial number
     if !verify_credential_body
-        .0
         .credential()
         .has_blinded_serial_number(&proposal.description)?
     {
@@ -274,15 +275,15 @@ pub async fn verify_bandwidth_credential(
             reason: String::from("incorrect blinded serial number in description"),
         });
     }
+    let proposed_release_funds = SpendCredentialData::funds_from_cosmos_msgs(proposal.msgs).ok_or(
+        CoconutError::IncorrectProposal {
+            reason: String::from("action is not to release funds"),
+        },
+    )?;
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client
-        .get_spent_credential(
-            verify_credential_body
-                .0
-                .credential()
-                .blinded_serial_number(),
-        )
+        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
         .await?
         .spend_credential
         .ok_or(CoconutError::InvalidCredentialStatus {
@@ -295,24 +296,29 @@ pub async fn verify_bandwidth_credential(
         });
     }
     let verification_key = state.verification_key().await?;
-    let verification_result = verify_credential_body
-        .0
+    let mut vote_yes = verify_credential_body
         .credential()
         .verify(&verification_key);
+
+    vote_yes &= Coin::from(proposed_release_funds)
+        == Coin::new(
+            verify_credential_body.credential().voucher_value() as u128,
+            MIX_DENOM.base,
+        );
 
     // Vote yes or no on the proposal based on the verification result
     state
         .client
         .vote_proposal(
             proposal_id,
-            verification_result,
+            vote_yes,
             Some(Fee::PayerGranterAuto(
                 None,
                 None,
-                Some(verify_credential_body.0.gateway_cosmos_addr().to_owned()),
+                Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
             )),
         )
         .await?;
 
-    Ok(Json(VerifyCredentialResponse::new(verification_result)))
+    Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }

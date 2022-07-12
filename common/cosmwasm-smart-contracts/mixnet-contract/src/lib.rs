@@ -27,8 +27,8 @@ pub use gateway::{
 };
 pub use interval::{FullEpochId, Interval};
 pub use mixnode::{
-    Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeBondResponse, PagedMixnodeResponse,
-    RewardedSetNodeStatus,
+    Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeDetailsResponse,
+    PagedMixnodeBondsResponse, RewardedSetNodeStatus,
 };
 pub use msg::*;
 pub use types::*;

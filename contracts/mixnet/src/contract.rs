@@ -286,9 +286,30 @@ pub fn query(
             to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
         }
 
-        // QueryMsg::GetMixNodes { start_after, limit } => {
-        //     to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
-        // }
+        // mixnode-related:
+        QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
+            &crate::mixnodes::bonding_queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetMixNodesDetailed { start_after, limit } => to_binary(
+            &crate::mixnodes::bonding_queries::query_mixnodes_details_paged(
+                deps,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetOwnedMixnode { address } => to_binary(
+            &crate::mixnodes::bonding_queries::query_owned_mixnode(deps, address)?,
+        ),
+        QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
+            &crate::mixnodes::bonding_queries::query_mixnode_details(deps, mix_id)?,
+        ),
+        QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
+            &crate::mixnodes::bonding_queries::query_unbonded_mixnode(deps, mix_id)?,
+        ),
+        QueryMsg::GetLayerDistribution {} => to_binary(
+            &crate::mixnodes::layer_queries::query_layer_distribution(deps)?,
+        ),
+
         // QueryMsg::GetGateways { limit, start_after } => {
         //     to_binary(&query_gateways_paged(deps, start_after, limit)?)
         // }
@@ -300,7 +321,6 @@ pub fn query(
         // }
         // QueryMsg::GetGatewayBond { identity } => to_binary(&query_gateway_bond(deps, identity)?),
         // QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-        // QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
         // QueryMsg::GetMixnodeDelegations {
         //     mix_identity,
         //     start_after,

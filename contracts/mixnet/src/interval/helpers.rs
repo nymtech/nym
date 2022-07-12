@@ -22,5 +22,5 @@ pub(crate) fn change_epochs_in_interval(
     rewards_storage::REWARDING_PARAMS.save(store, &rewarding_params)?;
 
     interval.force_change_epochs_in_interval(epochs_in_interval);
-    storage::save_interval(store, &interval)
+    Ok(storage::save_interval(store, &interval)?)
 }

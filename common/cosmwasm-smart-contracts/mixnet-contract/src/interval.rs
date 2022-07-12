@@ -374,6 +374,25 @@ impl Display for Interval {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct CurrentIntervalResponse {
+    pub interval: Interval,
+    pub current_blocktime: u64,
+    pub is_current_interval_over: bool,
+    pub is_current_epoch_over: bool,
+}
+
+impl CurrentIntervalResponse {
+    pub fn new(interval: Interval, env: Env) -> Self {
+        CurrentIntervalResponse {
+            interval,
+            current_blocktime: env.block.time.seconds(),
+            is_current_interval_over: interval.is_current_interval_over(&env),
+            is_current_epoch_over: interval.is_current_epoch_over(&env),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -23,7 +23,7 @@ use crate::utils::{
 use crate::Base58;
 
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SecretKey {
     pub(crate) x: Scalar,
     pub(crate) ys: Vec<Scalar>,
@@ -114,7 +114,7 @@ impl Base58 for SecretKey {}
 
 // TODO: perhaps change points to affine representation
 // to make verification slightly more efficient?
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,
@@ -351,7 +351,7 @@ impl Bytable for VerificationKey {
 impl Base58 for VerificationKey {}
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct KeyPair {
     secret_key: SecretKey,
     verification_key: VerificationKey,

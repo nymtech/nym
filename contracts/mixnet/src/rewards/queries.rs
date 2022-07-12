@@ -15,6 +15,10 @@ pub(crate) fn query_circulating_supply(deps: Deps<'_>) -> StdResult<Uint128> {
     storage::circulating_supply(deps.storage)
 }
 
+pub(crate) fn query_staking_supply(deps: Deps<'_>) -> StdResult<Uint128> {
+    storage::staking_supply(deps.storage)
+}
+
 pub(crate) fn query_rewarding_status(
     deps: Deps<'_>,
     mix_identity: IdentityKey,

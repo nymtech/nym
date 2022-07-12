@@ -1,8 +1,14 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
-
 import { Button, Paper } from '@mui/material';
+import { useTheme, Theme } from '@mui/material/styles';
 import { RedeemModal } from './RedeemModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+
+const storybookStyles = (theme: Theme) => ({
+  backdropProps: backDropStyles(theme),
+  sx: modalStyles(theme),
+});
 
 export default {
   title: 'Rewards/Components/Redeem Modals',
@@ -45,45 +51,50 @@ const Content: React.FC<{
 );
 
 export const RedeemAllRewards = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
       <RedeemModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         message="Redeem all rewards"
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        fee={0.004375}
         amount={425.65843}
+        {...storybookStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );
 };
 
 export const RedeemRewardForMixnode = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
       <RedeemModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         message="Redeem rewards"
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        fee={0.004375}
         amount={425.65843}
+        {...storybookStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );
 };
 
 export const FeeIsMoreThanAllRewards = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -94,27 +105,30 @@ export const FeeIsMoreThanAllRewards = () => {
         message="Redeem all rewards"
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        fee={0.004375}
         amount={0.001}
+        {...storybookStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );
 };
 
 export const FeeIsMoreThanMixnodeReward = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
       <RedeemModal
         open={open}
         onClose={() => setOpen(false)}
-        onOk={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         message="Redeem rewards"
         currency="NYM"
-        fee={0.004375}
         amount={0.001}
+        {...storybookStyles(theme)}
+        usesVestingTokens={false}
       />
     </>
   );

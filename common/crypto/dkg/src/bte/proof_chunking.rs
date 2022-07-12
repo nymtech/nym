@@ -68,7 +68,7 @@ impl<'a> Instance<'a> {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(Clone, PartialEq))]
+#[cfg_attr(test, derive(Clone, PartialEq, Eq))]
 pub struct ProofOfChunking {
     y0: G1Projective,
     bb: Vec<G1Projective>,
@@ -761,6 +761,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn should_verify_a_valid_proof() {
         let dummy_seed = [1u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);

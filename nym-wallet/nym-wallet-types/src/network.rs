@@ -1,14 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmrs::Denom;
-use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::str::FromStr;
-use strum::EnumIter;
-
 use config::defaults::all::Network as ConfigNetwork;
 use config::defaults::{mainnet, qa, sandbox};
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use strum::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -26,16 +23,6 @@ pub enum Network {
 impl Network {
     pub fn as_key(&self) -> String {
         self.to_string().to_lowercase()
-    }
-
-    #[deprecated]
-    pub fn denom(&self) -> Denom {
-        match self {
-            // network defaults should be correctly formatted
-            Network::QA => Denom::from_str(qa::DENOM).unwrap(),
-            Network::SANDBOX => Denom::from_str(sandbox::DENOM).unwrap(),
-            Network::MAINNET => Denom::from_str(mainnet::DENOM).unwrap(),
-        }
     }
 
     pub fn base_mix_denom(&self) -> &str {
@@ -73,6 +60,7 @@ impl From<ConfigNetwork> for Network {
             ConfigNetwork::QA => Network::QA,
             ConfigNetwork::SANDBOX => Network::SANDBOX,
             ConfigNetwork::MAINNET => Network::MAINNET,
+            ConfigNetwork::CUSTOM { .. } => panic!("custom network is not supported"),
         }
     }
 }

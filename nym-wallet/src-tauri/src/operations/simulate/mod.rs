@@ -1,9 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmrs::tx;
+use cosmrs::tx::Gas;
 use nym_types::fees::FeeDetails;
 use validator_client::nymd::cosmwasm_client::types::GasInfo;
-use validator_client::nymd::{tx, CosmosCoin, Fee, GasPrice};
+use validator_client::nymd::{CosmosCoin, Fee, GasAdjustable, GasAdjustment, GasPrice};
 
 pub mod admin;
 pub mod cosmos;
@@ -18,28 +20,36 @@ pub(crate) struct SimulateResult {
     // for example if you attempt to send a 'BondMixnode' with invalid signature
     pub gas_info: Option<GasInfo>,
     pub gas_price: GasPrice,
+    pub gas_adjustment: GasAdjustment,
 }
 
 impl SimulateResult {
-    pub fn new(gas_info: Option<GasInfo>, gas_price: GasPrice) -> Self {
+    pub fn new(
+        gas_info: Option<GasInfo>,
+        gas_price: GasPrice,
+        gas_adjustment: GasAdjustment,
+    ) -> Self {
         SimulateResult {
             gas_info,
             gas_price,
+            gas_adjustment,
         }
     }
 
-    pub(crate) fn to_fee_amount(&self) -> Option<CosmosCoin> {
+    pub(crate) fn adjusted_gas(&self) -> Option<Gas> {
         self.gas_info
-            .map(|gas_info| &self.gas_price * gas_info.gas_used)
+            .map(|gas_info| gas_info.gas_used.adjust_gas(self.gas_adjustment))
+    }
+
+    pub(crate) fn to_fee_amount(&self) -> Option<CosmosCoin> {
+        self.adjusted_gas().map(|gas| &self.gas_price * gas)
     }
 
     pub(crate) fn to_fee(&self) -> Fee {
-        self.to_fee_amount()
-            .and_then(|fee_amount| {
-                self.gas_info.map(|gas_info| {
-                    let gas_limit = gas_info.gas_used;
-                    tx::Fee::from_amount_and_gas(fee_amount, gas_limit).into()
-                })
+        self.adjusted_gas()
+            .map(|gas| {
+                let fee_amount = &self.gas_price * gas;
+                tx::Fee::from_amount_and_gas(fee_amount, gas).into()
             })
             .unwrap_or_default()
     }

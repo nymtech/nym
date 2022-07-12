@@ -6,6 +6,7 @@
   "workspaces": [
     "ts-packages/*",
     "nym-wallet",
+    "nym-connect",
     "explorer",
     "types"
   ],
@@ -13,7 +14,9 @@
     "clean": "lerna run clean",
     "build": "run-s build:types build:packages",
     "build:types": "lerna run --scope @nymproject/types build --stream",
-    "build:packages": "lerna run --scope @nymproject/mui-theme --scope @nymproject/react --stream build",
+    "build:packages": "run-s build:packages:theme build:packages:react",
+    "build:packages:theme": "lerna run --scope @nymproject/mui-theme build",
+    "build:packages:react": "lerna run --scope @nymproject/react build",
     "build:react-example": "lerna run --scope @nymproject/react-webpack-with-theme-example build --stream",
     "build:playground": "lerna run --scope @nymproject/react storybook:build --stream",
     "build:ci": "yarn build && run-p build:react-example build:playground && yarn build:ci:collect-artifacts",

@@ -1,6 +1,8 @@
 use crate::errors::ContractError;
+use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
+use crate::traits::VestingAccount;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
@@ -75,6 +77,15 @@ impl MixnodeBondingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
         let current_balance = self.load_balance(storage)?;
+        let total_pledged_after = self.total_pledged_locked(storage, env)? + pledge.amount;
+        let locked_pledge_cap = locked_pledge_cap(storage);
+
+        if locked_pledge_cap < total_pledged_after {
+            return Err(ContractError::LockedPledgeCapReached {
+                current: total_pledged_after,
+                cap: locked_pledge_cap,
+            });
+        }
 
         if current_balance < pledge.amount {
             return Err(ContractError::InsufficientBalance(

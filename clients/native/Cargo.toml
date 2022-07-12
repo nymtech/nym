@@ -2,6 +2,7 @@
 name = "nym-client"
 version = "1.0.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+description = "Implementation of the Nym Client"
 edition = "2021"
 rust-version = "1.56"
 
@@ -19,8 +20,8 @@ futures = "0.3" # bunch of futures stuff, however, now that I think about it, it
 # and the single instance of abortable we have should really be refactored anyway
 url = "2.2"
 
-clap = "2.33.0" # for the command line arguments
-dirs = "3.0" # for determining default store directories in config
+clap = { version = "3.2.8", features = ["cargo", "derive"] }
+dirs = "4.0"
 dotenv = "0.15.0" # for obtaining environmental variables (only used for RUST_LOG for time being)
 log = "0.4" # self explanatory
 pretty_env_logger = "0.4" # for formatting log messages

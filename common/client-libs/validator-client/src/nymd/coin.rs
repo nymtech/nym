@@ -6,14 +6,14 @@ use std::fmt;
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 
-#[derive(Serialize, Deserialize, Clone, Copy, Default, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct MismatchedDenoms;
 
 // the reason the coin is created here as opposed to different place in the codebase is that
 // eventually we want to either publish the cosmwasm client separately or commit it to
 // some other project, like cosmrs. Either way, in that case we can't really have
 // a dependency on an internal type
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 pub struct Coin {
     pub amount: u128,
     pub denom: String,

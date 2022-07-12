@@ -7,12 +7,12 @@ use crate::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     UpdateRewardingValidatorAddress {
@@ -112,9 +112,10 @@ pub enum ExecuteMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetCurrentOperatorCost {},
     GetRewardingValidatorAddress {},
     GetAllDelegationKeys {},
     DebugGetAllDelegationValues {},
@@ -132,6 +133,12 @@ pub enum QueryMsg {
     },
     OwnsGateway {
         address: String,
+    },
+    GetMixnodeBond {
+        identity: IdentityKey,
+    },
+    GetGatewayBond {
+        identity: IdentityKey,
     },
     StateParams {},
     // gets all [paged] delegations associated with particular mixnode
@@ -159,6 +166,7 @@ pub enum QueryMsg {
     LayerDistribution {},
     GetRewardPool {},
     GetCirculatingSupply {},
+    GetStakingSupply {},
     GetIntervalRewardPercent {},
     GetSybilResistancePercent {},
     GetActiveSetWorkFactor {},
@@ -197,6 +205,6 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {}

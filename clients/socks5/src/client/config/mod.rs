@@ -89,7 +89,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Socks5 {
     /// The port on which the client will be listening for incoming requests

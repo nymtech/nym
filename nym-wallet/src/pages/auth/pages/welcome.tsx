@@ -15,13 +15,21 @@ export const WelcomeContent: React.FC<{}> = () => {
         <Button
           fullWidth
           color="primary"
+          sx={{ color: 'primary.contrastText', fontSize: 16 }}
           variant="contained"
           size="large"
           onClick={() => navigate('/existing-account')}
         >
           Sign in
         </Button>
-        <Button fullWidth color="inherit" disableElevation size="large" onClick={() => navigate('/create-mnemonic')}>
+        <Button
+          fullWidth
+          color="inherit"
+          sx={{ fontSize: 16, color: '#FFFFFF' }}
+          disableElevation
+          size="large"
+          onClick={() => navigate('/create-mnemonic')}
+        >
           Create account
         </Button>
       </Stack>

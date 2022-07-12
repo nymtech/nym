@@ -4,7 +4,6 @@
 use crate::{DenomDetails, ValidatorDetails};
 
 pub(crate) const BECH32_PREFIX: &str = "n";
-pub const DENOM: &str = "unym";
 
 pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
 pub const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
@@ -24,6 +23,7 @@ pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n1tfzd4qz3a45u8p4mr5zmzv66457uwjgcl05jdq";
 
+pub(crate) const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "http://0.0.0.0";
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://qa-validator.nymtech.net",

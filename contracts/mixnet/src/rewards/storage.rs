@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
+use crate::mixnet_contract_settings::storage as settings_storage;
 use config::defaults::TOTAL_SUPPLY;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
@@ -42,10 +43,21 @@ pub fn incr_reward_pool(
     })
 }
 
-pub fn decr_reward_pool(
-    storage: &mut dyn Storage,
-    amount: Uint128,
-) -> Result<Uint128, ContractError> {
+pub fn reward_accounting(storage: &mut dyn Storage, amount: Uint128) -> Result<(), ContractError> {
+    decr_reward_pool(storage, amount)?;
+    incr_staking_supply(storage, amount)?;
+    Ok(())
+}
+
+fn incr_staking_supply(storage: &mut dyn Storage, amount: Uint128) -> Result<(), ContractError> {
+    let mut contract_state =
+        crate::mixnet_contract_settings::storage::CONTRACT_STATE.load(storage)?;
+    contract_state.params.staking_supply += amount;
+    crate::mixnet_contract_settings::storage::CONTRACT_STATE.save(storage, &contract_state)?;
+    Ok(())
+}
+
+fn decr_reward_pool(storage: &mut dyn Storage, amount: Uint128) -> Result<Uint128, ContractError> {
     REWARD_POOL.update(storage, |current_pool| {
         let stake = current_pool
             .checked_sub(amount)
@@ -61,4 +73,9 @@ pub fn decr_reward_pool(
 pub fn circulating_supply(storage: &dyn Storage) -> StdResult<Uint128> {
     let reward_pool = REWARD_POOL.load(storage)?;
     Ok(Uint128::new(TOTAL_SUPPLY).saturating_sub(reward_pool))
+}
+
+pub fn staking_supply(storage: &dyn Storage) -> StdResult<Uint128> {
+    let state = settings_storage::CONTRACT_STATE.load(storage)?;
+    Ok(state.params.staking_supply)
 }

@@ -20,6 +20,7 @@ use client_core::client::topology_control::{
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
@@ -35,7 +36,17 @@ use crate::socks::{
     server::SphinxSocksServer,
 };
 
-pub(crate) mod config;
+pub mod config;
+
+// Channels used to control the main task from outside
+pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage>;
+pub type Socks5ControlMessageReceiver = mpsc::UnboundedReceiver<Socks5ControlMessage>;
+
+#[derive(Debug)]
+pub enum Socks5ControlMessage {
+    /// Tell the main task to stop
+    Stop,
+}
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -270,6 +281,23 @@ impl NymClient {
         println!(
             "Received SIGINT - the client will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
+    }
+
+    // Variant of `run_forever` that listends for remote control messages
+    pub async fn run_and_listen(&mut self, mut receiver: Socks5ControlMessageReceiver) {
+        self.start().await;
+        tokio::select! {
+            message = receiver.next() => {
+                log::debug!("Received message: {:?}", message);
+                match message {
+                    Some(Socks5ControlMessage::Stop) => {
+                        log::info!("Shutting down");
+                        log::info!("Graceful shutdown of tasks not yet implemented, you might see (harmless) panics until then");
+                    }
+                    None => log::debug!("None"),
+                }
+            }
+        }
     }
 
     pub async fn start(&mut self) {

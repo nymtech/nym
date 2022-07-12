@@ -243,7 +243,7 @@ impl Zeroize for Tau {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct Epoch(EpochStore);
 
 impl Epoch {

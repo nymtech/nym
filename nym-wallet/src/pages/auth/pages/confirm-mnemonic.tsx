@@ -16,7 +16,7 @@ export const ConfirmMnemonic = () => {
   }, [localMnemonic]);
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ minWidth: '50%' }}>
       <Subtitle subtitle="Enter the mnemonic you wish to create a password for" />
       <MnemonicInput mnemonic={localMnemonic} onUpdateMnemonic={(mnc) => setLocalMnemonic(mnc)} error={error} />
       <Button

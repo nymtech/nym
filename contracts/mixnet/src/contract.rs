@@ -7,10 +7,9 @@ use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::{
     query_mixnode_delegations_paged, query_pending_delegation_events,
 };
-use crate::delegations::storage::delegations;
 use crate::error::ContractError;
-use crate::gateways::queries::query_gateways_paged;
 use crate::gateways::queries::query_owns_gateway;
+use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
 use crate::interval::queries::query_current_epoch;
 use crate::interval::queries::{
     query_current_rewarded_set_height, query_rewarded_set,
@@ -29,14 +28,13 @@ use crate::mixnodes::bonding_queries::{
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::rewards::queries::{
-    query_circulating_supply, query_reward_pool, query_rewarding_status,
+    query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
-use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -57,6 +55,8 @@ pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
 pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
     time::macros::datetime!(2022-01-01 12:00 UTC);
 
+pub const INITIAL_STAKING_SUPPLY: Uint128 = Uint128::new(100_000_000_000_000);
+
 pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 }
@@ -70,6 +70,7 @@ fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> Cont
             minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
             mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
             mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+            staking_supply: INITIAL_STAKING_SUPPLY,
         },
     }
 }
@@ -328,6 +329,10 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::OwnsMixnode { address } => {
             to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
         }
+        QueryMsg::GetMixnodeBond { identity } => {
+            to_binary(&mixnode_queries::query_mixnode_bond(deps, identity)?)
+        }
+        QueryMsg::GetGatewayBond { identity } => to_binary(&query_gateway_bond(deps, identity)?),
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
         QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
         QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
@@ -364,6 +369,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         )?),
         QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
+        QueryMsg::GetStakingSupply {} => to_binary(&query_staking_supply(deps)?),
         QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
         QueryMsg::GetSybilResistancePercent {} => to_binary(&SYBIL_RESISTANCE_PERCENT),
         QueryMsg::GetActiveSetWorkFactor {} => to_binary(&ACTIVE_SET_WORK_FACTOR),
@@ -391,7 +397,12 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetRewardedSetRefreshBlocks {} => {
             to_binary(&query_rewarded_set_refresh_minimum_blocks())
         }
-        QueryMsg::GetEpochsInInterval {} => to_binary(&crate::constants::EPOCHS_IN_INTERVAL),
+        QueryMsg::GetEpochsInInterval {} => {
+            to_binary(&crate::support::helpers::epochs_in_interval(deps.storage)?)
+        }
+        QueryMsg::GetCurrentOperatorCost {} => to_binary(
+            &crate::support::helpers::current_operator_epoch_cost(deps.storage)?,
+        ),
         QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
         QueryMsg::QueryOperatorReward { address } => to_binary(
             &crate::rewards::queries::query_operator_reward(deps, address)?,
@@ -432,42 +443,8 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-fn deal_with_zero_delegations(deps: DepsMut<'_>) -> Result<(), ContractError> {
-    // if there exists any delegation of 0 value, remove it
-    let zero_delegations = delegations()
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| v.amount.amount == Uint128::zero())
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation in &zero_delegations {
-        delegations().remove(deps.storage, delegation.clone())?;
-    }
-
-    // similarly, if there exists any event that is scheduled to insert/remove delegation with 0 value, purge it
-    let delegate_events_to_purge = crate::delegations::storage::PENDING_DELEGATION_EVENTS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|r| r.ok())
-        .filter(|(_k, v)| match v {
-            DelegationEvent::Delegate(d) => d.amount.amount == Uint128::zero(),
-            _ => false,
-        })
-        .map(|(k, _v)| k)
-        .collect::<Vec<_>>();
-
-    for delegation_event in delegate_events_to_purge {
-        crate::delegations::storage::PENDING_DELEGATION_EVENTS
-            .remove(deps.storage, delegation_event);
-    }
-
-    Ok(())
-}
-
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    deal_with_zero_delegations(deps)?;
-
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 
@@ -475,8 +452,7 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
 pub mod tests {
     use super::*;
     use crate::support::tests;
-    use config::defaults::DEFAULT_NETWORK;
-    use config::defaults::MIX_DENOM;
+    use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract_common::PagedMixnodeResponse;

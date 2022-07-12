@@ -5,17 +5,23 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::{Deserialize, Serialize};
 
-use statistics::StatsMessage;
+use statistics_common::StatsMessage;
 
 use crate::api::error::Result;
 use crate::storage::NetworkStatisticsStorage;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct ServiceStatisticsRequest {
+pub struct StatisticsRequest {
     // date, RFC 3339 format
     since: String,
     // date, RFC 3339 format
     until: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum GenericStatistic {
+    Service(ServiceStatistic),
+    Gateway(GatewayStatistic),
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -27,28 +33,51 @@ pub struct ServiceStatistic {
     pub timestamp: String,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct GatewayStatistic {
+    pub inbox_count: u32,
+    pub timestamp: String,
+}
+
 #[rocket::post("/all-statistics", data = "<all_statistics_request>")]
 pub(crate) async fn post_all_statistics(
-    all_statistics_request: Json<ServiceStatisticsRequest>,
+    all_statistics_request: Json<StatisticsRequest>,
     storage: &State<NetworkStatisticsStorage>,
-) -> Result<Json<Vec<ServiceStatistic>>> {
-    let service_statistics = storage
+) -> Result<Json<Vec<GenericStatistic>>> {
+    let all_statistics = storage
         .get_service_statistics_in_interval(
             &all_statistics_request.since,
             &all_statistics_request.until,
         )
         .await?
         .into_iter()
-        .map(|data| ServiceStatistic {
-            requested_service: data.requested_service,
-            request_processed_bytes: data.request_processed_bytes as u32,
-            response_processed_bytes: data.response_processed_bytes as u32,
-            interval_seconds: data.interval_seconds as u32,
-            timestamp: data.timestamp.to_string(),
+        .map(|data| {
+            GenericStatistic::Service(ServiceStatistic {
+                requested_service: data.requested_service,
+                request_processed_bytes: data.request_processed_bytes as u32,
+                response_processed_bytes: data.response_processed_bytes as u32,
+                interval_seconds: data.interval_seconds as u32,
+                timestamp: data.timestamp.to_string(),
+            })
         })
+        .chain(
+            storage
+                .get_gateway_statistics_in_interval(
+                    &all_statistics_request.since,
+                    &all_statistics_request.until,
+                )
+                .await?
+                .into_iter()
+                .map(|data| {
+                    GenericStatistic::Gateway(GatewayStatistic {
+                        inbox_count: data.inbox_count as u32,
+                        timestamp: data.timestamp.to_string(),
+                    })
+                }),
+        )
         .collect();
 
-    Ok(Json(service_statistics))
+    Ok(Json(all_statistics))
 }
 
 #[rocket::post("/statistic", data = "<statistic>")]
@@ -56,6 +85,6 @@ pub(crate) async fn post_statistic(
     statistic: Json<StatsMessage>,
     storage: &State<NetworkStatisticsStorage>,
 ) -> Result<Json<()>> {
-    storage.insert_service_statistics(statistic.0).await?;
+    storage.insert_statistics(statistic.0).await?;
     Ok(Json(()))
 }

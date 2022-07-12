@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   Box,
   Button,
-  CircularProgress,
   Grid,
   IconButton,
   Table,
@@ -15,12 +14,10 @@ import {
 } from '@mui/material';
 import { InfoOutlined, Refresh } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { Fee, InfoTooltip, NymCard, Title } from '../../components';
-import { AppContext } from '../../context/main';
-import { withdrawVestedCoins } from '../../requests';
-import { Period } from '../../types';
+import { InfoTooltip, NymCard, Title } from 'src/components';
+import { AppContext } from 'src/context/main';
+import { Period } from 'src/types';
 import { VestingTimeline } from './components/vesting-timeline';
-import { Console } from '../../utils/console';
 
 const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> = [
   { title: 'Locked', align: 'left' },
@@ -62,7 +59,7 @@ const VestingSchedule = () => {
         <TableHead>
           <TableRow>
             {columnsHeaders.map((header) => (
-              <TableCell key={header.title} sx={{ color: 'grey.500' }} align={header.align}>
+              <TableCell key={header.title} sx={{ color: (t) => t.palette.nym.text.muted }} align={header.align}>
                 {header.title}
               </TableCell>
             ))}
@@ -108,11 +105,11 @@ const TokenTransfer = () => {
         <Title title="Transfer unlocked tokens" Icon={icon} />
       </Grid>
       <Grid item>
-        <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 2 }}>
+        <Typography variant="subtitle2" sx={{ color: (t) => t.palette.nym.text.muted, mt: 2 }}>
           Transferable tokens
         </Typography>
 
-        <Typography data-testid="refresh-success" sx={{ color: 'nym.background.dark' }} variant="h5" fontWeight="700">
+        <Typography data-testid="refresh-success" sx={{ color: 'text.primary' }} variant="h5" fontWeight="700">
           {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.denom}
         </Typography>
       </Grid>
@@ -120,10 +117,8 @@ const TokenTransfer = () => {
   );
 };
 
-export const VestingCard = () => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { userBalance, clientDetails } = useContext(AppContext);
+export const VestingCard = ({ onTransfer }: { onTransfer: () => Promise<void> }) => {
+  const { userBalance } = useContext(AppContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const refreshBalances = async () => {
@@ -156,39 +151,8 @@ export const VestingCard = () => {
     >
       <VestingSchedule />
       <TokenTransfer />
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        {userBalance.tokenAllocation?.spendable !== '0' ? <Fee feeType="Send" /> : <div />}
-        <Button
-          size="large"
-          variant="contained"
-          onClick={async () => {
-            if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
-              setIsLoading(true);
-              try {
-                await withdrawVestedCoins({
-                  amount: userBalance.tokenAllocation?.spendable,
-                  denom: clientDetails.denom,
-                });
-                await refreshBalances();
-                enqueueSnackbar('Token transfer succeeded', {
-                  variant: 'success',
-                  preventDuplicate: true,
-                });
-              } catch (e) {
-                Console.error(e as string);
-                enqueueSnackbar('Token transfer failed. You may not have any transferable tokens at this time', {
-                  variant: 'error',
-                  preventDuplicate: true,
-                });
-              } finally {
-                setIsLoading(false);
-              }
-            }
-          }}
-          endIcon={isLoading && <CircularProgress size={16} color="inherit" />}
-          disabled={isLoading || userBalance.tokenAllocation?.spendable === '0'}
-          disableElevation
-        >
+      <Box display="flex" justifyContent="end" alignItems="center">
+        <Button size="large" variant="contained" onClick={onTransfer} disableElevation>
           Transfer
         </Button>
       </Box>

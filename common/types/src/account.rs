@@ -1,4 +1,4 @@
-use crate::currency::{DecCoin, Denom};
+use crate::currency::DecCoin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -14,11 +14,11 @@ pub struct Account {
     // 2. what's the `contract_address`? is it mixnet? vesting? coconut? why does it relate to an account anyway?
     pub contract_address: String,
     pub client_address: String,
-    pub denom: Denom,
+    pub denom: String,
 }
 
 impl Account {
-    pub fn new(contract_address: String, client_address: String, denom: Denom) -> Self {
+    pub fn new(contract_address: String, client_address: String, denom: String) -> Self {
         Account {
             contract_address,
             client_address,

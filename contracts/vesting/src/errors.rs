@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, StdError};
+use cosmwasm_std::{Addr, StdError, Uint128};
 use mixnet_contract_common::IdentityKey;
 use thiserror::Error;
 
@@ -46,4 +46,6 @@ pub enum ContractError {
     AccountAlreadyExists(String),
     #[error("VESTING ({}): Too few coins sent for vesting account creation, sent {sent}, need at least {need}", line!())]
     MinVestingFunds { sent: u128, need: u128 },
+    #[error("VESTING ({}): Maximum amount of locked coins has already been pledged: {current}, cap is {cap}", line!())]
+    LockedPledgeCapReached { current: Uint128, cap: Uint128 },
 }

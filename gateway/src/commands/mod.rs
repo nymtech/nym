@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::process;
+use std::{process, str::FromStr};
 
 use crate::{config::Config, Cli};
 use clap::Subcommand;
@@ -17,9 +17,6 @@ pub(crate) mod upgrade;
 
 #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-const DEFAULT_VALIDATOR_ENDPOINT: &str = "http://localhost:26657";
-
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Initialise the gateway
@@ -46,7 +43,10 @@ pub(crate) struct OverrideConfig {
     clients_port: Option<u16>,
     datastore: Option<String>,
     announce_host: Option<String>,
+    enabled_statistics: Option<bool>,
+    statistics_service_url: Option<String>,
     validator_apis: Option<String>,
+    validators: Option<String>,
     mnemonic: Option<String>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -54,9 +54,6 @@ pub(crate) struct OverrideConfig {
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     eth_endpoint: Option<String>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    validators: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -102,8 +99,24 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.announce_host_from_listening_host();
     }
 
+    if let Some(enabled_statistics) = args.enabled_statistics {
+        config = config.with_enabled_statistics(enabled_statistics);
+    }
+
+    if let Some(raw_url) = args.statistics_service_url {
+        config = config.with_custom_statistics_service_url(
+            raw_url
+                .parse()
+                .expect("the provided statistics service url is invalid!"),
+        );
+    }
+
     if let Some(raw_validators) = args.validator_apis {
         config = config.with_custom_validator_apis(parse_validators(&raw_validators));
+    }
+
+    if let Some(raw_validators) = args.validators {
+        config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
     }
 
     if let Some(wallet_address) = args.wallet_address {
@@ -117,12 +130,13 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(cosmos_mnemonic) = args.mnemonic {
-        config = config.with_cosmos_mnemonic(cosmos_mnemonic);
+        config = config.with_cosmos_mnemonic(
+            bip39::Mnemonic::from_str(&cosmos_mnemonic).expect("Provided mnemonic is invalid"),
+        );
     }
 
     #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
     {
-        config = config.with_custom_validator_nymd(parse_validators(DEFAULT_VALIDATOR_ENDPOINT));
         config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
     }
 

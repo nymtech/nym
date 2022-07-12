@@ -26,9 +26,13 @@ pub(crate) fn new_validator_client() -> ThreadsafeValidatorClient {
     let nymd_url = default_nymd_endpoints()[0].clone();
     let api_url = default_api_endpoints()[0].clone();
 
-    let client_config = validator_client::Config::new(DEFAULT_NETWORK, nymd_url, api_url);
+    let client_config =
+        validator_client::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
+            .expect("failed to construct valid validator client config with the provided network")
+            .with_urls(nymd_url, api_url);
 
     ThreadsafeValidatorClient(Arc::new(
-        validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!"),
+        validator_client::Client::new_query(client_config, DEFAULT_NETWORK)
+            .expect("Failed to connect to nymd!"),
     ))
 }

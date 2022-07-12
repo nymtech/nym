@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material';
-import { EnumNodeType } from '@nymproject/types';
+import { TNodeType } from '@nymproject/types';
 
 export const NodeTypeSelector = ({
   disabled,
@@ -8,10 +8,10 @@ export const NodeTypeSelector = ({
   setNodeType,
 }: {
   disabled: boolean;
-  nodeType: EnumNodeType;
-  setNodeType: (nodeType: EnumNodeType) => void;
+  nodeType: TNodeType;
+  setNodeType: (nodeType: TNodeType) => void;
 }) => {
-  const handleNodeTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => setNodeType(e.target.value as EnumNodeType);
+  const handleNodeTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => setNodeType(e.target.value as TNodeType);
 
   return (
     <FormControl component="fieldset">
@@ -24,14 +24,14 @@ export const NodeTypeSelector = ({
         style={{ display: 'block' }}
       >
         <FormControlLabel
-          value={EnumNodeType.mixnode}
+          value="mixnode"
           control={<Radio color="default" />}
           label="Mixnode"
           data-testid="mix-node"
           disabled={disabled}
         />
         <FormControlLabel
-          value={EnumNodeType.gateway}
+          value="gateway"
           control={<Radio color="default" />}
           data-testid="gate-way"
           label="Gateway"

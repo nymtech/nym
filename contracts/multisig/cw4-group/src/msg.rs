@@ -29,7 +29,7 @@ pub enum ExecuteMsg {
     RemoveHook { addr: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Return AdminResponse

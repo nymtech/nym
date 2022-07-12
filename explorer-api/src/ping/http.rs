@@ -120,14 +120,14 @@ async fn do_port_check(host: &str, port: u16) -> bool {
                 trace!("Successfully pinged {}", addr);
                 true
             }
-            Ok(Err(_stream_err)) => {
-                warn!("{} ping failed {:}", addr, _stream_err);
+            Ok(Err(stream_err)) => {
+                warn!("{} ping failed {:}", addr, stream_err);
                 // didn't timeout but couldn't open tcp stream
                 false
             }
-            Err(_timeout) => {
+            Err(timeout) => {
                 // timed out
-                warn!("{} timed out {:}", addr, _timeout);
+                warn!("{} timed out {:}", addr, timeout);
                 false
             }
         },

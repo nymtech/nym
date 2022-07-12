@@ -4,15 +4,7 @@ import { Check, ContentCopy } from '@mui/icons-material';
 import { clipboard } from '@tauri-apps/api';
 import { Console } from '../utils/console';
 
-export const CopyToClipboard = ({
-  text = '',
-  light,
-  iconButton,
-}: {
-  text?: string;
-  light?: boolean;
-  iconButton?: boolean;
-}) => {
+export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; iconButton?: boolean }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (_text: string) => {
@@ -41,7 +33,7 @@ export const CopyToClipboard = ({
           onClick={() => handleCopy(text)}
           size="small"
           sx={{
-            color: (theme) => (light ? theme.palette.common.white : theme.palette.nym.background.dark),
+            color: 'text.primary',
           }}
         >
           {!copied ? <ContentCopy fontSize="small" /> : <Check color="success" />}
@@ -54,8 +46,8 @@ export const CopyToClipboard = ({
       variant="outlined"
       color="inherit"
       sx={{
-        color: (theme) => (light ? theme.palette.common.white : theme.palette.nym.background.dark),
-        borderColor: (theme) => (light ? theme.palette.common.white : theme.palette.nym.background.dark),
+        color: 'text.primary',
+        borderColor: 'text.primary',
       }}
       onClick={() => handleCopy(text)}
       endIcon={copied && <Check sx={{ color: (theme) => theme.palette.success.light }} />}

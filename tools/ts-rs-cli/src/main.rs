@@ -9,7 +9,7 @@ use nym_types::delegation::{
     Delegation, DelegationEvent, DelegationEventKind, DelegationRecord, DelegationResult,
     DelegationWithEverything, DelegationsSummaryResponse, PendingUndelegate,
 };
-use nym_types::fees::FeeDetails;
+use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
 use nym_types::mixnode::{MixNode, MixNodeBond};
@@ -67,6 +67,11 @@ fn main() {
     do_export!(DelegationsSummaryResponse);
     do_export!(DelegationWithEverything);
     do_export!(FeeDetails);
+    // I'm explicitly using full(-ish) path as to indicate
+    // those are not "proper" types to be used elsewhere
+    do_export!(fees::ts_type_helpers::Fee);
+    do_export!(fees::ts_type_helpers::CosmosFee);
+    do_export!(fees::ts_type_helpers::Coin);
     do_export!(Gas);
     do_export!(GasInfo);
     do_export!(Gateway);

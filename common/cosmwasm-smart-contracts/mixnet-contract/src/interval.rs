@@ -59,7 +59,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize)]
 pub struct Interval {
     id: u32,
     #[serde(with = "string_rfc3339_offset_date_time")]
@@ -119,6 +119,14 @@ impl Interval {
     pub fn in_progress(&self, env: Env) -> bool {
         let block_time = env.block.time.seconds() as i64;
         self.start_unix_timestamp() <= block_time && block_time < self.end_unix_timestamp()
+    }
+
+    pub fn update_duration(&mut self, secs: u64) {
+        self.length = Duration::from_secs(secs);
+    }
+
+    pub const fn length_secs(&self) -> u64 {
+        self.length.as_secs()
     }
 
     /// Returns the next interval.

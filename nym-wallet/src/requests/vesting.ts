@@ -1,5 +1,6 @@
 import {
-  EnumNodeType,
+  TNodeType,
+  FeeDetails,
   Gateway,
   MajorCurrencyAmount,
   MixNode,
@@ -9,8 +10,8 @@ import {
   TransactionExecuteResult,
   VestingAccountInfo,
 } from '@nymproject/types';
+import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { invokeWrapper } from './wrapper';
-import { TBondGatewayArgs, TBondMixNodeArgs } from '../types';
 
 export const getLockedCoins = async (): Promise<MajorCurrencyAmount> =>
   invokeWrapper<MajorCurrencyAmount>('locked_coins');
@@ -42,7 +43,8 @@ export const vestingBondGateway = async ({
   ownerSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_gateway', { gateway, ownerSignature, pledge });
 
-export const vestingUnbondGateway = async () => invokeWrapper<TransactionExecuteResult>('vesting_unbond_gateway');
+export const vestingUnbondGateway = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_unbond_gateway', { fee });
 
 export const vestingBondMixNode = async ({
   mixnode,
@@ -54,7 +56,8 @@ export const vestingBondMixNode = async ({
   ownerSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, ownerSignature, pledge });
 
-export const vestingUnbondMixnode = async () => invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode');
+export const vestingUnbondMixnode = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode', { fee });
 
 export const withdrawVestedCoins = async (amount: MajorCurrencyAmount) =>
   invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount });
@@ -65,10 +68,12 @@ export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
 export const vestingDelegateToMixnode = async ({
   identity,
   amount,
+  fee,
 }: {
   identity: string;
   amount: MajorCurrencyAmount;
-}) => invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { identity, amount });
+  fee?: FeeDetails;
+}) => invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { identity, amount, fee: fee?.fee });
 
 export const vestingUndelegateFromMixnode = async (identity: string) =>
   invokeWrapper<TransactionExecuteResult>('vesting_undelegate_from_mixnode', { identity });
@@ -81,7 +86,7 @@ export const getVestingPledgeInfo = async ({
   type,
 }: {
   address?: string;
-  type: EnumNodeType;
+  type: TNodeType;
 }): Promise<PledgeData | undefined> => {
   try {
     return await invokeWrapper<PledgeData>(`vesting_get_${type}_pledge`, { address });
@@ -93,19 +98,19 @@ export const getVestingPledgeInfo = async ({
 export const vestingDelegatedFree = async (vestingAccountAddress: string) =>
   invokeWrapper<MajorCurrencyAmount>('delegated_free', { vestingAccountAddress });
 
-export const vestingUnbond = async (type: EnumNodeType) => {
-  if (type === EnumNodeType.mixnode) return vestingUnbondMixnode();
+export const vestingUnbond = async (type: TNodeType) => {
+  if (type === 'mixnode') return vestingUnbondMixnode();
   return vestingUnbondGateway();
 };
 
-export const vestingBond = async (args: { type: EnumNodeType } & (TBondMixNodeArgs | TBondGatewayArgs)) => {
-  const { type, ...other } = args;
-  if (type === EnumNodeType.mixnode) return vestingBondMixNode(other as TBondMixNodeArgs);
-  return vestingBondGateway(other as TBondGatewayArgs);
-};
+export const vestingClaimOperatorRewards = async () =>
+  invokeWrapper<TransactionExecuteResult>('vesting_claim_operator_reward');
 
-export const vestingClaimDelegatorRewards = async (mixIdentity: string): Promise<void> =>
-  invokeWrapper('vesting_claim_delegator_reward', { mixIdentity });
+export const vestingCompoundOperatorRewards = async () =>
+  invokeWrapper<TransactionExecuteResult>('vesting_compound_operator_reward');
 
-export const vestingCompoundDelegatorRewards = async (mixIdentity: string): Promise<void> =>
-  invokeWrapper('vesting_compound_delegator_reward', { mixIdentity });
+export const vestingClaimDelegatorRewards = async (mixIdentity: string) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_claim_delegator_reward', { mixIdentity });
+
+export const vestingCompoundDelegatorRewards = async (mixIdentity: string) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_compound_delegator_reward', { mixIdentity });

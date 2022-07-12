@@ -62,7 +62,7 @@ impl TransactionDetails {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/TransactionExecuteResult.ts")
 )]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct TransactionExecuteResult {
     pub logs_json: String,
     pub data_json: String,

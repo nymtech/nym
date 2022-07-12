@@ -7,12 +7,15 @@ use crate::config::Config;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
+use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use config::defaults::DEFAULT_NETWORK;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use statistics_common::collector::StatisticsSender;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -24,11 +27,13 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
+use validator_client::nymd;
 
 use self::storage::PersistentStorage;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
+pub(crate) mod statistics;
 pub(crate) mod storage;
 
 /// Wire up and create Gateway instance
@@ -236,6 +241,26 @@ where
         validator_client::ApiClient::new(validator_api.clone())
     }
 
+    fn random_nymd_client(
+        &self,
+    ) -> validator_client::nymd::NymdClient<validator_client::nymd::SigningNymdClient> {
+        let endpoints = self.config.get_validator_nymd_endpoints();
+        let validator_nymd = endpoints
+            .choose(&mut thread_rng())
+            .expect("The list of validators is empty");
+
+        let client_config = nymd::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
+            .expect("failed to construct valid validator client config with the provided network");
+
+        validator_client::nymd::NymdClient::connect_with_mnemonic(
+            client_config,
+            validator_nymd.as_ref(),
+            self.config.get_cosmos_mnemonic(),
+            None,
+        )
+        .expect("Could not connect with mnemonic")
+    }
+
     #[cfg(feature = "coconut")]
     fn all_api_clients(&self) -> Vec<validator_client::ApiClient> {
         self.config
@@ -285,16 +310,17 @@ where
             obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
+
+        let nymd_client = self.random_nymd_client();
         #[cfg(feature = "coconut")]
-        let coconut_verifier =
-            CoconutVerifier::new(self.all_api_clients(), validators_verification_key);
+        let coconut_verifier = CoconutVerifier::new(
+            self.all_api_clients(),
+            nymd_client,
+            validators_verification_key,
+        );
 
         #[cfg(not(feature = "coconut"))]
-        let erc20_bridge = ERC20Bridge::new(
-            self.config.get_eth_endpoint(),
-            self.config.get_validator_nymd_endpoints(),
-            self.config._get_cosmos_mnemonic(),
-        );
+        let erc20_bridge = ERC20Bridge::new(self.config.get_eth_endpoint(), nymd_client);
 
         let mix_forwarding_channel = self.start_packet_forwarder();
 
@@ -303,6 +329,18 @@ where
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
         );
+
+        if self.config.get_enabled_statistics() {
+            let statistics_service_url = self.config.get_statistics_service_url();
+            let stats_collector = GatewayStatisticsCollector::new(
+                active_clients_store.clone(),
+                statistics_service_url,
+            );
+            let mut stats_sender = StatisticsSender::new(stats_collector);
+            tokio::spawn(async move {
+                stats_sender.run().await;
+            });
+        }
 
         self.start_client_websocket_listener(
             mix_forwarding_channel,

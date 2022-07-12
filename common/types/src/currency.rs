@@ -1,6 +1,6 @@
 use crate::error::TypesError;
 use config::defaults::all::Network;
-use config::defaults::DenomDetails;
+use config::defaults::{DenomDetails, DenomDetailsOwned};
 use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
@@ -30,6 +30,7 @@ use ts_rs::{Dependency, TS};
     EnumString,
     EnumVariantNames,
     PartialEq,
+    Eq,
     JsonSchema,
 )]
 #[serde(rename_all = "lowercase")]
@@ -53,14 +54,8 @@ pub struct RegisteredCoins(HashMap<Denom, CoinMetadata>);
 impl RegisteredCoins {
     pub fn default_denoms(network: Network) -> Self {
         let mut network_coins = HashMap::new();
-        network_coins.insert(
-            network.mix_denom().base.into(),
-            (*network.mix_denom()).into(),
-        );
-        network_coins.insert(
-            network.stake_denom().base.into(),
-            (*network.stake_denom()).into(),
-        );
+        network_coins.insert(network.mix_denom().base, network.mix_denom().into());
+        network_coins.insert(network.stake_denom().base, network.stake_denom().into());
         RegisteredCoins(network_coins)
     }
 
@@ -181,9 +176,25 @@ impl From<DenomDetails> for CoinMetadata {
     }
 }
 
+impl From<DenomDetailsOwned> for CoinMetadata {
+    fn from(denom_details: DenomDetailsOwned) -> Self {
+        CoinMetadata::new(
+            vec![
+                DenomUnit::new(denom_details.base.clone(), 0),
+                DenomUnit::new(
+                    denom_details.display.clone(),
+                    denom_details.display_exponent,
+                ),
+            ],
+            denom_details.base,
+            denom_details.display,
+        )
+    }
+}
+
 // tries to semi-replicate cosmos-sdk's DecCoin for being able to handle tokens with decimal amounts
 // https://github.com/cosmos/cosmos-sdk/blob/v0.45.4/types/dec_coin.go
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct DecCoin {
     pub denom: Denom,
     // Decimal is already serialized to string and using string in its schema, so lets also go straight to string for ts_rs

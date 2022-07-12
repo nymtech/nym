@@ -1,19 +1,19 @@
-use cosmwasm_std::{Coin, Timestamp};
+use cosmwasm_std::{Coin, Timestamp, Uint128};
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InitMsg {
     pub mixnet_contract_address: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, Default)]
 pub struct VestingSpecification {
     start_time: Option<u64>,
     period_seconds: Option<u64>,
@@ -113,9 +113,12 @@ pub enum ExecuteMsg {
     UpdateStakingAddress {
         to_address: Option<String>,
     },
+    UpdateLockedPledgeCap {
+        amount: Uint128,
+    },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     LockedCoins {
@@ -163,4 +166,5 @@ pub enum QueryMsg {
     GetCurrentVestingPeriod {
         address: String,
     },
+    GetLockedPledgeCap {},
 }

@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
-import { useSnackbar } from 'notistack';
-import { BondForm } from './BondForm';
-import { SuccessView } from './SuccessView';
+import { useNavigate } from 'react-router-dom';
 import { NymCard } from '../../components';
 import { EnumRequestStatus, RequestStatus } from '../../components/RequestStatus';
-import { unbond, vestingUnbond } from '../../requests';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { PageLayout } from '../../layouts';
+import { FormHandler } from './components/FormHandler';
+import { SuccessView } from './components/SuccessView';
 
 export const Bond = () => {
-  const [status, setStatus] = useState(EnumRequestStatus.initial);
+  const [status, setStatus] = useState<EnumRequestStatus>(EnumRequestStatus.initial);
   const [error, setError] = useState<string>();
   const [successDetails, setSuccessDetails] = useState<{ amount: string; address: string }>();
 
   const { checkOwnership, ownership, isLoading } = useCheckOwnership();
-  const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (status === EnumRequestStatus.initial) {
@@ -28,7 +27,7 @@ export const Bond = () => {
 
   return (
     <PageLayout>
-      <NymCard title="Bond" subheader="Bond a node or gateway" noPadding>
+      <NymCard title="Bond" subheader="Bond a mixnode or gateway" noPadding>
         {status === EnumRequestStatus.initial && (
           <Box sx={{ px: 3, mb: 1 }}>
             <Alert severity="warning">Always ensure you leave yourself enough funds to UNBOND</Alert>
@@ -41,20 +40,7 @@ export const Bond = () => {
               action={
                 <Button
                   disabled={status === EnumRequestStatus.loading}
-                  onClick={async () => {
-                    setStatus(EnumRequestStatus.loading);
-                    try {
-                      if (ownership.vestingPledge) {
-                        await vestingUnbond(ownership.nodeType!);
-                      } else {
-                        await unbond(ownership.nodeType!);
-                      }
-                    } catch (e) {
-                      enqueueSnackbar(`Failed to unbond ${ownership.nodeType}}`, { variant: 'error' });
-                    } finally {
-                      setStatus(EnumRequestStatus.initial);
-                    }
-                  }}
+                  onClick={() => navigate('/unbond')}
                   data-testid="unBond"
                   color="inherit"
                 >
@@ -78,16 +64,15 @@ export const Bond = () => {
           </Box>
         )}
         {status === EnumRequestStatus.initial && !ownership.hasOwnership && !isLoading && (
-          <BondForm
-            onError={(e?: string) => {
-              setError(e);
-              setStatus(EnumRequestStatus.error);
-            }}
+          <FormHandler
             onSuccess={(details) => {
-              setSuccessDetails(details);
               setStatus(EnumRequestStatus.success);
+              setSuccessDetails(details);
             }}
-            disabled={ownership?.hasOwnership}
+            onError={(err) => {
+              setStatus(EnumRequestStatus.error);
+              setError(err);
+            }}
           />
         )}
         {(status === EnumRequestStatus.error || status === EnumRequestStatus.success) && (

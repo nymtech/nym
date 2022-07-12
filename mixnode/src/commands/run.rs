@@ -59,7 +59,7 @@ impl From<Run> for OverrideConfig {
     }
 }
 
-fn show_binding_warning(address: String) {
+fn show_binding_warning(address: &str) {
     println!("\n##### NOTE #####");
     println!(
         "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
@@ -97,7 +97,7 @@ pub(crate) async fn execute(args: &Run) {
     }
 
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
-        show_binding_warning(config.get_listening_address().to_string());
+        show_binding_warning(&config.get_listening_address().to_string());
     }
 
     let mut mixnode = MixNode::new(config);

@@ -3,7 +3,7 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
-use crate::statistics::{StatisticsCollector, StatisticsSender, Timer};
+use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
@@ -14,6 +14,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
+use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -63,7 +64,7 @@ impl ServiceProvider {
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
-        stats_collector: Option<StatisticsCollector>,
+        stats_collector: Option<ServiceStatisticsCollector>,
     ) {
         // TODO: wire SURBs in here once they're available
         while let Some((msg, return_address)) = mix_reader.next().await {
@@ -228,7 +229,7 @@ impl ServiceProvider {
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
-        stats_collector: Option<StatisticsCollector>,
+        stats_collector: Option<ServiceStatisticsCollector>,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -290,12 +291,6 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
-        let (mut timer_sender, timer_receiver) = Timer::new();
-        let interval = timer_sender.interval();
-        tokio::spawn(async move {
-            timer_sender.run().await;
-        });
-
         // controller for managing all active connections
         let (mut active_connections_controller, mut controller_sender) = Controller::new();
         tokio::spawn(async move {
@@ -303,15 +298,14 @@ impl ServiceProvider {
         });
 
         let stats_collector = if self.enable_statistics {
-            let mut stats_sender =
-                StatisticsSender::new(interval, timer_receiver, self.stats_provider_addr)
+            let stats_collector =
+                ServiceStatisticsCollector::new(self.stats_provider_addr, mix_input_sender.clone())
                     .await
-                    .expect("Statistics controller could not be bootstrapped");
-            let stats_collector = StatisticsCollector::from(&stats_sender);
+                    .expect("Service statistics collector could not be bootstrapped");
+            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
 
-            let mix_input_sender_clone = mix_input_sender.clone();
             tokio::spawn(async move {
-                stats_sender.run(&mix_input_sender_clone).await;
+                stats_sender.run().await;
             });
             Some(stats_collector)
         } else {
@@ -355,7 +349,7 @@ impl ServiceProvider {
 
     // Make the websocket connection so we can receive incoming Mixnet messages.
     async fn connect_websocket(&self, uri: &str) -> TSWebsocketStream {
-        let ws_stream = match websocket::Connection::new(uri).connect().await {
+        match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
                 info!("* connected to local websocket server at {}", uri);
                 ws_stream
@@ -363,7 +357,6 @@ impl ServiceProvider {
             Err(WebsocketConnectionError::ConnectionNotEstablished) => {
                 panic!("Error: websocket connection attempt failed, is the Nym client running?")
             }
-        };
-        ws_stream
+        }
     }
 }

@@ -24,6 +24,7 @@ use crate::operations::vesting;
 
 use crate::state::WalletState;
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     dotenv::dotenv().ok();
     setup_logging();
@@ -32,6 +33,7 @@ fn main() {
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
             mixnet::account::add_account_for_password,
+            mixnet::account::archive_wallet_file,
             mixnet::account::connect_with_mnemonic,
             mixnet::account::create_new_mnemonic,
             mixnet::account::create_password,
@@ -63,11 +65,14 @@ fn main() {
             mixnet::delegate::get_all_pending_delegation_events,
             mixnet::delegate::get_all_mix_delegations,
             mixnet::delegate::undelegate_from_mixnode,
+            mixnet::delegate::undelegate_all_from_mixnode,
             mixnet::epoch::get_current_epoch,
             mixnet::rewards::claim_delegator_reward,
             mixnet::rewards::claim_operator_reward,
             mixnet::rewards::compound_operator_reward,
             mixnet::rewards::compound_delegator_reward,
+            mixnet::rewards::claim_locked_and_unlocked_delegator_reward,
+            mixnet::rewards::compound_locked_and_unlocked_delegator_reward,
             mixnet::send::send,
             network_config::add_validator,
             network_config::get_validator_api_urls,
@@ -123,6 +128,8 @@ fn main() {
             simulate::mixnet::simulate_update_mixnode,
             simulate::mixnet::simulate_delegate_to_mixnode,
             simulate::mixnet::simulate_undelegate_from_mixnode,
+            simulate::vesting::simulate_vesting_delegate_to_mixnode,
+            simulate::vesting::simulate_vesting_undelegate_from_mixnode,
             simulate::vesting::simulate_vesting_bond_gateway,
             simulate::vesting::simulate_vesting_unbond_gateway,
             simulate::vesting::simulate_vesting_bond_mixnode,

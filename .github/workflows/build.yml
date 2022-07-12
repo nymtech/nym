@@ -41,6 +41,13 @@ jobs:
           command: test
           args: --workspace --all-features
 
+      - name: Run expensive tests
+        if: github.ref == 'refs/heads/develop' || github.event.pull_request.base.ref == 'develop' || github.event.pull_request.base.ref == 'master'
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-features -- --ignored
+
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
@@ -51,7 +58,7 @@ jobs:
         name: Clippy checks
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --workspace --all-features
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

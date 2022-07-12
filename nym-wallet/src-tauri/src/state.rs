@@ -14,6 +14,7 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
+use validator_client::nymd::cosmwasm_client::types::SimulateResponse;
 use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, SigningNymdClient};
 use validator_client::Client;
 
@@ -131,14 +132,21 @@ impl WalletStateInner {
     // this one is rather gnarly and I'm not 100% sure how to feel about existence of it
     pub(crate) fn create_detailed_fee(
         &self,
-        simulate_res: SimulateResult,
+        simulate_response: SimulateResponse,
     ) -> Result<FeeDetails, BackendError> {
-        let amount = simulate_res
+        // this MUST succeed as we just used it before
+        let client = self.current_client()?;
+        let gas_price = client.nymd.gas_price().clone();
+        let gas_adjustment = client.nymd.gas_adjustment();
+
+        let res = SimulateResult::new(simulate_response.gas_info, gas_price, gas_adjustment);
+
+        let amount = res
             .to_fee_amount()
             .map(|amount| self.attempt_convert_to_display_dec_coin(amount.into()))
             .transpose()?;
 
-        Ok(FeeDetails::new(amount, simulate_res.to_fee()))
+        Ok(FeeDetails::new(amount, res.to_fee()))
     }
 
     pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {

@@ -21,12 +21,12 @@ export const items: DelegationWithEverything[] = [
     owner: '',
     block_height: BigInt(100),
     stake_saturation: 0.5,
-    proxy: '',
     avg_uptime_percent: 0.5,
     total_delegation: { amount: '0', denom: 'NYM' },
     pledge_amount: { amount: '0', denom: 'NYM' },
     pending_events: [],
     history: [],
+    uses_vesting_contract_tokens: false,
   },
   {
     node_identity: 'DT8S942S8AQs2zKHS9SVo1GyHmuca3pfL2uLhLksJ3D8',
@@ -37,12 +37,12 @@ export const items: DelegationWithEverything[] = [
     owner: '',
     block_height: BigInt(4000),
     stake_saturation: 0.5,
-    proxy: '',
     avg_uptime_percent: 0.1,
     total_delegation: { amount: '0', denom: 'NYM' },
     pledge_amount: { amount: '0', denom: 'NYM' },
     pending_events: [],
     history: [],
+    uses_vesting_contract_tokens: true,
   },
 ];
 

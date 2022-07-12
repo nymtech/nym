@@ -1,4 +1,5 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
@@ -30,8 +31,9 @@ export const urls = (networkName?: Network) =>
 
 type TLoginType = 'mnemonic' | 'password';
 
-type TAppContext = {
+export type TAppContext = {
   mode: 'light' | 'dark';
+  handleSwitchMode: () => void;
   appEnv?: AppEnv;
   appVersion?: string;
   clientDetails?: Account;
@@ -45,6 +47,10 @@ type TAppContext = {
   isAdminAddress: boolean;
   error?: string;
   loginType?: TLoginType;
+  showSettings: boolean;
+  showSendModal: boolean;
+  handleShowSettings: () => void;
+  handleShowSendModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
@@ -67,12 +73,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [appEnv, setAppEnv] = useState<AppEnv>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [mode] = useState<'light' | 'dark'>('light');
+  const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [appVersion, setAppVersion] = useState<string>();
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -119,8 +127,25 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const getModeFromStorage = async () => {
+    try {
+      const modeFromStorage = await forage.getItem({ key: 'nym-wallet-mode' })();
+      if (modeFromStorage) setMode(modeFromStorage);
+    } catch (e) {
+      Console.error(e);
+    }
+  };
+
+  const setModeInStorage = async (mode: 'light' | 'dark') => {
+    await forage.setItem({
+      key: 'nym-wallet-mode',
+      value: mode,
+    })();
+  };
+
   useEffect(() => {
     getVersion().then(setAppVersion);
+    getModeFromStorage();
   }, []);
 
   useEffect(() => {
@@ -140,14 +165,25 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let newValue = false;
     if (network && appEnv?.ADMIN_ADDRESS && clientDetails?.client_address) {
-      const adminAddressMap = JSON.parse(appEnv.ADMIN_ADDRESS);
-      const adminAddresses = adminAddressMap[network] || [];
-      if (adminAddresses.length) {
-        newValue = adminAddresses.includes(clientDetails?.client_address);
+      try {
+        const adminAddressMap = JSON.parse(appEnv.ADMIN_ADDRESS);
+        const adminAddresses = adminAddressMap[network] || [];
+        if (adminAddresses.length) {
+          newValue = adminAddresses.includes(clientDetails?.client_address);
+          if (newValue) {
+            Console.log('Wallet is in admin mode: ', {
+              network,
+              adminAddress: adminAddressMap[network],
+              clientAddress: clientDetails?.client_address,
+            });
+          }
+        }
+      } catch (e) {
+        Console.error('Failed to check admin addresses', e);
       }
     }
     setIsAdminAddress(newValue);
-  }, [appEnv, network]);
+  }, [appEnv, network, clientDetails?.client_address]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
     if (value.length === 0) {
@@ -196,6 +232,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
+  const handleShowSettings = () => setShowSettings((show) => !show);
+  const handleShowSendModal = () => setShowSendModal((show) => !show);
+  const handleSwitchMode = () =>
+    setMode((currentMode) => {
+      const newMode = currentMode === 'light' ? 'dark' : 'light';
+      setModeInStorage(newMode);
+      return newMode;
+    });
 
   const memoizedValue = useMemo(
     () => ({
@@ -211,6 +255,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       userBalance,
       showAdmin,
       showTerminal,
+      showSettings,
       network,
       loginType,
       setIsLoading,
@@ -223,6 +268,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       logIn,
       logOut,
       onAccountChange,
+      handleShowSettings,
+      showSendModal,
+      handleShowSendModal,
+      handleSwitchMode,
     }),
     [
       appVersion,
@@ -239,6 +288,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       network,
       storedAccounts,
       showTerminal,
+      showSettings,
+      showSendModal,
     ],
   );
 

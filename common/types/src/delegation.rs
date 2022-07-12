@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Delegation.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct Delegation {
     pub owner: String,
     pub node_identity: String,
@@ -40,11 +40,12 @@ impl Delegation {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationRecord.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct DelegationRecord {
     pub amount: DecCoin,
     pub block_height: u64,
     pub delegated_on_iso_datetime: String,
+    pub uses_vesting_contract_tokens: bool,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -64,7 +65,7 @@ pub struct DelegationWithEverything {
     pub profit_margin_percent: Option<u8>,
     pub avg_uptime_percent: Option<u8>,
     pub stake_saturation: Option<f32>,
-    pub proxy: Option<String>,
+    pub uses_vesting_contract_tokens: bool,
     pub accumulated_rewards: Option<DecCoin>,
     pub pending_events: Vec<DelegationEvent>,
     pub history: Vec<DelegationRecord>,
@@ -75,7 +76,7 @@ pub struct DelegationWithEverything {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationResult.ts")
 )]
-#[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq, Debug)]
 pub struct DelegationResult {
     source_address: String,
     target_address: String,
@@ -87,7 +88,7 @@ pub struct DelegationResult {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationEventKind.ts")
 )]
-#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema, Debug)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
 pub enum DelegationEventKind {
     Delegate,
     Undelegate,
@@ -98,13 +99,14 @@ pub enum DelegationEventKind {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationEvent.ts")
 )]
-#[derive(Clone, Deserialize, Serialize, PartialEq, JsonSchema, Debug)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
 pub struct DelegationEvent {
     pub kind: DelegationEventKind,
     pub node_identity: String,
     pub address: String,
     pub amount: Option<DecCoin>,
     pub block_height: u64,
+    pub proxy: Option<String>,
 }
 
 impl DelegationEvent {
@@ -119,6 +121,7 @@ impl DelegationEvent {
                 address: delegation.owner.into_string(),
                 node_identity: delegation.node_identity,
                 amount: Some(reg.attempt_convert_to_display_dec_coin(delegation.amount.into())?),
+                proxy: delegation.proxy.map(|p| p.into_string()),
             },
             ContractDelegationEvent::Undelegate(pending_undelegate) => DelegationEvent {
                 kind: DelegationEventKind::Undelegate,
@@ -126,6 +129,7 @@ impl DelegationEvent {
                 address: pending_undelegate.delegate().into_string(),
                 node_identity: pending_undelegate.mix_identity(),
                 amount: None,
+                proxy: pending_undelegate.proxy().map(|p| p.into_string()),
             },
         })
     }
@@ -136,7 +140,7 @@ impl DelegationEvent {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/PendingUndelegate.ts")
 )]
-#[derive(Deserialize, Serialize, PartialEq, JsonSchema, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, JsonSchema, Clone, Debug)]
 pub struct PendingUndelegate {
     mix_identity: String,
     delegate: String,

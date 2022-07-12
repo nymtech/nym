@@ -7,7 +7,7 @@ pub use account::*;
 
 use vesting_contract_common::messages::VestingSpecification;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct VestingPeriod {
     pub start_time: u64,
     pub period_seconds: u64,
@@ -261,7 +261,7 @@ mod tests {
         let mix_identity = "alice".to_string();
 
         let delegation = Coin {
-            amount: Uint128::new(500_000_000_000),
+            amount: Uint128::new(90_000_000_000),
             denom: MIX_DENOM.base.to_string(),
         };
 
@@ -285,16 +285,16 @@ mod tests {
             .get_delegated_vesting(None, &env, &mut deps.storage)
             .unwrap();
 
-        assert_eq!(delegated_free.amount, Uint128::new(250_000_000_000));
-        assert_eq!(delegated_vesting.amount, Uint128::new(250_000_000_000));
+        assert_eq!(delegated_free.amount, Uint128::new(90_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
 
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(500_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
         let spendable = account
             .spendable_coins(None, &env, &mut deps.storage)
             .unwrap();
-        assert_eq!(spendable.amount, Uint128::zero());
+        assert_eq!(spendable.amount, Uint128::new(160_000_000_000));
 
         let ok = account.try_undelegate_from_mixnode(mix_identity.clone(), &mut deps.storage);
         assert!(ok.is_ok());
@@ -370,10 +370,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(delegated_free.amount, Uint128::zero());
-        assert_eq!(delegated_vesting.amount, Uint128::new(500_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::new(90_000_000_000));
 
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
     }
 
     #[test]
@@ -398,7 +398,7 @@ mod tests {
         let ok = account.try_delegate_to_mixnode(
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_000),
+                amount: Uint128::new(90_000_000_000),
                 denom: MIX_DENOM.base.to_string(),
             },
             &env,
@@ -406,8 +406,20 @@ mod tests {
         );
         assert!(ok.is_ok());
 
+        // Fails due to delegation locked delegation cap
+        let ok = account.try_delegate_to_mixnode(
+            "alice".to_string(),
+            Coin {
+                amount: Uint128::new(20_000_000_000),
+                denom: MIX_DENOM.base.to_string(),
+            },
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_err());
+
         let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(500_000_000_000));
+        assert_eq!(balance, Uint128::new(910000000000));
 
         // Try delegating too much again
         let err = account.try_delegate_to_mixnode(
@@ -424,7 +436,7 @@ mod tests {
         let total_delegations = account
             .total_delegations_for_mix("alice".to_string(), &deps.storage)
             .unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), total_delegations);
+        assert_eq!(Uint128::new(90_000_000_000), total_delegations);
 
         // Current period -> block_time: None
         let delegated_free = account
@@ -521,7 +533,7 @@ mod tests {
             mix_node.clone(),
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_000),
+                amount: Uint128::new(90_000_000_000),
                 denom: MIX_DENOM.base.to_string(),
             },
             &env,
@@ -530,14 +542,14 @@ mod tests {
         assert!(ok.is_ok());
 
         let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(500_000_000_000));
+        assert_eq!(balance, Uint128::new(910_000_000_000));
 
         // Try delegating too much again
         let err = account.try_bond_mixnode(
             mix_node,
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_001),
+                amount: Uint128::new(10_000_000_001),
                 denom: MIX_DENOM.base.to_string(),
             },
             &env,
@@ -546,7 +558,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_mixnode_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
+        assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();
@@ -641,7 +653,7 @@ mod tests {
             gateway.clone(),
             "alice".to_string(),
             Coin {
-                amount: Uint128::new(500_000_000_000),
+                amount: Uint128::new(90_000_000_000),
                 denom: MIX_DENOM.base.to_string(),
             },
             &env,
@@ -650,7 +662,7 @@ mod tests {
         assert!(ok.is_ok());
 
         let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(500_000_000_000));
+        assert_eq!(balance, Uint128::new(910_000_000_000));
 
         // Try delegating too much again
         let err = account.try_bond_gateway(
@@ -666,7 +678,7 @@ mod tests {
         assert!(err.is_err());
 
         let pledge = account.load_gateway_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(500_000_000_000), pledge.amount().amount);
+        assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
 
         // Current period -> block_time: None
         let bonded_free = account.get_pledged_free(None, &env, &deps.storage).unwrap();

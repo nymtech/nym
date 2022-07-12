@@ -1,6 +1,8 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
-use crate::vesting::delegate::get_pending_vesting_delegation_events;
+use crate::vesting::delegate::{
+    get_pending_vesting_delegation_events, vesting_undelegate_from_mixnode,
+};
 use crate::{api_client, nymd_client};
 use mixnet_contract_common::IdentityKey;
 use nym_types::currency::DecCoin;
@@ -88,10 +90,35 @@ pub async fn undelegate_from_mixnode(
     )?)
 }
 
+#[tauri::command]
+pub async fn undelegate_all_from_mixnode(
+    identity: &str,
+    uses_vesting_contract_tokens: bool,
+    fee: Option<Fee>,
+    fee2: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<Vec<TransactionExecuteResult>, BackendError> {
+    log::info!(
+        ">>> Undelegate all from mixnode: identity_key = {}, uses_vesting_contract_tokens = {}, fee = {:?}",
+        identity,
+        uses_vesting_contract_tokens,
+        fee
+    );
+    let mut res: Vec<TransactionExecuteResult> =
+        vec![undelegate_from_mixnode(identity, fee, state.clone()).await?];
+
+    if uses_vesting_contract_tokens {
+        res.push(vesting_undelegate_from_mixnode(identity, fee2, state.clone()).await?);
+    }
+
+    Ok(res)
+}
+
 struct DelegationWithHistory {
     pub delegation: Delegation,
     pub amount_sum: DecCoin,
     pub history: Vec<DelegationRecord>,
+    pub uses_vesting_contract_tokens: bool,
 }
 
 #[tauri::command]
@@ -145,11 +172,12 @@ pub async fn get_all_mix_delegations(
                 delegation: Delegation {
                     amount: amount.clone(),
                     node_identity: pending_event.node_identity.clone(),
-                    proxy: None, // TODO: ask @MS about delegations via vesting contract => surely we'd have proxy there?
+                    proxy: pending_event.proxy.clone(), // TODO: ask @MS about delegations via vesting contract => surely we'd have proxy there?
                     owner: pending_event.address.clone(),
                     block_height: pending_event.block_height,
                 },
                 amount_sum: amount,
+                uses_vesting_contract_tokens: false,
                 history: vec![],
             };
             map.insert(delegation.delegation.node_identity.clone(), delegation);
@@ -169,6 +197,7 @@ pub async fn get_all_mix_delegations(
             amount: amount.clone(),
             block_height: d.block_height,
             delegated_on_iso_datetime,
+            uses_vesting_contract_tokens: d.proxy.is_some(),
         };
 
         let entry = map
@@ -177,12 +206,15 @@ pub async fn get_all_mix_delegations(
                 delegation: Delegation::from_mixnet_contract(d, reg)?,
                 history: vec![],
                 amount_sum: DecCoin::zero(display_mix_denom),
+                uses_vesting_contract_tokens: false,
             });
 
         debug_assert_eq!(entry.amount_sum.denom, amount.denom);
 
         entry.history.push(record);
         entry.amount_sum.amount += amount.amount;
+        entry.uses_vesting_contract_tokens =
+            entry.uses_vesting_contract_tokens || entry.delegation.proxy.is_some();
     }
 
     let mut with_everything: Vec<DelegationWithEverything> = vec![];
@@ -197,6 +229,7 @@ pub async fn get_all_mix_delegations(
             block_height,
             proxy,
         } = d;
+        let uses_vesting_contract_tokens = item.1.uses_vesting_contract_tokens;
 
         log::trace!(
             "  --- Delegation: node_identity = {}, amount = {}",
@@ -284,7 +317,7 @@ pub async fn get_all_mix_delegations(
             node_identity: node_identity.to_string(),
             amount: item.1.amount_sum,
             block_height,
-            proxy: proxy.clone(),
+            uses_vesting_contract_tokens,
             delegated_on_iso_datetime,
             stake_saturation,
             accumulated_rewards,

@@ -23,7 +23,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
 );
 
 export const NetworkSelector = () => {
-  const { network, switchNetwork } = useContext(AppContext);
+  const { network, switchNetwork, appEnv } = useContext(AppContext);
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -40,10 +40,10 @@ export const NetworkSelector = () => {
       <Button
         variant="text"
         color="primary"
-        sx={{ color: (theme) => `${theme.palette.nym.background.dark}` }}
+        sx={{ color: 'text.primary' }}
         onClick={handleClick}
         disableElevation
-        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.nym.background.dark}` }} />}
+        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.text.primary}` }} />}
       >
         {networks.find((n) => n.networkName === network)?.name}
       </Button>
@@ -57,9 +57,16 @@ export const NetworkSelector = () => {
         onClose={handleClose}
       >
         <List>
-          <ListSubheader>Network selection</ListSubheader>
+          <ListSubheader sx={{ backgroundColor: 'transparent' }}>Network selection</ListSubheader>
           {networks
-            .filter(({ networkName }) => !(!config.IS_DEV_MODE && networkName === 'QA'))
+            .filter(({ networkName }) => {
+              // show all networks when in dev more or the user wants QA mode enabled
+              if (config.IS_DEV_MODE || appEnv?.ENABLE_QA_MODE) {
+                return true;
+              }
+              // otherwise, filter out QA
+              return networkName !== 'QA';
+            })
             .map(({ name, networkName }) => (
               <NetworkItem
                 key={networkName}

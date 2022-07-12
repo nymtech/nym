@@ -2,14 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, SocketType};
-use clap::ArgMatches;
+use clap::{Parser, Subcommand};
+use network_defaults::DEFAULT_NETWORK;
 use url::Url;
 
-pub(crate) const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const ETH_ENDPOINT_ARG_NAME: &str = "eth_endpoint";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const ETH_PRIVATE_KEY_ARG_NAME: &str = "eth_private_key";
 #[cfg(not(feature = "coconut"))]
 pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
     "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
@@ -20,6 +16,86 @@ pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
+
+fn long_version() -> String {
+    format!(
+        r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+        "Build Timestamp:",
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        "Build Version:",
+        env!("VERGEN_BUILD_SEMVER"),
+        "Commit SHA:",
+        env!("VERGEN_GIT_SHA"),
+        "Commit Date:",
+        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
+        "Commit Branch:",
+        env!("VERGEN_GIT_BRANCH"),
+        "rustc Version:",
+        env!("VERGEN_RUSTC_SEMVER"),
+        "rustc Channel:",
+        env!("VERGEN_RUSTC_CHANNEL"),
+        "cargo Profile:",
+        env!("VERGEN_CARGO_PROFILE"),
+        "Network:",
+        DEFAULT_NETWORK
+    )
+}
+
+fn long_version_static() -> &'static str {
+    Box::leak(long_version().into_boxed_str())
+}
+
+#[derive(Parser)]
+#[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
+pub(crate) struct Cli {
+    #[clap(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum Commands {
+    /// Initialise a Nym client. Do this first!
+    Init(init::Init),
+    /// Run the Nym client with provided configuration client optionally overriding set parameters
+    Run(run::Run),
+    /// Try to upgrade the client
+    Upgrade(upgrade::Upgrade),
+}
+
+// Configuration that can be overridden.
+pub(crate) struct OverrideConfig {
+    validators: Option<String>,
+    disable_socket: bool,
+    port: Option<u16>,
+    fastmode: bool,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    enabled_credentials_mode: bool,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    eth_private_key: Option<String>,
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    eth_endpoint: Option<String>,
+}
+
+pub(crate) async fn execute(args: &Cli) {
+    match &args.command {
+        Commands::Init(m) => init::execute(m).await,
+        Commands::Run(m) => run::execute(m).await,
+        Commands::Upgrade(m) => upgrade::execute(m),
+    }
+}
 
 fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
@@ -32,45 +108,58 @@ fn parse_validators(raw: &str) -> Vec<Url> {
         .collect()
 }
 
-pub(crate) fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
-    if let Some(raw_validators) = matches.value_of("validators") {
+pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
+    if let Some(raw_validators) = args.validators {
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(raw_validators));
+            .set_custom_validator_apis(parse_validators(&raw_validators));
     }
 
-    if matches.is_present("disable-socket") {
+    if args.disable_socket {
         config = config.with_socket(SocketType::None);
     }
 
-    if let Some(port) = matches.value_of("port").map(str::parse) {
-        if let Err(err) = port {
-            // if port was overridden, it must be parsable
-            panic!("Invalid port value provided - {:?}", err);
+    if let Some(port) = args.port {
+        config = config.with_port(port);
+    }
+
+    #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
+    {
+        config
+            .get_base_mut()
+            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT.to_string());
+        config
+            .get_base_mut()
+            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY.to_string());
+    }
+
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    {
+        if args.enabled_credentials_mode {
+            config.get_base_mut().with_disabled_credentials(false)
         }
-        config = config.with_port(port.unwrap());
+        if let Some(eth_endpoint) = args.eth_endpoint {
+            config.get_base_mut().with_eth_endpoint(eth_endpoint);
+        }
+        if let Some(eth_private_key) = args.eth_private_key {
+            config.get_base_mut().with_eth_private_key(eth_private_key);
+        }
     }
 
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_endpoint) = matches.value_of(ETH_ENDPOINT_ARG_NAME) {
-        config.get_base_mut().with_eth_endpoint(eth_endpoint);
-    } else if !cfg!(feature = "eth") {
-        config
-            .get_base_mut()
-            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT);
-    }
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_private_key) = matches.value_of(ETH_PRIVATE_KEY_ARG_NAME) {
-        config.get_base_mut().with_eth_private_key(eth_private_key);
-    } else if !cfg!(feature = "eth") {
-        config
-            .get_base_mut()
-            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
-    }
-
-    if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
-        config.get_base_mut().with_disabled_credentials(false)
+    if args.fastmode {
+        config.get_base_mut().set_high_default_traffic_volume();
     }
 
     config
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
 }

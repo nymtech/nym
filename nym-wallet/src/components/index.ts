@@ -19,3 +19,5 @@ export * from './textfields';
 export * from './Title';
 export * from './TokenPoolSelector';
 export * from './TransactionDetails';
+export * from './Warning';
+export * from './Modals/ConfirmationModal';

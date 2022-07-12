@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react';
-import { Alert, Button, Grid, Link, Typography } from '@mui/material';
-import { OpenInNew } from '@mui/icons-material';
+import { Alert, Grid, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { NymCard, ClientAddress } from '../../components';
 import { AppContext, urls } from '../../context/main';
 
@@ -12,7 +12,12 @@ export const BalanceCard = () => {
   }, []);
 
   return (
-    <NymCard title="Balance" data-testid="check-balance" Action={<ClientAddress withCopy />}>
+    <NymCard
+      title="Balance"
+      data-testid="check-balance"
+      borderless
+      Action={<ClientAddress withCopy showEntireAddress />}
+    >
       <Grid container direction="column" spacing={2}>
         <Grid item>
           {userBalance.error && (
@@ -23,9 +28,13 @@ export const BalanceCard = () => {
           {!userBalance.error && (
             <Typography
               data-testid="refresh-success"
-              sx={{ color: 'nym.background.dark', textTransform: 'uppercase' }}
+              sx={{
+                color: 'text.primary',
+                textTransform: 'uppercase',
+                fontWeight: (theme) => (theme.palette.mode === 'light' ? '600' : '400'),
+                fontSize: 28,
+              }}
               variant="h5"
-              fontWeight="700"
             >
               {userBalance.balance?.printable_balance}
             </Typography>
@@ -33,9 +42,12 @@ export const BalanceCard = () => {
         </Grid>
         {network && (
           <Grid item>
-            <Link href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`} target="_blank">
-              <Button endIcon={<OpenInNew />}>Last transactions</Button>
-            </Link>
+            <Link
+              href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`}
+              target="_blank"
+              text="Last transactions"
+              fontSize={14}
+            />
           </Grid>
         )}
       </Grid>

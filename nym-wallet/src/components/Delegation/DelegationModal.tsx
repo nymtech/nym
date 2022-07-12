@@ -1,7 +1,8 @@
 import React from 'react';
-import { Box, Button, CircularProgress, Link, Modal, Stack, Typography } from '@mui/material';
+import { Box, Button, Modal, Typography, SxProps } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
 import { modalStyle } from '../Modals/styles';
-import { TPoolOption } from '../TokenPoolSelector';
+import { LoadingModal } from '../Modals/LoadingModal';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -17,9 +18,10 @@ const actionToHeader = (action: ActionType): string => {
     case 'undelegate':
       return 'Undelegation complete';
     case 'compound':
-      return 'Undelegation complete';
+      return 'Rewards compounded successfully';
+    default:
+      throw new Error('Unknown type');
   }
-  return 'Oh no! Something went wrong!';
 };
 
 export type DelegationModalProps = {
@@ -28,37 +30,46 @@ export type DelegationModalProps = {
   message?: string;
   recipient?: string;
   balance?: string;
-  transactionUrl?: string;
-  tokenPool?: TPoolOption;
+  balanceVested?: string;
+  transactions?: {
+    url: string;
+    hash: string;
+  }[];
 };
 
 export const DelegationModal: React.FC<
   DelegationModalProps & {
     open: boolean;
     onClose?: () => void;
+    sx?: SxProps;
+    backdropProps?: object;
   }
-> = ({ status, action, message, recipient, balance, transactionUrl, open, onClose, tokenPool, children }) => {
-  if (status === 'loading') {
-    return (
-      <Modal open>
-        <Box sx={modalStyle} textAlign="center">
-          <Stack spacing={4} direction="row" alignItems="center">
-            <CircularProgress />
-            <Typography>Please wait...</Typography>
-          </Stack>
-        </Box>
-      </Modal>
-    );
-  }
+> = ({
+  status,
+  action,
+  message,
+  recipient,
+  balance,
+  balanceVested,
+  transactions,
+  open,
+  onClose,
+  children,
+  sx,
+  backdropProps,
+}) => {
+  if (status === 'loading') return <LoadingModal sx={sx} backdropProps={backdropProps} />;
 
   if (status === 'error') {
     return (
-      <Modal open={open} onClose={onClose}>
-        <Box sx={modalStyle} textAlign="center">
+      <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
+        <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
           </Typography>
-          <Typography my={5}>{message}</Typography>
+          <Typography my={5} color={'text.primary'}>
+            {message}
+          </Typography>
           {children}
           <Button variant="contained" onClick={onClose}>
             Close
@@ -67,28 +78,51 @@ export const DelegationModal: React.FC<
       </Modal>
     );
   }
+  transactions &&
+    transactions.map((transaction) => console.log('action', action, 'status', status, 'key', transaction.hash));
   return (
-    <Modal open={open} onClose={onClose}>
-      <Box sx={modalStyle} textAlign="center">
+    <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
+      <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}
         </Typography>
-        <Typography mb={3}>{message}</Typography>
+        <Typography mb={3} color={'text.primary'}>
+          {message}
+        </Typography>
 
         {recipient && (
           <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
             Recipient: {recipient}
           </Typography>
         )}
-        <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-          Your current {tokenPool === 'locked' ? 'locked balance' : 'balance'}: {balance}
-        </Typography>
-        <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-          Check the transaction hash{' '}
-          <Link href={transactionUrl} target="_blank">
-            here
-          </Link>
-        </Typography>
+        {balanceVested ? (
+          <>
+            <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+              Your current balance: {balance}
+            </Typography>
+            <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+              ({balanceVested} is unlocked in your vesting account)
+            </Typography>
+          </>
+        ) : (
+          <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+            Your current balance: {balance}
+          </Typography>
+        )}
+        {transactions && (
+          <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
+            Check the transaction {transactions.length > 1 ? 'hashes' : 'hash'}:
+            {transactions.map((transaction) => (
+              <Link
+                key={transaction.hash}
+                href={transaction.url}
+                target="_blank"
+                sx={{ ml: 1 }}
+                text={transaction.hash.slice(0, 6)}
+              />
+            ))}
+          </Typography>
+        )}
         {children}
         <Button variant="contained" sx={{ mt: 3 }} size="large" onClick={onClose}>
           Finish

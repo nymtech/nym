@@ -1,22 +1,35 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Box, Button, Link, Paper, Stack, Typography } from '@mui/material';
-import { DelegationWithEverything, MajorCurrencyAmount } from '@nymproject/types';
+import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { useTheme, Theme } from '@mui/material/styles';
+import { DelegationWithEverything, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { PendingEvents } from 'src/components/Delegation/PendingEvents';
 import { TPoolOption } from 'src/components';
+import { Console } from 'src/utils/console';
 import { CompoundModal } from 'src/components/Rewards/CompoundModal';
+import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { useDelegationContext, DelegationContextProvider } from '../../context/delegations';
-import { RewardsContextProvider } from '../../context/rewards';
+import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
-export const Delegation: FC = () => {
+const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
+  !!isStorybook
+    ? {
+        backdropProps: { ...backDropStyles(theme), ...backdropProps },
+        sx: modalStyles(theme),
+      }
+    : {};
+
+export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
@@ -24,6 +37,9 @@ export const Delegation: FC = () => {
   const [showCompoundRewardsModal, setShowCompoundRewardsModal] = useState<boolean>(false);
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
+  const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: number }>();
+
+  const theme = useTheme();
 
   const {
     clientDetails,
@@ -39,10 +55,27 @@ export const Delegation: FC = () => {
     isLoading,
     addDelegation,
     undelegate,
-    redeemRewards,
-    compoundRewards,
-    refresh,
+    refresh: refreshDelegations,
   } = useDelegationContext();
+
+  const { refresh: refreshRewards, claimRewards, compoundRewards } = useRewardsContext();
+
+  const refresh = async () => Promise.all([refreshDelegations(), refreshRewards()]);
+
+  const getAllBalances = async () => {
+    const resBalance = (await userBalance()).printable_balance;
+    let resVesting: MajorCurrencyAmount | undefined;
+    try {
+      resVesting = await getSpendableCoins();
+    } catch (e) {
+      // ignore errors
+    }
+
+    return {
+      balance: resBalance,
+      balanceVested: resVesting ? `${resVesting.amount} ${resVesting.denom}` : undefined,
+    };
+  };
 
   // Refresh the rewards and delegations periodically when page is mounted
   useEffect(() => {
@@ -55,6 +88,11 @@ export const Delegation: FC = () => {
   }, [network, clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
+    if ((action === 'delegate' || action === 'compound') && item.stake_saturation && item.stake_saturation > 1) {
+      setSaturationError({ action, saturation: item.stake_saturation });
+      return;
+    }
+
     setCurrentDelegationListActionItem(item);
     // eslint-disable-next-line default-case
     switch (action) {
@@ -73,7 +111,12 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleNewDelegation = async (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => {
+  const handleNewDelegation = async (
+    identityKey: string,
+    amount: MajorCurrencyAmount,
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'delegate',
@@ -87,25 +130,22 @@ export const Delegation: FC = () => {
           amount,
         },
         tokenPool,
+        fee,
       );
 
-      const bal = await userBalance();
-      let spendableLocked;
-
-      if (tokenPool === 'locked') spendableLocked = await getSpendableCoins();
+      const balances = await getAllBalances();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
         message: 'Delegations can take up to one hour to process',
-        balance:
-          tokenPool === 'locked'
-            ? `${spendableLocked?.amount} ${spendableLocked?.denom}`
-            : bal?.printable_balance || '-',
-        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
-        tokenPool,
+        ...balances,
+        transactions: [
+          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
+        ],
       });
     } catch (e) {
+      Console.error('Failed to addDelegation', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'delegate',
@@ -114,7 +154,12 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleDelegateMore = async (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption) => {
+  const handleDelegateMore = async (
+    identityKey: string,
+    amount: MajorCurrencyAmount,
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => {
     if (currentDelegationListActionItem?.node_identity !== identityKey || !clientDetails) {
       setConfirmationModalProps({
         status: 'error',
@@ -137,21 +182,20 @@ export const Delegation: FC = () => {
           amount,
         },
         tokenPool,
+        fee,
       );
-      const bal = await userBalance();
-      let spendableLocked;
-
-      if (originalVesting) spendableLocked = await getSpendableCoins();
+      const balances = await getAllBalances();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        balance:
-          tokenPool === 'locked' ? `${spendableLocked?.amount} ${clientDetails?.denom}` : bal?.printable_balance || '-',
-        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
-        tokenPool,
+        ...balances,
+        transactions: [
+          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
+        ],
       });
     } catch (e) {
+      Console.error('Failed to addMoreDelegation', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'delegate',
@@ -160,7 +204,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleUndelegate = async (identityKey: string, proxy: string | null) => {
+  const handleUndelegate = async (identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'undelegate',
@@ -169,16 +213,20 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const tx = await undelegate(identityKey, proxy);
-      const bal = await userBalance();
+      const txs = await undelegate(identityKey, usesVestingContractTokens, fee);
+      const balances = await getAllBalances();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
-        balance: bal?.printable_balance || '-',
-        transactionUrl: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+        ...balances,
+        transactions: txs.map((tx) => ({
+          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+          hash: tx.transaction_hash,
+        })),
       });
     } catch (e) {
+      Console.error('Failed to undelegate', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'undelegate',
@@ -187,7 +235,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleRedeem = async (identityKey: string, proxy: string | null) => {
+  const handleRedeem = async (identityKey: string, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'redeem',
@@ -196,14 +244,19 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      await redeemRewards(identityKey, proxy);
+      const txs = await claimRewards(identityKey, fee);
       const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem',
         balance: bal?.printable_balance || '-',
+        transactions: txs.map((tx) => ({
+          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+          hash: tx.transaction_hash,
+        })),
       });
     } catch (e) {
+      Console.error('Failed to claimRewards', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'redeem',
@@ -212,7 +265,7 @@ export const Delegation: FC = () => {
     }
   };
 
-  const handleCompound = async (identityKey: string, proxy: string | null) => {
+  const handleCompound = async (identityKey: string, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'compound',
@@ -221,14 +274,19 @@ export const Delegation: FC = () => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      await compoundRewards(identityKey, proxy);
+      const txs = await compoundRewards(identityKey, fee);
       const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'compound',
         balance: bal?.printable_balance || '-',
+        transactions: txs.map((tx) => ({
+          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+          hash: tx.transaction_hash,
+        })),
       });
     } catch (e) {
+      Console.error('Failed to compoundRewards', e);
       setConfirmationModalProps({
         status: 'error',
         action: 'redeem',
@@ -247,13 +305,11 @@ export const Delegation: FC = () => {
               href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
               target="_blank"
               rel="noreferrer"
-              underline="hover"
-              sx={{ color: 'primary.main', textDecorationColor: 'primary.main' }}
-            >
-              <Typography color="primary.main" variant="body2">
-                Network Explorer
-              </Typography>
-            </Link>
+              text="Network Explorer"
+              fontSize={14}
+              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+              noIcon
+            />
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
@@ -261,7 +317,7 @@ export const Delegation: FC = () => {
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5 }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
             >
               Delegate
             </Button>
@@ -295,6 +351,7 @@ export const Delegation: FC = () => {
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
+          {...storybookStyles(theme, isStorybook)}
         />
       )}
 
@@ -307,7 +364,6 @@ export const Delegation: FC = () => {
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
           currency={clientDetails!.denom}
-          estimatedReward={0}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
@@ -321,9 +377,8 @@ export const Delegation: FC = () => {
           open={showUndelegateModal}
           onClose={() => setShowUndelegateModal(false)}
           onOk={handleUndelegate}
-          proxy={currentDelegationListActionItem.proxy}
+          usesVestingContractTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
           currency={currentDelegationListActionItem.amount.denom}
-          fee={0.1}
           amount={+currentDelegationListActionItem.amount.amount}
           identityKey={currentDelegationListActionItem.node_identity}
         />
@@ -333,12 +388,12 @@ export const Delegation: FC = () => {
         <RedeemModal
           open={showRedeemRewardsModal}
           onClose={() => setShowRedeemRewardsModal(false)}
-          onOk={(identity) => handleRedeem(identity, currentDelegationListActionItem.proxy)}
+          onOk={(identity, fee) => handleRedeem(identity, fee)}
           message="Redeem rewards"
           currency={clientDetails!.denom}
           identityKey={currentDelegationListActionItem?.node_identity}
-          fee={0.004375}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
+          usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
         />
       )}
 
@@ -346,12 +401,12 @@ export const Delegation: FC = () => {
         <CompoundModal
           open={showCompoundRewardsModal}
           onClose={() => setShowCompoundRewardsModal(false)}
-          onOk={(identity) => handleCompound(identity, currentDelegationListActionItem.proxy)}
+          onOk={(identity, fee) => handleCompound(identity, fee)}
           message="Compound rewards"
           currency={clientDetails!.denom}
           identityKey={currentDelegationListActionItem?.node_identity}
-          fee={0.004375}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
+          usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
         />
       )}
 
@@ -365,16 +420,25 @@ export const Delegation: FC = () => {
           }}
         />
       )}
+
+      {!!saturationError && (
+        <OverSaturatedBlockerModal
+          open={Boolean(saturationError)}
+          onClose={() => setSaturationError(undefined)}
+          header={`Node saturation: ${Math.round(saturationError.saturation * 100000) / 1000}%`}
+          subHeader="This node is over saturated. Choose a new mix node to delegate to and start compounding rewards."
+        />
+      )}
     </>
   );
 };
 
-export const DelegationPage = () => {
+export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const { network } = useContext(AppContext);
   return (
     <DelegationContextProvider network={network}>
       <RewardsContextProvider network={network}>
-        <Delegation />
+        <Delegation isStorybook={isStorybook} />
       </RewardsContextProvider>
     </DelegationContextProvider>
   );

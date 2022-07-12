@@ -1,0 +1,52 @@
+[package]
+name = "nym-connect"
+version = "1.0.0"
+description = "nym-connect"
+authors = ["Nym Technologies SA"]
+license = ""
+repository = ""
+default-run = "nym-connect"
+edition = "2021"
+build = "src/build.rs"
+rust-version = "1.58"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "^1.0.2", features = [] }
+
+tauri-codegen = "^1.0.2"
+tauri-macros = "^1.0.2"
+
+[dependencies]
+
+bip39 = "1.0"
+dirs = "4.0"
+eyre = "0.6.5"
+fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
+futures = "0.3"
+log = "0.4"
+pretty_env_logger = "0.4.0"
+rand = "0.8"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tap = "1.0.1"
+tauri = { version = "^1.0.2", features = ["clipboard-write-text", "shell-open", "system-tray", "updater"] }
+tendermint-rpc = "0.23.0"
+thiserror = "1.0"
+tokio = { version = "1.19.1", features = ["sync", "time"] }
+url = "2.2"
+
+client-core = { path = "../../clients/client-core" }
+config = { path = "../../common/config" }
+nym-socks5-client = { path = "../../clients/socks5" }
+topology = { path = "../../common/topology" }
+
+[dev-dependencies]
+ts-rs = "6.1.2"
+tempfile = "3.3.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

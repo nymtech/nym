@@ -7,7 +7,6 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use config::defaults::VOUCHER_INFO;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
@@ -19,7 +18,10 @@ use multisig_contract_common::msg::ProposalResponse;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
-use validator_client::nymd::{tx::Hash, DeliverTx, Event, Fee, Tag, TxResponse};
+use validator_api_requests::coconut::{
+    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse,
+};
+use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 use validator_client::validator_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
@@ -49,6 +51,10 @@ impl DummyClient {
 
 #[async_trait]
 impl super::client::Client for DummyClient {
+    async fn address(&self) -> AccountId {
+        todo!()
+    }
+
     async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse> {
         self.db
             .read()

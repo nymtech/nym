@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::operations::simulate::{FeeDetails, SimulateResult};
+use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
 use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{ExecuteMsg, Gateway, MixNode};
@@ -20,7 +20,6 @@ pub async fn simulate_bond_gateway(
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     // TODO: I'm still not 100% convinced whether this should be exposed here or handled somewhere else in the client code
     let msg = client.nymd.wrap_contract_execute_message(
@@ -33,7 +32,7 @@ pub async fn simulate_bond_gateway(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -41,10 +40,8 @@ pub async fn simulate_unbond_gateway(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -53,7 +50,7 @@ pub async fn simulate_unbond_gateway(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -68,7 +65,6 @@ pub async fn simulate_bond_mixnode(
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -80,7 +76,7 @@ pub async fn simulate_bond_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -88,10 +84,8 @@ pub async fn simulate_unbond_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -100,7 +94,7 @@ pub async fn simulate_unbond_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -109,10 +103,8 @@ pub async fn simulate_update_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -123,7 +115,7 @@ pub async fn simulate_update_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -137,7 +129,6 @@ pub async fn simulate_delegate_to_mixnode(
 
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -148,7 +139,7 @@ pub async fn simulate_delegate_to_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -157,10 +148,8 @@ pub async fn simulate_undelegate_from_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
-
     let client = guard.current_client()?;
     let mixnet_contract = client.nymd.mixnet_contract_address();
-    let gas_price = client.nymd.gas_price().clone();
 
     let msg = client.nymd.wrap_contract_execute_message(
         mixnet_contract,
@@ -171,7 +160,7 @@ pub async fn simulate_undelegate_from_mixnode(
     )?;
 
     let result = client.nymd.simulate(vec![msg]).await?;
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -182,8 +171,7 @@ pub async fn simulate_claim_operator_reward(
     let client = guard.current_client()?;
 
     let result = client.nymd.simulate_claim_operator_reward(None).await?;
-    let gas_price = client.nymd.gas_price().clone();
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -194,8 +182,7 @@ pub async fn simulate_compound_operator_reward(
     let client = guard.current_client()?;
 
     let result = client.nymd.simulate_compound_operator_reward(None).await?;
-    let gas_price = client.nymd.gas_price().clone();
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -210,8 +197,7 @@ pub async fn simulate_claim_delegator_reward(
         .nymd
         .simulate_claim_delegator_reward(mix_identity, None)
         .await?;
-    let gas_price = client.nymd.gas_price().clone();
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }
 
 #[tauri::command]
@@ -226,6 +212,5 @@ pub async fn simulate_compound_delegator_reward(
         .nymd
         .simulate_compound_delegator_reward(mix_identity, None)
         .await?;
-    let gas_price = client.nymd.gas_price().clone();
-    guard.create_detailed_fee(SimulateResult::new(result.gas_info, gas_price))
+    guard.create_detailed_fee(result)
 }

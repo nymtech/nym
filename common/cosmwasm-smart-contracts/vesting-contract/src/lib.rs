@@ -19,7 +19,7 @@ pub fn one_ucoin() -> Coin {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
 )]
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
 pub enum Period {
     Before,
     In(usize),

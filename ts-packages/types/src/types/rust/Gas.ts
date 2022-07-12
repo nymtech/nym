@@ -1,2 +1,3 @@
-
-export interface Gas { gas_units: bigint, }
+export interface Gas {
+  gas_units: bigint;
+}

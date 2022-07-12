@@ -10,8 +10,8 @@ const Active = () => (
 );
 
 const Inactive = () => (
-  <Typography sx={{ color: 'nym.text.dark', display: 'flex', alignItems: 'center' }}>
-    <CircleOutlined fontSize="small" sx={{ color: 'nym.text.dark', mr: 1 }} /> Inactive
+  <Typography sx={{ color: 'text.primary', display: 'flex', alignItems: 'center' }}>
+    <CircleOutlined fontSize="small" sx={{ color: 'text.primary', mr: 1 }} /> Inactive
   </Typography>
 );
 

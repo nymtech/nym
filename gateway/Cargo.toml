@@ -19,7 +19,7 @@ bs58 = "0.4.0"
 clap = { version = "3.0.10", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
-dirs = "3.0"
+dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
@@ -51,11 +51,13 @@ mixnode-common = { path = "../common/mixnode-common" }
 network-defaults = { path = "../common/network-defaults" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
+statistics-common = { path = "../common/statistics" }
+validator-api-requests = { path = "../validator-api/validator-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut"]
+coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut"]
 eth = []
 
 [build-dependencies]

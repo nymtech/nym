@@ -18,6 +18,7 @@ pub fn get_env() -> AppEnv {
     AppEnv {
         ADMIN_ADDRESS: get_env_as_option("ADMIN_ADDRESS"),
         SHOW_TERMINAL: get_env_as_option("SHOW_TERMINAL"),
+        ENABLE_QA_MODE: get_env_as_option("ENABLE_QA_MODE"),
     }
 }
 

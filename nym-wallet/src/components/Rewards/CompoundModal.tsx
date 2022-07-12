@@ -1,25 +1,38 @@
-import React from 'react';
-import { Alert, AlertTitle, Stack, Typography } from '@mui/material';
+import React, { useEffect } from 'react';
+import { Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import WarningIcon from '@mui/icons-material/Warning';
+import { FeeDetails } from '@nymproject/types';
+import { simulateCompoundDelgatorReward, simulateVestingCompoundDelgatorReward } from 'src/requests';
+import { useGetFee } from 'src/hooks/useGetFee';
 import { SimpleModal } from '../Modals/SimpleModal';
+import { ModalFee } from '../Modals/ModalFee';
+import { FeeWarning } from '../FeeWarning';
 
 export const CompoundModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string) => void;
+  onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  fee: number;
-  minimum?: number;
   currency: string;
   message: string;
-}> = ({ open, onClose, onOk, identityKey, amount, fee, currency, message }) => {
-  const handleOk = () => {
+  usesVestingTokens: boolean;
+}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens }) => {
+  const { fee, isFeeLoading, feeError, getFee } = useGetFee();
+
+  const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey);
+      onOk(identityKey, fee);
     }
   };
+
+  useEffect(() => {
+    if (usesVestingTokens) getFee(simulateVestingCompoundDelgatorReward, identityKey);
+    else {
+      getFee(simulateCompoundDelgatorReward, identityKey);
+    }
+  }, []);
+
   return (
     <SimpleModal
       open={open}
@@ -42,21 +55,8 @@ export const CompoundModal: React.FC<{
         Rewards will be transferred to account you are logged in with now
       </Typography>
 
-      <Stack direction="row" justifyContent="space-between">
-        <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          Est. fee for this transaction:
-        </Typography>
-        <Typography fontSize="smaller" color={(theme) => theme.palette.nym.fee}>
-          {fee} {currency}
-        </Typography>
-      </Stack>
-
-      {amount < fee && (
-        <Alert color="warning" sx={{ mt: 3 }} icon={<WarningIcon />}>
-          <AlertTitle>Warning: fees are greater than the reward</AlertTitle>
-          The fees for redeeming rewards will cost more than the rewards. Are you sure you want to continue?
-        </Alert>
-      )}
+      {fee && <FeeWarning amount={amount} fee={fee} />}
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

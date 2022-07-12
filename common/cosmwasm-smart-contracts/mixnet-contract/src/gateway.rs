@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct Gateway {
     pub host: String,
     pub mix_port: u16,
@@ -133,6 +133,12 @@ impl PagedGatewayResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayOwnershipResponse {
     pub address: Addr,
+    pub gateway: Option<GatewayBond>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct GatewayBondResponse {
+    pub identity: IdentityKey,
     pub gateway: Option<GatewayBond>,
 }
 

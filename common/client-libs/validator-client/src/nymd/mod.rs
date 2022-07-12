@@ -15,19 +15,19 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use cosmwasm_std::Uint128;
 use execute::execute;
-pub use fee::gas_price::GasPrice;
 use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
-    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayOwnershipResponse,
-    IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnetContractVersion, MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
-    PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
+    ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
+    MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
+    RewardedSetUpdateDetails,
 };
-use network_defaults::DEFAULT_NETWORK;
 use serde::Serialize;
 use std::convert::TryInto;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
+use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -48,6 +48,8 @@ pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+use network_defaults::{ChainDetails, NymNetworkDetails};
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
@@ -58,67 +60,92 @@ pub mod fee;
 pub mod traits;
 pub mod wallet;
 
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub(crate) chain_details: ChainDetails,
+
+    // I'd love to have used `NymContracts` struct directly here instead,
+    // however, I'd really prefer to use something more strongly typed (i.e. AccountId vs String)
+    pub(crate) mixnet_contract_address: Option<AccountId>,
+    pub(crate) vesting_contract_address: Option<AccountId>,
+    pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
+    pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
+    pub(crate) multisig_contract_address: Option<AccountId>,
+    // TODO: add this in later commits
+    // pub(crate) gas_price: GasPrice,
+}
+
+impl Config {
+    fn parse_optional_account(
+        raw: Option<&String>,
+        expected_prefix: &str,
+    ) -> Result<Option<AccountId>, NymdError> {
+        if let Some(address) = raw {
+            let parsed: AccountId = address
+                .parse()
+                .map_err(|_| NymdError::MalformedAccountAddress(address.clone()))?;
+            if parsed.prefix() != expected_prefix {
+                Err(NymdError::UnexpectedBech32Prefix {
+                    got: parsed.prefix().into(),
+                    expected: expected_prefix.into(),
+                })
+            } else {
+                Ok(Some(parsed))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NymdError> {
+        let prefix = &details.chain_details.bech32_account_prefix;
+        Ok(Config {
+            chain_details: details.chain_details.clone(),
+            mixnet_contract_address: Self::parse_optional_account(
+                details.contracts.mixnet_contract_address.as_ref(),
+                prefix,
+            )?,
+            vesting_contract_address: Self::parse_optional_account(
+                details.contracts.vesting_contract_address.as_ref(),
+                prefix,
+            )?,
+            bandwidth_claim_contract_address: Self::parse_optional_account(
+                details.contracts.bandwidth_claim_contract_address.as_ref(),
+                prefix,
+            )?,
+            coconut_bandwidth_contract_address: Self::parse_optional_account(
+                details
+                    .contracts
+                    .coconut_bandwidth_contract_address
+                    .as_ref(),
+                prefix,
+            )?,
+            multisig_contract_address: Self::parse_optional_account(
+                details.contracts.multisig_contract_address.as_ref(),
+                prefix,
+            )?,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct NymdClient<C> {
     client: C,
-    mixnet_contract_address: AccountId,
-    vesting_contract_address: AccountId,
-    bandwidth_claim_contract_address: AccountId,
-    coconut_bandwidth_contract_address: AccountId,
-    multisig_contract_address: AccountId,
+    config: Config,
     client_address: Option<Vec<AccountId>>,
     simulated_gas_multiplier: f32,
 }
 
-impl<C> NymdClient<C> {
-    pub fn with_mixnet_contract_address(mut self, address: AccountId) -> Self {
-        self.mixnet_contract_address = address;
-        self
-    }
-    pub fn with_vesting_contract_address(mut self, address: AccountId) -> Self {
-        self.vesting_contract_address = address;
-        self
-    }
-    pub fn with_bandwidth_claim_contract_address(mut self, address: AccountId) -> Self {
-        self.bandwidth_claim_contract_address = address;
-        self
-    }
-    pub fn with_coconut_bandwidth_contract_address(mut self, address: AccountId) -> Self {
-        self.coconut_bandwidth_contract_address = address;
-        self
-    }
-    pub fn with_multisig_contract_address(mut self, address: AccountId) -> Self {
-        self.multisig_contract_address = address;
-        self
-    }
-}
-
 impl NymdClient<QueryNymdClient> {
-    pub fn connect<U>(endpoint: U) -> Result<NymdClient<QueryNymdClient>, NymdError>
+    pub fn connect<U>(config: Config, endpoint: U) -> Result<NymdClient<QueryNymdClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         Ok(NymdClient {
             client: QueryNymdClient::new(endpoint)?,
+            config,
             client_address: None,
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
-            mixnet_contract_address: DEFAULT_NETWORK
-                .mixnet_contract_address()
-                .parse()
-                .expect("Error parsing mixnet contract address"),
-            vesting_contract_address: DEFAULT_NETWORK
-                .vesting_contract_address()
-                .parse()
-                .expect("Error parsing vesting contract address"),
-            bandwidth_claim_contract_address: DEFAULT_NETWORK
-                .bandwidth_claim_contract_address()
-                .parse()
-                .expect("Error parsing bandwidth claim contract address"),
-            coconut_bandwidth_contract_address: DEFAULT_NETWORK
-                .coconut_bandwidth_contract_address()
-                .parse()
-                .unwrap(),
-            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 }
@@ -126,6 +153,7 @@ impl NymdClient<QueryNymdClient> {
 impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U: Clone>(
+        config: Config,
         network: config::defaults::all::Network,
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
@@ -134,40 +162,24 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let denom = network.mix_denom().base;
+        let denom = network.base_mix_denom();
         let client_address = signer
             .try_derive_accounts()?
             .into_iter()
             .map(|account| account.address)
             .collect();
-        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
+        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(&denom)?);
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
+            config,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
-            mixnet_contract_address: DEFAULT_NETWORK
-                .mixnet_contract_address()
-                .parse()
-                .expect("Error parsing mixnet contract address"),
-            vesting_contract_address: DEFAULT_NETWORK
-                .vesting_contract_address()
-                .parse()
-                .expect("Error parsing vesting contract address"),
-            bandwidth_claim_contract_address: DEFAULT_NETWORK
-                .bandwidth_claim_contract_address()
-                .parse()
-                .expect("Error parsing bandwidth claim contract address"),
-            coconut_bandwidth_contract_address: DEFAULT_NETWORK
-                .coconut_bandwidth_contract_address()
-                .parse()
-                .unwrap(),
-            multisig_contract_address: DEFAULT_NETWORK.multisig_contract_address().parse().unwrap(),
         })
     }
 
     pub fn connect_with_mnemonic<U: Clone>(
-        network: config::defaults::all::Network,
+        config: Config,
         endpoint: U,
         mnemonic: bip39::Mnemonic,
         gas_price: Option<GasPrice>,
@@ -175,8 +187,8 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let prefix = network.bech32_prefix();
-        let denom = network.mix_denom().base;
+        let prefix = &config.chain_details.bech32_account_prefix;
+        let denom = &config.chain_details.mix_denom.base;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
         let client_address = wallet
             .try_derive_accounts()?
@@ -187,48 +199,82 @@ impl NymdClient<SigningNymdClient> {
 
         Ok(NymdClient {
             client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
+            config,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
-            mixnet_contract_address: network
-                .mixnet_contract_address()
-                .parse()
-                .expect("Error parsing mixnet contract address"),
-            vesting_contract_address: network
-                .vesting_contract_address()
-                .parse()
-                .expect("Error parsing vesting contract address"),
-            bandwidth_claim_contract_address: network
-                .bandwidth_claim_contract_address()
-                .parse()
-                .expect("Error parsing bandwidth claim contract address"),
-            coconut_bandwidth_contract_address: network
-                .coconut_bandwidth_contract_address()
-                .parse()
-                .unwrap(),
-            multisig_contract_address: network.multisig_contract_address().parse().unwrap(),
         })
     }
 }
 
 impl<C> NymdClient<C> {
+    pub fn current_config(&self) -> &Config {
+        &self.config
+    }
+
+    pub fn set_mixnet_contract_address(&mut self, address: AccountId) {
+        self.config.mixnet_contract_address = Some(address);
+    }
+
+    pub fn set_vesting_contract_address(&mut self, address: AccountId) {
+        self.config.vesting_contract_address = Some(address);
+    }
+
+    pub fn set_bandwidth_claim_contract_address(&mut self, address: AccountId) {
+        self.config.bandwidth_claim_contract_address = Some(address);
+    }
+
+    pub fn set_coconut_bandwidth_contract_address(&mut self, address: AccountId) {
+        self.config.coconut_bandwidth_contract_address = Some(address);
+    }
+
+    pub fn set_multisig_contract_address(&mut self, address: AccountId) {
+        self.config.multisig_contract_address = Some(address);
+    }
+
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
     pub fn mixnet_contract_address(&self) -> &AccountId {
-        &self.mixnet_contract_address
+        self.config.mixnet_contract_address.as_ref().unwrap()
     }
 
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
     pub fn vesting_contract_address(&self) -> &AccountId {
-        &self.vesting_contract_address
+        self.config.vesting_contract_address.as_ref().unwrap()
     }
 
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
     pub fn bandwidth_claim_contract_address(&self) -> &AccountId {
-        &self.bandwidth_claim_contract_address
+        self.config
+            .bandwidth_claim_contract_address
+            .as_ref()
+            .unwrap()
     }
 
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
     pub fn coconut_bandwidth_contract_address(&self) -> &AccountId {
-        &self.coconut_bandwidth_contract_address
+        self.config
+            .coconut_bandwidth_contract_address
+            .as_ref()
+            .unwrap()
     }
 
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
     pub fn multisig_contract_address(&self) -> &AccountId {
-        &self.multisig_contract_address
+        self.config.multisig_contract_address.as_ref().unwrap()
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
@@ -266,6 +312,10 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient,
     {
         self.client.gas_price()
+    }
+
+    pub fn gas_adjustment(&self) -> GasAdjustment {
+        self.simulated_gas_multiplier
     }
 
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
@@ -380,6 +430,16 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn vesting_get_locked_pledge_cap(&self) -> Result<Uint128, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = VestingQueryMsg::GetLockedPledgeCap {};
+        self.client
+            .query_contract_smart(self.vesting_contract_address(), &request)
+            .await
+    }
+
     pub async fn get_delegator_rewards(
         &self,
         address: String,
@@ -421,6 +481,16 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         let request = QueryMsg::GetCurrentEpoch {};
+        self.client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await
+    }
+
+    pub async fn get_current_operator_cost(&self) -> Result<u64, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetCurrentOperatorCost {};
         self.client
             .query_contract_smart(self.mixnet_contract_address(), &request)
             .await
@@ -589,6 +659,38 @@ impl<C> NymdClient<C> {
             address: address.to_string(),
         };
         let response: GatewayOwnershipResponse = self
+            .client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await?;
+        Ok(response.gateway)
+    }
+
+    /// Checks whether there is a bonded mixnode associated with the provided identity key
+    pub async fn get_mixnode_bond(
+        &self,
+        identity: IdentityKey,
+    ) -> Result<Option<MixNodeBond>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetMixnodeBond { identity };
+        let response: MixnodeBondResponse = self
+            .client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await?;
+        Ok(response.mixnode)
+    }
+
+    /// Checks whether there is a bonded gateway associated with the provided identity key
+    pub async fn get_gateway_bond(
+        &self,
+        identity: IdentityKey,
+    ) -> Result<Option<GatewayBond>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetGatewayBond { identity };
+        let response: GatewayBondResponse = self
             .client
             .query_contract_smart(self.mixnet_contract_address(), &request)
             .await?;
@@ -947,6 +1049,18 @@ impl<C> NymdClient<C> {
             VestingExecuteMsg::ClaimDelegatorReward { mix_identity },
             fee,
         )
+    }
+
+    #[execute("vesting")]
+    fn _vesting_update_locked_pledge_cap(
+        &self,
+        amount: Uint128,
+        fee: Option<Fee>,
+    ) -> (VestingExecuteMsg, Option<Fee>)
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        (VestingExecuteMsg::UpdateLockedPledgeCap { amount }, fee)
     }
 
     /// Announce a mixnode, paying a fee.

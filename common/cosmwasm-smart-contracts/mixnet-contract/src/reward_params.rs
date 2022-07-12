@@ -1,11 +1,10 @@
 use crate::{error::MixnetContractError, mixnode::StoredNodeRewardResult, ONE, U128};
 use az::CheckedCast;
 use cosmwasm_std::Uint128;
-use network_defaults::DEFAULT_OPERATOR_INTERVAL_COST;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct NodeEpochRewards {
     params: NodeRewardParams,
     result: StoredNodeRewardResult,
@@ -41,19 +40,23 @@ impl NodeEpochRewards {
         self.result.reward()
     }
 
-    pub fn operator_cost(&self) -> U128 {
-        self.params.operator_cost()
+    pub fn operator_cost(&self, base_operator_cost: u64) -> U128 {
+        self.params.operator_cost(base_operator_cost)
     }
 
-    pub fn node_profit(&self) -> U128 {
+    pub fn node_profit(&self, base_operator_cost: u64) -> U128 {
         let reward = U128::from_num(self.reward().u128());
         // if operating cost is higher then the reward node profit is 0
-        reward.saturating_sub(self.operator_cost())
+        reward.saturating_sub(self.operator_cost(base_operator_cost))
     }
 
-    pub fn operator_reward(&self, profit_margin: U128) -> Result<Uint128, MixnetContractError> {
-        let reward = self.node_profit();
-        let operator_base_reward = reward.min(self.operator_cost());
+    pub fn operator_reward(
+        &self,
+        profit_margin: U128,
+        base_operator_cost: u64,
+    ) -> Result<Uint128, MixnetContractError> {
+        let reward = self.node_profit(base_operator_cost);
+        let operator_base_reward = reward.min(self.operator_cost(base_operator_cost));
         let div_by_zero_check = if let Some(value) = self.lambda().checked_div(self.sigma()) {
             value
         } else {
@@ -74,13 +77,14 @@ impl NodeEpochRewards {
         &self,
         delegation_amount: Uint128,
         profit_margin: U128,
+        base_operator_cost: u64,
         epoch_reward_params: EpochRewardParams,
     ) -> Result<Uint128, MixnetContractError> {
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(epoch_reward_params.circulating_supply());
+        let staking_supply = U128::from_num(epoch_reward_params.staking_supply());
 
-        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let scaled_delegation_amount = delegation_amount / staking_supply;
 
         let check_div_by_zero =
             if let Some(value) = scaled_delegation_amount.checked_div(self.sigma()) {
@@ -89,7 +93,8 @@ impl NodeEpochRewards {
                 return Err(MixnetContractError::DivisionByZero);
             };
 
-        let delegator_reward = (ONE - profit_margin) * check_div_by_zero * self.node_profit();
+        let delegator_reward =
+            (ONE - profit_margin) * check_div_by_zero * self.node_profit(base_operator_cost);
 
         let reward = delegator_reward.max(U128::ZERO);
         if let Some(int_reward) = reward.checked_cast() {
@@ -100,12 +105,13 @@ impl NodeEpochRewards {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct EpochRewardParams {
     epoch_reward_pool: Uint128,
     rewarded_set_size: Uint128,
     active_set_size: Uint128,
-    circulating_supply: Uint128,
+    #[serde(alias = "circulating_supply")]
+    staking_supply: Uint128,
     sybil_resistance_percent: u8,
     active_set_work_factor: u8,
 }
@@ -115,7 +121,7 @@ impl EpochRewardParams {
         epoch_reward_pool: u128,
         rewarded_set_size: u128,
         active_set_size: u128,
-        circulating_supply: u128,
+        staking_supply: u128,
         sybil_resistance_percent: u8,
         active_set_work_factor: u8,
     ) -> EpochRewardParams {
@@ -123,7 +129,7 @@ impl EpochRewardParams {
             epoch_reward_pool: Uint128::new(epoch_reward_pool),
             rewarded_set_size: Uint128::new(rewarded_set_size),
             active_set_size: Uint128::new(active_set_size),
-            circulating_supply: Uint128::new(circulating_supply),
+            staking_supply: Uint128::new(staking_supply),
             sybil_resistance_percent,
             active_set_work_factor,
         }
@@ -136,7 +142,7 @@ impl EpochRewardParams {
     pub fn new_empty() -> Self {
         EpochRewardParams {
             epoch_reward_pool: Uint128::new(0),
-            circulating_supply: Uint128::new(0),
+            staking_supply: Uint128::new(0),
             sybil_resistance_percent: 0,
             rewarded_set_size: Uint128::new(0),
             active_set_size: Uint128::new(0),
@@ -152,16 +158,24 @@ impl EpochRewardParams {
         self.active_set_size.u128()
     }
 
-    pub fn circulating_supply(&self) -> u128 {
-        self.circulating_supply.u128()
+    pub fn staking_supply(&self) -> u128 {
+        self.staking_supply.u128()
     }
 
     pub fn epoch_reward_pool(&self) -> u128 {
         self.epoch_reward_pool.u128()
     }
+
+    pub fn sybil_resistance_percent(&self) -> u8 {
+        self.sybil_resistance_percent
+    }
+
+    pub fn active_set_work_factor(&self) -> u8 {
+        self.active_set_work_factor
+    }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct NodeRewardParams {
     reward_blockstamp: u64,
     uptime: Uint128,
@@ -177,8 +191,8 @@ impl NodeRewardParams {
         }
     }
 
-    pub fn operator_cost(&self) -> U128 {
-        self.performance() * U128::from_num(DEFAULT_OPERATOR_INTERVAL_COST)
+    pub fn operator_cost(&self, base_operator_cost: u64) -> U128 {
+        self.performance() * U128::from_num(base_operator_cost)
     }
 
     pub fn uptime(&self) -> Uint128 {
@@ -194,7 +208,7 @@ impl NodeRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct RewardParams {
     pub epoch: EpochRewardParams,
     pub node: NodeRewardParams,
@@ -252,8 +266,8 @@ impl RewardParams {
         self.epoch.rewarded_set_size.u128()
     }
 
-    pub fn circulating_supply(&self) -> u128 {
-        self.epoch.circulating_supply.u128()
+    pub fn staking_supply(&self) -> u128 {
+        self.epoch.staking_supply.u128()
     }
 
     pub fn reward_blockstamp(&self) -> u64 {

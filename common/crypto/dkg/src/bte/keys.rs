@@ -335,7 +335,7 @@ pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicK
     (dk, key_with_proof)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
@@ -345,7 +345,7 @@ impl PublicKey {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,
     pub(crate) proof: ProofOfDiscreteLog,
@@ -651,6 +651,7 @@ mod tests {
     use rand_core::SeedableRng;
 
     #[test]
+    #[ignore] // expensive test
     fn basic_coverage_nodes() {
         // it's some basic test I've been performing when writing the update function, but figured
         // might as well put it into a unit test. note that it doesn't check the entire structure,
@@ -761,6 +762,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn updating_to_next_epoch() {
         let params = setup();
 
@@ -816,6 +818,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn bte_node_roundtrip() {
         let params = setup();
 
@@ -839,6 +842,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // expensive test
     fn decryption_key_node_roundtrip() {
         let params = setup();
 

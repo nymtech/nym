@@ -19,7 +19,7 @@ use std::fmt::Display;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,
@@ -116,7 +116,7 @@ impl PendingUndelegate {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,
@@ -230,9 +230,9 @@ impl DelegatorRewardParams {
 
         // change all values into their fixed representations
         let delegation_amount = U128::from_num(delegation_amount.u128());
-        let circulating_supply = U128::from_num(self.reward_params.circulating_supply());
+        let staking_supply = U128::from_num(self.reward_params.staking_supply());
 
-        let scaled_delegation_amount = delegation_amount / circulating_supply;
+        let scaled_delegation_amount = delegation_amount / staking_supply;
 
         // Div by zero checked above
         let delegator_reward =
@@ -255,7 +255,7 @@ impl DelegatorRewardParams {
     }
 }
 
-#[derive(Debug, Clone, JsonSchema, PartialEq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct StoredNodeRewardResult {
     reward: Uint128,
 
@@ -402,22 +402,21 @@ impl MixNodeBond {
         self.total_delegation.clone()
     }
 
-    pub fn stake_saturation(&self, circulating_supply: u128, rewarded_set_size: u32) -> U128 {
-        self.total_bond_to_circulating_supply(circulating_supply)
-            * U128::from_num(rewarded_set_size)
+    pub fn stake_saturation(&self, staking_supply: u128, rewarded_set_size: u32) -> U128 {
+        self.total_bond_to_staking_supply(staking_supply) * U128::from_num(rewarded_set_size)
     }
 
     // TODO: There is an effect here when adding accumulted rewards to the total bond, ie accumulated rewards will not
     // affect lambda, but will affect sigma, in turn over time, if left unclaimed operator rewards will not compound, but
     // behave similarly to delegations.
     // The question is should this be taken into account when calculating operator rewards?
-    pub fn pledge_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
-        U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(circulating_supply)
+    pub fn pledge_to_staking_supply(&self, staking_supply: u128) -> U128 {
+        U128::from_num(self.pledge_amount().amount.u128()) / U128::from_num(staking_supply)
     }
 
-    pub fn total_bond_to_circulating_supply(&self, circulating_supply: u128) -> U128 {
+    pub fn total_bond_to_staking_supply(&self, staking_supply: u128) -> U128 {
         U128::from_num(self.pledge_amount().amount.u128() + self.total_delegation().amount.u128())
-            / U128::from_num(circulating_supply)
+            / U128::from_num(staking_supply)
     }
 
     pub fn lambda_ticked(&self, params: &RewardParams) -> U128 {
@@ -427,7 +426,7 @@ impl MixNodeBond {
 
     pub fn lambda(&self, params: &RewardParams) -> U128 {
         // Ratio of a bond to the token circulating supply
-        self.pledge_to_circulating_supply(params.circulating_supply())
+        self.pledge_to_staking_supply(params.staking_supply())
     }
 
     pub fn sigma_ticked(&self, params: &RewardParams) -> U128 {
@@ -437,11 +436,12 @@ impl MixNodeBond {
 
     pub fn sigma(&self, params: &RewardParams) -> U128 {
         // Ratio of a delegation to the the token circulating supply
-        self.total_bond_to_circulating_supply(params.circulating_supply())
+        self.total_bond_to_staking_supply(params.staking_supply())
     }
 
     pub fn estimate_reward(
         &self,
+        base_operator_cost: u64,
         params: &RewardParams,
     ) -> Result<RewardEstimate, MixnetContractError> {
         let total_node_reward = self
@@ -450,15 +450,15 @@ impl MixNodeBond {
             .checked_to_num::<u128>()
             .unwrap_or_default();
         let node_profit = self
-            .node_profit(params)
+            .node_profit(params, base_operator_cost)
             .checked_to_num::<u128>()
             .unwrap_or_default();
         let operator_cost = params
             .node
-            .operator_cost()
+            .operator_cost(base_operator_cost)
             .checked_to_num::<u128>()
             .unwrap_or_default();
-        let operator_reward = self.operator_reward(params);
+        let operator_reward = self.operator_reward(params, base_operator_cost);
         // Total reward has to be the sum of operator and delegator rewards
         let delegators_reward = node_profit.saturating_sub(operator_reward);
 
@@ -490,21 +490,25 @@ impl MixNodeBond {
         }
     }
 
-    pub fn node_profit(&self, params: &RewardParams) -> U128 {
+    pub fn node_profit(&self, params: &RewardParams, base_operator_cost: u64) -> U128 {
         self.reward(params)
             .reward()
-            .saturating_sub(params.node.operator_cost())
+            .saturating_sub(params.node.operator_cost(base_operator_cost))
     }
 
-    pub fn operator_reward(&self, params: &RewardParams) -> u128 {
+    pub fn operator_reward(&self, params: &RewardParams, base_operator_cost: u64) -> u128 {
         let reward = self.reward(params);
-        if reward.sigma == 0 {
+        if reward.sigma == 0u128 {
             return 0;
         }
 
-        let profit = reward.reward.saturating_sub(params.node.operator_cost());
+        let profit = reward
+            .reward
+            .saturating_sub(params.node.operator_cost(base_operator_cost));
 
-        let operator_base_reward = reward.reward.min(params.node.operator_cost());
+        let operator_base_reward = reward
+            .reward
+            .min(params.node.operator_cost(base_operator_cost));
         // Div by zero checked above
         let operator_reward = (self.profit_margin()
             + (ONE - self.profit_margin()) * reward.lambda / reward.sigma)
@@ -525,19 +529,23 @@ impl MixNodeBond {
     }
 
     pub fn sigma_ratio(&self, params: &RewardParams) -> U128 {
-        if self.total_bond_to_circulating_supply(params.circulating_supply()) < params.one_over_k()
-        {
-            self.total_bond_to_circulating_supply(params.circulating_supply())
+        if self.total_bond_to_staking_supply(params.staking_supply()) < params.one_over_k() {
+            self.total_bond_to_staking_supply(params.staking_supply())
         } else {
             params.one_over_k()
         }
     }
 
-    pub fn reward_delegation(&self, delegation_amount: Uint128, params: &RewardParams) -> u128 {
+    pub fn reward_delegation(
+        &self,
+        delegation_amount: Uint128,
+        params: &RewardParams,
+        base_operator_cost: u64,
+    ) -> u128 {
         let reward_params = DelegatorRewardParams::new(
             self.sigma(params),
             self.profit_margin(),
-            self.node_profit(params),
+            self.node_profit(params, base_operator_cost),
             params.to_owned(),
         );
         reward_params.determine_delegation_reward(delegation_amount)
@@ -644,6 +652,12 @@ impl PagedMixnodeResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixOwnershipResponse {
     pub address: Addr,
+    pub mixnode: Option<MixNodeBond>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixnodeBondResponse {
+    pub identity: IdentityKey,
     pub mixnode: Option<MixNodeBond>,
 }
 

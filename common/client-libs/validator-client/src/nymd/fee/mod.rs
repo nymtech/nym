@@ -2,18 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::Coin;
-use cosmrs::tx;
+use crate::nymd::Gas;
+use cosmrs::{tx, AccountId};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 pub mod gas_price;
 
-pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: f32 = 1.3;
+pub type GasAdjustment = f32;
+
+pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: GasAdjustment = 1.3;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoFeeGrant {
+    pub gas_adjustment: Option<GasAdjustment>,
+    pub payer: AccountId,
+    pub granter: AccountId,
+}
+
+impl Display for AutoFeeGrant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(gas_adjustment) = self.gas_adjustment {
+            write!(f, "Feegrant in auto mode with {gas_adjustment} simulated multiplier with {} payer and {} granter", self.payer, self.granter)
+        } else {
+            write!(f, "Feegrant in auto mode with no custom simulated multiplier with {} payer and {} granter", self.payer, self.granter)
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Fee {
     Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
-    Auto(Option<f32>),
+    Auto(Option<GasAdjustment>),
+    PayerGranterAuto(AutoFeeGrant),
 }
 
 impl Display for Fee {
@@ -37,6 +58,7 @@ impl Display for Fee {
                 write!(f, "Fee in auto mode with {multiplier} simulated multiplier")
             }
             Fee::Auto(None) => write!(f, "Fee in auto mode with no custom simulated multiplier"),
+            Fee::PayerGranterAuto(auto_feegrant) => write!(f, "{}", auto_feegrant),
         }
     }
 }
@@ -45,7 +67,7 @@ impl Fee {
     pub fn try_get_manual_amount(&self) -> Option<Vec<Coin>> {
         match self {
             Fee::Manual(tx_fee) => Some(tx_fee.amount.iter().cloned().map(Into::into).collect()),
-            Fee::Auto(_) => None,
+            _ => None,
         }
     }
 }
@@ -56,8 +78,8 @@ impl From<tx::Fee> for Fee {
     }
 }
 
-impl From<f32> for Fee {
-    fn from(multiplier: f32) -> Self {
+impl From<GasAdjustment> for Fee {
+    fn from(multiplier: GasAdjustment) -> Self {
         Fee::Auto(Some(multiplier))
     }
 }
@@ -65,6 +87,21 @@ impl From<f32> for Fee {
 impl Default for Fee {
     fn default() -> Self {
         Fee::Auto(Some(DEFAULT_SIMULATED_GAS_MULTIPLIER))
+    }
+}
+
+pub trait GasAdjustable {
+    fn adjust_gas(&self, adjustment: GasAdjustment) -> Self;
+}
+
+impl GasAdjustable for Gas {
+    fn adjust_gas(&self, adjustment: GasAdjustment) -> Self {
+        if adjustment == 1.0 {
+            *self
+        } else {
+            let adjusted = (self.value() as f32 * adjustment).ceil();
+            (adjusted as u64).into()
+        }
     }
 }
 

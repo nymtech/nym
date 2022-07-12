@@ -8,7 +8,7 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::nymd::{Coin, GasPrice, TxResponse};
+use crate::nymd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -490,28 +490,35 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: &String,
     ) -> Result<tx::Fee, NymdError> {
+        let auto_fee = |multiplier: Option<f32>| async move {
+            debug!("Trying to simulate gas costs...");
+            // from what I've seen in manual testing, gas estimation does not exist if transaction
+            // fails to get executed (for example if you send 'BondMixnode" with invalid signature)
+            let gas_estimation = self
+                .simulate(signer_address, messages.to_vec(), memo.clone())
+                .await?
+                .gas_info
+                .ok_or(NymdError::GasEstimationFailure)?
+                .gas_used;
+
+            let multiplier = multiplier.unwrap_or(DEFAULT_SIMULATED_GAS_MULTIPLIER);
+            let gas = gas_estimation.adjust_gas(multiplier);
+
+            debug!("Gas estimation: {}", gas_estimation);
+            debug!("Multiplying the estimation by {}", multiplier);
+            debug!("Final gas limit used: {}", gas);
+
+            let fee = self.gas_price() * gas;
+            Ok::<tx::Fee, NymdError>(tx::Fee::from_amount_and_gas(fee, gas))
+        };
         let fee = match fee {
             Fee::Manual(fee) => fee,
-            Fee::Auto(multiplier) => {
-                debug!("Trying to simulate gas costs...");
-                // from what I've seen in manual testing, gas estimation does not exist if transaction
-                // fails to get executed (for example if you send 'BondMixnode" with invalid signature)
-                let gas_estimation = self
-                    .simulate(signer_address, messages.to_vec(), memo.clone())
-                    .await?
-                    .gas_info
-                    .ok_or(NymdError::GasEstimationFailure)?
-                    .gas_used;
-
-                let multiplier = multiplier.unwrap_or(DEFAULT_SIMULATED_GAS_MULTIPLIER);
-                let gas = ((gas_estimation.value() as f32 * multiplier) as u64).into();
-
-                debug!("Gas estimation: {}", gas_estimation);
-                debug!("Multiplying the estimation by {}", multiplier);
-                debug!("Final gas limit used: {}", gas);
-
-                let fee = self.gas_price() * gas;
-                tx::Fee::from_amount_and_gas(fee, gas)
+            Fee::Auto(multiplier) => auto_fee(multiplier).await?,
+            Fee::PayerGranterAuto(auto_feegrant) => {
+                let mut fee = auto_fee(auto_feegrant.gas_adjustment).await?;
+                fee.payer = Some(auto_feegrant.payer);
+                fee.granter = Some(auto_feegrant.granter);
+                fee
             }
         };
         debug!("Fee used for the transaction: {:?}", fee);

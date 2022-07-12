@@ -6,6 +6,7 @@ use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
+    hardware::hardware,
     not_found,
     stats::stats,
     verloc::{verloc as verlocRoute, VerlocState},
@@ -140,7 +141,7 @@ impl MixNode {
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verlocRoute, description, stats])
+                .mount("/", routes![verlocRoute, description, stats, hardware])
                 .register("/", catchers![not_found])
                 .manage(verloc_state)
                 .manage(descriptor)
@@ -213,7 +214,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&self, shutdown: ShutdownListener) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -246,7 +247,8 @@ impl MixNode {
             .validator_api_urls(self.config.get_validator_api_endpoints())
             .build();
 
-        let mut verloc_measurer = VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair));
+        let mut verloc_measurer =
+            VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair), shutdown);
         let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
         tokio::spawn(async move { verloc_measurer.run().await });
         atomic_verloc_results
@@ -284,17 +286,7 @@ impl MixNode {
     }
 
     async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
-        if let Err(e) = tokio::signal::ctrl_c().await {
-            error!(
-                "There was an error while capturing SIGINT - {:?}. \
-                We will terminate regardless",
-                e
-            );
-        }
-        println!(
-            "Received SIGINT - the mixnode will terminate now \
-            (threads are not yet nicely stopped, if you see stack traces that's alright)."
-        );
+        wait_for_signal().await;
 
         log::info!("Sending shutdown");
         shutdown.signal_shutdown().ok();
@@ -331,12 +323,42 @@ impl MixNode {
             delay_forwarding_channel,
             shutdown.subscribe(),
         );
+        let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());
 
-        // TODO: these two also needs to be shutdown
-        let atomic_verloc_results = self.start_verloc_measurements();
+        // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
+        // with that of the rest of the tasks.
+        // Currently it's runtime is forcefully terminated once the mixnode exits.
         self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await
+    }
+}
+
+#[cfg(unix)]
+async fn wait_for_signal() {
+    use tokio::signal::unix::{signal, SignalKind};
+    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
+    let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            log::info!("Received SIGINT");
+        },
+        _ = sigterm.recv() => {
+            log::info!("Received SIGTERM");
+        }
+        _ = sigquit.recv() => {
+            log::info!("Received SIGQUIT");
+        }
+    }
+}
+
+#[cfg(not(unix))]
+async fn wait_for_signal() {
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            log::info!("Received SIGINT");
+        },
     }
 }

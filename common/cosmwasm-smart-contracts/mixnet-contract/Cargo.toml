@@ -17,9 +17,6 @@ thiserror = "1.0"
 contracts-common = { path = "../contracts-common" }
 
 # TO CHECK WHETHER STILL NEEDED:
-#network-defaults = { path = "../../network-defaults" }
-fixed = { version = "1.1", features = ["serde"] }
-az = "1.1"
 log = "0.4.14"
 ts-rs = "6.1.2"
 time = { version = "0.3.6", features = ["parsing", "formatting"] }

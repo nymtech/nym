@@ -23,7 +23,7 @@ use mixnet_contract_common::{
     GatewayOwnershipResponse, IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond,
     MixOwnershipResponse, MixnetContractVersion, MixnodeDetailsResponse,
     MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse, QueryMsg,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse, QueryMsg,
     RewardedSetUpdateDetails,
 };
 use serde::{Deserialize, Serialize};
@@ -806,7 +806,7 @@ impl<C> NymdClient<C> {
         mix_identity: IdentityKey,
         start_after: Option<(String, u64)>,
         page_limit: Option<u32>,
-    ) -> Result<PagedMixDelegationsResponse, NymdError>
+    ) -> Result<PagedMixNodeDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {

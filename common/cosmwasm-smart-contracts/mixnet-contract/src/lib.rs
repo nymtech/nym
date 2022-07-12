@@ -14,8 +14,6 @@ pub mod reward_params;
 pub mod rewarding;
 mod types;
 
-pub const MIXNODE_DELEGATORS_PAGE_LIMIT: usize = 250;
-
 pub use contracts_common::types::*;
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{
@@ -32,9 +30,3 @@ pub use mixnode::{
 };
 pub use msg::*;
 pub use types::*;
-
-pub type U128 = fixed::types::U75F53;
-
-fixed::const_fixed_from_int! {
-    const ONE: U128 = 1;
-}

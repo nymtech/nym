@@ -7,7 +7,7 @@ use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
-use crate::support::helpers::ensure_is_authorized;
+use crate::support::helpers::{ensure_is_authorized, ensure_is_owner};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::PendingIntervalEvent;
@@ -192,7 +192,7 @@ pub(crate) fn try_update_interval_config(
     epoch_duration_secs: u64,
     force_immediately: bool,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    ensure_is_owner(info.sender, deps.storage)?;
 
     let mut interval = storage::current_interval(deps.storage)?;
     if force_immediately || interval.is_current_interval_over(&env) {

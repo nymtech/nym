@@ -202,6 +202,18 @@ pub enum QueryMsg {
     },
     GetLayerDistribution {},
 
+    // gateway-related:
+    GetGateways {
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
+    },
+    GetGatewayBond {
+        identity: IdentityKey,
+    },
+    GetOwnedGateway {
+        address: String,
+    },
+
     // TODO: COMPLETELY NOT DEALT WITH YET
     GetCurrentOperatorCost {},
     GetAllDelegationKeys {},
@@ -211,18 +223,7 @@ pub enum QueryMsg {
         start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
-    GetGateways {
-        start_after: Option<IdentityKey>,
-        limit: Option<u32>,
-    },
 
-    OwnsGateway {
-        address: String,
-    },
-
-    GetGatewayBond {
-        identity: IdentityKey,
-    },
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {
         mix_identity: IdentityKey,

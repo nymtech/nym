@@ -1,18 +1,18 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use super::storage;
-// use crate::error::ContractError;
-// use cosmwasm_std::{Env, Order, StdResult, Storage};
-// use cw_storage_plus::Bound;
-// use mixnet_contract_common::{
-//     IdentityKey, Interval, PagedRewardedSetResponse, RewardedSetNodeStatus,
-//     RewardedSetUpdateDetails,
-// };
-//
-// pub fn query_current_epoch(storage: &dyn Storage) -> Result<Interval, ContractError> {
-//     storage::current_epoch(storage)
-// }
+use crate::interval::storage;
+use cosmwasm_std::{Deps, Env, StdResult};
+use mixnet_contract_common::{CurrentIntervalResponse, Interval};
+
+pub fn query_current_interval_details(
+    deps: Deps<'_>,
+    env: Env,
+) -> StdResult<CurrentIntervalResponse> {
+    let interval = storage::current_interval(deps.storage)?;
+
+    Ok(CurrentIntervalResponse::new(interval, env))
+}
 //
 // pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
 //     crate::constants::REWARDED_SET_REFRESH_BLOCKS

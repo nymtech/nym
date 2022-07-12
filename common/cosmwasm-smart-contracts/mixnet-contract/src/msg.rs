@@ -6,7 +6,7 @@ use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
     RewardingParams,
 };
-use crate::{ContractStateParams, NodeId, Percent};
+use crate::{delegation, ContractStateParams, NodeId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
@@ -218,37 +218,46 @@ pub enum QueryMsg {
         address: String,
     },
 
-    // TODO: COMPLETELY NOT DEALT WITH YET
-    GetCurrentOperatorCost {},
-    GetAllDelegationKeys {},
-    DebugGetAllDelegationValues {},
-    GetRewardedSet {
-        height: Option<u64>,
-        start_after: Option<IdentityKey>,
-        limit: Option<u32>,
-    },
-
+    // delegation-related:
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
         // since `start_after` is user-provided input, we can't use `Addr` as we
         // can't guarantee it's validated.
-        start_after: Option<(String, u64)>,
+        start_after: Option<String>,
         limit: Option<u32>,
     },
     // gets all [paged] delegations associated with particular delegator
     GetDelegatorDelegations {
-        // since `delegator` is user-provided input, we can't use `Addr` as we
-        // can't guarantee it's validated.
+        // since `delegator` and `proxy` are user-provided inputs, we can't use `Addr` as we
+        // can't guarantee they're validated.
         delegator: String,
-        start_after: Option<IdentityKey>,
+        proxy: Option<String>,
+        start_after: Option<NodeId>,
         limit: Option<u32>,
     },
     // gets delegation associated with particular mixnode, delegator pair
     GetDelegationDetails {
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
         delegator: String,
         proxy: Option<String>,
+    },
+    // gets all delegations in the system
+    GetAllDelegations {
+        start_after: Option<delegation::StorageKey>,
+        limit: Option<u32>,
+    },
+
+    //
+    //
+
+    // TODO: COMPLETELY NOT DEALT WITH YET
+    GetCurrentOperatorCost {},
+    GetAllDelegationKeys {},
+    GetRewardedSet {
+        height: Option<u64>,
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
     },
 
     GetRewardedSetUpdateDetails {},

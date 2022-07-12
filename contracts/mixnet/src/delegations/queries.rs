@@ -2,75 +2,145 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-// use crate::error::ContractError;
-// use cosmwasm_std::Order;
-// use cosmwasm_std::StdResult;
-// use cosmwasm_std::{Api, Deps, Storage};
-// use cw_storage_plus::{Bound, PrimaryKey};
-// use mixnet_contract_common::mixnode::DelegationEvent;
-// use mixnet_contract_common::{
-//     delegation, Delegation, IdentityKey, PagedDelegatorDelegationsResponse,
-//     PagedMixDelegationsResponse,
-// };
-//
-// pub(crate) fn query_pending_delegation_events(
-//     deps: Deps<'_>,
-//     owner_address: String,
-//     proxy_address: Option<String>,
-// ) -> Result<Vec<DelegationEvent>, ContractError> {
-//     let validated_owner = deps.api.addr_validate(&owner_address)?;
-//     let validated_proxy = proxy_address
-//         .map(|proxy| deps.api.addr_validate(&proxy))
-//         .transpose()?;
-//
-//     let key_prefix = delegation::generate_storage_key(&validated_owner, validated_proxy.as_ref());
-//
-//     Ok(storage::PENDING_DELEGATION_EVENTS
-//         .sub_prefix(key_prefix)
-//         .range(deps.storage, None, None, Order::Ascending)
-//         .filter_map(|r| r.ok())
-//         .map(|(_key, delegation_event)| delegation_event)
-//         .collect::<Vec<DelegationEvent>>())
-// }
-//
-// pub(crate) fn query_delegator_delegations_paged(
-//     deps: Deps<'_>,
-//     delegation_owner: String,
-//     start_after: Option<IdentityKey>,
-//     limit: Option<u32>,
-// ) -> StdResult<PagedDelegatorDelegationsResponse> {
-//     let validated_owner = deps.api.addr_validate(&delegation_owner)?;
-//
-//     let limit = limit
-//         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
-//         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-//     let start = start_after.map(|mix_identity| {
-//         Bound::ExclusiveRaw((mix_identity, validated_owner.clone()).joined_key())
-//     });
-//
-//     let delegations = storage::delegations()
-//         .idx
-//         .owner
-//         .prefix(validated_owner)
-//         .range_raw(deps.storage, start, None, Order::Ascending)
-//         .take(limit)
-//         .map(|record| record.map(|r| r.1))
-//         .collect::<StdResult<Vec<_>>>()?;
-//
-//     let start_next_after = if delegations.len() < limit {
-//         None
-//     } else {
-//         delegations
-//             .last()
-//             .map(|delegation| delegation.node_identity())
-//     };
-//
-//     Ok(PagedDelegatorDelegationsResponse::new(
-//         delegations,
-//         start_next_after,
-//     ))
-// }
-//
+use crate::constants::{
+    DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT, DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT,
+};
+use crate::mixnodes::storage as mixnodes_storage;
+use cosmwasm_std::Order;
+use cosmwasm_std::StdResult;
+use cosmwasm_std::{Api, Deps, Storage};
+use cw_storage_plus::{Bound, PrimaryKey};
+use mixnet_contract_common::delegation::MixNodeDelegationResponse;
+use mixnet_contract_common::{
+    delegation, Delegation, IdentityKey, NodeId, PagedAllDelegationsResponse,
+    PagedDelegatorDelegationsResponse, PagedMixNodeDelegationsResponse,
+};
+
+pub(crate) fn query_mixnode_delegations_paged(
+    deps: Deps<'_>,
+    mix_id: NodeId,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixNodeDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT)
+        .min(DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(|subkey| {
+        Bound::exclusive(Delegation::generate_storage_key_with_subkey(mix_id, subkey))
+    });
+
+    let delegations = storage::delegations()
+        .idx
+        .mixnode
+        .prefix(mix_id)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|record| record.map(|r| r.1))
+        .collect::<StdResult<Vec<Delegation>>>()?;
+
+    let start_next_after = delegations.last().map(|del| del.proxy_storage_key());
+
+    Ok(PagedMixNodeDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
+}
+
+pub(crate) fn query_delegator_delegations_paged(
+    deps: Deps<'_>,
+    delegation_owner: String,
+    proxy: Option<String>,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> StdResult<PagedDelegatorDelegationsResponse> {
+    let validated_owner = deps.api.addr_validate(&delegation_owner)?;
+    let validated_proxy = proxy
+        .map(|proxy| deps.api.addr_validate(&proxy))
+        .transpose()?;
+
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT)
+        .min(DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(|mix_id| {
+        Bound::exclusive(Delegation::generate_storage_key(
+            mix_id,
+            &validated_owner,
+            validated_proxy.as_ref(),
+        ))
+    });
+
+    // TODO: I don't know if I'm using the correct prefix here. Need some unit tests to verify it.
+    let delegations = storage::delegations()
+        .idx
+        .owner
+        .prefix(validated_owner)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|record| record.map(|r| r.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = delegations.last().map(|del| del.node_id);
+
+    Ok(PagedDelegatorDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
+}
+
+// queries for delegation value of given address for particular node
+pub(crate) fn query_mixnode_delegation(
+    deps: Deps<'_>,
+    mix_id: NodeId,
+    delegation_owner: String,
+    proxy: Option<String>,
+) -> StdResult<MixNodeDelegationResponse> {
+    let validated_owner = deps.api.addr_validate(&delegation_owner)?;
+    let validated_proxy = proxy
+        .map(|proxy| deps.api.addr_validate(&proxy))
+        .transpose()?;
+    let storage_key =
+        Delegation::generate_storage_key(mix_id, &validated_owner, validated_proxy.as_ref());
+
+    let delegation = storage::delegations().may_load(deps.storage, storage_key)?;
+
+    let mixnode_still_bonded = mixnodes_storage::mixnode_bonds()
+        .may_load(deps.storage, mix_id)?
+        .map(|bond| !bond.is_unbonding)
+        .unwrap_or_default();
+
+    Ok(MixNodeDelegationResponse::new(
+        delegation,
+        mixnode_still_bonded,
+    ))
+}
+
+pub(crate) fn query_all_delegations_paged(
+    deps: Deps<'_>,
+    start_after: Option<delegation::StorageKey>,
+    limit: Option<u32>,
+) -> StdResult<PagedAllDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT)
+        .min(DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let delegations = storage::delegations()
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = delegations.last().map(|del| del.storage_key());
+
+    Ok(PagedAllDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
+}
+
 // pub fn query_all_delegation_keys(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
 //     Ok(storage::delegations()
 //         .keys_raw(storage, None, None, Order::Ascending)
@@ -119,83 +189,7 @@ use super::storage;
 //     Ok(all_delegations)
 // }
 //
-// // queries for delegation value of given address for particular node
-// pub(crate) fn query_mixnode_delegation(
-//     storage: &dyn Storage,
-//     api: &dyn Api,
-//     mix_identity: IdentityKey,
-//     delegator: String,
-//     proxy: Option<String>,
-// ) -> Result<Vec<Delegation>, ContractError> {
-//     let validated_delegator = api.addr_validate(&delegator)?;
-//     let proxy = proxy.map(|p| api.addr_validate(&p)).transpose()?;
-//     let storage_key = (
-//         mix_identity.clone(),
-//         mixnet_contract_common::delegation::generate_storage_key(
-//             &validated_delegator,
-//             proxy.as_ref(),
-//         ),
-//     );
-//
-//     let delegations = storage::delegations()
-//         .prefix(storage_key)
-//         .range(storage, None, None, Order::Ascending)
-//         .filter_map(|d| d.ok())
-//         .map(|r| r.1)
-//         .collect::<Vec<Delegation>>();
-//
-//     if delegations.is_empty() {
-//         Err(ContractError::NoMixnodeDelegationFound {
-//             identity: mix_identity,
-//             address: delegator,
-//         })
-//     } else {
-//         Ok(delegations)
-//     }
-// }
-//
-// pub(crate) fn query_mixnode_delegations_paged(
-//     deps: Deps<'_>,
-//     mix_identity: IdentityKey,
-//     start_after: Option<(String, u64)>,
-//     limit: Option<u32>,
-// ) -> StdResult<PagedMixDelegationsResponse> {
-//     let limit = limit
-//         .unwrap_or(storage::DELEGATION_PAGE_DEFAULT_LIMIT)
-//         .min(storage::DELEGATION_PAGE_MAX_LIMIT) as usize;
-//
-//     let start = start_after.map(|(addr, height)| {
-//         Bound::exclusive((
-//             hex::decode(addr).expect("Could not hex decode proxy_storage_key"),
-//             height,
-//         ))
-//     });
-//
-//     let delegations = storage::delegations()
-//         .sub_prefix(mix_identity)
-//         .range(deps.storage, start, None, Order::Ascending)
-//         .take(limit)
-//         .filter_map(|r| r.ok())
-//         .map(|record| record.1)
-//         .collect::<Vec<Delegation>>();
-//
-//     let start_next_after = if delegations.len() < limit {
-//         None
-//     } else {
-//         delegations.last().map(|delegation| {
-//             (
-//                 hex::encode(delegation.proxy_storage_key()),
-//                 delegation.block_height(),
-//             )
-//         })
-//     };
-//
-//     Ok(PagedMixDelegationsResponse::new(
-//         delegations,
-//         start_next_after,
-//     ))
-// }
-//
+
 // #[cfg(test)]
 // pub(crate) mod tests {
 //     use super::*;

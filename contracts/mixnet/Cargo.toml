@@ -30,7 +30,6 @@ schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
 time = { version = "0.3", features = ["macros"] }
-hex = "0.4.3"
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"

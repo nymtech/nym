@@ -328,37 +328,44 @@ pub fn query(
             &crate::gateways::queries::query_owned_gateway(deps, address)?,
         ),
 
-        // QueryMsg::GetMixnodeDelegations {
-        //     mix_identity,
-        //     start_after,
-        //     limit,
-        // } => to_binary(&query_mixnode_delegations_paged(
-        //     deps,
-        //     mix_identity,
-        //     start_after,
-        //     limit,
-        // )?),
-        // QueryMsg::GetDelegatorDelegations {
-        //     delegator: delegation_owner,
-        //     start_after,
-        //     limit,
-        // } => to_binary(&query_delegator_delegations_paged(
-        //     deps,
-        //     delegation_owner,
-        //     start_after,
-        //     limit,
-        // )?),
-        // QueryMsg::GetDelegationDetails {
-        //     mix_identity,
-        //     delegator,
-        //     proxy,
-        // } => to_binary(&query_mixnode_delegation(
-        //     deps.storage,
-        //     deps.api,
-        //     mix_identity,
-        //     delegator,
-        //     proxy,
-        // )?),
+        // delegation-related:
+        QueryMsg::GetMixnodeDelegations {
+            mix_id,
+            start_after,
+            limit,
+        } => to_binary(
+            &crate::delegations::queries::query_mixnode_delegations_paged(
+                deps,
+                mix_id,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetDelegatorDelegations {
+            delegator,
+            proxy,
+            start_after,
+            limit,
+        } => to_binary(
+            &crate::delegations::queries::query_delegator_delegations_paged(
+                deps,
+                delegator,
+                proxy,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetDelegationDetails {
+            mix_id,
+            delegator,
+            proxy,
+        } => to_binary(&crate::delegations::queries::query_mixnode_delegation(
+            deps, mix_id, delegator, proxy,
+        )?),
+        QueryMsg::GetAllDelegations { start_after, limit } => to_binary(
+            &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
+        ),
+
         // QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
         // QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
         // QueryMsg::GetStakingSupply {} => to_binary(&query_staking_supply(deps)?),

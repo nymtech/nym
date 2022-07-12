@@ -5,7 +5,7 @@ use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::bonding_queries::query_owns_mixnode;
+use crate::mixnodes::bonding_queries::query_owned_mixnode;
 use crate::mixnodes::helpers::{
     cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_owner, save_new_mixnode,
 };

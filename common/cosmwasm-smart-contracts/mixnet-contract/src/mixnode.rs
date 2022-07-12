@@ -470,6 +470,7 @@ impl From<Layer> for String {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct UnbondedMixnode {
     pub identity: IdentityKey,
+    pub owner: Addr,
     pub unbonding_height: u64,
 }
 
@@ -568,19 +569,36 @@ impl Display for MixNodeBond {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedMixnodeResponse {
+pub struct PagedMixnodeBondsResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
-    pub start_next_after: Option<IdentityKey>,
+    pub start_next_after: Option<NodeId>,
 }
 
-impl PagedMixnodeResponse {
+impl PagedMixnodeBondsResponse {
+    pub fn new(nodes: Vec<MixNodeBond>, per_page: usize, start_next_after: Option<NodeId>) -> Self {
+        PagedMixnodeBondsResponse {
+            nodes,
+            per_page,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedMixnodesDetailsResponse {
+    pub nodes: Vec<MixNodeDetails>,
+    pub per_page: usize,
+    pub start_next_after: Option<NodeId>,
+}
+
+impl PagedMixnodesDetailsResponse {
     pub fn new(
-        nodes: Vec<MixNodeBond>,
+        nodes: Vec<MixNodeDetails>,
         per_page: usize,
-        start_next_after: Option<IdentityKey>,
+        start_next_after: Option<NodeId>,
     ) -> Self {
-        PagedMixnodeResponse {
+        PagedMixnodesDetailsResponse {
             nodes,
             per_page,
             start_next_after,
@@ -595,10 +613,17 @@ pub struct MixOwnershipResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct MixnodeBondResponse {
-    pub identity: IdentityKey,
-    pub mixnode_details: Option<MixNodeBond>,
+pub struct MixnodeDetailsResponse {
+    pub mix_id: NodeId,
+    pub mixnode_details: Option<MixNodeDetails>,
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct UnbondedMixnodeResponse {
+    pub mix_id: NodeId,
+    pub unbonded_info: Option<UnbondedMixnode>,
+}
+
 //
 // #[cfg(test)]
 // mod tests {

@@ -19,9 +19,9 @@ use mixnet_contract_common::mixnode::DelegationEvent;
 use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
     GatewayOwnershipResponse, IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond,
-    MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
+    MixOwnershipResponse, MixnetContractVersion, MixnodeDetailsResponse,
     MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
+    PagedMixDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse, QueryMsg,
     RewardedSetUpdateDetails,
 };
 use serde::Serialize;
@@ -704,7 +704,7 @@ impl<C> NymdClient<C> {
         &self,
         start_after: Option<IdentityKey>,
         page_limit: Option<u32>,
-    ) -> Result<PagedMixnodeResponse, NymdError>
+    ) -> Result<PagedMixnodeBondsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import {
-  IconButton,
   Paper,
   Table,
   TableBody,
@@ -12,15 +11,13 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { Box } from '@mui/system';
-import { styled, useTheme, Theme } from '@mui/material/styles';
-import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useTheme, Theme } from '@mui/material/styles';
+import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
 import { cellStyles } from '../../Universal-DataGrid';
 import { UniversalTableProps } from '../../DetailTable';
 
-const tooltipBackGroundColor = '#A0AED1';
 const threshold = 100;
 
 const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
@@ -83,16 +80,6 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
 }) => {
   const theme = useTheme();
 
-  const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
-    <Tooltip {...props} classes={{ popper: className }} />
-  ))({
-    [`& .${tooltipClasses.tooltip}`]: {
-      maxWidth: 230,
-      background: tooltipBackGroundColor,
-      color: theme.palette.nym.networkExplorer.nav.hover,
-    },
-  });
-
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label={tableName}>
@@ -103,34 +90,15 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {tooltipInfo && (
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CustomTooltip
+                      <Tooltip
                         title={tooltipInfo}
                         id={field}
                         placement="top-start"
-                        sx={{
-                          '& .MuiTooltip-arrow': {
-                            color: '#A0AED1',
-                          },
-                        }}
+                        textColor={theme.palette.nym.networkExplorer.tooltip.color}
+                        bgColor={theme.palette.nym.networkExplorer.tooltip.background}
+                        maxWidth={230}
                         arrow
-                      >
-                        <IconButton
-                          sx={{
-                            padding: 0,
-                            py: 1,
-                            pr: 1,
-                          }}
-                          disableFocusRipple
-                          disableRipple
-                        >
-                          <InfoOutlinedIcon
-                            sx={{
-                              height: '18px',
-                              width: '18px',
-                            }}
-                          />
-                        </IconButton>
-                      </CustomTooltip>
+                      />
                     </Box>
                   )}
                   {title}

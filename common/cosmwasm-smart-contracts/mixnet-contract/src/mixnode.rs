@@ -607,6 +607,27 @@ impl PagedMixnodesDetailsResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedUnbondedMixnodesResponse {
+    pub nodes: Vec<(NodeId, UnbondedMixnode)>,
+    pub per_page: usize,
+    pub start_next_after: Option<NodeId>,
+}
+
+impl PagedUnbondedMixnodesResponse {
+    pub fn new(
+        nodes: Vec<(NodeId, UnbondedMixnode)>,
+        per_page: usize,
+        start_next_after: Option<NodeId>,
+    ) -> Self {
+        PagedUnbondedMixnodesResponse {
+            nodes,
+            per_page,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixOwnershipResponse {
     pub address: Addr,
     pub mixnode_details: Option<MixNodeDetails>,

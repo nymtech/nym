@@ -5,13 +5,15 @@ use super::storage;
 use crate::constants::{
     MIXNODE_BOND_DEFAULT_RETRIEVAL_LIMIT, MIXNODE_BOND_MAX_RETRIEVAL_LIMIT,
     MIXNODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT, MIXNODE_DETAILS_MAX_RETRIEVAL_LIMIT,
+    UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT, UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT,
 };
 use crate::mixnodes::helpers::{get_mixnode_details_by_id, get_mixnode_details_by_owner};
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{
-    MixNodeBond, MixNodeDetails, PagedMixnodesDetailsResponse, UnbondedMixnodeResponse,
+    MixNodeBond, MixNodeDetails, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
+    UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
     MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedMixnodeBondsResponse,
@@ -79,6 +81,31 @@ pub fn query_mixnodes_details_paged(
     let start_next_after = nodes.last().map(|details| details.mix_id());
 
     Ok(PagedMixnodesDetailsResponse::new(
+        nodes,
+        limit,
+        start_next_after,
+    ))
+}
+
+pub fn query_unbonded_mixnodes_paged(
+    deps: Deps<'_>,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> StdResult<PagedUnbondedMixnodesResponse> {
+    let limit = limit
+        .unwrap_or(UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT)
+        .min(UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::UNBONDED_MIXNODES
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = nodes.last().map(|res| res.0);
+
+    Ok(PagedUnbondedMixnodesResponse::new(
         nodes,
         limit,
         start_next_after,

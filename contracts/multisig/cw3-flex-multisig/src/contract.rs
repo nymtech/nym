@@ -20,7 +20,7 @@ use network_defaults::DEFAULT_NETWORK;
 
 use crate::error::ContractError;
 use crate::state::{Config, CONFIG};
-use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw3-flex-multisig";
@@ -59,6 +59,14 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &cfg)?;
 
     Ok(Response::default())
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    let mut cfg = CONFIG.load(deps.storage)?;
+    cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
+    CONFIG.save(deps.storage, &cfg)?;
+    Ok(Default::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

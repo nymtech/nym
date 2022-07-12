@@ -37,15 +37,12 @@ pub(crate) const PENDING_EPOCH_EVENTS: Map<EventId, PendingEpochEvent> =
 pub(crate) const PENDING_INTERVAL_EVENTS: Map<EventId, PendingIntervalEvent> =
     Map::new(PENDING_INTERVAL_EVENTS_NAMESPACE);
 
-pub(crate) fn current_interval(storage: &dyn Storage) -> Result<Interval, MixnetContractError> {
-    Ok(CURRENT_INTERVAL.load(storage)?)
+pub(crate) fn current_interval(storage: &dyn Storage) -> StdResult<Interval> {
+    CURRENT_INTERVAL.load(storage)
 }
 
-pub(crate) fn save_interval(
-    storage: &mut dyn Storage,
-    interval: &Interval,
-) -> Result<(), MixnetContractError> {
-    Ok(CURRENT_INTERVAL.save(storage, interval)?)
+pub(crate) fn save_interval(storage: &mut dyn Storage, interval: &Interval) -> StdResult<()> {
+    CURRENT_INTERVAL.save(storage, interval)
 }
 
 pub(crate) fn next_epoch_event_id_counter(store: &mut dyn Storage) -> StdResult<EventId> {

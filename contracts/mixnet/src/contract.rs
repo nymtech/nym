@@ -285,6 +285,9 @@ pub fn query(
         QueryMsg::GetRewardingParams {} => {
             to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
         }
+        QueryMsg::GetCurrentIntervalDetails {} => to_binary(
+            &crate::interval::queries::query_current_interval_details(deps, env)?,
+        ),
 
         // mixnode-related:
         QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(

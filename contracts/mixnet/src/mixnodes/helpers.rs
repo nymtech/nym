@@ -115,12 +115,14 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
     }
 
     let identity = current_details.bond_information.identity().to_owned();
+    let owner = current_details.bond_information.owner().to_owned();
     // save minimal information about this mixnode
     storage::UNBONDED_MIXNODES.save(
         storage,
         node_id,
         &UnbondedMixnode {
             identity,
+            owner,
             unbonding_height: env.block.height,
         },
     )?;

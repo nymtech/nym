@@ -1,70 +1,91 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage::{self};
-use crate::mixnodes::helpers::get_mixnode_details_by_owner;
-use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::MixOwnershipResponse;
+use super::storage;
+use crate::constants::{
+    MIXNODE_BOND_DEFAULT_RETRIEVAL_LIMIT, MIXNODE_BOND_MAX_RETRIEVAL_LIMIT,
+    MIXNODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT, MIXNODE_DETAILS_MAX_RETRIEVAL_LIMIT,
+};
+use crate::mixnodes::helpers::{get_mixnode_details_by_id, get_mixnode_details_by_owner};
+use crate::rewards::storage as rewards_storage;
+use cosmwasm_std::{Deps, Order, StdResult, Storage};
+use cw_storage_plus::Bound;
+use mixnet_contract_common::mixnode::{
+    MixNodeBond, MixNodeDetails, PagedMixnodesDetailsResponse, UnbondedMixnodeResponse,
+};
+use mixnet_contract_common::{
+    MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedMixnodeBondsResponse,
+};
 
-// use cosmwasm_std::{Deps, Order, StdResult};
-// use cw_storage_plus::Bound;
-// use mixnet_contract_common::{
-//     IdentityKey, MixNodeBond, MixOwnershipResponse, MixnodeBondResponse, PagedMixnodeResponse,
-// };
-//
-// pub fn query_mixnode_at_height(
-//     deps: Deps<'_>,
-//     mix_identity: String,
-//     height: u64,
-// ) -> StdResult<Option<StoredMixnodeBond>> {
-//     storage::mixnodes().may_load_at_height(deps.storage, &mix_identity, height)
-// }
-//
-// pub fn query_checkpoints_for_mixnode(
-//     deps: Deps<'_>,
-//     mix_identity: IdentityKey,
-// ) -> StdResult<Vec<u64>> {
-//     Ok(storage::mixnodes()
-//         .changelog()
-//         .prefix(&mix_identity)
-//         .keys(deps.storage, None, None, Order::Ascending)
-//         .filter_map(|x| x.ok())
-//         .collect())
-// }
-//
-// pub fn query_mixnodes_paged(
-//     deps: Deps<'_>,
-//     start_after: Option<IdentityKey>,
-//     limit: Option<u32>,
-// ) -> StdResult<PagedMixnodeResponse> {
-//     let limit = limit
-//         .unwrap_or(storage::BOND_PAGE_DEFAULT_LIMIT)
-//         .min(storage::BOND_PAGE_MAX_LIMIT) as usize;
-//
-//     let start = start_after.as_deref().map(Bound::exclusive);
-//
-//     let nodes = storage::mixnodes()
-//         .range(deps.storage, start, None, Order::Ascending)
-//         .take(limit)
-//         .map(|res| res.map(|item| item.1))
-//         .map(|stored_bond| {
-//             // I really don't like this additional read per entry, but I don't see an obvious way to remove it
-//             stored_bond.map(|stored_bond| {
-//                 let total_delegation =
-//                     storage::TOTAL_DELEGATION.load(deps.storage, stored_bond.identity());
-//                 total_delegation
-//                     .map(|total_delegation| stored_bond.attach_delegation(total_delegation))
-//             })
-//         })
-//         .collect::<StdResult<StdResult<Vec<MixNodeBond>>>>()??;
-//
-//     let start_next_after = nodes.last().map(|node| node.identity().clone());
-//
-//     Ok(PagedMixnodeResponse::new(nodes, limit, start_next_after))
-// }
+pub fn query_mixnode_bonds_paged(
+    deps: Deps<'_>,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixnodeBondsResponse> {
+    let limit = limit
+        .unwrap_or(MIXNODE_BOND_DEFAULT_RETRIEVAL_LIMIT)
+        .min(MIXNODE_BOND_MAX_RETRIEVAL_LIMIT) as usize;
 
-pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwnershipResponse> {
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::mixnode_bonds()
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<MixNodeBond>>>()?;
+
+    let start_next_after = nodes.last().map(|node| node.id);
+
+    Ok(PagedMixnodeBondsResponse::new(
+        nodes,
+        limit,
+        start_next_after,
+    ))
+}
+
+fn attach_rewarding_info(
+    storage: &dyn Storage,
+    read_bond: StdResult<(NodeId, MixNodeBond)>,
+) -> StdResult<MixNodeDetails> {
+    match read_bond {
+        Ok((_, bond)) => {
+            // if we managed to read the bond we MUST be able to also read rewarding information.
+            // if we fail, this is a hard error and the query should definitely fail and we should investigate
+            // the reasons for that.
+            let mix_rewarding = rewards_storage::MIXNODE_REWARDING.load(storage, bond.id)?;
+            Ok(MixNodeDetails::new(bond, mix_rewarding))
+        }
+        Err(err) => Err(err),
+    }
+}
+
+pub fn query_mixnodes_details_paged(
+    deps: Deps<'_>,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixnodesDetailsResponse> {
+    let limit = limit
+        .unwrap_or(MIXNODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT)
+        .min(MIXNODE_DETAILS_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::mixnode_bonds()
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| attach_rewarding_info(deps.storage, res))
+        .collect::<StdResult<Vec<MixNodeDetails>>>()?;
+
+    let start_next_after = nodes.last().map(|details| details.mix_id());
+
+    Ok(PagedMixnodesDetailsResponse::new(
+        nodes,
+        limit,
+        start_next_after,
+    ))
+}
+
+pub fn query_owned_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;
     let mixnode_details = get_mixnode_details_by_owner(deps.storage, validated_addr.clone())?;
 
@@ -74,12 +95,27 @@ pub fn query_owns_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwner
     })
 }
 
-// pub fn query_mixnode_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<MixnodeBondResponse> {
-//     Ok(MixnodeBondResponse {
-//         mixnode: storage::read_full_mixnode_bond(deps.storage, &identity)?,
-//         identity,
-//     })
-// }
+pub fn query_mixnode_details(deps: Deps<'_>, mix_id: NodeId) -> StdResult<MixnodeDetailsResponse> {
+    let mixnode_details = get_mixnode_details_by_id(deps.storage, mix_id)?;
+
+    Ok(MixnodeDetailsResponse {
+        mix_id,
+        mixnode_details,
+    })
+}
+
+pub fn query_unbonded_mixnode(
+    deps: Deps<'_>,
+    mix_id: NodeId,
+) -> StdResult<UnbondedMixnodeResponse> {
+    let unbonded_info = storage::UNBONDED_MIXNODES.may_load(deps.storage, mix_id)?;
+
+    Ok(UnbondedMixnodeResponse {
+        mix_id,
+        unbonded_info,
+    })
+}
+
 //
 // #[cfg(test)]
 // pub(crate) mod tests {

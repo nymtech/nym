@@ -36,8 +36,15 @@ pub const INITIAL_GATEWAY_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
 pub const INITIAL_MIXNODE_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
 
 // retrieval limits
+// TODO: those would need to be empirically verified whether they're not way too small or way too high
 pub const GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT: u32 = 50;
 pub const GATEWAY_BOND_MAX_RETRIEVAL_LIMIT: u32 = 75;
+
+pub const MIXNODE_BOND_DEFAULT_RETRIEVAL_LIMIT: u32 = 50;
+pub const MIXNODE_BOND_MAX_RETRIEVAL_LIMIT: u32 = 75;
+
+pub const MIXNODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT: u32 = 30;
+pub const MIXNODE_DETAILS_MAX_RETRIEVAL_LIMIT: u32 = 50;
 
 // storage keys
 pub(crate) const DELEGATION_PK_NAMESPACE: &str = "dl";

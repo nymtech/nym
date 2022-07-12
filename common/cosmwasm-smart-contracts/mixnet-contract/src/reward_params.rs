@@ -1,4 +1,4 @@
-use crate::{error::MixnetContractError, Percent, ONE, U128};
+use crate::{error::MixnetContractError, Percent};
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -744,7 +744,6 @@ dependencies = [
  "az",
  "bytemuck",
  "half",
- "serde",
  "typenum",
 ]
 
@@ -1076,11 +1075,9 @@ dependencies = [
 name = "mixnet-contract-common"
 version = "0.1.0"
 dependencies = [
- "az",
  "bs58",
  "contracts-common",
  "cosmwasm-std",
- "fixed",
  "log",
  "schemars",
  "serde",

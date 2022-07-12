@@ -95,7 +95,7 @@ const Unbond = ({ node, show, onClose }: Props) => {
         onCancel={reset}
         bond={node.bond}
         rewards={nodeType === 'mixnode' ? (node as BondedMixnode).operatorRewards : undefined}
-        fee={fee?.amount as MajorCurrencyAmount}
+        fee={fee?.amount}
       />
       {status === 'success' && (
         <ConfirmationModal

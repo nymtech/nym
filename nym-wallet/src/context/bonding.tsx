@@ -283,6 +283,7 @@ export const BondingContextProvider = ({
     let tx;
     setLoading(true);
     try {
+      // TODO use estimated fee, need requests update
       if (isVesting) tx = await updateMixnodeRequest(pm);
       if (!isVesting) tx = await updateMixnodeVestingRequest(pm);
     } catch (e: any) {
@@ -297,7 +298,7 @@ export const BondingContextProvider = ({
     let tx;
     setLoading(true);
     try {
-      tx = await claimOperatorRewards(); // TODO use fee, need a new request
+      tx = await claimOperatorRewards(); // TODO use estimated fee, update `claimOperatorRewards`
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
@@ -310,7 +311,7 @@ export const BondingContextProvider = ({
     let tx;
     setLoading(true);
     try {
-      tx = await compoundOperatorRewards(); // TODO use fee, need a new request
+      tx = await compoundOperatorRewards(); // TODO use estimated fee, update `compoundOperatorRewards`
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {

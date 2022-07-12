@@ -26,7 +26,7 @@ const headers: Header[] = [
   {
     header: 'Stake saturation',
     id: 'stake-saturation',
-    tooltip: 'TODO',
+    tooltip: 'TODO', // TODO
   },
   {
     header: 'PM',

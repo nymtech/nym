@@ -4,13 +4,15 @@
 use crate::constants::{
     EPOCH_EVENTS_DEFAULT_RETRIEVAL_LIMIT, EPOCH_EVENTS_MAX_RETRIEVAL_LIMIT,
     INTERVAL_EVENTS_DEFAULT_RETRIEVAL_LIMIT, INTERVAL_EVENTS_MAX_RETRIEVAL_LIMIT,
+    REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT, REWARDED_SET_MAX_RETRIEVAL_LIMIT,
 };
 use crate::interval::storage;
 use crate::interval::storage::EventId;
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, Interval, PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    CurrentIntervalResponse, NodeId, PagedRewardedSetResponse, PendingEpochEventsResponse,
+    PendingIntervalEventsResponse,
 };
 
 pub fn query_current_interval_details(
@@ -20,6 +22,30 @@ pub fn query_current_interval_details(
     let interval = storage::current_interval(deps.storage)?;
 
     Ok(CurrentIntervalResponse::new(interval, env))
+}
+
+pub fn query_rewarded_set_paged(
+    deps: Deps<'_>,
+    limit: Option<u32>,
+    start_after: Option<NodeId>,
+) -> StdResult<PagedRewardedSetResponse> {
+    let limit = limit
+        .unwrap_or(REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT)
+        .min(REWARDED_SET_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::REWARDED_SET
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = nodes.last().map(|node| node.0);
+
+    Ok(PagedRewardedSetResponse {
+        nodes,
+        start_next_after,
+    })
 }
 
 pub fn query_pending_epoch_events_paged(

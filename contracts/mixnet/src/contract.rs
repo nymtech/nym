@@ -288,7 +288,9 @@ pub fn query(
         QueryMsg::GetCurrentIntervalDetails {} => to_binary(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
         ),
-        QueryMsg::GetRewardedSet { .. } => todo!(),
+        QueryMsg::GetRewardedSet { limit, start_after } => to_binary(
+            &crate::interval::queries::query_rewarded_set_paged(deps, limit, start_after)?,
+        ),
 
         // mixnode-related:
         QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(

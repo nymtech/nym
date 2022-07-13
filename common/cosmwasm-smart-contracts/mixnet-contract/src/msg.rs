@@ -181,9 +181,10 @@ pub enum QueryMsg {
     GetState {},
     GetRewardingParams {},
     GetCurrentIntervalDetails {},
-
-    // TODO: implement
-    GetRewardedSet {},
+    GetRewardedSet {
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    },
 
     // mixnode-related:
     GetMixNodeBonds {

@@ -8,7 +8,7 @@ use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
 use crate::{Delegation, IdentityKey, NodeId, Percent, SphinxKey};
-use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -56,6 +56,11 @@ impl MixNodeDetails {
 
     pub fn original_pledge(&self) -> &Coin {
         &self.bond_information.original_pledge
+    }
+
+    pub fn pending_operator_reward(&self) -> Coin {
+        let pledge = self.original_pledge();
+        self.rewarding_details.pending_operator_reward(pledge)
     }
 }
 
@@ -123,8 +128,21 @@ impl MixNodeRewarding {
         self.operator != Decimal::zero()
     }
 
+    pub fn pending_operator_reward(&self, original_pledge: &Coin) -> Coin {
+        let reward_with_pledge = truncate_reward(self.operator, &original_pledge.denom);
+        Coin {
+            denom: reward_with_pledge.denom,
+            amount: reward_with_pledge.amount - original_pledge.amount,
+        }
+    }
+
     pub fn operator_pledge_with_reward(&self, denom: impl Into<String>) -> Coin {
         truncate_reward(self.operator, denom)
+    }
+
+    pub fn pending_delegator_reward(&self, delegation: &Delegation) -> Coin {
+        let delegator_reward = self.determine_delegation_reward(delegation);
+        truncate_reward(delegator_reward, &delegation.amount.denom)
     }
 
     pub fn withdraw_operator_reward(&mut self, original_pledge: &Coin) -> Coin {

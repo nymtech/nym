@@ -34,8 +34,7 @@ mod error;
 mod impls;
 mod proofs;
 mod scheme;
-#[cfg(test)]
-mod tests;
+pub mod tests;
 mod traits;
 mod utils;
 

@@ -13,7 +13,7 @@ use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{
     MixNodeBond, MixNodeDetails, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
-    UnbondedMixnodeResponse,
+    StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
     MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedMixnodeBondsResponse,
@@ -140,6 +140,23 @@ pub fn query_unbonded_mixnode(
     Ok(UnbondedMixnodeResponse {
         mix_id,
         unbonded_info,
+    })
+}
+
+pub fn query_stake_saturation(
+    deps: Deps<'_>,
+    mix_id: NodeId,
+) -> StdResult<StakeSaturationResponse> {
+    let mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
+        Some(mix_rewarding) => mix_rewarding,
+        None => return Ok(StakeSaturationResponse::default()),
+    };
+
+    let rewarding_params = rewards_storage::REWARDING_PARAMS.load(deps.storage)?;
+
+    Ok(StakeSaturationResponse {
+        current_saturation: Some(mix_rewarding.bond_saturation(&rewarding_params)),
+        uncapped_saturation: Some(mix_rewarding.uncapped_bond_saturation(&rewarding_params)),
     })
 }
 

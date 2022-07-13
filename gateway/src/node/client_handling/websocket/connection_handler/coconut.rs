@@ -70,9 +70,9 @@ impl CoconutVerifier {
             })?
             .value
             .parse::<u64>()
-            .or(Err(RequestHandlingError::ProposalIdError {
+            .map_err(|_| RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal id could not be parsed to u64"),
-            }))?;
+            })?;
 
         let proposal = self.nymd_client.get_proposal(proposal_id).await?;
         if !credential.has_blinded_serial_number(&proposal.description)? {

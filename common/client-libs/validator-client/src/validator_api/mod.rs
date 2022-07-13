@@ -8,9 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-     VerificationKeyResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,

@@ -204,6 +204,9 @@ pub enum QueryMsg {
     GetMixnodeDetails {
         mix_id: NodeId,
     },
+    GetStakeSaturation {
+        mix_id: NodeId,
+    },
     GetUnbondedMixNodeInformation {
         mix_id: NodeId,
     },

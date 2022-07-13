@@ -1,9 +1,17 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{
+    EPOCH_EVENTS_DEFAULT_RETRIEVAL_LIMIT, EPOCH_EVENTS_MAX_RETRIEVAL_LIMIT,
+    INTERVAL_EVENTS_DEFAULT_RETRIEVAL_LIMIT, INTERVAL_EVENTS_MAX_RETRIEVAL_LIMIT,
+};
 use crate::interval::storage;
-use cosmwasm_std::{Deps, Env, StdResult};
-use mixnet_contract_common::{CurrentIntervalResponse, Interval};
+use crate::interval::storage::EventId;
+use cosmwasm_std::{Deps, Env, Order, StdResult};
+use cw_storage_plus::Bound;
+use mixnet_contract_common::{
+    CurrentIntervalResponse, Interval, PendingEpochEventsResponse, PendingIntervalEventsResponse,
+};
 
 pub fn query_current_interval_details(
     deps: Deps<'_>,
@@ -13,6 +21,67 @@ pub fn query_current_interval_details(
 
     Ok(CurrentIntervalResponse::new(interval, env))
 }
+
+pub fn query_pending_epoch_events_paged(
+    deps: Deps<'_>,
+    env: Env,
+    limit: Option<u32>,
+    start_after: Option<EventId>,
+) -> StdResult<PendingEpochEventsResponse> {
+    let interval = storage::current_interval(deps.storage)?;
+
+    let limit = limit
+        .unwrap_or(EPOCH_EVENTS_DEFAULT_RETRIEVAL_LIMIT)
+        .min(EPOCH_EVENTS_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let events = storage::PENDING_EPOCH_EVENTS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = events.last().map(|event| event.0);
+    // drop the id from the tuple since we don't care about it here
+    let events = events.into_iter().map(|e| e.1).collect();
+
+    Ok(PendingEpochEventsResponse {
+        seconds_until_executable: interval.secs_until_current_epoch_end(&env),
+        events,
+        start_next_after,
+    })
+}
+
+pub fn query_pending_interval_events_paged(
+    deps: Deps<'_>,
+    env: Env,
+    limit: Option<u32>,
+    start_after: Option<EventId>,
+) -> StdResult<PendingIntervalEventsResponse> {
+    let interval = storage::current_interval(deps.storage)?;
+
+    let limit = limit
+        .unwrap_or(INTERVAL_EVENTS_DEFAULT_RETRIEVAL_LIMIT)
+        .min(INTERVAL_EVENTS_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let events = storage::PENDING_INTERVAL_EVENTS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = events.last().map(|event| event.0);
+    // drop the id from the tuple since we don't care about it here
+    let events = events.into_iter().map(|e| e.1).collect();
+
+    Ok(PendingIntervalEventsResponse {
+        seconds_until_executable: interval.secs_until_current_interval_end(&env),
+        events,
+        start_next_after,
+    })
+}
+
 //
 // pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
 //     crate::constants::REWARDED_SET_REFRESH_BLOCKS

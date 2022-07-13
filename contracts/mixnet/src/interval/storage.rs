@@ -13,7 +13,7 @@ use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalE
 use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
 use std::collections::HashMap;
 
-type EventId = u32;
+pub(crate) type EventId = u32;
 
 pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new(CURRENT_INTERVAL_KEY);
 pub(crate) const REWARDED_SET: Map<NodeId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);

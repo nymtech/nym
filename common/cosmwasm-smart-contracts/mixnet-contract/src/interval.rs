@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use crate::{EpochId, IntervalId};
 use cosmwasm_std::Env;
 use schemars::gen::SchemaGenerator;
@@ -227,12 +228,30 @@ impl Interval {
         }
     }
 
+    #[inline]
     pub fn is_current_epoch_over(&self, env: &Env) -> bool {
         self.current_epoch_end_unix_timestamp() <= env.block.time.seconds() as i64
     }
 
+    pub fn secs_until_current_epoch_end(&self, env: &Env) -> i64 {
+        if self.is_current_epoch_over(env) {
+            0
+        } else {
+            self.current_epoch_end_unix_timestamp() - env.block.time.seconds() as i64
+        }
+    }
+
+    #[inline]
     pub fn is_current_interval_over(&self, env: &Env) -> bool {
         self.current_interval_end_unix_timestamp() <= env.block.time.seconds() as i64
+    }
+
+    pub fn secs_until_current_interval_end(&self, env: &Env) -> i64 {
+        if self.is_current_interval_over(env) {
+            0
+        } else {
+            self.current_interval_end_unix_timestamp() - env.block.time.seconds() as i64
+        }
     }
 
     pub fn current_epoch_in_progress(&self, env: &Env) -> bool {
@@ -346,11 +365,13 @@ impl Interval {
     }
 
     /// Returns the unix timestamp of the end of the current epoch.
+    #[inline]
     pub fn current_epoch_end_unix_timestamp(&self) -> i64 {
         self.current_epoch_end().unix_timestamp()
     }
 
     /// Returns the unix timestamp of the end of the current interval.
+    #[inline]
     pub fn current_interval_end_unix_timestamp(&self) -> i64 {
         self.current_interval_end().unix_timestamp()
     }
@@ -389,6 +410,48 @@ impl CurrentIntervalResponse {
             current_blocktime: env.block.time.seconds(),
             is_current_interval_over: interval.is_current_interval_over(&env),
             is_current_epoch_over: interval.is_current_epoch_over(&env),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PendingEpochEventsResponse {
+    pub seconds_until_executable: i64,
+    pub events: Vec<PendingEpochEvent>,
+    pub start_next_after: Option<u32>,
+}
+
+impl PendingEpochEventsResponse {
+    pub fn new(
+        seconds_until_executable: i64,
+        events: Vec<PendingEpochEvent>,
+        start_next_after: Option<u32>,
+    ) -> Self {
+        PendingEpochEventsResponse {
+            seconds_until_executable,
+            events,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PendingIntervalEventsResponse {
+    pub seconds_until_executable: i64,
+    pub events: Vec<PendingIntervalEvent>,
+    pub start_next_after: Option<u32>,
+}
+
+impl PendingIntervalEventsResponse {
+    pub fn new(
+        seconds_until_executable: i64,
+        events: Vec<PendingIntervalEvent>,
+        start_next_after: Option<u32>,
+    ) -> Self {
+        PendingIntervalEventsResponse {
+            seconds_until_executable,
+            events,
+            start_next_after,
         }
     }
 }

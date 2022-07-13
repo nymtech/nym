@@ -57,7 +57,7 @@ const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
     [gateway, theme, nodeMenuOpen],
   );
   return (
-    <BondedNodeCard title="Valhalla gateway" identityKey={gateway.key}>
+    <BondedNodeCard title="Valhalla gateway" identityKey={gateway.identityKey}>
       <NodeTable headers={headers} cells={cells} />
       <Unbond node={gateway} show={flow === 'unbond'} onClose={() => setFlow(null)} />
     </BondedNodeCard>

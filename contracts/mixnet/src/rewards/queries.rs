@@ -2,48 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use cosmwasm_std::{Coin, Deps, StdResult};
+use crate::delegations::storage as delegations_storage;
+use crate::mixnodes;
+use cosmwasm_std::{Deps, StdResult};
+use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::rewarding::PendingRewardResponse;
+use mixnet_contract_common::{Delegation, NodeId};
 
 pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
     storage::REWARDING_PARAMS.load(deps.storage)
 }
 
-pub fn query_pending_operator_reward(deps: Deps, owner: String) -> StdResult<Coin> {
-    todo!()
-    // let owner_address = deps.api.addr_validate(&owner)?;
-    // let bond = match crate::mixnodes::storage::mixnodes()
-    //     .idx
-    //     .owner
-    //     .item(deps.storage, owner_address.clone())?
-    // {
-    //     Some(record) => record.1,
-    //     None => {
-    //         // Return if bond does not exist
-    //         return Ok(Uint128::zero());
-    //     }
-    // };
-    //
-    // super::transactions::calculate_operator_reward(deps.storage, deps.api, &owner_address, &bond)
+fn pending_operator_reward(mix_details: Option<MixNodeDetails>) -> PendingRewardResponse {
+    match mix_details {
+        Some(mix_rewarding) => PendingRewardResponse {
+            amount_staked: Some(mix_rewarding.original_pledge().clone()),
+            amount_earned: Some(mix_rewarding.pending_operator_reward()),
+            mixnode_still_bonded: true,
+        },
+        None => PendingRewardResponse::default(),
+    }
 }
 
-pub fn query_pending_mixnode_operator_reward(deps: Deps, mix_id: NodeId) -> StdResult<Coin> {
-    todo!()
-    // let owner_address = deps.api.addr_validate(&owner)?;
-    // let bond = match crate::mixnodes::storage::mixnodes()
-    //     .idx
-    //     .owner
-    //     .item(deps.storage, owner_address.clone())?
-    // {
-    //     Some(record) => record.1,
-    //     None => {
-    //         // Return if bond does not exist
-    //         return Ok(Uint128::zero());
-    //     }
-    // };
-    //
-    // super::transactions::calculate_operator_reward(deps.storage, deps.api, &owner_address, &bond)
+pub fn query_pending_operator_reward(
+    deps: Deps,
+    owner: String,
+) -> StdResult<PendingRewardResponse> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    // in order to determine operator's reward we need to know its original pledge and thus
+    // we have to load the entire thing
+    let mix_details = mixnodes::helpers::get_mixnode_details_by_owner(deps.storage, owner_address)?;
+    Ok(pending_operator_reward(mix_details))
+}
+
+pub fn query_pending_mixnode_operator_reward(
+    deps: Deps,
+    mix_id: NodeId,
+) -> StdResult<PendingRewardResponse> {
+    // in order to determine operator's reward we need to know its original pledge and thus
+    // we have to load the entire thing
+    let mix_details = mixnodes::helpers::get_mixnode_details_by_id(deps.storage, mix_id)?;
+    Ok(pending_operator_reward(mix_details))
 }
 
 pub fn query_pending_delegator_reward(
@@ -51,22 +51,30 @@ pub fn query_pending_delegator_reward(
     owner: String,
     mix_id: NodeId,
     proxy: Option<String>,
-) -> StdResult<Coin> {
-    todo!()
-    // let proxy = match proxy {
-    //     Some(proxy) => Some(
-    //         deps.api
-    //             .addr_validate(&proxy)
-    //             .map_err(|_| ContractError::InvalidAddress(proxy))?,
-    //     ),
-    //     None => None,
-    // };
-    //
-    // let key = mixnet_contract_common::delegation::generate_storage_key(
-    //     &deps.api.addr_validate(&owner)?,
-    //     proxy.as_ref(),
-    // );
-    // super::transactions::calculate_delegator_reward(deps.storage, deps.api, key, &mix_identity)
+) -> StdResult<PendingRewardResponse> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    let proxy = proxy
+        .map(|proxy| deps.api.addr_validate(&proxy))
+        .transpose()?;
+
+    let mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
+        Some(mix_rewarding) => mix_rewarding,
+        None => return Ok(PendingRewardResponse::default()),
+    };
+
+    let storage_key = Delegation::generate_storage_key(mix_id, &owner_address, proxy.as_ref());
+    let delegation = match delegations_storage::delegations().may_load(deps.storage, storage_key)? {
+        Some(delegation) => delegation,
+        None => return Ok(PendingRewardResponse::default()),
+    };
+
+    let delegator_reward = mix_rewarding.pending_delegator_reward(&delegation);
+
+    Ok(PendingRewardResponse {
+        amount_staked: Some(delegation.amount),
+        amount_earned: Some(delegator_reward),
+        mixnode_still_bonded: mix_rewarding.still_bonded(),
+    })
 }
 
 //

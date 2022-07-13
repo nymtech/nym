@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Coin, Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -54,4 +54,11 @@ pub mod simulator;
 pub struct RewardDistribution {
     pub operator: Decimal,
     pub delegates: Decimal,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
+pub struct PendingRewardResponse {
+    pub amount_staked: Option<Coin>,
+    pub amount_earned: Option<Coin>,
+    pub mixnode_still_bonded: bool,
 }

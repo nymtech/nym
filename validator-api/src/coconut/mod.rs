@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) mod client;
+pub(crate) mod comm;
 mod deposit;
 pub(crate) mod error;
 #[cfg(test)]
@@ -22,7 +23,6 @@ use config::defaults::{MIX_DENOM, VALIDATOR_API_VERSION};
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
@@ -40,32 +40,35 @@ use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use url::Url;
+
+use self::comm::APICommunicationChannel;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
     key_pair: KeyPair,
-    validator_apis: Vec<Url>,
+    comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: ValidatorApiStorage,
     rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
-    pub(crate) fn new<C>(
+    pub(crate) fn new<C, D>(
         client: C,
         key_pair: KeyPair,
-        validator_apis: Vec<Url>,
+        comm_channel: D,
         storage: ValidatorApiStorage,
     ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
+        D: APICommunicationChannel + Send + Sync + 'static,
     {
         let client = Arc::new(client);
+        let comm_channel = Arc::new(comm_channel);
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
             client,
             key_pair,
-            validator_apis,
+            comm_channel,
             storage,
             rng,
         }
@@ -127,7 +130,7 @@ impl State {
     }
 
     pub async fn verification_key(&self) -> Result<VerificationKey> {
-        Ok(obtain_aggregate_verification_key(&self.validator_apis).await?)
+        self.comm_channel.aggregated_verification_key().await
     }
 }
 
@@ -155,16 +158,17 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage<C>(
+    pub fn stage<C, D>(
         client: C,
         key_pair: KeyPair,
-        validator_apis: Vec<Url>,
+        comm_channel: D,
         storage: ValidatorApiStorage,
     ) -> AdHoc
     where
         C: LocalClient + Send + Sync + 'static,
+        D: APICommunicationChannel + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, validator_apis, storage);
+        let state = State::new(client, key_pair, comm_channel, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...

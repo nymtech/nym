@@ -8,6 +8,7 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSIT_VALUE,
 };
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use coconut_interface::VerificationKey;
 use config::defaults::{DEFAULT_NETWORK, VOUCHER_INFO};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
@@ -93,6 +94,25 @@ impl super::client::Client for DummyClient {
     }
 }
 
+pub struct DummyCommunicationChannel {
+    aggregated_verification_key: VerificationKey,
+}
+
+impl DummyCommunicationChannel {
+    pub fn new(aggregated_verification_key: VerificationKey) -> Self {
+        DummyCommunicationChannel {
+            aggregated_verification_key,
+        }
+    }
+}
+
+#[async_trait]
+impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
+    async fn aggregated_verification_key(&self) -> Result<VerificationKey> {
+        Ok(self.aggregated_verification_key.clone())
+    }
+}
+
 pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
     TxResponse {
         hash: Hash::from_str(tx_hash).unwrap(),
@@ -124,11 +144,12 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
         &nymd_db,
     );
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        vec![],
+        comm_channel,
         storage,
     ));
 
@@ -214,11 +235,12 @@ async fn signed_before() {
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
         &nymd_db,
     );
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        vec![],
+        comm_channel,
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -281,7 +303,8 @@ async fn state_functions() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let state = State::new(nymd_client, key_pair, vec![], storage.clone());
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let state = State::new(nymd_client, key_pair, comm_channel, storage.clone());
 
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
     assert!(state.signed_before(&tx_hash).await.unwrap().is_none());
@@ -442,11 +465,12 @@ async fn blind_sign_correct() {
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
         &nymd_db,
     );
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        vec![],
+        comm_channel,
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -518,11 +542,12 @@ async fn signature_test() {
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
         &nymd_db,
     );
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        vec![],
+        comm_channel,
         storage.clone(),
     ));
     let client = Client::tracked(rocket)
@@ -585,10 +610,11 @@ async fn get_cosmos_address() {
         .remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         key_pair,
-        vec![],
+        comm_channel,
         storage.clone(),
     ));
     let client = Client::tracked(rocket)

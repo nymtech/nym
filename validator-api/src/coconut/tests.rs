@@ -8,7 +8,7 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSIT_VALUE,
 };
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use config::defaults::VOUCHER_INFO;
+use config::defaults::{DEFAULT_NETWORK, VOUCHER_INFO};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
@@ -20,12 +20,12 @@ use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
 };
 use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 use validator_client::validator_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
-    COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_COSMOS_ADDRESS,
+    COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL, COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
 };
 
 use crate::coconut::State;
@@ -40,20 +40,27 @@ use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 
 struct DummyClient {
+    validator_address: AccountId,
     db: Arc<RwLock<HashMap<String, TxResponse>>>,
 }
 
 impl DummyClient {
-    pub fn new(db: &Arc<RwLock<HashMap<String, TxResponse>>>) -> Self {
+    pub fn new(
+        validator_address: AccountId,
+        db: &Arc<RwLock<HashMap<String, TxResponse>>>,
+    ) -> Self {
         let db = Arc::clone(db);
-        Self { db }
+        Self {
+            validator_address,
+            db,
+        }
     }
 }
 
 #[async_trait]
 impl super::client::Client for DummyClient {
     async fn address(&self) -> AccountId {
-        todo!()
+        self.validator_address.clone()
     }
 
     async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse> {
@@ -113,7 +120,10 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
     db_dir.push(&verification_key.to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(&nymd_db);
+    let nymd_client = DummyClient::new(
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        &nymd_db,
+    );
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
@@ -200,7 +210,10 @@ async fn signed_before() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client = DummyClient::new(&nymd_db);
+    let nymd_client = DummyClient::new(
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        &nymd_db,
+    );
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
@@ -259,7 +272,10 @@ async fn signed_before() {
 #[tokio::test]
 async fn state_functions() {
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(&nymd_db);
+    let nymd_client = DummyClient::new(
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        &nymd_db,
+    );
     let params = Parameters::new(4).unwrap();
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
@@ -422,7 +438,10 @@ async fn blind_sign_correct() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client = DummyClient::new(&nymd_db);
+    let nymd_client = DummyClient::new(
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        &nymd_db,
+    );
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
@@ -495,7 +514,10 @@ async fn signature_test() {
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(&nymd_db);
+    let nymd_client = DummyClient::new(
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        &nymd_db,
+    );
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
@@ -549,4 +571,40 @@ async fn signature_test() {
         blinded_signature_response.to_bytes(),
         expected_response.to_bytes()
     );
+}
+
+#[tokio::test]
+async fn get_cosmos_address() {
+    let validator_address =
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap();
+    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
+    let nymd_client = DummyClient::new(validator_address.clone(), &nymd_db);
+    let mut db_dir = std::env::temp_dir();
+    let key_pair = ttp_keygen(&Parameters::new(4).unwrap(), 1, 1)
+        .unwrap()
+        .remove(0);
+    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nymd_client,
+        key_pair,
+        vec![],
+        storage.clone(),
+    ));
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
+
+    let response = client
+        .get(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_COSMOS_ADDRESS
+        ))
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+    let cosmos_addr_response =
+        serde_json::from_str::<CosmosAddressResponse>(&response.into_string().await.unwrap())
+            .unwrap();
+    assert_eq!(validator_address, cosmos_addr_response.addr);
 }

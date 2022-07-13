@@ -7,9 +7,12 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use coconut_interface::VerificationKey;
-use config::defaults::{DEFAULT_NETWORK, VOUCHER_INFO};
+use coconut_bandwidth_contract_common::spend_credential::{
+    SpendCredential, SpendCredentialResponse,
+};
+use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
+use config::defaults::{DEFAULT_NETWORK, MIX_DENOM, VOUCHER_INFO};
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
@@ -17,16 +20,20 @@ use credentials::coconut::params::{
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use multisig_contract_common::msg::ProposalResponse;
+use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
 };
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
+use validator_client::nymd::Coin;
 use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 use validator_client::validator_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_COSMOS_ADDRESS,
     COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL, COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
+    COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
 
 use crate::coconut::State;
@@ -40,20 +47,29 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 
+#[derive(Clone, Debug)]
 struct DummyClient {
     validator_address: AccountId,
-    db: Arc<RwLock<HashMap<String, TxResponse>>>,
+    tx_db: Arc<RwLock<HashMap<String, TxResponse>>>,
+    proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
+    spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 }
 
 impl DummyClient {
     pub fn new(
         validator_address: AccountId,
-        db: &Arc<RwLock<HashMap<String, TxResponse>>>,
+        tx_db: &Arc<RwLock<HashMap<String, TxResponse>>>,
+        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
+        spent_credential_db: &Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
     ) -> Self {
-        let db = Arc::clone(db);
+        let tx_db = Arc::clone(tx_db);
+        let proposal_db = Arc::clone(proposal_db);
+        let spent_credential_db = Arc::clone(spent_credential_db);
         Self {
             validator_address,
-            db,
+            tx_db,
+            proposal_db,
+            spent_credential_db,
         }
     }
 }
@@ -65,7 +81,7 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse> {
-        self.db
+        self.tx_db
             .read()
             .unwrap()
             .get(tx_hash)
@@ -73,27 +89,49 @@ impl super::client::Client for DummyClient {
             .ok_or(CoconutError::TxHashParseError)
     }
 
-    async fn get_proposal(&self, _proposal_id: u64) -> Result<ProposalResponse> {
-        todo!()
+    async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
+        self.proposal_db
+            .read()
+            .unwrap()
+            .get(&proposal_id)
+            .cloned()
+            .ok_or(CoconutError::IncorrectProposal {
+                reason: String::from("proposal not found"),
+            })
     }
 
     async fn get_spent_credential(
         &self,
-        _blinded_serial_number: String,
+        blinded_serial_number: String,
     ) -> Result<SpendCredentialResponse> {
-        todo!()
+        self.spent_credential_db
+            .read()
+            .unwrap()
+            .get(&blinded_serial_number)
+            .cloned()
+            .ok_or(CoconutError::InvalidCredentialStatus {
+                status: String::from("spent credential not found"),
+            })
     }
 
     async fn vote_proposal(
         &self,
-        _proposal_id: u64,
-        _vote_yes: bool,
+        proposal_id: u64,
+        vote_yes: bool,
         _fee: Option<Fee>,
     ) -> Result<()> {
-        todo!()
+        if let Some(proposal) = self.proposal_db.write().unwrap().get_mut(&proposal_id) {
+            if vote_yes {
+                proposal.status = cw3::Status::Passed;
+            } else {
+                proposal.status = cw3::Status::Rejected;
+            }
+        }
+        Ok(())
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct DummyCommunicationChannel {
     aggregated_verification_key: VerificationKey,
 }
@@ -139,10 +177,11 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&verification_key.to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
-        &nymd_db,
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
@@ -226,14 +265,16 @@ async fn signed_before() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
-    nymd_db
+    let tx_db = Arc::new(RwLock::new(HashMap::new()));
+    tx_db
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
     let nymd_client = DummyClient::new(
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
-        &nymd_db,
+        &tx_db,
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
@@ -293,10 +334,11 @@ async fn signed_before() {
 
 #[tokio::test]
 async fn state_functions() {
-    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
-        &nymd_db,
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
     );
     let params = Parameters::new(4).unwrap();
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
@@ -428,7 +470,7 @@ async fn blind_sign_correct() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
+    let tx_db = Arc::new(RwLock::new(HashMap::new()));
 
     let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
     tx_entry.tx_result.events.push(Event {
@@ -457,13 +499,15 @@ async fn blind_sign_correct() {
                 .unwrap(),
         },
     ];
-    nymd_db
+    tx_db
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
     let nymd_client = DummyClient::new(
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
-        &nymd_db,
+        &tx_db,
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
@@ -537,10 +581,11 @@ async fn signature_test() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
-        &nymd_db,
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
 
@@ -602,8 +647,12 @@ async fn signature_test() {
 async fn get_cosmos_address() {
     let validator_address =
         AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap();
-    let nymd_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(validator_address.clone(), &nymd_db);
+    let nymd_client = DummyClient::new(
+        validator_address.clone(),
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
+        &Arc::new(RwLock::new(HashMap::new())),
+    );
     let mut db_dir = std::env::temp_dir();
     let key_pair = ttp_keygen(&Parameters::new(4).unwrap(), 1, 1)
         .unwrap()
@@ -633,4 +682,320 @@ async fn get_cosmos_address() {
         serde_json::from_str::<CosmosAddressResponse>(&response.into_string().await.unwrap())
             .unwrap();
     assert_eq!(validator_address, cosmos_addr_response.addr);
+}
+
+#[tokio::test]
+async fn verification_of_bandwidth_credential() {
+    // Setup variables
+    let validator_address =
+        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap();
+    let proposal_db = Arc::new(RwLock::new(HashMap::new()));
+    let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
+    let nymd_client = DummyClient::new(
+        validator_address.clone(),
+        &Arc::new(RwLock::new(HashMap::new())),
+        &proposal_db,
+        &spent_credential_db,
+    );
+    let mut db_dir = std::env::temp_dir();
+    let params = Parameters::new(4).unwrap();
+    let mut key_pairs = ttp_keygen(&params, 1, 1).unwrap();
+    let voucher_value = 1234u64;
+    let voucher_info = "voucher info";
+    let public_attributes = vec![
+        hash_to_scalar(voucher_value.to_string()),
+        hash_to_scalar(voucher_info.to_string()),
+    ];
+    let theta = theta_from_keys_and_attributes(&params, &key_pairs, &public_attributes).unwrap();
+    let key_pair = key_pairs.remove(0);
+    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    let storage1 = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nymd_client.clone(),
+        key_pair,
+        comm_channel.clone(),
+        storage1.clone(),
+    ));
+
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
+
+    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string());
+    let proposal_id = 42;
+    // The address is not used, so we can use a duplicate
+    let gateway_cosmos_addr = validator_address.clone();
+    let req =
+        VerifyCredentialBody::new(credential.clone(), proposal_id, gateway_cosmos_addr.clone());
+
+    // Test endpoint with not proposal for the proposal id
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::IncorrectProposal {
+            reason: "proposal not found".to_string()
+        }
+        .to_string()
+    );
+
+    let mut proposal = ProposalResponse {
+        id: proposal_id,
+        title: String::new(),
+        description: String::from("25mnnoCcUfeizfC85avvroFg2prpEZBgJbJM2SLtkgyyUkoAU3cqJiqWmg8cMHEPjfFf5sQF92SMAM2vbEoLZvUjenvXhadTLdA4TqMYArJpihyqirW2AhGoNehtcdcK5gnH"),
+        msgs: vec![],
+        status: cw3::Status::Open,
+        expires: cw_utils::Expiration::Never {},
+        threshold: cw_utils::ThresholdResponse::AbsolutePercentage {
+            percentage: Decimal::from_ratio(2u32, 3u32),
+            total_weight: 100,
+        },
+    };
+
+    // Test the endpoint with a different blinded serial number in the description
+    proposal_db
+        .write()
+        .unwrap()
+        .insert(proposal_id, proposal.clone());
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::IncorrectProposal {
+            reason: "incorrect blinded serial number in description".to_string()
+        }
+        .to_string()
+    );
+
+    // Test the endpoint with no msg in the proposal action
+    proposal.description = credential.blinded_serial_number();
+    proposal_db
+        .write()
+        .unwrap()
+        .insert(proposal_id, proposal.clone());
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::IncorrectProposal {
+            reason: "action is not to release funds".to_string()
+        }
+        .to_string()
+    );
+
+    // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
+    let funds = Coin::new(voucher_value as u128, MIX_DENOM.base);
+    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+        funds: funds.clone().into(),
+    };
+    let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: String::new(),
+        msg: to_binary(&msg).unwrap(),
+        funds: vec![],
+    });
+    proposal.msgs = vec![cosmos_msg];
+    proposal_db
+        .write()
+        .unwrap()
+        .insert(proposal_id, proposal.clone());
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::InvalidCredentialStatus {
+            status: "spent credential not found".to_string()
+        }
+        .to_string()
+    );
+
+    spent_credential_db.write().unwrap().insert(
+        credential.blinded_serial_number(),
+        SpendCredentialResponse::new(None),
+    );
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::InvalidCredentialStatus {
+            status: "Inexistent".to_string()
+        }
+        .to_string()
+    );
+
+    // Test the endpoint with a credential that doesn't verify correctly
+    let mut spent_credential = SpendCredential::new(
+        funds.clone().into(),
+        credential.blinded_serial_number(),
+        Addr::unchecked("unimportant"),
+    );
+    spent_credential_db.write().unwrap().insert(
+        credential.blinded_serial_number(),
+        SpendCredentialResponse::new(Some(spent_credential.clone())),
+    );
+    let bad_credential = Credential::new(
+        4,
+        theta.clone(),
+        voucher_value,
+        String::from("bad voucher info"),
+    );
+    let bad_req =
+        VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&bad_req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+    let verify_credential_response =
+        serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
+            .unwrap();
+    assert!(!verify_credential_response.verification_result);
+    assert_eq!(
+        cw3::Status::Rejected,
+        proposal_db
+            .read()
+            .unwrap()
+            .get(&proposal_id)
+            .unwrap()
+            .status
+    );
+
+    // Test the endpoint with a proposal that has a different value for the funds to be released
+    // then what's in the credential
+    let funds = Coin::new((voucher_value + 10) as u128, MIX_DENOM.base);
+    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+        funds: funds.clone().into(),
+    };
+    let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: String::new(),
+        msg: to_binary(&msg).unwrap(),
+        funds: vec![],
+    });
+    proposal.msgs = vec![cosmos_msg];
+    proposal_db
+        .write()
+        .unwrap()
+        .insert(proposal_id, proposal.clone());
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+    let verify_credential_response =
+        serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
+            .unwrap();
+    assert!(!verify_credential_response.verification_result);
+    assert_eq!(
+        cw3::Status::Rejected,
+        proposal_db
+            .read()
+            .unwrap()
+            .get(&proposal_id)
+            .unwrap()
+            .status
+    );
+
+    // Test the endpoint with every dependency met
+    let funds = Coin::new(voucher_value as u128, MIX_DENOM.base);
+    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+        funds: funds.clone().into(),
+    };
+    let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: String::new(),
+        msg: to_binary(&msg).unwrap(),
+        funds: vec![],
+    });
+    proposal.msgs = vec![cosmos_msg];
+    proposal_db
+        .write()
+        .unwrap()
+        .insert(proposal_id, proposal.clone());
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+    let verify_credential_response =
+        serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
+            .unwrap();
+    assert!(verify_credential_response.verification_result);
+    assert_eq!(
+        cw3::Status::Passed,
+        proposal_db
+            .read()
+            .unwrap()
+            .get(&proposal_id)
+            .unwrap()
+            .status
+    );
+
+    // Test the endpoint with the credential marked as Spent in the Coconut Bandwidth Contract
+    spent_credential.mark_as_spent();
+    spent_credential_db.write().unwrap().insert(
+        credential.blinded_serial_number(),
+        SpendCredentialResponse::new(Some(spent_credential)),
+    );
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&req)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::InvalidCredentialStatus {
+            status: "Spent".to_string()
+        }
+        .to_string()
+    );
 }

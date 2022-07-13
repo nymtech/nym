@@ -82,3 +82,5 @@ vergen = { version = "5", default-features = false, features = ["build", "git", 
 [dev-dependencies]
 attohttpc = {version = "0.18.0", features = ["json"]}
 nymcoconut = { path = "../common/nymcoconut" }
+cw3 = "0.13.2"
+cw-utils = "0.13.2"

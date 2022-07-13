@@ -3299,6 +3299,8 @@ dependencies = [
  "credential-storage",
  "credentials",
  "crypto",
+ "cw-utils",
+ "cw3",
  "dirs",
  "dotenv",
  "futures",

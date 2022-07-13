@@ -193,6 +193,10 @@ impl MixNodeRewarding {
         }
     }
 
+    pub fn uncapped_bond_saturation(&self, reward_params: &RewardingParams) -> Decimal {
+        self.node_bond() / reward_params.interval.stake_saturation_point
+    }
+
     pub fn node_reward(
         &self,
         reward_params: &RewardingParams,
@@ -661,6 +665,12 @@ pub struct MixnodeDetailsResponse {
 pub struct UnbondedMixnodeResponse {
     pub mix_id: NodeId,
     pub unbonded_info: Option<UnbondedMixnode>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct StakeSaturationResponse {
+    pub current_saturation: Option<Decimal>,
+    pub uncapped_saturation: Option<Decimal>,
 }
 
 //

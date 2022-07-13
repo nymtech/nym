@@ -64,7 +64,7 @@ pub(crate) enum RequestHandlingError {
     EthContractError(#[from] web3::contract::Error),
 
     #[cfg(feature = "coconut")]
-    #[error("Validator API error")]
+    #[error("Validator API error - {0}")]
     APIError(#[from] validator_client::ValidatorClientError),
 
     #[cfg(feature = "coconut")]

@@ -9,7 +9,7 @@ use cw_storage_plus::Bound;
 
 use crate::storage::{self, SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT, SPEND_CREDENTIAL_PAGE_MAX_LIMIT};
 
-pub(crate) fn query_spent_credentials_paged(
+pub(crate) fn query_all_spent_credentials_paged(
     deps: Deps<'_>,
     start_after: Option<String>,
     limit: Option<u32>,
@@ -57,7 +57,8 @@ pub(crate) mod tests {
     #[test]
     fn spent_credentials_empty_on_init() {
         let deps = init_contract();
-        let response = query_spent_credentials_paged(deps.as_ref(), None, Option::from(2)).unwrap();
+        let response =
+            query_all_spent_credentials_paged(deps.as_ref(), None, Option::from(2)).unwrap();
         assert_eq!(0, response.spend_credentials.len());
     }
 
@@ -73,7 +74,7 @@ pub(crate) mod tests {
         }
 
         let page1 =
-            query_spent_credentials_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+            query_all_spent_credentials_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.spend_credentials.len() as u32);
     }
 
@@ -88,7 +89,7 @@ pub(crate) mod tests {
         }
 
         // query without explicitly setting a limit
-        let page1 = query_spent_credentials_paged(deps.as_ref(), None, None).unwrap();
+        let page1 = query_all_spent_credentials_paged(deps.as_ref(), None, None).unwrap();
 
         assert_eq!(
             SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT,
@@ -109,7 +110,8 @@ pub(crate) mod tests {
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * SPEND_CREDENTIAL_PAGE_MAX_LIMIT;
         let page1 =
-            query_spent_credentials_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
+            query_all_spent_credentials_paged(deps.as_ref(), None, Option::from(crazy_limit))
+                .unwrap();
 
         // we default to a decent sized upper bound instead
         let expected_limit = SPEND_CREDENTIAL_PAGE_MAX_LIMIT;
@@ -127,7 +129,7 @@ pub(crate) mod tests {
 
         let per_page = 2;
         let page1 =
-            query_spent_credentials_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            query_all_spent_credentials_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
 
         // page should have 1 result on it
         assert_eq!(1, page1.spend_credentials.len());
@@ -138,7 +140,7 @@ pub(crate) mod tests {
 
         // page1 should have 2 results on it
         let page1 =
-            query_spent_credentials_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            query_all_spent_credentials_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.spend_credentials.len());
 
         let data = spend_credential_data_fixture("blinded_serial_number3");
@@ -146,12 +148,12 @@ pub(crate) mod tests {
 
         // page1 still has 2 results
         let page1 =
-            query_spent_credentials_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            query_all_spent_credentials_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.spend_credentials.len());
 
         // retrieving the next page should start after the last key on this page
         let start_after = page1.start_next_after.unwrap();
-        let page2 = query_spent_credentials_paged(
+        let page2 = query_all_spent_credentials_paged(
             deps.as_ref(),
             Option::from(start_after.clone()),
             Option::from(per_page),
@@ -163,7 +165,7 @@ pub(crate) mod tests {
         let data = spend_credential_data_fixture("blinded_serial_number4");
         spend_credential(deps.as_mut(), env, info, data).unwrap();
 
-        let page2 = query_spent_credentials_paged(
+        let page2 = query_all_spent_credentials_paged(
             deps.as_ref(),
             Option::from(start_after),
             Option::from(per_page),

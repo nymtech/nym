@@ -13,7 +13,7 @@ use crate::coconut::error::{CoconutError, Result};
 use crate::ValidatorApiStorage;
 
 use coconut_bandwidth_contract_common::spend_credential::{
-    SpendCredentialData, SpendCredentialStatus,
+    funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
@@ -275,11 +275,10 @@ pub async fn verify_bandwidth_credential(
             reason: String::from("incorrect blinded serial number in description"),
         });
     }
-    let proposed_release_funds = SpendCredentialData::funds_from_cosmos_msgs(proposal.msgs).ok_or(
-        CoconutError::IncorrectProposal {
+    let proposed_release_funds =
+        funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
             reason: String::from("action is not to release funds"),
-        },
-    )?;
+        })?;
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client

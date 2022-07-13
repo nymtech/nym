@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::spend_credential::{SpendCredential, SpendCredentialData};
+use coconut_bandwidth_contract_common::spend_credential::{
+    to_cosmos_msg, SpendCredential, SpendCredentialData,
+};
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
@@ -66,7 +68,9 @@ pub(crate) fn spend_credential(
         ),
     )?;
 
-    let msg = data.to_cosmos_msg(
+    let msg = to_cosmos_msg(
+        data.funds().clone(),
+        data.blinded_serial_number().to_string(),
         env.contract.address.into_string(),
         cfg.multisig_addr.into_string(),
     )?;

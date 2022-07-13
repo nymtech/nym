@@ -35,63 +35,6 @@ impl SpendCredentialData {
     pub fn gateway_cosmos_address(&self) -> &str {
         &self.gateway_cosmos_address
     }
-
-    pub fn to_cosmos_msg(
-        &self,
-        coconut_bandwidth_addr: String,
-        multisig_addr: String,
-    ) -> StdResult<CosmosMsg> {
-        let release_funds_req = ExecuteMsg::ReleaseFunds {
-            funds: self.funds.clone(),
-        };
-        let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: coconut_bandwidth_addr,
-            msg: to_binary(&release_funds_req)?,
-            funds: vec![],
-        });
-        let req = MultisigExecuteMsg::Propose {
-            title: String::from("Release funds, as ordered by Coconut Bandwidth Contract"),
-            description: self.blinded_serial_number.clone(),
-            msgs: vec![release_funds_msg],
-            latest: None,
-        };
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: multisig_addr,
-            msg: to_binary(&req)?,
-            funds: vec![],
-        });
-
-        Ok(msg)
-    }
-
-    pub fn funds_from_cosmos_msgs(msgs: Vec<CosmosMsg>) -> Option<Coin> {
-        if let Some(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: _,
-            msg,
-            funds: _,
-        })) = msgs.get(0)
-        {
-            if let Ok(MultisigExecuteMsg::Propose {
-                title: _,
-                description: _,
-                msgs,
-                latest: _,
-            }) = from_binary(&msg)
-            {
-                if let Some(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: _,
-                    msg,
-                    funds: _,
-                })) = msgs.get(0)
-                {
-                    if let Ok(ExecuteMsg::ReleaseFunds { funds }) = from_binary(&msg) {
-                        return Some(funds);
-                    }
-                }
-            }
-        }
-        None
-    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -161,4 +104,45 @@ impl SpendCredentialResponse {
     pub fn new(spend_credential: Option<SpendCredential>) -> Self {
         SpendCredentialResponse { spend_credential }
     }
+}
+
+pub fn to_cosmos_msg(
+    funds: Coin,
+    blinded_serial_number: String,
+    coconut_bandwidth_addr: String,
+    multisig_addr: String,
+) -> StdResult<CosmosMsg> {
+    let release_funds_req = ExecuteMsg::ReleaseFunds { funds };
+    let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: coconut_bandwidth_addr,
+        msg: to_binary(&release_funds_req)?,
+        funds: vec![],
+    });
+    let req = MultisigExecuteMsg::Propose {
+        title: String::from("Release funds, as ordered by Coconut Bandwidth Contract"),
+        description: blinded_serial_number,
+        msgs: vec![release_funds_msg],
+        latest: None,
+    };
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: multisig_addr,
+        msg: to_binary(&req)?,
+        funds: vec![],
+    });
+
+    Ok(msg)
+}
+
+pub fn funds_from_cosmos_msgs(msgs: Vec<CosmosMsg>) -> Option<Coin> {
+    if let Some(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: _,
+        msg,
+        funds: _,
+    })) = msgs.get(0)
+    {
+        if let Ok(ExecuteMsg::ReleaseFunds { funds }) = from_binary::<ExecuteMsg>(msg) {
+            return Some(funds);
+        }
+    }
+    None
 }

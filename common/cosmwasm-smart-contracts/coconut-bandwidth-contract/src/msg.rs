@@ -27,7 +27,7 @@ pub enum QueryMsg {
     GetSpentCredential {
         blinded_serial_number: String,
     },
-    GetSpentCredentials {
+    GetAllSpentCredentials {
         limit: Option<u32>,
         start_after: Option<String>,
     },

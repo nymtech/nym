@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use coconut_bandwidth_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 use crate::error::ContractError;
-use crate::queries::{query_spent_credential, query_spent_credentials_paged};
+use crate::queries::{query_all_spent_credentials_paged, query_spent_credential};
 use crate::state::{Config, ADMIN, CONFIG};
 use crate::transactions;
 
@@ -57,9 +57,9 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetSpentCredentials { limit, start_after } => {
-            to_binary(&query_spent_credentials_paged(deps, start_after, limit)?)
-        }
+        QueryMsg::GetAllSpentCredentials { limit, start_after } => to_binary(
+            &query_all_spent_credentials_paged(deps, start_after, limit)?,
+        ),
         QueryMsg::GetSpentCredential {
             blinded_serial_number,
         } => to_binary(&query_spent_credential(deps, blinded_serial_number)?),

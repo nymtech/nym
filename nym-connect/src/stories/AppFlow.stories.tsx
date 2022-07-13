@@ -26,6 +26,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
           id: 'nym-keybase',
           description: 'Nym Keybase Service Provider',
           address: '1234.5678',
+          gateway: 'abcedf',
         },
       ],
     },

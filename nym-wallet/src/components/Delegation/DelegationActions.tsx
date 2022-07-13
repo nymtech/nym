@@ -89,8 +89,8 @@ const DelegationActionsMenuItem = ({
   disabled?: boolean;
 }) => (
   <MenuItem sx={{ p: 2 }} onClick={onClick} disabled={disabled}>
-    <ListItemIcon sx={{ color: 'black' }}>{Icon}</ListItemIcon>
-    <ListItemText sx={{ color: 'black' }} primary={title} secondary={description} />
+    <ListItemIcon sx={{ color: 'text.primary' }}>{Icon}</ListItemIcon>
+    <ListItemText sx={{ color: 'text.primary' }} primary={title} secondary={description} />
   </MenuItem>
 );
 
@@ -98,9 +98,8 @@ export const DelegationsActionsMenu: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;
   isPending?: DelegationEventKind;
   disableRedeemingRewards?: boolean;
-  disableDelegateMore?: boolean;
   disableCompoundRewards?: boolean;
-}> = ({ disableRedeemingRewards, disableDelegateMore, disableCompoundRewards, onActionClick, isPending }) => {
+}> = ({ disableRedeemingRewards, disableCompoundRewards, onActionClick, isPending }) => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {

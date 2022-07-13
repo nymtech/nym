@@ -13,18 +13,18 @@ import {
 } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { format } from 'date-fns';
-import { EnumNodeType, PendingUndelegate, TDelegation } from '@nymproject/types';
+import { TNodeType, PendingUndelegate, TDelegation } from '@nymproject/types';
 import { validationSchema } from './validationSchema';
 import { undelegateFromMixnode, vestingUndelegateFromMixnode } from '../../requests';
 import { Fee } from '../../components';
 
 type TFormData = {
-  nodeType: EnumNodeType;
+  nodeType: TNodeType;
   identity: string;
 };
 
 const defaultValues = {
-  nodeType: EnumNodeType.mixnode,
+  nodeType: 'Mixnode' as TNodeType,
   identity: '',
 };
 

@@ -6,7 +6,7 @@ import { AccountAvatar } from './AccountAvatar';
 export const AccountOverview = ({ account, onClick }: { account: AccountEntry; onClick: () => void }) => (
   <Button
     startIcon={<AccountAvatar name={account.id} />}
-    sx={{ color: 'nym.text.dark' }}
+    sx={{ color: 'text.primary' }}
     onClick={onClick}
     disableRipple
   >

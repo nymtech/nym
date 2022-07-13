@@ -35,6 +35,7 @@ export type TUseuserBalance = {
   fetchTokenAllocation: () => Promise<void>;
   clearBalance: () => void;
   clearAll: () => void;
+  refreshBalances: () => Promise<void>;
 };
 
 export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
@@ -108,8 +109,8 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
     clearOriginalVesting();
   };
 
-  const handleRefresh = async (addr?: string) => {
-    if (addr) {
+  const refreshBalances = async () => {
+    if (clientDetails?.client_address) {
       await fetchBalance();
       await fetchTokenAllocation();
     } else {
@@ -118,7 +119,7 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
   };
 
   useEffect(() => {
-    handleRefresh(clientDetails?.client_address);
+    refreshBalances();
   }, [clientDetails]);
 
   return {
@@ -133,5 +134,6 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
     clearBalance,
     clearAll,
     fetchTokenAllocation,
+    refreshBalances,
   };
 };

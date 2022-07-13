@@ -1,46 +1,41 @@
 use std::path::PathBuf;
 
 use client_core::config::GatewayEndpoint;
-use log::info;
 use std::sync::Arc;
+use tap::TapFallible;
 use tokio::sync::RwLock;
 
 use client_core::config::Config as BaseConfig;
 use config::NymConfig;
 use nym_socks5::client::config::Config as Socks5Config;
 
-use crate::{error::BackendError, state::State};
+use crate::{
+    error::{BackendError, Result},
+    state::State,
+};
 
-pub static SOCKS5_CONFIG_ID: &str = "nym-connect";
+static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
 const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 const DEFAULT_ETH_PRIVATE_KEY: &str =
     "0000000000000000000000000000000000000000000000000000000000000001";
 
-pub fn append_config_id(gateway_id: &str) -> String {
+pub fn socks5_config_id_appended_with(gateway_id: &str) -> Result<String> {
     use std::fmt::Write as _;
     let mut id = SOCKS5_CONFIG_ID.to_string();
-    write!(id, "-{}", gateway_id).expect("Failed to set config id");
-    id
+    write!(id, "-{}", gateway_id)?;
+    Ok(id)
 }
 
 #[tauri::command]
-pub async fn get_config_id(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<String, BackendError> {
-    let guard = state.read().await;
-    // TODO: return error instead
-    let gateway_id = guard
-        .get_gateway()
-        .as_ref()
-        .expect("The config id can not be determined before setting the gateway");
-    Ok(append_config_id(gateway_id))
+pub async fn get_config_id(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<String> {
+    state.read().await.get_config_id()
 }
 
 #[tauri::command]
 pub async fn get_config_file_location(
     state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<String, BackendError> {
+) -> Result<String> {
     let id = get_config_id(state).await?;
     Ok(Config::config_file_location(&id)
         .to_string_lossy()
@@ -76,21 +71,26 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<(), BackendError> {
-        info!("Initialising...");
+    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<()> {
+        log::info!("Initialising...");
 
         let service_provider = service_provider.to_owned();
         let chosen_gateway_id = chosen_gateway_id.to_owned();
 
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
-        // clients we'll catch any panics here.
-        std::panic::catch_unwind(move || {
-            futures::executor::block_on(init_socks5(service_provider, chosen_gateway_id));
+        // clients we'll catch any panics here by spawning a new runtime in a separate thread.
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime")
+                .block_on(
+                    async move { init_socks5_config(service_provider, chosen_gateway_id).await },
+                )
         })
-        .map_err(|_| BackendError::InitializationPanic)?;
+        .join()
+        .map_err(|_| BackendError::InitializationPanic)??;
 
-        info!("Configuration saved 🚀");
+        log::info!("Configuration saved 🚀");
         Ok(())
     }
 
@@ -99,11 +99,11 @@ impl Config {
     }
 }
 
-pub async fn init_socks5(provider_address: String, chosen_gateway_id: String) {
-    log::info!("Initialising client...");
+pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
+    log::trace!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
-    let id = append_config_id(&chosen_gateway_id);
+    let id = socks5_config_id_appended_with(&chosen_gateway_id)?;
 
     log::debug!(
         "Attempting to use config file location: {}",
@@ -145,10 +145,9 @@ pub async fn init_socks5(provider_address: String, chosen_gateway_id: String) {
     config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_socks5().get_config_file_save_location();
-    config
-        .get_socks5()
-        .save_to_file(None)
-        .expect("Failed to save the config file");
+    config.get_socks5().save_to_file(None).tap_err(|_| {
+        log::warn!("Failed to save the config file");
+    })?;
 
     log::info!("Saved configuration file to {:?}", config_save_location);
     log::info!("Gateway id: {}", config.get_base().get_gateway_id());
@@ -166,9 +165,10 @@ pub async fn init_socks5(provider_address: String, chosen_gateway_id: String) {
         "Service provider port: {}",
         config.get_socks5().get_listening_port()
     );
-    info!("Client configuration completed.");
+    log::info!("Client configuration completed.");
 
     client_core::init::show_address(config.get_base());
+    Ok(())
 }
 
 // TODO: deduplicate with same functions in other client

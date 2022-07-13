@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import React, { useEffect } from 'react';
 import { FeeDetails } from '@nymproject/types';
@@ -16,7 +16,9 @@ export const UndelegateModal: React.FC<{
   amount: number;
   currency: string;
   usesVestingContractTokens: boolean;
-}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens }) => {
+  sx?: SxProps;
+  backdropProps?: object;
+}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
@@ -41,6 +43,8 @@ export const UndelegateModal: React.FC<{
       subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
       okDisabled={!fee}
+      sx={sx}
+      backdropProps={backdropProps}
     >
       <IdentityKeyFormField
         readOnly
@@ -54,7 +58,7 @@ export const UndelegateModal: React.FC<{
         <ModalListItem label="Delegation amount" value={`${amount} ${currency}`} divider />
       </Box>
 
-      <Typography mb={5} fontSize="smaller">
+      <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
         Tokens will be transferred to account you are logged in with now
       </Typography>
 

@@ -6,6 +6,7 @@
   "workspaces": [
     "ts-packages/*",
     "nym-wallet",
+    "nym-connect",
     "explorer",
     "types"
   ],

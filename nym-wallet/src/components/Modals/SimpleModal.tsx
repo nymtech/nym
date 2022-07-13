@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
+import { StyledBackButton } from 'src/components/StyledBackButton';
 import { modalStyle } from './styles';
 
 export const SimpleModal: React.FC<{
@@ -12,12 +13,13 @@ export const SimpleModal: React.FC<{
   subHeaderStyles?: SxProps;
   onClose?: () => void;
   onOk?: () => Promise<void>;
+  onBack?: () => void;
   header: string;
   subHeader?: string;
   okLabel: string;
   okDisabled?: boolean;
   sx?: SxProps;
-  SecondaryAction?: React.ReactNode;
+  backdropProps?: object;
 }> = ({
   open,
   hideCloseIcon,
@@ -27,18 +29,19 @@ export const SimpleModal: React.FC<{
   onClose,
   okDisabled,
   onOk,
+  onBack,
   header,
   subHeader,
   okLabel,
   sx,
-  SecondaryAction,
   children,
+  backdropProps,
 }) => (
-  <Modal open={open} onClose={onClose}>
+  <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography fontSize={22} fontWeight={600} sx={{ ...headerStyles }}>
+        <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
           {header}
         </Typography>
         {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
@@ -47,9 +50,9 @@ export const SimpleModal: React.FC<{
         <Typography
           mt={0.5}
           mb={3}
-          fontSize="small"
+          fontSize={12}
           color={(theme) => theme.palette.text.secondary}
-          sx={{ ...subHeaderStyles }}
+          sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
         >
           {subHeader}
         </Typography>
@@ -57,11 +60,12 @@ export const SimpleModal: React.FC<{
 
       {children}
 
-      <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} sx={{ mt: 2 }}>
-        {okLabel}
-      </Button>
-
-      {SecondaryAction}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+        {onBack && <StyledBackButton onBack={onBack} />}
+        <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+          {okLabel}
+        </Button>
+      </Box>
     </Box>
   </Modal>
 );

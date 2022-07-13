@@ -1,50 +1,18 @@
-const HtmlWebpackPlugin = require('html-webpack-plugin')
-const FaviconsWebpackPlugin = require('favicons-webpack-plugin')
-const Dotenv = require('dotenv-webpack')
-var path = require('path')
+const path = require('path');
+const { mergeWithRules } = require('webpack-merge');
+const { webpackCommon } = require('@nymproject/webpack');
 
-module.exports = {
-  entry: path.resolve(__dirname, '/src/index'),
-  plugins: [
-    new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, 'public/index.html'),
-      filename: 'index.html',
-    }),
-    new FaviconsWebpackPlugin(path.resolve(__dirname, 'public/favicon.png')),
-    new Dotenv(),
-  ],
+module.exports = mergeWithRules({
   module: {
-    rules: [
-      {
-        test: /\.(ts|tsx)$/,
-        exclude: /node_modules/,
-        use: ['babel-loader'],
-      },
-      {
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader'],
-      },
-      {
-        test: /\.(png|jpe?g|gif)$/i,
-        use: [
-          {
-            loader: 'file-loader',
-          },
-        ],
-      },
-      {
-        test: /\.svg$/i,
-        issuer: /\.[jt]sx?$/,
-        use: ['@svgr/webpack'],
-      },
-      {
-        // See https://webpack.js.org/guides/asset-management/#loading-fonts
-        test: /\.(woff|woff2|eot|ttf|otf)$/i,
-        type: 'asset/resource',
-      },
-    ],
+    rules: {
+      test: 'match',
+      use: 'replace',
+    },
   },
-  resolve: {
-    extensions: ['*', '.js', '.jsx', '.ts', '.tsx'],
+})(webpackCommon(__dirname, 'public/index.html'), {
+  entry: path.resolve(__dirname, 'src/index.tsx'),
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: '/',
   },
-}
+});

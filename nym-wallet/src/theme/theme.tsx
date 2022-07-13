@@ -24,11 +24,12 @@ const nymPalette: NymPalette = {
   success: '#21D073',
   info: '#60D7EF',
   fee: '#967FF0',
-  background: { light: '#F4F6F8', dark: '#121726' },
+  background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
     light: '#F2F2F2',
     dark: '#121726',
     muted: '#7D7D7D',
+    grey: '#5B6174',
   },
   linkHover: '#AF4D36',
 };
@@ -36,20 +37,24 @@ const nymPalette: NymPalette = {
 const darkMode: NymPaletteVariant = {
   mode: 'dark',
   background: {
-    main: '#121726',
-    paper: '#242C3D',
+    main: '#1D2125',
+    paper: '#292E34',
     warn: '#FFE600',
+    grey: '#3A4053',
+    greyStroke: '#545D6A',
   },
   text: {
-    main: '#F2F2F2',
-    muted: '#5B6174',
+    main: '#FFFFFF',
+    muted: '#7D7D7D',
     warn: '#FFE600',
+    contrast: '#1D2125',
+    grey: '#5B6174',
   },
   topNav: {
     background: '#111826',
   },
   nav: {
-    background: '#FFFFFF',
+    background: '#292E34',
   },
 };
 
@@ -59,11 +64,15 @@ const lightMode: NymPaletteVariant = {
     main: '#E5E5E5',
     paper: '#FFFFFF',
     warn: '#FFE600',
+    grey: '#F5F5F5',
+    greyStroke: '#E6E6E6',
   },
   text: {
     main: '#121726',
-    muted: '#5B6174',
+    muted: '#7D7D7D',
     warn: '#FFE600',
+    contrast: '#FFFFFF',
+    grey: '#3A4053',
   },
   topNav: {
     background: '#111826',
@@ -93,13 +102,14 @@ const nymWalletPalette = (variant: NymPaletteVariant): NymWalletPalette => ({
 const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   text: {
     primary: variant.text.main,
+    disabled: variant.text.grey,
   },
   primary: {
     main: nymPalette.highlight,
-    contrastText: '#fff',
+    contrastText: variant.text.contrast,
   },
   secondary: {
-    main: nymPalette.text.dark,
+    main: variant.text.main,
   },
   success: {
     main: nymPalette.success,
@@ -189,7 +199,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         'Helvetica Neue',
       ].join(','),
       fontSize: 14,
-      fontWeightRegular: 500,
+      fontWeightRegular: 400,
       button: {
         textTransform: 'none',
         fontWeight: '600',
@@ -213,8 +223,18 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       },
     },
     components: {
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            fontSize: 14,
+          },
+        },
+      },
       MuiButton: {
         styleOverrides: {
+          root: {
+            fontSize: 16,
+          },
           sizeLarge: {
             height: 55,
           },
@@ -237,7 +257,13 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       },
       MuiTableCell: {
         styleOverrides: {
+          root: {
+            padding: 0,
+            paddingTop: '16px',
+            paddingBottom: '16px',
+          },
           head: {
+            fontWeight: '400',
             color: nymPalette.text.muted,
           },
         },

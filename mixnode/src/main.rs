@@ -13,16 +13,16 @@ mod config;
 mod node;
 
 lazy_static! {
-    pub static ref LONG_ABOUT: String = long_version();
+    pub static ref LONG_VERSION: String = long_version();
 }
 
-// Helper for passing LONG_ABOUT to clap
-fn long_about() -> &'static str {
-    &LONG_ABOUT
+// Helper for passing LONG_VERSION to clap
+fn long_version_static() -> &'static str {
+    &LONG_VERSION
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_about = Some(long_about()))]
+#[clap(author = "Nymtech", version, about, long_version = long_version_static())]
 struct Cli {
     #[clap(subcommand)]
     command: commands::Commands,
@@ -105,4 +105,15 @@ fn setup_logging() {
         .filter_module("mio", log::LevelFilter::Warn)
         .filter_module("want", log::LevelFilter::Warn)
         .init();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
 }

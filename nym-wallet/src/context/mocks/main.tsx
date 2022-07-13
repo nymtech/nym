@@ -6,6 +6,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
   const memoizedValue = useMemo<TAppContext>(
     () => ({
       mode: 'light',
+      handleSwitchMode: () => undefined,
       appEnv: {
         ADMIN_ADDRESS: null,
         SHOW_TERMINAL: null,
@@ -32,10 +33,12 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
         clearBalance: () => undefined,
         fetchBalance: async () => undefined,
         fetchTokenAllocation: async () => undefined,
+        refreshBalances: async () => {},
       },
       showAdmin: false,
       showTerminal: false,
       showSettings: false,
+      showSendModal: true,
       network: 'SANDBOX',
       loginType: 'mnemonic',
       setIsLoading: () => undefined,
@@ -49,6 +52,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       logOut: () => undefined,
       onAccountChange: () => undefined,
       handleShowSettings: () => undefined,
+      handleShowSendModal: () => undefined,
     }),
     [],
   );

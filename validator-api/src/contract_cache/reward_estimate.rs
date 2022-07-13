@@ -38,6 +38,7 @@ pub fn compute_apy_from_reward(
 ) -> (f64, f64) {
     let epochs_per_hour = epochs_in_interval as f64 / 720.0;
     let pledge = mixnode_bond.pledge_amount().amount.u128();
+    let total_delegations = mixnode_bond.total_delegation().amount.u128();
     let estimated_operator_apy = compute_apy(
         epochs_per_hour,
         reward_estimate.operator_reward as f64,
@@ -46,7 +47,7 @@ pub fn compute_apy_from_reward(
     let estimated_delegators_apy = compute_apy(
         epochs_per_hour,
         reward_estimate.delegators_reward as f64,
-        pledge as f64,
+        total_delegations as f64,
     );
     (estimated_operator_apy, estimated_delegators_apy)
 }

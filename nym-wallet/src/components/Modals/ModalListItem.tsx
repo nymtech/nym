@@ -6,12 +6,17 @@ export const ModalListItem: React.FC<{
   label: string;
   divider?: boolean;
   hidden?: boolean;
-  value: string | React.ReactNode;
-}> = ({ label, value, hidden, divider }) => (
+  strong?: boolean;
+  value: React.ReactNode;
+}> = ({ label, value, hidden, divider, strong }) => (
   <Box sx={{ display: hidden ? 'none' : 'block' }}>
     <Stack direction="row" justifyContent="space-between">
-      <Typography fontSize="smaller">{label}:</Typography>
-      <Typography fontSize="smaller">{value}</Typography>
+      <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined} sx={{ color: 'text.primary' }}>
+        {label}:
+      </Typography>
+      <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined} sx={{ color: 'text.primary' }}>
+        {value}
+      </Typography>
     </Stack>
     {divider && <ModalDivider />}
   </Box>

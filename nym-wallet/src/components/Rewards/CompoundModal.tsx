@@ -1,13 +1,12 @@
 import React, { useEffect } from 'react';
-import { Alert, AlertTitle, Stack, Typography } from '@mui/material';
-import WarningIcon from '@mui/icons-material/Warning';
+import { Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
+import { FeeDetails } from '@nymproject/types';
 import { simulateCompoundDelgatorReward, simulateVestingCompoundDelgatorReward } from 'src/requests';
-import { isGreaterThan } from 'src/utils';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalFee } from '../Modals/ModalFee';
-import { FeeDetails } from '@nymproject/types';
+import { FeeWarning } from '../FeeWarning';
 
 export const CompoundModal: React.FC<{
   open: boolean;
@@ -15,7 +14,6 @@ export const CompoundModal: React.FC<{
   onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  minimum?: number;
   currency: string;
   message: string;
   usesVestingTokens: boolean;
@@ -56,14 +54,8 @@ export const CompoundModal: React.FC<{
       <Typography mb={5} fontSize="smaller">
         Rewards will be transferred to account you are logged in with now
       </Typography>
-
+      {fee && <FeeWarning amount={amount} fee={fee} />}
       <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
-      {fee?.amount && isGreaterThan(+fee.amount.amount, amount) && (
-        <Alert color="warning" sx={{ mt: 3 }} icon={<WarningIcon />}>
-          <AlertTitle>Warning: fees are greater than the reward</AlertTitle>
-          The fees for redeeming rewards will cost more than the rewards. Are you sure you want to continue?
-        </Alert>
-      )}
     </SimpleModal>
   );
 };

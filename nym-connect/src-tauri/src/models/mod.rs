@@ -1,3 +1,5 @@
+use core::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -21,6 +23,17 @@ pub enum ConnectionStatusKind {
     Disconnecting,
     Connected,
     Connecting,
+}
+
+impl fmt::Display for ConnectionStatusKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            ConnectionStatusKind::Disconnected => write!(f, "Disconnected"),
+            ConnectionStatusKind::Disconnecting => write!(f, "Disconnecting"),
+            ConnectionStatusKind::Connected => write!(f, "Connected"),
+            ConnectionStatusKind::Connecting => write!(f, "Connecting"),
+        }
+    }
 }
 
 pub const APP_EVENT_CONNECTION_STATUS_CHANGED: &str = "app:connection-status-changed";

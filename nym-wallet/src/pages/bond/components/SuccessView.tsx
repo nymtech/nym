@@ -1,8 +1,8 @@
 import React, { useContext } from 'react';
 import { Box } from '@mui/material';
-import { SuccessReponse, TransactionDetails } from '../../components';
-import { AppContext } from '../../context/main';
-import { useCheckOwnership } from '../../hooks/useCheckOwnership';
+import { SuccessReponse, TransactionDetails } from '../../../components';
+import { AppContext } from '../../../context/main';
+import { useCheckOwnership } from '../../../hooks/useCheckOwnership';
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
   const { userBalance, clientDetails } = useContext(AppContext);

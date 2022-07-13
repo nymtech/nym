@@ -1,8 +1,14 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
-
 import { Button, Paper } from '@mui/material';
+import { useTheme, Theme } from '@mui/material/styles';
 import { RedeemModal } from './RedeemModal';
+import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+
+const storybookStyles = (theme: Theme) => ({
+  backdropProps: backDropStyles(theme),
+  sx: modalStyles(theme),
+});
 
 export default {
   title: 'Rewards/Components/Redeem Modals',
@@ -45,7 +51,8 @@ const Content: React.FC<{
 );
 
 export const RedeemAllRewards = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -57,6 +64,7 @@ export const RedeemAllRewards = () => {
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
+        {...storybookStyles(theme)}
         usesVestingTokens={false}
       />
     </>
@@ -64,7 +72,8 @@ export const RedeemAllRewards = () => {
 };
 
 export const RedeemRewardForMixnode = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -76,6 +85,7 @@ export const RedeemRewardForMixnode = () => {
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
+        {...storybookStyles(theme)}
         usesVestingTokens={false}
       />
     </>
@@ -83,7 +93,8 @@ export const RedeemRewardForMixnode = () => {
 };
 
 export const FeeIsMoreThanAllRewards = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -95,6 +106,7 @@ export const FeeIsMoreThanAllRewards = () => {
         currency="NYM"
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={0.001}
+        {...storybookStyles(theme)}
         usesVestingTokens={false}
       />
     </>
@@ -102,7 +114,8 @@ export const FeeIsMoreThanAllRewards = () => {
 };
 
 export const FeeIsMoreThanMixnodeReward = () => {
-  const [open, setOpen] = React.useState<boolean>(true);
+  const [open, setOpen] = React.useState<boolean>(false);
+  const theme = useTheme();
   return (
     <>
       <Content setOpen={setOpen} />
@@ -114,6 +127,7 @@ export const FeeIsMoreThanMixnodeReward = () => {
         message="Redeem rewards"
         currency="NYM"
         amount={0.001}
+        {...storybookStyles(theme)}
         usesVestingTokens={false}
       />
     </>

@@ -6,10 +6,13 @@ export interface LinkProps {
   text?: string;
   icon?: React.ReactNode;
   noIcon?: boolean;
+  fontWeight?: number | string;
+  fontSize?: number | string;
 }
 
 export const Link = (props: MUILinkProps & LinkProps) => {
-  const { text, icon, underline, noIcon, children } = props;
+  const { text, icon, underline, noIcon, children, fontWeight, fontSize } = props;
+
   let typoProps = {};
   if (!noIcon) {
     typoProps = { mr: 0.5 };
@@ -33,7 +36,9 @@ export const Link = (props: MUILinkProps & LinkProps) => {
             alignItems: 'center',
           }}
         >
-          <Typography sx={{ ...typoProps, fontWeight: 400 }}>{text}</Typography>
+          <Typography sx={{ ...typoProps, fontWeight: fontWeight || 400, fontSize: fontSize || 'inherit' }}>
+            {text}
+          </Typography>
           {!noIcon && (icon || <OpenInNew fontSize="inherit" />)}
         </Box>
       )}

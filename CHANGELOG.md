@@ -9,7 +9,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
 - nym-connect: initial proof-of-concept of a UI around the socks5 client was added
-- nym-connect: add ability to select network requester and gateway ([#1427]).
+- nym-connect: add ability to select network requester and gateway ([#1427])
+- nym-connect: add ability to export gateway keys as JSON
+- nym-connect: add auto updater
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - explorer-api: add apy values to `mix_nodes` endpoint
@@ -22,7 +24,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 - validator-api: add `uptime`, `estimated_operator_apy`, `estimated_delegators_apy` to `/mixnodes/detailed` endpoint ([#1393])
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
-- wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 - validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
 
@@ -38,12 +39,14 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Changed
 
-- nym-connect: reuse config id instead of creating a new id on each connection.
+- nym-connect: reuse config id instead of creating a new id on each connection
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - all: updated `rocket` to `0.5.0-rc.2`.
 - network-requester: allow to voluntarily store and send statistical data about the number of bytes the proxied server serves ([#1328])
 - gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
+- gateway & mixnode: move detailed build info back to `--version` from `--help`.
+- socks5 client/websocket client: upgrade to latest clap and switched to declarative commandline parsing.
 - validator-api: fee payment for multisig operations comes from the gateway account instead of the validator APIs' accounts ([#1419])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -62,11 +65,17 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1329]: https://github.com/nymtech/nym/pull/1329
 [#1353]: https://github.com/nymtech/nym/pull/1353
 [#1376]: https://github.com/nymtech/nym/pull/1376
-[#1388]: https://github.com/nymtech/nym/pull/1388
 [#1393]: https://github.com/nymtech/nym/pull/1393
 [#1404]: https://github.com/nymtech/nym/pull/1404
 [#1419]: https://github.com/nymtech/nym/pull/1419
 [#1427]: https://github.com/nymtech/nym/pull/1427
+
+## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
+
+- wallet: dark mode
+- wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
+
+[#1388]: https://github.com/nymtech/nym/pull/1388
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

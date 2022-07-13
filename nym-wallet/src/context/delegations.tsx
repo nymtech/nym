@@ -64,7 +64,7 @@ export const DelegationContextProvider: FC<{
     try {
       let tx;
 
-      if (tokenPool === 'locked') tx = await vestingDelegateToMixnode(data);
+      if (tokenPool === 'locked') tx = await vestingDelegateToMixnode({ ...data, fee });
       else tx = await delegateToMixnode(data);
 
       return tx;

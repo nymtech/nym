@@ -267,13 +267,15 @@ pub enum QueryMsg {
         proxy: Option<String>,
     },
 
-    // TODO: COMPLETELY NOT DEALT WITH YET
-    GetPendingDelegationEvents {
-        owner_address: String,
-        proxy_address: Option<String>,
+    // interval-related
+    GetPendingEpochEvents {
+        limit: Option<u32>,
+        start_after: Option<u32>,
     },
-    // pending-events related
-    // TODO: figure out how to handle those gracefully-ish
+    GetPendingIntervalEvents {
+        limit: Option<u32>,
+        start_after: Option<u32>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

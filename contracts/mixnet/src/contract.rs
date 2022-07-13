@@ -288,6 +288,7 @@ pub fn query(
         QueryMsg::GetCurrentIntervalDetails {} => to_binary(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
         ),
+        QueryMsg::GetRewardedSet { .. } => todo!(),
 
         // mixnode-related:
         QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
@@ -312,6 +313,9 @@ pub fn query(
         ),
         QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
             &crate::mixnodes::bonding_queries::query_mixnode_details(deps, mix_id)?,
+        ),
+        QueryMsg::GetStakeSaturation { mix_id } => to_binary(
+            &crate::mixnodes::bonding_queries::query_stake_saturation(deps, mix_id)?,
         ),
         QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
             &crate::mixnodes::bonding_queries::query_unbonded_mixnode(deps, mix_id)?,
@@ -384,7 +388,23 @@ pub fn query(
             deps, address, mix_id, proxy,
         )?),
 
-        _ => todo!(),
+        // interval-related
+        QueryMsg::GetPendingEpochEvents { limit, start_after } => {
+            to_binary(&crate::interval::queries::query_pending_epoch_events_paged(
+                deps,
+                env,
+                limit,
+                start_after,
+            )?)
+        }
+        QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_binary(
+            &crate::interval::queries::query_pending_interval_events_paged(
+                deps,
+                env,
+                limit,
+                start_after,
+            )?,
+        ),
     };
 
     Ok(query_res?)

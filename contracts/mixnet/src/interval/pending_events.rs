@@ -9,7 +9,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
-use cosmwasm_std::{coin, coins, wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
+use cosmwasm_std::{coins, wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};

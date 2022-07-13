@@ -27,14 +27,15 @@ import {
   vestingUpdateMixnode as updateMixnodeVestingRequest,
   getGatewayBondDetails,
   getMixnodeBondDetails,
+  getMixnodeStatus,
 } from '../requests';
 import { useGetFee } from '../hooks/useGetFee';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 
 const bounded: BondedMixnode = {
+  identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   bond: { denom: 'NYM', amount: '1234' },
-  key: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   delegators: 123,
   ip: '1.2.34.5',
   nodeRewards: { denom: 'NYM', amount: '123' },
@@ -47,14 +48,14 @@ const bounded: BondedMixnode = {
 
 /* const bounded: BondedMixnode | BondedGateway = {
   bond: { denom: 'NYM', amount: '1234' },
-  key: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
+  identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   ip: '1.2.34.5',
   location: 'France',
 }; */
 
-// TODO temporary type for bonded mixnode data
+// TODO add relevant data
 export interface BondedMixnode {
-  key: string;
+  identityKey: string;
   ip: string;
   stake: MajorCurrencyAmount;
   bond: MajorCurrencyAmount;
@@ -66,9 +67,9 @@ export interface BondedMixnode {
   status: MixnodeStatus;
 }
 
-// TODO temporary type for bonded gateway data
+// TODO add relevant data
 export interface BondedGateway {
-  key: string;
+  identityKey: string;
   ip: string;
   bond: MajorCurrencyAmount;
   location?: string; // TODO not yet available, only available in Network Explorer API
@@ -187,6 +188,20 @@ export const BondingContextProvider = ({
     setBondedMixnode(null);
   };
 
+  const fetchMixnodeStatus = useCallback(async () => {
+    setLoading(true);
+    if (bondedMixnode) {
+      try {
+        const { status } = await getMixnodeStatus(bondedMixnode.identityKey);
+        setBondedMixnode({ ...bondedMixnode, status });
+      } catch (e: any) {
+        setError(`While fetching mixnode status, an error occurred: ${e}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [bondedMixnode]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     if (ownership.hasOwnership && ownership.nodeType === 'mixnode') {
@@ -216,6 +231,12 @@ export const BondingContextProvider = ({
     resetState();
     refresh();
   }, [network, ownership]);
+
+  useEffect(() => {
+    if (bondedMixnode) {
+      fetchMixnodeStatus();
+    }
+  }, [bondedMixnode]);
 
   const bondMixnode = async (data: Omit<TBondMixNodeArgs, 'fee'>, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;

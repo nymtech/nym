@@ -128,7 +128,7 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
   return (
     <BondedNodeCard
       title="Monster node"
-      identityKey={mixnode.key}
+      identityKey={mixnode.identityKey}
       status={mixnode.status}
       action={
         <Button

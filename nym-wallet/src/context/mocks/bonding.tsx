@@ -7,7 +7,7 @@ import { mockSleep } from './utils';
 const SLEEP_MS = 1000;
 
 const bondedMixnodeMock: BondedMixnode = {
-  key: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
+  identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.56',
   stake: { denom: 'NYM', amount: '1234' },
   bond: { denom: 'NYM', amount: '1234' },
@@ -20,7 +20,7 @@ const bondedMixnodeMock: BondedMixnode = {
 };
 
 const bondedGatewayMock: BondedGateway = {
-  key: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
+  identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
   bond: { denom: 'NYM', amount: '1234' },
 };

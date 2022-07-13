@@ -25,6 +25,8 @@ import {
   vestingUnbondMixnode,
   updateMixnode as updateMixnodeRequest,
   vestingUpdateMixnode as updateMixnodeVestingRequest,
+  getGatewayBondDetails,
+  getMixnodeBondDetails,
 } from '../requests';
 import { useGetFee } from '../hooks/useGetFee';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
@@ -166,6 +168,13 @@ export const BondingContextProvider = ({
   const isVesting = Boolean(ownership.vestingPledge);
 
   useEffect(() => {
+    const init = async () => {
+      await checkOwnership();
+    };
+    init();
+  }, [checkOwnership]);
+
+  useEffect(() => {
     if (feeError) {
       setError(`An error occurred while retrieving fee: ${feeError}`);
     }
@@ -179,25 +188,34 @@ export const BondingContextProvider = ({
   };
 
   const refresh = useCallback(async () => {
-    // TODO fetch bondedMixnode and bondedGatway via tauri dedicated requests
-    /* try {
-      bounded = await fetchBondingData();
-    } catch (e: any) {
-      throw new Error(e);
-    } */
-    if (bounded && 'stake' in bounded) {
+    setLoading(true);
+    if (ownership.hasOwnership && ownership.nodeType === 'mixnode') {
+      let data;
+      try {
+        data = await getMixnodeBondDetails();
+      } catch (e: any) {
+        setError(`While fetching current bond state, an error occurred: ${e}`);
+      }
+      // TODO convert the returned data from the request to `BondedMixnode` type
       setBondedMixnode(bounded);
     }
-    if (bounded && !('stake' in bounded)) {
+    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
+      let data;
+      try {
+        data = await getGatewayBondDetails();
+      } catch (e: any) {
+        setError(`While fetching current bond state, an error occurred: ${e}`);
+      }
+      // TODO convert the returned data from the request to `BondedGateway` type
       setBondedGateway(bounded);
     }
     setLoading(false);
-  }, [network]);
+  }, [network, ownership]);
 
   useEffect(() => {
     resetState();
     refresh();
-  }, [network]);
+  }, [network, ownership]);
 
   const bondMixnode = async (data: Omit<TBondMixNodeArgs, 'fee'>, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;

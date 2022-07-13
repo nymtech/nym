@@ -6,6 +6,7 @@ import {
   InclusionProbabilityResponse,
   DecCoin,
   MixNodeBond,
+  GatewayBond,
 } from '@nymproject/types';
 import { Epoch } from 'src/types';
 import { invokeWrapper } from './wrapper';
@@ -25,6 +26,7 @@ export const getAllPendingDelegations = async () =>
   invokeWrapper<DelegationEvent[]>('get_all_pending_delegation_events');
 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeBond | null>('mixnode_bond_details');
+export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');
 
 export const getOperatorRewards = async (address: string) =>
   invokeWrapper<DecCoin>('get_operator_rewards', { address });

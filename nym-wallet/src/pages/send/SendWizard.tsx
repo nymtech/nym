@@ -1,9 +1,9 @@
 /* eslint-disable no-nested-ternary */
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Step, StepLabel, Stepper } from '@mui/material';
-import { CurrencyDenom, DecCoin, SendTxResult, TransactionDetails } from '@nymproject/types';
+import { DecCoin, SendTxResult, TransactionDetails } from '@nymproject/types';
 import { SendForm } from './SendForm';
 import { SendReview } from './SendReview';
 import { SendConfirmation } from './SendConfirmation';
@@ -14,7 +14,7 @@ import { Console } from '../../utils/console';
 import { validationSchema } from './validationSchema';
 
 const defaultValues = {
-  amount: { amount: '', denom: 'nym' as CurrencyDenom },
+  amount: { amount: '', denom: 'NYM' } as DecCoin,
   memo: '',
   to: '',
 };

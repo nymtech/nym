@@ -1,7 +1,6 @@
 export * from './Admin';
 export * from './balance';
 export * from './bond';
-export * from './delegate';
 export * from './internal-docs';
 export * from './receive';
 export * from './send';

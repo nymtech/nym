@@ -1,6 +1,5 @@
 import React, { useContext } from 'react';
-import { styled } from '@mui/material/styles';
-import { AppBar as MuiAppBar, Grid, IconButton, Toolbar, FormGroup, FormControlLabel, Switch } from '@mui/material';
+import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Logout } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';

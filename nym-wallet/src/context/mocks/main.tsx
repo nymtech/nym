@@ -16,7 +16,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       isAdminAddress: false,
       isLoading: false,
       clientDetails: {
-        mix_denom: 'nymt',
+        mix_denom: 'NYMT',
         client_address: '',
         contract_address: '',
       },
@@ -24,7 +24,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
         balance: {
           amount: {
             amount: '100',
-            denom: 'nymt',
+            denom: 'NYMT',
           },
           printable_balance: '100 NYMT',
         },

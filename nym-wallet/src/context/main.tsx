@@ -136,10 +136,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const setModeInStorage = async (mode: 'light' | 'dark') => {
+  const setModeInStorage = async (newMode: 'light' | 'dark') => {
     await forage.setItem({
       key: 'nym-wallet-mode',
-      value: mode,
+      value: newMode,
     })();
   };
 

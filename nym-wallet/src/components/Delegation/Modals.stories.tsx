@@ -61,7 +61,7 @@ export const Delegate = () => {
         open={open}
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
-        currency="nym"
+        currency="NYM"
         estimatedReward={50.423}
         accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
@@ -84,7 +84,7 @@ export const DelegateBelowMinimum = () => {
         open={open}
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
-        currency="nym"
+        currency="NYM"
         estimatedReward={425.2345053}
         nodeUptimePercentage={99.28394}
         profitMarginPercentage={11.12334234}
@@ -109,7 +109,7 @@ export const DelegateMore = () => {
         onOk={async () => setOpen(false)}
         header="Delegate more"
         buttonText="Delegate more"
-        currency="nym"
+        currency="NYM"
         estimatedReward={50.423}
         accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}

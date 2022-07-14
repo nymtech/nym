@@ -1,7 +1,7 @@
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { valid } from 'semver';
-import { isValidRawCoin, CurrencyDenom, DecCoin } from '@nymproject/types';
+import { isValidRawCoin, DecCoin } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';

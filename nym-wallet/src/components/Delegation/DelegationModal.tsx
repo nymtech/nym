@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Button, Modal, Typography, SxProps } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
+import { Console } from 'src/utils/console';
 import { modalStyle } from '../Modals/styles';
 import { LoadingModal } from '../Modals/LoadingModal';
 
@@ -78,8 +79,8 @@ export const DelegationModal: React.FC<
       </Modal>
     );
   }
-  transactions &&
-    transactions.map((transaction) => console.log('action', action, 'status', status, 'key', transaction.hash));
+
+  transactions?.map((transaction) => Console.log('action', action, 'status', status, 'key', transaction.hash));
   return (
     <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
       <Box sx={{ ...modalStyle, ...sx }} textAlign="center">

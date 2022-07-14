@@ -61,7 +61,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'nym',
+          denom: 'NYM',
         },
         data_json: '[]',
         logs_json: '[]',
@@ -74,7 +74,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'nym',
+          denom: 'NYM',
         },
         data_json: '[]',
         logs_json: '[]',
@@ -104,7 +104,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'nym',
+          denom: 'NYM',
         },
         data_json: '[]',
         logs_json: '[]',
@@ -117,7 +117,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'nym',
+          denom: 'NYM',
         },
         data_json: '[]',
         logs_json: '[]',

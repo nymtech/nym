@@ -3,7 +3,6 @@
 
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
-use crate::mixnet_contract_settings::models::ContractState;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
 use cosmwasm_std::{
@@ -12,7 +11,7 @@ use cosmwasm_std::{
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
 
 fn default_initial_state(

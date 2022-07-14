@@ -173,6 +173,14 @@ impl LayerDistribution {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ContractState {
+    pub owner: Addr, // only the owner account can update state
+    pub rewarding_validator_address: Addr,
+    pub rewarding_denom: String,
+    pub params: ContractStateParams,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractStateParams {
     /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
     pub minimum_mixnode_delegation: Option<Coin>,
@@ -186,38 +194,6 @@ pub struct ContractStateParams {
     /// Address of the vesting contract to which the mixnet contract would be sending all
     /// track-related messages.
     pub vesting_contract_address: Addr,
-}
-
-impl Display for ContractStateParams {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        todo!()
-        // write!(f, "Contract state parameters: ")?;
-        // write!(
-        //     f,
-        //     "minimum mixnode pledge: {}; ",
-        //     self.minimum_mixnode_pledge
-        // )?;
-        // write!(
-        //     f,
-        //     "minimum gateway pledge: {}; ",
-        //     self.minimum_gateway_pledge
-        // )?;
-        // if let Some(minimum_delegation) = &self.minimum_mixnode_delegation {
-        //     write!(f, "minimum delegation: {}; ", minimum_delegation)?;
-        // }
-        //
-        // Ok(())
-        // write!(
-        //     f,
-        //     "mixnode rewarded set size: {}",
-        //     self.mixnode_rewarded_set_size
-        // )?;
-        // write!(
-        //     f,
-        //     "mixnode active set size: {}",
-        //     self.mixnode_active_set_size
-        // )
-    }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]

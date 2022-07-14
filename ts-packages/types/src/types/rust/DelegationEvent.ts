@@ -1,5 +1,5 @@
-import type { DecCoin } from "./DecCoin";
-import type { DelegationEventKind } from "./DelegationEventKind";
+import type { DecCoin } from './DecCoin';
+import type { DelegationEventKind } from './DelegationEventKind';
 
 export interface DelegationEvent {
   kind: DelegationEventKind;

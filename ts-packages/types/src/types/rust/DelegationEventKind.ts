@@ -1,2 +1,1 @@
-
-export type DelegationEventKind = "Delegate" | "Undelegate";
+export type DelegationEventKind = 'Delegate' | 'Undelegate';

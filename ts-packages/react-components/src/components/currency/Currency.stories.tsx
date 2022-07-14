@@ -11,12 +11,12 @@ export default {
 
 export const Mainnet = () => (
   <Stack direction="column">
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYM' }} />
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYM' }} showDenom={false} />
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYM' }} showCoinMark />
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYM' }} showCoinMark coinMarkPrefix />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nym' }} />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nym' }} showDenom={false} />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nym' }} showCoinMark />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nym' }} showCoinMark coinMarkPrefix />
     {amounts.map((amount) => (
-      <Currency key={amount} majorAmount={{ amount, denom: 'NYM' }} showCoinMark coinMarkPrefix />
+      <Currency key={amount} majorAmount={{ amount, denom: 'nym' }} showCoinMark coinMarkPrefix />
     ))}
   </Stack>
 );
@@ -40,7 +40,7 @@ export const WithSX = () => (
     {amounts.map((amount) => (
       <Currency
         key={amount}
-        majorAmount={{ amount, denom: 'NYM' }}
+        majorAmount={{ amount, denom: 'nym' }}
         showCoinMark
         sx={{ fontSize: 14, color: 'red', fontWeight: 'bold', m: 1 }}
       />
@@ -48,7 +48,7 @@ export const WithSX = () => (
     {amounts.map((amount) => (
       <Currency
         key={amount}
-        majorAmount={{ amount, denom: 'NYM' }}
+        majorAmount={{ amount, denom: 'nym' }}
         sx={{ fontSize: 14, color: 'red', fontWeight: 'bold', m: 1 }}
       />
     ))}

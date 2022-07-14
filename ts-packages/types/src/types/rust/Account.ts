@@ -1,2 +1,6 @@
+import { CurrencyDenom } from './CurrencyDenom';
 
-export interface Account { contract_address: string, client_address: string, denom: string, }
+export interface Account {
+  client_address: string;
+  mix_denom: CurrencyDenom;
+}

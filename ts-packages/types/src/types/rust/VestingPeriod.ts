@@ -1,2 +1,4 @@
-
-export interface VestingPeriod { start_time: bigint, period_seconds: bigint, }
+export interface VestingPeriod {
+  start_time: bigint;
+  period_seconds: bigint;
+}

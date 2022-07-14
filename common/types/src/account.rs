@@ -9,20 +9,15 @@ use serde::{Deserialize, Serialize};
 )]
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Account {
-    // TODO: discuss with @MS whether it makes sense:
-    // 1. why are we restricting to single denom here? What if user holds both stake and mix currencies?
-    // 2. what's the `contract_address`? is it mixnet? vesting? coconut? why does it relate to an account anyway?
-    pub contract_address: String,
     pub client_address: String,
-    pub denom: String,
+    pub mix_denom: String,
 }
 
 impl Account {
-    pub fn new(contract_address: String, client_address: String, denom: String) -> Self {
+    pub fn new(client_address: String, mix_denom: String) -> Self {
         Account {
-            contract_address,
             client_address,
-            denom,
+            mix_denom,
         }
     }
 }

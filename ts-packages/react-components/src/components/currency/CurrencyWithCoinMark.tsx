@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { DecCoin } from '@nymproject/types';
 import { Stack, SxProps } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CoinMark } from '../coins/CoinMark';
@@ -7,7 +7,7 @@ import { CoinMarkTestnet } from '../coins/CoinMarkTestnet';
 import { CurrencyAmount } from './CurrencyAmount';
 
 export const CurrencyWithCoinMark: React.FC<{
-  majorAmount?: MajorCurrencyAmount;
+  majorAmount?: DecCoin;
   fontSize?: number;
   prefix?: boolean;
   showSeparators?: boolean;
@@ -18,7 +18,7 @@ export const CurrencyWithCoinMark: React.FC<{
   if (!majorAmount) {
     return <span>-</span>;
   }
-  const DenomMark = majorAmount.denom === 'NYMT' ? CoinMarkTestnet : CoinMark;
+  const DenomMark = majorAmount.denom === 'nymt' ? CoinMarkTestnet : CoinMark;
   return (
     <Stack direction="row" fontSize={size} spacing={1} alignItems="center" sx={sx}>
       {prefix ? (

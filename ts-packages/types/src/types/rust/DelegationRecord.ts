@@ -1,4 +1,4 @@
-import type { DecCoin } from "./DecCoin";
+import type { DecCoin } from './DecCoin';
 
 export interface DelegationRecord {
   amount: DecCoin;

@@ -15,15 +15,13 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
-import { BIG_DIPPER, NYM_WEBSITE } from '../api/constants';
+import { NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
-import { OverviewSVG } from '../icons/OverviewSVG';
-import { NetworkComponentsSVG } from '../icons/NetworksSVG';
-import { NodemapSVG } from '../icons/NodemapSVG';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
 import { DarkLightSwitchDesktop } from './Switch';
+import { NavOptionType } from '../context/nav';
 
 const drawerWidth = 300;
 
@@ -69,57 +67,6 @@ const Drawer = styled(MuiDrawer, {
     '& .MuiDrawer-paper': closedMixin(theme),
   }),
 }));
-
-type NavOptionType = {
-  id: number;
-  isActive?: boolean;
-  url: string;
-  title: string;
-  Icon?: React.ReactNode;
-  nested?: NavOptionType[];
-  isExpandedChild?: boolean;
-};
-
-export const originalNavOptions: NavOptionType[] = [
-  {
-    id: 0,
-    isActive: false,
-    url: '/',
-    title: 'Overview',
-    Icon: <OverviewSVG />,
-  },
-  {
-    id: 1,
-    isActive: false,
-    url: '/network-components',
-    title: 'Network Components',
-    Icon: <NetworkComponentsSVG />,
-    nested: [
-      {
-        id: 3,
-        url: '/network-components/mixnodes',
-        title: 'Mixnodes',
-      },
-      {
-        id: 4,
-        url: '/network-components/gateways',
-        title: 'Gateways',
-      },
-      {
-        id: 5,
-        url: `${BIG_DIPPER}/validators`,
-        title: 'Validators',
-      },
-    ],
-  },
-  {
-    id: 2,
-    isActive: false,
-    url: '/nodemap',
-    title: 'Nodemap',
-    Icon: <NodemapSVG />,
-  },
-];
 
 type ExpandableButtonType = {
   id: number;
@@ -203,14 +150,20 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
     }
   }, [drawIsTempOpen]);
 
+  const linkProps = isExternal
+    ? {
+        component: 'a',
+        href: url,
+        target: '_blank',
+      }
+    : { component: !nested ? Link : 'div', to: url };
+
   return (
     <>
       <ListItem
         disablePadding
         disableGutters
-        component={!nested ? Link : 'div'}
-        to={isExternal ? { pathname: url } : url}
-        target={isExternal ? '_blank' : ''}
+        {...linkProps}
         sx={{
           borderBottom: isChild ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
           ...(isActive

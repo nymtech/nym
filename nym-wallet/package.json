@@ -31,6 +31,7 @@
     "@nymproject/mui-theme": "^1.0.0",
     "@nymproject/react": "^1.0.0",
     "@nymproject/types": "^1.0.0",
+    "@storybook/react": "^6.5.8",
     "@tauri-apps/api": "^1.0.2",
     "@tauri-apps/tauri-forage": "^1.0.0-beta.2",
     "bs58": "^4.0.1",

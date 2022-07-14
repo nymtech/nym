@@ -11,7 +11,6 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
 use mixnet_contract_common::{Gateway, GatewayBond};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
-use vesting_contract_common::one_ucoin;
 
 pub fn try_add_gateway(
     deps: DepsMut<'_>,
@@ -164,7 +163,7 @@ pub(crate) fn _try_remove_gateway(
             amount: gateway_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
         response = response.add_message(track_unbond_message);
     }
 

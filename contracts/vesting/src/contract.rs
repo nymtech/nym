@@ -14,7 +14,7 @@ use cosmwasm_std::{
     QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
-use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
+use mixnet_contract_common::{Gateway, IdentityKey, MixNode, NodeId};
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -48,6 +48,8 @@ pub fn instantiate(
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     migrate_config_from_env(_deps, _env, _msg)?;
+    todo!("we'd probably need to explicitly undelegate/unbond everyone here to move to the new system");
+
     Ok(Response::default())
 }
 
@@ -66,11 +68,11 @@ pub fn execute(
             try_track_reward(deps, info, amount, &address)
         }
         ExecuteMsg::ClaimOperatorReward {} => try_claim_operator_reward(deps, info),
-        ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
-            try_claim_delegator_reward(deps, info, mix_identity)
+        ExecuteMsg::ClaimDelegatorReward { mix_id } => {
+            try_claim_delegator_reward(deps, info, mix_id)
         }
-        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
-            try_compound_delegator_reward(mix_identity, info, deps)
+        ExecuteMsg::CompoundDelegatorReward { mix_id } => {
+            try_compound_delegator_reward(mix_id, info, deps)
         }
         ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
         ExecuteMsg::UpdateMixnodeConfig {
@@ -79,12 +81,11 @@ pub fn execute(
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
-        ExecuteMsg::DelegateToMixnode {
-            mix_identity,
-            amount,
-        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
-        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            try_undelegate_from_mixnode(mix_identity, info, deps)
+        ExecuteMsg::DelegateToMixnode { mix_id, amount } => {
+            try_delegate_to_mixnode(mix_id, amount, info, env, deps)
+        }
+        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
+            try_undelegate_from_mixnode(mix_id, info, deps)
         }
         ExecuteMsg::CreateAccount {
             owner_address,
@@ -103,9 +104,9 @@ pub fn execute(
         }
         ExecuteMsg::TrackUndelegation {
             owner,
-            mix_identity,
+            mix_id,
             amount,
-        } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
+        } => try_track_undelegation(&owner, mix_id, amount, info, deps),
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,
@@ -130,17 +131,6 @@ pub fn execute(
         ExecuteMsg::UpdateStakingAddress { to_address } => {
             try_update_staking_address(to_address, info, deps)
         }
-        ExecuteMsg::MigrateHeightsToTimestamps {
-            account_id,
-            mix_identity,
-            height_timestamp_map,
-        } => try_migrate_heights_to_timestamps(
-            account_id,
-            mix_identity,
-            height_timestamp_map,
-            info,
-            deps,
-        ),
     }
 }
 
@@ -252,58 +242,6 @@ fn try_update_staking_address(
     }
 }
 
-pub fn try_migrate_heights_to_timestamps(
-    account_id: u32,
-    mix_identity: String,
-    mut height_timestamp_map: Vec<(u64, u64)>,
-    info: MessageInfo,
-    deps: DepsMut<'_>,
-) -> Result<Response, ContractError> {
-    if info.sender != ADMIN.load(deps.storage)? {
-        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
-    }
-    let mut delegation_heights = DELEGATIONS
-        .prefix((account_id, mix_identity.clone()))
-        .range(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>()?;
-
-    if height_timestamp_map.len() != delegation_heights.len() {
-        return Err(ContractError::MigrateHeightsToTimestamp {
-            reason: format!(
-                "Received {} entries in height_timestamp_map, but {} entries are in storage",
-                height_timestamp_map.len(),
-                delegation_heights.len()
-            ),
-        });
-    }
-
-    height_timestamp_map.sort_by_key(|k| k.0);
-    delegation_heights.sort_by_key(|k| k.0);
-
-    if height_timestamp_map
-        .iter()
-        .zip(delegation_heights.iter())
-        .any(|(mapping, height)| mapping.0 != height.0)
-    {
-        return Err(ContractError::MigrateHeightsToTimestamp {
-            reason: String::from("height_timestamp_map heights mismatch with stored delegations"),
-        });
-    }
-
-    for ((old_key, new_key), (_, amount)) in
-        height_timestamp_map.iter().zip(delegation_heights.iter())
-    {
-        remove_delegation((account_id, mix_identity.clone(), *old_key), deps.storage)?;
-        save_delegation(
-            (account_id, mix_identity.clone(), *new_key),
-            *amount,
-            deps.storage,
-        )?;
-    }
-
-    Ok(Response::default())
-}
-
 // Owner or staking
 pub fn try_bond_gateway(
     gateway: Gateway,
@@ -395,7 +333,7 @@ fn try_track_reward(
 
 fn try_track_undelegation(
     address: &str,
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     amount: Coin,
     info: MessageInfo,
     deps: DepsMut<'_>,
@@ -404,12 +342,14 @@ fn try_track_undelegation(
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(address, deps.storage, deps.api)?;
-    account.track_undelegation(mix_identity, amount, deps.storage)?;
-    Ok(Response::new().add_event(new_track_undelegation_event()))
+
+    todo!()
+    // account.track_undelegation(mix_identity, amount, deps.storage)?;
+    // Ok(Response::new().add_event(new_track_undelegation_event()))
 }
 
 fn try_delegate_to_mixnode(
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     amount: Coin,
     info: MessageInfo,
     env: Env,
@@ -418,16 +358,20 @@ fn try_delegate_to_mixnode(
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
+
+    todo!()
+    // account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
 
 fn try_compound_delegator_reward(
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_compound_delegator_reward(mix_identity, deps.storage)
+
+    todo!()
+    // account.try_compound_delegator_reward(mix_identity, deps.storage)
 }
 
 fn try_claim_operator_reward(
@@ -441,19 +385,23 @@ fn try_claim_operator_reward(
 fn try_claim_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_identity: String,
+    mix_id: NodeId,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_claim_delegator_reward(mix_identity, deps.storage)
+
+    todo!()
+    // account.try_claim_delegator_reward(mix_identity, deps.storage)
 }
 
 fn try_undelegate_from_mixnode(
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_undelegate_from_mixnode(mix_identity, deps.storage)
+
+    todo!()
+    // account.try_undelegate_from_mixnode(mix_identity, deps.storage)
 }
 
 fn try_create_periodic_vesting_account(
@@ -712,27 +660,27 @@ pub fn try_get_delegated_vesting(
 pub fn try_get_delegation_times(
     deps: Deps<'_>,
     vesting_account_address: &str,
-    mix_identity: String,
+    mix_id: NodeId,
 ) -> Result<DelegationTimesResponse, ContractError> {
     let owner = deps.api.addr_validate(vesting_account_address)?;
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 
     let delegation_timestamps = DELEGATIONS
-        .prefix((account.storage_key(), mix_identity.clone()))
+        .prefix((account.storage_key(), mix_id.clone()))
         .keys(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
 
     Ok(DelegationTimesResponse {
         owner,
         account_id: account.storage_key(),
-        mix_identity,
+        mix_id,
         delegation_timestamps,
     })
 }
 
 pub fn try_get_all_delegations(
     deps: Deps<'_>,
-    start_after: Option<(u32, IdentityKey, BlockTimestampSecs)>,
+    start_after: Option<(u32, NodeId, BlockTimestampSecs)>,
     limit: Option<u32>,
 ) -> Result<AllDelegationsResponse, ContractError> {
     let limit = limit.unwrap_or(100).min(200) as usize;
@@ -742,9 +690,9 @@ pub fn try_get_all_delegations(
         .range(deps.storage, start, None, Order::Ascending)
         .map(|kv| {
             kv.map(
-                |((account_id, mix_identity, block_timestamp), amount)| VestingDelegation {
+                |((account_id, mix_id, block_timestamp), amount)| VestingDelegation {
                     account_id,
-                    mix_identity,
+                    mix_id,
                     block_timestamp,
                     amount,
                 },

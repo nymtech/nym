@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::{IdentityKey, NodeId};
 
 pub mod events;
 pub mod messages;
@@ -97,12 +97,12 @@ impl VestingDelegation {
 pub struct DelegationTimesResponse {
     pub owner: Addr,
     pub account_id: u32,
-    pub mix_identity: IdentityKey,
+    pub mix_id: NodeId,
     pub delegation_timestamps: Vec<u64>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct AllDelegationsResponse {
     pub delegations: Vec<VestingDelegation>,
-    pub start_next_after: Option<(u32, IdentityKey, u64)>,
+    pub start_next_after: Option<(u32, NodeId, u64)>,
 }

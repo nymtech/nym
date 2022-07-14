@@ -139,17 +139,13 @@ fn undelegate(
         // otherwise, we don't care
         let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
         if proxy == &vesting_contract {
-            // TODO: do we need to send the 1ucoin here?
-            // TODO2: why not just send the tokens alongside the execute?
-            let min_coin = coins(1, &tokens_to_return.denom);
-
             let msg = VestingContractExecuteMsg::TrackUndelegation {
                 owner: owner.clone().into_string(),
                 mix_identity: "".to_string(),
                 amount: tokens_to_return,
             };
             let msg = todo!("we no longer have mix_identity on hand -> this needs adjustments");
-            let track_unbond_message = wasm_execute(proxy, &msg, min_coin)?;
+            let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_unbond_message);
         }
     }
@@ -202,8 +198,7 @@ fn unbond_mixnode(
             };
 
             // TODO: do we need to send the 1ucoin here?
-            let min_coin = coins(1, &tokens.denom);
-            let track_unbond_message = wasm_execute(proxy, &msg, min_coin)?;
+            let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_unbond_message);
         }
     }

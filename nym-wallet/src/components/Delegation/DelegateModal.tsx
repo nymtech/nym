@@ -31,7 +31,7 @@ export const DelegateModal: React.FC<{
   estimatedReward?: number;
   profitMarginPercentage?: number | null;
   nodeUptimePercentage?: number | null;
-  currency: CurrencyDenom;
+  currency: string;
   initialAmount?: string;
   hasVestingContract: boolean;
   sx?: SxProps;
@@ -118,7 +118,7 @@ export const DelegateModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom: currency }, tokenPool, fee);
+      onOk(identityKey, { amount, denom: currency as CurrencyDenom }, tokenPool, fee);
     }
   };
 
@@ -181,7 +181,7 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (identityKey && amount) {
-          handleConfirm({ identity: identityKey, value: { amount, denom: currency } });
+          handleConfirm({ identity: identityKey, value: { amount, denom: currency as CurrencyDenom } });
         }
       }}
       header={header || 'Delegate'}

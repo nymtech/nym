@@ -193,7 +193,9 @@ export const DelegationList: React.FC<{
                     }
                     arrow
                   >
-                    <span style={{ cursor: 'pointer' }}>{`${item.amount.amount} ${item.amount.denom}`}</span>
+                    <span
+                      style={{ cursor: 'pointer', textTransform: 'uppercase' }}
+                    >{`${item.amount.amount} ${item.amount.denom}`}</span>
                   </Tooltip>
                 </TableCell>
                 <TableCell>

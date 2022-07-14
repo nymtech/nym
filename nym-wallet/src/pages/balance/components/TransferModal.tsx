@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, CircularProgress } from '@mui/material';
-import { FeeDetails } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { AppContext, urls } from 'src/context';
@@ -26,7 +26,7 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
         });
         setFee(simulatedFee);
       } catch (e) {
-        setFee({ amount: { amount: 'n/a', denom: clientDetails.mix_denom }, fee: { Auto: null } });
+        setFee({ amount: { amount: 'n/a', denom: clientDetails.mix_denom as CurrencyDenom }, fee: { Auto: null } });
         Console.error(e);
       }
     }
@@ -42,7 +42,7 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
       try {
         const txResponse = await withdrawVestedCoins({
           amount: userBalance.tokenAllocation?.spendable,
-          denom: clientDetails.mix_denom,
+          denom: clientDetails.mix_denom as CurrencyDenom,
         });
         setState('success');
         setTx({

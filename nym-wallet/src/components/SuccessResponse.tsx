@@ -7,7 +7,13 @@ export const SuccessReponse: React.FC<{
   caption: string | React.ReactNode;
 }> = ({ title, subtitle, caption }) => (
   <Stack spacing={3} alignItems="center" sx={{ mb: 5 }}>
-    <Typography variant="h5" fontWeight="600" data-testid="transaction-complete" color="success.main">
+    <Typography
+      variant="h5"
+      fontWeight="600"
+      data-testid="transaction-complete"
+      color="success.main"
+      textTransform="uppercase"
+    >
       {title}
     </Typography>
     <Typography fontWeight="600">{subtitle}</Typography>

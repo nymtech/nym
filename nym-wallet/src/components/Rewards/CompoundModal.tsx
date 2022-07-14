@@ -14,7 +14,7 @@ export const CompoundModal: React.FC<{
   onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  currency: CurrencyDenom;
+  currency: string;
   message: string;
   usesVestingTokens: boolean;
 }> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens }) => {

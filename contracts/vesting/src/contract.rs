@@ -12,7 +12,7 @@ use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
 };
-use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
+use mixnet_contract_common::{Gateway, IdentityKey, MixNode, NodeId};
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -43,6 +43,8 @@ pub fn instantiate(
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     migrate_config_from_env(_deps, _env, _msg)?;
+    todo!("we'd probably need to explicitly undelegate/unbond everyone here to move to the new system");
+
     Ok(Response::default())
 }
 
@@ -61,11 +63,11 @@ pub fn execute(
             try_track_reward(deps, info, amount, &address)
         }
         ExecuteMsg::ClaimOperatorReward {} => try_claim_operator_reward(deps, info),
-        ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
-            try_claim_delegator_reward(deps, info, mix_identity)
+        ExecuteMsg::ClaimDelegatorReward { mix_id } => {
+            try_claim_delegator_reward(deps, info, mix_id)
         }
-        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
-            try_compound_delegator_reward(mix_identity, info, deps)
+        ExecuteMsg::CompoundDelegatorReward { mix_id } => {
+            try_compound_delegator_reward(mix_id, info, deps)
         }
         ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
         ExecuteMsg::UpdateMixnodeConfig {
@@ -74,12 +76,11 @@ pub fn execute(
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
-        ExecuteMsg::DelegateToMixnode {
-            mix_identity,
-            amount,
-        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
-        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            try_undelegate_from_mixnode(mix_identity, info, deps)
+        ExecuteMsg::DelegateToMixnode { mix_id, amount } => {
+            try_delegate_to_mixnode(mix_id, amount, info, env, deps)
+        }
+        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
+            try_undelegate_from_mixnode(mix_id, info, deps)
         }
         ExecuteMsg::CreateAccount {
             owner_address,
@@ -98,9 +99,9 @@ pub fn execute(
         }
         ExecuteMsg::TrackUndelegation {
             owner,
-            mix_identity,
+            mix_id,
             amount,
-        } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
+        } => try_track_undelegation(&owner, mix_id, amount, info, deps),
         ExecuteMsg::BondMixnode {
             mix_node,
             owner_signature,
@@ -327,7 +328,7 @@ fn try_track_reward(
 
 fn try_track_undelegation(
     address: &str,
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     amount: Coin,
     info: MessageInfo,
     deps: DepsMut<'_>,
@@ -336,12 +337,14 @@ fn try_track_undelegation(
         return Err(ContractError::NotMixnetContract(info.sender));
     }
     let account = account_from_address(address, deps.storage, deps.api)?;
-    account.track_undelegation(mix_identity, amount, deps.storage)?;
-    Ok(Response::new().add_event(new_track_undelegation_event()))
+
+    todo!()
+    // account.track_undelegation(mix_identity, amount, deps.storage)?;
+    // Ok(Response::new().add_event(new_track_undelegation_event()))
 }
 
 fn try_delegate_to_mixnode(
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     amount: Coin,
     info: MessageInfo,
     env: Env,
@@ -350,16 +353,20 @@ fn try_delegate_to_mixnode(
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
+
+    todo!()
+    // account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
 
 fn try_compound_delegator_reward(
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_compound_delegator_reward(mix_identity, deps.storage)
+
+    todo!()
+    // account.try_compound_delegator_reward(mix_identity, deps.storage)
 }
 
 fn try_claim_operator_reward(
@@ -373,19 +380,23 @@ fn try_claim_operator_reward(
 fn try_claim_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_identity: String,
+    mix_id: NodeId,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_claim_delegator_reward(mix_identity, deps.storage)
+
+    todo!()
+    // account.try_claim_delegator_reward(mix_identity, deps.storage)
 }
 
 fn try_undelegate_from_mixnode(
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_undelegate_from_mixnode(mix_identity, deps.storage)
+
+    todo!()
+    // account.try_undelegate_from_mixnode(mix_identity, deps.storage)
 }
 
 fn try_create_periodic_vesting_account(

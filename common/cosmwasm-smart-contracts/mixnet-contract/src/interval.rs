@@ -213,7 +213,7 @@ impl Interval {
     pub fn force_change_epochs_in_interval(&mut self, epochs_in_interval: u32) {
         self.epochs_in_interval = epochs_in_interval;
         if self.current_epoch_id >= epochs_in_interval {
-            self.current_epoch_id = self.current_epoch_id % epochs_in_interval;
+            self.current_epoch_id %= epochs_in_interval;
         }
     }
 

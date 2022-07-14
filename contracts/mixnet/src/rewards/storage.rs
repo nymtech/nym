@@ -10,7 +10,7 @@ use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeRewarding;
 use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::{InitialRewardingParams, NodeId};
+use mixnet_contract_common::NodeId;
 
 // current parameters used for rewarding purposes
 pub(crate) const REWARDING_PARAMS: Item<'_, RewardingParams> = Item::new(REWARDING_PARAMS_KEY);
@@ -29,17 +29,6 @@ pub fn reward_accounting(
 
     Ok(PENDING_REWARD_POOL_CHANGE.save(storage, &pending_changes)?)
 }
-
-//
-// pub fn circulating_supply(storage: &dyn Storage) -> StdResult<Uint128> {
-//     let reward_pool = REWARD_POOL.load(storage)?;
-//     Ok(Uint128::new(TOTAL_SUPPLY).saturating_sub(reward_pool))
-// }
-//
-// pub fn staking_supply(storage: &dyn Storage) -> StdResult<Uint128> {
-//     let state = settings_storage::CONTRACT_STATE.load(storage)?;
-//     Ok(state.params.staking_supply)
-// }
 
 pub(crate) fn initialise_storage(
     storage: &mut dyn Storage,

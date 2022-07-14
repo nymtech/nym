@@ -298,7 +298,7 @@ mod tests {
 
         assert_eq!(
             Err(MixnetContractError::MalformedEd25519IdentityKey(
-                "Too few bytes provided".into()
+                "Too few bytes provided for the public key".into()
             )),
             validate_node_identity_signature(
                 deps.as_ref(),
@@ -310,7 +310,7 @@ mod tests {
 
         assert_eq!(
             Err(MixnetContractError::MalformedEd25519Signature(
-                "Too few bytes provided".into()
+                "Too few bytes provided for the signature".into()
             )),
             validate_node_identity_signature(
                 deps.as_ref(),

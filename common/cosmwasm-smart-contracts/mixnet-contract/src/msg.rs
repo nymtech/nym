@@ -22,7 +22,7 @@ pub struct InstantiateMsg {
     pub rewarding_denom: String,
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,
-    pub rewarding_parameters: InitialRewardingParams,
+    pub initial_rewarding_params: InitialRewardingParams,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -39,24 +39,27 @@ pub struct InitialRewardingParams {
     pub active_set_size: u32,
 }
 
-impl From<InitialRewardingParams> for RewardingParams {
-    fn from(init: InitialRewardingParams) -> Self {
-        todo!()
-        // RewardingParams {
-        //     interval: IntervalRewardParams {
-        //         reward_pool: Default::default(),
-        //         staking_supply: Default::default(),
-        //         epoch_reward_budget: Default::default(),
-        //         stake_saturation_point: Default::default(),
-        //         sybil_resistance_percent: (),
-        //         active_set_work_factor: Default::default(),
-        //         epochs_in_interval: 0,
-        //     },
-        //     epoch: EpochRewardParams {
-        //         rewarded_set_size: 0,
-        //         active_set_size: 0,
-        //     },
-        // }
+impl InitialRewardingParams {
+    pub fn into_rewarding_params(self, epochs_in_interval: u32) -> RewardingParams {
+        let epoch_reward_budget = self.initial_reward_pool
+            / Decimal::from_atomics(epochs_in_interval, 0).unwrap()
+            * self.interval_pool_emission;
+        let stake_saturation_point =
+            self.initial_reward_pool / Decimal::from_atomics(self.rewarded_set_size, 0).unwrap();
+
+        RewardingParams {
+            interval: IntervalRewardParams {
+                reward_pool: self.initial_reward_pool,
+                staking_supply: self.initial_staking_supply,
+                epoch_reward_budget,
+                stake_saturation_point,
+                sybil_resistance: self.sybil_resistance,
+                active_set_work_factor: self.active_set_work_factor,
+                interval_pool_emission: self.interval_pool_emission,
+            },
+            rewarded_set_size: self.rewarded_set_size,
+            active_set_size: self.active_set_size,
+        }
     }
 }
 

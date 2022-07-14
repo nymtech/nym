@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-    ExecuteReleaseFundsRequestBody, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
-    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
@@ -416,23 +416,6 @@ impl Client {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::COCONUT_PROPOSE_RELEASE_FUNDS,
-            ],
-            NO_PARAMS,
-            request_body,
-        )
-        .await
-    }
-
-    pub async fn execute_release_funds(
-        &self,
-        request_body: &ExecuteReleaseFundsRequestBody,
-    ) -> Result<(), ValidatorAPIError> {
-        self.post_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_EXECUTE_RELEASE_FUNDS,
             ],
             NO_PARAMS,
             request_body,

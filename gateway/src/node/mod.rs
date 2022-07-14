@@ -317,7 +317,8 @@ where
             self.all_api_clients(),
             nymd_client,
             validators_verification_key,
-        );
+        )
+        .expect("Could not create coconut verifier");
 
         #[cfg(not(feature = "coconut"))]
         let erc20_bridge = ERC20Bridge::new(self.config.get_eth_endpoint(), nymd_client);

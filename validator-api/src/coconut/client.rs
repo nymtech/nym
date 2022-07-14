@@ -19,5 +19,4 @@ pub trait Client {
     ) -> Result<u64>;
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
-    async fn execute_proposal(&self, proposal_id: u64, fee: Option<Fee>) -> Result<()>;
 }

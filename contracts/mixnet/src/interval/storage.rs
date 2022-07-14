@@ -138,6 +138,15 @@ pub(crate) fn update_rewarded_set(
     Ok(())
 }
 
+pub(crate) fn initialise_storage(
+    storage: &mut dyn Storage,
+    starting_interval: Interval,
+) -> StdResult<()> {
+    save_interval(storage, &starting_interval)?;
+    LAST_PROCESSED_EPOCH_EVENT.save(storage, &0)?;
+    LAST_PROCESSED_INTERVAL_EVENT.save(storage, &0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

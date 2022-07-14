@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::CONTRACT_STATE_KEY;
-use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Storage};
+use cosmwasm_std::{Coin, StdResult};
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::ContractState;
@@ -46,4 +46,11 @@ pub(crate) fn vesting_contract_address(storage: &dyn Storage) -> Result<Addr, Mi
     Ok(CONTRACT_STATE
         .load(storage)
         .map(|state| state.params.vesting_contract_address)?)
+}
+
+pub(crate) fn initialise_storage(
+    storage: &mut dyn Storage,
+    initial_state: ContractState,
+) -> StdResult<()> {
+    CONTRACT_STATE.save(storage, &initial_state)
 }

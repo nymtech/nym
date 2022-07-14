@@ -41,14 +41,10 @@ pub fn reward_accounting(
 //     Ok(state.params.staking_supply)
 // }
 
-pub(crate) fn initialise_rewarding_storage(
+pub(crate) fn initialise_storage(
     storage: &mut dyn Storage,
-    initial_reward_params: InitialRewardingParams,
+    reward_params: RewardingParams,
 ) -> StdResult<()> {
-    // let rewarding_params = RewardingParams {
-    //
-    // }
-
-    PENDING_REWARD_POOL_CHANGE.save(storage, &Default::default())?;
-    todo!()
+    REWARDING_PARAMS.save(storage, &reward_params)?;
+    PENDING_REWARD_POOL_CHANGE.save(storage, &RewardPoolChange::default())
 }

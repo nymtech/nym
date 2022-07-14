@@ -221,7 +221,8 @@ impl Wallet {
         // benchmark flag to signal that we don't want to increase the spending couter but only
         // care about the function performance.
         if !bench_flag {
-            self.up();
+            let current_l = self.l();
+            self.l.set(current_l + spend_vv);
         }
 
         Ok((pay, self))
@@ -253,7 +254,7 @@ pub fn compute_kappa(
         .sum::<G2Projective>()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
     pub info: [u8; 32],
 }

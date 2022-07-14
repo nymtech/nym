@@ -12,7 +12,7 @@ use crate::support::helpers::{
     ensure_bonded, ensure_is_authorized, ensure_is_owner, ensure_proxy_match,
     send_to_proxy_or_owner,
 };
-use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mix_rewarding_event, new_not_found_mix_operator_rewarding_event,
@@ -116,7 +116,7 @@ pub(crate) fn try_withdraw_operator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    _try_withdraw_operator_reward(deps, info.sender, None, info.funds)
+    _try_withdraw_operator_reward(deps, info.sender, None)
 }
 
 pub(crate) fn try_withdraw_operator_reward_on_behalf(
@@ -126,14 +126,13 @@ pub(crate) fn try_withdraw_operator_reward_on_behalf(
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
-    _try_withdraw_operator_reward(deps, owner, Some(proxy), info.funds)
+    _try_withdraw_operator_reward(deps, owner, Some(proxy))
 }
 
 pub(crate) fn _try_withdraw_operator_reward(
     deps: DepsMut<'_>,
     owner: Addr,
     proxy: Option<Addr>,
-    funds: Vec<Coin>,
 ) -> Result<Response, MixnetContractError> {
     // we need to grab all of the node's details so we'd known original pledge alongside
     // all the earned rewards (and obviously to know if this node even exists and is still
@@ -162,7 +161,7 @@ pub(crate) fn _try_withdraw_operator_reward(
                 amount: reward,
                 address: owner.into_string(),
             };
-            let track_reward_message = wasm_execute(proxy, &msg, funds)?;
+            let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_reward_message);
         }
     }
@@ -176,7 +175,7 @@ pub(crate) fn try_withdraw_delegator_reward(
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
-    _try_withdraw_delegator_reward(deps, mix_id, info.sender, None, info.funds)
+    _try_withdraw_delegator_reward(deps, mix_id, info.sender, None)
 }
 
 pub(crate) fn try_withdraw_delegator_reward_on_behalf(
@@ -187,7 +186,7 @@ pub(crate) fn try_withdraw_delegator_reward_on_behalf(
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
-    _try_withdraw_delegator_reward(deps, mix_id, owner, Some(proxy), info.funds)
+    _try_withdraw_delegator_reward(deps, mix_id, owner, Some(proxy))
 }
 
 pub(crate) fn _try_withdraw_delegator_reward(
@@ -195,7 +194,6 @@ pub(crate) fn _try_withdraw_delegator_reward(
     mix_id: NodeId,
     owner: Addr,
     proxy: Option<Addr>,
-    funds: Vec<Coin>,
 ) -> Result<Response, MixnetContractError> {
     // see if the delegation even exists
     let storage_key = Delegation::generate_storage_key(mix_id, &owner, proxy.as_ref());
@@ -227,7 +225,7 @@ pub(crate) fn _try_withdraw_delegator_reward(
                 amount: reward,
                 address: owner.into_string(),
             };
-            let track_reward_message = wasm_execute(proxy, &msg, funds)?;
+            let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_reward_message);
         }
     }

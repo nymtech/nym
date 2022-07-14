@@ -20,6 +20,7 @@ pub(crate) fn valid_bond_mixnode_msg(sender: &str) -> (ExecuteMsg, (IdentityKey,
                 sphinx_key: sphinx_key.clone(),
                 ..tests::fixtures::mix_node_fixture()
             },
+            cost_params: tests::fixtures::mix_node_cost_params_fixture(),
             owner_signature,
         },
         (identity_key, sphinx_key),

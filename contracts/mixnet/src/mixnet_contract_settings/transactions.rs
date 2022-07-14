@@ -87,7 +87,15 @@ pub mod tests {
             info,
             "new-good-address".to_string(),
         );
-        assert_eq!(res, Ok(Response::default()));
+        assert_eq!(
+            res,
+            Ok(
+                Response::default().add_event(new_rewarding_validator_address_update_event(
+                    Addr::unchecked("rewarder"),
+                    Addr::unchecked("new-good-address")
+                ))
+            )
+        );
 
         let state = storage::CONTRACT_STATE.load(&deps.storage).unwrap();
         assert_eq!(

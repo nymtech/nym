@@ -28,6 +28,16 @@ pub enum CompactEcashError {
     #[error("ZKP Proof related error: {0}")]
     RangeProofOutOfBound(String),
 
+    #[error("Identify Verification related error: {0}")]
+    Identify(String),
+
+    #[error(
+    "Deserailization error, expected at least {} bytes, got {}",
+    min,
+    actual
+    )]
+    DeserializationMinLength { min: usize, actual: usize },
+
     #[error("Tried to deserialize {object} with bytes of invalid length. Expected {actual} < {} or {modulus_target} % {modulus} == 0")]
     DeserializationInvalidLength {
         actual: usize,

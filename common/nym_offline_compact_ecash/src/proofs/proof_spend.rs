@@ -14,12 +14,12 @@ use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective}
 #[cfg_attr(test, derive(PartialEq))]
 pub struct SpendInstance {
     pub kappa: G2Projective,
-    pub aa: G1Projective,
     pub cc: G1Projective,
     pub dd: G1Projective,
-    pub ss: G1Projective,
-    pub tt: G1Projective,
-    pub kappa_l: G2Projective,
+    pub aa: Vec<G1Projective>,
+    pub ss: Vec<G1Projective>,
+    pub tt: Vec<G1Projective>,
+    pub kappa_k: Vec<G2Projective>,
 }
 
 impl TryFrom<&[u8]> for SpendInstance {
@@ -36,41 +36,132 @@ impl TryFrom<&[u8]> for SpendInstance {
             });
         }
 
-        let kappa_bytes = bytes[..96].try_into().unwrap();
+        let mut j = 0;
+        let kappa_bytes = bytes[j..j + 96].try_into().unwrap();
         let kappa = try_deserialize_g2_projective(
             &kappa_bytes,
             CompactEcashError::Deserialization("Failed to deserialize kappa".to_string()),
         )?;
-        let aa_bytes = bytes[96..144].try_into().unwrap();
-        let aa = try_deserialize_g1_projective(
-            &aa_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize A".to_string()),
-        )?;
-        let cc_bytes = bytes[144..192].try_into().unwrap();
+        j += 96;
+
+        let a_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
+        j += 8;
+        if bytes[j..].len() < a_len as usize * 48 {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: a_len as usize * 48,
+                actual: bytes[j..].len(),
+            });
+        }
+
+        let mut aa = Vec::with_capacity(a_len as usize);
+        for i in 0..a_len as usize {
+            let start = j + i * 48;
+            let end = start + 48;
+
+            let aa_elem_bytes = bytes[start..end].try_into().unwrap();
+            let aa_elem = try_deserialize_g1_projective(
+                &aa_elem_bytes,
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize compressed A values".to_string(),
+                ),
+            )?;
+
+            aa.push(aa_elem)
+        }
+        j += j + a_len as usize * 48;
+
+
+        let cc_bytes = bytes[j..j + 48].try_into().unwrap();
         let cc = try_deserialize_g1_projective(
             &cc_bytes,
             CompactEcashError::Deserialization("Failed to deserialize C".to_string()),
         )?;
-        let dd_bytes = bytes[192..240].try_into().unwrap();
+        j += 48;
+
+        let dd_bytes = bytes[j..j + 48].try_into().unwrap();
         let dd = try_deserialize_g1_projective(
             &dd_bytes,
             CompactEcashError::Deserialization("Failed to deserialize D".to_string()),
         )?;
-        let ss_bytes = bytes[240..288].try_into().unwrap();
-        let ss = try_deserialize_g1_projective(
-            &ss_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize S".to_string()),
-        )?;
-        let tt_bytes = bytes[288..336].try_into().unwrap();
-        let tt = try_deserialize_g1_projective(
-            &tt_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize T".to_string()),
-        )?;
-        let kappa_l_bytes = bytes[336..432].try_into().unwrap();
-        let kappa_l = try_deserialize_g2_projective(
-            &kappa_l_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize kappa_l".to_string()),
-        )?;
+        j += 48;
+
+        let s_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
+        j += 8;
+        if bytes[j..].len() < s_len as usize * 48 {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: s_len as usize * 48,
+                actual: bytes[j..].len(),
+            });
+        }
+
+        let mut ss = Vec::with_capacity(s_len as usize);
+        for i in 0..s_len as usize {
+            let start = j + i * 48;
+            let end = start + 48;
+
+            let ss_elem_bytes = bytes[start..end].try_into().unwrap();
+            let ss_elem = try_deserialize_g1_projective(
+                &ss_elem_bytes,
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize compressed S values".to_string(),
+                ),
+            )?;
+
+            ss.push(ss_elem)
+        }
+        j += j + s_len as usize * 48;
+
+        let t_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
+        j += 8;
+        if bytes[j..].len() < t_len as usize * 48 {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: t_len as usize * 48,
+                actual: bytes[j..].len(),
+            });
+        }
+
+        let mut tt = Vec::with_capacity(t_len as usize);
+        for i in 0..t_len as usize {
+            let start = j + i * 48;
+            let end = start + 48;
+
+            let tt_elem_bytes = bytes[start..end].try_into().unwrap();
+            let tt_elem = try_deserialize_g1_projective(
+                &tt_elem_bytes,
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize compressed T values".to_string(),
+                ),
+            )?;
+
+            tt.push(tt_elem)
+        }
+        j += j + t_len as usize * 48;
+
+
+        let kappa_k_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
+        j += 8;
+        if bytes[j..].len() < kappa_k_len as usize * 96 {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: kappa_k_len as usize * 96,
+                actual: bytes[j..].len(),
+            });
+        }
+
+        let mut kappa_k = Vec::with_capacity(kappa_k_len as usize);
+        for i in 0..kappa_k_len as usize {
+            let start = j + i * 48;
+            let end = start + 48;
+
+            let kappa_k_elem_bytes = bytes[start..end].try_into().unwrap();
+            let kappa_k_elem = try_deserialize_g2_projective(
+                &kappa_k_elem_bytes,
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize compressed kappa_k values".to_string(),
+                ),
+            )?;
+
+            kappa_k.push(kappa_k_elem)
+        }
 
         Ok(SpendInstance {
             kappa,
@@ -79,21 +170,37 @@ impl TryFrom<&[u8]> for SpendInstance {
             dd,
             ss,
             tt,
-            kappa_l,
+            kappa_k,
         })
     }
 }
 
 impl SpendInstance {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(2 * 96 + 5 * 48);
+        let mut bytes: Vec<u8> = Default::default();
         bytes.extend_from_slice(self.kappa.to_bytes().as_ref());
-        bytes.extend_from_slice(self.aa.to_bytes().as_ref());
+
+        bytes.extend_from_slice(&self.aa.len().to_le_bytes());
+        for a in &self.aa {
+            bytes.extend_from_slice(&a.to_affine().to_compressed());
+        }
+
         bytes.extend_from_slice(self.cc.to_bytes().as_ref());
         bytes.extend_from_slice(self.dd.to_bytes().as_ref());
-        bytes.extend_from_slice(self.ss.to_bytes().as_ref());
-        bytes.extend_from_slice(self.tt.to_bytes().as_ref());
-        bytes.extend_from_slice(self.kappa_l.to_bytes().as_ref());
+
+        bytes.extend_from_slice(&self.ss.len().to_le_bytes());
+        for s in &self.ss {
+            bytes.extend_from_slice(&s.to_affine().to_compressed());
+        }
+        bytes.extend_from_slice(&self.tt.len().to_le_bytes());
+        for t in &self.tt {
+            bytes.extend_from_slice(&t.to_affine().to_compressed());
+        }
+
+        bytes.extend_from_slice(&self.kappa_k.len().to_le_bytes());
+        for k in &self.kappa_k {
+            bytes.extend_from_slice(&k.to_affine().to_compressed());
+        }
         bytes
     }
 }
@@ -103,30 +210,30 @@ pub struct SpendWitness {
     pub attributes: Vec<Scalar>,
     // signature randomizing element
     pub r: Scalar,
-    pub r_l: Scalar,
-    pub l: Scalar,
-    pub o_a: Scalar,
     pub o_c: Scalar,
     pub o_d: Scalar,
-    pub mu: Scalar,
-    pub lambda: Scalar,
-    pub o_mu: Scalar,
-    pub o_lambda: Scalar,
+    pub lk: Vec<Scalar>,
+    pub o_a: Vec<Scalar>,
+    pub mu: Vec<Scalar>,
+    pub lambda: Vec<Scalar>,
+    pub o_mu: Vec<Scalar>,
+    pub o_lambda: Vec<Scalar>,
+    pub r_k: Vec<Scalar>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SpendProof {
     challenge: Scalar,
     response_r: Scalar,
-    response_r_l: Scalar,
-    response_l: Scalar,
-    response_o_a: Scalar,
+    response_r_l: Vec<Scalar>,
+    response_l: Vec<Scalar>,
+    response_o_a: Vec<Scalar>,
     response_o_c: Scalar,
     response_o_d: Scalar,
-    response_mu: Scalar,
-    response_lambda: Scalar,
-    response_o_mu: Scalar,
-    response_o_lambda: Scalar,
+    response_mu: Vec<Scalar>,
+    response_lambda: Vec<Scalar>,
+    response_o_mu: Vec<Scalar>,
+    response_o_lambda: Vec<Scalar>,
     response_attributes: Vec<Scalar>,
 }
 
@@ -136,7 +243,7 @@ impl SpendProof {
         instance: &SpendInstance,
         witness: &SpendWitness,
         verification_key: &VerificationKeyAuth,
-        rr: Scalar,
+        rr: &[Scalar],
     ) -> Self {
         let grparams = params.grp();
         // generate random values to replace each witness
@@ -145,15 +252,16 @@ impl SpendProof {
         let r_v = r_attributes[1];
         let r_t = r_attributes[2];
         let r_r = grparams.random_scalar();
-        let r_r_l = grparams.random_scalar();
-        let r_l = grparams.random_scalar();
-        let r_o_a = grparams.random_scalar();
         let r_o_c = grparams.random_scalar();
         let r_o_d = grparams.random_scalar();
-        let r_mu = grparams.random_scalar();
-        let r_lambda = grparams.random_scalar();
-        let r_o_mu = grparams.random_scalar();
-        let r_o_lambda = grparams.random_scalar();
+
+        let r_r_lk = grparams.n_random_scalars(witness.r_k.len());
+        let r_lk = grparams.n_random_scalars(witness.lk.len());
+        let r_o_a = grparams.n_random_scalars(witness.o_a.len());
+        let r_mu = grparams.n_random_scalars(witness.mu.len());
+        let r_lambda = grparams.n_random_scalars(witness.lambda.len());
+        let r_o_mu = grparams.n_random_scalars(witness.o_mu.len());
+        let r_o_lambda = grparams.n_random_scalars(witness.o_lambda.len());
 
         let g1 = *grparams.gen1();
         let gamma1 = *grparams.gamma1();
@@ -172,14 +280,69 @@ impl SpendProof {
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
-        let zkcm_aa = g1 * r_o_a + gamma1 * r_l;
         let zkcm_cc = g1 * r_o_c + gamma1 * r_v;
         let zkcm_dd = g1 * r_o_d + gamma1 * r_t;
-        let zkcm_ss = g1 * r_mu;
-        let zkcm_gamma11 = (instance.aa + instance.cc + gamma1) * r_mu + g1 * r_o_mu;
-        let zkcm_tt = g1 * r_sk + (g1 * rr) * r_lambda;
-        let zkcm_gamma12 = (instance.aa + instance.dd + gamma1) * r_lambda + g1 * r_o_lambda;
-        let zkcm_kappa_l = grparams.gen2() * r_r_l + params.pkRP().alpha + params.pkRP().beta * r_l;
+
+        let zkcm_aa: Vec<G1Projective> =
+            r_o_a
+                .iter()
+                .zip(r_lk.iter()).map(|(r_o_a_k, r_l_k)| g1 * r_o_a_k + gamma1 * r_l_k)
+                .collect::<Vec<_>>();
+
+        let zkcm_aa_bytes = zkcm_aa
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_ss = r_mu.iter().map(|r_mu_k| g1 * r_mu_k).collect::<Vec<_>>();
+
+        let zkcm_ss_bytes = zkcm_ss
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_tt = rr
+            .iter()
+            .zip(r_lambda.iter()).map(|(rr_k, r_lambda_k)| g1 * r_sk + (g1 * rr_k) * r_lambda_k).collect::<Vec<_>>();
+
+        let zkcm_tt_bytes = zkcm_tt
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma11 = instance.aa
+            .iter()
+            .zip(r_mu.iter())
+            .zip(r_o_mu.iter())
+            .map(|((aa_k, r_mu_k), r_o_mu_k)| (aa_k + instance.cc + gamma1) * r_mu_k + g1 * r_o_mu_k)
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma11_bytes = zkcm_gamma11
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma12 = instance.aa
+            .iter()
+            .zip(r_lambda.iter())
+            .zip(r_o_lambda.iter())
+            .map(|((aa_k, r_lambda_k), r_o_lambda_k)| (aa_k + instance.dd + gamma1) * r_lambda_k + g1 * r_o_lambda_k)
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma12_bytes = zkcm_gamma12
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_kappa_k = r_lk.iter()
+            .zip(r_r_lk.iter())
+            .map(|(r_k, r_r_k)| params.pkRP().alpha + params.pkRP().beta * r_k + grparams.gen2() * r_r_k)
+            .collect::<Vec<_>>();
+
+        let zkcm_kappa_k_bytes = zkcm_kappa_k
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
 
         // compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
@@ -189,18 +352,14 @@ impl SpendProof {
                 .chain(beta2_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_aa.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_dd.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_ss.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_kappa_l.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    zkcm_gamma11.to_affine().to_bytes().as_ref(),
-                ))
-                .chain(std::iter::once(zkcm_tt.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    zkcm_gamma12.to_affine().to_bytes().as_ref(),
-                )),
+                .chain(zkcm_aa_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_gamma11_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_gamma12_bytes.iter().map(|x| x.as_ref())),
         );
 
         // compute response for each witness
@@ -210,16 +369,16 @@ impl SpendProof {
             &witness.attributes.iter().collect::<Vec<_>>(),
         );
         let response_r = produce_response(&r_r, &challenge, &witness.r);
-        let response_r_l = produce_response(&r_r_l, &challenge, &witness.r_l);
-        let response_l = produce_response(&r_l, &challenge, &witness.l);
-        let response_o_a = produce_response(&r_o_a, &challenge, &witness.o_a);
+        let response_r_l = produce_responses(&r_r_lk, &challenge, &witness.r_k);
+        let response_l = produce_responses(&r_lk, &challenge, &witness.lk);
+        let response_o_a = produce_responses(&r_o_a, &challenge, &witness.o_a);
         let response_o_c = produce_response(&r_o_c, &challenge, &witness.o_c);
         let response_o_d = produce_response(&r_o_d, &challenge, &witness.o_d);
 
-        let response_mu = produce_response(&r_mu, &challenge, &witness.mu);
-        let response_lambda = produce_response(&r_lambda, &challenge, &witness.lambda);
-        let response_o_mu = produce_response(&r_o_mu, &challenge, &witness.o_mu);
-        let response_o_lambda = produce_response(&r_o_lambda, &challenge, &witness.o_lambda);
+        let response_mu = produce_responses(&r_mu, &challenge, &witness.mu);
+        let response_lambda = produce_responses(&r_lambda, &challenge, &witness.lambda);
+        let response_o_mu = produce_responses(&r_o_mu, &challenge, &witness.o_mu);
+        let response_o_lambda = produce_responses(&r_o_lambda, &challenge, &witness.o_lambda);
 
         SpendProof {
             challenge,
@@ -241,7 +400,7 @@ impl SpendProof {
         params: &Parameters,
         instance: &SpendInstance,
         verification_key: &VerificationKeyAuth,
-        rr: Scalar,
+        rr: &[Scalar],
     ) -> bool {
         let grparams = params.grp();
         let g1 = *grparams.gen1();
@@ -263,29 +422,87 @@ impl SpendProof {
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
-        let zkcm_aa =
-            g1 * self.response_o_a + gamma1 * self.response_l + instance.aa * self.challenge;
+
+        let zkcm_aa = self.response_o_a
+            .iter()
+            .zip(self.response_l.iter())
+            .zip(instance.aa.iter())
+            .map(|((resp_o_a_k, resp_l_k), aa_k)| g1 * resp_o_a_k + gamma1 * resp_l_k + aa_k * self.challenge)
+            .collect::<Vec<_>>();
+
+        let zkcm_aa_bytes = zkcm_aa
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
         let zkcm_cc = g1 * self.response_o_c
             + gamma1 * self.response_attributes[1]
             + instance.cc * self.challenge;
         let zkcm_dd = g1 * self.response_o_d
             + gamma1 * self.response_attributes[2]
             + instance.dd * self.challenge;
-        let zkcm_ss = g1 * self.response_mu + instance.ss * self.challenge;
-        let zkcm_gamma11 = (instance.aa + instance.cc + gamma1) * self.response_mu
-            + g1 * self.response_o_mu
-            + gamma1 * self.challenge;
-        let zkcm_tt = g1 * self.response_attributes[0]
-            + (g1 * rr) * self.response_lambda
-            + instance.tt * self.challenge;
-        let zkcm_gamma12 = (instance.aa + instance.dd + gamma1) * self.response_lambda
-            + g1 * self.response_o_lambda
-            + gamma1 * self.challenge;
 
-        let zkcm_kappa_l = instance.kappa_l * self.challenge
-            + grparams.gen2() * self.response_r_l
-            + params.pkRP().alpha * (Scalar::one() - self.challenge)
-            + params.pkRP().beta * self.response_l;
+        let zkcm_ss = self.response_mu
+            .iter()
+            .zip(instance.ss.iter())
+            .map(|(resp_mu_k, ss_k)| g1 * resp_mu_k + ss_k * self.challenge)
+            .collect::<Vec<_>>();
+
+        let zkcm_ss_bytes = zkcm_ss
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_tt = self.response_lambda
+            .iter()
+            .zip(rr.iter())
+            .zip(instance.tt.iter())
+            .map(|((resp_lambda_k, rr_k), tt_k)| g1 * self.response_attributes[0] + (g1 * rr_k) * resp_lambda_k + tt_k * self.challenge)
+            .collect::<Vec<_>>();
+
+        let zkcm_tt_bytes = zkcm_tt
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma11 = instance.aa
+            .iter()
+            .zip(self.response_mu.iter())
+            .zip(self.response_o_mu.iter())
+            .map(|((aa_k, resp_mu_k), resp_o_mu_k)| (aa_k + instance.cc + gamma1) * resp_mu_k
+                + g1 * resp_o_mu_k + gamma1 * self.challenge)
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma11_bytes = zkcm_gamma11
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+
+        let zkcm_gamma12 = instance.aa
+            .iter()
+            .zip(self.response_lambda.iter())
+            .zip(self.response_o_lambda.iter())
+            .map(|((aa_k, resp_lambda_k), resp_o_lambda_k)| (aa_k + instance.dd + gamma1) * resp_lambda_k
+                + g1 * resp_o_lambda_k + gamma1 * self.challenge)
+            .collect::<Vec<_>>();
+
+        let zkcm_gamma12_bytes = zkcm_gamma12
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
+
+        let zkcm_kappa_k = instance.kappa_k
+            .iter()
+            .zip(self.response_r_l.iter())
+            .zip(self.response_l.iter())
+            .map(|((kappa_k, resp_r_k), resp_r_l_k)| kappa_k * self.challenge + grparams.gen2() * resp_r_k + params.pkRP().alpha * (Scalar::one() - self.challenge) + params.pkRP().beta * resp_r_l_k)
+            .collect::<Vec<_>>();
+
+        let zkcm_kappa_k_bytes = zkcm_kappa_k
+            .iter()
+            .map(|x| x.to_bytes())
+            .collect::<Vec<_>>();
 
         // re-compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
@@ -295,18 +512,14 @@ impl SpendProof {
                 .chain(beta2_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_aa.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_dd.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_ss.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_kappa_l.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    zkcm_gamma11.to_affine().to_bytes().as_ref(),
-                ))
-                .chain(std::iter::once(zkcm_tt.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    zkcm_gamma12.to_affine().to_bytes().as_ref(),
-                )),
+                .chain(zkcm_aa_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_gamma11_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_gamma12_bytes.iter().map(|x| x.as_ref())),
         );
 
         challenge == self.challenge
@@ -391,33 +604,34 @@ mod tests {
         // randomise the signature associated with value l
         let (sign_l_prime, r_l) = sign_l.randomise(grparams);
         // compute kappa_l
-        let kappa_l =
+        let kappa_k =
             grparams.gen2() * r_l + params.pkRP().alpha + params.pkRP().beta * Scalar::from(l);
 
         let instance = SpendInstance {
             kappa,
-            aa,
+            aa: vec![aa],
             cc,
             dd,
-            ss,
-            tt,
-            kappa_l,
+            ss: vec![ss],
+            tt: vec![tt],
+            kappa_k: vec![kappa_k],
         };
 
         let witness = SpendWitness {
             attributes,
             r,
-            r_l,
-            l: Scalar::from(l),
-            o_a,
             o_c,
             o_d,
-            mu,
-            lambda,
-            o_mu,
-            o_lambda,
+            lk: vec![Scalar::from(l)],
+            o_a: vec![o_a],
+            mu: vec![mu],
+            lambda: vec![lambda],
+            o_mu: vec![o_mu],
+            o_lambda: vec![o_lambda],
+            r_k: vec![r_l],
         };
-        let zk_proof = SpendProof::construct(&params, &instance, &witness, &verification_key, rr);
-        assert!(zk_proof.verify(&params, &instance, &verification_key, rr))
+
+        let zk_proof = SpendProof::construct(&params, &instance, &witness, &verification_key, &[rr]);
+        assert!(zk_proof.verify(&params, &instance, &verification_key, &[rr]))
     }
 }

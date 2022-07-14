@@ -38,7 +38,6 @@ pub(crate) fn query_contract_version() -> ContractBuildInformation {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_contract_settings::models::ContractState;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::{coin, Addr};
 

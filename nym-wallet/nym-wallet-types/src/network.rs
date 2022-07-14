@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::defaults::all::Network as ConfigNetwork;
-use config::defaults::{mainnet, qa, sandbox};
+use config::defaults::{mainnet, qa, sandbox, DenomDetails};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use strum::EnumIter;
@@ -23,6 +23,14 @@ pub enum Network {
 impl Network {
     pub fn as_key(&self) -> String {
         self.to_string().to_lowercase()
+    }
+
+    pub fn mix_denom(&self) -> DenomDetails {
+        match self {
+            Network::QA => qa::MIX_DENOM,
+            Network::SANDBOX => sandbox::MIX_DENOM,
+            Network::MAINNET => mainnet::MIX_DENOM,
+        }
     }
 
     pub fn base_mix_denom(&self) -> &str {

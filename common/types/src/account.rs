@@ -1,4 +1,5 @@
 use crate::currency::DecCoin;
+use config::defaults::DenomDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -10,14 +11,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Account {
     pub client_address: String,
-    pub mix_denom: String,
+    pub base_mix_denom: String,
+    pub display_mix_denom: String,
 }
 
 impl Account {
-    pub fn new(client_address: String, mix_denom: String) -> Self {
+    pub fn new(client_address: String, mix_denom: DenomDetails) -> Self {
         Account {
             client_address,
-            mix_denom,
+            base_mix_denom: mix_denom.base.to_owned(),
+            display_mix_denom: mix_denom.display.to_owned(),
         }
     }
 }

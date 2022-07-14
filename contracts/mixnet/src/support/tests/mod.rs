@@ -113,7 +113,7 @@ pub mod test_helpers {
             rewarding_denom: "unym".to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
-            rewarding_parameters: initial_rewarding_params(),
+            initial_rewarding_params: initial_rewarding_params(),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);

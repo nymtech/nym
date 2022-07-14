@@ -23,12 +23,12 @@ export const Mainnet = () => (
 
 export const Testnet = () => (
   <Stack direction="column">
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYMT' }} />
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYMT' }} showDenom={false} />
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYMT' }} showCoinMark />
-    <Currency majorAmount={{ amount: '42.123456', denom: 'NYMT' }} showCoinMark coinMarkPrefix />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nymt' }} />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nymt' }} showDenom={false} />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nymt' }} showCoinMark />
+    <Currency majorAmount={{ amount: '42.123456', denom: 'nymt' }} showCoinMark coinMarkPrefix />
     {amounts.map((amount) => (
-      <Currency key={amount} majorAmount={{ amount, denom: 'NYMT' }} showCoinMark coinMarkPrefix />
+      <Currency key={amount} majorAmount={{ amount, denom: 'nymt' }} showCoinMark coinMarkPrefix />
     ))}
   </Stack>
 );

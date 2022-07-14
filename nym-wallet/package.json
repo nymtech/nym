@@ -27,7 +27,6 @@
     "@mui/icons-material": "^5.2.0",
     "@mui/material": "^5.2.2",
     "@mui/styles": "^5.2.2",
-    "@mui/system": "^5.9.0",
     "@mui/utils": "^5.7.0",
     "@nymproject/mui-theme": "^1.0.0",
     "@nymproject/react": "^1.0.0",

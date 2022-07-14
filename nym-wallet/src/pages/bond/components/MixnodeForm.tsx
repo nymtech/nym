@@ -34,7 +34,7 @@ const defaultValues = {
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
-  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
+  amount: { amount: '', denom: 'nym' as CurrencyDenom },
   host: '',
   version: '',
   profitMarginPercent: 10,

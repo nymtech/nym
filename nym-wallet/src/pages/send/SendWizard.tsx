@@ -14,7 +14,7 @@ import { Console } from '../../utils/console';
 import { validationSchema } from './validationSchema';
 
 const defaultValues = {
-  amount: { amount: '', denom: 'NYM' } as DecCoin,
+  amount: { amount: '', denom: 'nym' } as DecCoin,
   memo: '',
   to: '',
 };

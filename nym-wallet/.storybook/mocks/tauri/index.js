@@ -9,7 +9,7 @@ module.exports = {
         return {
           amount: {
             amount: '100',
-            denom: 'NYMT',
+            denom: 'nymt',
           },
           printable_balance: '100 NYMT',
         };
@@ -25,7 +25,7 @@ module.exports = {
         return {
           amount: {
             amount: '0.01',
-            denom: 'NYM',
+            denom: 'nym',
           },
         };
       }

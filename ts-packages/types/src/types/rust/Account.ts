@@ -1,4 +1,4 @@
-import { CurrencyDenom } from './CurrencyDenom';
+import type { CurrencyDenom } from './CurrencyDenom';
 
 export interface Account {
   client_address: string;

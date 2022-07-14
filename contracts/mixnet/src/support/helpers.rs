@@ -155,18 +155,6 @@ pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractErro
     Ok(())
 }
 
-// Currently (well, last we checked), there was a bug such that in order to execute the contract to contract transaction,
-// you had to send SOME funds alongside, even if it was a single 1unym. This function
-// creates a BankMsg to return those funds to the sender (which in all legit cases is going to be the vesting contract)
-pub(crate) fn return_proxy_execute_funds(proxy: Option<Addr>, funds: Vec<Coin>) -> Option<BankMsg> {
-    // TODO: if it turns out we don't need to send that 1unym accross contracts, remove this method!
-
-    proxy.map(|proxy| BankMsg::Send {
-        to_address: proxy.into_string(),
-        amount: funds,
-    })
-}
-
 // check if the target address has already bonded a mixnode or gateway,
 // in either case, return an appropriate error
 pub(crate) fn ensure_no_existing_bond(

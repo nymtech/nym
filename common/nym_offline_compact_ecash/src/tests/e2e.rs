@@ -60,6 +60,7 @@ fn main() -> Result<(), CompactEcashError> {
 
     // Let's try to spend some coins
     let pay_info = PayInfo { info: [6u8; 32] };
+    let spend_vv = 1;
 
     let (payment, upd_wallet) = aggr_wallet.spend(
         &params,
@@ -67,10 +68,11 @@ fn main() -> Result<(), CompactEcashError> {
         &user_keypair.secret_key(),
         &pay_info,
         false,
+        spend_vv,
     )?;
 
     assert!(payment
-        .spend_verify(&params, &verification_key, &pay_info)
+        .spend_verify(&params, &verification_key, &pay_info, spend_vv)
         .unwrap());
 
     // try to spend twice the same payment with different payInfo
@@ -82,19 +84,20 @@ fn main() -> Result<(), CompactEcashError> {
         kappa: payment1.kappa.clone(),
         sig: payment1.sig.clone(),
         ss: payment1.ss.clone(),
-        tt: grparams.gen1() * user_keypair.secret_key().sk
-            + pseudorandom_fgt(&grparams, aggr_wallet.t(), l2) * rr2,
+        tt: vec![grparams.gen1() * user_keypair.secret_key().sk
+            + pseudorandom_fgt(&grparams, aggr_wallet.t(), l2) * rr2],
         aa: payment1.aa.clone(),
         cc: payment1.cc.clone(),
         dd: payment1.dd.clone(),
-        rr: rr2,
-        kappa_l: payment1.kappa_l.clone(),
-        sig_l: payment1.sig_l.clone(),
+        rr: vec![rr2],
+        kappa_k: payment1.kappa_k.clone(),
+        sig_lk: payment1.sig_lk.clone(),
         zk_proof: payment1.zk_proof.clone(),
+        vv: spend_vv,
     };
 
-    let identified_user = identify(payment1, payment2).unwrap();
-    assert_eq!(user_keypair.public_key().pk, identified_user.pk);
+    let identified_user = identify(payment1, payment2, pay_info, pay_info2).unwrap();
+    // assert_eq!(user_keypair.public_key().pk, identified_user.pk);
 
     Ok(())
 }

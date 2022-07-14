@@ -4,18 +4,18 @@
 use std::ops::Neg;
 use std::time::Duration;
 
-use bls12_381::{multi_miller_loop, G1Affine, G2Affine, G2Prepared, Scalar};
-use criterion::{criterion_group, criterion_main, Criterion};
+use bls12_381::{G1Affine, G2Affine, G2Prepared, multi_miller_loop, Scalar};
+use criterion::{Criterion, criterion_group, criterion_main};
 use ff::Field;
 use group::{Curve, Group};
 use itertools::izip;
 use rand::seq::SliceRandom;
 
-use nym_compact_ecash::setup::setup;
 use nym_compact_ecash::{
     aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
-    issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
+    issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request,
 };
+use nym_compact_ecash::setup::setup;
 
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
@@ -142,7 +142,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
     let keypair = authorities_keypairs.choose(&mut rng).unwrap();
     group.bench_function(
-        &format!("[Issuing Authority] issue_partial_wallet_with_L_{}", case.L,),
+        &format!("[Issuing Authority] issue_partial_wallet_with_L_{}", case.L, ),
         |b| {
             b.iter(|| {
                 issue_wallet(
@@ -170,7 +170,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let w = wallet_blinded_signatures.get(0).clone().unwrap();
     let vk = verification_keys_auth.get(0).clone().unwrap();
     group.bench_function(
-        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L,),
+        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
         |b| b.iter(|| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info)),
     );
 
@@ -178,8 +178,8 @@ fn bench_compact_ecash(c: &mut Criterion) {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-    .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-    .collect();
+        .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
     // CLIENT BENCHMARK: aggregating all partial wallets
     group.bench_function(
@@ -196,7 +196,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
                     &unblinded_wallet_shares,
                     &req_info,
                 )
-                .unwrap()
+                    .unwrap()
             })
         },
     );
@@ -209,7 +209,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         &unblinded_wallet_shares,
         &req_info,
     )
-    .unwrap();
+        .unwrap();
 
     // SPENDING PHASE
     let pay_info = PayInfo { info: [6u8; 32] };
@@ -259,6 +259,8 @@ fn bench_compact_ecash(c: &mut Criterion) {
             })
         },
     );
+
+    // BENCHMARK IDENTIFICATION
 }
 
 criterion_group!(benches, bench_compact_ecash);

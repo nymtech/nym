@@ -2,7 +2,7 @@ import {
   DelegationWithEverything,
   DelegationsSummaryResponse,
   TransactionExecuteResult,
-  MajorCurrencyAmount,
+  DecCoin,
   FeeDetails,
 } from '@nymproject/types';
 import { invokeWrapper } from './wrapper';
@@ -26,5 +26,5 @@ export const undelegateAllFromMixnode = async (
     fee: fee?.fee,
   });
 
-export const delegateToMixnode = async ({ identity, amount }: { identity: string; amount: MajorCurrencyAmount }) =>
+export const delegateToMixnode = async ({ identity, amount }: { identity: string; amount: DecCoin }) =>
   invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { identity, amount });

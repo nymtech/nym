@@ -25,7 +25,7 @@ module.exports = {
         return {
           amount: {
             amount: '0.01',
-            denom: 'NYM',
+            denom: 'nym',
           },
         };
       }

@@ -55,7 +55,7 @@ export const SendConfirmation = ({
           <TransactionDetails
             details={[
               { primary: 'Recipient', secondary: data.to_address },
-              { primary: 'Amount', secondary: `${data.amount.amount} ${clientDetails?.denom}` },
+              { primary: 'Amount', secondary: `${data.amount.amount} ${clientDetails?.mix_denom}` },
             ]}
           />
         </>

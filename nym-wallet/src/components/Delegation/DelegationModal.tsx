@@ -67,7 +67,7 @@ export const DelegationModal: React.FC<
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
           </Typography>
-          <Typography my={5} color={'text.primary'}>
+          <Typography my={5} color="text.primary">
             {message}
           </Typography>
           {children}
@@ -86,7 +86,7 @@ export const DelegationModal: React.FC<
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}
         </Typography>
-        <Typography mb={3} color={'text.primary'}>
+        <Typography mb={3} color="text.primary">
           {message}
         </Typography>
 

@@ -6,7 +6,7 @@ import { PercentOutlined } from '@mui/icons-material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { InclusionProbabilityResponse, SelectionChance } from '@nymproject/types';
 import { validationSchema } from './validationSchema';
-import { Fee, InfoTooltip } from '../../components';
+import { InfoTooltip } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnode, vestingUpdateMixnode } from '../../requests';
 import { AppContext } from '../../context/main';
@@ -162,7 +162,6 @@ export const SystemVariables = ({
         {nodeUpdateResponse === 'failed' && (
           <Typography sx={{ color: 'error.main', fontWeight: 600 }}>Node update failed</Typography>
         )}
-        {!nodeUpdateResponse && <Fee feeType="UpdateMixnodeConfig" />}
         <Button
           variant="contained"
           color="primary"

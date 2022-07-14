@@ -48,7 +48,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
           {tokenAllocation && (
             <ListItemText
               primary="Locked"
-              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${clientDetails?.denom}`}
+              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${clientDetails?.mix_denom}`}
             />
           )}
         </MenuItem>

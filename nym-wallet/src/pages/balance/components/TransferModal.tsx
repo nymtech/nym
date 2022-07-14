@@ -19,14 +19,14 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   const { userBalance, clientDetails, network } = useContext(AppContext);
 
   const getFee = async () => {
-    if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
+    if (userBalance.tokenAllocation?.spendable && clientDetails?.mix_denom) {
       try {
         const simulatedFee = await simulateWithdrawVestedCoins({
-          amount: { amount: userBalance.tokenAllocation?.spendable, denom: clientDetails?.denom },
+          amount: { amount: userBalance.tokenAllocation?.spendable, denom: clientDetails?.mix_denom },
         });
         setFee(simulatedFee);
       } catch (e) {
-        setFee({ amount: { amount: 'n/a', denom: clientDetails.denom }, fee: { Auto: null } });
+        setFee({ amount: { amount: 'n/a', denom: clientDetails.mix_denom }, fee: { Auto: null } });
         Console.error(e);
       }
     }
@@ -37,16 +37,16 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   }, []);
 
   const handleTransfer = async () => {
-    if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
+    if (userBalance.tokenAllocation?.spendable && clientDetails?.mix_denom) {
       setState('loading');
       try {
         const txResponse = await withdrawVestedCoins({
           amount: userBalance.tokenAllocation?.spendable,
-          denom: clientDetails.denom,
+          denom: clientDetails.mix_denom,
         });
         setState('success');
         setTx({
-          amount: `${userBalance.tokenAllocation?.spendable} ${clientDetails?.denom}`,
+          amount: `${userBalance.tokenAllocation?.spendable} ${clientDetails?.mix_denom}`,
           url: `${urls(network).blockExplorer}/transaction/${txResponse.transaction_hash}`,
         });
         await userBalance.refreshBalances();
@@ -81,7 +81,7 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
           <>
             <ModalListItem
               label="Unlocked transferrable tokens"
-              value={`${userBalance.tokenAllocation?.spendable} ${clientDetails?.denom}`}
+              value={`${userBalance.tokenAllocation?.spendable} ${clientDetails?.mix_denom}`}
               divider
             />
             <ModalListItem

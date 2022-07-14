@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { useForm } from 'react-hook-form';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { useGetFee } from 'src/hooks/useGetFee';
@@ -20,7 +20,7 @@ type TBondFormFields = {
   identityKey: string;
   sphinxKey: string;
   profitMarginPercent: number;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   host: string;
   version: string;
   mixPort: number;
@@ -34,7 +34,7 @@ const defaultValues = {
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
-  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
+  amount: { amount: '', denom: 'nym' as CurrencyDenom },
   host: '',
   version: '',
   profitMarginPercent: 10,
@@ -216,7 +216,7 @@ export const MixnodeForm = ({
                 fullWidth
                 label="Amount"
                 onChanged={(val) => setValue('amount', val, { shouldValidate: true })}
-                denom={clientDetails?.denom}
+                denom={clientDetails?.mix_denom}
                 validationError={errors.amount?.amount?.message}
               />
             </Grid>

@@ -27,7 +27,7 @@ export const SuccessView: React.FC<{ details?: { amount: string; result: Transac
           <TransactionDetails
             details={[
               { primary: 'Node', secondary: details.result.transaction_hash },
-              { primary: 'Amount', secondary: `${details.amount} ${clientDetails?.denom}` },
+              { primary: 'Amount', secondary: `${details.amount} ${clientDetails?.mix_denom}` },
             ]}
           />
         </Box>

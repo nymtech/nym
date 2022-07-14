@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack } from '@mui/material';
 import { SxProps } from '@mui/system';
-import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { FeeDetails, DecCoin } from '@nymproject/types';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 
@@ -19,10 +19,10 @@ export const SendDetailsModal = ({
   fromAddress?: string;
   toAddress: string;
   fee?: FeeDetails;
-  amount?: MajorCurrencyAmount;
+  amount?: DecCoin;
   onClose: () => void;
   onPrev: () => void;
-  onSend: (data: { val: MajorCurrencyAmount; to: string }) => void;
+  onSend: (data: { val: DecCoin; to: string }) => void;
   sx?: SxProps;
   backdropProps?: object;
 }) => (

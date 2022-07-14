@@ -68,11 +68,7 @@ pub async fn switch_network(
         let client = r_state.client(network)?;
         let denom = network.base_mix_denom();
 
-        Account::new(
-            client.nymd.mixnet_contract_address().to_string(),
-            client.nymd.address().to_string(),
-            denom.into(),
-        )
+        Account::new(client.nymd.address().to_string(), denom.into())
     };
 
     let mut w_state = state.write().await;
@@ -152,7 +148,6 @@ async fn _connect_with_mnemonic(
         .find(|client| WalletNetwork::from(client.network.clone()) == default_network);
     let account_for_default_network = match client_for_default_network {
         Some(client) => Ok(Account::new(
-            client.nymd.mixnet_contract_address().to_string(),
             client.nymd.address().to_string(),
             default_network.base_mix_denom().to_owned(),
         )),

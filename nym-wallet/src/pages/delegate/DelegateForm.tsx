@@ -2,24 +2,24 @@ import React, { useContext, useEffect } from 'react';
 import { Box, Button, CircularProgress, FormControl, Grid, InputAdornment, TextField } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
-import { MajorCurrencyAmount, TNodeType, TransactionExecuteResult } from '@nymproject/types';
+import { DecCoin, TNodeType, TransactionExecuteResult } from '@nymproject/types';
 import { TDelegateArgs } from '../../types';
 import { validationSchema } from './validationSchema';
 import { AppContext } from '../../context/main';
 import { delegateToMixnode, vestingDelegateToMixnode } from '../../requests';
-import { Fee, TokenPoolSelector } from '../../components';
+import { TokenPoolSelector } from '../../components';
 import { Console } from '../../utils/console';
 
 type TDelegateForm = {
   identity: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   tokenPool: string;
   type: TNodeType;
 };
 
 const defaultValues: TDelegateForm = {
   identity: '',
-  amount: { amount: '', denom: 'NYM' },
+  amount: { amount: '', denom: 'nym' },
   tokenPool: 'balance',
   type: 'mixnode',
 };
@@ -51,7 +51,7 @@ export const DelegateForm = ({
   const onSubmit = async (data: TDelegateForm, cb: (data: TDelegateArgs) => Promise<TransactionExecuteResult>) => {
     await cb({
       identity: data.identity,
-      amount: { ...data.amount, denom: clientDetails!.denom },
+      amount: { ...data.amount, denom: clientDetails!.mix_denom },
     })
       .then(async (result) => {
         if (data.tokenPool === 'balance') {
@@ -103,12 +103,9 @@ export const DelegateForm = ({
               error={!!errors.amount?.amount}
               helperText={errors?.amount?.amount?.message}
               InputProps={{
-                endAdornment: <InputAdornment position="end">{clientDetails?.denom}</InputAdornment>,
+                endAdornment: <InputAdornment position="end">{clientDetails?.mix_denom}</InputAdornment>,
               }}
             />
-          </Grid>
-          <Grid item xs={12}>
-            <Fee feeType="DelegateToMixnode" />
           </Grid>
         </Grid>
       </Box>

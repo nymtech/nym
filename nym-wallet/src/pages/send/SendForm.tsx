@@ -3,7 +3,6 @@ import { useFormContext } from 'react-hook-form';
 import { Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { AppContext } from '../../context/main';
-import { Fee } from '../../components';
 
 export const SendForm = () => {
   const {
@@ -36,11 +35,8 @@ export const SendForm = () => {
           placeholder="Amount"
           onChanged={(val) => setValue('amount', val, { shouldValidate: true })}
           validationError={errors.amount?.amount?.message}
-          denom={clientDetails?.denom}
+          denom={clientDetails?.mix_denom}
         />
-      </Grid>
-      <Grid item xs={12}>
-        <Fee feeType="Send" />
       </Grid>
     </Grid>
   );

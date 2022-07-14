@@ -67,7 +67,7 @@ const VestingSchedule = () => {
           <TableRow>
             <TableCell sx={{ borderBottom: 'none' }}>
               {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {clientDetails?.denom}
+              {clientDetails?.mix_denom}
             </TableCell>
             <TableCell align="left" sx={{ borderBottom: 'none' }}>
               {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
@@ -80,7 +80,7 @@ const VestingSchedule = () => {
             </TableCell>
             <TableCell sx={{ borderBottom: 'none' }} align="right">
               {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {clientDetails?.denom}
+              {clientDetails?.mix_denom}
             </TableCell>
           </TableRow>
         </TableHead>
@@ -110,7 +110,7 @@ const TokenTransfer = () => {
         </Typography>
 
         <Typography data-testid="refresh-success" sx={{ color: 'text.primary' }} variant="h5" fontWeight="700">
-          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.denom}
+          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.mix_denom}
         </Typography>
       </Grid>
     </Grid>

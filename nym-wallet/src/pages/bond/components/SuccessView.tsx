@@ -15,7 +15,7 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
         subtitle="Successfully bonded to node with following details"
         caption={
           ownership.vestingPledge
-            ? `Your current locked balance is: ${userBalance.tokenAllocation?.locked}${clientDetails?.denom}`
+            ? `Your current locked balance is: ${userBalance.tokenAllocation?.locked}${clientDetails?.mix_denom}`
             : `Your current balance is: ${userBalance.balance?.printable_balance}`
         }
       />
@@ -24,7 +24,7 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
           <TransactionDetails
             details={[
               { primary: 'Node', secondary: details.address },
-              { primary: 'Amount', secondary: `${details.amount} ${clientDetails?.denom}` },
+              { primary: 'Amount', secondary: `${details.amount} ${clientDetails?.mix_denom}` },
             ]}
           />
         </Box>

@@ -3,24 +3,24 @@ import React, { useContext, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Step, StepLabel, Stepper } from '@mui/material';
-import { CurrencyDenom, MajorCurrencyAmount, SendTxResult, TransactionDetails } from '@nymproject/types';
+import { CurrencyDenom, DecCoin, SendTxResult, TransactionDetails } from '@nymproject/types';
 import { SendForm } from './SendForm';
 import { SendReview } from './SendReview';
 import { SendConfirmation } from './SendConfirmation';
 import { AppContext } from '../../context/main';
-import { getGasFee, send } from '../../requests';
+import { send } from '../../requests';
 import { checkHasEnoughFunds } from '../../utils';
 import { Console } from '../../utils/console';
 import { validationSchema } from './validationSchema';
 
 const defaultValues = {
-  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
+  amount: { amount: '', denom: 'nym' as CurrencyDenom },
   memo: '',
   to: '',
 };
 
 export type TFormData = {
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   memo: string;
   to: string;
 };
@@ -29,18 +29,9 @@ export const SendWizard = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [requestError, setRequestError] = useState<string>();
-  const [transferFee, setTransferFee] = useState<string>();
   const [confirmedData, setConfirmedData] = useState<TransactionDetails & { tx_hash: string }>();
 
   const { userBalance } = useContext(AppContext);
-
-  useEffect(() => {
-    const getFee = async () => {
-      const fee = await getGasFee('Send');
-      setTransferFee(fee.amount);
-    };
-    getFee();
-  }, []);
 
   const steps = ['Enter address', 'Review and send', 'Await confirmation'];
 
@@ -134,7 +125,7 @@ export const SendWizard = () => {
           }}
         >
           {activeStep === 0 && <SendForm />}
-          {activeStep === 1 && <SendReview transferFee={transferFee} />}
+          {activeStep === 1 && <SendReview transferFee={undefined} />}
           <SendConfirmation data={confirmedData} isLoading={isLoading} error={requestError} />
         </Box>
         <Box

@@ -1,94 +1,98 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// #[cfg(test)]
-// pub mod fixtures;
-// #[cfg(test)]
-// pub mod messages;
-// #[cfg(test)]
-// pub mod queries;
+#[cfg(test)]
+pub mod fixtures;
+#[cfg(test)]
+pub mod messages;
+#[cfg(test)]
+pub mod queries;
 
 #[cfg(test)]
 pub mod test_helpers {
     use crate::contract::instantiate;
     use crate::delegations::storage as delegations_storage;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
-    use cosmwasm_std::{Decimal, Empty, MemoryStorage, OwnedDeps, Storage};
+    use crate::gateways::transactions::try_add_gateway;
+    use crate::interval;
+    use crate::interval::storage as interval_storage;
+    use crate::mixnodes::storage as mixnodes_storage;
+    use crate::mixnodes::transactions::try_add_mixnode;
+    use crate::rewards::storage as rewards_storage;
+    use crate::support::tests;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::MockApi;
+    use cosmwasm_std::testing::MockQuerier;
+    use cosmwasm_std::DepsMut;
+    use cosmwasm_std::OwnedDeps;
+    use cosmwasm_std::{coin, Env, Timestamp};
+    use cosmwasm_std::{Addr, StdResult, Storage};
+    use cosmwasm_std::{Coin, Order};
+    use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use mixnet_contract_common::{
-        Delegation, InitialRewardingParams, InstantiateMsg, NodeId, Percent,
+        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, NodeId, Percent,
     };
+    use rand::thread_rng;
     use std::time::Duration;
 
-    // use crate::gateways::transactions::try_add_gateway;
-    // use crate::interval;
-    // use crate::interval::storage as interval_storage;
-    // use crate::mixnodes::storage as mixnodes_storage;
-    // use crate::mixnodes::transactions::try_add_mixnode;
-    // use crate::support::tests;
-    // use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
-    // use cosmwasm_std::testing::mock_dependencies;
-    // use cosmwasm_std::testing::mock_env;
-    // use cosmwasm_std::testing::mock_info;
-    // use cosmwasm_std::testing::MockApi;
-    // use cosmwasm_std::testing::MockQuerier;
-    // use cosmwasm_std::Coin;
-    // use cosmwasm_std::DepsMut;
-    // use cosmwasm_std::OwnedDeps;
-    // use cosmwasm_std::{coin, Env, Timestamp};
-    // use cosmwasm_std::{Addr, StdResult, Storage};
-    // use cosmwasm_std::{Empty, MemoryStorage};
-    // use mixnet_contract_common::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
-    // use rand::thread_rng;
+    pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> NodeId {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let owner_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
 
-    // pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
-    //     let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-    //     let owner_signature = keypair
-    //         .private_key()
-    //         .sign(sender.as_bytes())
-    //         .to_base58_string();
-    //
-    //     let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng());
-    //
-    //     let info = mock_info(sender, &stake);
-    //     let key = keypair.public_key().to_base58_string();
-    //
-    //     try_add_mixnode(
-    //         deps,
-    //         mock_env(),
-    //         info,
-    //         MixNode {
-    //             identity_key: key.clone(),
-    //             sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
-    //             ..tests::fixtures::mix_node_fixture()
-    //         },
-    //         owner_signature,
-    //     )
-    //     .unwrap();
-    //     key
-    // }
-    //
-    // pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
-    //     let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-    //     let owner_signature = keypair
-    //         .private_key()
-    //         .sign(sender.as_bytes())
-    //         .to_base58_string();
-    //
-    //     let info = mock_info(sender, &stake);
-    //     let key = keypair.public_key().to_base58_string();
-    //     try_add_gateway(
-    //         deps,
-    //         mock_env(),
-    //         info,
-    //         Gateway {
-    //             identity_key: key.clone(),
-    //             ..tests::fixtures::gateway_fixture()
-    //         },
-    //         owner_signature,
-    //     )
-    //     .unwrap();
-    //     key
-    // }
+        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng());
+
+        let info = mock_info(sender, &stake);
+        let key = keypair.public_key().to_base58_string();
+        let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
+            .may_load(deps.storage)
+            .unwrap()
+            .unwrap_or_default();
+
+        try_add_mixnode(
+            deps,
+            mock_env(),
+            info,
+            MixNode {
+                identity_key: key.clone(),
+                sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            },
+            tests::fixtures::mix_node_cost_params_fixture(),
+            owner_signature,
+        )
+        .unwrap();
+
+        // newly added mixnode gets assigned the current counter + 1
+        current_id_counter + 1
+    }
+
+    pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+        let owner_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
+
+        let info = mock_info(sender, &stake);
+        let key = keypair.public_key().to_base58_string();
+        try_add_gateway(
+            deps,
+            mock_env(),
+            info,
+            Gateway {
+                identity_key: key.clone(),
+                ..tests::fixtures::gateway_fixture()
+            },
+            owner_signature,
+        )
+        .unwrap();
+        key
+    }
 
     fn initial_rewarding_params() -> InitialRewardingParams {
         let reward_pool = 250_000_000_000_000u128;
@@ -110,7 +114,7 @@ pub mod test_helpers {
         let msg = InstantiateMsg {
             rewarding_validator_address: "rewarder".into(),
             vesting_contract_address: "vesting-contract".to_string(),
-            rewarding_denom: "unym".to_string(),
+            rewarding_denom: TEST_COIN_DENOM.to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
             initial_rewarding_params: initial_rewarding_params(),
@@ -129,49 +133,87 @@ pub mod test_helpers {
     //     let node = mixnodes_storage::mixnodes().load(storage, identity)?;
     //     Ok(node.pledge_amount.amount)
     // }
-    //
-    // pub(crate) fn save_dummy_delegation(
-    //     storage: &mut dyn Storage,
-    //     mix: impl Into<String>,
-    //     owner: impl Into<String>,
-    //     block_height: u64,
-    // ) {
-    //     let delegation = Delegation {
-    //         owner: Addr::unchecked(owner.into()),
-    //         node_identity: mix.into(),
-    //         amount: coin(12345, MIX_DENOM.base),
-    //         block_height: block_height,
-    //         proxy: None,
-    //     };
-    //
-    //     delegations_storage::delegations()
-    //         .save(storage, delegation.storage_key(), &delegation)
-    //         .unwrap();
-    // }
+
+    pub(crate) fn save_dummy_delegation(
+        storage: &mut dyn Storage,
+        mix: NodeId,
+        owner: impl Into<String>,
+    ) {
+        let delegation = Delegation {
+            owner: Addr::unchecked(owner.into()),
+            node_id: mix,
+            cumulative_reward_ratio: Default::default(),
+            amount: coin(12345, TEST_COIN_DENOM),
+            height: 12345,
+            proxy: None,
+        };
+
+        delegations_storage::delegations()
+            .save(storage, delegation.storage_key(), &delegation)
+            .unwrap();
+    }
 
     pub(crate) fn read_delegation(
         storage: &dyn Storage,
         mix: NodeId,
-        owner: impl Into<Vec<u8>>,
+        owner: &Addr,
+        proxy: &Option<Addr>,
     ) -> Option<Delegation> {
         delegations_storage::delegations()
-            .may_load(storage, (mix, owner.into()))
+            .may_load(
+                storage,
+                Delegation::generate_storage_key(mix, owner, proxy.as_ref()),
+            )
             .unwrap()
     }
 
-    // pub(crate) fn update_env_and_progress_interval(env: &mut Env, storage: &mut dyn Storage) {
-    //     // make sure current block time is within the expected next interval
-    //     env.block.time = Timestamp::from_seconds(
-    //         (interval_storage::current_epoch(storage)
-    //             .unwrap()
-    //             .next()
-    //             .start_unix_timestamp()
-    //             + 123) as u64,
-    //     );
-    //
-    //     let sender =
-    //         crate::mixnet_contract_settings::storage::rewarding_validator_address(storage).unwrap();
-    //
-    //     interval::transactions::try_advance_epoch(env.clone(), storage, sender).unwrap();
-    // }
+    pub(crate) fn update_env_and_progress_epoch(deps: DepsMut<'_>, env: &mut Env) {
+        // make sure current block time is within the expected next interval
+        env.block.time = Timestamp::from_seconds(
+            (interval_storage::current_interval(deps.storage)
+                .unwrap()
+                .current_epoch_end_unix_timestamp()
+                + 123) as u64,
+        );
+
+        let sender =
+            crate::mixnet_contract_settings::storage::rewarding_validator_address(deps.storage)
+                .unwrap();
+        let active_set_size = rewards_storage::REWARDING_PARAMS
+            .load(deps.storage)
+            .unwrap()
+            .active_set_size;
+
+        // don't bother updating the rewarded set, use what we have right now
+        let rewarded_set = interval_storage::REWARDED_SET
+            .range(deps.storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()
+            .unwrap();
+
+        let active = rewarded_set
+            .iter()
+            .filter(|(id, status)| status.is_active())
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>();
+
+        let standby = rewarded_set
+            .iter()
+            .filter(|(id, status)| !status.is_active())
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>();
+
+        let new_set = active
+            .into_iter()
+            .chain(standby.into_iter())
+            .collect::<Vec<_>>();
+
+        interval::transactions::try_advance_epoch(
+            deps,
+            env.clone(),
+            mock_info(sender.as_str(), &[]),
+            new_set,
+            active_set_size,
+        )
+        .unwrap();
+    }
 }

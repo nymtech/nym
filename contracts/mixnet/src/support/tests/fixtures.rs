@@ -1,12 +1,10 @@
-use crate::contract::INITIAL_MIXNODE_PLEDGE;
-use crate::mixnodes::storage as mixnodes_storage;
-use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
+use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
+use crate::support::tests;
 use cosmwasm_std::{coin, Addr, Coin};
-use mixnet_contract_common::reward_params::NodeRewardParams;
-use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
+use mixnet_contract_common::mixnode::MixNodeCostParams;
+use mixnet_contract_common::{Gateway, GatewayBond, MixNode, Percent};
 
 pub const TEST_COIN_DENOM: &str = "unym";
-pub const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {
@@ -17,7 +15,13 @@ pub fn mix_node_fixture() -> MixNode {
         sphinx_key: "sphinx".to_string(),
         identity_key: "identity".to_string(),
         version: "0.10.0".to_string(),
-        profit_margin_percent: 10,
+    }
+}
+
+pub fn mix_node_cost_params_fixture() -> MixNodeCostParams {
+    MixNodeCostParams {
+        profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+        interval_operating_cost: coin(40_000_000, TEST_COIN_DENOM),
     }
 }
 
@@ -47,37 +51,16 @@ pub fn gateway_bond_fixture(owner: &str) -> GatewayBond {
     )
 }
 
-pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::StoredMixnodeBond {
-    StoredMixnodeBond::new(
-        coin(50, TEST_COIN_DENOM),
-        Addr::unchecked(owner),
-        Layer::One,
-        12_345,
-        MixNode {
-            identity_key: format!("id-{}", owner),
-            sphinx_key: format!("sphinx-{}", owner),
-            ..super::fixtures::mix_node_fixture()
-        },
-        None,
-        None,
-        None,
-    )
-}
-
 pub fn good_mixnode_pledge() -> Vec<Coin> {
     vec![Coin {
         denom: TEST_COIN_DENOM.to_string(),
-        amount: INITIAL_MIXNODE_PLEDGE,
+        amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
     }]
 }
 
 pub fn good_gateway_pledge() -> Vec<Coin> {
     vec![Coin {
         denom: TEST_COIN_DENOM.to_string(),
-        amount: INITIAL_MIXNODE_PLEDGE,
+        amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
     }]
-}
-
-pub fn node_reward_params_fixture(uptime: u128) -> NodeRewardParams {
-    NodeRewardParams::new(0, uptime, true)
 }

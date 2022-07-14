@@ -1,5 +1,5 @@
 use cosmwasm_std::{Coin, Timestamp, Uint128};
-use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
+use mixnet_contract_common::{Gateway, MixNode, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -58,10 +58,12 @@ pub enum ExecuteMsg {
     },
     ClaimOperatorReward {},
     ClaimDelegatorReward {
-        mix_identity: String,
+        // mix_identity: IdentityKey,
+        mix_id: NodeId,
     },
     CompoundDelegatorReward {
-        mix_identity: String,
+        // mix_identity: IdentityKey,
+        mix_id: NodeId,
     },
     CompoundOperatorReward {},
     UpdateMixnodeConfig {
@@ -71,11 +73,15 @@ pub enum ExecuteMsg {
         address: String,
     },
     DelegateToMixnode {
-        mix_identity: IdentityKey,
+        // TODO: mix_identity has been replaced by the mix_id instead
+        // mix_identity: IdentityKey,
+        mix_id: NodeId,
         amount: Coin,
     },
     UndelegateFromMixnode {
-        mix_identity: IdentityKey,
+        // TODO: mix_identity has been replaced by the mix_id instead
+        // mix_identity: IdentityKey,
+        mix_id: NodeId,
     },
     CreateAccount {
         owner_address: String,
@@ -87,7 +93,9 @@ pub enum ExecuteMsg {
     },
     TrackUndelegation {
         owner: String,
-        mix_identity: IdentityKey,
+        // TODO: mix_identity has been replaced by the mix_id instead
+        // mix_identity: IdentityKey,
+        mix_id: NodeId,
         amount: Coin,
     },
     BondMixnode {
@@ -118,11 +126,6 @@ pub enum ExecuteMsg {
     },
     UpdateLockedPledgeCap {
         amount: Uint128,
-    },
-    MigrateHeightsToTimestamps {
-        account_id: u32,
-        mix_identity: String,
-        height_timestamp_map: Vec<(u64, u64)>,
     },
 }
 
@@ -177,10 +180,10 @@ pub enum QueryMsg {
     GetLockedPledgeCap {},
     GetDelegationTimes {
         address: String,
-        mix_identity: IdentityKey,
+        mix_identity: NodeId,
     },
     GetAllDelegations {
-        start_after: Option<(u32, IdentityKey, u64)>,
+        start_after: Option<(u32, NodeId, u64)>,
         limit: Option<u32>,
     },
 }

@@ -59,7 +59,7 @@ pub(crate) fn withdraw_delegator_reward(
 ) -> Result<Coin, MixnetContractError> {
     let mix_id = delegation.node_id;
     let mut updated_delegation = delegation.clone();
-    mix_rewarding.withdraw_delegator_reward(&mut updated_delegation)?;
+    let reward = mix_rewarding.withdraw_delegator_reward(&mut updated_delegation)?;
 
     // save updated delegation and mix rewarding info
     delegations_storage::delegations().replace(
@@ -69,6 +69,5 @@ pub(crate) fn withdraw_delegator_reward(
         Some(&delegation),
     )?;
     storage::MIXNODE_REWARDING.save(store, mix_id, &mix_rewarding)?;
-
-    todo!()
+    Ok(reward)
 }

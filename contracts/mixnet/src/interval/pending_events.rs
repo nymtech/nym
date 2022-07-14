@@ -309,7 +309,7 @@ fn update_interval_config(
     // queue is only emptied upon the interval finishing.
     let mut interval = storage::current_interval(deps.storage)?;
     interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
-    change_epochs_in_interval(deps.storage, Some(interval), epochs_in_interval)?;
+    change_epochs_in_interval(deps.storage, interval, epochs_in_interval)?;
 
     // TODO: slap events on it
     Ok(Response::new())

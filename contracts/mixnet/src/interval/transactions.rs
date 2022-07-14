@@ -197,7 +197,7 @@ pub(crate) fn try_update_interval_config(
     let mut interval = storage::current_interval(deps.storage)?;
     if force_immediately || interval.is_current_interval_over(&env) {
         interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
-        change_epochs_in_interval(deps.storage, Some(interval), epochs_in_interval)?;
+        change_epochs_in_interval(deps.storage, interval, epochs_in_interval)?;
     } else {
         // push the interval event
         let interval_event = PendingIntervalEvent::UpdateIntervalConfig {

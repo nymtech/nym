@@ -9,7 +9,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
-use cosmwasm_std::{coins, wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
+use cosmwasm_std::{wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
@@ -140,11 +140,10 @@ fn undelegate(
         let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
         if proxy == &vesting_contract {
             let msg = VestingContractExecuteMsg::TrackUndelegation {
-                owner: owner.clone().into_string(),
-                mix_identity: "".to_string(),
+                owner: owner.into_string(),
+                mix_id,
                 amount: tokens_to_return,
             };
-            let msg = todo!("we no longer have mix_identity on hand -> this needs adjustments");
             let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_unbond_message);
         }
@@ -311,7 +310,7 @@ fn update_interval_config(
 }
 
 impl ContractExecutableEvent for PendingIntervalEvent {
-    fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
+    fn execute(self, deps: DepsMut<'_>, _env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self {

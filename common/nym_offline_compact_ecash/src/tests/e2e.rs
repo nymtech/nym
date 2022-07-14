@@ -75,29 +75,6 @@ fn main() -> Result<(), CompactEcashError> {
         .spend_verify(&params, &verification_key, &pay_info, spend_vv)
         .unwrap());
 
-    // try to spend twice the same payment with different payInfo
-    let payment1 = payment.clone();
-    let pay_info2 = PayInfo { info: [9u8; 32] };
-    let rr2 = hash_to_scalar(pay_info2.info);
-    let l2 = aggr_wallet.l() - 1;
-    let payment2 = Payment {
-        kappa: payment1.kappa.clone(),
-        sig: payment1.sig.clone(),
-        ss: payment1.ss.clone(),
-        tt: vec![grparams.gen1() * user_keypair.secret_key().sk
-            + pseudorandom_fgt(&grparams, aggr_wallet.t(), l2) * rr2],
-        aa: payment1.aa.clone(),
-        cc: payment1.cc.clone(),
-        dd: payment1.dd.clone(),
-        rr: vec![rr2],
-        kappa_k: payment1.kappa_k.clone(),
-        sig_lk: payment1.sig_lk.clone(),
-        zk_proof: payment1.zk_proof.clone(),
-        vv: spend_vv,
-    };
-
-    let identified_user = identify(payment1, payment2, pay_info, pay_info2).unwrap();
-    // assert_eq!(user_keypair.public_key().pk, identified_user.pk);
 
     Ok(())
 }

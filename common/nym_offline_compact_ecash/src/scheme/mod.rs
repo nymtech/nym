@@ -253,7 +253,7 @@ pub fn compute_kappa(
         .sum::<G2Projective>()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
     pub info: [u8; 32],
 }

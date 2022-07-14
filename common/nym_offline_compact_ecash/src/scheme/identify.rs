@@ -3,11 +3,11 @@ use crate::PayInfo;
 use crate::scheme::keygen::PublicKeyUser;
 use crate::scheme::Payment;
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum IdentifyResult {
     NotADuplicatePayment,
     DuplicatePayInfo(PayInfo),
     DoubleSpendingPublicKeys(PublicKeyUser),
-
 }
 
 pub fn identify(pay1: Payment, pay2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
@@ -43,6 +43,7 @@ mod tests {
     use itertools::izip;
 
     use crate::{aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify, issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request};
+    use crate::scheme::identify::{identify, IdentifyResult};
     use crate::scheme::setup::setup;
 
     #[test]
@@ -90,20 +91,29 @@ mod tests {
         ).unwrap();
 
         // Let's try to spend some coins
-        let pay_info = PayInfo { info: [6u8; 32] };
+        let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 1;
 
         let (payment1, upd_wallet) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),
-            &pay_info,
+            &pay_info1,
             false,
             spend_vv,
         ).unwrap();
 
         assert!(payment1
-            .spend_verify(&params, &verification_key, &pay_info, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
             .unwrap());
+
+        let payment2 = payment1.clone();
+        assert!(payment2
+            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
+            .unwrap());
+
+        let pay_info2 = pay_info1.clone();
+        let identify_result = identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        assert_eq!(identify_result, IdentifyResult::DuplicatePayInfo(pay_info1.clone()));
     }
 }

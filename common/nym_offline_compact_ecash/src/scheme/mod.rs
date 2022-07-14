@@ -221,7 +221,8 @@ impl Wallet {
         // benchmark flag to signal that we don't want to increase the spending couter but only
         // care about the function performance.
         if !bench_flag {
-            self.up();
+            let current_l = self.l();
+            self.l.set(current_l + spend_vv);
         }
 
         Ok((pay, self))

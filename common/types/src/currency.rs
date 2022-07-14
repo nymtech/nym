@@ -316,10 +316,9 @@ pub fn try_convert_decimal_to_u128(dec: Decimal) -> Result<u128, TypesError> {
     Ok(whole.u128())
 }
 
-// TODO: adjust the implementation to as required by @MS or @FT
 impl Display for DecCoin {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}", self.amount, self.denom)
+        write!(f, "{} {}", self.amount, self.denom)
     }
 }
 

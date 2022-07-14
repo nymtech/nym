@@ -1,10 +1,9 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::mixnet_contract_settings::models::ContractState;
 use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract_common::{ContractBuildInformation, ContractStateParams};
+use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
 
 pub(crate) fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
     storage::CONTRACT_STATE.load(deps.storage)

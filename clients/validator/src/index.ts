@@ -64,23 +64,20 @@ export default class ValidatorClient implements INymClient {
 
   readonly vestingContract: string;
 
-  readonly mainnetDenom = "unym";
+  readonly mainnetDenom = 'unym';
 
-  readonly mainnetPrefix = "n";
+  readonly mainnetPrefix = 'n';
 
   private constructor(
     client: SigningClient | QueryClient,
     prefix: string,
     mixnetContract: string,
-    vestingContract: string
+    vestingContract: string,
+    denom: string,
   ) {
     this.client = client;
     this.prefix = prefix;
-    if (prefix == this.mainnetPrefix) {
-      this.denom = this.mainnetDenom;
-    } else {
-      this.denom = `u${prefix}`;
-    }
+    this.denom = `u${denom}`;
 
     this.mixnetContract = mixnetContract;
     this.vestingContract = vestingContract;
@@ -93,11 +90,12 @@ export default class ValidatorClient implements INymClient {
     prefix: string,
     mixnetContract: string,
     vestingContract: string,
+    denom: string,
   ): Promise<ValidatorClient> {
     const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
 
-    const signingClient = await SigningClient.connectWithNymSigner(wallet, nymdUrl, validatorApiUrl, prefix);
-    return new ValidatorClient(signingClient, prefix, mixnetContract, vestingContract);
+    const signingClient = await SigningClient.connectWithNymSigner(wallet, nymdUrl, validatorApiUrl, prefix, denom);
+    return new ValidatorClient(signingClient, prefix, mixnetContract, vestingContract, denom);
   }
 
   static async connectForQuery(
@@ -106,9 +104,10 @@ export default class ValidatorClient implements INymClient {
     prefix: string,
     mixnetContract: string,
     vestingContract: string,
+    denom: string,
   ): Promise<ValidatorClient> {
     const queryClient = await QueryClient.connectWithNym(nymdUrl, validatorApiUrl);
-    return new ValidatorClient(queryClient, prefix, mixnetContract, vestingContract);
+    return new ValidatorClient(queryClient, prefix, mixnetContract, vestingContract, denom);
   }
 
   public get address(): string {

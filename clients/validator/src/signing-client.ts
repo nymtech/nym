@@ -221,10 +221,12 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     nymdUrl: string,
     validatorApiUrl: string,
     prefix: string,
+    denom: string,
   ): Promise<SigningClient> {
     const [{ address }] = await wallet.getAccounts();
     const signerOptions: SigningCosmWasmClientOptions = {
-      gasPrice: nymGasPrice(prefix),
+      prefix,
+      gasPrice: nymGasPrice(denom),
     };
     const tmClient = await Tendermint34Client.connect(nymdUrl);
     return new SigningClient(address, validatorApiUrl, tmClient, wallet, signerOptions);

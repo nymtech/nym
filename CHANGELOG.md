@@ -26,6 +26,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 - validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
+- validator-client: add `denom` argument and add simple test for querying an account balance
 
 ### Fixed
 

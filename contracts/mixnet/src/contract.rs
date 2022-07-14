@@ -5,6 +5,7 @@ use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMO
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
+use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
@@ -61,14 +62,14 @@ pub fn instantiate(
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
+    let reward_params = msg
+        .initial_rewarding_params
+        .into_rewarding_params(msg.epochs_in_interval);
 
-    // TODO: perhaps for each storage create a function like "initialise storage"
-    interval_storage::save_interval(deps.storage, &starting_interval)?;
-    interval_storage::LAST_PROCESSED_EPOCH_EVENT.save(deps.storage, &0)?;
-    interval_storage::LAST_PROCESSED_INTERVAL_EVENT.save(deps.storage, &0)?;
-    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
-    mixnode_storage::LAYERS.save(deps.storage, &Default::default())?;
-    // rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
+    interval_storage::initialise_storage(deps.storage, starting_interval)?;
+    mixnet_params_storage::initialise_storage(deps.storage, state)?;
+    mixnode_storage::initialise_storage(deps.storage)?;
+    rewards_storage::initialise_storage(deps.storage, reward_params)?;
 
     Ok(Response::default())
 }

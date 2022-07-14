@@ -94,6 +94,10 @@ impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
     }
 }
 
+pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> StdResult<()> {
+    LAYERS.save(storage, &LayerDistribution::default())
+}
+
 //
 // #[cfg(test)]
 // mod tests {

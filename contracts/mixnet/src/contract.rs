@@ -316,6 +316,9 @@ pub fn query(
         QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
             &crate::mixnodes::bonding_queries::query_mixnode_details(deps, mix_id)?,
         ),
+        QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_binary(
+            &crate::mixnodes::bonding_queries::query_mixnode_rewarding_details(deps, mix_id)?,
+        ),
         QueryMsg::GetStakeSaturation { mix_id } => to_binary(
             &crate::mixnodes::bonding_queries::query_stake_saturation(deps, mix_id)?,
         ),

@@ -208,6 +208,9 @@ pub enum QueryMsg {
     GetMixnodeDetails {
         mix_id: NodeId,
     },
+    GetMixnodeRewardingDetails {
+        mix_id: NodeId,
+    },
     GetStakeSaturation {
         mix_id: NodeId,
     },

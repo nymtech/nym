@@ -359,7 +359,7 @@ impl MixNodeRewarding {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
-    pub id: u64,
+    pub id: NodeId,
 
     /// Address of the owner of this mixnode.
     pub owner: Addr,
@@ -505,14 +505,6 @@ pub struct MixNodeConfigUpdate {
     pub version: String,
 }
 
-pub struct RewardEstimate {
-    pub total_node_reward: u64,
-    pub operator_reward: u64,
-    pub delegators_reward: u64,
-    pub node_profit: u64,
-    pub operator_cost: u64,
-}
-
 //
 // impl PartialOrd for MixNodeBond {
 //     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -576,19 +568,6 @@ pub struct RewardEstimate {
 //         self.mix_node.partial_cmp(&other.mix_node)
 //     }
 // }
-
-impl Display for MixNodeBond {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "amount: {} {}, owner: {}, identity: {}",
-            self.original_pledge.amount,
-            self.original_pledge.denom,
-            self.owner,
-            self.mix_node.identity_key
-        )
-    }
-}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixnodeBondsResponse {
@@ -659,6 +638,12 @@ pub struct MixOwnershipResponse {
 pub struct MixnodeDetailsResponse {
     pub mix_id: NodeId,
     pub mixnode_details: Option<MixNodeDetails>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixnodeRewardingDetailsResponse {
+    pub mix_id: NodeId,
+    pub rewarding_details: Option<MixNodeRewarding>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

@@ -12,8 +12,8 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{
-    MixNodeBond, MixNodeDetails, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
-    StakeSaturationResponse, UnbondedMixnodeResponse,
+    MixNodeBond, MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
+    PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
     MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedMixnodeBondsResponse,
@@ -128,6 +128,18 @@ pub fn query_mixnode_details(deps: Deps<'_>, mix_id: NodeId) -> StdResult<Mixnod
     Ok(MixnodeDetailsResponse {
         mix_id,
         mixnode_details,
+    })
+}
+
+pub fn query_mixnode_rewarding_details(
+    deps: Deps<'_>,
+    mix_id: NodeId,
+) -> StdResult<MixnodeRewardingDetailsResponse> {
+    let rewarding_details = rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?;
+
+    Ok(MixnodeRewardingDetailsResponse {
+        mix_id,
+        rewarding_details,
     })
 }
 

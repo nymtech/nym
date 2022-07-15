@@ -321,7 +321,7 @@ impl VerificationKeyAuth {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyUser {
-    pub(crate) sk: Scalar,
+    pub sk: Scalar,
 }
 
 impl SecretKeyUser {

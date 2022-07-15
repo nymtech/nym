@@ -12,9 +12,11 @@ use itertools::izip;
 use rand::seq::SliceRandom;
 
 use nym_compact_ecash::{
-    aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
-    issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request,
+    aggregate_verification_keys, aggregate_wallets, generate_keypair_user,
+    issue_verify, issue_wallet, PartialWallet,
+    PayInfo, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth, withdrawal_request,
 };
+use nym_compact_ecash::identify::{identify, IdentifyResult};
 use nym_compact_ecash::setup::setup;
 
 #[allow(unused)]
@@ -101,6 +103,8 @@ struct BenchCase {
     num_authorities: u64,
     threshold_p: f32,
     L: u64,
+    spend_vv: u64,
+    case_nr_pub_keys: u64,
 }
 
 fn bench_compact_ecash(c: &mut Criterion) {
@@ -111,12 +115,14 @@ fn bench_compact_ecash(c: &mut Criterion) {
         num_authorities: 100,
         threshold_p: 0.7,
         L: 100,
+        spend_vv: 10,
+        case_nr_pub_keys: 50,
     };
 
     let params = setup(case.L);
-    let grparams = params.grp();
-    let user_keypair = generate_keypair_user(&grparams);
-    let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
+    let grp = params.grp();
+    let user_keypair = generate_keypair_user(&grp);
+    let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
     let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
         .iter()
         .map(|keypair| keypair.verification_key())
@@ -126,7 +132,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
     // ISSUANCE PHASE
 
-    let (req, req_info) = withdrawal_request(grparams, &user_keypair.secret_key()).unwrap();
+    let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
 
     // CLIENT BENCHMARK: prepare a single withdrawal request
     group.bench_function(
@@ -134,7 +140,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
             "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
             case.num_authorities, case.L, case.threshold_p,
         ),
-        |b| b.iter(|| withdrawal_request(grparams, &user_keypair.secret_key()).unwrap()),
+        |b| b.iter(|| withdrawal_request(grp, &user_keypair.secret_key()).unwrap()),
     );
 
     // ISSUING AUTHRORITY BENCHMARK: Benchmark the issue_wallet function
@@ -146,7 +152,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 issue_wallet(
-                    &grparams,
+                    &grp,
                     keypair.secret_key(),
                     user_keypair.public_key(),
                     &req,
@@ -158,7 +164,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
         let blind_signature = issue_wallet(
-            &grparams,
+            &grp,
             auth_keypair.secret_key(),
             user_keypair.public_key(),
             &req,
@@ -171,14 +177,14 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let vk = verification_keys_auth.get(0).clone().unwrap();
     group.bench_function(
         &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
-        |b| b.iter(|| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info)),
+        |b| b.iter(|| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info)),
     );
 
     let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-        .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
 
     // CLIENT BENCHMARK: aggregating all partial wallets
@@ -190,7 +196,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 aggregate_wallets(
-                    &grparams,
+                    &grp,
                     &verification_key,
                     &user_keypair.secret_key(),
                     &unblinded_wallet_shares,
@@ -203,7 +209,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
-        &grparams,
+        &grp,
         &verification_key,
         &user_keypair.secret_key(),
         &unblinded_wallet_shares,
@@ -213,27 +219,28 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // SPENDING PHASE
     let pay_info = PayInfo { info: [6u8; 32] };
-
-    // CLIENT BENCHMARK: spend a single coin from the wallet
-    group.bench_function(
-        &format!(
-            "[Client] spend_a_single_coin_L_{}_threshold_{}",
-            case.L, case.threshold_p,
-        ),
-        |b| {
-            b.iter(|| {
-                aggr_wallet
-                    .spend(
-                        &params,
-                        &verification_key,
-                        &user_keypair.secret_key(),
-                        &pay_info,
-                        true,
-                    )
-                    .unwrap()
-            })
-        },
-    );
+    let spend_vv =
+        // CLIENT BENCHMARK: spend a single coin from the wallet
+        group.bench_function(
+            &format!(
+                "[Client] spend_a_single_coin_L_{}_threshold_{}",
+                case.L, case.threshold_p,
+            ),
+            |b| {
+                b.iter(|| {
+                    aggr_wallet
+                        .spend(
+                            &params,
+                            &verification_key,
+                            &user_keypair.secret_key(),
+                            &pay_info,
+                            true,
+                            case.spend_vv,
+                        )
+                        .unwrap()
+                })
+            },
+        );
 
     let (payment, upd_wallet) = aggr_wallet
         .spend(
@@ -242,6 +249,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
             &user_keypair.secret_key(),
             &pay_info,
             false,
+            case.spend_vv,
         )
         .unwrap();
 
@@ -254,13 +262,53 @@ fn bench_compact_ecash(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 payment
-                    .spend_verify(&params, &verification_key, &pay_info)
+                    .spend_verify(&params, &verification_key, &pay_info, case.spend_vv)
                     .unwrap()
             })
         },
     );
 
     // BENCHMARK IDENTIFICATION
+    // Let's generate a double spending payment
+
+    // let's reverse the spending counter in the wallet to create a double spending payment
+    let current_l = aggr_wallet.l.get();
+    aggr_wallet.l.set(current_l - case.spend_vv);
+
+    let pay_info2 = PayInfo { info: [7u8; 32] };
+    let (payment2, _) = aggr_wallet.spend(
+        &params,
+        &verification_key,
+        &user_keypair.secret_key(),
+        &pay_info2,
+        true,
+        case.spend_vv,
+    ).unwrap();
+
+    //  GENERATE KEYS FOR OTHER USERS
+    let mut public_keys: Vec<PublicKeyUser> = Default::default();
+    for i in 0..case.case_nr_pub_keys {
+        let sk = grp.random_scalar();
+        let sk_user = SecretKeyUser { sk };
+        let pk_user = sk_user.public_key(&grp);
+        public_keys.push(pk_user);
+    }
+    public_keys.push(user_keypair.public_key());
+
+    // MERCHANT BENCHMARK: identify double spending
+    group.bench_function(
+        &format!(
+            "[Merchant] identify_L_{}_threshold_{}_spend_vv_{}_pks_{}",
+            case.L, case.threshold_p, case.spend_vv, public_keys.len()
+        ),
+        |b| {
+            b.iter(|| {
+                identify(&public_keys, payment.clone(), payment2.clone(), pay_info.clone(), pay_info2.clone()).unwrap()
+            })
+        },
+    );
+    let identify_result = identify(&public_keys, payment, payment2, pay_info.clone(), pay_info2.clone()).unwrap();
+    assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
 }
 
 criterion_group!(benches, bench_compact_ecash);

@@ -31,9 +31,12 @@
     "eslint-plugin-import": "^2.25.4",
     "eslint-plugin-mocha": "^10.0.3",
     "eslint-plugin-prettier": "^4.0.0",
+    "expect": "^28.1.3",
+    "mocha": "^10.0.0",
     "prettier": "^2.5.1",
     "typedoc": "^0.22.13",
-    "typescript": "^4.1.3"
+    "ts-mocha": "^10.0.0",
+    "typescript": "^4.6.2"
   },
   "dependencies": {
     "@cosmjs/cosmwasm-stargate": "^0.28.0",

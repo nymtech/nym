@@ -5,7 +5,7 @@ use crate::{validator_api, ValidatorClientError};
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, ExecuteReleaseFundsRequestBody,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
     ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -734,6 +734,10 @@ impl ApiClient {
         Ok(self.validator_api.get_coconut_verification_key().await?)
     }
 
+    pub async fn get_cosmos_address(&self) -> Result<CosmosAddressResponse, ValidatorClientError> {
+        Ok(self.validator_api.get_cosmos_address().await?)
+    }
+
     pub async fn verify_bandwidth_credential(
         &self,
         request_body: &VerifyCredentialBody,
@@ -751,16 +755,6 @@ impl ApiClient {
         Ok(self
             .validator_api
             .propose_release_funds(request_body)
-            .await?)
-    }
-
-    pub async fn execute_release_funds(
-        &self,
-        request_body: &ExecuteReleaseFundsRequestBody,
-    ) -> Result<(), ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .execute_release_funds(request_body)
             .await?)
     }
 }

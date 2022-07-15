@@ -26,6 +26,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 - validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
+- validator-client: add `denom` argument and add simple test for querying an account balance
 
 ### Fixed
 
@@ -47,6 +48,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - gateway: allow to voluntarily send statistical data about the number of active inboxes served by a gateway ([#1376])
 - gateway & mixnode: move detailed build info back to `--version` from `--help`.
 - socks5 client/websocket client: upgrade to latest clap and switched to declarative commandline parsing.
+- validator-api: fee payment for multisig operations comes from the gateway account instead of the validator APIs' accounts ([#1419])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -66,6 +68,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1376]: https://github.com/nymtech/nym/pull/1376
 [#1393]: https://github.com/nymtech/nym/pull/1393
 [#1404]: https://github.com/nymtech/nym/pull/1404
+[#1419]: https://github.com/nymtech/nym/pull/1419
 [#1427]: https://github.com/nymtech/nym/pull/1427
 
 ## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)

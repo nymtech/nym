@@ -25,9 +25,10 @@ use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-    ExecuteReleaseFundsRequestBody, ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse,
-    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    VerifyCredentialBody, VerifyCredentialResponse,
 };
+use validator_client::nymd::Fee;
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
@@ -175,8 +176,7 @@ impl InternalSignRequest {
                     get_cosmos_address,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential,
-                    post_propose_release_funds,
-                    post_execute_release_funds
+                    post_propose_release_funds
                 ],
             )
         })
@@ -282,7 +282,15 @@ pub async fn verify_bandwidth_credential(
     // Vote yes or no on the proposal based on the verification result
     state
         .client
-        .vote_proposal(proposal_id, verification_result, None)
+        .vote_proposal(
+            proposal_id,
+            verification_result,
+            Some(Fee::PayerGranterAuto(
+                None,
+                None,
+                Some(verify_credential_body.0.gateway_cosmos_addr().to_owned()),
+            )),
+        )
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(verification_result)))
@@ -307,19 +315,17 @@ pub async fn post_propose_release_funds(
     let voucher_value = propose_release_funds.0.credential().voucher_value() as u128;
     let proposal_id = state
         .client
-        .propose_release_funds(title, blinded_serial_number, voucher_value, None)
+        .propose_release_funds(
+            title,
+            blinded_serial_number,
+            voucher_value,
+            Some(Fee::PayerGranterAuto(
+                None,
+                None,
+                Some(propose_release_funds.0.gateway_cosmos_addr().to_owned()),
+            )),
+        )
         .await?;
 
     Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
-}
-
-#[post("/execute-release-funds", data = "<execute_release_funds>")]
-pub async fn post_execute_release_funds(
-    execute_release_funds: Json<ExecuteReleaseFundsRequestBody>,
-    state: &RocketState<State>,
-) -> Result<Json<()>> {
-    let proposal_id = *execute_release_funds.0.proposal_id();
-    state.client.execute_proposal(proposal_id, None).await?;
-
-    Ok(Json(()))
 }

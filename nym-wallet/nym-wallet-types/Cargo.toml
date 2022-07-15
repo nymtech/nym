@@ -11,7 +11,7 @@ strum = { version = "0.23", features = ["derive"] }
 ts-rs = "6.1.2"
 
 cosmwasm-std = "1.0.0-beta8"
-cosmrs = "0.7.0"
+cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 
 config = { path = "../../common/config" }
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }

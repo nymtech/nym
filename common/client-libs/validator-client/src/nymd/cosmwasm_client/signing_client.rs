@@ -12,6 +12,9 @@ use crate::nymd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
+use cosmrs::feegrant::{
+    AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance,
+};
 use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
@@ -23,7 +26,7 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
@@ -416,6 +419,63 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .collect::<Result<_, _>>()?;
 
         self.sign_and_broadcast(sender_address, messages, fee, memo)
+            .await?
+            .check_response()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn grant_allowance(
+        &self,
+        granter: &AccountId,
+        grantee: &AccountId,
+        spend_limit: Vec<Coin>,
+        expiration: Option<SystemTime>,
+        allowed_messages: Vec<String>,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<TxResponse, NymdError> {
+        let basic_allowance = BasicAllowance {
+            spend_limit: spend_limit.into_iter().map(Into::into).collect(),
+            expiration,
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("BasicAllowance".to_owned()))?;
+
+        let allowed_msg_allowance = AllowedMsgAllowance {
+            allowance: Some(basic_allowance),
+            allowed_messages,
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("AllowedMsgAllowance".to_owned()))?;
+
+        let grant_allowance_msg = MsgGrantAllowance {
+            granter: granter.to_owned(),
+            grantee: grantee.to_owned(),
+            allowance: Some(allowed_msg_allowance),
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("MsgGrantAllowance".to_owned()))?;
+
+        self.sign_and_broadcast(granter, vec![grant_allowance_msg], fee, memo)
+            .await?
+            .check_response()
+    }
+
+    async fn revoke_allowance(
+        &self,
+        granter: &AccountId,
+        grantee: &AccountId,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<TxResponse, NymdError> {
+        let revoke_allowance_msg = MsgRevokeAllowance {
+            granter: granter.to_owned(),
+            grantee: grantee.to_owned(),
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("MsgRevokeAllowance".to_owned()))?;
+
+        self.sign_and_broadcast(granter, vec![revoke_allowance_msg], fee, memo)
             .await?
             .check_response()
     }

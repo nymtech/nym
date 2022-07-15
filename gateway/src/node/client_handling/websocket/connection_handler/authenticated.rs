@@ -48,6 +48,9 @@ pub(crate) enum RequestHandlingError {
     #[error("This gateway is not running in the disabled credentials mode")]
     NotInDisabledCredentialsMode,
 
+    #[error("Nymd Error - {0}")]
+    NymdError(#[from] validator_client::nymd::error::NymdError),
+
     #[cfg(not(feature = "coconut"))]
     #[error("Ethereum web3 error")]
     Web3Error(#[from] web3::Error),
@@ -60,10 +63,6 @@ pub(crate) enum RequestHandlingError {
     #[error("Ethereum contract error")]
     EthContractError(#[from] web3::contract::Error),
 
-    #[cfg(not(feature = "coconut"))]
-    #[error("Nymd Error - {0}")]
-    NymdError(#[from] validator_client::nymd::error::NymdError),
-
     #[cfg(feature = "coconut")]
     #[error("Validator API error")]
     APIError(#[from] validator_client::ValidatorClientError),
@@ -71,6 +70,14 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Not enough validator API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughValidatorAPIs { received: usize, needed: usize },
+
+    #[cfg(feature = "coconut")]
+    #[error("Validator API {url} misbehaved in the bandwidth redemption protocol: {reason}")]
+    MisbehavingAPI { url: String, reason: String },
+
+    #[cfg(feature = "coconut")]
+    #[error("Coconut interface error - {0}")]
+    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 }
 
 impl RequestHandlingError {
@@ -223,46 +230,9 @@ where
             ));
         }
 
-        let req = validator_api_requests::coconut::ProposeReleaseFundsRequestBody::new(
-            credential.clone(),
-        );
-        let proposal_id = self
-            .inner
-            .coconut_verifier
-            .api_clients()
-            .get(0)
-            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
-                needed: 1,
-                received: 0,
-            })?
-            .propose_release_funds(&req)
-            .await?
-            .proposal_id;
-
-        let req = validator_api_requests::coconut::VerifyCredentialBody::new(
-            credential.clone(),
-            proposal_id,
-        );
-        for client in self.inner.coconut_verifier.api_clients().iter().skip(1) {
-            if !client
-                .verify_bandwidth_credential(&req)
-                .await?
-                .verification_result
-            {
-                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.validator_api.current_url());
-            }
-        }
-
-        let req = validator_api_requests::coconut::ExecuteReleaseFundsRequestBody::new(proposal_id);
         self.inner
             .coconut_verifier
-            .api_clients()
-            .get(0)
-            .ok_or(RequestHandlingError::NotEnoughValidatorAPIs {
-                needed: 1,
-                received: 0,
-            })?
-            .execute_release_funds(&req)
+            .release_funds(&credential)
             .await?;
 
         let bandwidth = Bandwidth::from(credential);

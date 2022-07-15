@@ -26,6 +26,7 @@ use mixnet_contract_common::{
 };
 use serde::Serialize;
 use std::convert::TryInto;
+use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
 use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
@@ -842,6 +843,49 @@ impl<C> NymdClient<C> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .send_tokens_multiple(self.address(), msgs, fee, memo)
+            .await
+    }
+
+    /// Grant a fee allowance from one address to another
+    pub async fn grant_allowance(
+        &self,
+        grantee: &AccountId,
+        spend_limit: Vec<Coin>,
+        expiration: Option<SystemTime>,
+        allowed_messages: Vec<String>,
+        memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
+    ) -> Result<TxResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        self.client
+            .grant_allowance(
+                self.address(),
+                grantee,
+                spend_limit,
+                expiration,
+                allowed_messages,
+                fee,
+                memo,
+            )
+            .await
+    }
+
+    /// Revoke a fee allowance from one address to another
+    pub async fn revoke_allowance(
+        &self,
+        grantee: &AccountId,
+        memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
+    ) -> Result<TxResponse, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        self.client
+            .revoke_allowance(self.address(), grantee, fee, memo)
             .await
     }
 

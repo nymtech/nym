@@ -23,6 +23,7 @@ use ts_rs::{Dependency, TS};
 #[cfg_attr(feature = "generate-ts", ts(rename_all = "lowercase"))]
 #[derive(
     Display,
+    Default,
     Serialize,
     Deserialize,
     Clone,
@@ -36,6 +37,9 @@ use ts_rs::{Dependency, TS};
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum CurrencyDenom {
+    #[strum(ascii_case_insensitive)]
+    #[default]
+    Unknown,
     #[strum(ascii_case_insensitive)]
     Nym,
     #[strum(ascii_case_insensitive)]

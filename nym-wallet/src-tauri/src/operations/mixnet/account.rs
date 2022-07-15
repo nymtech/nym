@@ -68,7 +68,7 @@ pub async fn switch_network(
         let client = r_state.client(network)?;
         let denom = network.mix_denom();
 
-        Account::new(client.nymd.address().to_string(), denom.into())
+        Account::new(client.nymd.address().to_string(), denom)
     };
 
     let mut w_state = state.write().await;

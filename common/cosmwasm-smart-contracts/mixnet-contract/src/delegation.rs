@@ -72,24 +72,6 @@ pub struct Delegation {
 // }
 
 impl Delegation {
-    // pub fn new(
-    //     owner: Addr,
-    //     node_id: NodeId,
-    //     period: Period,
-    //     amount: Coin,
-    //     height: u64,
-    //     proxy: Option<Addr>,
-    // ) -> Self {
-    //     Delegation {
-    //         owner,
-    //         node_id,
-    //         period,
-    //         amount,
-    //         height,
-    //         proxy,
-    //     }
-    // }
-
     pub fn new(
         owner: Addr,
         node_id: NodeId,
@@ -246,23 +228,3 @@ impl PagedAllDelegationsResponse {
         }
     }
 }
-
-//
-// #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-// pub struct PagedAllDelegationsResponse {
-//     pub delegations: Vec<Delegation>,
-//     pub start_next_after: Option<(IdentityKey, Vec<u8>, u64)>,
-// }
-//
-// impl PagedAllDelegationsResponse {
-//     pub fn new(
-//         delegations: Vec<Delegation>,
-//         start_next_after: Option<(IdentityKey, Vec<u8>, u64)>,
-//     ) -> Self {
-//         PagedAllDelegationsResponse {
-//             delegations,
-//             start_next_after: start_next_after.map(|(id, addr, height)| (id, addr, height)),
-//         }
-//     }
-// }
-//

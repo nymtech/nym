@@ -16,9 +16,9 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       isAdminAddress: false,
       isLoading: false,
       clientDetails: {
-        mix_denom: 'nymt',
+        display_mix_denom: 'nymt',
+        base_mix_denom: 'unymt',
         client_address: '',
-        contract_address: '',
       },
       userBalance: {
         balance: {
@@ -35,6 +35,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
         fetchTokenAllocation: async () => undefined,
         refreshBalances: async () => {},
       },
+      denom: 'NYM',
       showAdmin: false,
       showTerminal: false,
       showSettings: false,

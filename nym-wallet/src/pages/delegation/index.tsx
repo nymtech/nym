@@ -44,6 +44,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const {
     clientDetails,
     network,
+    denom,
     userBalance: { balance, originalVesting, fetchBalance },
   } = useContext(AppContext);
 
@@ -342,7 +343,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onOk={handleNewDelegation}
           header="Delegate"
           buttonText="Delegate stake"
-          currency={clientDetails!.mix_denom}
+          currency={denom}
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
@@ -358,7 +359,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           header="Delegate more"
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
-          currency={clientDetails!.mix_denom}
+          currency={denom}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
@@ -385,7 +386,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onClose={() => setShowRedeemRewardsModal(false)}
           onOk={(identity, fee) => handleRedeem(identity, fee)}
           message="Redeem rewards"
-          currency={clientDetails!.mix_denom}
+          currency={denom}
           identityKey={currentDelegationListActionItem?.node_identity}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
           usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
@@ -398,7 +399,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onClose={() => setShowCompoundRewardsModal(false)}
           onOk={(identity, fee) => handleCompound(identity, fee)}
           message="Compound rewards"
-          currency={clientDetails!.mix_denom}
+          currency={denom}
           identityKey={currentDelegationListActionItem?.node_identity}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
           usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}

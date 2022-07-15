@@ -99,15 +99,15 @@ export const DelegationModal: React.FC<
         {balanceVested ? (
           <>
             <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-              Your current balance: {balance}
+              Your current balance: {balance?.toUpperCase()}
             </Typography>
             <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-              ({balanceVested} is unlocked in your vesting account)
+              ({balanceVested.toUpperCase()} is unlocked in your vesting account)
             </Typography>
           </>
         ) : (
           <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-            Your current balance: {balance}
+            Your current balance: {balance?.toUpperCase()}
           </Typography>
         )}
         {transactions && (

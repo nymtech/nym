@@ -2,7 +2,7 @@ import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
+import { Account, AccountEntry, CurrencyDenom, MixNodeBond } from '@nymproject/types';
 import { getVersion } from '@tauri-apps/api/app';
 import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
@@ -49,6 +49,7 @@ export type TAppContext = {
   loginType?: TLoginType;
   showSettings: boolean;
   showSendModal: boolean;
+  denom: Uppercase<CurrencyDenom>;
   handleShowSettings: () => void;
   handleShowSendModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
@@ -67,6 +68,7 @@ export const AppContext = createContext({} as TAppContext);
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
+  const [denom, setDenom] = useState<Uppercase<CurrencyDenom>>('NYM');
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
   const [mixnodeDetails, setMixnodeDetails] = useState<MixNodeBond | null>(null);
   const [network, setNetwork] = useState<Network | undefined>();
@@ -99,6 +101,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const client = await selectNetwork(n);
       setClientDetails(client);
+      setDenom(client.display_mix_denom.toUpperCase() as Uppercase<CurrencyDenom>);
     } catch (e) {
       enqueueSnackbar('Error loading account', { variant: 'error' });
       Console.error(e as string);
@@ -253,6 +256,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       storedAccounts,
       mixnodeDetails,
       userBalance,
+      denom,
       showAdmin,
       showTerminal,
       showSettings,
@@ -290,6 +294,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       showTerminal,
       showSettings,
       showSendModal,
+      denom,
     ],
   );
 

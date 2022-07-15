@@ -35,7 +35,7 @@ const vestingPeriod = (current?: Period, original?: number) => {
 };
 
 const VestingSchedule = () => {
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, denom } = useContext(AppContext);
   const [vestedPercentage, setVestedPercentage] = useState(0);
 
   const calculatePercentage = () => {
@@ -66,8 +66,7 @@ const VestingSchedule = () => {
           </TableRow>
           <TableRow>
             <TableCell sx={{ borderBottom: 'none', textTransform: 'uppercase' }}>
-              {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {clientDetails?.mix_denom}
+              {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount} {denom}
             </TableCell>
             <TableCell align="left" sx={{ borderBottom: 'none' }}>
               {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
@@ -79,8 +78,7 @@ const VestingSchedule = () => {
               </Box>
             </TableCell>
             <TableCell sx={{ borderBottom: 'none', textTransform: 'uppercase' }} align="right">
-              {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {clientDetails?.mix_denom}
+              {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount} {denom}
             </TableCell>
           </TableRow>
         </TableHead>
@@ -90,7 +88,7 @@ const VestingSchedule = () => {
 };
 
 const TokenTransfer = () => {
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, denom } = useContext(AppContext);
   const icon = useCallback(
     () => (
       <Box sx={{ display: 'flex', mr: 1 }}>
@@ -116,7 +114,7 @@ const TokenTransfer = () => {
           fontWeight="700"
           textTransform="uppercase"
         >
-          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.mix_denom}
+          {userBalance.tokenAllocation?.spendable || 'n/a'} {denom}
         </Typography>
       </Grid>
     </Grid>

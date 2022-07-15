@@ -21,7 +21,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   const [isLoading, setIsLoading] = useState(false);
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
 
-  const { clientDetails, userBalance, network } = useContext(AppContext);
+  const { clientDetails, userBalance, network, denom } = useContext(AppContext);
   const { fee, getFee } = useGetFee();
 
   const handleOnNext = async () => {
@@ -47,7 +47,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
     try {
       const txResponse = await send({ amount: val, address: to, memo: '', fee: fee?.fee });
       setTxDetails({
-        amount: `${amount?.amount} ${clientDetails?.mix_denom}`,
+        amount: `${amount?.amount} ${denom}`,
         txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,
       });
     } catch (e) {

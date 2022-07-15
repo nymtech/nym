@@ -176,6 +176,10 @@ impl LayerDistribution {
 pub struct ContractState {
     pub owner: Addr, // only the owner account can update state
     pub rewarding_validator_address: Addr,
+
+    /// Address of the vesting contract to which the mixnet contract would be sending all
+    /// track-related messages.
+    pub vesting_contract_address: Addr,
     pub rewarding_denom: String,
     pub params: ContractStateParams,
 }
@@ -190,36 +194,32 @@ pub struct ContractStateParams {
 
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
-
-    /// Address of the vesting contract to which the mixnet contract would be sending all
-    /// track-related messages.
-    pub vesting_contract_address: Addr,
 }
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct RewardingResult {
-    pub node_reward: Uint128,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PendingDelegatorRewarding {
-    // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
-    pub running_results: RewardingResult,
-
-    pub next_start: Addr,
-    // pub rewarding_params: DelegatorRewardParams,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum RewardingStatus {
-    Complete(RewardingResult),
-    PendingNextDelegatorPage(PendingDelegatorRewarding),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MixnodeRewardingStatusResponse {
-    pub status: Option<RewardingStatus>,
-}
+//
+// #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+// pub struct RewardingResult {
+//     pub node_reward: Uint128,
+// }
+//
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct PendingDelegatorRewarding {
+//     // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
+//     pub running_results: RewardingResult,
+//
+//     pub next_start: Addr,
+//     // pub rewarding_params: DelegatorRewardParams,
+// }
+//
+// #[derive(Debug, Serialize, Deserialize)]
+// pub enum RewardingStatus {
+//     Complete(RewardingResult),
+//     PendingNextDelegatorPage(PendingDelegatorRewarding),
+// }
+//
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct MixnodeRewardingStatusResponse {
+//     pub status: Option<RewardingStatus>,
+// }
 
 // type aliases for better reasoning about available data
 pub type IdentityKey = String;

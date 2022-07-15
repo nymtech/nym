@@ -6,7 +6,7 @@ This file shall describe (hopefully) all relevant changes made to the contract a
 
 There are two main changes performed to the mixnet contract that have a cascading effect on the rest of the system. They are as follows:
 
-1. The delegator rewarding is modified so that in order to determine the correct reward, we no longer have to iterate through data from all the epochs to correctly compound the reward. Instead, we assume there's a theoretical "unit" delegation on each mixnode that we keep track of and scale all of the actual delegation values accordingly. It's very similar to the idea presented in the [Cosmos' F1 paper](https://drops.dagstuhl.de/opus/volltexte/2020/11974/pdf/OASIcs-Tokenomics-2019-10.pdf). I've explained the entire algorithm in more details on [our gitlab](https://gitlab.nymte.ch/jstuczyn/reward-testing/-/blob/main/README.md).
+1. The delegator rewarding is modified so that in order to determine the correct reward, we no longer have to iterate through data from all the epochs to correctly compound the reward. Instead, we assume there's a theoretical "unit" delegation on each mixnode that we keep track of and scale all the actual delegation values accordingly. It's very similar to the idea presented in the [Cosmos' F1 paper](https://drops.dagstuhl.de/opus/volltexte/2020/11974/pdf/OASIcs-Tokenomics-2019-10.pdf). I've explained the entire algorithm on an example in more details on [our gitlab](https://gitlab.nymte.ch/jstuczyn/reward-testing/-/blob/main/README.md).
 
 2. Mixnodes are no longer stored and indexed by their identity keys. Instead, they get assigned a unique `NodeId` (just an increasing `u64` id). This is to resolve my favourite ~~bug~~ feature (I will explain this in slightly more details in the next sections) that causes rebonded mixnode to retain its delegations. With this change the following would happen:
    - new mixnode bonds, gets assigned id `X`
@@ -17,7 +17,7 @@ There are two main changes performed to the mixnet contract that have a cascadin
 
 While not as major as the above changes, the other notable changes include:
 - introduction of `PendingEpochEvent` and `PendingIntervalEvent`. It means that whenever a relevant request is received, it's only going to get executed once the current epoch (or interval) finishes. This might include, for example, mixnode unbonding or changing mixnode cost parameters.
--
+- rewarding parameters, such as the size of the reward pool are only updated at the end of the current **interval**. They should not get modified between epochs.
 
 ## Instantiation
 
@@ -33,7 +33,7 @@ pub struct InstantiateMsg {
 }
 ```
 
-We have to explicitly state, as before, address of the rewarding validator which is authorized to update rewarded sets and distribute rewards to mixnodes, but also vesting contract address (since we need to know if we should call `Track...` methods), interval/epoch related parameters (so that we wouldn't accidentally try to set 10min epochs via migration :eyes:) and initial rewarding parameters that include things such as the size of the initial reward pool or the per interval emission.
+We have to explicitly state, as before, address of the rewarding validator which is authorized to update rewarded sets and distribute rewards to mixnodes, but also vesting contract address (since we need to know if we should call `Track...` methods. Without it we could end up attempt to call a vesting contract method on a non-contract address), interval/epoch related parameters (so that we wouldn't accidentally try to set 10min epochs via migration :eyes:) and initial rewarding parameters that include things such as the size of the initial reward pool or the per interval emission.
 
 ## Mixnodes
 
@@ -314,57 +314,401 @@ Similarly to the above query for the bond information of given mixnode has been 
 
 ### Overview
 
-Gateways remain mostly unchanged and unaffected by the fallout of other changes. We still keep the gateways indexed by their identity keys.
+Gateways remain mostly unchanged and unaffected by the fallout of other changes. We still keep the gateways indexed by their identity keys. This might change in the future, but for the time being, there's no reason to do anything about it.
 
 The only relevant change is that `OwnsGateway` query has been renamed to `GetOwnedGateway` to keep the naming consistent.
 
-## Delegations
+## Delegation
 
 ### Overview
 
+Apart from mixnodes, the delegations are the other part of the system most affected by the introduced changes. Structurally-wise, the differences are relatively minimal, but the logic behind them, especially concerning rewarding and reward estimation (which will be described in more details in the subsequent sections) has changed in a meaningful way.
+
 ### Types/Models
+
+#### Added
+
+N/A
+
+#### Removed
+
+N/A
+
+#### Modified
+
+##### Delegation
+
+```rust
+pub struct Delegation {
+    //
+    // ...
+    //
+    // `node_identity` of the associated mixnode has been replaced by its assigned `node_id` as mixnode indexing has been modified
+    // --- pub node_identity: IdentityKey,
+    // +++ pub node_id: NodeId,
+
+    // Value of the "unit delegation" associated with the mixnode at the time of delegation. It's used purely for calculating rewards
+  // +++ pub cumulative_reward_ratio: Decimal,
+
+    // `block_height` has been renamed to `height`
+    // --- pub block_height: u64,
+    // +++ pub height: u64,
+}
+```
 
 ### Transactions
 
+Apart from the changes to the mixnode indexing (i.e. `identity_key => node_id`) there's been no significant changes to the transactions involving delegations. Of course this excludes anything regarding rewards, but this part is going to have its own dedicated section below.
+
 ### Queries
+
+The same holds true for queries. If we exclude reward estimation-related queries and changes due to the new indexing, there are hardly any changes. The only notable difference is the introduction of `GetAllDelegations` which allows one to query for all delegations in the system as opposed to being restricted to a single owner or a single mixnode. The responses are still, however, paged.
 
 ### Storage
 
+#### Added
 
+N/A
+
+#### Removed
+
+- `PENDING_DELEGATION_EVENTS` `Map` has been removed as this concept is being superseded by the `PendingEpochEvent` queue.
+
+#### Modified
+
+The storage key structure of delegation has been slightly adjusted compared to the previous version:
+- The composite storage key no longer includes the block height as we're now able to immediately work with the potentially changed values,
+- For the simplicity sake, the composite subkey created for the purpose of querying by the owner/proxy combination has been changed from being a `Vec<u8>` to instead being a base58-encoded String (of the same data). This makes it slightly easier for the clients to use it, especially in paged queries.
 
 ## Interval
 
 ### Overview
 
+Generally we've been going back and forth with having explicit distinction between epochs and intervals and making this purely implicit. In this iteration of the contract both pieces of data are explicit. `Interval` has an associated id, etc. as well as it holds information about the current epoch, number of epochs in interval, etc.
+
+The other notable change to how interval behaves is that we expanded the concept of particular events being executed as given epoch (or interval) rolls over. Previously this was only applicable to `PendingDelegations`.
+
+Also, now advancing epoch happens in the same message as writing the new rewarded set, so it's impossible to perform one without the other. Speaking of updating the rewarded set, I was attempting to be smart and reduce number of storage read by not writing entries that hasn't changed (i.e. if node was `Active` and its updated status is still `Active`, don't do anything). We're about to see if this wasn't a stupid overkill...
+
 ### Types/Models
+
+#### Added
+
+##### PendingEpochEvent
+
+New structure keeping track of events that shall get invoked at the end of the current **epoch** (after rewards have already been distributed).
+
+```rust
+pub enum PendingEpochEvent {
+  Delegate {
+    owner: Addr,
+    mix_id: NodeId,
+    amount: Coin,
+    proxy: Option<Addr>,
+  },
+  Undelegate {
+    owner: Addr,
+    mix_id: NodeId,
+    proxy: Option<Addr>,
+  },
+  UnbondMixnode {
+    mix_id: NodeId,
+  },
+  UpdateActiveSetSize {
+    new_size: u32,
+  },
+}
+```
+
+##### PendingIntervalEvent
+
+New structure keeping track of events that shall get invoked at the end of the current **interval** (after rewards have already been distributed).
+
+```rust
+pub enum PendingIntervalEvent {
+  ChangeMixCostParams {
+    mix: NodeId,
+    new_costs: MixNodeCostParams,
+  },
+  UpdateRewardingParams {
+    update: IntervalRewardingParamsUpdate,
+  },
+  UpdateIntervalConfig {
+    epochs_in_interval: u32,
+    epoch_duration_secs: u64,
+  },
+}
+```
+
+#### Removed
+
+N/A
+
+#### Modified
+
+##### Interval
+
+```rust
+pub struct Interval {
+    //
+    // ...
+    //
+    // we're now explicitly keeping track of the expected number of epochs in the stored interval (as opposed to making it implicit via constants)
+    // +++ epochs_in_interval: u32,
+    //
+    // we're just being explicit about what we're keeping track of
+    // --- start: OffsetDateTime,
+    // +++ current_epoch_start: OffsetDateTime,
+    //
+    // the same is true for this one
+    // --- length: Duration,
+    // +++ epoch_length: Duration,
+    //
+    // and we're also explicitly separating ids of interval and epochs. Do note that it's illegal for `current_epoch_id` to be equal or larger to `epochs_in_interval` (in that case it should roll over back to 0)
+    // --- id: u32,
+    // +++ id: IntervalId,
+    // +++ current_epoch_id: EpochId,
+}
+```
 
 ### Transactions
 
+#### Added
+
+There's a couple of newly added transaction that allow changing rewarding-related parameters, such as the active set size or pool emission, etc. But those changes should preferably only be executed at the end of the current epoch/interval (depending on a particular change requested) so that the current rewarding interval wouldn't be affected in an unexpected way. However, the transactions include the `force_immediately` field to make the change immediate if required.
+
+##### UpdateActiveSetSize
+
+Allows updating the active set size. Note that the new size **must** be equal to or smaller than the current rewarded set. If `force_immediately` is not set, the change will be applied at the end of the current epoch.
+
+##### UpdateRewardingParams
+
+Allows updating (almost) all the other rewarding-related global parameters:
+
+```rust
+pub struct IntervalRewardingParamsUpdate {
+  pub reward_pool: Option<Decimal>,
+  pub staking_supply: Option<Decimal>,
+
+  pub sybil_resistance_percent: Option<Percent>,
+  pub active_set_work_factor: Option<Decimal>,
+  pub interval_pool_emission: Option<Percent>,
+  pub rewarded_set_size: Option<u32>,
+}
+```
+
+Note that at least a single change must be specified. If `force_immediately` is not set, the change will be applied at the end of the current interval.
+
+##### UpdateIntervalConfig
+
+Allows adjusting configuration of the interval, i.e. number of epochs it contains as well as the duration of the epochs themselves. Similarly to the above, if `force_immediately` is not set, the change will be applied at the end of the current interval.
+
+##### ReconcileEpochEvents
+
+Serves a very similar purpose to the removed `ReconcileDelegations`. But rather than being limited to just delegation creation/removal, this transaction would attempt to execute all pending epoch and interval events.
+
+Do note that if current epoch is in **NOT** in progress, nothing is going to happen. Furthermore, interval events will only get executed if apart from the current epoch being over, the interval itself is over.
+
+Anyone willing to pay the associated gas costs is can call this transaction. It's not limited to the `owner` account.
+
+#### Removed
+
+##### InitEpoch
+
+Since we're going to be creating a brand-new contract, we no longer have to separately initialise the epoch (interval). It's going to be performed implicitly during contract instantiation.
+
+##### ReconcileDelegations
+
+As explained before, superseded by `ReconcileEpochEvents`.
+
+##### CheckpointMixnodes
+
+As explained multiple times before, due to the changes to the reward calculation algorithm, we no longer have to keep track of the state of all the mixnodes at each epoch.
+
+##### WriteRewardedSet
+
+This functionality has been moved into `AdvanceCurrentEpoch` so that it would not be possible to roll over the epoch without explicitly updating the rewarded set.
+
+##### GetRewardedSetUpdateDetails
+
+Rewarded set is now always being updated whenever epoch rolls over
+
+##### GetRewardedSetRefreshBlocks
+
+Same as above
+
+##### GetCurrentRewardedSetHeight
+
+We no longer keep track of rewarded sets at given height thanks to the change to the reward calculation
+
+#### Modified
+
+##### AdvanceCurrentEpoch
+
+The main idea behind this transaction remains unchanged - if the current epoch/interval is over, this call rolls it over to the next one. However, it is now also responsible for additional functionalities:
+- updating the rewarded set to the newly provided value,
+- emptying the `PendingEpochEvent` and `PendingIntervalEvent` queues if there's anything left in there -> Do note that a separate explicit call in a different transaction is preferred, since there might be a significant amount of events to go through,
+- if the interval has rolled over all the pending reward pool changes from `RewardPoolChange` (that will be elaborated in the rewards section) are applied
+
 ### Queries
 
+#### Added
+
+##### GetCurrentIntervalDetails
+
+Allows querying for the information about the current `Interval` alongside data on the current blocktime and whether the current epoch and interval are already over.
+
+##### GetPendingEpochEvents
+
+Paged query for obtaining all currently pending `PendingEpochEvents` that shall get cleared at the end of the current epoch.
+
+##### GetPendingIntervalEvents
+
+Paged query for obtaining all currently pending `PendingIntervalEvents` that shall get cleared at the end of the current interval.
+
+#### Removed
+
+##### GetEpochsInInterval
+
+This was removed in favour of `GetCurrentIntervalDetails` that returns the same piece of data on top of additional content.
+
+#### Modified
+
+##### GetRewardedSet
+
+Querying for the rewarded set no longer lets you specify the block height. It always grabs the current one.
+
 ### Storage
+
+#### Added
+
+Similarly to `MIXNODE_ID_COUNTER`, we keep an increasing id for epoch and interval events. Essentially we want to ensure that we'd execute them in the order they were created and we can't use block height as it's very possible multiple requests might be created in the same block height. Thus we introduce `EPOCH_EVENT_ID_COUNTER` and `INTERVAL_EVENT_ID_COUNTER` for that purpose.
+
+Furthermore, we keep track of the ID of the most recently executed event (in both categories), so we'd known more easily if there have been any new ones pushed without having to explicitly query for them. For that end we use `LAST_PROCESSED_EPOCH_EVENT` and `LAST_PROCESSED_INTERVAL_EVENT`
+
+Finally, rather obviously, we have to store the actual events and those are being help in `PENDING_EPOCH_EVENTS` and `PENDING_INTERVAL_EVENTS` `Map`s.
+
+#### Removed
+
+- `CURRENT_EPOCH_REWARD_PARAMS` - in a way superseded by `rewards_storage::REWARDING_PARAMS` that holds current rewarding parameters for the entire interval.
+- `CURRENT_REWARDED_SET_HEIGHT` - we only hold a single rewarded set at a time
+- `EPOCHS` - all epoch related information is included in the `Interval` data.
+
+#### Modified
+
+- `CURRENT_EPOCH` has been replaced by a differently named `CURRENT_INTERVAL`
+- `REWARDED_SET` - the storage key no longer requires using the block height as there's only ever a single rewarded set at a time
 
 ## Contract settings
 
 ### Overview
 
+Contract state/settings now explicitly contain information that previously was implicit via the constants or network defaults (such as the `denom`). Also, parameters affecting rewarding, such as the active set size, were moved to more appropriate modules.
+
 ### Types/Models
+
+#### Added
+
+N/A
+
+#### Removed
+
+N/A
+
+#### Modified
+
+##### ContractState
+
+```rust
+pub struct ContractState {
+    //
+    // ...
+    //
+    // we're explicitly keeping track of what we think is the vesting contract (as specified during instantiation), so that we'd known if we should call `Track...` methods on the proxy address
+    // +++ pub vesting_contract_address: Addr,
+    // added information about the expected coin denomination that's used for rewarding
+    // +++ pub rewarding_denom: String,
+}
+```
+
+##### ContractStateParams
+
+```rust
+pub struct ContractStateParams {
+    //
+    // ...
+    //
+    // we're tracking all minimum pledges explicitly as `Coin` now
+    // --- pub minimum_mixnode_pledge: Uint128
+    // +++ pub minimum_mixnode_pledge: Coin,
+    //
+    // --- pub minimum_gateway_pledge: Uint128,
+    // +++ pub minimum_gateway_pledge: Coin,
+    //
+    // optional functionality to set minimum delegation amount if required
+    // +++ pub minimum_mixnode_delegation: Option<Coin>,
+    //
+    // Attributes directly affecting rewarding are moved to `rewards_storage` now
+    // --- pub mixnode_rewarded_set_size: u32,
+    // --- pub mixnode_active_set_size: u32,
+    // --- pub staking_supply: Uint128,
+}
+```
 
 ### Transactions
 
+The only transaction, i.e. updating state params, is no longer a unit enum. It was changed from
+```rust
+pub enum ExecuteMsg {
+    UpdateContractStateParams(ContractStateParams),
+}
+```
+
+to
+```rust
+pub enum ExecuteMsg {
+    UpdateContractStateParams {
+        updated_parameters: ContractStateParams,
+    },
+}
+```
+
 ### Queries
+
+#### Added
+
+##### GetState
+
+Introduced new query to get the entire `ContractState` struct, so we'd known about, for example, the rewarding denom or the rewarding validator address.
+
+#### Removed
+
+N/A
+
+#### Modified
+
+##### StateParams
+
+Was renamed to `GetStateParams` to keep naming consistent
 
 ### Storage
 
-
+No relevant changes were performed to the storage structure of the contract settings.
 
 ## Rewards
 
 ### Overview
 
+- Reward pool only adjusted at the end of the epoch
+- reward accounting still happening as rewards are distributed
+
 ### Types/Models
 
 #### Added
+
+`MixNodeRewarding`
+`RewardPoolChange`
+`RewardingParams`
 
 #### Removed
 
@@ -378,4 +722,28 @@ The only relevant change is that `OwnsGateway` query has been renamed to `GetOwn
 
 ### Queries
 
+subqueries were consolidated into a single params query
+
 ### Storage
+
+#### Added
+
+`REWARDING_PARAMS`
+`PENDING_REWARD_POOL_CHANGE`
+`MIXNODE_REWARDING`
+
+#### Removed
+
+`REWARD_POOL`
+`REWARDING_STATUS`
+`DELEGATOR_REWARD_CLAIMED_HEIGHT`
+`OPERATOR_REWARD_CLAIMED_HEIGHT`
+`EPOCH_REWARD_PARAMS`
+
+#### Modified
+
+## Final remarks
+
+As mentioned during multiple chats, I think the migration the rest of our codebase is going to be a huge undertaking mostly because of how many aspects of the system this change is affecting. From the top of my head, we'd need to definitely change our `nymd client` (and as a result `validator-api`, `clients`, etc.) and also the vesting contract.
+
+With the latter case (and with the current mixnet contract), it's going to be even trickier given that the current contract is already live. We will need to adjust how the values are stored, i.e. mixnodes are now indexed by `NodeId` as opposed to `IdentityKey`. My recommendation would be to create a migration such that it would "cancel" / "return" (you name it) all existing delegations and bonds so that the users would have to make new ones under the new contract.

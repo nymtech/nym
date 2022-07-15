@@ -285,7 +285,7 @@ pub async fn verify_bandwidth_credential(
         .vote_proposal(
             proposal_id,
             verification_result,
-            Some(Fee::PayerGranterAuto(
+            Some(Fee::new_payer_granter_auto(
                 None,
                 None,
                 Some(verify_credential_body.0.gateway_cosmos_addr().to_owned()),
@@ -319,7 +319,7 @@ pub async fn post_propose_release_funds(
             title,
             blinded_serial_number,
             voucher_value,
-            Some(Fee::PayerGranterAuto(
+            Some(Fee::new_payer_granter_auto(
                 None,
                 None,
                 Some(propose_release_funds.0.gateway_cosmos_addr().to_owned()),

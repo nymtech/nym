@@ -576,8 +576,8 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             Fee::Auto(multiplier) => auto_fee(multiplier).await?,
             Fee::PayerGranterAuto(auto_feegrant) => {
                 let mut fee = auto_fee(auto_feegrant.gas_adjustment).await?;
-                fee.payer = Some(auto_feegrant.payer);
-                fee.granter = Some(auto_feegrant.granter);
+                fee.payer = auto_feegrant.payer;
+                fee.granter = auto_feegrant.granter;
                 fee
             }
         };

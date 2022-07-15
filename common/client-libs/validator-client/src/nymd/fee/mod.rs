@@ -16,16 +16,16 @@ pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: GasAdjustment = 1.3;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutoFeeGrant {
     pub gas_adjustment: Option<GasAdjustment>,
-    pub payer: AccountId,
-    pub granter: AccountId,
+    pub payer: Option<AccountId>,
+    pub granter: Option<AccountId>,
 }
 
 impl Display for AutoFeeGrant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(gas_adjustment) = self.gas_adjustment {
-            write!(f, "Feegrant in auto mode with {gas_adjustment} simulated multiplier with {} payer and {} granter", self.payer, self.granter)
+            write!(f, "Feegrant in auto mode with {gas_adjustment} simulated multiplier with {:?} payer and {:?} granter", self.payer, self.granter)
         } else {
-            write!(f, "Feegrant in auto mode with no custom simulated multiplier with {} payer and {} granter", self.payer, self.granter)
+            write!(f, "Feegrant in auto mode with no custom simulated multiplier with {:?} payer and {:?} granter", self.payer, self.granter)
         }
     }
 }
@@ -64,6 +64,17 @@ impl Display for Fee {
 }
 
 impl Fee {
+    pub fn new_payer_granter_auto(
+        gas_adjustment: Option<GasAdjustment>,
+        payer: Option<AccountId>,
+        granter: Option<AccountId>,
+    ) -> Self {
+        Fee::PayerGranterAuto(AutoFeeGrant {
+            gas_adjustment,
+            payer,
+            granter,
+        })
+    }
     pub fn try_get_manual_amount(&self) -> Option<Vec<Coin>> {
         match self {
             Fee::Manual(tx_fee) => Some(tx_fee.amount.iter().cloned().map(Into::into).collect()),

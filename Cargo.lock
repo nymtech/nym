@@ -2968,6 +2968,7 @@ name = "network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
+ "dotenv",
  "hex-literal",
  "once_cell",
  "serde",
@@ -3065,7 +3066,6 @@ dependencies = [
  "credentials",
  "crypto",
  "dirs",
- "dotenv",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -3232,7 +3232,6 @@ dependencies = [
  "credentials",
  "crypto",
  "dirs",
- "dotenv",
  "futures",
  "gateway-client",
  "gateway-requests",

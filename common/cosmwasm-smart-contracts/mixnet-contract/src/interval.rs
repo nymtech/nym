@@ -83,7 +83,6 @@ pub struct Interval {
     id: IntervalId,
     epochs_in_interval: u32,
 
-    // TODO: possibly put into separate struct?
     #[serde(with = "string_rfc3339_offset_date_time")]
     current_epoch_start: OffsetDateTime,
     current_epoch_id: EpochId,

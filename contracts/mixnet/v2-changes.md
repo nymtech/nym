@@ -1,3 +1,4 @@
+
 # Mixnet contract changes
 
 This file shall describe (hopefully) all relevant changes made to the contract as the result of changing reward calculation.
@@ -699,8 +700,11 @@ No relevant changes were performed to the storage structure of the contract sett
 
 ### Overview
 
-- Reward pool only adjusted at the end of the epoch
-- reward accounting still happening as rewards are distributed
+Changing the logic behind the rewards was the main motivation behind this new contract version. The main things in this section, apart from what was already mentioned before, include but is not limited to:
+- reward pool (and the staking supply) being only updated at the end of the given interval. However, the accounting is still happening as the rewards are distributed, so we'd known how much the pool should be adjusted by.
+- we no longer keep any historical information regarding past epochs/parameters/etc for the purposes of rewarding. Whatever exists in the storage at the time is the thing that's going to be used for the next distribution.
+- queries for reward estimation now require constant(ish) amount of gas as opposed to growing linearly with the number of epochs since last claim/compounding.
+-
 
 ### Types/Models
 

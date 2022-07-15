@@ -8,7 +8,8 @@
     "nym-wallet",
     "nym-connect",
     "explorer",
-    "types"
+    "types",
+    "clients/validator"
   ],
   "scripts": {
     "clean": "lerna run clean",

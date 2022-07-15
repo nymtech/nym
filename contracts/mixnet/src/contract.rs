@@ -8,7 +8,6 @@ use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Uint128,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
@@ -24,6 +23,7 @@ fn default_initial_state(
     ContractState {
         owner,
         rewarding_validator_address,
+        vesting_contract_address,
         rewarding_denom: rewarding_denom.clone(),
         params: ContractStateParams {
             minimum_mixnode_delegation: None,
@@ -35,7 +35,6 @@ fn default_initial_state(
                 denom: rewarding_denom,
                 amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
             },
-            vesting_contract_address,
         },
     }
 }

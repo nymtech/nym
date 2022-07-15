@@ -4,9 +4,10 @@ use bls12_381::Scalar;
 
 pub use scheme::aggregation::aggregate_verification_keys;
 pub use scheme::aggregation::aggregate_wallets;
+pub use scheme::identify;
+pub use scheme::keygen::{PublicKeyUser, SecretKeyUser, VerificationKeyAuth};
 pub use scheme::keygen::generate_keypair_user;
 pub use scheme::keygen::ttp_keygen;
-pub use scheme::keygen::VerificationKeyAuth;
 pub use scheme::PartialWallet;
 pub use scheme::PayInfo;
 pub use scheme::setup;

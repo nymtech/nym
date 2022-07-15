@@ -42,7 +42,7 @@ pub struct Wallet {
     sig: Signature,
     v: Scalar,
     t: Scalar,
-    l: Cell<u64>,
+    pub l: Cell<u64>,
 }
 
 impl Wallet {

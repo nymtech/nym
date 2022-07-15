@@ -35,7 +35,7 @@ export const CurrencyFormField: React.FC<{
   onValidate,
   sx,
   showCoinMark = true,
-  denom = 'unym',
+  denom = 'NYM',
 }) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [value, setValue] = React.useState<string | undefined>(initialValue);

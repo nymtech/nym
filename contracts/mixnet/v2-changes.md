@@ -19,6 +19,10 @@ There are two main changes performed to the mixnet contract that have a cascadin
 While not as major as the above changes, the other notable changes include:
 - introduction of `PendingEpochEvent` and `PendingIntervalEvent`. It means that whenever a relevant request is received, it's only going to get executed once the current epoch (or interval) finishes. This might include, for example, mixnode unbonding or changing mixnode cost parameters.
 - rewarding parameters, such as the size of the reward pool are only updated at the end of the current **interval**. They should not get modified between epochs.
+- node uptime/performance can now be a decimal value as opposed to integer between 0-100
+- node operators can now set their operating costs
+- profit margin can now be a decimal value as opposed to integer between 0-100
+- ...
 
 ## Instantiation
 
@@ -710,41 +714,180 @@ Changing the logic behind the rewards was the main motivation behind this new co
 
 #### Added
 
-`MixNodeRewarding`
-`RewardPoolChange`
-`RewardingParams`
+##### MixNodeRewarding
+
+The most important struct created for the purposes of the changes described. All the data here allows us to correctly determine rewards for all the delegators by scaling the value of `total_unit_reward` based on the ratio the delegation to `unit_delegation` and scaled by the unit delegation reward at the time of delegation of the delegate.
+
+```rust
+pub struct MixNodeRewarding {
+    /// Information provided by the operator that influence the cost function.
+    pub cost_params: MixNodeCostParams,
+
+    /// Total pledge and compounded reward earned by the node operator.
+    pub operator: Decimal,
+
+    /// Total delegation and compounded reward earned by all node delegators.
+    pub delegates: Decimal,
+
+    /// Cumulative reward earned by the "unit delegation" since the block 0.
+    pub total_unit_reward: Decimal,
+
+    /// Value of the theoretical "unit delegation" that has delegated to this mixnode at block 0.
+    pub unit_delegation: Decimal,
+
+    /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
+    /// to reward it multiple times in the same epoch.
+    pub last_rewarded_epoch: FullEpochId,
+
+    // technically we don't need that field to determine reward magnitude or anything
+    // but it saves on extra queries to determine if we're removing the final delegation
+    // (so that we could zero the field correctly)
+    pub unique_delegations: u32,
+}
+```
+
+##### RewardPoolChange
+
+Whenever we distribute rewards, we keep track of how much should get removed from the reward pool and moved into the staking supply when the interval finishes.
+
+```rust
+pub(crate) struct RewardPoolChange {
+    /// Indicates amount that shall get moved from the reward pool to the staking supply
+    /// upon the current interval finishing.
+    pub removed: Decimal,
+
+    // this will be used once coconut credentials are in use;
+    /// Indicates amount that shall get added to the both reward pool and not touch the staking supply
+    /// upon the current interval finishing.
+    #[allow(unused)]
+    pub added: Decimal,
+}
+```
+
+##### RewardingParams and IntervalRewardParams
+
+Those are used for keeping track of parameters used for rewarding of all nodes during a particular interval. Unless there's an exceptionally good reason for it, they remain constants within an interval.
+
+```rust
+pub struct RewardingParams {
+  /// Parameters that should remain unchanged throughout an interval.
+  pub interval: IntervalRewardParams,
+
+  // while the active set size can change between epochs to accommodate for bandwidth demands,
+  // the active set size should be unchanged between epochs and should only be adjusted between
+  // intervals. However, it makes more sense to keep both of those values together as they're
+  // very strongly related to each other.
+  pub rewarded_set_size: u32,
+  pub active_set_size: u32,
+}
+
+pub struct IntervalRewardParams {
+  /// Current value of the rewarding pool.
+  /// It is expected to be constant throughout the interval.
+  pub reward_pool: Decimal,
+
+  /// Current value of the staking supply.
+  /// It is expected to be constant throughout the interval.
+  pub staking_supply: Decimal,
+
+  // computed values
+  /// Current value of the computed reward budget per epoch, per node.
+  /// It is expected to be constant throughout the interval.
+  pub epoch_reward_budget: Decimal,
+
+  /// Current value of the stake saturation point.
+  /// It is expected to be constant throughout the interval.
+  pub stake_saturation_point: Decimal,
+
+  // constants(-ish)
+  // default: 30%
+  /// Current value of the sybil resistance percent (`alpha`).
+  /// It is not really expected to be changing very often.
+  /// As a matter of fact, unless there's a very specific reason, it should remain constant.
+  pub sybil_resistance: Percent,
+
+  // default: 10
+  /// Current active set work factor.
+  /// It is not really expected to be changing very often.
+  /// As a matter of fact, unless there's a very specific reason, it should remain constant.
+  pub active_set_work_factor: Decimal,
+
+  // default: 2%
+  /// Current maximum interval pool emission.
+  /// Assuming all nodes in the rewarded set are fully saturated and have 100% performance,
+  /// this % of the reward pool would get distributed in rewards to all operators and its delegators.
+  /// It is not really expected to be changing very often.
+  /// As a matter of fact, unless there's a very specific reason, it should remain constant.
+  pub interval_pool_emission: Percent,
+}
+```
 
 #### Removed
 
-`DelegatorRewardParams`
-`StoredNodeRewardResult`
-`NodeRewardResult`
+##### DelegatorRewardParams, StoredNodeRewardResult, EpochRewardParams, NodeRewardResult
 
-#### Modified
+All reward-related results and parameters got consolidated, mostly into `RewardingParams`
 
 ### Transactions
 
-### Queries
-
-subqueries were consolidated into a single params query
-
-### Storage
-
 #### Added
-
-`REWARDING_PARAMS`
-`PENDING_REWARD_POOL_CHANGE`
-`MIXNODE_REWARDING`
 
 #### Removed
 
-`REWARD_POOL`
-`REWARDING_STATUS`
-`DELEGATOR_REWARD_CLAIMED_HEIGHT`
-`OPERATOR_REWARD_CLAIMED_HEIGHT`
-`EPOCH_REWARD_PARAMS`
+##### CompoundOperatorReward, CompoundDelegatorReward, CompoundOperatorRewardOnBehalf, CompoundDelegatorRewardOnBehalf
+
+All compounding-related transactions have been removed as they're no longer required since the compounding is happening automatically now.
 
 #### Modified
+
+##### RewardMixnode
+
+As with previous changes, we're now rewarding given mixnode by its `NodeId` as opposed to `IdentityKey`. Furthermore, we no longer have to pass entire set of `NodeRewardParams`. Everything is implicit from the contract state, with the single exception of node `Performance`, which is now required. However, the strong typing ensures its always in the correct range.
+
+##### ClaimOperator/DelegatorReward
+
+All claim-related operations have been renamed to `Withdraw` for consistency with cosmos-sdk. It essentially zeroes your reward and moves this amount to your account address.
+
+### Queries
+
+#### Added
+
+##### GetPendingMixNodeOperatorReward
+
+Added variant of obtaining pending operator reward by the id of the bonded mixnode.
+
+#### Removed
+
+##### GetRewardPool, GetCirculatingSupply, GetStakingSupply, GetIntervalRewardPercent, GetSybilResistancePercent, GetActiveSetWorkFactor
+
+All the queries regarding individual rewarding parameters have been consolidated into a single `GetRewardingParams`
+
+#### Modified
+
+##### QueryOperatorReward
+
+Renamed to `GetPendingOperatorReward` for consistency' sake.
+
+##### QueryDelegatorReward
+
+Renamed to `GetPendingDelegatorReward` for consistency' sake.
+
+### Storage
+
+As with everything in this module, storage was also completely revamped. The changes here mostly follow on the changes to data structs.
+
+#### Added
+
+- `REWARDING_PARAMS` - all the rewarding parameters are consolidated in a single `Item`
+- `PENDING_REWARD_POOL_CHANGE` - keeping track of the reward pool changes that shall get applied at the end of the interval
+- `MIXNODE_REWARDING` - per mixnode, indexed by `NodeId`, parameters required to determine operator and delegates rewards
+
+#### Removed
+
+- `REWARD_POOL` - incorporated into `REWARDING_PARAMS`
+- `REWARDING_STATUS` - it was already deprecated to begin with since we're no longer explicitly rewarding delegators,
+- `DELEGATOR_REWARD_CLAIMED_HEIGHT`, `OPERATOR_REWARD_CLAIMED_HEIGHT` - due to auto-compounding, we don't have to keep track of heights of reward claiming
+- `EPOCH_REWARD_PARAMS` - we no longer have to retroactively determine rewards for past epochs and thus we no longer have to keep track of rewarding params for past epochs
 
 ## Final remarks
 

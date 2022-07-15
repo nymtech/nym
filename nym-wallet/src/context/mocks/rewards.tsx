@@ -61,34 +61,26 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'NYM',
+          denom: 'nym',
         },
         data_json: '[]',
         logs_json: '[]',
         gas_info: {
-          gas_wanted: BigInt(1),
-          fee: {
-            amount: '1',
-            denom: 'NYM',
-          },
-          gas_used: BigInt(1),
+          gas_wanted: { gas_units: BigInt(1) },
+          gas_used: { gas_units: BigInt(1) },
         },
       },
       {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'NYM',
+          denom: 'nym',
         },
         data_json: '[]',
         logs_json: '[]',
         gas_info: {
-          gas_wanted: BigInt(1),
-          fee: {
-            amount: '1',
-            denom: 'NYM',
-          },
-          gas_used: BigInt(1),
+          gas_wanted: { gas_units: BigInt(1) },
+          gas_used: { gas_units: BigInt(1) },
         },
       },
     ];
@@ -112,34 +104,26 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'NYM',
+          denom: 'nym',
         },
         data_json: '[]',
         logs_json: '[]',
         gas_info: {
-          gas_wanted: BigInt(1),
-          fee: {
-            amount: '1',
-            denom: 'NYM',
-          },
-          gas_used: BigInt(1),
+          gas_wanted: { gas_units: BigInt(1) },
+          gas_used: { gas_units: BigInt(1) },
         },
       },
       {
         transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
         fee: {
           amount: '1',
-          denom: 'NYM',
+          denom: 'nym',
         },
         data_json: '[]',
         logs_json: '[]',
         gas_info: {
-          gas_wanted: BigInt(1),
-          fee: {
-            amount: '1',
-            denom: 'NYM',
-          },
-          gas_used: BigInt(1),
+          gas_wanted: { gas_units: BigInt(1) },
+          gas_used: { gas_units: BigInt(1) },
         },
       },
     ];

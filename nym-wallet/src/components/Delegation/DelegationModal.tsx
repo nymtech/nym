@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Button, Modal, Typography, SxProps } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
+import { Console } from 'src/utils/console';
 import { modalStyle } from '../Modals/styles';
 import { LoadingModal } from '../Modals/LoadingModal';
 
@@ -67,7 +68,7 @@ export const DelegationModal: React.FC<
           <Typography color={(theme) => theme.palette.error.main} mb={1}>
             Oh no! Something went wrong...
           </Typography>
-          <Typography my={5} color={'text.primary'}>
+          <Typography my={5} color="text.primary">
             {message}
           </Typography>
           {children}
@@ -78,15 +79,15 @@ export const DelegationModal: React.FC<
       </Modal>
     );
   }
-  transactions &&
-    transactions.map((transaction) => console.log('action', action, 'status', status, 'key', transaction.hash));
+
+  transactions?.map((transaction) => Console.log('action', action, 'status', status, 'key', transaction.hash));
   return (
     <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
       <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
         <Typography color={(theme) => theme.palette.success.main} mb={1}>
           {actionToHeader(action)}
         </Typography>
-        <Typography mb={3} color={'text.primary'}>
+        <Typography mb={3} color="text.primary">
           {message}
         </Typography>
 
@@ -98,15 +99,15 @@ export const DelegationModal: React.FC<
         {balanceVested ? (
           <>
             <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-              Your current balance: {balance}
+              Your current balance: {balance?.toUpperCase()}
             </Typography>
             <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-              ({balanceVested} is unlocked in your vesting account)
+              ({balanceVested.toUpperCase()} is unlocked in your vesting account)
             </Typography>
           </>
         ) : (
           <Typography mb={1} fontSize="small" color={(theme) => theme.palette.text.secondary}>
-            Your current balance: {balance}
+            Your current balance: {balance?.toUpperCase()}
           </Typography>
         )}
         {transactions && (

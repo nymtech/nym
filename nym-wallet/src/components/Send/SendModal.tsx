@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { DecCoin } from '@nymproject/types';
 import { AppContext, urls } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { send } from 'src/requests';
@@ -14,14 +14,14 @@ import { TTransactionDetails } from './types';
 
 export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void; hasStorybookStyles?: {} }) => {
   const [toAddress, setToAddress] = useState<string>('');
-  const [amount, setAmount] = useState<MajorCurrencyAmount>();
+  const [amount, setAmount] = useState<DecCoin>();
   const [modal, setModal] = useState<'send' | 'send details'>('send');
   const [error, setError] = useState<string>();
   const [sendError, setSendError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
 
-  const { clientDetails, userBalance, network } = useContext(AppContext);
+  const { clientDetails, userBalance, network, denom } = useContext(AppContext);
   const { fee, getFee } = useGetFee();
 
   const handleOnNext = async () => {
@@ -41,13 +41,13 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
     }
   };
 
-  const handleSend = async ({ val, to }: { val: MajorCurrencyAmount; to: string }) => {
+  const handleSend = async ({ val, to }: { val: DecCoin; to: string }) => {
     setIsLoading(true);
     setError(undefined);
     try {
       const txResponse = await send({ amount: val, address: to, memo: '', fee: fee?.fee });
       setTxDetails({
-        amount: `${amount?.amount} ${clientDetails?.denom}`,
+        amount: `${amount?.amount} ${denom}`,
         txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,
       });
     } catch (e) {

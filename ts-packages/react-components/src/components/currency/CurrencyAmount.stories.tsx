@@ -34,7 +34,7 @@ export const amounts = [
 export const WithSeparators = () => (
   <Stack direction="column">
     {amounts.map((amount) => (
-      <CurrencyAmount key={amount} majorAmount={{ amount, denom: 'NYM' }} />
+      <CurrencyAmount key={amount} majorAmount={{ amount, denom: 'nym' }} />
     ))}
   </Stack>
 );
@@ -42,20 +42,20 @@ export const WithSeparators = () => (
 export const NoSeparators = () => (
   <Stack direction="column">
     {amounts.map((amount) => (
-      <CurrencyAmount key={amount} majorAmount={{ amount, denom: 'NYM' }} showSeparators={false} />
+      <CurrencyAmount key={amount} majorAmount={{ amount, denom: 'nym' }} showSeparators={false} />
     ))}
   </Stack>
 );
 
-export const MaxRange = () => <CurrencyAmount majorAmount={{ amount: '1000000000000.000001', denom: 'NYM' }} />;
+export const MaxRange = () => <CurrencyAmount majorAmount={{ amount: '1000000000000.000001', denom: 'nym' }} />;
 
 export const Weird = () => (
   <Stack direction="column">
-    <CurrencyAmount majorAmount={{ amount: '0000000000000.000000', denom: 'NYM' }} />
-    <CurrencyAmount majorAmount={{ amount: '0000000000000.00', denom: 'NYM' }} />
-    <CurrencyAmount majorAmount={{ amount: '0000.0000', denom: 'NYM' }} />
-    <CurrencyAmount majorAmount={{ amount: '0000.000', denom: 'NYM' }} />
-    <CurrencyAmount majorAmount={{ amount: '0.00', denom: 'NYM' }} />
+    <CurrencyAmount majorAmount={{ amount: '0000000000000.000000', denom: 'nym' }} />
+    <CurrencyAmount majorAmount={{ amount: '0000000000000.00', denom: 'nym' }} />
+    <CurrencyAmount majorAmount={{ amount: '0000.0000', denom: 'nym' }} />
+    <CurrencyAmount majorAmount={{ amount: '0000.000', denom: 'nym' }} />
+    <CurrencyAmount majorAmount={{ amount: '0.00', denom: 'nym' }} />
   </Stack>
 );
 
@@ -66,7 +66,7 @@ export const NoSeparatorsWithSX = () => (
     {amounts.map((amount) => (
       <CurrencyAmount
         key={amount}
-        majorAmount={{ amount, denom: 'NYM' }}
+        majorAmount={{ amount, denom: 'nym' }}
         showSeparators={false}
         sx={{ fontSize: 14, color: 'red', fontWeight: 'bold', m: 1 }}
       />
@@ -79,7 +79,7 @@ export const WithSX = () => (
     {amounts.map((amount) => (
       <CurrencyAmount
         key={amount}
-        majorAmount={{ amount, denom: 'NYM' }}
+        majorAmount={{ amount, denom: 'nym' }}
         sx={{ fontSize: 14, color: 'red', fontWeight: 'bold', m: 1 }}
       />
     ))}

@@ -1,4 +1,4 @@
-use crate::currency::MajorCurrencyAmount;
+use crate::currency::DecCoin;
 use serde::{Deserialize, Serialize};
 use validator_client::nymd::Fee;
 
@@ -8,8 +8,14 @@ use ts_rs::{Dependency, TS};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeeDetails {
     // expected to be used by the wallet in order to display detailed fee information to the user
-    pub amount: Option<MajorCurrencyAmount>,
+    pub amount: Option<DecCoin>,
     pub fee: Fee,
+}
+
+impl FeeDetails {
+    pub fn new(amount: Option<DecCoin>, fee: Fee) -> Self {
+        FeeDetails { amount, fee }
+    }
 }
 
 #[cfg(feature = "generate-ts")]
@@ -25,13 +31,12 @@ impl TS for FeeDetails {
     }
 
     fn inline() -> String {
-        "{ amount: MajorCurrencyAmount | null, fee: Fee }".into()
+        "{ amount: DecCoin | null, fee: Fee }".into()
     }
 
     fn dependencies() -> Vec<Dependency> {
         vec![
-            Dependency::from_ty::<MajorCurrencyAmount>()
-                .expect("TS was incorrectly defined on `CurrencyDenom`"),
+            Dependency::from_ty::<DecCoin>().expect("TS was incorrectly defined on `DecCoin`"),
             Dependency::from_ty::<ts_type_helpers::Fee>()
                 .expect("TS was incorrectly defined on `ts_type_helpers::Fee`"),
         ]

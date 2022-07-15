@@ -1,4 +1,4 @@
-import { Gateway, MajorCurrencyAmount, MixNode, PledgeData } from '@nymproject/types';
+import { Gateway, DecCoin, MixNode, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 
 export enum EnumNodeType {
@@ -19,7 +19,7 @@ export type TPendingDelegation = {
 export type TDelegation = {
   owner: string;
   node_identity: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   block_height: number;
   proxy: string; // proxy address used to delegate the funds on behalf of another address
   pending?: TPendingDelegation;
@@ -27,21 +27,21 @@ export type TDelegation = {
 
 export type TBondGatewayArgs = {
   gateway: Gateway;
-  pledge: MajorCurrencyAmount;
+  pledge: DecCoin;
   ownerSignature: string;
   fee?: Fee;
 };
 
 export type TBondMixNodeArgs = {
   mixnode: MixNode;
-  pledge: MajorCurrencyAmount;
+  pledge: DecCoin;
   ownerSignature: string;
   fee?: Fee;
 };
 
 export type TDelegateArgs = {
   identity: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
 };
 
 export type Period = 'Before' | { In: number } | 'After';

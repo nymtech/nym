@@ -1,8 +1,8 @@
+import type { DecCoin } from './DecCoin';
 import type { Gateway } from './Gateway';
-import type { MajorCurrencyAmount } from './Currency';
 
 export interface GatewayBond {
-  pledge_amount: MajorCurrencyAmount;
+  pledge_amount: DecCoin;
   owner: string;
   block_height: bigint;
   gateway: Gateway;

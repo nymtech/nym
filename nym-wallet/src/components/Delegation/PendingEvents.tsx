@@ -142,7 +142,7 @@ export const PendingEvents: FC<{ pendingEvents: DelegationEvent[]; explorerUrl: 
                   />
                 </Tooltip>
               </TableCell>
-              <TableCell>{!item.amount ? '-' : `${item.amount?.amount} ${item.amount?.denom}`}</TableCell>
+              <TableCell>{!item.amount ? '-' : `${item.amount?.amount} ${item.amount?.denom.toUpperCase()}`}</TableCell>
               <TableCell>
                 {item.kind === 'Delegate' ? 'Delegation' : 'Undelegation'}
                 {item.proxy && (

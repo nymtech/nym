@@ -1,4 +1,4 @@
-use crate::currency::MajorCurrencyAmount;
+use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use mixnet_contract_common::{
     Gateway as MixnetContractGateway, GatewayBond as MixnetContractGatewayBond,
@@ -54,7 +54,7 @@ impl From<MixnetContractGateway> for Gateway {
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayBond {
-    pub pledge_amount: MajorCurrencyAmount,
+    pub pledge_amount: DecCoin,
     pub owner: String,
     pub block_height: u64,
     pub gateway: Gateway,
@@ -63,38 +63,15 @@ pub struct GatewayBond {
 
 impl GatewayBond {
     pub fn from_mixnet_contract_gateway_bond(
-        bond: Option<MixnetContractGatewayBond>,
-    ) -> Result<Option<GatewayBond>, TypesError> {
-        match bond {
-            Some(bond) => {
-                let bond: GatewayBond = bond.try_into()?;
-                Ok(Some(bond))
-            }
-            None => Ok(None),
-        }
-    }
-}
-
-impl TryFrom<MixnetContractGatewayBond> for GatewayBond {
-    type Error = TypesError;
-
-    fn try_from(value: MixnetContractGatewayBond) -> Result<Self, Self::Error> {
-        let MixnetContractGatewayBond {
-            pledge_amount,
-            owner,
-            block_height,
-            gateway,
-            proxy,
-        } = value;
-
-        let pledge_amount: MajorCurrencyAmount = pledge_amount.into();
-
+        bond: MixnetContractGatewayBond,
+        reg: &RegisteredCoins,
+    ) -> Result<GatewayBond, TypesError> {
         Ok(GatewayBond {
-            pledge_amount,
-            owner: owner.into_string(),
-            block_height,
-            gateway: gateway.into(),
-            proxy: proxy.map(|p| p.into_string()),
+            pledge_amount: reg.attempt_convert_to_display_dec_coin(bond.pledge_amount.into())?,
+            owner: bond.owner.to_string(),
+            block_height: bond.block_height,
+            gateway: bond.gateway.into(),
+            proxy: bond.proxy.map(|p| p.into_string()),
         })
     }
 }

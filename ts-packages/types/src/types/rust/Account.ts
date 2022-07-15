@@ -1,7 +1,7 @@
 import type { CurrencyDenom } from './CurrencyDenom';
 
 export interface Account {
-  contract_address: string;
   client_address: string;
-  denom: CurrencyDenom;
+  base_mix_denom: string;
+  display_mix_denom: CurrencyDenom;
 }

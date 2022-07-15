@@ -1,7 +1,7 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { useTheme, Theme } from '@mui/material/styles';
-import { DelegationWithEverything, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { DelegationWithEverything, FeeDetails, DecCoin } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
@@ -22,7 +22,7 @@ import { DelegationModal, DelegationModalProps } from '../../components/Delegati
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
-  !!isStorybook
+  isStorybook
     ? {
         backdropProps: { ...backDropStyles(theme), ...backdropProps },
         sx: modalStyles(theme),
@@ -44,6 +44,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const {
     clientDetails,
     network,
+    denom,
     userBalance: { balance, originalVesting, fetchBalance },
   } = useContext(AppContext);
 
@@ -64,7 +65,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const getAllBalances = async () => {
     const resBalance = (await userBalance()).printable_balance;
-    let resVesting: MajorCurrencyAmount | undefined;
+    let resVesting: DecCoin | undefined;
     try {
       resVesting = await getSpendableCoins();
     } catch (e) {
@@ -113,7 +114,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleNewDelegation = async (
     identityKey: string,
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => {
@@ -154,12 +155,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const handleDelegateMore = async (
-    identityKey: string,
-    amount: MajorCurrencyAmount,
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => {
+  const handleDelegateMore = async (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => {
     if (currentDelegationListActionItem?.node_identity !== identityKey || !clientDetails) {
       setConfirmationModalProps({
         status: 'error',
@@ -347,7 +343,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onOk={handleNewDelegation}
           header="Delegate"
           buttonText="Delegate stake"
-          currency={clientDetails!.denom}
+          currency={denom}
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
@@ -363,7 +359,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           header="Delegate more"
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
-          currency={clientDetails!.denom}
+          currency={denom}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
@@ -390,7 +386,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onClose={() => setShowRedeemRewardsModal(false)}
           onOk={(identity, fee) => handleRedeem(identity, fee)}
           message="Redeem rewards"
-          currency={clientDetails!.denom}
+          currency={denom}
           identityKey={currentDelegationListActionItem?.node_identity}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
           usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
@@ -403,7 +399,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onClose={() => setShowCompoundRewardsModal(false)}
           onOk={(identity, fee) => handleCompound(identity, fee)}
           message="Compound rewards"
-          currency={clientDetails!.denom}
+          currency={denom}
           identityKey={currentDelegationListActionItem?.node_identity}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
           usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}

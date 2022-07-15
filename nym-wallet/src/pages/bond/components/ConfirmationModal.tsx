@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { FeeDetails, DecCoin } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalFee } from 'src/components/Modals/ModalFee';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
@@ -13,7 +13,7 @@ export const ConfirmationModal = ({
   onConfirm,
 }: {
   identity: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   fee: FeeDetails;
   onPrev: () => void;
   onConfirm: () => Promise<void>;

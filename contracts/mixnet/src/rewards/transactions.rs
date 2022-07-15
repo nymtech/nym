@@ -1225,7 +1225,6 @@ pub mod tests {
         )
         .unwrap();
 
-        let info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity_1)
@@ -1531,7 +1530,7 @@ pub mod tests {
         assert_eq!(mix_2_reward_result.lambda(), U128::from_num(0.0001f64));
         assert_eq!(mix_2_reward_result.reward().int(), 974456u128);
 
-        let mix_3_reward_result = mix_3.reward(&params3);
+        let _mix_3_reward_result = mix_3.reward(&params3);
 
         // assert_eq!(mix_3_reward_result.reward().int(), mix_1_reward_result.reward().int() + mix_2_reward_result.reward().int());
     }

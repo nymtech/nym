@@ -4,9 +4,8 @@ import {
   StakeSaturationResponse,
   MixnodeStatusResponse,
   InclusionProbabilityResponse,
-  MajorCurrencyAmount,
+  DecCoin,
   MixNodeBond,
-  Operation,
 } from '@nymproject/types';
 import { Epoch } from 'src/types';
 import { invokeWrapper } from './wrapper';
@@ -28,7 +27,7 @@ export const getAllPendingDelegations = async () =>
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeBond | null>('mixnode_bond_details');
 
 export const getOperatorRewards = async (address: string) =>
-  invokeWrapper<MajorCurrencyAmount>('get_operator_rewards', { address });
+  invokeWrapper<DecCoin>('get_operator_rewards', { address });
 
 export const getMixnodeStakeSaturation = async (identity: string) =>
   invokeWrapper<StakeSaturationResponse>('mixnode_stake_saturation', { identity });
@@ -42,10 +41,6 @@ export const getMixnodeStatus = async (identity: string) =>
 export const checkMixnodeOwnership = async () => invokeWrapper<boolean>('owns_mixnode');
 
 export const checkGatewayOwnership = async () => invokeWrapper<boolean>('owns_gateway');
-
-// TODO: remove this method
-export const getGasFee = async (operation: Operation): Promise<MajorCurrencyAmount> =>
-  invokeWrapper('get_old_and_incorrect_hardcoded_fee', { operation });
 
 export const getInclusionProbability = async (identity: string) =>
   invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { identity });

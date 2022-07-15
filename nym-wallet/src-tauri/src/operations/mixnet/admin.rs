@@ -1,19 +1,14 @@
-use std::convert::TryInto;
-use std::sync::Arc;
-
-use tokio::sync::RwLock;
-
-use mixnet_contract_common::ContractStateParams;
-use nym_wallet_types::admin::TauriContractStateParams;
-use validator_client::nymd::Fee;
-
 use crate::error::BackendError;
 use crate::nymd_client;
-use crate::state::State;
+use crate::state::WalletState;
+use mixnet_contract_common::ContractStateParams;
+use nym_wallet_types::admin::TauriContractStateParams;
+use std::convert::TryInto;
+use validator_client::nymd::Fee;
 
 #[tauri::command]
 pub async fn get_contract_settings(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TauriContractStateParams, BackendError> {
     log::info!(">>> Getting contract settings");
     let res = nymd_client!(state).get_contract_settings().await?.into();
@@ -25,7 +20,7 @@ pub async fn get_contract_settings(
 pub async fn update_contract_settings(
     params: TauriContractStateParams,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TauriContractStateParams, BackendError> {
     let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
     log::info!(

@@ -1,6 +1,6 @@
-import type { MajorCurrencyAmount } from './Currency';
+import type { DecCoin } from './DecCoin';
 
 export interface Balance {
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   printable_balance: string;
 }

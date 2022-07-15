@@ -389,7 +389,7 @@ impl<C> NymdClient<C> {
     pub async fn get_balance(
         &self,
         address: &AccountId,
-        denom: Denom,
+        denom: String,
     ) -> Result<Option<Coin>, NymdError>
     where
         C: CosmWasmClient + Sync,

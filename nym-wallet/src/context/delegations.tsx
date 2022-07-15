@@ -4,7 +4,7 @@ import {
   DelegationEvent,
   DelegationWithEverything,
   FeeDetails,
-  MajorCurrencyAmount,
+  DecCoin,
   TransactionExecuteResult,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
@@ -20,7 +20,7 @@ export type TDelegationContext = {
   totalRewards?: string;
   refresh: () => Promise<void>;
   addDelegation: (
-    data: { identity: string; amount: MajorCurrencyAmount },
+    data: { identity: string; amount: DecCoin },
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
@@ -57,7 +57,7 @@ export const DelegationContextProvider: FC<{
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
 
   const addDelegation = async (
-    data: { identity: string; amount: MajorCurrencyAmount },
+    data: { identity: string; amount: DecCoin },
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => {

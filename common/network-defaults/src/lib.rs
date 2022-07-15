@@ -267,7 +267,7 @@ impl DenomDetails {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
 pub struct DenomDetailsOwned {
     pub base: String,
     pub display: String,

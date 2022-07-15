@@ -26,7 +26,7 @@ use cosmrs::rpc::{self, HttpClient, Order};
 use cosmrs::tendermint::abci::Code as AbciCode;
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
-use cosmrs::{tx, AccountId, Coin as CosmosCoin, Denom, Tx};
+use cosmrs::{tx, AccountId, Coin as CosmosCoin, Tx};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -121,7 +121,7 @@ pub trait CosmWasmClient: rpc::Client {
     async fn get_balance(
         &self,
         address: &AccountId,
-        search_denom: Denom,
+        search_denom: String,
     ) -> Result<Option<Coin>, NymdError> {
         let path = Some("/cosmos.bank.v1beta1.Query/Balance".parse().unwrap());
 

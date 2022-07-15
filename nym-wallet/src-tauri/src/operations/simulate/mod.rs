@@ -3,28 +3,14 @@
 
 use cosmrs::tx;
 use cosmrs::tx::Gas;
-use nym_types::currency::MajorCurrencyAmount;
 use nym_types::fees::FeeDetails;
-use validator_client::nymd::cosmwasm_client::types::{GasInfo, SimulateResponse};
-use validator_client::nymd::{
-    CosmosCoin, Fee, GasAdjustable, GasAdjustment, GasPrice, SigningNymdClient,
-};
-use validator_client::Client;
+use validator_client::nymd::cosmwasm_client::types::GasInfo;
+use validator_client::nymd::{CosmosCoin, Fee, GasAdjustable, GasAdjustment, GasPrice};
 
 pub mod admin;
 pub mod cosmos;
 pub mod mixnet;
 pub mod vesting;
-
-pub(crate) fn detailed_fee(
-    client: &Client<SigningNymdClient>,
-    simulate_response: SimulateResponse,
-) -> FeeDetails {
-    let gas_price = client.nymd.gas_price().clone();
-    let gas_adjustment = client.nymd.gas_adjustment();
-
-    SimulateResult::new(simulate_response.gas_info, gas_price, gas_adjustment).detailed_fee()
-}
 
 // technically we could have also exposed a result: Option<AbciResult> field from the SimulateResponse,
 // but in the context of the wallet it's really irrelevant and useless for the time being
@@ -50,24 +36,16 @@ impl SimulateResult {
         }
     }
 
-    pub fn detailed_fee(&self) -> FeeDetails {
-        let amount = self.to_fee_amount().map(MajorCurrencyAmount::from);
-        FeeDetails {
-            amount,
-            fee: self.to_fee(),
-        }
-    }
-
-    fn adjusted_gas(&self) -> Option<Gas> {
+    pub(crate) fn adjusted_gas(&self) -> Option<Gas> {
         self.gas_info
             .map(|gas_info| gas_info.gas_used.adjust_gas(self.gas_adjustment))
     }
 
-    fn to_fee_amount(&self) -> Option<CosmosCoin> {
+    pub(crate) fn to_fee_amount(&self) -> Option<CosmosCoin> {
         self.adjusted_gas().map(|gas| &self.gas_price * gas)
     }
 
-    fn to_fee(&self) -> Fee {
+    pub(crate) fn to_fee(&self) -> Fee {
         self.adjusted_gas()
             .map(|gas| {
                 let fee_amount = &self.gas_price * gas;

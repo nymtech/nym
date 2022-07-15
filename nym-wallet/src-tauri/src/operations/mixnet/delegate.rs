@@ -1,63 +1,66 @@
 use crate::error::BackendError;
-use crate::state::State;
+use crate::state::WalletState;
 use crate::vesting::delegate::{
     get_pending_vesting_delegation_events, vesting_undelegate_from_mixnode,
 };
 use crate::{api_client, nymd_client};
-use cosmwasm_std::Coin as CosmWasmCoin;
 use mixnet_contract_common::IdentityKey;
-use nym_types::currency::{CurrencyDenom, MajorCurrencyAmount};
+use nym_types::currency::DecCoin;
 use nym_types::delegation::{
-    from_contract_delegation_events, Delegation, DelegationEvent, DelegationRecord,
-    DelegationWithEverything, DelegationsSummaryResponse,
+    Delegation, DelegationEvent, DelegationRecord, DelegationWithEverything,
+    DelegationsSummaryResponse,
 };
 use nym_types::transaction::TransactionExecuteResult;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use validator_client::nymd::Fee;
+use validator_client::nymd::{Coin, Fee};
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get pending delegation events");
-    let events = nymd_client!(state)
-        .get_pending_delegation_events(nymd_client!(state).address().to_string(), None)
+    let guard = state.read().await;
+    let reg = guard.registered_coins()?;
+    let client = guard.current_client()?;
+
+    let events = client
+        .nymd
+        .get_pending_delegation_events(client.nymd.address().to_string(), None)
         .await?;
     log::info!("<<< {} pending delegation events", events.len());
     log::trace!("<<< pending delegation events = {:?}", events);
 
-    match from_contract_delegation_events(events) {
-        Ok(res) => Ok(res),
-        Err(e) => Err(e.into()),
-    }
+    Ok(events
+        .into_iter()
+        .map(|event| DelegationEvent::from_mixnet_contract(event, reg))
+        .collect::<Result<_, _>>()?)
 }
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
     identity: &str,
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().base_mix_denom();
-    let delegation = amount.clone().into();
+    let guard = state.read().await;
+    let delegation_base = guard.attempt_convert_to_base_coin(amount.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
     log::info!(
-        ">>> Delegate to mixnode: identity_key = {}, amount = {}, minor_amount = {}, fee = {:?}",
+        ">>> Delegate to mixnode: identity_key = {}, display_amount = {}, base_amount = {}, fee = {:?}",
         identity,
         amount,
-        delegation,
+        delegation_base,
         fee,
     );
     let res = nymd_client!(state)
-        .delegate_to_mixnode(identity, delegation, fee)
+        .delegate_to_mixnode(identity, delegation_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -65,22 +68,25 @@ pub async fn delegate_to_mixnode(
 pub async fn undelegate_from_mixnode(
     identity: &str,
     fee: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    let denom_minor = state.read().await.current_network().base_mix_denom();
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
     log::info!(
         ">>> Undelegate from mixnode: identity_key = {}, fee = {:?}",
         identity,
         fee
     );
-    let res = nymd_client!(state)
+    let res = guard
+        .current_client()?
+        .nymd
         .remove_mixnode_delegation(identity, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
-        res,
-        denom_minor.as_ref(),
+        res, fee_amount,
     )?)
 }
 
@@ -90,7 +96,7 @@ pub async fn undelegate_all_from_mixnode(
     uses_vesting_contract_tokens: bool,
     fee: Option<Fee>,
     fee2: Option<Fee>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<TransactionExecuteResult>, BackendError> {
     log::info!(
         ">>> Undelegate all from mixnode: identity_key = {}, uses_vesting_contract_tokens = {}, fee = {:?}",
@@ -110,30 +116,31 @@ pub async fn undelegate_all_from_mixnode(
 
 struct DelegationWithHistory {
     pub delegation: Delegation,
-    pub amount_sum: MajorCurrencyAmount,
+    pub amount_sum: DecCoin,
     pub history: Vec<DelegationRecord>,
     pub uses_vesting_contract_tokens: bool,
 }
 
 #[tauri::command]
 pub async fn get_all_mix_delegations(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationWithEverything>, BackendError> {
     log::info!(">>> Get all mixnode delegations");
 
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let reg = guard.registered_coins()?;
+
     // TODO: add endpoint to validator API to get a single mix node bond
-    let mixnodes = api_client!(state).get_mixnodes().await?;
+    let mixnodes = client.validator_api.get_mixnodes().await?;
 
-    let address = nymd_client!(state).address().to_string();
-
-    let denom_minor = state.read().await.current_network().base_mix_denom();
-    let denom: CurrencyDenom = denom_minor.clone().try_into()?;
+    let address = client.nymd.address();
+    let network = guard.current_network();
+    let display_mix_denom = network.display_mix_denom();
+    let base_mix_denom = network.base_mix_denom();
 
     log::info!("  >>> Get delegations");
-    let delegations = nymd_client!(state)
-        .get_delegator_delegations_paged(address.clone(), None, None) // get all delegations, ignoring paging
-        .await?
-        .delegations;
+    let delegations = client.get_all_delegator_delegations(address).await?;
     log::info!("  <<< {} delegations", delegations.len());
 
     // first get pending events from the mixnet contract (operations made with unlocked tokens)
@@ -152,20 +159,21 @@ pub async fn get_all_mix_delegations(
 
     let mut map: HashMap<String, DelegationWithHistory> = HashMap::new();
 
-    for pending_event in pending_events_for_account.clone() {
+    for pending_event in &pending_events_for_account {
         if delegations
             .iter()
             .any(|d| d.node_identity == pending_event.node_identity)
         {
             let amount = pending_event
                 .amount
-                .unwrap_or_else(|| MajorCurrencyAmount::zero(&denom));
+                .clone()
+                .unwrap_or_else(|| DecCoin::zero(display_mix_denom));
             let delegation = DelegationWithHistory {
                 delegation: Delegation {
                     amount: amount.clone(),
-                    node_identity: pending_event.node_identity,
-                    proxy: pending_event.proxy,
-                    owner: pending_event.address,
+                    node_identity: pending_event.node_identity.clone(),
+                    proxy: pending_event.proxy.clone(), // TODO: ask @MS about delegations via vesting contract => surely we'd have proxy there?
+                    owner: pending_event.address.clone(),
                     block_height: pending_event.block_height,
                 },
                 amount_sum: amount,
@@ -178,11 +186,13 @@ pub async fn get_all_mix_delegations(
 
     for d in delegations {
         // create record of delegation
-        let delegated_on_iso_datetime = nymd_client!(state)
+        let delegated_on_iso_datetime = client
+            .nymd
             .get_block_timestamp(Some(d.block_height as u32))
             .await?
             .to_rfc3339();
-        let amount: MajorCurrencyAmount = d.amount.clone().into();
+        let amount = guard.attempt_convert_to_display_dec_coin(d.amount.clone().into())?;
+
         let record = DelegationRecord {
             amount: amount.clone(),
             block_height: d.block_height,
@@ -193,14 +203,16 @@ pub async fn get_all_mix_delegations(
         let entry = map
             .entry(d.node_identity.clone())
             .or_insert(DelegationWithHistory {
-                delegation: d.try_into()?,
+                delegation: Delegation::from_mixnet_contract(d, reg)?,
                 history: vec![],
-                amount_sum: MajorCurrencyAmount::zero(&amount.denom),
+                amount_sum: DecCoin::zero(display_mix_denom),
                 uses_vesting_contract_tokens: false,
             });
 
+        debug_assert_eq!(entry.amount_sum.denom, amount.denom);
+
         entry.history.push(record);
-        entry.amount_sum = entry.amount_sum.clone() + amount;
+        entry.amount_sum.amount += amount.amount;
         entry.uses_vesting_contract_tokens =
             entry.uses_vesting_contract_tokens || entry.delegation.proxy.is_some();
     }
@@ -229,25 +241,25 @@ pub async fn get_all_mix_delegations(
             .iter()
             .find(|m| m.mix_node.identity_key == node_identity);
 
-        let pledge_amount: Option<MajorCurrencyAmount> =
-            mixnode.and_then(|m| m.pledge_amount.clone().try_into().ok());
+        let pledge_amount = mixnode
+            .map(|m| guard.attempt_convert_to_display_dec_coin(m.pledge_amount.clone().into()))
+            .transpose()?;
 
-        let total_delegation: Option<MajorCurrencyAmount> =
-            mixnode.and_then(|m| m.total_delegation.clone().try_into().ok());
+        let total_delegation = mixnode
+            .map(|m| guard.attempt_convert_to_display_dec_coin(m.total_delegation.clone().into()))
+            .transpose()?;
 
         let profit_margin_percent: Option<u8> = mixnode.map(|m| m.mix_node.profit_margin_percent);
 
         log::trace!("  >>> Get accumulated rewards: address = {}", address);
-        let accumulated_rewards = match nymd_client!(state)
-            .get_delegator_rewards(address.clone(), node_identity.clone(), proxy.clone())
+        let accumulated_rewards = match client
+            .nymd
+            .get_delegator_rewards(address.to_string(), node_identity.clone(), proxy.clone())
             .await
         {
             Ok(rewards) => {
-                let reward = CosmWasmCoin {
-                    denom: denom_minor.to_string(),
-                    amount: rewards,
-                };
-                let amount = MajorCurrencyAmount::from(reward);
+                let reward = Coin::new(rewards.u128(), base_mix_denom);
+                let amount = guard.attempt_convert_to_display_dec_coin(reward)?;
                 log::trace!("  <<< rewards = {}, amount = {}", rewards, amount);
                 Some(amount)
             }
@@ -338,40 +350,52 @@ pub async fn get_delegator_rewards(
     address: String,
     mix_identity: IdentityKey,
     proxy: Option<String>,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<MajorCurrencyAmount, BackendError> {
-    let denom_minor = state.read().await.current_network().base_mix_denom();
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
     log::info!(
         ">>> Get delegator rewards: mix_identity = {}, proxy = {:?}",
         mix_identity,
         proxy
     );
-    let res = nymd_client!(state)
+    let guard = state.read().await;
+    let network = guard.current_network();
+    let denom = network.base_mix_denom();
+    let reward_amount = guard
+        .current_client()?
+        .nymd
         .get_delegator_rewards(address, mix_identity, proxy)
         .await?;
-    let coin = CosmWasmCoin::new(res.u128(), denom_minor.as_ref());
-    let amount = coin.into();
-    log::info!(">>> res = {}, amount = {}", res, amount);
-    Ok(amount)
+    let base_coin = Coin::new(reward_amount.u128(), denom);
+    let display_coin: DecCoin = guard.attempt_convert_to_display_dec_coin(base_coin.clone())?;
+
+    log::info!(
+        "<<< rewards_base = {}, rewards_display = {}",
+        base_coin,
+        display_coin
+    );
+    Ok(display_coin)
 }
 
 #[tauri::command]
 pub async fn get_delegation_summary(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<DelegationsSummaryResponse, BackendError> {
     log::info!(">>> Get delegation summary");
 
-    let denom_minor = state.read().await.current_network().base_mix_denom();
-    let denom: CurrencyDenom = denom_minor.clone().try_into()?;
+    let guard = state.read().await;
+    let network = guard.current_network();
+    let display_mix_denom = network.display_mix_denom();
 
     let delegations = get_all_mix_delegations(state.clone()).await?;
-    let mut total_delegations = MajorCurrencyAmount::zero(&denom);
-    let mut total_rewards = MajorCurrencyAmount::zero(&denom);
+    let mut total_delegations = DecCoin::zero(display_mix_denom);
+    let mut total_rewards = DecCoin::zero(display_mix_denom);
 
-    for d in delegations.clone() {
-        total_delegations = total_delegations + d.amount;
-        if let Some(rewards) = d.accumulated_rewards {
-            total_rewards = total_rewards + rewards;
+    for d in &delegations {
+        debug_assert_eq!(d.amount.denom, display_mix_denom);
+        total_delegations.amount += d.amount.amount;
+        if let Some(rewards) = &d.accumulated_rewards {
+            debug_assert_eq!(rewards.denom, display_mix_denom);
+            total_rewards.amount += rewards.amount;
         }
     }
     log::info!(
@@ -391,7 +415,7 @@ pub async fn get_delegation_summary(
 
 #[tauri::command]
 pub async fn get_all_pending_delegation_events(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationEvent>, BackendError> {
     log::info!(">>> Get all pending delegation events");
 

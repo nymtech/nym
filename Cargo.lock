@@ -783,7 +783,7 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.12.3"
-source = "git+https://github.com/neacsu/cosmos-rust?branch=neacsu/feegrant_support#484f3b8bd39e00c2db567e754d4b7337b7c635a6"
+source = "git+https://github.com/neacsu/cosmos-rust?branch=neacsu/feegrant_support#f63ded63ec13e753ebe8bdafe9dc503df265d67d"
 dependencies = [
  "prost 0.10.3",
  "prost-types 0.10.1",
@@ -793,7 +793,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.7.1"
-source = "git+https://github.com/neacsu/cosmos-rust?branch=neacsu/feegrant_support#484f3b8bd39e00c2db567e754d4b7337b7c635a6"
+source = "git+https://github.com/neacsu/cosmos-rust?branch=neacsu/feegrant_support#f63ded63ec13e753ebe8bdafe9dc503df265d67d"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",

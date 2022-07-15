@@ -149,7 +149,7 @@ async fn _connect_with_mnemonic(
     let account_for_default_network = match client_for_default_network {
         Some(client) => Ok(Account::new(
             client.nymd.address().to_string(),
-            default_network.base_mix_denom().to_owned(),
+            default_network.mix_denom(),
         )),
         None => Err(BackendError::NetworkNotSupported(
             config::defaults::DEFAULT_NETWORK,

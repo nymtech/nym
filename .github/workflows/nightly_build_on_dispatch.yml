@@ -12,7 +12,7 @@ jobs:
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
-          inputFile: '.github/workflows/nightly_build_matrix_includes.json'
+          inputFile: '.github/workflows/nightly_build_matrix_on_dispatch.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
     needs: matrix_prep

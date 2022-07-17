@@ -19,6 +19,7 @@ import { useMainContext } from '../../context/main';
 import { MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-api';
 import { EnumFilterKey, TFilterItem, TFilters } from '../../typeDefs/filters';
 import { formatOnSave, generateFilterSchema } from './filterSchema';
+import { Api } from '../../api';
 
 const FilterItem = ({
   label,
@@ -62,7 +63,7 @@ export const Filters = () => {
 
   const initialiseFilters = useCallback(async () => {
     let upperSaturationValue;
-    const allMixnodes = await fetchMixnodes();
+    const allMixnodes = await Api.fetchMixnodes();
     if (allMixnodes) {
       upperSaturationValue = Math.round(Math.max(...allMixnodes.map((m) => m.stake_saturation)) * 100 + 1);
       const initFilters = generateFilterSchema(upperSaturationValue);

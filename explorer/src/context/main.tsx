@@ -10,9 +10,9 @@ import {
   SummaryOverviewResponse,
   ValidatorsResponse,
 } from '../typeDefs/explorer-api';
+import { EnumFilterKey } from '../typeDefs/filters';
 import { Api } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
-import { TFilters } from '../typeDefs/filters';
 
 interface StateData {
   summaryOverview?: ApiState<SummaryOverviewResponse>;
@@ -93,18 +93,17 @@ export const MainContextProvider: React.FC = ({ children }) => {
     return data;
   };
 
-  const filterMixnodes = async (filters: TFilters, status?: any) => {
+  const filterMixnodes = async (filters: { [key in EnumFilterKey]: number[] }, status?: MixnodeStatus) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
-
     const mxns = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
     const filtered = mxns?.filter(
       (m) =>
-        m.mix_node.profit_margin_percent >= filters.profitMargin.value[0] &&
-        m.mix_node.profit_margin_percent <= filters.profitMargin.value[1] &&
-        m.stake_saturation >= filters.stakeSaturation.value[0] / 100 &&
-        m.stake_saturation <= filters.stakeSaturation.value[1] / 100 &&
-        m.pledge_amount.amount >= filters.stake.value[0] * 1000000 &&
-        m.pledge_amount.amount <= filters.stake.value[1] * 1000000,
+        m.mix_node.profit_margin_percent >= filters.profitMargin[0] &&
+        m.mix_node.profit_margin_percent <= filters.profitMargin[1] &&
+        m.stake_saturation >= filters.stakeSaturation[0] &&
+        m.stake_saturation <= filters.stakeSaturation[1] &&
+        m.pledge_amount.amount + m.total_delegation.amount >= filters.stake[0] &&
+        m.pledge_amount.amount + m.total_delegation.amount <= filters.stake[1],
     );
     setMixnodes({ data: filtered, isLoading: false });
   };

@@ -1,10 +1,10 @@
-import { EnumFilterKey } from '../../typeDefs/filters';
+import { EnumFilterKey, TFilters } from '../../typeDefs/filters';
 
 export const generateFilterSchema = (upperSaturationValue?: number) => ({
   profitMargin: {
     label: 'Profit margin (%)',
     id: EnumFilterKey.profitMargin,
-    value: [0, 10],
+    value: [0, 100],
     marks: [
       { label: '0', value: 0 },
       { label: '10', value: 10 },
@@ -22,7 +22,7 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
   stakeSaturation: {
     label: 'Stake saturation (%)',
     id: EnumFilterKey.stakeSaturation,
-    value: [0, 10],
+    value: [0, upperSaturationValue || 100],
     marks: [
       { label: '0', value: 0 },
 
@@ -47,7 +47,9 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
   stake: {
     label: 'Stake',
     id: EnumFilterKey.stake,
-    value: [20, 100],
+    value: [20, 90],
+    min: 20,
+    max: 90,
     marks: [
       {
         value: 0,
@@ -67,11 +69,11 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
       },
       {
         value: 40,
-        label: '10K',
+        label: '10k',
       },
       {
         value: 50,
-        label: '100K',
+        label: '100k',
       },
       {
         value: 60,
@@ -89,12 +91,26 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
         value: 90,
         label: '1B',
       },
-      {
-        value: 100,
-        label: '10B',
-      },
     ],
-    min: 20,
-    scale: (value: number) => 10 ** (value / 10),
   },
+});
+
+const formatStakeValuesToMinorDenom = ([value_1, value_2]: number[]) => {
+  const lowerValue = 10 ** (value_1 / 10) * 1_000_000;
+  const upperValue = 10 ** (value_2 / 10) * 1_000_000;
+
+  return [lowerValue, upperValue];
+};
+
+const formatStakeSaturationValues = ([value_1, value_2]: number[]) => {
+  const lowerValue = value_1 / 100;
+  const upperValue = value_2 / 100;
+
+  return [lowerValue, upperValue];
+};
+
+export const formatOnSave = (filters: TFilters) => ({
+  stake: formatStakeValuesToMinorDenom(filters.stake.value),
+  profitMargin: filters.profitMargin.value,
+  stakeSaturation: formatStakeSaturationValues(filters.stakeSaturation.value),
 });

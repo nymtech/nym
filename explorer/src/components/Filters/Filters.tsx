@@ -18,7 +18,7 @@ import { useParams } from 'react-router-dom';
 import { useMainContext } from '../../context/main';
 import { MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-api';
 import { EnumFilterKey, TFilterItem, TFilters } from '../../typeDefs/filters';
-import { generateFilterSchema } from './filterSchema';
+import { formatOnSave, generateFilterSchema } from './filterSchema';
 
 const FilterItem = ({
   label,
@@ -81,7 +81,7 @@ export const Filters = () => {
 
   const handleOnSave = async () => {
     handleToggleShowFilters();
-    await filterMixnodes(filters, status);
+    await filterMixnodes(formatOnSave(filters!), status);
     setIsFiltered(true);
     prevFilters.current = filters;
   };

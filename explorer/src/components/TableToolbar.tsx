@@ -9,6 +9,7 @@ type TableToolBarProps = {
   onChangePageSize: (event: SelectChangeEvent<string>) => void;
   pageSize: string;
   searchTerm: string;
+  withFilters?: boolean;
   childrenBefore?: React.ReactNode;
   childrenAfter?: React.ReactNode;
 };
@@ -20,6 +21,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
   pageSize,
   childrenBefore,
   childrenAfter,
+  withFilters,
 }) => {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.down('sm'));
@@ -69,7 +71,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           placeholder="search"
           onChange={(event) => onChangeSearch(event.target.value)}
         />
-        <Filters />
+        {withFilters && <Filters />}
         {childrenAfter}
       </Box>
     </Box>

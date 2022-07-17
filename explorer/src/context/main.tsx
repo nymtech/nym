@@ -102,8 +102,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
         m.mix_node.profit_margin_percent <= filters.profitMargin[1] &&
         m.stake_saturation >= filters.stakeSaturation[0] &&
         m.stake_saturation <= filters.stakeSaturation[1] &&
-        m.pledge_amount.amount + m.total_delegation.amount >= filters.stake[0] &&
-        m.pledge_amount.amount + m.total_delegation.amount <= filters.stake[1],
+        +m.pledge_amount.amount + +m.total_delegation.amount >= filters.stake[0] &&
+        +m.pledge_amount.amount + +m.total_delegation.amount <= filters.stake[1],
     );
     setMixnodes({ data: filtered, isLoading: false });
   };

@@ -1,12 +1,11 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import { Typography, useMediaQuery } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Typography } from '@mui/material';
 import { Socials } from './Socials';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export const Footer: React.FC = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useIsMobile();
 
   return (
     <Box
@@ -39,7 +38,7 @@ export const Footer: React.FC = () => {
         sx={{
           fontSize: 12,
           textAlign: isMobile ? 'center' : 'end',
-          color: theme.palette.nym.muted.onDarkBg,
+          color: 'nym.muted.onDarkBg',
         }}
       >
         © {new Date().getFullYear()} Nym Technologies SA, all rights reserved

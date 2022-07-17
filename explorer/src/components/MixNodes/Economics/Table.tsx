@@ -1,15 +1,5 @@
 import * as React from 'react';
-import {
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { Box } from '@mui/system';
 import { useTheme, Theme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
@@ -17,6 +7,7 @@ import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
 import { cellStyles } from '../../Universal-DataGrid';
 import { UniversalTableProps } from '../../DetailTable';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 const threshold = 100;
 
@@ -44,8 +35,8 @@ const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
   return theme.palette.nym.wallet.fee;
 };
 
-const formatCellValues = (value: EconomicsRowsType, field: string, theme: Theme) => {
-  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+const formatCellValues = (value: EconomicsRowsType, field: string) => {
+  const isTablet = useIsMobile('lg');
   if (value.progressBarValue) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isTablet ? 'column' : 'row' }} id="field">
@@ -130,7 +121,7 @@ export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowW
                     }}
                     data-testid={`${_.title.replace(/ /g, '-')}-value`}
                   >
-                    {formatCellValues(value, columnsData[index].field, theme)}
+                    {formatCellValues(value, columnsData[index].field)}
                   </TableCell>
                 );
               })}

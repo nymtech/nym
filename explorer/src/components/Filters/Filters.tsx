@@ -20,6 +20,7 @@ import { MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-a
 import { EnumFilterKey, TFilterItem, TFilters } from '../../typeDefs/filters';
 import { formatOnSave, generateFilterSchema } from './filterSchema';
 import { Api } from '../../api';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const FilterItem = ({
   label,
@@ -51,6 +52,7 @@ const FilterItem = ({
 export const Filters = () => {
   const { filterMixnodes, fetchMixnodes } = useMainContext();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
+  const isMobile = useIsMobile();
 
   const [showFilters, setShowFilters] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
@@ -81,7 +83,7 @@ export const Filters = () => {
   };
 
   const handleOnSave = async () => {
-    handleToggleShowFilters();
+    setShowFilters(false);
     await filterMixnodes(formatOnSave(filters!), status);
     setIsFiltered(true);
     prevFilters.current = filters;
@@ -92,16 +94,24 @@ export const Filters = () => {
     setFilters(prevFilters.current);
   };
 
-  const onClearFilters = async () => {
-    await fetchMixnodes(toMixnodeStatus(status));
+  const resetFilters = () => {
     setFilters(baseFilters.current);
     setIsFiltered(false);
     prevFilters.current = baseFilters.current;
   };
 
+  const onClearFilters = async () => {
+    await fetchMixnodes(toMixnodeStatus(status));
+    resetFilters();
+  };
+
   useEffect(() => {
     initialiseFilters();
   }, [initialiseFilters]);
+
+  useEffect(() => {
+    resetFilters();
+  }, [status]);
 
   if (!filters) return null;
 
@@ -116,7 +126,7 @@ export const Filters = () => {
       >
         <Alert
           severity="info"
-          variant="outlined"
+          variant={isMobile ? 'standard' : 'outlined'}
           action={
             <Button size="small" onClick={onClearFilters}>
               Clear

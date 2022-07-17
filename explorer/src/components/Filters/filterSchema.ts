@@ -45,7 +45,7 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
     max: upperSaturationValue,
   },
   stake: {
-    label: 'Stake',
+    label: 'Stake (NYM)',
     id: EnumFilterKey.stake,
     value: [20, 90],
     min: 20,

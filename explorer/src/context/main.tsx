@@ -10,9 +10,9 @@ import {
   SummaryOverviewResponse,
   ValidatorsResponse,
 } from '../typeDefs/explorer-api';
-import { TFilters } from '../components/Filters/Filters';
 import { Api } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
+import { TFilters } from '../typeDefs/filters';
 
 interface StateData {
   summaryOverview?: ApiState<SummaryOverviewResponse>;
@@ -27,7 +27,7 @@ interface StateData {
 }
 
 interface StateApi {
-  fetchMixnodes: (status?: MixnodeStatus) => void;
+  fetchMixnodes: (status?: MixnodeStatus) => Promise<MixNodeResponse | undefined>;
   filterMixnodes: (filters: any, status: any) => void;
   toggleMode: () => void;
   updateNavState: (id: number) => void;
@@ -41,7 +41,7 @@ export const MainContext = React.createContext<State>({
   navState: originalNavOptions,
   toggleMode: () => undefined,
   filterMixnodes: () => null,
-  fetchMixnodes: () => null,
+  fetchMixnodes: () => Promise.resolve(undefined),
 });
 
 export const useMainContext = (): React.ContextType<typeof MainContext> => React.useContext<State>(MainContext);
@@ -79,9 +79,10 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
 
   const fetchMixnodes = async (status?: MixnodeStatus) => {
+    let data;
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
-      const data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+      data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({
@@ -89,18 +90,21 @@ export const MainContextProvider: React.FC = ({ children }) => {
         isLoading: false,
       });
     }
+    return data;
   };
 
   const filterMixnodes = async (filters: TFilters, status?: any) => {
-    console.log(filters);
     setMixnodes((d) => ({ ...d, isLoading: true }));
-    const mixnodes = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
-    const filtered = mixnodes?.filter(
+
+    const mxns = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+    const filtered = mxns?.filter(
       (m) =>
         m.mix_node.profit_margin_percent >= filters.profitMargin.value[0] &&
         m.mix_node.profit_margin_percent <= filters.profitMargin.value[1] &&
         m.stake_saturation >= filters.stakeSaturation.value[0] / 100 &&
-        m.stake_saturation <= filters.stakeSaturation.value[1] / 100,
+        m.stake_saturation <= filters.stakeSaturation.value[1] / 100 &&
+        m.pledge_amount.amount >= filters.stake.value[0] * 1000000 &&
+        m.pledge_amount.amount <= filters.stake.value[1] * 1000000,
     );
     setMixnodes({ data: filtered, isLoading: false });
   };

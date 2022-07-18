@@ -26,7 +26,7 @@ pub(crate) trait ContractExecutableEvent {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError>;
 }
 
-fn delegate(
+pub(crate) fn delegate(
     deps: DepsMut<'_>,
     env: &Env,
     owner: Addr,
@@ -108,7 +108,7 @@ fn delegate(
     Ok(Response::new())
 }
 
-fn undelegate(
+pub(crate) fn undelegate(
     deps: DepsMut<'_>,
     owner: Addr,
     mix_id: NodeId,
@@ -153,7 +153,7 @@ fn undelegate(
     Ok(response)
 }
 
-fn unbond_mixnode(
+pub(crate) fn unbond_mixnode(
     deps: DepsMut<'_>,
     env: &Env,
     mix_id: NodeId,
@@ -206,7 +206,7 @@ fn unbond_mixnode(
     Ok(response)
 }
 
-fn update_active_set_size(
+pub(crate) fn update_active_set_size(
     deps: DepsMut<'_>,
     active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
@@ -248,7 +248,7 @@ impl ContractExecutableEvent for PendingEpochEvent {
     }
 }
 
-fn change_mix_cost_params(
+pub(crate) fn change_mix_cost_params(
     deps: DepsMut<'_>,
     mix_id: NodeId,
     new_costs: MixNodeCostParams,
@@ -273,7 +273,7 @@ fn change_mix_cost_params(
     Ok(Response::new())
 }
 
-fn update_rewarding_params(
+pub(crate) fn update_rewarding_params(
     deps: DepsMut<'_>,
     updated_params: IntervalRewardingParamsUpdate,
 ) -> Result<Response, MixnetContractError> {
@@ -292,7 +292,7 @@ fn update_rewarding_params(
     Ok(Response::new())
 }
 
-fn update_interval_config(
+pub(crate) fn update_interval_config(
     deps: DepsMut,
     epochs_in_interval: u32,
     epoch_duration_secs: u64,

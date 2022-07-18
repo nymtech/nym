@@ -31,20 +31,102 @@ pub mod test_helpers {
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
+    use mixnet_contract_common::mixnode::UnbondedMixnode;
     use mixnet_contract_common::{
         Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, NodeId, Percent,
     };
-    use rand::thread_rng;
+    use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
+    use rand_chacha::ChaCha20Rng;
     use std::time::Duration;
 
-    pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> NodeId {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+    // use rng with constant seed for all tests so that they would be deterministic
+    pub fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        rng
+    }
+
+    pub fn add_dummy_mixnodes(mut rng: impl RngCore + CryptoRng, mut deps: DepsMut<'_>, n: usize) {
+        for i in 0..n {
+            add_mixnode(
+                &mut rng,
+                deps.branch(),
+                &format!("owner{}", i),
+                tests::fixtures::good_mixnode_pledge(),
+            );
+        }
+    }
+
+    pub fn add_dummy_gateways(mut rng: impl RngCore + CryptoRng, mut deps: DepsMut<'_>, n: usize) {
+        for i in 0..n {
+            add_gateway(
+                &mut rng,
+                deps.branch(),
+                &format!("owner{}", i),
+                tests::fixtures::good_mixnode_pledge(),
+            );
+        }
+    }
+
+    pub fn add_dummy_unbonded_mixnodes(
+        mut rng: impl RngCore + CryptoRng,
+        mut deps: DepsMut<'_>,
+        n: usize,
+    ) {
+        for i in 0..n {
+            add_unbonded_mixnode(&mut rng, deps.branch(), &format!("owner{}", i));
+        }
+    }
+
+    // same note as with `add_mixnode`
+    pub fn add_unbonded_mixnode(
+        mut rng: impl RngCore + CryptoRng,
+        deps: DepsMut<'_>,
+        owner: &str,
+    ) -> NodeId {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+
+        let id = loop {
+            let candidate = rng.next_u64();
+            if !mixnodes_storage::UNBONDED_MIXNODES.has(deps.storage, candidate) {
+                break candidate;
+            }
+        };
+
+        // we don't care about 'correctness' of the identity key here
+        mixnodes_storage::UNBONDED_MIXNODES
+            .save(
+                deps.storage,
+                id,
+                &UnbondedMixnode {
+                    identity: format!("identity{}", id),
+                    owner: Addr::unchecked(owner),
+                    unbonding_height: 12345,
+                },
+            )
+            .unwrap();
+
+        id
+    }
+
+    // note to whoever wants to refactor this function, you dont want to grab rng here directly
+    // via `let rng = test_rng()`
+    // because it's extremely likely you might end up calling `add_mixnode()` multiple times
+    // in the same test and thus you're going to get mixnodes with the same keys and that's
+    // not what you want (presumably)
+    pub fn add_mixnode(
+        mut rng: impl RngCore + CryptoRng,
+        deps: DepsMut<'_>,
+        sender: &str,
+        stake: Vec<Coin>,
+    ) -> NodeId {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
             .to_base58_string();
 
-        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng());
+        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
 
         let info = mock_info(sender, &stake);
         let key = keypair.public_key().to_base58_string();
@@ -71,8 +153,14 @@ pub mod test_helpers {
         current_id_counter + 1
     }
 
-    pub fn add_gateway(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+    // same note as with `add_mixnode`
+    pub fn add_gateway(
+        mut rng: impl RngCore + CryptoRng,
+        deps: DepsMut<'_>,
+        sender: &str,
+        stake: Vec<Coin>,
+    ) -> String {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())

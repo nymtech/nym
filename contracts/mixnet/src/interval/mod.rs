@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod helpers;
-mod pending_events;
+pub(crate) mod pending_events;
 pub mod queries;
 pub mod storage;
 pub mod transactions;

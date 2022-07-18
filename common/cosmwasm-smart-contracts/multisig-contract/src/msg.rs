@@ -77,3 +77,8 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 }
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {
+    pub coconut_bandwidth_address: String,
+}

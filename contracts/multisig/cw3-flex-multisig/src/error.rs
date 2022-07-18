@@ -14,6 +14,9 @@ pub enum ContractError {
     #[error("Group contract invalid address '{addr}'")]
     InvalidGroup { addr: String },
 
+    #[error("Coconut bandwidth contract address not found")]
+    InvalidCoconutBandwidth {},
+
     #[error("Unauthorized")]
     Unauthorized {},
 

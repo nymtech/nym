@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) mod client;
+pub(crate) mod comm;
 mod deposit;
 pub(crate) mod error;
 #[cfg(test)]
@@ -12,23 +13,24 @@ use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::ValidatorApiStorage;
 
+use coconut_bandwidth_contract_common::spend_credential::{
+    funds_from_cosmos_msgs, SpendCredentialStatus,
+};
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
 };
-use config::defaults::VALIDATOR_API_VERSION;
+use config::defaults::{MIX_DENOM, VALIDATOR_API_VERSION};
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
-use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_client::nymd::Fee;
+use validator_client::nymd::{Coin, Fee};
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
@@ -38,32 +40,35 @@ use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use url::Url;
+
+use self::comm::APICommunicationChannel;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
     key_pair: KeyPair,
-    validator_apis: Vec<Url>,
+    comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: ValidatorApiStorage,
     rng: Arc<Mutex<OsRng>>,
 }
 
 impl State {
-    pub(crate) fn new<C>(
+    pub(crate) fn new<C, D>(
         client: C,
         key_pair: KeyPair,
-        validator_apis: Vec<Url>,
+        comm_channel: D,
         storage: ValidatorApiStorage,
     ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
+        D: APICommunicationChannel + Send + Sync + 'static,
     {
         let client = Arc::new(client);
+        let comm_channel = Arc::new(comm_channel);
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
             client,
             key_pair,
-            validator_apis,
+            comm_channel,
             storage,
             rng,
         }
@@ -125,7 +130,7 @@ impl State {
     }
 
     pub async fn verification_key(&self) -> Result<VerificationKey> {
-        Ok(obtain_aggregate_verification_key(&self.validator_apis).await?)
+        self.comm_channel.aggregated_verification_key().await
     }
 }
 
@@ -153,16 +158,17 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage<C>(
+    pub fn stage<C, D>(
         client: C,
         key_pair: KeyPair,
-        validator_apis: Vec<Url>,
+        comm_channel: D,
         storage: ValidatorApiStorage,
     ) -> AdHoc
     where
         C: LocalClient + Send + Sync + 'static,
+        D: APICommunicationChannel + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, validator_apis, storage);
+        let state = State::new(client, key_pair, comm_channel, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -175,8 +181,7 @@ impl InternalSignRequest {
                     get_verification_key,
                     get_cosmos_address,
                     post_partial_bandwidth_credential,
-                    verify_bandwidth_credential,
-                    post_propose_release_funds
+                    verify_bandwidth_credential
                 ],
             )
         })
@@ -263,69 +268,60 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    let proposal_id = *verify_credential_body.0.proposal_id();
+    let proposal_id = *verify_credential_body.proposal_id();
     let proposal = state.client.get_proposal(proposal_id).await?;
     // Proposal description is the blinded serial number
     if !verify_credential_body
-        .0
         .credential()
         .has_blinded_serial_number(&proposal.description)?
     {
-        return Err(CoconutError::IncorrectProposal);
+        return Err(CoconutError::IncorrectProposal {
+            reason: String::from("incorrect blinded serial number in description"),
+        });
+    }
+    let proposed_release_funds =
+        funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
+            reason: String::from("action is not to release funds"),
+        })?;
+    // Credential has not been spent before, and is on its way of being spent
+    let credential_status = state
+        .client
+        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
+        .await?
+        .spend_credential
+        .ok_or(CoconutError::InvalidCredentialStatus {
+            status: String::from("Inexistent"),
+        })?
+        .status();
+    if credential_status != SpendCredentialStatus::InProgress {
+        return Err(CoconutError::InvalidCredentialStatus {
+            status: format!("{:?}", credential_status),
+        });
     }
     let verification_key = state.verification_key().await?;
-    let verification_result = verify_credential_body
-        .0
+    let mut vote_yes = verify_credential_body
         .credential()
         .verify(&verification_key);
+
+    vote_yes &= Coin::from(proposed_release_funds)
+        == Coin::new(
+            verify_credential_body.credential().voucher_value() as u128,
+            MIX_DENOM.base,
+        );
 
     // Vote yes or no on the proposal based on the verification result
     state
         .client
         .vote_proposal(
             proposal_id,
-            verification_result,
+            vote_yes,
             Some(Fee::new_payer_granter_auto(
                 None,
                 None,
-                Some(verify_credential_body.0.gateway_cosmos_addr().to_owned()),
+                Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
             )),
         )
         .await?;
 
-    Ok(Json(VerifyCredentialResponse::new(verification_result)))
-}
-
-#[post("/propose-release-funds", data = "<propose_release_funds>")]
-pub async fn post_propose_release_funds(
-    propose_release_funds: Json<ProposeReleaseFundsRequestBody>,
-    state: &RocketState<State>,
-) -> Result<Json<ProposeReleaseFundsResponse>> {
-    let verification_key = state.verification_key().await?;
-    if !propose_release_funds
-        .0
-        .credential()
-        .verify(&verification_key)
-    {
-        return Err(CoconutError::CreateProposalError);
-    }
-
-    let title = String::from("Create proposal to spend a coconut credential");
-    let blinded_serial_number = propose_release_funds.0.credential().blinded_serial_number();
-    let voucher_value = propose_release_funds.0.credential().voucher_value() as u128;
-    let proposal_id = state
-        .client
-        .propose_release_funds(
-            title,
-            blinded_serial_number,
-            voucher_value,
-            Some(Fee::new_payer_granter_auto(
-                None,
-                None,
-                Some(propose_release_funds.0.gateway_cosmos_addr().to_owned()),
-            )),
-        )
-        .await?;
-
-    Ok(Json(ProposeReleaseFundsResponse::new(proposal_id)))
+    Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }

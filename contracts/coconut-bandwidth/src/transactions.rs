@@ -1,10 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use coconut_bandwidth_contract_common::spend_credential::{
+    to_cosmos_msg, SpendCredential, SpendCredentialData,
+};
 use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::state::{ADMIN, CONFIG};
+use crate::storage;
 
 use coconut_bandwidth_contract_common::deposit::DepositData;
 use coconut_bandwidth_contract_common::events::{
@@ -39,6 +43,41 @@ pub(crate) fn deposit_funds(
     Ok(Response::new().add_event(event))
 }
 
+pub(crate) fn spend_credential(
+    deps: DepsMut<'_>,
+    env: Env,
+    _info: MessageInfo,
+    data: SpendCredentialData,
+) -> Result<Response, ContractError> {
+    if data.funds().denom != MIX_DENOM.base {
+        return Err(ContractError::WrongDenom);
+    }
+    if storage::spent_credentials().has(deps.storage, data.blinded_serial_number()) {
+        return Err(ContractError::DuplicateBlindedSerialNumber);
+    }
+    let cfg = CONFIG.load(deps.storage)?;
+
+    let gateway_cosmos_address = deps.api.addr_validate(data.gateway_cosmos_address())?;
+    storage::spent_credentials().save(
+        deps.storage,
+        data.blinded_serial_number(),
+        &SpendCredential::new(
+            data.funds().to_owned(),
+            data.blinded_serial_number().to_owned(),
+            gateway_cosmos_address,
+        ),
+    )?;
+
+    let msg = to_cosmos_msg(
+        data.funds().clone(),
+        data.blinded_serial_number().to_string(),
+        env.contract.address.into_string(),
+        cfg.multisig_addr.into_string(),
+    )?;
+
+    Ok(Response::new().add_message(msg))
+}
+
 pub(crate) fn release_funds(
     deps: DepsMut<'_>,
     env: Env,
@@ -70,11 +109,13 @@ pub(crate) fn release_funds(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{MULTISIG_CONTRACT, POOL_CONTRACT};
+    use crate::support::tests::fixtures::spend_credential_data_fixture;
+    use crate::support::tests::helpers::{self, MULTISIG_CONTRACT, POOL_CONTRACT};
+    use coconut_bandwidth_contract_common::msg::ExecuteMsg;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Coin, CosmosMsg};
+    use cosmwasm_std::{from_binary, Coin, CosmosMsg, WasmMsg};
     use cw_controllers::AdminError;
+    use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
     #[test]
     fn invalid_deposit() {
@@ -224,6 +265,93 @@ mod tests {
                 to_address: String::from(POOL_CONTRACT),
                 amount: vec![coin]
             })
+        );
+    }
+    #[test]
+    fn valid_spend() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let info = mock_info("requester", &[]);
+        let data = spend_credential_data_fixture("blinded_serial_number");
+        let res = spend_credential(deps.as_mut(), env.clone(), info, data.clone()).unwrap();
+        if let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds,
+        }) = &res.messages[0].msg
+        {
+            assert_eq!(contract_addr, MULTISIG_CONTRACT);
+            assert!(funds.is_empty());
+            let multisig_msg: MultisigExecuteMsg = from_binary(&msg).unwrap();
+            if let MultisigExecuteMsg::Propose {
+                title: _,
+                description,
+                msgs,
+                latest,
+            } = multisig_msg
+            {
+                assert_eq!(description, data.blinded_serial_number().to_string());
+                assert!(latest.is_none());
+                if let CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr,
+                    msg,
+                    funds,
+                }) = &msgs[0]
+                {
+                    assert_eq!(*contract_addr, env.contract.address.into_string());
+                    assert!(funds.is_empty());
+                    let release_funds_req: ExecuteMsg = from_binary(&msg).unwrap();
+                    if let ExecuteMsg::ReleaseFunds { funds } = release_funds_req {
+                        assert_eq!(funds, *data.funds());
+                    } else {
+                        panic!("Could not extract release funds message from proposal");
+                    }
+                }
+            } else {
+                panic!("Could not extract proposal from binary blob");
+            }
+        } else {
+            panic!("Wasm execute message not found");
+        }
+    }
+
+    #[test]
+    fn invalid_spend_attempts() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let info = mock_info("requester", &[]);
+
+        let invalid_data = SpendCredentialData::new(
+            Coin::new(1, "invalid_denom".to_string()),
+            String::new(),
+            String::new(),
+        );
+        let ret = spend_credential(deps.as_mut(), env.clone(), info.clone(), invalid_data);
+        assert_eq!(ret.unwrap_err(), ContractError::WrongDenom);
+
+        let invalid_data = SpendCredentialData::new(
+            Coin::new(1, MIX_DENOM.base),
+            String::new(),
+            "Blinded Serial Number".to_string(),
+        );
+        let ret = spend_credential(deps.as_mut(), env.clone(), info.clone(), invalid_data);
+        assert_eq!(
+            ret.unwrap_err().to_string(),
+            "Generic error: Invalid input: address not normalized".to_string()
+        );
+
+        let invalid_data = spend_credential_data_fixture("blined_serial_number");
+        spend_credential(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            invalid_data.clone(),
+        )
+        .unwrap();
+        let ret = spend_credential(deps.as_mut(), env, info, invalid_data);
+        assert_eq!(
+            ret.unwrap_err(),
+            ContractError::DuplicateBlindedSerialNumber
         );
     }
 }

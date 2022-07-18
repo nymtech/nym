@@ -27,6 +27,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 - validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).
 - validator-client: add `denom` argument and add simple test for querying an account balance
+- gateway, validator-api: Checks for coconut credential double spending attempts, taking the coconut bandwidth contract as source of truth ([#1457])
+- coconut-bandwidth-contract: Record the state of a coconut credential; create specific proposal for releasing funds ([#1457])
 
 ### Fixed
 
@@ -49,6 +51,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - gateway & mixnode: move detailed build info back to `--version` from `--help`.
 - socks5 client/websocket client: upgrade to latest clap and switched to declarative commandline parsing.
 - validator-api: fee payment for multisig operations comes from the gateway account instead of the validator APIs' accounts ([#1419])
+- multisig-contract: Limit the proposal creating functionality to one address (coconut-bandwidth-contract address) ([#1457])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -70,6 +73,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1404]: https://github.com/nymtech/nym/pull/1404
 [#1419]: https://github.com/nymtech/nym/pull/1419
 [#1427]: https://github.com/nymtech/nym/pull/1427
+[#1457]: https://github.com/nymtech/nym/pull/1457
 
 ## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
 

@@ -32,7 +32,7 @@ use tokio::sync::Notify;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::InternalSignRequest;
+use coconut::{comm::QueryCommunicationChannel, InternalSignRequest};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
 use validator_client::nymd::SigningNymdClient;
@@ -453,7 +453,7 @@ async fn setup_rocket(
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
             keypair,
-            config.get_all_validator_api_endpoints(),
+            QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
             storage.clone().unwrap(),
         ))
     } else {

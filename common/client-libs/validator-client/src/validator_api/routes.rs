@@ -19,7 +19,6 @@ pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-creden
 pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
 pub const COCONUT_COSMOS_ADDRESS: &str = "cosmos-address";
 pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
-pub const COCONUT_PROPOSE_RELEASE_FUNDS: &str = "propose-release-funds";
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

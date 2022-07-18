@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse,
-    ProposeReleaseFundsRequestBody, ProposeReleaseFundsResponse, VerificationKeyResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
@@ -399,23 +398,6 @@ impl Client {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
-            ],
-            NO_PARAMS,
-            request_body,
-        )
-        .await
-    }
-
-    pub async fn propose_release_funds(
-        &self,
-        request_body: &ProposeReleaseFundsRequestBody,
-    ) -> Result<ProposeReleaseFundsResponse, ValidatorAPIError> {
-        self.post_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_PROPOSE_RELEASE_FUNDS,
             ],
             NO_PARAMS,
             request_body,

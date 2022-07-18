@@ -33,7 +33,8 @@ pub mod test_helpers {
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use mixnet_contract_common::mixnode::UnbondedMixnode;
     use mixnet_contract_common::{
-        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, NodeId, Percent,
+        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, MixNodeBond, NodeId,
+        Percent,
     };
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
@@ -44,6 +45,30 @@ pub mod test_helpers {
         let dummy_seed = [42u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         rng
+    }
+
+    pub fn mixnode_with_signature(
+        mut rng: impl RngCore + CryptoRng,
+        sender: &str,
+    ) -> (MixNode, String) {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+        let owner_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
+
+        let identity_key = keypair.public_key().to_base58_string();
+        let sphinx_key = legit_sphinx_key.public_key().to_base58_string();
+
+        (
+            MixNode {
+                identity_key: identity_key.clone(),
+                sphinx_key: sphinx_key.clone(),
+                ..tests::fixtures::mix_node_fixture()
+            },
+            owner_signature,
+        )
     }
 
     pub fn add_dummy_mixnodes(mut rng: impl RngCore + CryptoRng, mut deps: DepsMut<'_>, n: usize) {

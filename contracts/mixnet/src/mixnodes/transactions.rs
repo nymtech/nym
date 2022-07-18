@@ -7,12 +7,15 @@ use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::save_new_mixnode;
 use crate::support::helpers::{
-    ensure_bonded, ensure_no_existing_bond, ensure_proxy_match, send_to_proxy_or_owner,
-    validate_node_identity_signature, validate_pledge, AttachOptionalMessage,
+    ensure_bonded, ensure_no_existing_bond, ensure_proxy_match, validate_node_identity_signature,
+    validate_pledge,
 };
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{new_mixnode_bonding_event, new_mixnode_unbonding_event};
+use mixnet_contract_common::events::{
+    new_mixnode_bonding_event, new_mixnode_config_update_event,
+    new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
+};
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::MixNode;
@@ -131,7 +134,6 @@ pub fn try_remove_mixnode(
     _try_remove_mixnode(deps, info.sender, None)
 }
 
-// TODO: rethinking whether this one should be done with the epoch ending events
 pub(crate) fn _try_remove_mixnode(
     deps: DepsMut<'_>,
     owner: Addr,
@@ -164,12 +166,14 @@ pub(crate) fn _try_remove_mixnode(
     };
     interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
 
-    Ok(Response::new().add_event(new_mixnode_unbonding_event(
-        &existing_bond.owner,
-        &existing_bond.proxy,
-        existing_bond.identity(),
-        existing_bond.id,
-    )))
+    Ok(
+        Response::new().add_event(new_pending_mixnode_unbonding_event(
+            &existing_bond.owner,
+            &existing_bond.proxy,
+            existing_bond.identity(),
+            existing_bond.id,
+        )),
+    )
 }
 
 pub(crate) fn try_update_mixnode_config(
@@ -202,11 +206,16 @@ pub(crate) fn _try_update_mixnode_config(
         .idx
         .owner
         .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
+            owner: owner.clone(),
+        })?
         .1;
 
     ensure_bonded(&existing_bond)?;
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
+
+    let cfg_update_event =
+        new_mixnode_config_update_event(existing_bond.id, &owner, &proxy, &new_config);
 
     let mut updated_bond = existing_bond.clone();
     updated_bond.mix_node.host = new_config.host;
@@ -222,8 +231,7 @@ pub(crate) fn _try_update_mixnode_config(
         Some(&existing_bond),
     )?;
 
-    // TODO: events
-    Ok(Response::new())
+    Ok(Response::new().add_event(cfg_update_event))
 }
 
 pub(crate) fn try_update_mixnode_cost_params(
@@ -257,11 +265,16 @@ pub(crate) fn _try_update_mixnode_cost_params(
         .idx
         .owner
         .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
+            owner: owner.clone(),
+        })?
         .1;
 
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
     ensure_bonded(&existing_bond)?;
+
+    let cosmos_event =
+        new_mixnode_pending_cost_params_update_event(existing_bond.id, &owner, &proxy, &new_costs);
 
     // push the interval event
     let interval_event = PendingIntervalEvent::ChangeMixCostParams {
@@ -270,8 +283,7 @@ pub(crate) fn _try_update_mixnode_cost_params(
     };
     push_new_interval_event(deps.storage, &interval_event)?;
 
-    // TODO: [cosmos] events
-    Ok(Response::new())
+    Ok(Response::new().add_event(cosmos_event))
 }
 
 // #[cfg(test)]

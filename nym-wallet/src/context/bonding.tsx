@@ -1,4 +1,4 @@
-import { FeeDetails, MajorCurrencyAmount, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
 import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
@@ -35,19 +35,19 @@ import { AppContext } from './main';
 
 const bounded: BondedMixnode = {
   identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
-  bond: { denom: 'NYM', amount: '1234' },
+  bond: { denom: 'nym', amount: '1234' },
   delegators: 123,
   ip: '1.2.34.5',
-  nodeRewards: { denom: 'NYM', amount: '123' },
-  operatorRewards: { denom: 'NYM', amount: '12' },
+  nodeRewards: { denom: 'nym', amount: '123' },
+  operatorRewards: { denom: 'nym', amount: '12' },
   profitMargin: 10,
-  stake: { denom: 'NYM', amount: '99' },
+  stake: { denom: 'nym', amount: '99' },
   stakeSaturation: 99,
   status: 'active',
 };
 
 /* const bounded: BondedMixnode | BondedGateway = {
-  bond: { denom: 'NYM', amount: '1234' },
+  bond: { denom: 'nym', amount: '1234' },
   identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   ip: '1.2.34.5',
   location: 'France',
@@ -57,12 +57,12 @@ const bounded: BondedMixnode = {
 export interface BondedMixnode {
   identityKey: string;
   ip: string;
-  stake: MajorCurrencyAmount;
-  bond: MajorCurrencyAmount;
+  stake: DecCoin;
+  bond: DecCoin;
   stakeSaturation: number;
   profitMargin: number;
-  nodeRewards: MajorCurrencyAmount;
-  operatorRewards: MajorCurrencyAmount;
+  nodeRewards: DecCoin;
+  operatorRewards: DecCoin;
   delegators: number;
   status: MixnodeStatus;
 }
@@ -71,7 +71,7 @@ export interface BondedMixnode {
 export interface BondedGateway {
   identityKey: string;
   ip: string;
-  bond: MajorCurrencyAmount;
+  bond: DecCoin;
   location?: string; // TODO not yet available, only available in Network Explorer API
 }
 
@@ -103,7 +103,7 @@ export type TBondingContext = {
     data: Omit<TBondGatewayArgs, 'fee'>,
     tokenPool: TokenPool,
   ) => Promise<TransactionExecuteResult | undefined>;
-  bondMore: (signature: string, additionalBond: MajorCurrencyAmount) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (signature: string, additionalBond: DecCoin) => Promise<TransactionExecuteResult | undefined>;
   unbondMixnode: () => Promise<TransactionExecuteResult | undefined>;
   unbondGateway: () => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: () => Promise<TransactionExecuteResult[] | undefined>;
@@ -359,7 +359,7 @@ export const BondingContextProvider = ({
     return tx;
   };
 
-  const bondMore = async (_signature: string, _additionalBond: MajorCurrencyAmount) =>
+  const bondMore = async (_signature: string, _additionalBond: DecCoin) =>
     // TODO to implement
     undefined;
 

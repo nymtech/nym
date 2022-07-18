@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Divider, Stack, Typography } from '@mui/material';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { DecCoin } from '@nymproject/types';
 import { CurrencyInput, TextFieldInput } from '../../components';
 import schema from './schema';
 import { AppContext } from '../../../../context';
@@ -13,12 +13,12 @@ import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 export interface Props {
   open: boolean;
   onClose: () => void;
-  onConfirm: (bond: MajorCurrencyAmount, signature: string) => void;
-  currentBond: MajorCurrencyAmount;
+  onConfirm: (bond: DecCoin, signature: string) => void;
+  currentBond: DecCoin;
 }
 
 interface FormData {
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   tokenPool: string;
   signature: string;
 }
@@ -61,7 +61,7 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
               fullWidth
               label="Amount"
               name="amount"
-              currencyDenom={clientDetails?.denom}
+              currencyDenom={clientDetails?.display_mix_denom}
               errorMessage={errors.amount?.amount?.message}
             />
           </Stack>

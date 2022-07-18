@@ -1,4 +1,4 @@
-import { FeeDetails, MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, DecCoin, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
 import { BondedGateway, BondedMixnode, BondingContext, FeeOperation } from '../bonding';
@@ -9,12 +9,12 @@ const SLEEP_MS = 1000;
 const bondedMixnodeMock: BondedMixnode = {
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.56',
-  stake: { denom: 'NYM', amount: '1234' },
-  bond: { denom: 'NYM', amount: '1234' },
+  stake: { denom: 'nym', amount: '1234' },
+  bond: { denom: 'nym', amount: '1234' },
   stakeSaturation: 95,
   profitMargin: 15,
-  nodeRewards: { denom: 'NYM', amount: '1234' },
-  operatorRewards: { denom: 'NYM', amount: '1234' },
+  nodeRewards: { denom: 'nym', amount: '1234' },
+  operatorRewards: { denom: 'nym', amount: '1234' },
   delegators: 5423,
   status: 'active',
 };
@@ -22,7 +22,7 @@ const bondedMixnodeMock: BondedMixnode = {
 const bondedGatewayMock: BondedGateway = {
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
-  bond: { denom: 'NYM', amount: '1234' },
+  bond: { denom: 'nym', amount: '1234' },
 };
 
 const TxResultMock: TransactionExecuteResult = {
@@ -30,15 +30,14 @@ const TxResultMock: TransactionExecuteResult = {
   data_json: '',
   transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
   gas_info: {
-    gas_wanted: BigInt(1),
-    gas_used: BigInt(1),
-    fee: { amount: '1', denom: 'NYM' },
+    gas_wanted: { gas_units: BigInt(1) },
+    gas_used: { gas_units: BigInt(1) },
   },
-  fee: { amount: '1', denom: 'NYM' },
+  fee: { amount: '1', denom: 'nym' },
 };
 
 const feeMock: FeeDetails = {
-  amount: { denom: 'NYM', amount: '1' },
+  amount: { denom: 'nym', amount: '1' },
   fee: { Auto: 1 },
 };
 
@@ -145,7 +144,7 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const bondMore = async (_signature: string, _additionalBond: MajorCurrencyAmount) => {
+  const bondMore = async (_signature: string, _additionalBond: DecCoin) => {
     setLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();

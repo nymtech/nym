@@ -1,4 +1,4 @@
-import { MajorCurrencyAmount, TNodeType, TransactionExecuteResult } from '@nymproject/types';
+import { DecCoin, TNodeType, TransactionExecuteResult } from '@nymproject/types';
 
 export type FormStep = 1 | 2 | 3 | 4;
 export type NodeType = TNodeType;
@@ -34,7 +34,7 @@ export type MixnodeData = NodeIdentity & {
 };
 
 export type MixnodeAmount = {
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   tokenPool: string;
   profitMargin: number;
 };
@@ -51,7 +51,7 @@ export type NodeData<N = MixnodeData | GatewayData> = {
 } & N;
 
 export interface AmountData {
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   tokenPool: string;
   profitMargin?: number;
 }

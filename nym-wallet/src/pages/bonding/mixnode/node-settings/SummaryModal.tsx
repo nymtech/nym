@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { DecCoin } from '@nymproject/types';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export interface Props {
@@ -10,7 +10,7 @@ export interface Props {
   onCancel: () => void;
   currentPm: number;
   newPm: number;
-  fee?: MajorCurrencyAmount | null;
+  fee?: DecCoin | null;
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentPm, newPm, fee }: Props) => (

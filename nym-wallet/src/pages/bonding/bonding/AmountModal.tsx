@@ -80,7 +80,7 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
               fullWidth
               label="Amount"
               name="amount"
-              currencyDenom={clientDetails?.denom}
+              currencyDenom={clientDetails?.display_mix_denom}
               errorMessage={errors.amount?.amount?.message}
             />
           </Stack>

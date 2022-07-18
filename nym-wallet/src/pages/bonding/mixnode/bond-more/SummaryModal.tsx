@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { DecCoin } from '@nymproject/types';
 import { useEffect } from 'react';
 import { ErrorOutline } from '@mui/icons-material';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
@@ -12,8 +12,8 @@ export interface Props {
   onClose: () => void;
   onConfirm: () => Promise<void>;
   onCancel: () => void;
-  currentBond: MajorCurrencyAmount;
-  addBond: MajorCurrencyAmount;
+  currentBond: DecCoin;
+  addBond: DecCoin;
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentBond, addBond }: Props) => {

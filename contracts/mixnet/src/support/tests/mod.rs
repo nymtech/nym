@@ -15,6 +15,9 @@ pub mod test_helpers {
     use crate::gateways::transactions::try_add_gateway;
     use crate::interval;
     use crate::interval::storage as interval_storage;
+    use crate::interval::transactions::{
+        perform_pending_epoch_actions, perform_pending_interval_actions,
+    };
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::rewards::storage as rewards_storage;
@@ -33,8 +36,7 @@ pub mod test_helpers {
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use mixnet_contract_common::mixnode::UnbondedMixnode;
     use mixnet_contract_common::{
-        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, MixNodeBond, NodeId,
-        Percent,
+        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, NodeId, Percent,
     };
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
@@ -43,8 +45,12 @@ pub mod test_helpers {
     // use rng with constant seed for all tests so that they would be deterministic
     pub fn test_rng() -> ChaCha20Rng {
         let dummy_seed = [42u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
-        rng
+        rand_chacha::ChaCha20Rng::from_seed(dummy_seed)
+    }
+
+    pub fn execute_all_pending_events(mut deps: DepsMut<'_>, env: Env) {
+        perform_pending_epoch_actions(deps.branch(), &env).unwrap();
+        perform_pending_interval_actions(deps.branch(), &env).unwrap();
     }
 
     pub fn mixnode_with_signature(
@@ -63,8 +69,8 @@ pub mod test_helpers {
 
         (
             MixNode {
-                identity_key: identity_key.clone(),
-                sphinx_key: sphinx_key.clone(),
+                identity_key: identity_key,
+                sphinx_key: sphinx_key,
                 ..tests::fixtures::mix_node_fixture()
             },
             owner_signature,
@@ -109,8 +115,6 @@ pub mod test_helpers {
         deps: DepsMut<'_>,
         owner: &str,
     ) -> NodeId {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
-
         let id = loop {
             let candidate = rng.next_u64();
             if !mixnodes_storage::UNBONDED_MIXNODES.has(deps.storage, candidate) {
@@ -165,7 +169,7 @@ pub mod test_helpers {
             mock_env(),
             info,
             MixNode {
-                identity_key: key.clone(),
+                identity_key: key,
                 sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
                 ..tests::fixtures::mix_node_fixture()
             },

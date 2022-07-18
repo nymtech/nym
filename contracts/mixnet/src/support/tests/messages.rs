@@ -1,11 +1,14 @@
 use mixnet_contract_common::{ExecuteMsg, Gateway, IdentityKey, MixNode, SphinxKey};
-use rand::thread_rng;
+use rand_chacha::rand_core::{CryptoRng, RngCore};
 
 use crate::support::tests;
 
-pub(crate) fn valid_bond_mixnode_msg(sender: &str) -> (ExecuteMsg, (IdentityKey, SphinxKey)) {
-    let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
-    let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut thread_rng());
+pub(crate) fn valid_bond_mixnode_msg(
+    mut rng: impl RngCore + CryptoRng,
+    sender: &str,
+) -> (ExecuteMsg, (IdentityKey, SphinxKey)) {
+    let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+    let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
     let owner_signature = keypair
         .private_key()
         .sign(sender.as_bytes())
@@ -27,8 +30,11 @@ pub(crate) fn valid_bond_mixnode_msg(sender: &str) -> (ExecuteMsg, (IdentityKey,
     )
 }
 
-pub(crate) fn valid_bond_gateway_msg(sender: &str) -> (ExecuteMsg, IdentityKey) {
-    let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
+pub(crate) fn valid_bond_gateway_msg(
+    mut rng: impl RngCore + CryptoRng,
+    sender: &str,
+) -> (ExecuteMsg, IdentityKey) {
+    let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
     let owner_signature = keypair
         .private_key()
         .sign(sender.as_bytes())

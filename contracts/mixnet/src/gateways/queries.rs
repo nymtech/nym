@@ -74,11 +74,10 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_obeys_limits() {
         let mut deps = test_helpers::init_contract();
+        let mut rng = test_helpers::test_rng();
+
         let limit = 2;
-        for n in 0..1000 {
-            let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
-        }
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), 1000);
 
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.nodes.len() as u32);
@@ -87,10 +86,9 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_has_default_limit() {
         let mut deps = test_helpers::init_contract();
-        for n in 0..1000 {
-            let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
-        }
+        let mut rng = test_helpers::test_rng();
+
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), 1000);
 
         // query without explicitly setting a limit
         let page1 = query_gateways_paged(deps.as_ref(), None, None).unwrap();
@@ -104,10 +102,9 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_has_max_limit() {
         let mut deps = test_helpers::init_contract();
-        for n in 0..1000 {
-            let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
-        }
+        let mut rng = test_helpers::test_rng();
+
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), 1000);
 
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT;
@@ -120,19 +117,20 @@ pub(crate) mod tests {
 
     #[test]
     fn gateway_pagination_works() {
+        let mut deps = test_helpers::init_contract();
+        let mut rng = test_helpers::test_rng();
+
         // prepare 4 messages and identities that are sorted by the generated identities
         // (because we query them in an ascended manner)
         let mut exec_data = (0..4)
             .map(|i| {
                 let sender = format!("nym-addr{}", i);
-                let (msg, identity) = tests::messages::valid_bond_gateway_msg(&sender);
+                let (msg, identity) = tests::messages::valid_bond_gateway_msg(&mut rng, &sender);
                 (msg, (sender, identity))
             })
             .collect::<Vec<_>>();
         exec_data.sort_by(|(_, (_, id1)), (_, (_, id2))| id1.cmp(id2));
         let (messages, sender_identities): (Vec<_>, Vec<_>) = exec_data.into_iter().unzip();
-
-        let mut deps = test_helpers::init_contract();
 
         let info = mock_info(
             &sender_identities[0].0.clone(),
@@ -199,22 +197,29 @@ pub(crate) mod tests {
     #[test]
     fn query_for_gateway_owner_works() {
         let mut deps = test_helpers::init_contract();
+        let mut rng = test_helpers::test_rng();
 
         // "fred" does not own a mixnode if there are no mixnodes
         let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
-        test_helpers::add_gateway("bob", tests::fixtures::good_gateway_pledge(), deps.as_mut());
+        test_helpers::add_gateway(
+            &mut rng,
+            deps.as_mut(),
+            "bob",
+            tests::fixtures::good_gateway_pledge(),
+        );
 
         let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
         test_helpers::add_gateway(
+            &mut rng,
+            deps.as_mut(),
             "fred",
             tests::fixtures::good_gateway_pledge(),
-            deps.as_mut(),
         );
 
         let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();

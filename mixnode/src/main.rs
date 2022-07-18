@@ -4,7 +4,7 @@ extern crate rocket;
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use ::config::defaults::DEFAULT_NETWORK;
+use ::config::defaults::setup_env;
 use clap::{crate_version, Parser};
 use lazy_static::lazy_static;
 
@@ -24,17 +24,21 @@ fn long_version_static() -> &'static str {
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = long_version_static())]
 struct Cli {
+    /// Path pointing to an env file that configures the gateway.
+    #[clap(long)]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
     #[clap(subcommand)]
     command: commands::Commands,
 }
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
 
     let args = Cli::parse();
+    setup_env(args.config_env_file.clone());
     commands::execute(args).await;
 }
 
@@ -66,7 +70,6 @@ fn long_version() -> String {
 {:<20}{}
 {:<20}{}
 {:<20}{}
-{:<20}{}
 "#,
         "Build Timestamp:",
         env!("VERGEN_BUILD_TIMESTAMP"),
@@ -83,9 +86,7 @@ fn long_version() -> String {
         "rustc Channel:",
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE"),
-        "Network:",
-        DEFAULT_NETWORK
+        env!("VERGEN_CARGO_PROFILE")
     )
 }
 

@@ -124,7 +124,6 @@ pub mod tests {
                 denom,
                 amount: INITIAL_GATEWAY_PLEDGE_AMOUNT + Uint128::new(1234),
             },
-            vesting_contract_address: Addr::unchecked("foomp"),
         };
 
         let initial_params = storage::CONTRACT_STATE

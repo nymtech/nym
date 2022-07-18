@@ -652,8 +652,9 @@ pub struct UnbondedMixnodeResponse {
     pub unbonded_info: Option<UnbondedMixnode>,
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct StakeSaturationResponse {
+    pub mix_id: NodeId,
     pub current_saturation: Option<Decimal>,
     pub uncapped_saturation: Option<Decimal>,
 }

@@ -13,15 +13,7 @@ use mixnet_contract_common::mixnode::UnbondedMixnode;
 use mixnet_contract_common::SphinxKey;
 use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNodeBond, NodeId};
 
-// storage prefixes
-
-// // paged retrieval limits for all queries and transactions
-// pub(crate) const BOND_PAGE_MAX_LIMIT: u32 = 75;
-// pub(crate) const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
-//
-//
-
-// keeps track of `node_id -> IdentityKey` so we'd known a bit more about past mixnodes
+// keeps track of `node_id -> IdentityKey, Owner, unbonding_height` so we'd known a bit more about past mixnodes
 // if we ever decide it's too bloaty, we can deprecate it and start removing all data in
 // subsequent migrations
 pub(crate) const UNBONDED_MIXNODES: Map<NodeId, UnbondedMixnode> =
@@ -98,69 +90,95 @@ pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> StdResult<()> {
     LAYERS.save(storage, &LayerDistribution::default())
 }
 
-//
-// #[cfg(test)]
-// mod tests {
-//     use super::super::storage;
-//     use super::*;
-//     use crate::support::tests;
-//     use config::defaults::MIX_DENOM;
-//     use cosmwasm_std::testing::MockStorage;
-//     use cosmwasm_std::{coin, Addr, Uint128};
-//     use mixnet_contract_common::{IdentityKey, MixNode};
-//
-//     #[test]
-//     fn mixnode_single_read_retrieval() {
-//         let mut storage = MockStorage::new();
-//         let bond1 = tests::fixtures::stored_mixnode_bond_fixture("owner1");
-//         let bond2 = tests::fixtures::stored_mixnode_bond_fixture("owner2");
-//         mixnodes().save(&mut storage, "bond1", &bond1, 1).unwrap();
-//         mixnodes().save(&mut storage, "bond2", &bond2, 1).unwrap();
-//
-//         let res1 = mixnodes().load(&storage, "bond1").unwrap();
-//         let res2 = mixnodes().load(&storage, "bond2").unwrap();
-//         assert_eq!(bond1, res1);
-//         assert_eq!(bond2, res2);
-//     }
-//
-//     #[test]
-//     fn reading_mixnode_bond() {
-//         let mut mock_storage = MockStorage::new();
-//         let node_owner: Addr = Addr::unchecked("node-owner");
-//         let node_identity: IdentityKey = "nodeidentity".into();
-//
-//         // produces a None if target mixnode doesn't exist
-//         let res = storage::read_full_mixnode_bond(&mock_storage, &node_identity).unwrap();
-//         assert!(res.is_none());
-//
-//         // returns appropriate value otherwise
-//         let pledge_value = 1000000000;
-//
-//         let mixnode_bond = StoredMixnodeBond {
-//             pledge_amount: coin(pledge_value, MIX_DENOM.base),
-//             owner: node_owner,
-//             layer: Layer::One,
-//             block_height: 12_345,
-//             mix_node: MixNode {
-//                 identity_key: node_identity.clone(),
-//                 ..tests::fixtures::mix_node_fixture()
-//             },
-//             proxy: None,
-//             accumulated_rewards: None,
-//             epoch_rewards: None,
-//         };
-//
-//         storage::mixnodes()
-//             .save(&mut mock_storage, &node_identity, &mixnode_bond, 1)
-//             .unwrap();
-//
-//         assert_eq!(
-//             Uint128::new(pledge_value),
-//             storage::read_full_mixnode_bond(&mock_storage, node_identity.as_str())
-//                 .unwrap()
-//                 .unwrap()
-//                 .pledge_amount
-//                 .amount
-//         );
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::test_helpers;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    #[test]
+    fn decrementing_layer() {
+        let mut deps = test_helpers::init_contract();
+
+        // we never underflow, if it were to happen we're going to return an error instead
+        assert_eq!(
+            Err(MixnetContractError::OverflowSubtraction {
+                minuend: 0,
+                subtrahend: 1
+            }),
+            decrement_layer_count(deps.as_mut().storage, Layer::One)
+        );
+
+        LAYERS
+            .save(
+                deps.as_mut().storage,
+                &LayerDistribution {
+                    layer1: 3,
+                    layer2: 2,
+                    layer3: 1,
+                },
+            )
+            .unwrap();
+
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::One).is_ok());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Two).is_ok());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Three).is_ok());
+
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::One).is_ok());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Two).is_ok());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Three).is_err());
+
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::One).is_ok());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Two).is_err());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Three).is_err());
+
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::One).is_err());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Two).is_err());
+        assert!(decrement_layer_count(deps.as_mut().storage, Layer::Three).is_err());
+    }
+
+    #[test]
+    fn assigning_layer() {
+        let mut deps = test_helpers::init_contract();
+
+        let layers = LayerDistribution {
+            layer1: 3,
+            layer2: 2,
+            layer3: 1,
+        };
+        LAYERS.save(deps.as_mut().storage, &layers).unwrap();
+
+        // always assigns layer with fewest nodes
+        assert_eq!(Layer::Three, assign_layer(deps.as_mut().storage).unwrap());
+        assert_eq!(2, LAYERS.load(deps.as_ref().storage).unwrap().layer3);
+
+        // we have 3, 2, 2, so the 2nd layer should get chosen now
+        assert_eq!(Layer::Two, assign_layer(deps.as_mut().storage).unwrap());
+        assert_eq!(3, LAYERS.load(deps.as_ref().storage).unwrap().layer2);
+
+        // 3, 3, 2, so 3rd one again
+        assert_eq!(Layer::Three, assign_layer(deps.as_mut().storage).unwrap());
+        assert_eq!(3, LAYERS.load(deps.as_ref().storage).unwrap().layer3);
+    }
+
+    #[test]
+    fn next_id() {
+        let mut deps = test_helpers::init_contract();
+
+        for i in 1u64..1000 {
+            assert_eq!(i, next_mixnode_id_counter(deps.as_mut().storage).unwrap());
+        }
+    }
+
+    #[test]
+    fn initialising() {
+        let mut deps = mock_dependencies();
+        assert!(LAYERS.load(deps.as_ref().storage).is_err());
+
+        initialise_storage(deps.as_mut().storage).unwrap();
+        assert_eq!(
+            LayerDistribution::default(),
+            LAYERS.load(deps.as_ref().storage).unwrap()
+        );
+    }
+}

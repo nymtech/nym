@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_version, Parser};
-use network_defaults::DEFAULT_NETWORK;
+use network_defaults::setup_env;
 use once_cell::sync::OnceCell;
 
 mod commands;
@@ -19,13 +19,16 @@ fn long_version_static() -> &'static str {
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = long_version_static())]
 struct Cli {
+    /// Path pointing to an env file that configures the gateway.
+    #[clap(long)]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
     #[clap(subcommand)]
     command: commands::Commands,
 }
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
     LONG_VERSION
@@ -33,6 +36,7 @@ async fn main() {
         .expect("Failed to set long about text");
 
     let args = Cli::parse();
+    setup_env(args.config_env_file.clone());
     commands::execute(args).await;
 }
 
@@ -64,7 +68,6 @@ fn long_version() -> String {
 {:<20}{}
 {:<20}{}
 {:<20}{}
-{:<20}{}
 "#,
         "Build Timestamp:",
         env!("VERGEN_BUILD_TIMESTAMP"),
@@ -81,9 +84,7 @@ fn long_version() -> String {
         "rustc Channel:",
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE"),
-        "Network:",
-        DEFAULT_NETWORK
+        env!("VERGEN_CARGO_PROFILE")
     )
 }
 

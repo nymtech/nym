@@ -12,6 +12,20 @@ use mixnet_contract_common::mixnode::{
 };
 use mixnet_contract_common::{Layer, MixNode, MixNodeBond, NodeId};
 
+pub(crate) fn must_get_mixnode_bond_by_owner(
+    store: &dyn Storage,
+    owner: &Addr,
+) -> Result<MixNodeBond, MixnetContractError> {
+    Ok(storage::mixnode_bonds()
+        .idx
+        .owner
+        .item(store, owner.clone())?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
+            owner: owner.clone(),
+        })?
+        .1)
+}
+
 pub(crate) fn get_mixnode_details_by_id(
     store: &dyn Storage,
     node_id: NodeId,

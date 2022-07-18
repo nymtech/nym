@@ -1,6 +1,10 @@
-use network_defaults::{default_api_endpoints, default_nymd_endpoints, DEFAULT_NETWORK};
+use network_defaults::{
+    all::Network,
+    var_names::{API_VALIDATOR, NYMD_VALIDATOR},
+    NymNetworkDetails,
+};
 use reqwest::Url;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use validator_client::nymd::QueryNymdClient;
 
 // since this is just a query client, we don't need any locking mechanism to keep sequence numbers in check
@@ -23,16 +27,18 @@ impl ThreadsafeValidatorClient {
 }
 
 pub(crate) fn new_validator_client() -> ThreadsafeValidatorClient {
-    let nymd_url = default_nymd_endpoints()[0].clone();
-    let api_url = default_api_endpoints()[0].clone();
+    let nymd_url = Url::from_str(&std::env::var(NYMD_VALIDATOR).expect("nymd validator not set"))
+        .expect("nymd validator not in url format");
+    let api_url = Url::from_str(&std::env::var(API_VALIDATOR).expect("nymd validator not set"))
+        .expect("nymd validator not in url format");
 
-    let client_config =
-        validator_client::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
-            .expect("failed to construct valid validator client config with the provided network")
-            .with_urls(nymd_url, api_url);
+    let details = NymNetworkDetails::new_from_env();
+    let client_config = validator_client::Config::try_from_nym_network_details(&details)
+        .expect("failed to construct valid validator client config with the provided network")
+        .with_urls(nymd_url, api_url);
 
     ThreadsafeValidatorClient(Arc::new(
-        validator_client::Client::new_query(client_config, DEFAULT_NETWORK)
+        validator_client::Client::new_query(client_config, Network::CUSTOM { details })
             .expect("Failed to connect to nymd!"),
     ))
 }

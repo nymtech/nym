@@ -3,10 +3,13 @@ extern crate rocket;
 #[macro_use]
 extern crate rocket_okapi;
 
+use clap::Parser;
 use log::info;
+use network_defaults::setup_env;
 
 pub(crate) mod cache;
 mod client;
+pub(crate) mod commands;
 mod country_statistics;
 mod gateways;
 mod http;
@@ -24,6 +27,8 @@ const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 #[tokio::main]
 async fn main() {
     setup_logging();
+    let args = commands::Cli::parse();
+    setup_env(args.config_env_file);
     let mut explorer_api = ExplorerApi::new();
     explorer_api.run().await;
 }

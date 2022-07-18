@@ -144,7 +144,9 @@ pub(crate) fn initialise_storage(
 ) -> StdResult<()> {
     save_interval(storage, &starting_interval)?;
     LAST_PROCESSED_EPOCH_EVENT.save(storage, &0)?;
-    LAST_PROCESSED_INTERVAL_EVENT.save(storage, &0)
+    LAST_PROCESSED_INTERVAL_EVENT.save(storage, &0)?;
+    EPOCH_EVENT_ID_COUNTER.save(storage, &0)?;
+    INTERVAL_EVENT_ID_COUNTER.save(storage, &0)
 }
 
 #[cfg(test)]

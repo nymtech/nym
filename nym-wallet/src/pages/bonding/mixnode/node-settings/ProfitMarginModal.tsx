@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { DecCoin } from '@nymproject/types';
 import { Box, Divider, Stack, Tooltip, Typography } from '@mui/material';
-import { MajorCurrencyAmount } from '@nymproject/types';
 import { TextFieldInput } from '../../components';
 import getSchema from './schema';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
@@ -11,7 +11,7 @@ export interface Props {
   open: boolean;
   onClose: () => void;
   onConfirm: (pm: number) => void;
-  estimatedOpReward: MajorCurrencyAmount;
+  estimatedOpReward: DecCoin;
   currentPm: number;
 }
 

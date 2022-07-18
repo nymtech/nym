@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useContext, useState } from 'react';
-import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { DecCoin, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
@@ -16,7 +16,7 @@ interface Props {
 }
 
 const BondMore = ({ mixnode, show, onClose }: Props) => {
-  const [addBond, setAddBond] = useState<MajorCurrencyAmount>({ amount: '0', denom: 'NYM' });
+  const [addBond, setAddBond] = useState<DecCoin>({ amount: '0', denom: 'nym' });
   const [signature, setSignature] = useState<string>();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [tx, setTx] = useState<TransactionExecuteResult>();
@@ -33,7 +33,7 @@ const BondMore = ({ mixnode, show, onClose }: Props) => {
   };
 
   const reset = () => {
-    setAddBond({ amount: '0', denom: 'NYM' });
+    setAddBond({ amount: '0', denom: 'nym' });
     setSignature('');
     setStep(1);
     onClose();

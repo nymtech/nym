@@ -1,15 +1,15 @@
 import * as React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
-import { MajorCurrencyAmount } from '@nymproject/types';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
+import { DecCoin } from '@nymproject/types';
 
 export interface Props {
   open: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
   onCancel: () => void;
-  rewards: MajorCurrencyAmount;
-  fee?: MajorCurrencyAmount | null;
+  rewards: DecCoin;
+  fee?: DecCoin | null;
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, rewards, fee }: Props) => (

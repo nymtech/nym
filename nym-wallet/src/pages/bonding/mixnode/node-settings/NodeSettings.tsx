@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useContext, useEffect, useState } from 'react';
-import { MajorCurrencyAmount, TransactionExecuteResult } from '@nymproject/types';
+import { DecCoin, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
@@ -16,7 +16,7 @@ interface Props {
 }
 
 // TODO fetch real estimated operator reward for 10% PM
-const MOCK_ESTIMATED_OP_REWARD: MajorCurrencyAmount = { amount: '42', denom: 'NYM' };
+const MOCK_ESTIMATED_OP_REWARD: DecCoin = { amount: '42', denom: 'nym' };
 
 const NodeSettings = ({ mixnode, show, onClose }: Props) => {
   const [status, setStatus] = useState<'success' | 'error'>();

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useContext, useEffect, useState } from 'react';
-import { MajorCurrencyAmount } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';

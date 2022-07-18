@@ -48,12 +48,12 @@ pub(crate) mod tests {
         let dummy_state = ContractState {
             owner: Addr::unchecked("someowner"),
             rewarding_validator_address: Addr::unchecked("monitor"),
+            vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
                 minimum_mixnode_delegation: None,
                 minimum_mixnode_pledge: coin(123u128, "unym"),
                 minimum_gateway_pledge: coin(456u128, "unym"),
-                vesting_contract_address: Addr::unchecked("foomp"),
             },
         };
 

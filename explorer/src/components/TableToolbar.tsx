@@ -1,13 +1,15 @@
 import * as React from 'react';
-import { Box, useMediaQuery, TextField, MenuItem } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, TextField, MenuItem } from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { Filters } from './Filters/Filters';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type TableToolBarProps = {
   onChangeSearch: (arg: string) => void;
   onChangePageSize: (event: SelectChangeEvent<string>) => void;
   pageSize: string;
   searchTerm: string;
+  withFilters?: boolean;
   childrenBefore?: React.ReactNode;
   childrenAfter?: React.ReactNode;
 };
@@ -19,16 +21,16 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
   pageSize,
   childrenBefore,
   childrenAfter,
+  withFilters,
 }) => {
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useIsMobile();
   return (
     <Box
       sx={{
         width: '100%',
         marginBottom: 2,
         display: 'flex',
-        flexDirection: matches ? 'column-reverse' : 'row',
+        flexDirection: isMobile ? 'column-reverse' : 'row',
         justifyContent: 'space-between',
       }}
     >
@@ -40,7 +42,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           value={pageSize}
           onChange={onChangePageSize}
           sx={{
-            width: matches ? 100 : 200,
+            width: isMobile ? 100 : 200,
           }}
         >
           <MenuItem value={10} data-testid="ten">
@@ -57,17 +59,18 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           </MenuItem>
         </Select>
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'middle' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <TextField
           sx={{
-            width: matches ? '100%' : 350,
-            marginBottom: matches ? 2 : 0,
+            width: isMobile ? '100%' : 350,
+            marginBottom: isMobile ? 2 : 0,
           }}
           value={searchTerm}
           data-testid="search-box"
           placeholder="search"
           onChange={(event) => onChangeSearch(event.target.value)}
         />
+        {withFilters && <Filters />}
         {childrenAfter}
       </Box>
     </Box>

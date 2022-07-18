@@ -10,6 +10,7 @@ import {
   SummaryOverviewResponse,
   ValidatorsResponse,
 } from '../typeDefs/explorer-api';
+import { EnumFilterKey } from '../typeDefs/filters';
 import { Api } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
 
@@ -26,8 +27,8 @@ interface StateData {
 }
 
 interface StateApi {
-  fetchMixnodes: (status?: MixnodeStatus) => void;
-  filterMixnodes: (mixnodes: MixNodeResponse) => void;
+  fetchMixnodes: (status?: MixnodeStatus) => Promise<MixNodeResponse | undefined>;
+  filterMixnodes: (filters: any, status: any) => void;
   toggleMode: () => void;
   updateNavState: (id: number) => void;
 }
@@ -40,7 +41,7 @@ export const MainContext = React.createContext<State>({
   navState: originalNavOptions,
   toggleMode: () => undefined,
   filterMixnodes: () => null,
-  fetchMixnodes: () => null,
+  fetchMixnodes: () => Promise.resolve(undefined),
 });
 
 export const useMainContext = (): React.ContextType<typeof MainContext> => React.useContext<State>(MainContext);
@@ -78,9 +79,10 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
 
   const fetchMixnodes = async (status?: MixnodeStatus) => {
+    let data;
     setMixnodes((d) => ({ ...d, isLoading: true }));
     try {
-      const data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+      data = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
       setMixnodes({ data, isLoading: false });
     } catch (error) {
       setMixnodes({
@@ -88,10 +90,24 @@ export const MainContextProvider: React.FC = ({ children }) => {
         isLoading: false,
       });
     }
+    return data;
   };
-  const filterMixnodes = (arr: MixNodeResponse) => {
-    setMixnodes({ data: arr, isLoading: false });
+
+  const filterMixnodes = async (filters: { [key in EnumFilterKey]: number[] }, status?: MixnodeStatus) => {
+    setMixnodes((d) => ({ ...d, isLoading: true }));
+    const mxns = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+    const filtered = mxns?.filter(
+      (m) =>
+        m.mix_node.profit_margin_percent >= filters.profitMargin[0] &&
+        m.mix_node.profit_margin_percent <= filters.profitMargin[1] &&
+        m.stake_saturation >= filters.stakeSaturation[0] &&
+        m.stake_saturation <= filters.stakeSaturation[1] &&
+        +m.pledge_amount.amount + +m.total_delegation.amount >= filters.stake[0] &&
+        +m.pledge_amount.amount + +m.total_delegation.amount <= filters.stake[1],
+    );
+    setMixnodes({ data: filtered, isLoading: false });
   };
+
   const fetchGateways = async () => {
     try {
       const data = await Api.fetchGateways();
@@ -144,6 +160,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
     }));
     updateNav(updated);
   };
+
   React.useEffect(() => {
     Promise.all([fetchOverviewSummary(), fetchGateways(), fetchValidators(), fetchBlock(), fetchCountryData()]);
   }, []);

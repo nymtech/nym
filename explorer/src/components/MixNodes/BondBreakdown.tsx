@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Box, CircularProgress, useMediaQuery, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -11,6 +11,7 @@ import Paper from '@mui/material/Paper';
 import { ExpandMore } from '@mui/icons-material';
 import { currencyToString } from '../../utils/currency';
 import { useMixnodeContext } from '../../context/mixnode';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export const BondBreakdownTable: React.FC = () => {
   const { mixNode, delegations, uniqDelegations } = useMixnodeContext();
@@ -23,7 +24,7 @@ export const BondBreakdownTable: React.FC = () => {
     hasLoaded: false,
   });
   const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useIsMobile();
 
   React.useEffect(() => {
     if (mixNode?.data) {
@@ -83,7 +84,7 @@ export const BondBreakdownTable: React.FC = () => {
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label="bond breakdown totals">
         <TableBody>
-          <TableRow sx={matches ? { minWidth: '70vw' } : null}>
+          <TableRow sx={isMobile ? { minWidth: '70vw' } : null}>
             <TableCell
               sx={{
                 fontWeight: 400,
@@ -187,7 +188,7 @@ export const BondBreakdownTable: React.FC = () => {
             <TableBody>
               {uniqDelegations?.data?.map(({ owner, amount: { amount, denom } }) => (
                 <TableRow key={owner}>
-                  <TableCell sx={matches ? { width: 190 } : null} align="left">
+                  <TableCell sx={isMobile ? { width: 190 } : null} align="left">
                     {owner}
                   </TableCell>
                   <TableCell align="left">{currencyToString(amount.toString(), denom)}</TableCell>

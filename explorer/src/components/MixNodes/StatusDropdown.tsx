@@ -1,11 +1,11 @@
-import { MenuItem, useMediaQuery } from '@mui/material';
 import * as React from 'react';
+import { MenuItem } from '@mui/material';
 import Select from '@mui/material/Select';
 import { SelectInputProps } from '@mui/material/Select/SelectInput';
-import { useTheme } from '@mui/material/styles';
 import { SxProps } from '@mui/system';
 import { MixNodeStatus } from './Status';
 import { MixnodeStatus, MixnodeStatusWithAll } from '../../typeDefs/explorer-api';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // TODO: replace with i18n
 const ALL_NODES = 'All nodes';
@@ -17,8 +17,7 @@ interface MixNodeStatusDropdownProps {
 }
 
 export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({ status, onSelectionChanged, sx }) => {
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useIsMobile();
   const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(status || MixnodeStatusWithAll.all);
   const onChange: SelectInputProps<MixnodeStatusWithAll>['onChange'] = React.useCallback(
     ({ target: { value } }) => {
@@ -47,7 +46,7 @@ export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({ st
         }
       }}
       sx={{
-        width: matches ? 'auto' : 200,
+        width: isMobile ? 'auto' : 200,
         ...sx,
       }}
     >

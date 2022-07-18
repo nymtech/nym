@@ -1,10 +1,10 @@
-import { Box, Button, Grid, Typography, useMediaQuery } from '@mui/material';
 import * as React from 'react';
+import { Box, Button, Grid, Typography, useTheme } from '@mui/material';
 import Identicon from 'react-identicons';
-import { useTheme } from '@mui/material/styles';
 import { MixnodeRowType } from '.';
 import { getMixNodeStatusText, MixNodeStatus } from './Status';
 import { MixNodeDescriptionResponse } from '../../typeDefs/explorer-api';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface MixNodeDetailProps {
   mixNodeRow: MixnodeRowType;
@@ -14,7 +14,7 @@ interface MixNodeDetailProps {
 export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
   const theme = useTheme();
   const palette = [theme.palette.text.primary];
-  const matches = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useIsMobile();
   const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
   return (
     <Grid container>
@@ -64,7 +64,7 @@ export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({ mixNodeRow,
           </Box>
         </Box>
       </Grid>
-      <Grid item xs={12} sm={6} display="flex" justifyContent="end" mt={matches ? 5 : undefined}>
+      <Grid item xs={12} sm={6} display="flex" justifyContent="end" mt={isMobile ? 5 : undefined}>
         <Box display="flex" flexDirection="column">
           <Typography fontWeight="600" alignSelf="self-end">
             Node status:

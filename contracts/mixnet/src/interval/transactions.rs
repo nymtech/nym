@@ -20,7 +20,7 @@ use std::time::Duration;
 // manage to sneak in a transaction between those two operations
 // (but then the amount of work is going to be minimal)
 // TODO: incorporate limit
-fn perform_pending_epoch_actions(
+pub(crate) fn perform_pending_epoch_actions(
     mut deps: DepsMut<'_>,
     env: &Env,
 ) -> Result<Response, MixnetContractError> {
@@ -51,7 +51,7 @@ fn perform_pending_epoch_actions(
 }
 
 // TODO: incorporate limit
-fn perform_pending_interval_actions(
+pub(crate) fn perform_pending_interval_actions(
     mut deps: DepsMut<'_>,
     env: &Env,
 ) -> Result<Response, MixnetContractError> {

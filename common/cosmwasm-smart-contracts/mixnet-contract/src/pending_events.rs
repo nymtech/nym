@@ -7,7 +7,7 @@ use crate::NodeId;
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PendingEpochEvent {
     // can't just pass the `Delegation` struct here as it's impossible to determine
     // `cumulative_reward_ratio` ahead of time
@@ -30,7 +30,7 @@ pub enum PendingEpochEvent {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PendingIntervalEvent {
     ChangeMixCostParams {
         mix: NodeId,

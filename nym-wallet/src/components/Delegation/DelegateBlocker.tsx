@@ -1,6 +1,6 @@
 import React from 'react';
-import { SimpleModal } from '../Modals/SimpleModal';
 import { SxProps } from '@mui/material';
+import { SimpleModal } from '../Modals/SimpleModal';
 
 export const OverSaturatedBlockerModal: React.FC<{
   open: boolean;

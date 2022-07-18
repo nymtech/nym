@@ -1,10 +1,10 @@
-use crate::currency::MajorCurrencyAmount;
+use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use serde::{Deserialize, Serialize};
-use vesting_contract::vesting::Account as VestingAccount;
-use vesting_contract::vesting::VestingPeriod as VestingVestingPeriod;
-use vesting_contract_common::OriginalVestingResponse as VestingOriginalVestingResponse;
-use vesting_contract_common::PledgeData as VestingPledgeData;
+use vesting_contract::vesting::Account as ContractVestingAccount;
+use vesting_contract::vesting::VestingPeriod as ContractVestingPeriod;
+use vesting_contract_common::OriginalVestingResponse as ContractOriginalVestingResponse;
+use vesting_contract_common::PledgeData as ContractPledgeData;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -13,25 +13,19 @@ use vesting_contract_common::PledgeData as VestingPledgeData;
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PledgeData {
-    pub amount: MajorCurrencyAmount,
+    pub amount: DecCoin,
     pub block_time: u64,
 }
 
-impl TryFrom<VestingPledgeData> for PledgeData {
-    type Error = TypesError;
-
-    fn try_from(data: VestingPledgeData) -> Result<Self, Self::Error> {
-        let amount: MajorCurrencyAmount = data.amount().into();
-        Ok(Self {
-            amount,
-            block_time: data.block_time().seconds(),
-        })
-    }
-}
-
 impl PledgeData {
-    pub fn and_then(data: VestingPledgeData) -> Option<Self> {
-        data.try_into().ok()
+    pub fn from_vesting_contract(
+        pledge: ContractPledgeData,
+        reg: &RegisteredCoins,
+    ) -> Result<Self, TypesError> {
+        Ok(PledgeData {
+            amount: reg.attempt_convert_to_display_dec_coin(pledge.amount.into())?,
+            block_time: pledge.block_time.seconds(),
+        })
     }
 }
 
@@ -42,20 +36,20 @@ impl PledgeData {
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OriginalVestingResponse {
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     number_of_periods: usize,
     period_duration: u64,
 }
 
-impl TryFrom<VestingOriginalVestingResponse> for OriginalVestingResponse {
-    type Error = TypesError;
-
-    fn try_from(data: VestingOriginalVestingResponse) -> Result<Self, Self::Error> {
-        let amount = data.amount().into();
-        Ok(Self {
-            amount,
-            number_of_periods: data.number_of_periods(),
-            period_duration: data.period_duration(),
+impl OriginalVestingResponse {
+    pub fn from_vesting_contract(
+        res: ContractOriginalVestingResponse,
+        reg: &RegisteredCoins,
+    ) -> Result<Self, TypesError> {
+        Ok(OriginalVestingResponse {
+            amount: reg.attempt_convert_to_display_dec_coin(res.amount.into())?,
+            number_of_periods: res.number_of_periods,
+            period_duration: res.period_duration,
         })
     }
 }
@@ -71,24 +65,20 @@ pub struct VestingAccountInfo {
     staking_address: Option<String>,
     start_time: u64,
     periods: Vec<VestingPeriod>,
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
 }
 
-impl TryFrom<VestingAccount> for VestingAccountInfo {
-    type Error = TypesError;
-
-    fn try_from(account: VestingAccount) -> Result<Self, Self::Error> {
-        let mut periods = Vec::new();
-        for period in account.periods() {
-            periods.push(period.into());
-        }
-        let amount: MajorCurrencyAmount = account.coin().into();
-        Ok(Self {
+impl VestingAccountInfo {
+    pub fn from_vesting_contract(
+        account: ContractVestingAccount,
+        reg: &RegisteredCoins,
+    ) -> Result<Self, TypesError> {
+        Ok(VestingAccountInfo {
             owner_address: account.owner_address().to_string(),
             staking_address: account.staking_address().map(|a| a.to_string()),
             start_time: account.start_time().seconds(),
-            periods,
-            amount,
+            periods: account.periods().into_iter().map(Into::into).collect(),
+            amount: reg.attempt_convert_to_display_dec_coin(account.coin.into())?,
         })
     }
 }
@@ -104,8 +94,8 @@ pub struct VestingPeriod {
     period_seconds: u64,
 }
 
-impl From<VestingVestingPeriod> for VestingPeriod {
-    fn from(period: VestingVestingPeriod) -> Self {
+impl From<ContractVestingPeriod> for VestingPeriod {
+    fn from(period: ContractVestingPeriod) -> Self {
         Self {
             start_time: period.start_time,
             period_seconds: period.period_seconds,

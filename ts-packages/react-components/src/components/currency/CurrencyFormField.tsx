@@ -2,7 +2,7 @@ import * as React from 'react';
 import { ChangeEvent } from 'react';
 import { InputAdornment, TextField } from '@mui/material';
 import { SxProps } from '@mui/system';
-import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { CoinMark } from '../coins/CoinMark';
 
 const MAX_VALUE = 1_000_000_000_000_000;
@@ -18,8 +18,8 @@ export const CurrencyFormField: React.FC<{
   validationError?: string;
   placeholder?: string;
   label?: string;
-  denom?: CurrencyDenom;
-  onChanged?: (newValue: MajorCurrencyAmount) => void;
+  denom?: string;
+  onChanged?: (newValue: DecCoin) => void;
   onValidate?: (newValue: string | undefined, isValid: boolean, error?: string) => void;
   sx?: SxProps;
 }> = ({
@@ -111,9 +111,9 @@ export const CurrencyFormField: React.FC<{
     doValidation(newValue);
 
     if (onChanged) {
-      const newMajorCurrencyAmount: MajorCurrencyAmount = {
+      const newMajorCurrencyAmount: DecCoin = {
         amount: newValue,
-        denom,
+        denom: denom as CurrencyDenom,
       };
       onChanged(newMajorCurrencyAmount);
     }
@@ -132,8 +132,8 @@ export const CurrencyFormField: React.FC<{
         required,
         endAdornment: showCoinMark && (
           <InputAdornment position="end">
-            {denom === 'NYM' && <CoinMark height="20px" />}
-            {denom !== 'NYM' && <span>NYMT</span>}
+            {denom === 'unym' && <CoinMark height="20px" />}
+            {denom !== 'unym' && <span>NYMT</span>}
           </InputAdornment>
         ),
         ...{

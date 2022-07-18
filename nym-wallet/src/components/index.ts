@@ -3,7 +3,6 @@ export * from './ClientAddress';
 export * from './ConfirmPassword';
 export * from './CopyToClipboard';
 export * from './ErrorFallback';
-export * from './Fee';
 export * from './InfoToolTip';
 export * from './LoadingPage';
 export * from './Mnemonic';

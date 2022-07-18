@@ -25,11 +25,11 @@ fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError>
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
-    owner_address: Addr,
-    staking_address: Option<Addr>,
-    start_time: Timestamp,
-    periods: Vec<VestingPeriod>,
-    coin: Coin,
+    pub owner_address: Addr,
+    pub staking_address: Option<Addr>,
+    pub start_time: Timestamp,
+    pub periods: Vec<VestingPeriod>,
+    pub coin: Coin,
     storage_key: u32,
 }
 

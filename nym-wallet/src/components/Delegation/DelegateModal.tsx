@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { SxProps } from '@mui/system';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode } from 'src/requests';
@@ -20,7 +20,7 @@ const MIN_AMOUNT_TO_DELEGATE = 10;
 export const DelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, amount: MajorCurrencyAmount, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
+  onOk?: (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -31,7 +31,7 @@ export const DelegateModal: React.FC<{
   estimatedReward?: number;
   profitMarginPercentage?: number | null;
   nodeUptimePercentage?: number | null;
-  currency: CurrencyDenom;
+  currency: string;
   initialAmount?: string;
   hasVestingContract: boolean;
   sx?: SxProps;
@@ -118,11 +118,11 @@ export const DelegateModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom: currency }, tokenPool, fee);
+      onOk(identityKey, { amount, denom: currency as CurrencyDenom }, tokenPool, fee);
     }
   };
 
-  const handleConfirm = async ({ identity, value }: { identity: string; value: MajorCurrencyAmount }) => {
+  const handleConfirm = async ({ identity, value }: { identity: string; value: DecCoin }) => {
     const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
 
     if (!hasEnoughTokens) {
@@ -147,7 +147,7 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleAmountChanged = (newAmount: MajorCurrencyAmount) => {
+  const handleAmountChanged = (newAmount: DecCoin) => {
     setAmount(newAmount.amount);
 
     if (onAmountChanged) {
@@ -181,7 +181,7 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (identityKey && amount) {
-          handleConfirm({ identity: identityKey, value: { amount, denom: currency } });
+          handleConfirm({ identity: identityKey, value: { amount, denom: currency as CurrencyDenom } });
         }
       }}
       header={header || 'Delegate'}

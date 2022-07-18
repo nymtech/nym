@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Stack, TextField, Typography } from '@mui/material';
 import { SxProps } from '@mui/system';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { DecCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
@@ -22,19 +22,19 @@ export const SendInputModal = ({
 }: {
   fromAddress?: string;
   toAddress: string;
-  amount?: MajorCurrencyAmount;
+  amount?: DecCoin;
   balance?: string;
   error?: string;
   onNext: () => void;
   onClose: () => void;
-  onAmountChange: (value: MajorCurrencyAmount) => void;
+  onAmountChange: (value: DecCoin) => void;
   onAddressChange: (value: string) => void;
   sx?: SxProps;
   backdropProps?: object;
 }) => {
   const [isValid, setIsValid] = useState(false);
 
-  const validate = async (value: MajorCurrencyAmount) => {
+  const validate = async (value: DecCoin) => {
     const isValidAmount = await validateAmount(value.amount, '0');
     setIsValid(isValidAmount);
   };

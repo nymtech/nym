@@ -1,4 +1,5 @@
-use crate::currency::{CurrencyDenom, MajorCurrencyAmount};
+use crate::currency::{CurrencyDenom, DecCoin};
+use config::defaults::DenomDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -9,17 +10,20 @@ use serde::{Deserialize, Serialize};
 )]
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Account {
-    pub contract_address: String,
     pub client_address: String,
-    pub denom: CurrencyDenom,
+    pub base_mix_denom: String,
+
+    // this should get refactored to just use a String, but for now it's fine as it reduces headache
+    // for others
+    pub display_mix_denom: CurrencyDenom,
 }
 
 impl Account {
-    pub fn new(contract_address: String, client_address: String, denom: CurrencyDenom) -> Self {
+    pub fn new(client_address: String, mix_denom: DenomDetails) -> Self {
         Account {
-            contract_address,
             client_address,
-            denom,
+            base_mix_denom: mix_denom.base.to_owned(),
+            display_mix_denom: mix_denom.display.parse().unwrap_or_default(),
         }
     }
 }
@@ -53,6 +57,15 @@ pub struct AccountEntry {
 )]
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
-    pub amount: MajorCurrencyAmount,
+    pub amount: DecCoin,
     pub printable_balance: String,
+}
+
+impl Balance {
+    pub fn new(amount: DecCoin) -> Self {
+        Balance {
+            printable_balance: amount.to_string(),
+            amount,
+        }
+    }
 }

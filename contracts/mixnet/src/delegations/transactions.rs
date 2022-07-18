@@ -1190,7 +1190,7 @@ mod tests {
 
         //    _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
 
-        //    let delegation = query_mixnode_delegation(
+        //    let _delegation = query_mixnode_delegation(
         //        &deps.storage,
         //        &deps.api,
         //        identity.clone(),

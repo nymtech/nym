@@ -315,7 +315,7 @@ pub async fn verify_bandwidth_credential(
         .vote_proposal(
             proposal_id,
             vote_yes,
-            Some(Fee::PayerGranterAuto(
+            Some(Fee::new_payer_granter_auto(
                 None,
                 None,
                 Some(verify_credential_body.gateway_cosmos_addr().to_owned()),

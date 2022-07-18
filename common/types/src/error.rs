@@ -4,6 +4,7 @@ use thiserror::Error;
 use validator_client::validator_api::error::ValidatorAPIError;
 use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
+// TODO: ask @MS why this even exists
 #[derive(Error, Debug)]
 pub enum TypesError {
     #[error("{source}")]
@@ -63,6 +64,12 @@ pub enum TypesError {
     InvalidGatewayBond(),
     #[error("Invalid delegations")]
     DelegationsInvalid,
+    #[error("Attempted to use too huge currency exponent ({0})")]
+    UnsupportedExponent(u32),
+    #[error("Attempted to convert coin that would have resulted in loss of precision")]
+    LossyCoinConversion,
+    #[error("The provided coin has an unknown denomination - {0}")]
+    UnknownCoinDenom(String),
 }
 
 impl Serialize for TypesError {

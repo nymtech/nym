@@ -1,14 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmrs::Denom;
+use config::defaults::all::Network as ConfigNetwork;
+use config::defaults::{mainnet, qa, sandbox, DenomDetails};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::str::FromStr;
 use strum::EnumIter;
-
-use config::defaults::all::Network as ConfigNetwork;
-use config::defaults::{mainnet, qa, sandbox};
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -28,13 +25,19 @@ impl Network {
         self.to_string().to_lowercase()
     }
 
-    // this should be returning just a `&str`, but don't want to cause too many conflicts just yet...
-    pub fn base_mix_denom(&self) -> Denom {
+    pub fn mix_denom(&self) -> DenomDetails {
         match self {
-            // network defaults should be correctly formatted
-            Network::QA => Denom::from_str(qa::MIX_DENOM.base).unwrap(),
-            Network::SANDBOX => Denom::from_str(sandbox::MIX_DENOM.base).unwrap(),
-            Network::MAINNET => Denom::from_str(mainnet::MIX_DENOM.base).unwrap(),
+            Network::QA => qa::MIX_DENOM,
+            Network::SANDBOX => sandbox::MIX_DENOM,
+            Network::MAINNET => mainnet::MIX_DENOM,
+        }
+    }
+
+    pub fn base_mix_denom(&self) -> &str {
+        match self {
+            Network::QA => qa::MIX_DENOM.base,
+            Network::SANDBOX => sandbox::MIX_DENOM.base,
+            Network::MAINNET => mainnet::MIX_DENOM.base,
         }
     }
 

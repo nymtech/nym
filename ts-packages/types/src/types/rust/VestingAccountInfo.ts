@@ -1,4 +1,4 @@
-import type { MajorCurrencyAmount } from './Currency';
+import type { DecCoin } from './DecCoin';
 import type { VestingPeriod } from './VestingPeriod';
 
 export interface VestingAccountInfo {
@@ -6,5 +6,5 @@ export interface VestingAccountInfo {
   staking_address: string | null;
   start_time: bigint;
   periods: Array<VestingPeriod>;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
 }

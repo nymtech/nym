@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, CircularProgress } from '@mui/material';
-import { FeeDetails } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { AppContext, urls } from 'src/context';
@@ -16,17 +16,20 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   const [fee, setFee] = useState<FeeDetails>();
   const [tx, setTx] = useState<TTransactionDetails>();
 
-  const { userBalance, clientDetails, network } = useContext(AppContext);
+  const { userBalance, denom, network } = useContext(AppContext);
 
   const getFee = async () => {
-    if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
+    if (userBalance.tokenAllocation?.spendable && denom) {
       try {
         const simulatedFee = await simulateWithdrawVestedCoins({
-          amount: { amount: userBalance.tokenAllocation?.spendable, denom: clientDetails?.denom },
+          amount: { amount: userBalance.tokenAllocation?.spendable, denom },
         });
         setFee(simulatedFee);
       } catch (e) {
-        setFee({ amount: { amount: 'n/a', denom: clientDetails.denom }, fee: { Auto: null } });
+        setFee({
+          amount: { amount: 'n/a', denom: denom as CurrencyDenom },
+          fee: { Auto: null },
+        });
         Console.error(e);
       }
     }
@@ -37,16 +40,16 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   }, []);
 
   const handleTransfer = async () => {
-    if (userBalance.tokenAllocation?.spendable && clientDetails?.denom) {
+    if (userBalance.tokenAllocation?.spendable && denom) {
       setState('loading');
       try {
         const txResponse = await withdrawVestedCoins({
           amount: userBalance.tokenAllocation?.spendable,
-          denom: clientDetails.denom,
+          denom: denom as CurrencyDenom,
         });
         setState('success');
         setTx({
-          amount: `${userBalance.tokenAllocation?.spendable} ${clientDetails?.denom}`,
+          amount: `${userBalance.tokenAllocation?.spendable} ${denom}`,
           url: `${urls(network).blockExplorer}/transaction/${txResponse.transaction_hash}`,
         });
         await userBalance.refreshBalances();
@@ -81,7 +84,7 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
           <>
             <ModalListItem
               label="Unlocked transferrable tokens"
-              value={`${userBalance.tokenAllocation?.spendable} ${clientDetails?.denom}`}
+              value={`${userBalance.tokenAllocation?.spendable} ${denom}`}
               divider
             />
             <ModalListItem

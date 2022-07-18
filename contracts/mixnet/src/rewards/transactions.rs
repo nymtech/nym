@@ -1225,7 +1225,6 @@ pub mod tests {
         )
         .unwrap();
 
-        let _info = mock_info(rewarding_validator_address.as_ref(), &[]);
         env.block.height += 2 * constants::MINIMUM_BLOCK_AGE_FOR_REWARDING;
 
         let mix_1 = mixnodes_storage::read_full_mixnode_bond(&deps.storage, &node_identity_1)

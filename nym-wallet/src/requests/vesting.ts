@@ -2,7 +2,7 @@ import {
   TNodeType,
   FeeDetails,
   Gateway,
-  MajorCurrencyAmount,
+  DecCoin,
   MixNode,
   OriginalVestingResponse,
   Period,
@@ -13,17 +13,15 @@ import {
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { invokeWrapper } from './wrapper';
 
-export const getLockedCoins = async (): Promise<MajorCurrencyAmount> =>
-  invokeWrapper<MajorCurrencyAmount>('locked_coins');
+export const getLockedCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('locked_coins');
 
-export const getSpendableCoins = async (): Promise<MajorCurrencyAmount> =>
-  invokeWrapper<MajorCurrencyAmount>('spendable_coins');
+export const getSpendableCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_coins');
 
-export const getVestingCoins = async (vestingAccountAddress: string): Promise<MajorCurrencyAmount> =>
-  invokeWrapper<MajorCurrencyAmount>('vesting_coins', { vestingAccountAddress });
+export const getVestingCoins = async (vestingAccountAddress: string): Promise<DecCoin> =>
+  invokeWrapper<DecCoin>('vesting_coins', { vestingAccountAddress });
 
-export const getVestedCoins = async (vestingAccountAddress: string): Promise<MajorCurrencyAmount> =>
-  invokeWrapper<MajorCurrencyAmount>('vested_coins', { vestingAccountAddress });
+export const getVestedCoins = async (vestingAccountAddress: string): Promise<DecCoin> =>
+  invokeWrapper<DecCoin>('vested_coins', { vestingAccountAddress });
 
 export const getOriginalVesting = async (vestingAccountAddress: string): Promise<OriginalVestingResponse> => {
   const res = await invokeWrapper<OriginalVestingResponse>('original_vesting', { vestingAccountAddress });
@@ -39,7 +37,7 @@ export const vestingBondGateway = async ({
   ownerSignature,
 }: {
   gateway: Gateway;
-  pledge: MajorCurrencyAmount;
+  pledge: DecCoin;
   ownerSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_gateway', { gateway, ownerSignature, pledge });
 
@@ -52,14 +50,14 @@ export const vestingBondMixNode = async ({
   ownerSignature,
 }: {
   mixnode: MixNode;
-  pledge: MajorCurrencyAmount;
+  pledge: DecCoin;
   ownerSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, ownerSignature, pledge });
 
 export const vestingUnbondMixnode = async (fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode', { fee });
 
-export const withdrawVestedCoins = async (amount: MajorCurrencyAmount) =>
+export const withdrawVestedCoins = async (amount: DecCoin) =>
   invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount });
 
 export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
@@ -71,7 +69,7 @@ export const vestingDelegateToMixnode = async ({
   fee,
 }: {
   identity: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   fee?: FeeDetails;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { identity, amount, fee: fee?.fee });
 
@@ -96,7 +94,7 @@ export const getVestingPledgeInfo = async ({
 };
 
 export const vestingDelegatedFree = async (vestingAccountAddress: string) =>
-  invokeWrapper<MajorCurrencyAmount>('delegated_free', { vestingAccountAddress });
+  invokeWrapper<DecCoin>('delegated_free', { vestingAccountAddress });
 
 export const vestingUnbond = async (type: TNodeType) => {
   if (type === 'mixnode') return vestingUnbondMixnode();

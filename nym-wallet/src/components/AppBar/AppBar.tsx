@@ -3,7 +3,7 @@ import { Logout } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import ModeNightOutlinedIcon from '@mui/icons-material/ModeNightOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
-import { AppBar as MuiAppBar, Grid, IconButton, Toolbar, FormGroup, FormControlLabel, Switch } from '@mui/material';
+import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { Node } from 'src/svg-icons/node';
 import { config } from '../../config';
 import { AppContext } from '../../context/main';

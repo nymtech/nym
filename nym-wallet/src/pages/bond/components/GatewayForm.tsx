@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, MajorCurrencyAmount } from '@nymproject/types';
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { useForm } from 'react-hook-form';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { useGetFee } from 'src/hooks/useGetFee';
@@ -19,7 +19,7 @@ type TBondFormFields = {
   ownerSignature: string;
   identityKey: string;
   sphinxKey: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   host: string;
   version: string;
   location: string;
@@ -33,7 +33,7 @@ const defaultValues = {
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
-  amount: { amount: '', denom: 'NYM' as CurrencyDenom },
+  amount: { amount: '', denom: 'nym' as CurrencyDenom },
   host: '',
   version: '',
   location: '',
@@ -63,7 +63,7 @@ export const GatewayForm = ({
     resolver: yupResolver(gatewayValidationSchema),
     defaultValues,
   });
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, clientDetails, denom } = useContext(AppContext);
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
@@ -209,7 +209,7 @@ export const GatewayForm = ({
               fullWidth
               label="Amount"
               onChanged={(val) => setValue('amount', val, { shouldValidate: true })}
-              denom={clientDetails?.denom}
+              denom={denom}
               validationError={errors.amount?.amount?.message}
             />
           </Grid>

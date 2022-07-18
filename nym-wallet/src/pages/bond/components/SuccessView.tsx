@@ -5,7 +5,7 @@ import { AppContext } from '../../../context/main';
 import { useCheckOwnership } from '../../../hooks/useCheckOwnership';
 
 export const SuccessView: React.FC<{ details?: { amount: string; address: string } }> = ({ details }) => {
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, denom } = useContext(AppContext);
   const { ownership } = useCheckOwnership();
 
   return (
@@ -15,8 +15,8 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
         subtitle="Successfully bonded to node with following details"
         caption={
           ownership.vestingPledge
-            ? `Your current locked balance is: ${userBalance.tokenAllocation?.locked}${clientDetails?.denom}`
-            : `Your current balance is: ${userBalance.balance?.printable_balance}`
+            ? `Your current locked balance is: ${userBalance.tokenAllocation?.locked}${denom}`
+            : `Your current balance is: ${userBalance.balance?.printable_balance.toUpperCase()}`
         }
       />
       {details && (
@@ -24,7 +24,10 @@ export const SuccessView: React.FC<{ details?: { amount: string; address: string
           <TransactionDetails
             details={[
               { primary: 'Node', secondary: details.address },
-              { primary: 'Amount', secondary: `${details.amount} ${clientDetails?.denom}` },
+              {
+                primary: 'Amount',
+                secondary: `${details.amount} ${denom}`,
+              },
             ]}
           />
         </Box>

@@ -14,7 +14,11 @@ export const ModalListItem: React.FC<{
       <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined} sx={{ color: 'text.primary' }}>
         {label}:
       </Typography>
-      <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined} sx={{ color: 'text.primary' }}>
+      <Typography
+        fontSize="smaller"
+        fontWeight={strong ? 600 : undefined}
+        sx={{ color: 'text.primary', textTransform: 'uppercase' }}
+      >
         {value}
       </Typography>
     </Stack>

@@ -1,7 +1,6 @@
-import type { MajorCurrencyAmount } from './Currency';
+import type { Gas } from './Gas';
 
 export interface GasInfo {
-  gas_wanted: bigint;
-  gas_used: bigint;
-  fee: MajorCurrencyAmount;
+  gas_wanted: Gas;
+  gas_used: Gas;
 }

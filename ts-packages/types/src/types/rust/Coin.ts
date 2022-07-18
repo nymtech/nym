@@ -1,2 +1,4 @@
-
-export interface Coin { denom: string, amount: bigint, }
+export interface Coin {
+  denom: string;
+  amount: bigint;
+}

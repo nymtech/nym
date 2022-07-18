@@ -32,6 +32,7 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
 }
 
 pub fn export_to_env() {
+    std::env::set_var(var_names::CONFIGURED, "true");
     std::env::set_var(var_names::BECH32_PREFIX, BECH32_PREFIX);
     std::env::set_var(var_names::MIX_DENOM, MIX_DENOM.base);
     std::env::set_var(var_names::MIX_DENOM_DISPLAY, MIX_DENOM.display);

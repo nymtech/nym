@@ -452,9 +452,17 @@ pub struct MixNodeCostParams {
 
     /// Operating cost of the associated mixnode per the entire interval.
     pub interval_operating_cost: Coin,
-    // note: in the past we used to also hold here a computed per epoch operating costs,
-    // however, it's not really feasible to keep doing that as every time any interval related parameter
-    // got updated, we'd have to iterate through ALL mixnodes in order to update that
+}
+
+impl MixNodeCostParams {
+    pub fn to_inline_json(&self) -> String {
+        // as per documentation on `to_string`:
+        //      > Serialization can fail if `T`'s implementation of `Serialize` decides to
+        //      > fail, or if `T` contains a map with non-string keys.
+        // We have derived the `Serialize`, thus we're pretty confident it's valid and
+        // the struct does not contain any maps, so the unwrap here is fine.
+        serde_json::to_string(self).unwrap()
+    }
 }
 
 impl MixNodeCostParams {
@@ -503,6 +511,17 @@ pub struct MixNodeConfigUpdate {
     pub verloc_port: u16,
     pub http_api_port: u16,
     pub version: String,
+}
+
+impl MixNodeConfigUpdate {
+    pub fn to_inline_json(&self) -> String {
+        // as per documentation on `to_string`:
+        //      > Serialization can fail if `T`'s implementation of `Serialize` decides to
+        //      > fail, or if `T` contains a map with non-string keys.
+        // We have derived the `Serialize`, thus we're pretty confident it's valid and
+        // the struct does not contain any maps, so the unwrap here is fine.
+        serde_json::to_string(self).unwrap()
+    }
 }
 
 //

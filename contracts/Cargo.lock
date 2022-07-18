@@ -1048,6 +1048,7 @@ dependencies = [
  "log",
  "schemars",
  "serde",
+ "serde_json",
  "serde_repr",
  "thiserror",
  "time 0.3.6",

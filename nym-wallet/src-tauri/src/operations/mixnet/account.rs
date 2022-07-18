@@ -151,9 +151,7 @@ async fn _connect_with_mnemonic(
             client.nymd.address().to_string(),
             default_network.mix_denom(),
         )),
-        None => Err(BackendError::NetworkNotSupported(
-            config::defaults::DEFAULT_NETWORK,
-        )),
+        None => Err(BackendError::NetworkNotSupported),
     };
 
     // Register all the clients

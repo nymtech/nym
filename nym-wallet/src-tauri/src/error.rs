@@ -78,7 +78,7 @@ pub enum BackendError {
     #[error("No balance available for address {0}")]
     NoBalance(String),
     #[error("The provided network is not supported (yet)")]
-    NetworkNotSupported(config::defaults::all::Network),
+    NetworkNotSupported,
     #[error("Could not access the local data storage directory")]
     UnknownStorageDirectory,
     #[error("The wallet file already exists")]

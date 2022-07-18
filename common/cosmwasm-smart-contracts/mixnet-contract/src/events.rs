@@ -1,34 +1,61 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::{ContractStateParams, IdentityKey, IdentityKeyRef, Interval, Layer, NodeId};
+
+use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use crate::rewarding::RewardDistribution;
+use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
+pub use contracts_common::events::*;
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
-use crate::rewarding::RewardDistribution;
-pub use contracts_common::events::*;
+pub enum MixnodeEventType {
+    MixnodeBonding,
+    PendingMixnodeUnbonding,
+    MixnodeUnbonding,
+    MixnodeConfigUpdate,
+    PendingMixnodeCostParamsUpdate,
+    MixnodeCostParamsUpdate,
+}
 
-// FIXME: This should becoma an Enum
+impl From<MixnodeEventType> for String {
+    fn from(typ: MixnodeEventType) -> Self {
+        typ.to_string()
+    }
+}
+
+impl ToString for MixnodeEventType {
+    fn to_string(&self) -> String {
+        match self {
+            MixnodeEventType::MixnodeBonding => "mixnode_bonding",
+            MixnodeEventType::PendingMixnodeUnbonding => "pending_mixnode_unbonding",
+            MixnodeEventType::MixnodeConfigUpdate => "mixnode_config_update",
+            MixnodeEventType::MixnodeUnbonding => "mixnode_unbonding",
+            MixnodeEventType::PendingMixnodeCostParamsUpdate => {
+                "pending_mixnode_cost_params_update"
+            }
+            MixnodeEventType::MixnodeCostParamsUpdate => "mixnode_cost_params_update",
+        }
+        .into()
+    }
+}
+
+// FIXME: This should become an Enum
 // event types
 pub const DELEGATION_EVENT_TYPE: &str = "delegation";
 pub const PENDING_DELEGATION_EVENT_TYPE: &str = "pending_delegation";
-pub const RECONCILE_DELEGATION_EVENT_TYPE: &str = "reconcile_delegation";
 pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
 pub const PENDING_UNDELEGATION_EVENT_TYPE: &str = "pending_undelegation";
 pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
 pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
-pub const MIXNODE_BONDING_EVENT_TYPE: &str = "mixnode_bonding";
-pub const MIXNODE_UNBONDING_EVENT_TYPE: &str = "mixnode_unbonding";
 pub const REWARDING_VALIDATOR_UPDATE_EVENT_TYPE: &str = "rewarding_validator_address_update";
 pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
 pub const MIXNODE_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
-pub const ADVANCE_INTERVAL_EVENT_TYPE: &str = "advance_interval";
 pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
 pub const COMPOUND_DELEGATOR_REWARD_EVENT_TYPE: &str = "compound_delegator_reward";
 pub const CLAIM_DELEGATOR_REWARD_EVENT_TYPE: &str = "claim_delegator_reward";
 pub const COMPOUND_OPERATOR_REWARD_EVENT_TYPE: &str = "compound_operator_reward";
 pub const CLAIM_OPERATOR_REWARD_EVENT_TYPE: &str = "claim_operator_reward";
-pub const SNAPSHOT_MIXNODES_EVENT: &str = "snapshot_mixnodes";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -62,6 +89,9 @@ pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
 pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_address";
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
 
+pub const UPDATED_MIXNODE_CONFIG_KEY: &str = "updated_mixnode_config";
+pub const UPDATED_MIXNODE_COST_PARAMS_KEY: &str = "updated_mixnode_cost_params";
+
 // rewarding
 pub const INTERVAL_KEY: &str = "interval_details";
 pub const TOTAL_MIXNODE_REWARD_KEY: &str = "total_node_reward";
@@ -86,67 +116,7 @@ pub const CURRENT_INTERVAL_ID_KEY: &str = "current_interval";
 pub const NEW_CURRENT_INTERVAL_KEY: &str = "new_current_interval";
 pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 pub const BLOCK_HEIGHT_KEY: &str = "block_height";
-pub const CHECKPOINT_MIXNODES_EVENT: &str = "checkpoint_mixnodes";
 pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
-
-// TODO: use this
-pub enum MixnetEvent {
-    MixnodeBonding {
-        owner: Addr,
-        proxy: Option<Addr>,
-        pledged: Coin,
-        identity: IdentityKey,
-        node_id: NodeId,
-        assigned_layer: Layer,
-    },
-
-    MixnodeUnbonding {
-        owner: Addr,
-        proxy: Option<Addr>,
-        amount: Coin,
-        identity: IdentityKey,
-        node_id: NodeId,
-    },
-
-    UpdateStateParams {
-        old: ContractStateParams,
-        new: ContractStateParams,
-    },
-
-    UpdateRewardingValidatorAddress {
-        old: Addr,
-        new: Addr,
-    },
-
-    MixnodeRewarding {
-        //
-    },
-}
-
-impl MixnetEvent {
-    pub fn event_type(&self) -> &str {
-        match self {
-            MixnetEvent::MixnodeBonding { .. } => MIXNODE_BONDING_EVENT_TYPE,
-            MixnetEvent::MixnodeUnbonding { .. } => MIXNODE_UNBONDING_EVENT_TYPE,
-            MixnetEvent::UpdateStateParams { .. } => SETTINGS_UPDATE_EVENT_TYPE,
-            MixnetEvent::UpdateRewardingValidatorAddress { .. } => {
-                REWARDING_VALIDATOR_UPDATE_EVENT_TYPE
-            }
-            MixnetEvent::MixnodeRewarding { .. } => MIXNODE_REWARDING_EVENT_TYPE,
-        }
-    }
-}
-
-// impl From<MixnetEvent> for Event {
-//     fn from(mixnet_event: MixnetEvent) -> Self {
-//
-//     }
-// }
-
-pub fn new_checkpoint_mixnodes_event(block_height: u64) -> Event {
-    Event::new(CHECKPOINT_MIXNODES_EVENT)
-        .add_attribute(BLOCK_HEIGHT_KEY, format!("{}", block_height))
-}
 
 pub fn new_error_event(err: String) -> Event {
     Event::new(RECONCILIATION_ERROR_EVENT).add_attribute("error", err)
@@ -181,25 +151,6 @@ pub fn new_pending_delegation_event(
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
-}
-
-pub fn new_reconcile_delegation_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    amount: &Coin,
-    mix_identity: IdentityKeyRef<'_>,
-) -> Event {
-    let mut event =
-        Event::new(RECONCILE_DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event
-        .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
 }
 
 pub fn new_compound_operator_reward_event(owner: &Addr, amount: Uint128) -> Event {
@@ -326,27 +277,53 @@ pub fn new_mixnode_bonding_event(
     assigned_layer: Layer,
 ) -> Event {
     // coin implements Display trait and we use that implementation here
-    Event::new(MIXNODE_BONDING_EVENT_TYPE)
-        .add_attribute(OWNER_KEY, owner)
+    Event::new(MixnodeEventType::MixnodeBonding)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_attribute(OWNER_KEY, owner)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(ASSIGNED_LAYER_KEY, assigned_layer)
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
-pub fn new_mixnode_unbonding_event(
+pub fn new_pending_mixnode_unbonding_event(
     owner: &Addr,
     proxy: &Option<Addr>,
     identity: IdentityKeyRef<'_>,
     node_id: NodeId,
 ) -> Event {
     // coin implements Display trait and we use that implementation here
-    Event::new(MIXNODE_UNBONDING_EVENT_TYPE)
-        .add_attribute(OWNER_KEY, owner)
+    Event::new(MixnodeEventType::PendingMixnodeUnbonding)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_attribute(OWNER_KEY, owner)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
+}
+
+pub fn new_mixnode_config_update_event(
+    node_id: NodeId,
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    update: &MixNodeConfigUpdate,
+) -> Event {
+    Event::new(MixnodeEventType::MixnodeConfigUpdate)
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(OWNER_KEY, owner)
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_attribute(UPDATED_MIXNODE_CONFIG_KEY, update.to_inline_json())
+}
+
+pub fn new_mixnode_pending_cost_params_update_event(
+    node_id: NodeId,
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    new_costs: &MixNodeCostParams,
+) -> Event {
+    Event::new(MixnodeEventType::PendingMixnodeCostParamsUpdate)
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(OWNER_KEY, owner)
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 
 pub fn new_rewarding_validator_address_update_event(old: Addr, new: Addr) -> Event {
@@ -449,11 +426,6 @@ pub fn new_change_rewarded_set_event(
         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
-}
-
-pub fn new_advance_interval_event(interval: Interval) -> Event {
-    Event::new(ADVANCE_INTERVAL_EVENT_TYPE)
-        .add_attribute(NEW_CURRENT_INTERVAL_KEY, interval.to_string())
 }
 
 pub fn new_advance_epoch_event(interval: Interval) -> Event {

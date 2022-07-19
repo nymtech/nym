@@ -1,7 +1,6 @@
 use crate::errors::ContractError;
-use crate::storage::{delete_account, save_account, DELEGATIONS};
+use crate::storage::{delete_account, save_account, DELEGATIONS, MIX_DENOM};
 use crate::traits::VestingAccount;
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{Addr, Coin, Env, Order, Storage, Timestamp, Uint128};
 use vesting_contract_common::{OriginalVestingResponse, Period};
 
@@ -33,7 +32,7 @@ impl VestingAccount for Account {
         // Returns 0 in case of underflow. Which is fine, as the amount of pledged and delegated tokens can be larger then vesting_coins due to rewards and vesting periods expiring
         Ok(Coin {
             amount: Uint128::new(
-                self.get_vesting_coins(block_time, env)?
+                self.get_vesting_coins(block_time, env, storage)?
                     .amount
                     .u128()
                     .saturating_sub(
@@ -47,7 +46,7 @@ impl VestingAccount for Account {
                             .u128(),
                     ),
             ),
-            denom: MIX_DENOM.base.to_string(),
+            denom: MIX_DENOM.load(storage)?,
         })
     }
 
@@ -63,7 +62,7 @@ impl VestingAccount for Account {
                     .u128()
                     .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128()),
             ),
-            denom: MIX_DENOM.base.to_string(),
+            denom: MIX_DENOM.load(storage)?,
         })
     }
 
@@ -71,22 +70,24 @@ impl VestingAccount for Account {
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
+        storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
+        let denom = MIX_DENOM.load(storage)?;
 
         let amount = match period {
             Period::Before => Coin {
                 amount: Uint128::new(0),
-                denom: MIX_DENOM.base.to_string(),
+                denom,
             },
             Period::In(idx) => Coin {
                 amount: Uint128::new(self.tokens_per_period()? * idx as u128),
-                denom: MIX_DENOM.base.to_string(),
+                denom,
             },
             Period::After => Coin {
                 amount: self.coin.amount,
-                denom: MIX_DENOM.base.to_string(),
+                denom,
             },
         };
         Ok(amount)
@@ -96,11 +97,12 @@ impl VestingAccount for Account {
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
+        storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
             amount: self.get_original_vesting().amount().amount
-                - self.get_vested_coins(block_time, env)?.amount,
-            denom: MIX_DENOM.base.to_string(),
+                - self.get_vested_coins(block_time, env, storage)?.amount,
+            denom: MIX_DENOM.load(storage)?,
         })
     }
 
@@ -130,7 +132,7 @@ impl VestingAccount for Account {
         let period = self.get_current_vesting_period(block_time);
         let withdrawn = self.load_withdrawn(storage)?;
         let max_available = self
-            .get_vested_coins(Some(block_time), env)?
+            .get_vested_coins(Some(block_time), env, storage)?
             .amount
             .saturating_sub(withdrawn);
         let start_time = match period {
@@ -152,7 +154,7 @@ impl VestingAccount for Account {
 
         Ok(Coin {
             amount,
-            denom: MIX_DENOM.base.to_string(),
+            denom: MIX_DENOM.load(storage)?,
         })
     }
 
@@ -170,7 +172,7 @@ impl VestingAccount for Account {
 
         Ok(Coin {
             amount,
-            denom: MIX_DENOM.base.to_string(),
+            denom: MIX_DENOM.load(storage)?,
         })
     }
 
@@ -182,7 +184,7 @@ impl VestingAccount for Account {
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time);
-        let max_vested = self.get_vested_coins(Some(block_time), env)?;
+        let max_vested = self.get_vested_coins(Some(block_time), env, storage)?;
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
@@ -206,7 +208,7 @@ impl VestingAccount for Account {
 
         Ok(Coin {
             amount,
-            denom: MIX_DENOM.base.to_string(),
+            denom: MIX_DENOM.load(storage)?,
         })
     }
 
@@ -226,12 +228,12 @@ impl VestingAccount for Account {
             let amount = bond.amount().amount - bonded_free.amount;
             Ok(Coin {
                 amount,
-                denom: MIX_DENOM.base.to_string(),
+                denom: MIX_DENOM.load(storage)?,
             })
         } else {
             Ok(Coin {
                 amount: Uint128::zero(),
-                denom: MIX_DENOM.base.to_string(),
+                denom: MIX_DENOM.load(storage)?,
             })
         }
     }

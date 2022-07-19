@@ -72,7 +72,7 @@ fn main() -> Result<(), CompactEcashError> {
     )?;
 
     assert!(payment
-        .spend_verify(&params, &verification_key, &pay_info, spend_vv)
+        .spend_verify(&params, &verification_key, &pay_info)
         .unwrap());
 
 

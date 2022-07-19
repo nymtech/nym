@@ -156,7 +156,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
                     keypair.secret_key(),
                     user_keypair.public_key(),
                     &req,
-                )
+                ).unwrap()
             })
         },
     );
@@ -219,28 +219,27 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // SPENDING PHASE
     let pay_info = PayInfo { info: [6u8; 32] };
-    let spend_vv =
-        // CLIENT BENCHMARK: spend a single coin from the wallet
-        group.bench_function(
-            &format!(
-                "[Client] spend_a_single_coin_L_{}_threshold_{}",
-                case.L, case.threshold_p,
-            ),
-            |b| {
-                b.iter(|| {
-                    aggr_wallet
-                        .spend(
-                            &params,
-                            &verification_key,
-                            &user_keypair.secret_key(),
-                            &pay_info,
-                            true,
-                            case.spend_vv,
-                        )
-                        .unwrap()
-                })
-            },
-        );
+    // CLIENT BENCHMARK: spend a single coin from the wallet
+    group.bench_function(
+        &format!(
+            "[Client] spend_a_single_coin_L_{}_threshold_{}",
+            case.L, case.threshold_p,
+        ),
+        |b| {
+            b.iter(|| {
+                aggr_wallet
+                    .spend(
+                        &params,
+                        &verification_key,
+                        &user_keypair.secret_key(),
+                        &pay_info,
+                        true,
+                        case.spend_vv,
+                    )
+                    .unwrap()
+            })
+        },
+    );
 
     let (payment, upd_wallet) = aggr_wallet
         .spend(
@@ -262,7 +261,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 payment
-                    .spend_verify(&params, &verification_key, &pay_info, case.spend_vv)
+                    .spend_verify(&params, &verification_key, &pay_info)
                     .unwrap()
             })
         },

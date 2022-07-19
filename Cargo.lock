@@ -7719,18 +7719,28 @@ dependencies = [
 name = "nym_compact_ecash"
 version = "0.1.0"
 dependencies = [
+<<<<<<< HEAD
  "bls12_381 0.5.0",
 <<<<<<< HEAD
  "bs58 0.4.0",
  "criterion 0.3.6",
 =======
+=======
+ "bls12_381 0.6.0",
+>>>>>>> 0b58e0ae2 (Small updates and code cleaning)
  "bs58",
  "criterion",
 >>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
  "digest 0.9.0",
+<<<<<<< HEAD
  "ff 0.10.1",
  "group 0.10.0",
  "itertools 0.10.5",
+=======
+ "ff 0.11.0",
+ "group 0.11.0",
+ "itertools",
+>>>>>>> 0b58e0ae2 (Small updates and code cleaning)
  "rand 0.8.5",
  "sha2 0.9.9",
  "thiserror",

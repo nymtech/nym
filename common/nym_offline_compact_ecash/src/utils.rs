@@ -6,10 +6,10 @@ use core::ops::Mul;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Neg;
 
-use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::{
-    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
+    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, multi_miller_loop, Scalar,
 };
+use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use ff::Field;
 use group::{Curve, Group};
 
@@ -36,7 +36,7 @@ impl Polynomial {
             Scalar::zero()
             // if x is zero then we can ignore most of the expensive computation and
             // just return the last term of the polynomial
-        } else if x.is_zero() {
+        } else if x.is_zero().unwrap_u8() == 1 {
             // we checked that coefficients are not empty so unwrap here is fine
             *self.coefficients.first().unwrap()
         } else {
@@ -85,9 +85,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-where
-    T: Sum,
-    for<'a> &'a T: Mul<Scalar, Output = T>,
+    where
+        T: Sum,
+        for<'a> &'a T: Mul<Scalar, Output=T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(CompactEcashError::Interpolation(

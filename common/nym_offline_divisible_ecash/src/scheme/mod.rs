@@ -172,7 +172,7 @@ impl PartialWallet {
 pub struct Wallet {
     sig: Signature,
     v: Scalar,
-    l: Cell<u64>,
+    pub l: Cell<u64>,
 }
 
 impl Wallet {
@@ -189,13 +189,14 @@ impl Wallet {
     }
 
 
-    pub(crate) fn spend(
+    pub fn spend(
         &self,
         params: &Parameters,
         verification_key: &VerificationKeyAuth,
         sk_user: &SecretKeyUser,
         pay_info: &PayInfo,
         vv: u64,
+        bench_flag: bool,
     ) -> Result<(Payment, &Self)> {
         if self.l() + vv >= L {
             return Err(DivisibleEcashError::Spend(
@@ -345,8 +346,16 @@ impl Wallet {
             zk_proof,
             vv,
         };
-        
-        self.l.set(self.l() + vv);
+
+        // The number of samples collected by the benchmark process is way higher than the
+        // MAX_WALLET_VALUE we ever consider. Thus, we would execute the spending too many times
+        // and the initial condition at the top of this function will crush. Thus, we need a
+        // benchmark flag to signal that we don't want to increase the spending couter but only
+        // care about the function performance.
+        if !bench_flag {
+            let current_l = self.l();
+            self.l.set(current_l + vv);
+        }
         Ok((pay, self))
     }
 }

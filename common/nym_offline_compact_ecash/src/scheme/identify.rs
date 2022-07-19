@@ -1,7 +1,13 @@
+use std::collections::HashSet;
+
+use bls12_381::G1Projective;
+use group::Curve;
+
+use crate::{PayInfo, VerificationKeyAuth};
 use crate::error::{CompactEcashError, Result};
-use crate::PayInfo;
 use crate::scheme::keygen::PublicKeyUser;
 use crate::scheme::Payment;
+use crate::scheme::setup::Parameters;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum IdentifyResult {
@@ -10,43 +16,44 @@ pub enum IdentifyResult {
     DoubleSpendingPublicKeys(PublicKeyUser),
 }
 
-pub fn identify(public_keys_u: &[PublicKeyUser], pay1: Payment, pay2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
-    let mut duplicate_serial_numbers: Vec<(u64, u64)> = Default::default();
-    for k in 0..pay1.vv {
-        for j in 0..pay2.vv {
-            if pay1.ss[k as usize] == pay2.ss[j as usize] {
-                duplicate_serial_numbers.push((k, j));
+
+pub fn identify(params: &Parameters, public_keys_u: &[PublicKeyUser], verification_key: &VerificationKeyAuth, payment1: Payment, payment2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
+    //  verify first the validity of both payments
+    assert!(payment1.spend_verify(&params, &verification_key, &pay_info1).unwrap());
+    assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());
+
+    let mut k = 0;
+    let mut j = 0;
+    'outer: for (id1, pay1_ss) in payment1.ss.iter().enumerate() {
+        'inner: for (id2, pay2_ss) in payment2.ss.iter().enumerate() {
+            if pay1_ss == pay2_ss {
+                k = id1.clone();
+                j = id2.clone();
+                break 'outer;
             }
         }
-    }
-    if duplicate_serial_numbers.is_empty() {
         return Ok(IdentifyResult::NotADuplicatePayment);
-    } else {
-        if pay_info1 == pay_info2 {
-            return Ok(IdentifyResult::DuplicatePayInfo(pay_info1));
-        } else {
-            for elem in duplicate_serial_numbers.iter() {
-                let k = elem.0 as usize;
-                let j = elem.1 as usize;
-                let pk = (pay2.tt[j] * pay1.rr[k] - pay1.tt[k] * pay2.rr[j]) * ((pay1.rr[k] - pay2.rr[j]).invert().unwrap());
-                let pk_user = PublicKeyUser { pk: pk.clone() };
-                if public_keys_u.contains(&pk_user) {
-                    return Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_user));
-                } else {
-                    return Err(CompactEcashError::Identify(
-                        "A duplicate serial number was detected, the pay_info1 and pay_info2 are different, but we failed to identify the double-spending public key".to_string(),
-                    ));
-                }
-            }
-        }
-        return Err(CompactEcashError::Identify(
-            "A duplicate serial number was detected, the pay_info1 and pay_info2 are different, but we failed to identify the double-spending public key".to_string(),
-        ));
     }
+    return if pay_info1 == pay_info2 {
+        Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
+    } else {
+        let pk = (payment2.tt[j] * payment1.rr[k] - payment1.tt[k] * payment2.rr[j]) * ((payment1.rr[k] - payment2.rr[j]).invert().unwrap());
+        let pk_user = PublicKeyUser { pk: pk.clone() };
+        if public_keys_u.contains(&pk_user) {
+            Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_user))
+        } else {
+            Err(CompactEcashError::Identify(
+                "A duplicate serial number was detected, the pay_info1 and pay_info2 are different, but we failed to identify the double-spending public key".to_string(),
+            ))
+        }
+    };
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
+    use group::Curve;
     use itertools::izip;
 
     use crate::{aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify, issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request};
@@ -112,16 +119,16 @@ mod tests {
         ).unwrap();
 
         assert!(payment1
-            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
         let payment2 = payment1.clone();
         assert!(payment2
-            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
         let pay_info2 = pay_info1.clone();
-        let identify_result = identify(&[user_keypair.public_key()], payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &[user_keypair.public_key()], &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DuplicatePayInfo(pay_info1.clone()));
     }
 
@@ -183,7 +190,7 @@ mod tests {
         ).unwrap();
 
         assert!(payment1
-            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
 
@@ -198,10 +205,10 @@ mod tests {
         ).unwrap();
 
         assert!(payment2
-            .spend_verify(&params, &verification_key, &pay_info2, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        let identify_result = identify(&[user_keypair.public_key()], payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &[user_keypair.public_key()], &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::NotADuplicatePayment);
     }
 
@@ -211,6 +218,17 @@ mod tests {
         let params = setup(L);
         let grp = params.grp();
         let user_keypair = generate_keypair_user(&grp);
+
+        //  GENERATE KEYS FOR OTHER USERS
+        let mut public_keys: Vec<PublicKeyUser> = Default::default();
+        for i in 0..50 {
+            let sk = grp.random_scalar();
+            let sk_user = SecretKeyUser { sk };
+            let pk_user = sk_user.public_key(&grp);
+            public_keys.push(pk_user.clone());
+        }
+        public_keys.push(user_keypair.public_key().clone());
+
 
         let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
         let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
@@ -253,7 +271,7 @@ mod tests {
         let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 1;
 
-        let (payment1, upd_wallet) = aggr_wallet.spend(
+        let (payment1, _) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),
@@ -263,7 +281,7 @@ mod tests {
         ).unwrap();
 
         assert!(payment1
-            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
         // let's reverse the spending counter in the wallet to create a double spending payment
@@ -271,7 +289,6 @@ mod tests {
         aggr_wallet.l.set(current_l - 1);
 
         let pay_info2 = PayInfo { info: [7u8; 32] };
-        let spend_vv = 1;
 
         let (payment2, _) = aggr_wallet.spend(
             &params,
@@ -283,21 +300,10 @@ mod tests {
         ).unwrap();
 
         assert!(payment2
-            .spend_verify(&params, &verification_key, &pay_info2, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        //  GENERATE KEYS FOR OTHER USERS
-        let mut public_keys: Vec<PublicKeyUser> = Default::default();
-        for i in 0..50 {
-            let sk = grp.random_scalar();
-            let sk_user = SecretKeyUser { sk };
-            let pk_user = sk_user.public_key(&grp);
-            public_keys.push(pk_user);
-        }
-        public_keys.push(user_keypair.public_key());
-
-
-        let identify_result = identify(&public_keys, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &public_keys, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
     }
 
@@ -307,6 +313,16 @@ mod tests {
         let params = setup(L);
         let grp = params.grp();
         let user_keypair = generate_keypair_user(&grp);
+
+        //  GENERATE KEYS FOR OTHER USERS
+        let mut public_keys: Vec<PublicKeyUser> = Default::default();
+        for i in 0..50 {
+            let sk = grp.random_scalar();
+            let sk_user = SecretKeyUser { sk };
+            let pk_user = sk_user.public_key(&grp);
+            public_keys.push(pk_user.clone());
+        }
+        public_keys.push(user_keypair.public_key().clone());
 
         let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
         let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
@@ -349,7 +365,7 @@ mod tests {
         let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 10;
 
-        let (payment1, upd_wallet) = aggr_wallet.spend(
+        let (payment1, _) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),
@@ -359,7 +375,7 @@ mod tests {
         ).unwrap();
 
         assert!(payment1
-            .spend_verify(&params, &verification_key, &pay_info1, spend_vv)
+            .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
         // let's reverse the spending counter in the wallet to create a double spending payment
@@ -376,17 +392,8 @@ mod tests {
             spend_vv,
         ).unwrap();
 
-        //  GENERATE KEYS FOR OTHER USERS
-        let mut public_keys: Vec<PublicKeyUser> = Default::default();
-        for i in 0..50 {
-            let sk = grp.random_scalar();
-            let sk_user = SecretKeyUser { sk };
-            let pk_user = sk_user.public_key(&grp);
-            public_keys.push(pk_user);
-        }
-        public_keys.push(user_keypair.public_key());
 
-        let identify_result = identify(&public_keys, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &public_keys, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
     }
 }

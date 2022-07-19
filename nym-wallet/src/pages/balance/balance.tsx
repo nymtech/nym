@@ -14,6 +14,7 @@ export const BalanceCard = () => {
   return (
     <NymCard
       title="Balance"
+      titleSx={{ fontSize: 20 }}
       data-testid="check-balance"
       borderless
       Action={<ClientAddress withCopy showEntireAddress />}

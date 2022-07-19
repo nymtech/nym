@@ -40,12 +40,12 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             <Nav />
           </Box>
           {appVersion && (
-            <Box color="#888" mt={8}>
+            <Box color="#888" mt={8} fontSize={14}>
               Version {appVersion}
             </Box>
           )}
         </Box>
-        <Container maxWidth="xl">
+        <Container maxWidth="xl" sx={{ px: { sm: 5 } }}>
           <AppBar />
           <Box overflow="auto" sx={{ height: () => `calc(100% - ${theme.spacing(10)})` }}>
             {children}

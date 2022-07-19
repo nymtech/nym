@@ -386,8 +386,8 @@ impl Display for Interval {
             "Interval {}: epoch {}/{} (current epoch begun at: {}; epoch lengths: {}h {}s)",
             self.id,
             self.current_epoch_id + 1,
-            self.current_epoch_start,
             self.epochs_in_interval,
+            self.current_epoch_start,
             full_hours,
             rem
         )

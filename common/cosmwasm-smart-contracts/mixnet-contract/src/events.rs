@@ -7,32 +7,32 @@ use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
 pub use contracts_common::events::*;
 use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
-pub enum MixnodeEventType {
+pub enum MixnetEventType {
     MixnodeBonding,
     PendingMixnodeUnbonding,
     MixnodeUnbonding,
     MixnodeConfigUpdate,
     PendingMixnodeCostParamsUpdate,
     MixnodeCostParamsUpdate,
+    MixnodeRewarding,
 }
 
-impl From<MixnodeEventType> for String {
-    fn from(typ: MixnodeEventType) -> Self {
+impl From<MixnetEventType> for String {
+    fn from(typ: MixnetEventType) -> Self {
         typ.to_string()
     }
 }
 
-impl ToString for MixnodeEventType {
+impl ToString for MixnetEventType {
     fn to_string(&self) -> String {
         match self {
-            MixnodeEventType::MixnodeBonding => "mixnode_bonding",
-            MixnodeEventType::PendingMixnodeUnbonding => "pending_mixnode_unbonding",
-            MixnodeEventType::MixnodeConfigUpdate => "mixnode_config_update",
-            MixnodeEventType::MixnodeUnbonding => "mixnode_unbonding",
-            MixnodeEventType::PendingMixnodeCostParamsUpdate => {
-                "pending_mixnode_cost_params_update"
-            }
-            MixnodeEventType::MixnodeCostParamsUpdate => "mixnode_cost_params_update",
+            MixnetEventType::MixnodeBonding => "mixnode_bonding",
+            MixnetEventType::PendingMixnodeUnbonding => "pending_mixnode_unbonding",
+            MixnetEventType::MixnodeConfigUpdate => "mixnode_config_update",
+            MixnetEventType::MixnodeUnbonding => "mixnode_unbonding",
+            MixnetEventType::PendingMixnodeCostParamsUpdate => "pending_mixnode_cost_params_update",
+            MixnetEventType::MixnodeCostParamsUpdate => "mixnode_cost_params_update",
+            MixnetEventType::MixnodeRewarding => "mix_rewarding",
         }
         .into()
     }
@@ -48,7 +48,6 @@ pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
 pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
 pub const REWARDING_VALIDATOR_UPDATE_EVENT_TYPE: &str = "rewarding_validator_address_update";
 pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
-pub const MIXNODE_REWARDING_EVENT_TYPE: &str = "mix_rewarding";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
@@ -105,7 +104,7 @@ pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
 pub const NO_REWARD_REASON_KEY: &str = "no_reward_reason";
 pub const BOND_NOT_FOUND_VALUE: &str = "bond_not_found";
 pub const BOND_TOO_FRESH_VALUE: &str = "bond_too_fresh";
-pub const ZERO_UPTIME_VALUE: &str = "zero_uptime";
+pub const ZERO_PERFORMANCE_VALUE: &str = "zero_performance";
 
 // rewarded set update
 pub const ACTIVE_SET_SIZE_KEY: &str = "active_set_size";
@@ -277,7 +276,7 @@ pub fn new_mixnode_bonding_event(
     assigned_layer: Layer,
 ) -> Event {
     // coin implements Display trait and we use that implementation here
-    Event::new(MixnodeEventType::MixnodeBonding)
+    Event::new(MixnetEventType::MixnodeBonding)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
@@ -293,7 +292,7 @@ pub fn new_pending_mixnode_unbonding_event(
     node_id: NodeId,
 ) -> Event {
     // coin implements Display trait and we use that implementation here
-    Event::new(MixnodeEventType::PendingMixnodeUnbonding)
+    Event::new(MixnetEventType::PendingMixnodeUnbonding)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
@@ -306,7 +305,7 @@ pub fn new_mixnode_config_update_event(
     proxy: &Option<Addr>,
     update: &MixNodeConfigUpdate,
 ) -> Event {
-    Event::new(MixnodeEventType::MixnodeConfigUpdate)
+    Event::new(MixnetEventType::MixnodeConfigUpdate)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(OWNER_KEY, owner)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
@@ -319,7 +318,7 @@ pub fn new_mixnode_pending_cost_params_update_event(
     proxy: &Option<Addr>,
     new_costs: &MixNodeCostParams,
 ) -> Event {
-    Event::new(MixnodeEventType::PendingMixnodeCostParamsUpdate)
+    Event::new(MixnetEventType::PendingMixnodeCostParamsUpdate)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(OWNER_KEY, owner)
         .add_optional_argument(PROXY_KEY, proxy.as_ref())
@@ -366,17 +365,17 @@ pub fn new_settings_update_event(
 }
 
 pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
-    Event::new(MIXNODE_REWARDING_EVENT_TYPE)
+    Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(INTERVAL_KEY, interval.to_string())
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
 pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
-    Event::new(MIXNODE_REWARDING_EVENT_TYPE)
+    Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(INTERVAL_KEY, interval.to_string())
         .add_attribute(NODE_ID_KEY, node_id.to_string())
-        .add_attribute(NO_REWARD_REASON_KEY, ZERO_UPTIME_VALUE)
+        .add_attribute(NO_REWARD_REASON_KEY, ZERO_PERFORMANCE_VALUE)
 }
 
 pub fn new_mix_rewarding_event(
@@ -384,7 +383,7 @@ pub fn new_mix_rewarding_event(
     node_id: NodeId,
     reward_distribution: RewardDistribution,
 ) -> Event {
-    Event::new(MIXNODE_REWARDING_EVENT_TYPE)
+    Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(INTERVAL_KEY, interval.to_string())
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(

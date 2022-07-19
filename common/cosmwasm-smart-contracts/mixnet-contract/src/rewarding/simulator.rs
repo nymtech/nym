@@ -15,7 +15,7 @@ pub struct Simulator {
     pub node_delegations: Vec<Delegation>,
     pub system_rewarding_params: RewardingParams,
 
-    interval: Interval,
+    pub interval: Interval,
 }
 
 impl Simulator {

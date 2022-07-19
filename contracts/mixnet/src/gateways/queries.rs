@@ -74,10 +74,11 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_obeys_limits() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
         let mut rng = test_helpers::test_rng();
 
         let limit = 2;
-        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), 1000);
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), env, 1000);
 
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.nodes.len() as u32);
@@ -86,9 +87,10 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_has_default_limit() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
         let mut rng = test_helpers::test_rng();
 
-        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), 1000);
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), env, 1000);
 
         // query without explicitly setting a limit
         let page1 = query_gateways_paged(deps.as_ref(), None, None).unwrap();
@@ -102,9 +104,10 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_has_max_limit() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
         let mut rng = test_helpers::test_rng();
 
-        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), 1000);
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), env, 1000);
 
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT;
@@ -118,6 +121,7 @@ pub(crate) mod tests {
     #[test]
     fn gateway_pagination_works() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
         let mut rng = test_helpers::test_rng();
 
         // prepare 4 messages and identities that are sorted by the generated identities
@@ -197,6 +201,7 @@ pub(crate) mod tests {
     #[test]
     fn query_for_gateway_owner_works() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
         let mut rng = test_helpers::test_rng();
 
         // "fred" does not own a mixnode if there are no mixnodes
@@ -207,6 +212,7 @@ pub(crate) mod tests {
         test_helpers::add_gateway(
             &mut rng,
             deps.as_mut(),
+            env.clone(),
             "bob",
             tests::fixtures::good_gateway_pledge(),
         );
@@ -218,6 +224,7 @@ pub(crate) mod tests {
         test_helpers::add_gateway(
             &mut rng,
             deps.as_mut(),
+            env,
             "fred",
             tests::fixtures::good_gateway_pledge(),
         );

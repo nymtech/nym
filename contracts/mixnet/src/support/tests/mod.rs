@@ -11,36 +11,233 @@ pub mod queries;
 #[cfg(test)]
 pub mod test_helpers {
     use crate::contract::instantiate;
+    use crate::delegations::queries::query_mixnode_delegations_paged;
     use crate::delegations::storage as delegations_storage;
+    use crate::delegations::transactions::try_delegate_to_mixnode;
     use crate::gateways::transactions::try_add_gateway;
-    use crate::interval;
     use crate::interval::storage as interval_storage;
     use crate::interval::transactions::{
         perform_pending_epoch_actions, perform_pending_interval_actions,
     };
+    use crate::mixnet_contract_settings::storage::{
+        minimum_mixnode_pledge, rewarding_denom, rewarding_validator_address,
+    };
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::rewards::storage as rewards_storage;
+    use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
     use crate::support::tests::fixtures::TEST_COIN_DENOM;
+    use crate::{constants, interval};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::DepsMut;
-    use cosmwasm_std::OwnedDeps;
-    use cosmwasm_std::{coin, Env, Timestamp};
+    use cosmwasm_std::{coin, Env, Response, Timestamp, Uint128};
     use cosmwasm_std::{Addr, StdResult, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
-    use mixnet_contract_common::mixnode::UnbondedMixnode;
+    use cosmwasm_std::{Deps, OwnedDeps};
+    use cosmwasm_std::{DepsMut, MessageInfo};
+    use mixnet_contract_common::events::{
+        may_find_attribute, must_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY,
+        OPERATOR_REWARD_KEY,
+    };
+    use mixnet_contract_common::mixnode::{MixNodeCostParams, UnbondedMixnode};
+    use mixnet_contract_common::reward_params::Performance;
+    use mixnet_contract_common::rewarding::simulator::Simulator;
+    use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
         Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, NodeId, Percent,
     };
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use std::time::Duration;
+
+    pub struct TestSetup {
+        pub deps: OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
+        pub env: Env,
+        pub rng: ChaCha20Rng,
+
+        pub rewarding_validator: MessageInfo,
+    }
+
+    impl TestSetup {
+        pub fn new() -> Self {
+            let deps = init_contract();
+            let rewarding_validator_address =
+                rewarding_validator_address(deps.as_ref().storage).unwrap();
+            TestSetup {
+                deps,
+                env: mock_env(),
+                rng: test_rng(),
+                rewarding_validator: mock_info(rewarding_validator_address.as_ref(), &[]),
+            }
+        }
+
+        pub fn deps(&self) -> Deps<'_> {
+            self.deps.as_ref()
+        }
+
+        pub fn deps_mut(&mut self) -> DepsMut<'_> {
+            self.deps.as_mut()
+        }
+
+        pub fn env(&self) -> Env {
+            self.env.clone()
+        }
+
+        pub fn rewarding_validator(&self) -> MessageInfo {
+            self.rewarding_validator.clone()
+        }
+
+        pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Coin>) -> NodeId {
+            let stake = stake
+                .unwrap_or_else(|| minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap());
+            let env = self.env();
+            add_mixnode(&mut self.rng, self.deps.as_mut(), env, owner, vec![stake])
+        }
+
+        pub fn add_delegation(&mut self, delegator: &str, amount: Uint128, target: NodeId) {
+            let denom = rewarding_denom(self.deps().storage).unwrap();
+            let amount = Coin { denom, amount };
+            delegate(self.deps_mut(), delegator, vec![amount], target)
+        }
+
+        pub fn skip_to_next_epoch_end(&mut self) {
+            self.skip_to_next_epoch();
+            self.skip_to_current_epoch_end();
+        }
+
+        pub fn skip_to_current_epoch_end(&mut self) {
+            let interval = interval_storage::current_interval(self.deps().storage).unwrap();
+            let epoch_end = interval.current_epoch_end_unix_timestamp();
+            // skip few blocks just in case
+            self.env.block.height += 10;
+            self.env.block.time = Timestamp::from_seconds(epoch_end as u64);
+        }
+
+        pub fn skip_to_next_epoch(&mut self) {
+            let interval = interval_storage::current_interval(self.deps().storage).unwrap();
+            let epoch_end = interval.current_epoch_end_unix_timestamp();
+            // skip few blocks just in case
+            self.env.block.height += 10;
+            self.env.block.time = Timestamp::from_seconds(epoch_end as u64 + 1);
+            let advanced = interval.advance_epoch();
+
+            if interval.current_epoch_id() != interval.epochs_in_interval() {
+                assert_eq!(interval.current_epoch_id() + 1, advanced.current_epoch_id())
+            }
+
+            interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap()
+        }
+
+        pub fn update_rewarded_set(&mut self, nodes: Vec<NodeId>) {
+            let active_set_size = rewards_storage::REWARDING_PARAMS
+                .load(self.deps().storage)
+                .unwrap()
+                .active_set_size;
+            interval_storage::update_rewarded_set(self.deps_mut().storage, active_set_size, nodes)
+                .unwrap();
+        }
+
+        pub fn instantiate_simulator(&self, node: NodeId) -> Simulator {
+            simulator_from_state(self.deps(), self.env(), node)
+        }
+
+        pub fn execute_all_pending_events(&mut self) {
+            let env = self.env();
+            execute_all_pending_events(self.deps_mut(), env)
+        }
+
+        pub fn reward_with_distribution(
+            &mut self,
+            mix_id: NodeId,
+            performance: Performance,
+        ) -> RewardDistribution {
+            let env = self.env();
+            let sender = self.rewarding_validator();
+
+            let res =
+                try_reward_mixnode(self.deps_mut(), env, sender, mix_id, performance).unwrap();
+            let operator: Decimal = find_attribute(
+                Some(MixnetEventType::MixnodeRewarding.to_string()),
+                OPERATOR_REWARD_KEY,
+                &res,
+            )
+            .parse()
+            .unwrap();
+            let delegates: Decimal = find_attribute(
+                Some(MixnetEventType::MixnodeRewarding.to_string()),
+                DELEGATES_REWARD_KEY,
+                &res,
+            )
+            .parse()
+            .unwrap();
+
+            RewardDistribution {
+                operator,
+                delegates,
+            }
+        }
+    }
+
+    pub fn simulator_from_state(deps: Deps<'_>, env: Env, node: NodeId) -> Simulator {
+        let mix_rewarding = rewards_storage::MIXNODE_REWARDING
+            .load(deps.storage, node)
+            .unwrap();
+        let delegations = query_mixnode_delegations_paged(deps, node, None, None).unwrap();
+        if delegations.delegations.len() as u32
+            == constants::DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT
+        {
+            // can't be bothered to deal with paging for this test case since it's incredibly unlikely
+            // we'd ever need it
+            panic!("too many delegations")
+        }
+        let rewarding_params = rewards_storage::REWARDING_PARAMS
+            .load(deps.storage)
+            .unwrap();
+        let interval = interval_storage::current_interval(deps.storage).unwrap();
+        Simulator {
+            node_rewarding_details: mix_rewarding,
+            node_delegations: delegations.delegations,
+            system_rewarding_params: rewarding_params,
+            interval,
+        }
+    }
+
+    pub fn find_attribute(
+        event_type: Option<String>,
+        attribute: &str,
+        response: &Response,
+    ) -> String {
+        for event in &response.events {
+            if let Some(typ) = &event_type {
+                if &event.ty != typ {
+                    continue;
+                }
+            }
+            if let Some(attr) = may_find_attribute(event, attribute) {
+                return attr;
+            }
+        }
+        // this is only used in tests so panic here is fine
+        panic!("did not find the attribute")
+    }
+
+    // using floats in tests is fine
+    // (what it does is converting % value, like 12.34 into `Performance` (`Percent`)
+    // which internally is represented by decimal `0.1234`
+    pub fn performance(val: f32) -> Performance {
+        assert!(val <= 100.0);
+        assert!(val >= 0.0);
+
+        // hehe, that's such a nasty conversion, but it works for test purposes
+        let str = (val / 100.0).to_string();
+        let dec = str.parse().unwrap();
+        Performance::new(dec).unwrap()
+    }
 
     // use rng with constant seed for all tests so that they would be deterministic
     pub fn test_rng() -> ChaCha20Rng {
@@ -69,30 +266,42 @@ pub mod test_helpers {
 
         (
             MixNode {
-                identity_key: identity_key,
-                sphinx_key: sphinx_key,
+                identity_key,
+                sphinx_key,
                 ..tests::fixtures::mix_node_fixture()
             },
             owner_signature,
         )
     }
 
-    pub fn add_dummy_mixnodes(mut rng: impl RngCore + CryptoRng, mut deps: DepsMut<'_>, n: usize) {
+    pub fn add_dummy_mixnodes(
+        mut rng: impl RngCore + CryptoRng,
+        mut deps: DepsMut<'_>,
+        env: Env,
+        n: usize,
+    ) {
         for i in 0..n {
             add_mixnode(
                 &mut rng,
                 deps.branch(),
+                env.clone(),
                 &format!("owner{}", i),
                 tests::fixtures::good_mixnode_pledge(),
             );
         }
     }
 
-    pub fn add_dummy_gateways(mut rng: impl RngCore + CryptoRng, mut deps: DepsMut<'_>, n: usize) {
+    pub fn add_dummy_gateways(
+        mut rng: impl RngCore + CryptoRng,
+        mut deps: DepsMut<'_>,
+        env: Env,
+        n: usize,
+    ) {
         for i in 0..n {
             add_gateway(
                 &mut rng,
                 deps.branch(),
+                env.clone(),
                 &format!("owner{}", i),
                 tests::fixtures::good_mixnode_pledge(),
             );
@@ -146,6 +355,7 @@ pub mod test_helpers {
     pub fn add_mixnode(
         mut rng: impl RngCore + CryptoRng,
         deps: DepsMut<'_>,
+        env: Env,
         sender: &str,
         stake: Vec<Coin>,
     ) -> NodeId {
@@ -166,7 +376,7 @@ pub mod test_helpers {
 
         try_add_mixnode(
             deps,
-            mock_env(),
+            env,
             info,
             MixNode {
                 identity_key: key,
@@ -186,6 +396,7 @@ pub mod test_helpers {
     pub fn add_gateway(
         mut rng: impl RngCore + CryptoRng,
         deps: DepsMut<'_>,
+        env: Env,
         sender: &str,
         stake: Vec<Coin>,
     ) -> String {
@@ -199,7 +410,7 @@ pub mod test_helpers {
         let key = keypair.public_key().to_base58_string();
         try_add_gateway(
             deps,
-            mock_env(),
+            env,
             info,
             Gateway {
                 identity_key: key.clone(),
@@ -242,6 +453,11 @@ pub mod test_helpers {
         deps
     }
 
+    pub fn delegate(deps: DepsMut<'_>, sender: &str, stake: Vec<Coin>, mix_id: NodeId) {
+        let info = mock_info(sender, &stake);
+        try_delegate_to_mixnode(deps, info, mix_id).unwrap();
+    }
+
     // // currently not used outside tests
     // pub(crate) fn read_mixnode_pledge_amount(
     //     storage: &dyn Storage,
@@ -251,38 +467,38 @@ pub mod test_helpers {
     //     Ok(node.pledge_amount.amount)
     // }
 
-    pub(crate) fn save_dummy_delegation(
-        storage: &mut dyn Storage,
-        mix: NodeId,
-        owner: impl Into<String>,
-    ) {
-        let delegation = Delegation {
-            owner: Addr::unchecked(owner.into()),
-            node_id: mix,
-            cumulative_reward_ratio: Default::default(),
-            amount: coin(12345, TEST_COIN_DENOM),
-            height: 12345,
-            proxy: None,
-        };
-
-        delegations_storage::delegations()
-            .save(storage, delegation.storage_key(), &delegation)
-            .unwrap();
-    }
-
-    pub(crate) fn read_delegation(
-        storage: &dyn Storage,
-        mix: NodeId,
-        owner: &Addr,
-        proxy: &Option<Addr>,
-    ) -> Option<Delegation> {
-        delegations_storage::delegations()
-            .may_load(
-                storage,
-                Delegation::generate_storage_key(mix, owner, proxy.as_ref()),
-            )
-            .unwrap()
-    }
+    // pub(crate) fn save_dummy_delegation(
+    //     storage: &mut dyn Storage,
+    //     mix: NodeId,
+    //     owner: impl Into<String>,
+    // ) {
+    //     let delegation = Delegation {
+    //         owner: Addr::unchecked(owner.into()),
+    //         node_id: mix,
+    //         cumulative_reward_ratio: Default::default(),
+    //         amount: coin(12345, TEST_COIN_DENOM),
+    //         height: 12345,
+    //         proxy: None,
+    //     };
+    //
+    //     delegations_storage::delegations()
+    //         .save(storage, delegation.storage_key(), &delegation)
+    //         .unwrap();
+    // }
+    //
+    // pub(crate) fn read_delegation(
+    //     storage: &dyn Storage,
+    //     mix: NodeId,
+    //     owner: &Addr,
+    //     proxy: &Option<Addr>,
+    // ) -> Option<Delegation> {
+    //     delegations_storage::delegations()
+    //         .may_load(
+    //             storage,
+    //             Delegation::generate_storage_key(mix, owner, proxy.as_ref()),
+    //         )
+    //         .unwrap()
+    // }
 
     pub(crate) fn update_env_and_progress_epoch(deps: DepsMut<'_>, env: &mut Env) {
         // make sure current block time is within the expected next interval

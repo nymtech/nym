@@ -30,7 +30,7 @@ impl Network {
         Network::CUSTOM { details }
     }
 
-    // fake positive on nightly
+    // false positive on nightly clippy (1.64.0)
     #[allow(clippy::needless_borrow)]
     pub fn details(&self) -> NymNetworkDetails {
         match self {

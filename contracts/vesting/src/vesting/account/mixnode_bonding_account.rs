@@ -1,6 +1,7 @@
 use crate::errors::ContractError;
 use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
+use crate::storage::MIX_DENOM;
 use crate::traits::MixnodeBondingAccount;
 use crate::traits::VestingAccount;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
@@ -24,7 +25,7 @@ impl MixnodeBondingAccount for Account {
         let compound_operator_reward_msg = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_ucoin()],
+            vec![one_ucoin(MIX_DENOM.load(storage)?)],
         )?;
 
         Ok(Response::new().add_message(compound_operator_reward_msg))
@@ -41,7 +42,7 @@ impl MixnodeBondingAccount for Account {
         let compound_operator_reward_msg = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_ucoin()],
+            vec![one_ucoin(MIX_DENOM.load(storage)?)],
         )?;
 
         Ok(Response::new().add_message(compound_operator_reward_msg))
@@ -60,7 +61,7 @@ impl MixnodeBondingAccount for Account {
         let update_mixnode_config_msg = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_ucoin()],
+            vec![one_ucoin(MIX_DENOM.load(storage)?)],
         )?;
 
         Ok(Response::new()
@@ -130,7 +131,7 @@ impl MixnodeBondingAccount for Account {
             let unbond_msg = wasm_execute(
                 MIXNET_CONTRACT_ADDRESS.load(storage)?,
                 &msg,
-                vec![one_ucoin()],
+                vec![one_ucoin(MIX_DENOM.load(storage)?)],
             )?;
 
             Ok(Response::new()

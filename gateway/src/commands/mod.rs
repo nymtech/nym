@@ -8,7 +8,7 @@ use clap::Subcommand;
 use colored::Colorize;
 use crypto::bech32_address_validation;
 use network_defaults::var_names::{
-    API_VALIDATOR, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
 use url::Url;
 
@@ -183,6 +183,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
 /// Ensures that a given bech32 address is valid, or exits
 pub(crate) fn validate_bech32_address_or_exit(address: &str) {
+    let prefix = std::env::var(BECH32_PREFIX).expect("bech32 prefix not set");
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
         bech32_address_validation::try_bech32_decode(address)
     {
@@ -193,7 +194,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     }
 
     if let Err(bech32_address_validation::Bech32Error::WrongPrefix(err)) =
-        bech32_address_validation::validate_bech32_prefix(address)
+        bech32_address_validation::validate_bech32_prefix(&prefix, address)
     {
         let error_message = format!("Error: wallet address type is wrong, {}", err).red();
         println!("{}", error_message);

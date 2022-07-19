@@ -11,7 +11,9 @@ use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::config::defaults::setup_env;
-use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS};
+use ::config::defaults::var_names::{
+    API_VALIDATOR, CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
+};
 use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
@@ -280,6 +282,9 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     #[cfg(feature = "coconut")]
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
+        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
@@ -424,6 +429,7 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
 
 async fn setup_rocket(
     config: &Config,
+    mix_denom: String,
     liftoff_notify: Arc<Notify>,
     _nymd_client: Client<SigningNymdClient>,
 ) -> Result<Rocket<Ignite>> {
@@ -463,6 +469,7 @@ async fn setup_rocket(
         let keypair = KeyPair::try_from_bs58(keypair_bs58)?;
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
+            mix_denom,
             keypair,
             QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
             storage.clone().unwrap(),
@@ -535,6 +542,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
     }
+    let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
 
     let signing_nymd_client = Client::new_signing(&config);
 
@@ -543,6 +551,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // let's build our rocket!
     let rocket = setup_rocket(
         &config,
+        mix_denom,
         Arc::clone(&liftoff_notify),
         signing_nymd_client.clone(),
     )

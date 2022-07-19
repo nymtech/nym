@@ -116,10 +116,10 @@ fn _try_claim_operator_reward(
     if let Some(proxy) = proxy {
         let msg = Some(VestingContractExecuteMsg::TrackReward {
             address: owner.to_string(),
-            amount: Coin::new(reward.u128(), mix_denom),
+            amount: Coin::new(reward.u128(), mix_denom.clone()),
         });
 
-        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?;
         response = response.add_message(wasm_msg);
     }
 
@@ -171,10 +171,10 @@ pub fn _try_claim_delegator_reward(
     if let Some(proxy) = proxy {
         let msg = Some(VestingContractExecuteMsg::TrackReward {
             address: owner.to_string(),
-            amount: Coin::new(reward.u128(), mix_denom),
+            amount: Coin::new(reward.u128(), mix_denom.clone()),
         });
 
-        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?;
         response = response.add_message(wasm_msg);
     }
 

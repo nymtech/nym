@@ -296,7 +296,7 @@ impl Default for CoconutSigner {
         CoconutSigner {
             enabled: false,
             keypair_path: PathBuf::default(),
-            all_validator_apis: config::defaults::default_api_endpoints(),
+            all_validator_apis: vec![],
         }
     }
 }

@@ -1,4 +1,3 @@
-use config::defaults::DEFAULT_NETWORK;
 use subtle_encoding::bech32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,16 +14,15 @@ pub fn try_bech32_decode(address: &str) -> Result<String, Bech32Error> {
     }
 }
 
-pub fn validate_bech32_prefix(address: &str) -> Result<(), Bech32Error> {
+pub fn validate_bech32_prefix(bech32_prefix: &str, address: &str) -> Result<(), Bech32Error> {
     let prefix = try_bech32_decode(address)?;
 
-    if prefix == DEFAULT_NETWORK.bech32_prefix() {
+    if prefix == bech32_prefix {
         Ok(())
     } else {
         Err(Bech32Error::WrongPrefix(format!(
             "your bech32 address prefix should be {}, not {}",
-            DEFAULT_NETWORK.bech32_prefix(),
-            prefix
+            bech32_prefix, prefix
         )))
     }
 }
@@ -32,6 +30,8 @@ pub fn validate_bech32_prefix(address: &str) -> Result<(), Bech32Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TEST_BECH32_PREFIX: &str = "u";
 
     mod decoding_bech32_addresses {
         use super::*;
@@ -71,9 +71,12 @@ mod tests {
             assert_eq!(
                 Err(Bech32Error::WrongPrefix(format!(
                     "your bech32 address prefix should be {}, not punk",
-                    DEFAULT_NETWORK.bech32_prefix()
+                    TEST_BECH32_PREFIX
                 ))),
-                validate_bech32_prefix("punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0")
+                validate_bech32_prefix(
+                    TEST_BECH32_PREFIX,
+                    "punk1h3w4nj7kny5dfyjw2le4vm74z03v9vd4dstpu0"
+                )
             )
         }
 
@@ -82,6 +85,7 @@ mod tests {
             assert_eq!(
                 Ok(()),
                 validate_bech32_prefix(
+                    TEST_BECH32_PREFIX,
                     "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g"
                 )
             )

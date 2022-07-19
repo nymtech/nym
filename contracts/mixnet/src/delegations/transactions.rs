@@ -406,10 +406,10 @@ pub(crate) fn try_reconcile_undelegation(
         let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
             owner: pending_undelegate.delegate().as_str().to_string(),
             mix_identity: pending_undelegate.mix_identity(),
-            amount: Coin::new(total_funds.u128(), mix_denom),
+            amount: Coin::new(total_funds.u128(), mix_denom.clone()),
         });
 
-        wasm_msg = Some(wasm_execute(proxy, &msg, vec![one_ucoin()])?);
+        wasm_msg = Some(wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?);
     }
 
     let event = new_undelegation_event(

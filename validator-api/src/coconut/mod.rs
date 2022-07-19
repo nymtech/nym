@@ -19,7 +19,7 @@ use coconut_bandwidth_contract_common::spend_credential::{
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
 };
-use config::defaults::{MIX_DENOM, VALIDATOR_API_VERSION};
+use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
     ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
 };
@@ -45,6 +45,7 @@ use self::comm::APICommunicationChannel;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
+    mix_denom: String,
     key_pair: KeyPair,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: ValidatorApiStorage,
@@ -54,6 +55,7 @@ pub struct State {
 impl State {
     pub(crate) fn new<C, D>(
         client: C,
+        mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: ValidatorApiStorage,
@@ -67,6 +69,7 @@ impl State {
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
             client,
+            mix_denom,
             key_pair,
             comm_channel,
             storage,
@@ -160,6 +163,7 @@ impl InternalSignRequest {
 
     pub fn stage<C, D>(
         client: C,
+        mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: ValidatorApiStorage,
@@ -168,7 +172,7 @@ impl InternalSignRequest {
         C: LocalClient + Send + Sync + 'static,
         D: APICommunicationChannel + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, comm_channel, storage);
+        let state = State::new(client, mix_denom, key_pair, comm_channel, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -306,7 +310,7 @@ pub async fn verify_bandwidth_credential(
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
             verify_credential_body.credential().voucher_value() as u128,
-            MIX_DENOM.base,
+            state.mix_denom.clone(),
         );
 
     // Vote yes or no on the proposal based on the verification result

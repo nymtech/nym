@@ -238,7 +238,8 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        let track_unbond_message =
+            wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom(deps.storage)?)])?;
         response = response.add_message(track_unbond_message);
     }
 
@@ -329,7 +330,9 @@ pub(crate) fn _try_update_mixnode_config(
                     mixnode_bond.block_height = env.block.height;
                     mixnode_bond
                 })
-                .ok_or(ContractError::NoBondFound { mix_denom })
+                .ok_or(ContractError::NoBondFound {
+                    mix_denom: mix_denom.clone(),
+                })
         },
     )?;
 
@@ -342,7 +345,7 @@ pub(crate) fn _try_update_mixnode_config(
         // and they could potentially leak 1 unym per transaction, altough I'm pretty sure transaction fees make that silly.
         let return_one_ucoint = BankMsg::Send {
             to_address: proxy.as_str().to_string(),
-            amount: vec![one_ucoin()],
+            amount: vec![one_ucoin(mix_denom)],
         };
         response = response.add_message(return_one_ucoint);
     }

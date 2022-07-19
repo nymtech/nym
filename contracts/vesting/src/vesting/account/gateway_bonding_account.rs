@@ -1,5 +1,6 @@
 use super::PledgeData;
 use crate::errors::ContractError;
+use crate::storage::MIX_DENOM;
 use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::GatewayBondingAccount;
@@ -76,7 +77,7 @@ impl GatewayBondingAccount for Account {
             let unbond_msg = wasm_execute(
                 MIXNET_CONTRACT_ADDRESS.load(storage)?,
                 &msg,
-                vec![one_ucoin()],
+                vec![one_ucoin(MIX_DENOM.load(storage)?)],
             )?;
 
             Ok(Response::new()

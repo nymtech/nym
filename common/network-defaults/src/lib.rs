@@ -18,25 +18,14 @@ pub mod var_names;
 // Keep DENOM around mostly for use in contracts. (TODO: consider moving it there, or renaming?)
 cfg_if::cfg_if! {
     if #[cfg(network = "mainnet")] {
-        pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
-        pub const MIX_DENOM: DenomDetails = mainnet::MIX_DENOM;
-        pub const STAKE_DENOM: DenomDetails = mainnet::STAKE_DENOM;
-
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
 
     } else if #[cfg(network = "qa")] {
-        pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
-        pub const MIX_DENOM: DenomDetails = qa::MIX_DENOM;
-        pub const STAKE_DENOM: DenomDetails = qa::STAKE_DENOM;
-
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
 
     } else if #[cfg(network = "sandbox")] {
-        pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX;
-        pub const MIX_DENOM: DenomDetails = sandbox::MIX_DENOM;
-        pub const STAKE_DENOM: DenomDetails = sandbox::STAKE_DENOM;
 
         pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
         pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
@@ -130,21 +119,8 @@ impl NymNetworkDetails {
             ))
     }
 
-    pub fn new_qa() -> Self {
-        (&*QA_DEFAULTS).into()
-    }
-
-    pub fn new_sandbox() -> Self {
-        (&*SANDBOX_DEFAULTS).into()
-    }
-
     pub fn new_mainnet() -> Self {
         (&*MAINNET_DEFAULTS).into()
-    }
-
-    pub fn current_default() -> Self {
-        // backwards compatibility reasons
-        DEFAULT_NETWORK.details()
     }
 
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
@@ -379,29 +355,6 @@ impl ValidatorDetails {
             .as_ref()
             .map(|url| url.parse().expect("the provided api url is invalid!"))
     }
-}
-
-pub fn default_statistics_service_url() -> Url {
-    DEFAULT_NETWORK
-        .statistics_service_url()
-        .parse()
-        .expect("the provided statistics service url is invalid!")
-}
-
-pub fn default_nymd_endpoints() -> Vec<Url> {
-    DEFAULT_NETWORK
-        .validators()
-        .iter()
-        .map(ValidatorDetails::nymd_url)
-        .collect()
-}
-
-pub fn default_api_endpoints() -> Vec<Url> {
-    DEFAULT_NETWORK
-        .validators()
-        .iter()
-        .filter_map(ValidatorDetails::api_url)
-        .collect()
 }
 
 pub fn setup_env(config_env_file: Option<PathBuf>) {

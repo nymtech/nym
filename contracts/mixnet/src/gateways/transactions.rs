@@ -139,6 +139,7 @@ pub(crate) fn _try_remove_gateway(
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(owner)?;
+    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
     // try to find the node of the sender
     let gateway_bond = match storage::gateways()
         .idx
@@ -178,7 +179,7 @@ pub(crate) fn _try_remove_gateway(
             amount: gateway_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom.clone())])?;
         response = response.add_message(track_unbond_message);
     }
 

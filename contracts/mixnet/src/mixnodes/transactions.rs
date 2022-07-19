@@ -337,6 +337,7 @@ pub mod tests {
         test_helpers::add_mixnode(
             &mut rng,
             deps.as_mut(),
+            env.clone(),
             sender,
             fixtures::good_mixnode_pledge(),
         );
@@ -358,6 +359,7 @@ pub mod tests {
         test_helpers::add_gateway(
             &mut rng,
             deps.as_mut(),
+            env.clone(),
             sender2,
             tests::fixtures::good_gateway_pledge(),
         );
@@ -421,7 +423,7 @@ pub mod tests {
         );
 
         let mix_id =
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), sender, good_mixnode_pledge());
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, sender, good_mixnode_pledge());
 
         // attempted to remove on behalf with invalid proxy (current is `None`)
         let res = try_remove_mixnode_on_behalf(
@@ -450,7 +452,7 @@ pub mod tests {
         assert_eq!(PendingEpochEvent::UnbondMixnode { mix_id }, event.1);
 
         // but fails if repeated (since the node is already in the "unbonding" state)(
-        let res = try_remove_mixnode(deps.as_mut(), info.clone());
+        let res = try_remove_mixnode(deps.as_mut(), info);
         assert_eq!(
             res,
             Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
@@ -460,6 +462,7 @@ pub mod tests {
     #[test]
     fn updating_mixnode_config() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
         let mut rng = test_helpers::test_rng();
 
         let sender = "alice";
@@ -484,6 +487,7 @@ pub mod tests {
         let mix_id = test_helpers::add_mixnode(
             &mut rng,
             deps.as_mut(),
+            env,
             sender,
             tests::fixtures::good_mixnode_pledge(),
         );
@@ -517,7 +521,7 @@ pub mod tests {
 
         // but we cannot perform any updates whilst the mixnode is already unbonding
         try_remove_mixnode(deps.as_mut(), info.clone()).unwrap();
-        let res = try_update_mixnode_config(deps.as_mut(), info.clone(), update);
+        let res = try_update_mixnode_config(deps.as_mut(), info, update);
         assert_eq!(
             res,
             Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
@@ -549,6 +553,7 @@ pub mod tests {
         let mix_id = test_helpers::add_mixnode(
             &mut rng,
             deps.as_mut(),
+            env.clone(),
             sender,
             tests::fixtures::good_mixnode_pledge(),
         );

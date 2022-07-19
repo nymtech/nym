@@ -3,11 +3,10 @@
 
 use super::storage::{self, LAST_PM_UPDATE_TIME};
 use crate::error::ContractError;
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage::{self as mixnet_params_storage, mix_denom};
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };
@@ -48,7 +47,7 @@ pub fn try_add_mixnode(
         .load(deps.storage)?
         .params
         .minimum_mixnode_pledge;
-    let pledge = validate_mixnode_pledge(info.funds, minimum_pledge)?;
+    let pledge = validate_mixnode_pledge(info.funds, minimum_pledge, mix_denom(deps.storage)?)?;
 
     _try_add_mixnode(
         deps,
@@ -74,7 +73,7 @@ pub fn try_add_mixnode_on_behalf(
         .load(deps.storage)?
         .params
         .minimum_mixnode_pledge;
-    let pledge = validate_mixnode_pledge(info.funds, minimum_pledge)?;
+    let pledge = validate_mixnode_pledge(info.funds, minimum_pledge, mix_denom(deps.storage)?)?;
 
     let proxy = info.sender;
     _try_add_mixnode(
@@ -288,6 +287,7 @@ pub(crate) fn _try_update_mixnode_config(
         .item(deps.storage, owner.clone())?
         .ok_or(ContractError::NoAssociatedMixNodeBond { owner })?
         .1;
+    let mix_denom = mix_denom(deps.storage)?;
 
     if proxy != mixnode_bond.proxy {
         return Err(ContractError::ProxyMismatch {
@@ -329,7 +329,7 @@ pub(crate) fn _try_update_mixnode_config(
                     mixnode_bond.block_height = env.block.height;
                     mixnode_bond
                 })
-                .ok_or(ContractError::NoBondFound)
+                .ok_or(ContractError::NoBondFound { mix_denom })
         },
     )?;
 
@@ -353,10 +353,11 @@ pub(crate) fn _try_update_mixnode_config(
 fn validate_mixnode_pledge(
     mut pledge: Vec<Coin>,
     minimum_pledge: Uint128,
+    mix_denom: String,
 ) -> Result<Coin, ContractError> {
     // check if anything was put as bond
     if pledge.is_empty() {
-        return Err(ContractError::NoBondFound);
+        return Err(ContractError::NoBondFound { mix_denom });
     }
 
     if pledge.len() > 1 {
@@ -364,8 +365,8 @@ fn validate_mixnode_pledge(
     }
 
     // check that the denomination is correct
-    if pledge[0].denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom {});
+    if pledge[0].denom != mix_denom {
+        return Err(ContractError::WrongDenom { mix_denom });
     }
 
     // check that we have at least MIXNODE_BOND coins in our pledge
@@ -386,8 +387,8 @@ pub mod tests {
     use crate::error::ContractError;
     use crate::mixnodes::transactions::validate_mixnode_pledge;
     use crate::support::tests;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
     use crate::support::tests::test_helpers;
-    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
@@ -402,7 +403,7 @@ pub mod tests {
 
         // if we don't send enough funds
         let insufficient_bond = Into::<u128>::into(INITIAL_MIXNODE_PLEDGE) - 1;
-        let info = mock_info("anyone", &coins(insufficient_bond, MIX_DENOM.base));
+        let info = mock_info("anyone", &coins(insufficient_bond, TEST_COIN_DENOM));
         let (msg, _) = tests::messages::valid_bond_mixnode_msg("anyone");
 
         // we are informed that we didn't send enough funds
@@ -808,13 +809,26 @@ pub mod tests {
     #[test]
     fn validating_mixnode_bond() {
         // you must send SOME funds
-        let result = validate_mixnode_pledge(Vec::new(), INITIAL_MIXNODE_PLEDGE);
-        assert_eq!(result, Err(ContractError::NoBondFound));
+        let result = validate_mixnode_pledge(
+            Vec::new(),
+            INITIAL_MIXNODE_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::NoBondFound {
+                mix_denom: TEST_COIN_DENOM.to_string()
+            })
+        );
 
         // you must send at least 100 coins...
         let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].amount = INITIAL_MIXNODE_PLEDGE.checked_sub(Uint128::new(1)).unwrap();
-        let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
+        let result = validate_mixnode_pledge(
+            bond.clone(),
+            INITIAL_MIXNODE_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
         assert_eq!(
             result,
             Err(ContractError::InsufficientMixNodeBond {
@@ -826,19 +840,41 @@ pub mod tests {
         // more than that is still fine
         let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].amount = INITIAL_MIXNODE_PLEDGE + Uint128::new(1);
-        let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
+        let result = validate_mixnode_pledge(
+            bond.clone(),
+            INITIAL_MIXNODE_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
         let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].denom = "baddenom".to_string();
-        let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
+        let result = validate_mixnode_pledge(
+            bond.clone(),
+            INITIAL_MIXNODE_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::WrongDenom {
+                mix_denom: TEST_COIN_DENOM.to_string()
+            })
+        );
 
         let mut bond = tests::fixtures::good_mixnode_pledge();
         bond[0].denom = "foomp".to_string();
-        let result = validate_mixnode_pledge(bond.clone(), INITIAL_MIXNODE_PLEDGE);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
+        let result = validate_mixnode_pledge(
+            bond.clone(),
+            INITIAL_MIXNODE_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::WrongDenom {
+                mix_denom: TEST_COIN_DENOM.to_string()
+            })
+        );
     }
 
     #[test]

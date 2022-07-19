@@ -10,11 +10,11 @@ use crate::contract::debug_with_visibility;
 use crate::delegations::storage as delegations_storage;
 use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
+use crate::mixnet_contract_settings::storage::mix_denom;
 use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
 use crate::rewards::helpers;
 use crate::support::helpers::{is_authorized, operator_cost_at_epoch};
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response,
     Storage, Uint128,
@@ -69,6 +69,7 @@ fn _try_claim_operator_reward(
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = api.addr_validate(owner)?;
+    let mix_denom = mix_denom(storage)?;
 
     let bond = match crate::mixnodes::storage::mixnodes()
         .idx
@@ -105,7 +106,7 @@ fn _try_claim_operator_reward(
 
     let return_tokens = BankMsg::Send {
         to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
-        amount: coins(reward.u128(), MIX_DENOM.base),
+        amount: coins(reward.u128(), mix_denom.clone()),
     };
 
     let mut response = Response::default()
@@ -115,7 +116,7 @@ fn _try_claim_operator_reward(
     if let Some(proxy) = proxy {
         let msg = Some(VestingContractExecuteMsg::TrackReward {
             address: owner.to_string(),
-            amount: Coin::new(reward.u128(), MIX_DENOM.base),
+            amount: Coin::new(reward.u128(), mix_denom),
         });
 
         let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
@@ -134,6 +135,7 @@ pub fn _try_claim_delegator_reward(
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = api.addr_validate(owner)?;
+    let mix_denom = mix_denom(storage)?;
 
     let key = mixnet_contract_common::delegation::generate_storage_key(&owner, proxy.as_ref());
     let reward = calculate_delegator_reward(storage, api, key.clone(), mix_identity)?;
@@ -153,7 +155,7 @@ pub fn _try_claim_delegator_reward(
 
     let return_tokens = BankMsg::Send {
         to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
-        amount: coins(reward.u128(), MIX_DENOM.base),
+        amount: coins(reward.u128(), mix_denom.clone()),
     };
 
     let mut response =
@@ -169,7 +171,7 @@ pub fn _try_claim_delegator_reward(
     if let Some(proxy) = proxy {
         let msg = Some(VestingContractExecuteMsg::TrackReward {
             address: owner.to_string(),
-            amount: Coin::new(reward.u128(), MIX_DENOM.base),
+            amount: Coin::new(reward.u128(), mix_denom),
         });
 
         let wasm_msg = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
@@ -403,6 +405,7 @@ pub fn _try_compound_delegator_reward(
     proxy: Option<Addr>,
 ) -> Result<Uint128, ContractError> {
     let delegation_map = crate::delegations::storage::delegations();
+    let mix_denom = mix_denom(deps.storage)?;
 
     let key = mixnet_contract_common::delegation::generate_storage_key(
         &deps.api.addr_validate(owner_address)?,
@@ -438,7 +441,7 @@ pub fn _try_compound_delegator_reward(
             owner_address,
             Coin {
                 amount: compounded_delegation,
-                denom: MIX_DENOM.base.to_string(),
+                denom: mix_denom,
             },
             proxy,
         )?;
@@ -724,9 +727,9 @@ pub mod tests {
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::helpers::{current_operator_epoch_cost, epochs_in_interval};
     use crate::support::tests;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
     use crate::support::tests::test_helpers;
     use az::CheckedCast;
-    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, StdError, Timestamp, Uint128};
     use mixnet_contract_common::events::{
@@ -744,7 +747,7 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
         let mut env = mock_env();
         let sender = rewarding_validator_address(&deps.storage).unwrap();
-        let info = mock_info(&sender, &coins(1000, MIX_DENOM.base));
+        let info = mock_info(&sender, &coins(1000, TEST_COIN_DENOM));
         crate::interval::transactions::init_epoch(&mut deps.storage, env.clone()).unwrap();
 
         // bond the node
@@ -885,7 +888,7 @@ pub mod tests {
         let initial_bond = 10000_000000;
         let initial_delegation = 20000_000000;
         let mixnode_bond = StoredMixnodeBond {
-            pledge_amount: coin(initial_bond, MIX_DENOM.base),
+            pledge_amount: coin(initial_bond, TEST_COIN_DENOM),
             owner: node_owner,
             layer: Layer::One,
             block_height: env.block.height,
@@ -925,7 +928,7 @@ pub mod tests {
                 &Delegation::new(
                     Addr::unchecked("delegator"),
                     node_identity.clone(),
-                    coin(initial_delegation, MIX_DENOM.base),
+                    coin(initial_delegation, TEST_COIN_DENOM),
                     env.block.height,
                     None,
                 ),
@@ -1109,7 +1112,7 @@ pub mod tests {
         assert_eq!(staking_supply, 100_000_000_000_000u128);
 
         let sender = Addr::unchecked("alice");
-        let stake = coins(10_000_000_000, MIX_DENOM.base);
+        let stake = coins(10_000_000_000, TEST_COIN_DENOM);
 
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
         let owner_signature = keypair
@@ -1160,14 +1163,14 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("johnny");
         let node_identity_2 = test_helpers::add_mixnode(
             node_owner.as_str(),
-            coins(10_000_000_000, MIX_DENOM.base),
+            coins(10_000_000_000, TEST_COIN_DENOM),
             deps.as_mut(),
         );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d1", &[coin(8000_000000, MIX_DENOM.base)]),
+            mock_info("alice_d1", &[coin(8000_000000, TEST_COIN_DENOM)]),
             node_identity_1.clone(),
         )
         .unwrap();
@@ -1175,7 +1178,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d2", &[coin(2000_000000, MIX_DENOM.base)]),
+            mock_info("alice_d2", &[coin(2000_000000, TEST_COIN_DENOM)]),
             node_identity_1.clone(),
         )
         .unwrap();
@@ -1183,7 +1186,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("bob_d1", &[coin(8000_000000, MIX_DENOM.base)]),
+            mock_info("bob_d1", &[coin(8000_000000, TEST_COIN_DENOM)]),
             node_identity_2.clone(),
         )
         .unwrap();
@@ -1191,7 +1194,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("bob_d2", &[coin(2000_000000, MIX_DENOM.base)]),
+            mock_info("bob_d2", &[coin(2000_000000, TEST_COIN_DENOM)]),
             node_identity_2.clone(),
         )
         .unwrap();
@@ -1199,14 +1202,14 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("alicebob");
         let node_identity_3 = test_helpers::add_mixnode(
             node_owner.as_str(),
-            coins(10_000_000_000 * 2, MIX_DENOM.base),
+            coins(10_000_000_000 * 2, TEST_COIN_DENOM),
             deps.as_mut(),
         );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alicebob_d1", &[coin(8000_000000 * 2, MIX_DENOM.base)]),
+            mock_info("alicebob_d1", &[coin(8000_000000 * 2, TEST_COIN_DENOM)]),
             node_identity_3.clone(),
         )
         .unwrap();
@@ -1214,7 +1217,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alicebob_d2", &[coin(2000_000000 * 2, MIX_DENOM.base)]),
+            mock_info("alicebob_d2", &[coin(2000_000000 * 2, TEST_COIN_DENOM)]),
             node_identity_3.clone(),
         )
         .unwrap();
@@ -1320,7 +1323,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             env.clone(),
-            mock_info("alice_d1", &[coin(8000_000000, MIX_DENOM.base)]),
+            mock_info("alice_d1", &[coin(8000_000000, TEST_COIN_DENOM)]),
             node_identity_1.clone(),
         )
         .unwrap();
@@ -1559,14 +1562,14 @@ pub mod tests {
         let node_owner: Addr = Addr::unchecked("alice");
         let node_identity = test_helpers::add_mixnode(
             node_owner.as_str(),
-            coins(10_000_000_000, MIX_DENOM.base),
+            coins(10_000_000_000, TEST_COIN_DENOM),
             deps.as_mut(),
         );
 
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d1", &[coin(8000_000000, MIX_DENOM.base)]),
+            mock_info("alice_d1", &[coin(8000_000000, TEST_COIN_DENOM)]),
             node_identity.clone(),
         )
         .unwrap();
@@ -1574,7 +1577,7 @@ pub mod tests {
         try_delegate_to_mixnode(
             deps.as_mut(),
             mock_env(),
-            mock_info("alice_d2", &[coin(2000_000000, MIX_DENOM.base)]),
+            mock_info("alice_d2", &[coin(2000_000000, TEST_COIN_DENOM)]),
             node_identity.clone(),
         )
         .unwrap();
@@ -1750,7 +1753,7 @@ pub mod tests {
             #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                coins(10000_000_000, MIX_DENOM.base),
+                coins(10000_000_000, TEST_COIN_DENOM),
                 deps.as_mut(),
             );
 
@@ -1777,7 +1780,7 @@ pub mod tests {
             #[allow(clippy::inconsistent_digit_grouping)]
             let node_identity = test_helpers::add_mixnode(
                 node_owner.as_str(),
-                coins(10000_000_000, MIX_DENOM.base),
+                coins(10000_000_000, TEST_COIN_DENOM),
                 deps.as_mut(),
             );
 
@@ -1787,7 +1790,7 @@ pub mod tests {
                     env.clone(),
                     mock_info(
                         &*format!("delegator{:04}", i),
-                        &[coin(2000_000000, MIX_DENOM.base)],
+                        &[coin(2000_000000, TEST_COIN_DENOM)],
                     ),
                     node_identity.clone(),
                 )

@@ -17,7 +17,7 @@ pub mod test_helpers {
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::transactions::try_add_mixnode;
     use crate::support::tests;
-    use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
+    use config::defaults::all::Network::MAINNET;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -31,6 +31,8 @@ pub mod test_helpers {
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract_common::{Delegation, Gateway, IdentityKeyRef, InstantiateMsg, MixNode};
     use rand::thread_rng;
+
+    use super::fixtures::TEST_COIN_DENOM;
 
     pub fn add_mixnode(sender: &str, stake: Vec<Coin>, deps: DepsMut<'_>) -> String {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut thread_rng());
@@ -85,7 +87,8 @@ pub mod test_helpers {
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
-            rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
+            rewarding_validator_address: MAINNET.rewarding_validator_address().to_string(),
+            mixnet_denom: TEST_COIN_DENOM.to_string(),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);
@@ -111,7 +114,7 @@ pub mod test_helpers {
         let delegation = Delegation {
             owner: Addr::unchecked(owner.into()),
             node_identity: mix.into(),
-            amount: coin(12345, MIX_DENOM.base),
+            amount: coin(12345, TEST_COIN_DENOM),
             block_height: block_height,
             proxy: None,
         };

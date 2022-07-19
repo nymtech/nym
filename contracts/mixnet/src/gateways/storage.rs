@@ -36,7 +36,7 @@ pub(crate) fn gateways<'a>() -> IndexedMap<'a, IdentityKeyRef<'a>, GatewayBond, 
 mod tests {
     use super::super::storage;
     use crate::support::tests;
-    use config::defaults::MIX_DENOM;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::StdResult;
     use cosmwasm_std::Storage;
@@ -84,7 +84,7 @@ mod tests {
         let pledge_amount = 1000;
 
         let gateway_bond = GatewayBond {
-            pledge_amount: coin(pledge_amount, MIX_DENOM.base),
+            pledge_amount: coin(pledge_amount, TEST_COIN_DENOM),
             owner: node_owner,
             block_height: 12_345,
             gateway: Gateway {

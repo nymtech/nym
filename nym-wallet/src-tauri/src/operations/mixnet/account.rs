@@ -145,9 +145,9 @@ async fn _connect_with_mnemonic(
     let default_network: WalletNetwork = config::defaults::DEFAULT_NETWORK.into();
     let client_for_default_network = clients
         .iter()
-        .find(|client| WalletNetwork::from(client.network.clone()) == default_network);
+        .find(|(network, _)| *network == default_network);
     let account_for_default_network = match client_for_default_network {
-        Some(client) => Ok(Account::new(
+        Some((_, client)) => Ok(Account::new(
             client.nymd.address().to_string(),
             default_network.mix_denom(),
         )),
@@ -159,8 +159,7 @@ async fn _connect_with_mnemonic(
         let mut w_state = state.write().await;
         w_state.logout();
     }
-    for client in clients {
-        let network: WalletNetwork = client.network.clone().into();
+    for (network, client) in clients {
         let mut w_state = state.write().await;
         w_state.add_client(network, client);
         w_state.register_default_denoms(network);
@@ -204,7 +203,7 @@ fn create_clients(
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
+) -> Result<Vec<(WalletNetwork, Client<SigningNymdClient>)>, BackendError> {
     let mut clients = Vec::new();
     for network in WalletNetwork::iter() {
         let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
@@ -251,10 +250,9 @@ fn create_clients(
         let config = validator_client::Config::try_from_nym_network_details(&network_details)?
             .with_urls(nymd_url, api_url);
 
-        let mut client =
-            validator_client::Client::new_signing(config, network.into(), mnemonic.clone())?;
+        let mut client = validator_client::Client::new_signing(config, mnemonic.clone())?;
         client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
-        clients.push(client);
+        clients.push((network, client));
     }
     Ok(clients)
 }

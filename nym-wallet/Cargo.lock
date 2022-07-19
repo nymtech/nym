@@ -727,6 +727,7 @@ name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "multisig-contract-common",
  "schemars",
  "serde",
 ]
@@ -2887,6 +2888,7 @@ name = "network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
+ "dotenv",
  "hex-literal",
  "once_cell",
  "serde",

@@ -1,5 +1,4 @@
 use network_defaults::{
-    all::Network,
     var_names::{API_VALIDATOR, NYMD_VALIDATOR},
     NymNetworkDetails,
 };
@@ -38,7 +37,6 @@ pub(crate) fn new_validator_client() -> ThreadsafeValidatorClient {
         .with_urls(nymd_url, api_url);
 
     ThreadsafeValidatorClient(Arc::new(
-        validator_client::Client::new_query(client_config, Network::CUSTOM { details })
-            .expect("Failed to connect to nymd!"),
+        validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!"),
     ))
 }

@@ -6,6 +6,7 @@ use mixnet_contract_common::reward_params::NodeRewardParams;
 use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
 
 pub const TEST_COIN_DENOM: &str = "unym";
+pub const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {

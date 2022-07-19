@@ -457,8 +457,7 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 pub mod tests {
     use super::*;
     use crate::support::tests;
-    use crate::support::tests::fixtures::TEST_COIN_DENOM;
-    use config::defaults::all::Network::MAINNET;
+    use crate::support::tests::fixtures::{TEST_COIN_DENOM, TEST_REWARDING_VALIDATOR_ADDRESS};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract_common::PagedMixnodeResponse;
@@ -468,7 +467,7 @@ pub mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            rewarding_validator_address: MAINNET.rewarding_validator_address().to_string(),
+            rewarding_validator_address: TEST_REWARDING_VALIDATOR_ADDRESS.to_string(),
             mixnet_denom: TEST_COIN_DENOM.to_string(),
         };
         let info = mock_info("creator", &[]);

@@ -281,7 +281,6 @@ impl Payment {
         params: &Parameters,
         verification_key: &VerificationKeyAuth,
         pay_info: &PayInfo,
-        spend_vv: u64,
     ) -> Result<bool> {
         if bool::from(self.sig.0.is_identity()) {
             return Err(CompactEcashError::Spend(
@@ -300,7 +299,7 @@ impl Payment {
             ));
         }
 
-        for k in 0..spend_vv {
+        for k in 0..self.vv {
             if bool::from(self.sig_lk[k as usize].0.is_identity()) {
                 return Err(CompactEcashError::Spend(
                     "The element h of the signature on l equals the identity".to_string(),

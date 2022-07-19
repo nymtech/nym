@@ -340,7 +340,7 @@ impl KeyPairAuth {
 
 #[derive(Eq, Debug, PartialEq, Clone)]
 pub struct SecretKeyUser {
-    pub(crate) sk: Scalar,
+    pub sk: Scalar,
 }
 
 impl SecretKeyUser {

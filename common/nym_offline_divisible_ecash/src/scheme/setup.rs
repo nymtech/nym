@@ -43,7 +43,7 @@ impl GroupParameters {
         &self._g2_prepared_miller
     }
 
-    pub(crate) fn random_scalar(&self) -> Scalar {
+    pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system
         let mut rng = thread_rng();
         Scalar::random(&mut rng)

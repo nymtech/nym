@@ -78,7 +78,7 @@ pub fn withdrawal_request(params: &Parameters, sk_user: &SecretKeyUser) -> Resul
     Ok((req, req_info))
 }
 
-pub(crate) fn issue(params: &Parameters, req: &WithdrawalRequest, pk_u: PublicKeyUser, sk_a: &SecretKeyAuth) -> Result<BlindedSignature> {
+pub fn issue(params: &Parameters, req: &WithdrawalRequest, pk_u: PublicKeyUser, sk_a: &SecretKeyAuth) -> Result<BlindedSignature> {
     let h = hash_g1(req.com.to_bytes());
     if !(h == req.com_hash) {
         return Err(DivisibleEcashError::WithdrawalRequestVerification(
@@ -110,7 +110,7 @@ pub(crate) fn issue(params: &Parameters, req: &WithdrawalRequest, pk_u: PublicKe
     Ok(BlindedSignature(h, sig))
 }
 
-pub(crate) fn issue_verify(
+pub fn issue_verify(
     params: &GroupParameters,
     vk_auth: &VerificationKeyAuth,
     sk_user: &SecretKeyUser,

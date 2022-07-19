@@ -27,7 +27,7 @@ pub fn identify(
     payment2: Payment,
     pay_info1: PayInfo,
     pay_info2: PayInfo) -> Result<IdentifyResult> {
-    //  verify first the validaty of both payments
+    //  verify first the validity of both payments
     assert!(payment1.spend_verify(&params, &verification_key, &pay_info1).unwrap());
     assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());
 
@@ -103,7 +103,6 @@ mod tests {
 
     #[test]
     fn duplicate_payments_with_the_same_pay_info() {
-        let rng = thread_rng();
         let grp = GroupParameters::new().unwrap();
         let params = Parameters::new(grp.clone());
         let params_u = params.get_params_u();
@@ -150,7 +149,7 @@ mod tests {
         let mut wallet1 = aggregate_wallets(&grp, &verification_key, &sk_user1, &partial_wallets1).unwrap();
 
         let pay_info1 = PayInfo { info: [67u8; 32] };
-        let (payment1, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10).unwrap();
+        let (payment1, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10, false).unwrap();
 
         // SPEND VERIFICATION for USER1
         assert!(payment1.spend_verify(&params, &verification_key, &pay_info1).unwrap());
@@ -188,9 +187,6 @@ mod tests {
         let sk_user1 = SecretKeyUser { sk: sk1 };
         let pk_user1 = SecretKeyUser::public_key(&sk_user1, &grp);
 
-        // KEY GENERATION FOR THE USER2
-        let sk_user2 = sk_user1.clone();
-        let pk_user2 = pk_user1.clone();
 
         //  GENERATE KEYS FOR OTHER USERS
         let mut pk_all_users: Vec<PublicKeyUser> = Default::default();
@@ -201,7 +197,6 @@ mod tests {
             pk_all_users.push(pk_user);
         }
         pk_all_users.push(pk_user1.clone());
-        pk_all_users.push(pk_user2.clone());
 
         // WITHDRAWAL REQUEST FOR USER1
         let (withdrawal_req1, req_info1) = withdrawal_request(&params, &sk_user1).unwrap();
@@ -223,14 +218,14 @@ mod tests {
         let mut wallet1 = aggregate_wallets(&grp, &verification_key, &sk_user1, &partial_wallets1).unwrap();
 
         let pay_info1 = PayInfo { info: [67u8; 32] };
-        let (payment1, new_wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10).unwrap();
+        let (payment1, new_wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10, false).unwrap();
 
         // let's reverse the spending counter in the wallet to create a double spending payment
         let current_l = wallet1.l.get();
         wallet1.l.set(current_l - 1);
 
         let pay_info2 = PayInfo { info: [52u8; 32] };
-        let (payment2, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info2, 10).unwrap();
+        let (payment2, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info2, 10, false).unwrap();
 
 
         let identify_result = identify(&params, &verification_key, &pk_all_users, payment1, payment2, pay_info1, pay_info2).unwrap();
@@ -261,10 +256,6 @@ mod tests {
         let sk_user1 = SecretKeyUser { sk: sk1 };
         let pk_user1 = SecretKeyUser::public_key(&sk_user1, &grp);
 
-        // KEY GENERATION FOR THE USER2
-        let sk_user2 = sk_user1.clone();
-        let pk_user2 = pk_user1.clone();
-
         //  GENERATE KEYS FOR OTHER USERS
         let mut pk_all_users: Vec<PublicKeyUser> = Default::default();
         for i in 0..50 {
@@ -274,7 +265,6 @@ mod tests {
             pk_all_users.push(pk_user);
         }
         pk_all_users.push(pk_user1.clone());
-        pk_all_users.push(pk_user2.clone());
 
         // WITHDRAWAL REQUEST FOR USER1
         let (withdrawal_req1, req_info1) = withdrawal_request(&params, &sk_user1).unwrap();
@@ -296,14 +286,14 @@ mod tests {
         let mut wallet1 = aggregate_wallets(&grp, &verification_key, &sk_user1, &partial_wallets1).unwrap();
 
         let pay_info1 = PayInfo { info: [67u8; 32] };
-        let (payment1, new_wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10).unwrap();
+        let (payment1, new_wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10, false).unwrap();
 
         // let's reverse the spending counter in the wallet to create a double spending payment
         let current_l = wallet1.l.get();
         wallet1.l.set(current_l - 7);
 
         let pay_info2 = PayInfo { info: [52u8; 32] };
-        let (payment2, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info2, 10).unwrap();
+        let (payment2, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info2, 10, false).unwrap();
 
 
         let identify_result = identify(&params, &verification_key, &pk_all_users, payment1, payment2, pay_info1, pay_info2).unwrap();
@@ -360,7 +350,7 @@ mod tests {
         let mut wallet1 = aggregate_wallets(&grp, &verification_key, &sk_user1, &partial_wallets1).unwrap();
 
         let pay_info1 = PayInfo { info: [67u8; 32] };
-        let (payment1, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10).unwrap();
+        let (payment1, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info1, 10, false).unwrap();
 
         // SPEND VERIFICATION for USER1
         assert!(payment1.spend_verify(&params, &verification_key, &pay_info1).unwrap());
@@ -385,7 +375,7 @@ mod tests {
         let mut wallet2 = aggregate_wallets(&grp, &verification_key, &sk_user2, &partial_wallets2).unwrap();
 
         let pay_info2 = PayInfo { info: [67u8; 32] };
-        let (payment2, wallet2) = wallet2.spend(&params, &verification_key, &sk_user2, &pay_info2, 10).unwrap();
+        let (payment2, wallet2) = wallet2.spend(&params, &verification_key, &sk_user2, &pay_info2, 10, false).unwrap();
 
         // SPEND VERIFICATION for USER2
         assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());

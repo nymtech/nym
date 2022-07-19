@@ -13,11 +13,8 @@ use crate::scheme::withdrawal::{issue, issue_verify, withdrawal_request};
 // and spending.
 fn main() -> Result<(), DivisibleEcashError> {
     // SETUP PHASE
-    let rng = thread_rng();
     let grp = GroupParameters::new().unwrap();
     let params = Parameters::new(grp.clone());
-    let params_u = params.get_params_u();
-    let params_a = params.get_params_a();
 
     // KEY GENERATION FOR THE AUTHORITIES
     let authorities_keypairs = ttp_keygen_authorities(&params, 2, 3).unwrap();
@@ -54,7 +51,7 @@ fn main() -> Result<(), DivisibleEcashError> {
     let mut wallet = aggregate_wallets(&grp, &verification_key, &sk_user, &partial_wallets)?;
 
     let pay_info = PayInfo { info: [67u8; 32] };
-    let (payment, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10)?;
+    let (payment, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10, false)?;
 
     // SPEND VERIFICATION 
     assert!(payment.spend_verify(&params, &verification_key, &pay_info).unwrap());

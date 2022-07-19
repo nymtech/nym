@@ -50,7 +50,6 @@ name = "bandwidth-claim"
 version = "1.0.0"
 dependencies = [
  "bandwidth-claim-contract",
- "config",
  "cosmwasm-std",
  "cosmwasm-storage",
  "schemars",
@@ -221,7 +220,6 @@ version = "0.1.0"
 dependencies = [
  "bandwidth-claim-contract",
  "coconut-bandwidth-contract-common",
- "config",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
@@ -249,7 +247,6 @@ dependencies = [
  "bandwidth-claim-contract",
  "coconut-bandwidth",
  "coconut-bandwidth-contract-common",
- "config",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
@@ -1858,7 +1855,6 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.0.1"
 dependencies = [
- "config",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",

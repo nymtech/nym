@@ -45,6 +45,13 @@ impl Percent {
     }
 }
 
+impl Display for Percent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let adjusted = Decimal::from_atomics(100u32, 0).unwrap() * self.0;
+        write!(f, "{}%", adjusted)
+    }
+}
+
 impl Mul<Decimal> for Percent {
     type Output = Decimal;
 

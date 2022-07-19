@@ -27,6 +27,7 @@ fn deposit_and_release() {
     let msg = InstantiateMsg {
         multisig_addr: multisig_addr.clone(),
         pool_addr: pool_addr.clone(),
+        mix_denom: TEST_MIX_DENOM.to_string(),
     };
     let contract_addr = app
         .instantiate_contract(

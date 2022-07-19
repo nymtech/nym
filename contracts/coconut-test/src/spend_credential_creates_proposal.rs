@@ -62,6 +62,7 @@ fn spend_credential_creates_proposal() {
     let msg = CoconutBandwidthInstantiateMsg {
         multisig_addr: multisig_contract_addr.to_string(),
         pool_addr,
+        mix_denom: TEST_COIN_DENOM.to_string(),
     };
     let coconut_bandwidth_contract_addr = app
         .instantiate_contract(

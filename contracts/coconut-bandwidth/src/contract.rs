@@ -25,12 +25,14 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_addr)?;
+    let mix_denom = msg.mix_denom;
 
     ADMIN.set(deps.branch(), Some(multisig_addr.clone()))?;
 
     let cfg = Config {
         multisig_addr,
         pool_addr,
+        mix_denom,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -74,8 +76,8 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::*;
-    use config::defaults::MIX_DENOM;
     use cosmwasm_std::coins;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
@@ -86,6 +88,7 @@ mod tests {
         let msg = InstantiateMsg {
             multisig_addr: String::from(MULTISIG_CONTRACT),
             pool_addr: String::from(POOL_CONTRACT),
+            mix_denom: TEST_MIX_DENOM.to_string(),
         };
         let info = mock_info("creator", &[]);
 
@@ -94,11 +97,11 @@ mod tests {
 
         // Contract balance should be 0
         assert_eq!(
-            coins(0, MIX_DENOM.base),
+            coins(0, TEST_MIX_DENOM),
             vec![deps
                 .as_ref()
                 .querier
-                .query_balance(env.contract.address, MIX_DENOM.base)
+                .query_balance(env.contract.address, TEST_MIX_DENOM)
                 .unwrap()]
         );
     }

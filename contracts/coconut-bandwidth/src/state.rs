@@ -13,6 +13,7 @@ pub const ADMIN: Admin = Admin::new("admin");
 pub struct Config {
     pub multisig_addr: Addr,
     pub pool_addr: Addr,
+    pub mix_denom: String,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

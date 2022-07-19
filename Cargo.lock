@@ -928,7 +928,6 @@ dependencies = [
  "coconut-interface",
  "cosmrs",
  "crypto",
- "network-defaults",
  "rand 0.7.3",
  "thiserror",
  "url",
@@ -2872,7 +2871,6 @@ dependencies = [
  "cosmwasm-std",
  "fixed",
  "log",
- "network-defaults",
  "schemars",
  "serde",
  "serde_repr",
@@ -5390,7 +5388,6 @@ version = "1.0.1"
 dependencies = [
  "async-trait",
  "log",
- "network-defaults",
  "reqwest",
  "serde",
  "serde_json",

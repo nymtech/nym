@@ -1082,7 +1082,6 @@ dependencies = [
  "cosmwasm-std",
  "fixed",
  "log",
- "network-defaults",
  "schemars",
  "serde",
  "serde_repr",

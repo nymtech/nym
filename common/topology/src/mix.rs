@@ -95,7 +95,7 @@ impl<'a> From<&'a Node> for SphinxNode {
             .try_into()
             .unwrap();
 
-        SphinxNode::new(node_address_bytes, (&node.sphinx_key).into())
+        SphinxNode::new(node_address_bytes, node.sphinx_key.into())
     }
 }
 

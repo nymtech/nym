@@ -217,7 +217,7 @@ impl Node {
             ));
         }
 
-        let tau_len = u32::from_be_bytes((&bytes[..4]).try_into().unwrap()) as usize;
+        let tau_len = u32::from_be_bytes((bytes[..4]).try_into().unwrap()) as usize;
         let mut i = 4;
 
         let tau = Tau::try_from_bytes(&bytes[i..i + tau_len])?;
@@ -241,7 +241,7 @@ impl Node {
         })?;
         i += 96;
 
-        let ds_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let ds_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         if bytes[i..].len() < ds_len * 96 + 4 {
@@ -264,7 +264,7 @@ impl Node {
             i += 96;
         }
 
-        let dh_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let dh_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         if bytes[i..].len() != (dh_len + 1) * 96 {

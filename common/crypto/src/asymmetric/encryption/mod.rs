@@ -52,6 +52,8 @@ impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let private_key = x25519_dalek::StaticSecret::new(rng);
+        // false positive on nightly clippy (1.64.0)
+        #[allow(clippy::needless_borrow)]
         let public_key = (&private_key).into();
 
         KeyPair {
@@ -177,6 +179,8 @@ impl Display for PrivateKey {
 
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {
+        // false positive on nightly clippy (1.64.0)
+        #[allow(clippy::needless_borrow)]
         PublicKey((&pk.0).into())
     }
 }

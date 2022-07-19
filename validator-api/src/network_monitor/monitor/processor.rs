@@ -141,7 +141,7 @@ impl ReceivedProcessor {
 
         tokio::spawn(async move {
             loop {
-                let permit = wait_for_permit(&mut permit_receiver, &*inner).await;
+                let permit = wait_for_permit(&mut permit_receiver, &inner).await;
                 receive_or_release_permit(&mut permit_receiver, permit).await;
             }
 

@@ -381,6 +381,8 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for mixnode in nodes {
+            // false positive on nightly clippy (1.64.0)
+            #[allow(clippy::needless_borrow)]
             if let Ok(parsed_node) = (&mixnode).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {
@@ -400,6 +402,8 @@ impl PacketPreparer {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for gateway in nodes {
+            // false positive on nightly clippy (1.64.0)
+            #[allow(clippy::needless_borrow)]
             if let Ok(parsed_node) = (&gateway).try_into() {
                 parsed_nodes.push(parsed_node)
             } else {

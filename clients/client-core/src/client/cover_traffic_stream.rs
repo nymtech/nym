@@ -129,7 +129,7 @@ impl LoopCoverTrafficStream<OsRng> {
         let cover_message = generate_loop_cover_packet(
             &mut self.rng,
             topology_ref,
-            &*self.ack_key,
+            &self.ack_key,
             &self.our_full_destination,
             self.average_ack_delay,
             self.average_packet_delay,

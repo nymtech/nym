@@ -7,6 +7,8 @@ async fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let database_path = format!("{}/gateway-example.sqlite", out_dir);
 
+    // false positive on nightly clippy (1.64.0)
+    #[allow(clippy::explicit_auto_deref)]
     let mut conn = SqliteConnection::connect(&*format!("sqlite://{}?mode=rwc", database_path))
         .await
         .expect("Failed to create SQLx database connection");

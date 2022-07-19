@@ -47,7 +47,7 @@ pub async fn query_gateway_details(
         filtered_gateways
             .iter()
             .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
-            .expect(&*format!("no gateway with id {} exists!", gateway_id))
+            .unwrap_or_else(|| panic!("no gateway with id {} exists!", gateway_id))
             .clone()
     } else {
         filtered_gateways

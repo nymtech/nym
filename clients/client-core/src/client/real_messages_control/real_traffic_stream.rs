@@ -222,7 +222,7 @@ where
                 generate_loop_cover_packet(
                     &mut self.rng,
                     topology_ref,
-                    &*self.ack_key,
+                    &self.ack_key,
                     &self.our_full_destination,
                     self.config.average_ack_delay,
                     self.config.average_packet_delay,

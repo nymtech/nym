@@ -193,6 +193,8 @@ impl Display for PrivateKey {
 
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {
+        // false positive on nightly clippy (1.64.0)
+        #[allow(clippy::needless_borrow)]
         PublicKey((&pk.0).into())
     }
 }

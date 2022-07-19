@@ -30,6 +30,8 @@ impl Network {
         Network::CUSTOM { details }
     }
 
+    // fake positive on nightly
+    #[allow(clippy::needless_borrow)]
     pub fn details(&self) -> NymNetworkDetails {
         match self {
             Self::QA => (&*QA_DEFAULTS).into(),

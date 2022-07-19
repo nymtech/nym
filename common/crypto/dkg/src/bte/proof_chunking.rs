@@ -520,7 +520,7 @@ impl ProofOfChunking {
         })?;
         i += 48;
 
-        let bb_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let bb_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         // can we read bb and length of cc?
@@ -539,7 +539,7 @@ impl ProofOfChunking {
             i += 48;
         }
 
-        let cc_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let cc_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         // can we read cc and length of dd?
@@ -558,7 +558,7 @@ impl ProofOfChunking {
             i += 48;
         }
 
-        let dd_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let dd_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         // can we read dd, yy and length of responses_r?
@@ -582,7 +582,7 @@ impl ProofOfChunking {
         })?;
         i += 48;
 
-        let responses_r_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let responses_r_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         // can we read responses_r and length of responses_chunks?
@@ -604,8 +604,7 @@ impl ProofOfChunking {
             i += 32;
         }
 
-        let responses_chunks_len =
-            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        let responses_chunks_len = u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         // can we read the rest of the proof, i.e. responses_chunks and response_beta?
@@ -618,7 +617,7 @@ impl ProofOfChunking {
 
         let mut responses_chunks = Vec::with_capacity(responses_chunks_len);
         for _ in 0..responses_chunks_len {
-            responses_chunks.push(u64::from_be_bytes((&bytes[i..i + 8]).try_into().unwrap()));
+            responses_chunks.push(u64::from_be_bytes(bytes[i..i + 8].try_into().unwrap()));
             i += 8;
         }
 

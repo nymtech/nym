@@ -204,27 +204,27 @@ impl Dealing {
 
         let mut i = 0;
         let coefficients_bytes_len =
-            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+            u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
         let public_coefficients =
             PublicCoefficients::try_from_bytes(&bytes[i..i + coefficients_bytes_len])?;
         i += coefficients_bytes_len;
 
         let ciphertexts_bytes_len =
-            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+            u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
         let ciphertexts = Ciphertexts::try_from_bytes(&bytes[i..i + ciphertexts_bytes_len])?;
         i += ciphertexts_bytes_len;
 
         let proof_of_sharing_bytes_len =
-            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+            u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
         let proof_of_sharing =
             ProofOfSecretSharing::try_from_bytes(&bytes[i..i + proof_of_sharing_bytes_len])?;
         i += proof_of_sharing_bytes_len;
 
         let proof_of_chunking_bytes_len =
-            u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+            u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) as usize;
         i += 4;
 
         if bytes[i..].len() != proof_of_chunking_bytes_len {

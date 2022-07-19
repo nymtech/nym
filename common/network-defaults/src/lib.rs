@@ -82,14 +82,20 @@ impl NymNetworkDetails {
         NymNetworkDetails::default()
     }
 
+    // fake positive on nightly
+    #[allow(clippy::needless_borrow)]
     pub fn new_qa() -> Self {
         (&*QA_DEFAULTS).into()
     }
 
+    // fake positive on nightly
+    #[allow(clippy::needless_borrow)]
     pub fn new_sandbox() -> Self {
         (&*SANDBOX_DEFAULTS).into()
     }
 
+    // fake positive on nightly
+    #[allow(clippy::needless_borrow)]
     pub fn new_mainnet() -> Self {
         (&*MAINNET_DEFAULTS).into()
     }

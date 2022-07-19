@@ -6,6 +6,8 @@
   "workspaces": [
     "ts-packages/*",
     "nym-wallet",
+    "nym-wallet/webdriver",
+    "nym-wallet/wallet-ui-tests",
     "nym-connect",
     "explorer",
     "types",

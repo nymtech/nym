@@ -28,6 +28,7 @@ exports.config = {
       "./tests/specs/existinguser/test.wallet.undelegate.js",
     ],
     newuser: ["./tests/specs/newuser/test.wallet.create.js"],
+    temp:["./tests/specs/temp/temp.spec.ts"],
   },
   maxInstances: 1,
   capabilities: [

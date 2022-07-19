@@ -13,6 +13,9 @@ export const MnemonicInput: React.FC<{
     <Stack spacing={2}>
       <TextField
         label="Mnemonic"
+        inputProps={{
+          "data-testid": "mnemonicInput",
+      }}
         type={showPassword ? 'input' : 'password'}
         value={mnemonic}
         onChange={(e) => onUpdateMnemonic(e.target.value)}

@@ -1,12 +1,16 @@
 {
-  "name": "wallet-ui-test",
+  "name": "wallet-ui-tests",
   "version": "1.0.0",
-  "description": "wallet ui tests for the nym wallet",
+  "description": "ui tests for the nym wallet",
   "scripts": {
-    "test": "wdio run wdio.conf.ts"
+    "test": "wdio run wdio.conf.ts",
+    "test:welcome": "wdio run wdio.conf.ts --suite welcome",
+    "test:login": "wdio run wdio.conf.ts --suite login",
+    "test:balance": "wdio run wdio.conf.ts --suite balance"
+    
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "-": "^0.0.1",
     "@wdio/cli": "^7.16.16",

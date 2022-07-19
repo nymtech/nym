@@ -23,6 +23,7 @@ export const CreateMnemonic = () => {
 
         <Button
           variant="contained"
+          data-testid="iSavedMnemonic"
           color="primary"
           disableElevation
           size="large"
@@ -33,6 +34,7 @@ export const CreateMnemonic = () => {
           I saved my mnemonic
         </Button>
         <Button
+          data-testid="backToWelcome"
           onClick={() => {
             resetState();
             navigate(-1);

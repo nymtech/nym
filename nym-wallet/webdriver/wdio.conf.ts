@@ -11,10 +11,15 @@ exports.config = {
     autoCompile: true,
     tsNodeOpts: {
       transpileOnly: true,
-      project: 'test/tsconfig.json',
+      project: 'tsconfig.json',
     },
   },
-  specs: ['./test/specs/**/*.ts'],
+  specs: ['./tests/specs/**/*.ts'],
+
+  suites: {
+    welcome: [
+        './tests/specs/newaccount/*.ts',
+      ]},
   // Patterns to exclude.
   exclude: [
     // 'path/to/excluded/files'

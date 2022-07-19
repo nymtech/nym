@@ -18,10 +18,11 @@ export const Mnemonic = ({
         Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the future
       </Typography>
     </Warning>
-    <TextField multiline rows={3} value={mnemonic} fullWidth />
+    <TextField multiline rows={3} value={mnemonic} fullWidth  data-testid="mnemonicPhrase"/>
 
     <Button
       color="inherit"
+      data-testid="copyMnemonic"
       disableElevation
       size="large"
       onClick={() => {

@@ -14,9 +14,8 @@ export const BalanceCard = () => {
   return (
     <NymCard
       title="Balance"
-      data-testid="check-balance"
       borderless
-      Action={<ClientAddress withCopy showEntireAddress />}
+      Action={<ClientAddress withCopy showEntireAddress/>}
     >
       <Grid container direction="column" spacing={2}>
         <Grid item>
@@ -27,7 +26,7 @@ export const BalanceCard = () => {
           )}
           {!userBalance.error && (
             <Typography
-              data-testid="refresh-success"
+              data-testid="nym-balance"
               sx={{
                 color: 'text.primary',
                 textTransform: 'uppercase',

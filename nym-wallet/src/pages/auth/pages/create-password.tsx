@@ -47,6 +47,7 @@ export const CreatePassword = () => {
               onUpdatePassword={(pswd) => setPassword(pswd)}
               label="Password"
               autoFocus
+              data-testid="password"
             />
             <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
           </>
@@ -54,16 +55,18 @@ export const CreatePassword = () => {
             password={confirmedPassword}
             onUpdatePassword={(pswd) => setConfirmedPassword(pswd)}
             label="Confirm password"
+            data-testid="confirmPassword"
           />
           <Button
             size="large"
+            data-testid="next"
             variant="contained"
             disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
             onClick={storePassword}
           >
             Next
           </Button>
-          <Button size="large" color="info" onClick={handleSkip}>
+          <Button size="large" color="info" onClick={handleSkip} data-testid="skipPasswordAndSignInWithMnemonic">
             Skip and sign in with mnemonic
           </Button>
         </Stack>

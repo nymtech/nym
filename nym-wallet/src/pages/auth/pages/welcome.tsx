@@ -19,6 +19,7 @@ export const WelcomeContent: React.FC<{}> = () => {
           variant="contained"
           size="large"
           onClick={() => navigate('/existing-account')}
+          data-testid="signIn"
         >
           Sign in
         </Button>
@@ -29,6 +30,7 @@ export const WelcomeContent: React.FC<{}> = () => {
           disableElevation
           size="large"
           onClick={() => navigate('/create-mnemonic')}
+          data-testid="createAccount"
         >
           Create account
         </Button>

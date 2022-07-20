@@ -34,7 +34,7 @@ const Unbond = ({ node, show, onClose }: Props) => {
   }, [error, feeError]);
 
   useEffect(() => {
-    if ('profitMarfin' in node) {
+    if ('profitMargin' in node) {
       setNodeType('mixnode');
     } else {
       setNodeType('gateway');

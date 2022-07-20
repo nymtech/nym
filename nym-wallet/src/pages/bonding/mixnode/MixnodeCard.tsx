@@ -1,17 +1,20 @@
-import React, { useMemo, useState } from 'react';
-import { Button, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
+import { Button, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
+import { NymCard } from 'src/components';
+import { IdentityKey } from 'src/components/IdentityKey';
+import { NodeStatus } from 'src/components/NodeStatus';
 import { BondedMixnode } from '../../../context';
-import { Node as NodeIcon } from '../../../svg-icons/node';
-import { NodeTable, BondedNodeCard, Cell, Header, NodeMenu } from '../components';
-import NodeSettings from './node-settings';
-import BondMore from './bond-more';
-import { MixnodeFlow } from './types';
-import RedeemRewards from './redeem';
-import Unbond from '../unbond';
-import CompoundRewards from './compound';
 import { Bond as BondIcon, Unbond as UnbondIcon } from '../../../svg-icons';
+import { Node as NodeIcon } from '../../../svg-icons/node';
+import { Cell, Header, NodeMenu, NodeTable } from '../components';
+import Unbond from '../unbond';
+import BondMore from './bond-more';
+import CompoundRewards from './compound';
+import NodeSettings from './node-settings';
+import RedeemRewards from './redeem';
+import { MixnodeFlow } from './types';
 
 const headers: Header[] = [
   {
@@ -126,23 +129,16 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
     [mixnode, theme, nodeMenuOpen],
   );
   return (
-    <BondedNodeCard
-      title="Monster node"
-      identityKey={mixnode.identityKey}
-      status={mixnode.status}
-      action={
-        <Button
-          variant="text"
-          color="secondary"
-          onClick={() => setFlow('nodeSettings')}
-          sx={{
-            fontWeight: 500,
-            '& .MuiSvgIcon-root': {
-              fontSize: 14,
-            },
-          }}
-          startIcon={<NodeIcon />}
-        >
+    <NymCard
+      title={
+        <Stack gap={2}>
+          <NodeStatus status={mixnode.status} />
+          <Typography variant="h5">Monster node</Typography>
+          <IdentityKey identityKey={mixnode.identityKey} />
+        </Stack>
+      }
+      Action={
+        <Button variant="text" color="secondary" onClick={() => setFlow('nodeSettings')} startIcon={<NodeIcon />}>
           Node settings
         </Button>
       }
@@ -159,7 +155,7 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
       <RedeemRewards mixnode={mixnode} show={flow === 'redeem'} onClose={() => setFlow(null)} />
       <Unbond node={mixnode} show={flow === 'unbond'} onClose={() => setFlow(null)} />
       <CompoundRewards mixnode={mixnode} show={flow === 'compound'} onClose={() => setFlow(null)} />
-    </BondedNodeCard>
+    </NymCard>
   );
 };
 

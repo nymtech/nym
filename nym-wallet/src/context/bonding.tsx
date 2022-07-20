@@ -162,18 +162,14 @@ export const BondingContextProvider = ({
   const [error, setError] = useState<string>();
   const [bondedMixnode, setBondedMixnode] = useState<BondedMixnode | null>(null);
   const [bondedGateway, setBondedGateway] = useState<BondedGateway | null>(null);
-  const { fee, resetFeeState, feeError, isFeeLoading } = useGetFee();
-  const { ownership, checkOwnership } = useCheckOwnership();
+
   const { userBalance } = useContext(AppContext);
+  const { ownership, checkOwnership } = useCheckOwnership();
+  const { fee, resetFeeState, feeError, isFeeLoading } = useGetFee();
 
   const isVesting = Boolean(ownership.vestingPledge);
 
-  useEffect(() => {
-    const init = async () => {
-      await checkOwnership();
-    };
-    init();
-  }, [checkOwnership]);
+  console.log(ownership);
 
   useEffect(() => {
     if (feeError) {
@@ -188,26 +184,13 @@ export const BondingContextProvider = ({
     setBondedMixnode(null);
   };
 
-  const fetchMixnodeStatus = useCallback(async () => {
-    setLoading(true);
-    if (bondedMixnode) {
-      try {
-        const { status } = await getMixnodeStatus(bondedMixnode.identityKey);
-        setBondedMixnode({ ...bondedMixnode, status });
-      } catch (e: any) {
-        setError(`While fetching mixnode status, an error occurred: ${e}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-  }, [bondedMixnode]);
-
   const refresh = useCallback(async () => {
+    let data, status;
     setLoading(true);
     if (ownership.hasOwnership && ownership.nodeType === 'mixnode') {
-      let data;
       try {
         data = await getMixnodeBondDetails();
+        status = data ? await getMixnodeStatus(data?.mix_node.identity_key) : undefined;
       } catch (e: any) {
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
@@ -215,9 +198,9 @@ export const BondingContextProvider = ({
       setBondedMixnode(bounded);
     }
     if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
-      let data;
       try {
         data = await getGatewayBondDetails();
+        status = data ? await getMixnodeStatus(data?.gateway.identity_key) : undefined;
       } catch (e: any) {
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
@@ -231,12 +214,6 @@ export const BondingContextProvider = ({
     resetState();
     refresh();
   }, [network, ownership]);
-
-  useEffect(() => {
-    if (bondedMixnode) {
-      fetchMixnodeStatus();
-    }
-  }, [bondedMixnode]);
 
   const bondMixnode = async (data: Omit<TBondMixNodeArgs, 'fee'>, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;

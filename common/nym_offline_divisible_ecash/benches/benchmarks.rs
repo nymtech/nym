@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ops::Neg;
 use std::time::Duration;
 
@@ -134,14 +135,14 @@ fn bench_divisible_ecash(c: &mut Criterion) {
     let pk_user = SecretKeyUser::public_key(&sk_user, &grp);
 
     //  GENERATE KEYS FOR OTHER USERS
-    let mut pk_all_users: Vec<PublicKeyUser> = Default::default();
+    let mut pk_all_users = HashSet::new();
     for i in 0..50 {
         let sk = grp.random_scalar();
         let sk_user = SecretKeyUser { sk };
         let pk_user = sk_user.public_key(&grp);
-        pk_all_users.push(pk_user);
+        pk_all_users.insert(pk_user);
     }
-    pk_all_users.push(pk_user.clone());
+    pk_all_users.insert(pk_user.clone());
 
     // WITHDRAWAL REQUEST
     let (withdrawal_req, req_info) = withdrawal_request(&params, &sk_user).unwrap();

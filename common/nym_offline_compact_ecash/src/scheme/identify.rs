@@ -1,3 +1,8 @@
+use std::collections::HashSet;
+
+use bls12_381::G1Projective;
+use group::Curve;
+
 use crate::{PayInfo, VerificationKeyAuth};
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::PublicKeyUser;
@@ -10,6 +15,7 @@ pub enum IdentifyResult {
     DuplicatePayInfo(PayInfo),
     DoubleSpendingPublicKeys(PublicKeyUser),
 }
+
 
 pub fn identify(params: &Parameters, public_keys_u: &[PublicKeyUser], verification_key: &VerificationKeyAuth, payment1: Payment, payment2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
     //  verify first the validity of both payments
@@ -45,6 +51,9 @@ pub fn identify(params: &Parameters, public_keys_u: &[PublicKeyUser], verificati
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
+    use group::Curve;
     use itertools::izip;
 
     use crate::{aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify, issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request};
@@ -210,6 +219,17 @@ mod tests {
         let grp = params.grp();
         let user_keypair = generate_keypair_user(&grp);
 
+        //  GENERATE KEYS FOR OTHER USERS
+        let mut public_keys: Vec<PublicKeyUser> = Default::default();
+        for i in 0..50 {
+            let sk = grp.random_scalar();
+            let sk_user = SecretKeyUser { sk };
+            let pk_user = sk_user.public_key(&grp);
+            public_keys.push(pk_user.clone());
+        }
+        public_keys.push(user_keypair.public_key().clone());
+
+
         let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
         let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
 
@@ -251,7 +271,7 @@ mod tests {
         let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 1;
 
-        let (payment1, upd_wallet) = aggr_wallet.spend(
+        let (payment1, _) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),
@@ -269,7 +289,6 @@ mod tests {
         aggr_wallet.l.set(current_l - 1);
 
         let pay_info2 = PayInfo { info: [7u8; 32] };
-        let spend_vv = 1;
 
         let (payment2, _) = aggr_wallet.spend(
             &params,
@@ -284,17 +303,6 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        //  GENERATE KEYS FOR OTHER USERS
-        let mut public_keys: Vec<PublicKeyUser> = Default::default();
-        for i in 0..50 {
-            let sk = grp.random_scalar();
-            let sk_user = SecretKeyUser { sk };
-            let pk_user = sk_user.public_key(&grp);
-            public_keys.push(pk_user);
-        }
-        public_keys.push(user_keypair.public_key());
-
-
         let identify_result = identify(&params, &public_keys, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
     }
@@ -305,6 +313,16 @@ mod tests {
         let params = setup(L);
         let grp = params.grp();
         let user_keypair = generate_keypair_user(&grp);
+
+        //  GENERATE KEYS FOR OTHER USERS
+        let mut public_keys: Vec<PublicKeyUser> = Default::default();
+        for i in 0..50 {
+            let sk = grp.random_scalar();
+            let sk_user = SecretKeyUser { sk };
+            let pk_user = sk_user.public_key(&grp);
+            public_keys.push(pk_user.clone());
+        }
+        public_keys.push(user_keypair.public_key().clone());
 
         let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
         let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
@@ -347,7 +365,7 @@ mod tests {
         let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 10;
 
-        let (payment1, upd_wallet) = aggr_wallet.spend(
+        let (payment1, _) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),
@@ -374,15 +392,6 @@ mod tests {
             spend_vv,
         ).unwrap();
 
-        //  GENERATE KEYS FOR OTHER USERS
-        let mut public_keys: Vec<PublicKeyUser> = Default::default();
-        for i in 0..50 {
-            let sk = grp.random_scalar();
-            let sk_user = SecretKeyUser { sk };
-            let pk_user = sk_user.public_key(&grp);
-            public_keys.push(pk_user);
-        }
-        public_keys.push(user_keypair.public_key());
 
         let identify_result = identify(&params, &public_keys, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));

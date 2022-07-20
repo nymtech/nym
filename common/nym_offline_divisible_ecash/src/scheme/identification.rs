@@ -22,7 +22,7 @@ pub enum IdentifyResult {
 pub fn identify(
     params: &Parameters,
     verification_key: &VerificationKeyAuth,
-    public_keys_u: &[PublicKeyUser],
+    public_keys_u: &HashSet<PublicKeyUser>,
     payment1: Payment,
     payment2: Payment,
     pay_info1: PayInfo,
@@ -32,56 +32,53 @@ pub fn identify(
     assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());
 
     let params_a = params.get_params_a();
+
     // compute the serial numbers for k1 in [0, V1-1]
     let mut serial_numbers = HashMap::new();
 
-    for k1 in 0..payment1.vv {
-        let sn = pairing(&payment1.phi.1.to_affine(), &params_a.get_ith_delta(k1 as usize).to_affine())
-            + pairing(&payment1.phi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment1.vv as usize, k1 as usize).to_affine());
-        serial_numbers.insert(sn, k1);
+    for k in 0..payment1.vv {
+        let sn = pairing(&payment1.phi.1.to_affine(), &params_a.get_ith_delta(k as usize).to_affine())
+            + pairing(&payment1.phi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment1.vv as usize, k as usize).to_affine());
+        serial_numbers.insert(sn, k);
     }
 
     // compute the serial numbers fo k2 in [0, V2-1]
+    let mut k1 = 0;
+    let mut k2 = 0;
     let mut duplicate_serial_numbers: Vec<(Gt, u64, u64)> = Default::default();
-    for k2 in 0..payment2.vv {
-        let sn = pairing(&payment2.phi.1.to_affine(), &params_a.get_ith_delta(k2 as usize).to_affine())
-            + pairing(&payment2.phi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment2.vv as usize, k2 as usize).to_affine());
+    for j in 0..payment2.vv {
+        let sn = pairing(&payment2.phi.1.to_affine(), &params_a.get_ith_delta(j as usize).to_affine())
+            + pairing(&payment2.phi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment2.vv as usize, j as usize).to_affine());
         if !serial_numbers.contains_key(&sn) {
-            serial_numbers.insert(sn, k2);
+            serial_numbers.insert(sn, j);
         } else {
-            let k1 = *serial_numbers.get(&sn).unwrap() as u64;
-            duplicate_serial_numbers.push((sn, k1, k2));
+            k1 = *serial_numbers.get(&sn).unwrap() as u64;
+            k2 = j.clone();
+            break;
         }
+        return Ok(IdentifyResult::NotADuplicatePayment);
     }
 
-    if duplicate_serial_numbers.is_empty() {
-        Ok(IdentifyResult::NotADuplicatePayment)
+    if pay_info1 == pay_info2 {
+        Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
     } else {
-        if pay_info1.info == pay_info2.info {
-            Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
-        } else {
-            for elem in duplicate_serial_numbers.iter() {
-                let k1 = elem.1;
-                let k2 = elem.2;
-                let delta_k1 = params_a.get_ith_delta(k1 as usize);
-                let delta_k2 = params_a.get_ith_delta(k2 as usize);
-                let tt1 = pairing(&payment1.varphi.1.to_affine(), &delta_k1.to_affine())
-                    + pairing(&payment1.varphi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment1.vv as usize, k1 as usize).to_affine());
-                let tt2 = pairing(&payment2.varphi.1.to_affine(), &delta_k2.to_affine())
-                    + pairing(&payment2.varphi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment2.vv as usize, k2 as usize).to_affine());
+        let delta_k1 = params_a.get_ith_delta(k1 as usize);
+        let delta_k2 = params_a.get_ith_delta(k2 as usize);
+        let tt1 = pairing(&payment1.varphi.1.to_affine(), &delta_k1.to_affine())
+            + pairing(&payment1.varphi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment1.vv as usize, k1 as usize).to_affine());
+        let tt2 = pairing(&payment2.varphi.1.to_affine(), &delta_k2.to_affine())
+            + pairing(&payment2.varphi.0.to_affine(), &params_a.get_etas_ith_jth_elem(payment2.vv as usize, k2 as usize).to_affine());
 
 
-                for pk_u in public_keys_u.iter() {
-                    let pg_pku_deltas = pairing(&pk_u.pk.to_affine(), &(delta_k1 * payment1.rr + delta_k2 * payment2.rr.neg()).to_affine());
-                    if tt1 - tt2 == pg_pku_deltas {
-                        return Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_u.clone()));
-                    }
-                }
+        for pk_u in public_keys_u.iter() {
+            let pg_pku_deltas = pairing(&pk_u.pk.to_affine(), &(delta_k1 * payment1.rr + delta_k2 * payment2.rr.neg()).to_affine());
+            if tt1 - tt2 == pg_pku_deltas {
+                return Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_u.clone()));
             }
-            return Err(DivisibleEcashError::Identify(
-                "A duplicate serial number was detected, the payinfo1 and payinfo2 are different, but we failed to identify the double-spending public key".to_string(),
-            ));
         }
+        return Err(DivisibleEcashError::Identify(
+            "A duplicate serial number was detected, the payinfo1 and payinfo2 are different, but we failed to identify the double-spending public key".to_string(),
+        ));
     }
 }
 
@@ -160,7 +157,8 @@ mod tests {
 
         let pay_info2 = pay_info1.clone();
 
-        let identify_result = identify(&params, &verification_key, &[pk_user1, pk_user2], payment1, payment2, pay_info1, pay_info2).unwrap();
+        let public_keys = HashSet::from([pk_user1, pk_user2]);
+        let identify_result = identify(&params, &verification_key, &public_keys, payment1, payment2, pay_info1, pay_info2).unwrap();
         assert_eq!(identify_result, IdentifyResult::DuplicatePayInfo(pay_info1));
     }
 
@@ -189,14 +187,14 @@ mod tests {
 
 
         //  GENERATE KEYS FOR OTHER USERS
-        let mut pk_all_users: Vec<PublicKeyUser> = Default::default();
+        let mut pk_all_users = HashSet::new();
         for i in 0..50 {
             let sk = grp.random_scalar();
             let sk_user = SecretKeyUser { sk };
             let pk_user = sk_user.public_key(&grp);
-            pk_all_users.push(pk_user);
+            pk_all_users.insert(pk_user);
         }
-        pk_all_users.push(pk_user1.clone());
+        pk_all_users.insert(pk_user1.clone());
 
         // WITHDRAWAL REQUEST FOR USER1
         let (withdrawal_req1, req_info1) = withdrawal_request(&params, &sk_user1).unwrap();
@@ -257,14 +255,14 @@ mod tests {
         let pk_user1 = SecretKeyUser::public_key(&sk_user1, &grp);
 
         //  GENERATE KEYS FOR OTHER USERS
-        let mut pk_all_users: Vec<PublicKeyUser> = Default::default();
+        let mut public_keys = HashSet::new();
         for i in 0..50 {
             let sk = grp.random_scalar();
             let sk_user = SecretKeyUser { sk };
             let pk_user = sk_user.public_key(&grp);
-            pk_all_users.push(pk_user);
+            public_keys.insert(pk_user);
         }
-        pk_all_users.push(pk_user1.clone());
+        public_keys.insert(pk_user1.clone());
 
         // WITHDRAWAL REQUEST FOR USER1
         let (withdrawal_req1, req_info1) = withdrawal_request(&params, &sk_user1).unwrap();
@@ -296,7 +294,7 @@ mod tests {
         let (payment2, wallet1) = wallet1.spend(&params, &verification_key, &sk_user1, &pay_info2, 10, false).unwrap();
 
 
-        let identify_result = identify(&params, &verification_key, &pk_all_users, payment1, payment2, pay_info1, pay_info2).unwrap();
+        let identify_result = identify(&params, &verification_key, &public_keys, payment1, payment2, pay_info1, pay_info2).unwrap();
 
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(pk_user1));
     }
@@ -380,7 +378,8 @@ mod tests {
         // SPEND VERIFICATION for USER2
         assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());
 
-        let identify_result = identify(&params, &verification_key, &[pk_user1, pk_user2], payment1, payment2, pay_info1, pay_info2).unwrap();
+        let public_keys = HashSet::from([pk_user1, pk_user2]);
+        let identify_result = identify(&params, &verification_key, &public_keys, payment1, payment2, pay_info1, pay_info2).unwrap();
         assert_eq!(identify_result, IdentifyResult::NotADuplicatePayment);
     }
 }

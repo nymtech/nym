@@ -121,7 +121,7 @@ pub(crate) mod tests {
     #[test]
     fn gateway_pagination_works() {
         let mut deps = test_helpers::init_contract();
-        let env = mock_env();
+        let _env = mock_env();
         let mut rng = test_helpers::test_rng();
 
         // prepare 4 messages and identities that are sorted by the generated identities

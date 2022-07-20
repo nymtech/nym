@@ -217,7 +217,7 @@ pub mod test_helpers {
         }
 
         pub fn instantiate_simulator(&self, node: NodeId) -> Simulator {
-            simulator_from_state(self.deps(), self.env(), node)
+            simulator_from_state(self.deps(), node)
         }
 
         pub fn execute_all_pending_events(&mut self) {
@@ -292,7 +292,7 @@ pub mod test_helpers {
         }
     }
 
-    pub fn simulator_from_state(deps: Deps<'_>, env: Env, node: NodeId) -> Simulator {
+    pub fn simulator_from_state(deps: Deps<'_>, node: NodeId) -> Simulator {
         let mix_rewarding = rewards_storage::MIXNODE_REWARDING
             .load(deps.storage, node)
             .unwrap();
@@ -643,13 +643,13 @@ pub mod test_helpers {
 
         let active = rewarded_set
             .iter()
-            .filter(|(id, status)| status.is_active())
+            .filter(|(_id, status)| status.is_active())
             .map(|(id, _)| *id)
             .collect::<Vec<_>>();
 
         let standby = rewarded_set
             .iter()
-            .filter(|(id, status)| !status.is_active())
+            .filter(|(_id, status)| !status.is_active())
             .map(|(id, _)| *id)
             .collect::<Vec<_>>();
 

@@ -8,7 +8,6 @@ use crate::constants::{
 };
 use cosmwasm_std::{Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
 use std::collections::HashMap;

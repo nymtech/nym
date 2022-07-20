@@ -9,10 +9,10 @@ use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::{Api, Deps, Storage};
-use cw_storage_plus::{Bound, PrimaryKey};
+use cw_storage_plus::{Bound};
 use mixnet_contract_common::delegation::MixNodeDelegationResponse;
 use mixnet_contract_common::{
-    delegation, Delegation, IdentityKey, NodeId, PagedAllDelegationsResponse,
+    delegation, Delegation, NodeId, PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse, PagedMixNodeDelegationsResponse,
 };
 

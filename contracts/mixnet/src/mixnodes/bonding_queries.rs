@@ -463,7 +463,7 @@ pub(crate) mod tests {
         #[test]
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
-            let env = mock_env();
+            let _env = mock_env();
             let mut rng = test_helpers::test_rng();
             let limit = 2;
 
@@ -476,7 +476,7 @@ pub(crate) mod tests {
         #[test]
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
-            let env = mock_env();
+            let _env = mock_env();
             let mut rng = test_helpers::test_rng();
             test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
 
@@ -492,7 +492,7 @@ pub(crate) mod tests {
         #[test]
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
-            let env = mock_env();
+            let _env = mock_env();
             let mut rng = test_helpers::test_rng();
             test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
 

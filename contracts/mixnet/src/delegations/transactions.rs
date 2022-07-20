@@ -7,7 +7,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::support::helpers::validate_delegation_stake;
 use cosmwasm_std::{
-    Addr, Coin, DepsMut, Env, Event, MessageInfo, Order, Response, Storage, Uint128, WasmMsg,
+    Addr, Coin, DepsMut, MessageInfo, Response,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{

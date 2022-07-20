@@ -1214,7 +1214,6 @@ pub mod tests {
     #[cfg(test)]
     mod updating_active_set {
         use super::*;
-        use crate::interval::storage as interval_storage;
         use crate::support::tests::test_helpers::TestSetup;
 
         #[test]
@@ -1377,7 +1376,6 @@ pub mod tests {
     #[cfg(test)]
     mod updating_rewarding_params {
         use super::*;
-        use crate::interval::storage as interval_storage;
         use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
         use cosmwasm_std::Decimal;
 

@@ -13,24 +13,8 @@ pub mod qa;
 pub mod sandbox;
 pub mod var_names;
 
-// The set of defaults that are decided at compile time. Ideally we want to reduce these to a
-// minimum.
-// Keep DENOM around mostly for use in contracts. (TODO: consider moving it there, or renaming?)
-cfg_if::cfg_if! {
-    if #[cfg(network = "mainnet")] {
-        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
-        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
-
-    } else if #[cfg(network = "qa")] {
-        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
-        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
-
-    } else if #[cfg(network = "sandbox")] {
-
-        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
-        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
-    }
-}
+pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
+pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ChainDetails {

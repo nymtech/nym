@@ -11,9 +11,9 @@ use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::config::defaults::setup_env;
-use ::config::defaults::var_names::{
-    API_VALIDATOR, CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
-};
+#[cfg(feature = "coconut")]
+use ::config::defaults::var_names::API_VALIDATOR;
+use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
@@ -429,7 +429,7 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
 
 async fn setup_rocket(
     config: &Config,
-    mix_denom: String,
+    _mix_denom: String,
     liftoff_notify: Arc<Notify>,
     _nymd_client: Client<SigningNymdClient>,
 ) -> Result<Rocket<Ignite>> {
@@ -469,7 +469,7 @@ async fn setup_rocket(
         let keypair = KeyPair::try_from_bs58(keypair_bs58)?;
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
-            mix_denom,
+            _mix_denom,
             keypair,
             QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
             storage.clone().unwrap(),

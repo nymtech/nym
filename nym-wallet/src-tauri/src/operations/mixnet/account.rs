@@ -142,7 +142,7 @@ async fn _connect_with_mnemonic(
     )?;
 
     // Set the default account
-    let default_network: WalletNetwork = config::defaults::DEFAULT_NETWORK.into();
+    let default_network = WalletNetwork::MAINNET;
     let client_for_default_network = clients
         .iter()
         .find(|(network, _)| *network == default_network);

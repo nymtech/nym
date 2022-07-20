@@ -1,8 +1,8 @@
 use super::PledgeData;
 use crate::errors::ContractError;
-use crate::storage::MIX_DENOM;
 use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
+use crate::storage::MIX_DENOM;
 use crate::traits::GatewayBondingAccount;
 use crate::traits::VestingAccount;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};

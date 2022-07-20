@@ -89,6 +89,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       error={error}
       onAmountChange={(value) => setAmount(value)}
       onAddressChange={(value) => setToAddress(value)}
+      denom={denom}
       {...hasStorybookStyles}
     />
   );

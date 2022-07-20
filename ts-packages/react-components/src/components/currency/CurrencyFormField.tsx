@@ -132,8 +132,8 @@ export const CurrencyFormField: React.FC<{
         required,
         endAdornment: showCoinMark && (
           <InputAdornment position="end">
-            {denom === 'unym' && <CoinMark height="20px" />}
-            {denom !== 'unym' && <span>NYMT</span>}
+            {denom === 'NYM' && <CoinMark height="20px" />}
+            {denom !== 'NYM' && <span>NYMT</span>}
           </InputAdornment>
         ),
         ...{

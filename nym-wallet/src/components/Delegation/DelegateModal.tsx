@@ -219,6 +219,7 @@ export const DelegateModal: React.FC<{
           initialValue={amount}
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
+          denom={currency}
         />
       </Box>
       <Typography

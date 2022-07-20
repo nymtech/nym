@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Control, useController } from 'react-hook-form';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom } from '@nymproject/types';
 
 interface Props {
   name: string;
@@ -10,7 +9,7 @@ interface Props {
   required?: boolean;
   fullWidth?: boolean;
   errorMessage?: string;
-  currencyDenom?: CurrencyDenom;
+  currencyDenom?: string;
 }
 
 const CurrencyInput = ({ name, label, control, errorMessage, currencyDenom, required, fullWidth }: Props) => {
@@ -20,6 +19,7 @@ const CurrencyInput = ({ name, label, control, errorMessage, currencyDenom, requ
     name,
     control,
   });
+
   return (
     <CurrencyFormField
       showCoinMark

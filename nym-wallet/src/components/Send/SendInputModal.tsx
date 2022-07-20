@@ -13,6 +13,7 @@ export const SendInputModal = ({
   amount,
   balance,
   error,
+  denom,
   onNext,
   onClose,
   onAmountChange,
@@ -25,6 +26,7 @@ export const SendInputModal = ({
   amount?: DecCoin;
   balance?: string;
   error?: string;
+  denom: string;
   onNext: () => void;
   onClose: () => void;
   onAmountChange: (value: DecCoin) => void;
@@ -69,6 +71,7 @@ export const SendInputModal = ({
             validate(value);
           }}
           initialValue={amount?.amount}
+          denom={denom}
         />
         <Typography fontSize="smaller" sx={{ color: 'error.main' }}>
           {error}

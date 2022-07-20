@@ -80,7 +80,9 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
         </form>
         <Stack direction="row" justifyContent="space-between" mt={3}>
           <Typography fontWeight={600}>Account balance</Typography>
-          <Typography fontWeight={600}>{userBalance.balance?.printable_balance || 0}</Typography>
+          <Typography fontWeight={600} textTransform="uppercase">
+            {userBalance.balance?.printable_balance || 0}
+          </Typography>
         </Stack>
         <Divider sx={{ my: 1 }} />
         <Stack direction="row" justifyContent="space-between">

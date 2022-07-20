@@ -2,9 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import { BondedGateway } from '../../../context';
-import { NodeTable, BondedNodeCard, Cell, Header, NodeMenu } from '../components';
+import { NodeTable, Cell, Header, NodeMenu } from '../components';
 import { GatewayFlow } from './types';
 import Unbond from '../unbond';
+import { NymCard } from 'src/components';
+import { Stack, Typography } from '@mui/material';
+import { IdentityKey } from 'src/components/IdentityKey';
 
 const headers: Header[] = [
   {
@@ -57,10 +60,17 @@ const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
     [gateway, theme, nodeMenuOpen],
   );
   return (
-    <BondedNodeCard title="Valhalla gateway" identityKey={gateway.identityKey}>
+    <NymCard
+      title={
+        <Stack gap={2}>
+          <Typography variant="h5">Valhalla gateway</Typography>
+          <IdentityKey identityKey={gateway.identityKey} />
+        </Stack>
+      }
+    >
       <NodeTable headers={headers} cells={cells} />
       <Unbond node={gateway} show={flow === 'unbond'} onClose={() => setFlow(null)} />
-    </BondedNodeCard>
+    </NymCard>
   );
 };
 

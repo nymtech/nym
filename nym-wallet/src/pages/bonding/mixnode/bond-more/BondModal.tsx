@@ -90,7 +90,7 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
           <Typography>{`${currentBond.amount} ${currentBond.denom}`}</Typography>
         </Stack>
         <Divider sx={{ my: 1 }} />
-        <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>
+        <Typography fontWeight={400}>Est. fee for this transaction will be calculated in the next page</Typography>
       </Box>
     </SimpleModal>
   );

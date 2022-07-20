@@ -1,4 +1,3 @@
-export { default as BondedNodeCard } from './BondedNodeCard';
 export { default as NodeTable } from './NodeTable';
 export { default as CheckboxInput } from './CheckboxInput';
 export { default as RadioInput } from './RadioInput';

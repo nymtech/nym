@@ -27,20 +27,6 @@ const NodeSettings = ({ mixnode, show, onClose }: Props) => {
   const { network } = useContext(AppContext);
   const { updateMixnode, error, fee, getFee } = useBondingContext();
 
-  useEffect(() => {
-    if (error) {
-      setStatus('error');
-    }
-  }, [error]);
-
-  const fetchFee = async () => {
-    await getFee('updateMixnode', {});
-  };
-
-  useEffect(() => {
-    fetchFee();
-  }, []);
-
   const submit = async () => {
     const txResult = await updateMixnode(profitMargin as number);
     if (txResult) {

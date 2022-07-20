@@ -13,11 +13,9 @@ const Bonding = () => {
   // TODO display a special UI on loading state
   return (
     <PageLayout>
-      <Box display="flex" flexDirection="column" gap={2}>
-        {!bondedMixnode && !bondedGateway && <BondingCard />}
-        {bondedMixnode && <MixnodeCard mixnode={bondedMixnode} />}
-        {bondedGateway && <GatewayCard gateway={bondedGateway} />}
-      </Box>
+      {!bondedMixnode && !bondedGateway && <BondingCard />}
+      {bondedMixnode && <MixnodeCard mixnode={bondedMixnode} />}
+      {bondedGateway && <GatewayCard gateway={bondedGateway} />}
     </PageLayout>
   );
 };

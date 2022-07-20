@@ -30,7 +30,7 @@ pub fn may_find_attribute(event: &Event, key: &str) -> Option<String> {
 }
 
 pub trait OptionallyAddAttribute {
-    fn add_optional_argument(
+    fn add_optional_attribute(
         self,
         key: impl Into<String>,
         value: Option<impl Into<String>>,
@@ -38,7 +38,7 @@ pub trait OptionallyAddAttribute {
 }
 
 impl OptionallyAddAttribute for Event {
-    fn add_optional_argument(
+    fn add_optional_attribute(
         self,
         key: impl Into<String>,
         value: Option<impl Into<String>>,

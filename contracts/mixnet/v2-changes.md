@@ -22,7 +22,14 @@ While not as major as the above changes, the other notable changes include:
 - node uptime/performance can now be a decimal value as opposed to integer between 0-100
 - node operators can now set their operating costs
 - profit margin can now be a decimal value as opposed to integer between 0-100
-- ...
+- delegation/undelegation is no longer instantaneous. They will happen at the end of corresponding epoch.
+
+## 'Benefits' to community:
+- compounding happens automatically - you no longer have to keep track of it
+- node operators can now set their operating costs
+- profit margin can be more granular
+- operators can update their basic configuration without rebonding
+- if mixnode unbonds, it loses all of its delegations (permanently)
 
 ## Instantiation
 

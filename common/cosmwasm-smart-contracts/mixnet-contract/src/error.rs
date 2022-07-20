@@ -96,13 +96,20 @@ pub enum MixnetContractError {
     #[error("Mixnode {node_id} is currently in the process of unbonding")]
     MixnodeIsUnbonding { node_id: NodeId },
 
+    #[error("Mixnode {node_id} has already unbonded")]
+    MixnodeHasUnbonded { node_id: NodeId },
+
     #[error("The contract has ended up in a state that was deemed impossible: {comment}")]
     InconsistentState { comment: String },
 
     #[error(
-        "Could not find any delegation information associated with mixnode {mix_id} for {address}"
+        "Could not find any delegation information associated with mixnode {mix_id} for {address} (proxy: {proxy:?})"
     )]
-    NoMixnodeDelegationFound { mix_id: NodeId, address: String },
+    NoMixnodeDelegationFound {
+        mix_id: NodeId,
+        address: String,
+        proxy: Option<String>,
+    },
 
     #[error("Provided message to update rewarding params did not contain any updates")]
     EmptyParamsChangeMsg,

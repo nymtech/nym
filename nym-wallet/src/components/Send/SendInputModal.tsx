@@ -13,6 +13,7 @@ export const SendInputModal = ({
   balance,
   denom,
   error,
+  denom,
   onNext,
   onClose,
   onAmountChange,
@@ -26,6 +27,7 @@ export const SendInputModal = ({
   balance?: string;
   denom?: CurrencyDenom;
   error?: string;
+  denom: string;
   onNext: () => void;
   onClose: () => void;
   onAmountChange: (value: DecCoin) => void;

@@ -32,7 +32,7 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
     },
   });
 
-  const { userBalance, clientDetails } = useContext(AppContext);
+  const { userBalance, denom } = useContext(AppContext);
 
   const onSubmitForm = async (data: AmountData) => {
     if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {
@@ -80,14 +80,16 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
               fullWidth
               label="Amount"
               name="amount"
-              currencyDenom={clientDetails?.display_mix_denom}
+              currencyDenom={denom}
               errorMessage={errors.amount?.amount?.message}
             />
           </Stack>
         </form>
         <Stack direction="row" justifyContent="space-between" mt={3}>
           <Typography fontWeight={600}>Account balance</Typography>
-          <Typography fontWeight={600}>{userBalance.balance?.printable_balance || 0}</Typography>
+          <Typography fontWeight={600} textTransform="uppercase">
+            {userBalance.balance?.printable_balance || 0}
+          </Typography>
         </Stack>
         <Divider sx={{ my: 1 }} />
         <Typography fontWeight={400}>Est. fee for this transaction will be cauculated in the next page</Typography>

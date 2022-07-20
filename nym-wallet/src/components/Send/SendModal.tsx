@@ -91,6 +91,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       denom={clientDetails?.display_mix_denom}
       onAmountChange={(value) => setAmount(value)}
       onAddressChange={(value) => setToAddress(value)}
+      denom={denom}
       {...hasStorybookStyles}
     />
   );

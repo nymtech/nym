@@ -30,6 +30,7 @@ export const SendInput = () => {
     <SendInputModal
       toAddress=""
       fromAddress="nymt1w8qp7zsxggvtxhpqpt6e329j42wtv07dm5ts8u"
+      denom="NYM"
       onNext={() => {}}
       onClose={() => {}}
       onAddressChange={() => {}}

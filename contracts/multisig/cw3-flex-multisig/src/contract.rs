@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, BlockInfo, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Order,
+    to_binary, Binary, BlockInfo, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Order,
     Response, StdResult,
 };
 
@@ -16,7 +16,6 @@ use cw3_fixed_multisig::state::{next_id, Ballot, Proposal, Votes, BALLOTS, PROPO
 use cw4::{Cw4Contract, MemberChangedHookMsg, MemberDiff};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
-use network_defaults::DEFAULT_NETWORK;
 
 use crate::error::ContractError;
 use crate::state::{Config, CONFIG};
@@ -40,11 +39,9 @@ pub fn instantiate(
     })?);
     // This might need to be changed via a migration, due to circular dependency
     // of deploying the two contracts
-    let coconut_bandwidth_addr = Addr::unchecked(
-        DEFAULT_NETWORK
-            .coconut_bandwidth_contract_address()
-            .ok_or(ContractError::InvalidCoconutBandwidth {})?,
-    );
+    let coconut_bandwidth_addr = deps
+        .api
+        .addr_validate(&msg.coconut_bandwidth_contract_address)?;
     let total_weight = group_addr.total_weight(&deps.querier)?;
     msg.threshold.validate(total_weight)?;
 
@@ -461,6 +458,8 @@ mod tests {
     const VOTER4: &str = "voter0004";
     const VOTER5: &str = "voter0005";
     const SOMEBODY: &str = "somebody";
+    const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
+        "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
     fn member<T: Into<String>>(addr: T, weight: u64) -> Member {
         Member {
@@ -513,9 +512,7 @@ mod tests {
         proposal: ExecuteMsg,
         voter: &str,
     ) -> AppResponse {
-        let proposer = DEFAULT_NETWORK
-            .coconut_bandwidth_contract_address()
-            .unwrap();
+        let proposer = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
         let res = app
             .execute_contract(Addr::unchecked(proposer), flex_addr.clone(), &proposal, &[])
             .unwrap();
@@ -541,6 +538,7 @@ mod tests {
             group_addr: group.to_string(),
             threshold,
             max_voting_period,
+            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         };
         app.instantiate_contract(flex_id, Addr::unchecked(OWNER), &msg, &[], "flex", None)
             .unwrap()
@@ -576,9 +574,7 @@ mod tests {
         init_funds: Vec<Coin>,
         multisig_as_group_admin: bool,
     ) -> (Addr, Addr) {
-        let coconut_bandwidth_contract = DEFAULT_NETWORK
-            .coconut_bandwidth_contract_address()
-            .unwrap();
+        let coconut_bandwidth_contract = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
         // 1. Instantiate group contract with members (and OWNER as admin) and coconut bandwidth contract
         let members = vec![
             member(coconut_bandwidth_contract, 0),
@@ -658,6 +654,7 @@ mod tests {
                 quorum: Decimal::percent(1),
             },
             max_voting_period,
+            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         };
         let err = app
             .instantiate_contract(
@@ -679,6 +676,7 @@ mod tests {
             group_addr: group_addr.to_string(),
             threshold: Threshold::AbsoluteCount { weight: 100 },
             max_voting_period,
+            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         };
         let err = app
             .instantiate_contract(
@@ -700,6 +698,7 @@ mod tests {
             group_addr: group_addr.to_string(),
             threshold: Threshold::AbsoluteCount { weight: 1 },
             max_voting_period,
+            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         };
         let flex_addr = app
             .instantiate_contract(
@@ -772,11 +771,7 @@ mod tests {
         };
         let err = app
             .execute_contract(
-                Addr::unchecked(
-                    DEFAULT_NETWORK
-                        .coconut_bandwidth_contract_address()
-                        .unwrap(),
-                ),
+                Addr::unchecked(TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string()),
                 flex_addr.clone(),
                 &proposal_wrong_exp,
                 &[],
@@ -851,9 +846,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
 
-        let proposer = DEFAULT_NETWORK
-            .coconut_bandwidth_contract_address()
-            .unwrap();
+        let proposer = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
         let res = app
             .execute_contract(
                 Addr::unchecked(&proposer),

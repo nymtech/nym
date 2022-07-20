@@ -11,7 +11,7 @@ use coconut_bandwidth_contract_common::spend_credential::{
     SpendCredential, SpendCredentialResponse,
 };
 use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
-use config::defaults::{DEFAULT_NETWORK, MIX_DENOM, VOUCHER_INFO};
+use config::defaults::VOUCHER_INFO;
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
@@ -46,6 +46,9 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+
+const TEST_COIN_DENOM: &str = "unym";
+const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 #[derive(Clone, Debug)]
 struct DummyClient {
@@ -178,7 +181,7 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
     db_dir.push(&verification_key.to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_client = DummyClient::new(
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
@@ -187,6 +190,7 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
+        TEST_COIN_DENOM.to_string(),
         key_pair,
         comm_channel,
         storage,
@@ -271,7 +275,7 @@ async fn signed_before() {
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
     let nymd_client = DummyClient::new(
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
         &tx_db,
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
@@ -280,6 +284,7 @@ async fn signed_before() {
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
+        TEST_COIN_DENOM.to_string(),
         key_pair,
         comm_channel,
         storage.clone(),
@@ -335,7 +340,7 @@ async fn signed_before() {
 #[tokio::test]
 async fn state_functions() {
     let nymd_client = DummyClient::new(
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
@@ -346,7 +351,13 @@ async fn state_functions() {
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
-    let state = State::new(nymd_client, key_pair, comm_channel, storage.clone());
+    let state = State::new(
+        nymd_client,
+        TEST_COIN_DENOM.to_string(),
+        key_pair,
+        comm_channel,
+        storage.clone(),
+    );
 
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
     assert!(state.signed_before(&tx_hash).await.unwrap().is_none());
@@ -504,7 +515,7 @@ async fn blind_sign_correct() {
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
     let nymd_client = DummyClient::new(
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
         &tx_db,
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
@@ -513,6 +524,7 @@ async fn blind_sign_correct() {
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
+        TEST_COIN_DENOM.to_string(),
         key_pair,
         comm_channel,
         storage.clone(),
@@ -582,7 +594,7 @@ async fn signature_test() {
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let nymd_client = DummyClient::new(
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap(),
+        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
         &Arc::new(RwLock::new(HashMap::new())),
@@ -591,6 +603,7 @@ async fn signature_test() {
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
+        TEST_COIN_DENOM.to_string(),
         key_pair,
         comm_channel,
         storage.clone(),
@@ -645,8 +658,7 @@ async fn signature_test() {
 
 #[tokio::test]
 async fn get_cosmos_address() {
-    let validator_address =
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap();
+    let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let nymd_client = DummyClient::new(
         validator_address.clone(),
         &Arc::new(RwLock::new(HashMap::new())),
@@ -662,6 +674,7 @@ async fn get_cosmos_address() {
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
+        TEST_COIN_DENOM.to_string(),
         key_pair,
         comm_channel,
         storage.clone(),
@@ -687,8 +700,7 @@ async fn get_cosmos_address() {
 #[tokio::test]
 async fn verification_of_bandwidth_credential() {
     // Setup variables
-    let validator_address =
-        AccountId::from_str(DEFAULT_NETWORK.rewarding_validator_address()).unwrap();
+    let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let proposal_db = Arc::new(RwLock::new(HashMap::new()));
     let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
     let nymd_client = DummyClient::new(
@@ -713,6 +725,7 @@ async fn verification_of_bandwidth_credential() {
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client.clone(),
+        TEST_COIN_DENOM.to_string(),
         key_pair,
         comm_channel.clone(),
         storage1.clone(),
@@ -806,7 +819,7 @@ async fn verification_of_bandwidth_credential() {
     );
 
     // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
-    let funds = Coin::new(voucher_value as u128, MIX_DENOM.base);
+    let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
     let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
@@ -901,7 +914,7 @@ async fn verification_of_bandwidth_credential() {
 
     // Test the endpoint with a proposal that has a different value for the funds to be released
     // then what's in the credential
-    let funds = Coin::new((voucher_value + 10) as u128, MIX_DENOM.base);
+    let funds = Coin::new((voucher_value + 10) as u128, TEST_COIN_DENOM);
     let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
@@ -939,7 +952,7 @@ async fn verification_of_bandwidth_credential() {
     );
 
     // Test the endpoint with every dependency met
-    let funds = Coin::new(voucher_value as u128, MIX_DENOM.base);
+    let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
     let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };

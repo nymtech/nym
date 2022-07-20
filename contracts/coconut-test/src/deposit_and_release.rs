@@ -7,16 +7,17 @@ use coconut_bandwidth_contract_common::{
     deposit::DepositData,
     msg::{ExecuteMsg, InstantiateMsg},
 };
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{coins, Addr};
 use cw_controllers::AdminError;
 use cw_multi_test::Executor;
 
+const TEST_MIX_DENOM: &str = "unym";
+
 #[test]
 fn deposit_and_release() {
-    let init_funds = coins(10, MIX_DENOM.base);
-    let deposit_funds = coins(1, MIX_DENOM.base);
-    let release_funds = coins(2, MIX_DENOM.base);
+    let init_funds = coins(10, TEST_MIX_DENOM);
+    let deposit_funds = coins(1, TEST_MIX_DENOM);
+    let release_funds = coins(2, TEST_MIX_DENOM);
     let mut app = mock_app(&init_funds);
     let multisig_addr = String::from(MULTISIG_CONTRACT);
     let pool_addr = String::from(POOL_CONTRACT);
@@ -26,6 +27,7 @@ fn deposit_and_release() {
     let msg = InstantiateMsg {
         multisig_addr: multisig_addr.clone(),
         pool_addr: pool_addr.clone(),
+        mix_denom: TEST_MIX_DENOM.to_string(),
     };
     let contract_addr = app
         .instantiate_contract(
@@ -94,6 +96,6 @@ fn deposit_and_release() {
         &[],
     )
     .unwrap();
-    let pool_bal = app.wrap().query_balance(pool_addr, MIX_DENOM.base).unwrap();
+    let pool_bal = app.wrap().query_balance(pool_addr, TEST_MIX_DENOM).unwrap();
     assert_eq!(pool_bal, deposit_funds[0]);
 }

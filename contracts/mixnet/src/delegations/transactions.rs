@@ -4,9 +4,8 @@ use super::storage::{self, PENDING_DELEGATION_EVENTS};
 // use crate::contract::debug_with_visibility;
 // use crate::contract::debug_with_visibility;
 use crate::error::ContractError;
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage::{self as mixnet_params_storage};
 use crate::mixnodes::storage as mixnodes_storage;
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Order,
     Response, Storage, Uint128, WasmMsg,
@@ -74,7 +73,10 @@ pub(crate) fn _try_reconcile_all_delegation_events(
     Ok(response)
 }
 
-fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, ContractError> {
+fn validate_delegation_stake(
+    mut delegation: Vec<Coin>,
+    mix_denom: String,
+) -> Result<Coin, ContractError> {
     // check if anything was put as delegation
     if delegation.is_empty() {
         return Err(ContractError::EmptyDelegation);
@@ -85,8 +87,8 @@ fn validate_delegation_stake(mut delegation: Vec<Coin>) -> Result<Coin, Contract
     }
 
     // check that the denomination is correct
-    if delegation[0].denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom {});
+    if delegation[0].denom != mix_denom {
+        return Err(ContractError::WrongDenom { mix_denom });
     }
 
     // check that we have provided a non-zero amount in the delegation
@@ -104,7 +106,8 @@ pub(crate) fn try_delegate_to_mixnode(
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
-    let amount = validate_delegation_stake(info.funds)?;
+    let amount =
+        validate_delegation_stake(info.funds, mixnet_params_storage::mix_denom(deps.storage)?)?;
 
     _try_delegate_to_mixnode(
         deps,
@@ -124,7 +127,8 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     delegate: String,
 ) -> Result<Response, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
-    let amount = validate_delegation_stake(info.funds)?;
+    let amount =
+        validate_delegation_stake(info.funds, mixnet_params_storage::mix_denom(deps.storage)?)?;
 
     _try_delegate_to_mixnode(
         deps,
@@ -260,6 +264,7 @@ pub(crate) fn try_reconcile_undelegation(
     pending_undelegate: &PendingUndelegate,
 ) -> Result<ReconcileUndelegateResponse, ContractError> {
     let delegation_map = storage::delegations();
+    let mix_denom = mixnet_params_storage::mix_denom(storage)?;
 
     // debug_with_visibility(api, "Reconciling undelegations");
 
@@ -389,7 +394,7 @@ pub(crate) fn try_reconcile_undelegation(
                 .as_ref()
                 .unwrap_or(&pending_undelegate.delegate())
                 .to_string(),
-            amount: coins(total_funds.u128(), MIX_DENOM.base),
+            amount: coins(total_funds.u128(), mix_denom.clone()),
         })
     } else {
         None
@@ -401,10 +406,10 @@ pub(crate) fn try_reconcile_undelegation(
         let msg = Some(VestingContractExecuteMsg::TrackUndelegation {
             owner: pending_undelegate.delegate().as_str().to_string(),
             mix_identity: pending_undelegate.mix_identity(),
-            amount: Coin::new(total_funds.u128(), MIX_DENOM.base),
+            amount: Coin::new(total_funds.u128(), mix_denom.clone()),
         });
 
-        wasm_msg = Some(wasm_execute(proxy, &msg, vec![one_ucoin()])?);
+        wasm_msg = Some(wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?);
     }
 
     let event = new_undelegation_event(
@@ -468,6 +473,7 @@ mod tests {
     use cosmwasm_std::coins;
 
     use crate::support::tests;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
     use crate::support::tests::test_helpers;
 
     use super::*;
@@ -482,7 +488,7 @@ mod tests {
         fn stake_cant_be_empty() {
             assert_eq!(
                 Err(ContractError::EmptyDelegation),
-                validate_delegation_stake(vec![])
+                validate_delegation_stake(vec![], TEST_COIN_DENOM.to_string())
             )
         }
 
@@ -490,19 +496,24 @@ mod tests {
         fn stake_must_have_single_coin_type() {
             assert_eq!(
                 Err(ContractError::MultipleDenoms),
-                validate_delegation_stake(vec![
-                    coin(123, MIX_DENOM.base),
-                    coin(123, "BTC"),
-                    coin(123, "DOGE")
-                ])
+                validate_delegation_stake(
+                    vec![
+                        coin(123, TEST_COIN_DENOM),
+                        coin(123, "BTC"),
+                        coin(123, "DOGE")
+                    ],
+                    TEST_COIN_DENOM.to_string()
+                )
             )
         }
 
         #[test]
         fn stake_coin_must_be_of_correct_type() {
             assert_eq!(
-                Err(ContractError::WrongDenom {}),
-                validate_delegation_stake(coins(123, "DOGE"))
+                Err(ContractError::WrongDenom {
+                    mix_denom: TEST_COIN_DENOM.to_string()
+                }),
+                validate_delegation_stake(coins(123, "DOGE"), TEST_COIN_DENOM.to_string())
             )
         }
 
@@ -510,16 +521,28 @@ mod tests {
         fn stake_coin_must_have_value_greater_than_zero() {
             assert_eq!(
                 Err(ContractError::EmptyDelegation),
-                validate_delegation_stake(coins(0, MIX_DENOM.base))
+                validate_delegation_stake(coins(0, TEST_COIN_DENOM), TEST_COIN_DENOM.to_string())
             )
         }
 
         #[test]
         fn stake_can_have_any_positive_value() {
             // this might change in the future, but right now an arbitrary (positive) value can be delegated
-            assert!(validate_delegation_stake(coins(1, MIX_DENOM.base)).is_ok());
-            assert!(validate_delegation_stake(coins(123, MIX_DENOM.base)).is_ok());
-            assert!(validate_delegation_stake(coins(10000000000, MIX_DENOM.base)).is_ok());
+            assert!(validate_delegation_stake(
+                coins(1, TEST_COIN_DENOM),
+                TEST_COIN_DENOM.to_string()
+            )
+            .is_ok());
+            assert!(validate_delegation_stake(
+                coins(123, TEST_COIN_DENOM),
+                TEST_COIN_DENOM.to_string()
+            )
+            .is_ok());
+            assert!(validate_delegation_stake(
+                coins(10000000000, TEST_COIN_DENOM),
+                TEST_COIN_DENOM.to_string()
+            )
+            .is_ok());
         }
     }
 
@@ -542,7 +565,7 @@ mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     mock_env(),
-                    mock_info("sender", &coins(123, MIX_DENOM.base)),
+                    mock_info("sender", &coins(123, TEST_COIN_DENOM)),
                     "non-existent-mix-identity".into(),
                 )
             );
@@ -558,7 +581,7 @@ mod tests {
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
-            let delegation = coin(123, MIX_DENOM.base);
+            let delegation = coin(123, TEST_COIN_DENOM);
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
@@ -615,7 +638,7 @@ mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     mock_env(),
-                    mock_info(delegation_owner.as_str(), &coins(123, MIX_DENOM.base)),
+                    mock_info(delegation_owner.as_str(), &coins(123, TEST_COIN_DENOM)),
                     identity,
                 )
             );
@@ -636,7 +659,7 @@ mod tests {
                 tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
-            let delegation = coin(123, MIX_DENOM.base);
+            let delegation = coin(123, TEST_COIN_DENOM);
             let delegation_owner = Addr::unchecked("sender");
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
@@ -686,8 +709,8 @@ mod tests {
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
-            let delegation1 = coin(100, MIX_DENOM.base);
-            let delegation2 = coin(50, MIX_DENOM.base);
+            let delegation1 = coin(100, TEST_COIN_DENOM);
+            let delegation2 = coin(50, TEST_COIN_DENOM);
 
             let mut env = mock_env();
 
@@ -714,7 +737,7 @@ mod tests {
             // let expected = Delegation::new(
             //     delegation_owner.clone(),
             //     identity.clone(),
-            //     coin(delegation1.amount.u128() + delegation2.amount.u128(), MIX_DENOM.base),
+            //     coin(delegation1.amount.u128() + delegation2.amount.u128(), TEST_COIN_DENOM),
             //     mock_env().block.height,
             //     None,
             // );
@@ -749,7 +772,7 @@ mod tests {
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
-            let delegation = coin(100, MIX_DENOM.base);
+            let delegation = coin(100, TEST_COIN_DENOM);
             let env1 = mock_env();
             let mut env2 = mock_env();
             let initial_height = env1.block.height;
@@ -814,8 +837,8 @@ mod tests {
             );
             let delegation_owner1 = Addr::unchecked("sender1");
             let delegation_owner2 = Addr::unchecked("sender2");
-            let delegation1 = coin(100, MIX_DENOM.base);
-            let delegation2 = coin(120, MIX_DENOM.base);
+            let delegation1 = coin(100, TEST_COIN_DENOM);
+            let delegation2 = coin(120, TEST_COIN_DENOM);
             let env1 = mock_env();
             let mut env2 = mock_env();
             let initial_height = env1.block.height;
@@ -890,7 +913,7 @@ mod tests {
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &coins(100, MIX_DENOM.base)),
+                mock_info(delegation_owner.as_str(), &coins(100, TEST_COIN_DENOM)),
                 identity.clone(),
             )
             .unwrap();
@@ -902,7 +925,7 @@ mod tests {
                 try_delegate_to_mixnode(
                     deps.as_mut(),
                     mock_env(),
-                    mock_info(delegation_owner.as_str(), &coins(50, MIX_DENOM.base)),
+                    mock_info(delegation_owner.as_str(), &coins(50, TEST_COIN_DENOM)),
                     identity,
                 )
             );
@@ -927,14 +950,14 @@ mod tests {
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &coins(123, MIX_DENOM.base)),
+                mock_info(delegation_owner.as_str(), &coins(123, TEST_COIN_DENOM)),
                 identity1.clone(),
             )
             .is_ok());
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(delegation_owner.as_str(), &coins(42, MIX_DENOM.base)),
+                mock_info(delegation_owner.as_str(), &coins(42, TEST_COIN_DENOM)),
                 identity2.clone(),
             )
             .is_ok());
@@ -944,7 +967,7 @@ mod tests {
             let expected1 = Delegation::new(
                 delegation_owner.clone(),
                 identity1.clone(),
-                coin(123, MIX_DENOM.base),
+                coin(123, TEST_COIN_DENOM),
                 mock_env().block.height,
                 None,
             );
@@ -952,7 +975,7 @@ mod tests {
             let expected2 = Delegation::new(
                 delegation_owner.clone(),
                 identity2.clone(),
-                coin(42, MIX_DENOM.base),
+                coin(42, TEST_COIN_DENOM),
                 mock_env().block.height,
                 None,
             );
@@ -988,8 +1011,8 @@ mod tests {
                 tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
-            let delegation1 = coin(123, MIX_DENOM.base);
-            let delegation2 = coin(234, MIX_DENOM.base);
+            let delegation1 = coin(123, TEST_COIN_DENOM);
+            let delegation2 = coin(234, TEST_COIN_DENOM);
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
@@ -1025,7 +1048,7 @@ mod tests {
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
-            let delegation_amount = coin(100, MIX_DENOM.base);
+            let delegation_amount = coin(100, TEST_COIN_DENOM);
             try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),
@@ -1113,7 +1136,7 @@ mod tests {
         //    try_delegate_to_mixnode(
         //        deps.as_mut(),
         //        mock_env(),
-        //        mock_info(delegation_owner.as_str(), &coins(100, MIX_DENOM.base)),
+        //        mock_info(delegation_owner.as_str(), &coins(100, TEST_COIN_DENOM)),
         //        identity.clone(),
         //    )
         //    .unwrap();
@@ -1132,7 +1155,7 @@ mod tests {
         //    let expected_response = Response::new()
         //        .add_message(BankMsg::Send {
         //            to_address: delegation_owner.clone().into(),
-        //            amount: coins(100, MIX_DENOM.base),
+        //            amount: coins(100, TEST_COIN_DENOM),
         //        })
         //        .add_event(new_undelegation_event(
         //            &delegation_owner,
@@ -1183,7 +1206,7 @@ mod tests {
         //    try_delegate_to_mixnode(
         //        deps.as_mut(),
         //        mock_env(),
-        //        mock_info(delegation_owner.as_str(), &coins(100, MIX_DENOM.base)),
+        //        mock_info(delegation_owner.as_str(), &coins(100, TEST_COIN_DENOM)),
         //        identity.clone(),
         //    )
         //    .unwrap();
@@ -1202,7 +1225,7 @@ mod tests {
         //    let expected_response = Response::new()
         //        .add_message(BankMsg::Send {
         //            to_address: delegation_owner.clone().into(),
-        //            amount: coins(100, MIX_DENOM.base),
+        //            amount: coins(100, TEST_COIN_DENOM),
         //        })
         //        .add_event(new_undelegation_event(
         //            &delegation_owner,
@@ -1246,8 +1269,8 @@ mod tests {
             );
             let delegation_owner1 = Addr::unchecked("sender1");
             let delegation_owner2 = Addr::unchecked("sender2");
-            let delegation1 = coin(123, MIX_DENOM.base);
-            let delegation2 = coin(234, MIX_DENOM.base);
+            let delegation1 = coin(123, TEST_COIN_DENOM);
+            let delegation2 = coin(234, TEST_COIN_DENOM);
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
                 mock_env(),

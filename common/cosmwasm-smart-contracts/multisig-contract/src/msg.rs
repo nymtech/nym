@@ -14,6 +14,7 @@ use cw_utils::{Duration, Expiration, Threshold};
 pub struct InstantiateMsg {
     // this is the group contract that contains the member list
     pub group_addr: String,
+    pub coconut_bandwidth_contract_address: String,
     pub threshold: Threshold,
     pub max_voting_period: Duration,
 }

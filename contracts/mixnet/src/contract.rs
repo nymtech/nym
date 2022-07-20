@@ -61,9 +61,14 @@ pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 }
 
-fn default_initial_state(owner: Addr, rewarding_validator_address: Addr) -> ContractState {
+fn default_initial_state(
+    owner: Addr,
+    mix_denom: String,
+    rewarding_validator_address: Addr,
+) -> ContractState {
     ContractState {
         owner,
+        mix_denom,
         rewarding_validator_address,
         params: ContractStateParams {
             minimum_mixnode_pledge: INITIAL_MIXNODE_PLEDGE,
@@ -88,7 +93,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
-    let state = default_initial_state(info.sender, rewarding_validator_address);
+    let state = default_initial_state(info.sender, msg.mixnet_denom, rewarding_validator_address);
     init_epoch(deps.storage, env)?;
 
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
@@ -452,7 +457,7 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 pub mod tests {
     use super::*;
     use crate::support::tests;
-    use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
+    use crate::support::tests::fixtures::{TEST_COIN_DENOM, TEST_REWARDING_VALIDATOR_ADDRESS};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract_common::PagedMixnodeResponse;
@@ -462,7 +467,8 @@ pub mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
+            rewarding_validator_address: TEST_REWARDING_VALIDATOR_ADDRESS.to_string(),
+            mixnet_denom: TEST_COIN_DENOM.to_string(),
         };
         let info = mock_info("creator", &[]);
 
@@ -484,7 +490,7 @@ pub mod tests {
 
         // Contract balance should match what we initialized it as
         assert_eq!(
-            coins(0, MIX_DENOM.base),
+            coins(0, TEST_COIN_DENOM),
             tests::queries::query_contract_balance(env.contract.address, deps)
         );
     }

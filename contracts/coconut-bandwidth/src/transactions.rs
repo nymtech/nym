@@ -15,10 +15,9 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use config::defaults::MIX_DENOM;
 
 pub(crate) fn deposit_funds(
-    _deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     info: MessageInfo,
     data: DepositData,
@@ -29,8 +28,9 @@ pub(crate) fn deposit_funds(
     if info.funds.len() > 1 {
         return Err(ContractError::MultipleDenoms);
     }
-    if info.funds[0].denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom);
+    let mix_denom = CONFIG.load(deps.storage)?.mix_denom;
+    if info.funds[0].denom != mix_denom {
+        return Err(ContractError::WrongDenom { mix_denom });
     }
 
     let voucher_value = info.funds.last().unwrap();
@@ -49,8 +49,9 @@ pub(crate) fn spend_credential(
     _info: MessageInfo,
     data: SpendCredentialData,
 ) -> Result<Response, ContractError> {
-    if data.funds().denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom);
+    let mix_denom = CONFIG.load(deps.storage)?.mix_denom;
+    if data.funds().denom != mix_denom {
+        return Err(ContractError::WrongDenom { mix_denom });
     }
     if storage::spent_credentials().has(deps.storage, data.blinded_serial_number()) {
         return Err(ContractError::DuplicateBlindedSerialNumber);
@@ -84,12 +85,13 @@ pub(crate) fn release_funds(
     info: MessageInfo,
     funds: Coin,
 ) -> Result<Response, ContractError> {
-    if funds.denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom);
+    let mix_denom = CONFIG.load(deps.storage)?.mix_denom;
+    if funds.denom != mix_denom {
+        return Err(ContractError::WrongDenom { mix_denom });
     }
     let current_balance = deps
         .querier
-        .query_balance(env.contract.address, MIX_DENOM.base)?;
+        .query_balance(env.contract.address, mix_denom)?;
     if funds.amount > current_balance.amount {
         return Err(ContractError::NotEnoughFunds);
     }
@@ -133,7 +135,7 @@ mod tests {
             Err(ContractError::NoCoin)
         );
 
-        let coin = Coin::new(1000000, MIX_DENOM.base);
+        let coin = Coin::new(1000000, crate::support::tests::fixtures::TEST_MIX_DENOM);
         let second_coin = Coin::new(1000000, "some_denom");
 
         let info = mock_info("requester", &[coin, second_coin.clone()]);
@@ -145,7 +147,9 @@ mod tests {
         let info = mock_info("requester", &[second_coin]);
         assert_eq!(
             deposit_funds(deps.as_mut(), env, info, data),
-            Err(ContractError::WrongDenom)
+            Err(ContractError::WrongDenom {
+                mix_denom: crate::support::tests::fixtures::TEST_MIX_DENOM.to_string()
+            })
         );
     }
 
@@ -163,7 +167,10 @@ mod tests {
             verification_key.clone(),
             encryption_key.clone(),
         );
-        let coin = Coin::new(deposit_value, MIX_DENOM.base);
+        let coin = Coin::new(
+            deposit_value,
+            crate::support::tests::fixtures::TEST_MIX_DENOM,
+        );
         let info = mock_info("requester", &[coin]);
 
         let tx = deposit_funds(deps.as_mut(), env.clone(), info, data).unwrap();
@@ -212,7 +219,7 @@ mod tests {
         let mut deps = helpers::init_contract();
         let env = mock_env();
         let invalid_admin = "invalid admin";
-        let funds = Coin::new(1, MIX_DENOM.base);
+        let funds = Coin::new(1, crate::support::tests::fixtures::TEST_MIX_DENOM);
 
         let err = release_funds(
             deps.as_mut(),
@@ -221,7 +228,12 @@ mod tests {
             Coin::new(1, "invalid denom"),
         )
         .unwrap_err();
-        assert_eq!(err, ContractError::WrongDenom);
+        assert_eq!(
+            err,
+            ContractError::WrongDenom {
+                mix_denom: crate::support::tests::fixtures::TEST_MIX_DENOM.to_string()
+            }
+        );
 
         let err = release_funds(
             deps.as_mut(),
@@ -248,7 +260,7 @@ mod tests {
     fn valid_release() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let coin = Coin::new(1, MIX_DENOM.base);
+        let coin = Coin::new(1, crate::support::tests::fixtures::TEST_MIX_DENOM);
 
         deps.querier
             .update_balance(env.contract.address.clone(), vec![coin.clone()]);
@@ -327,10 +339,15 @@ mod tests {
             String::new(),
         );
         let ret = spend_credential(deps.as_mut(), env.clone(), info.clone(), invalid_data);
-        assert_eq!(ret.unwrap_err(), ContractError::WrongDenom);
+        assert_eq!(
+            ret.unwrap_err(),
+            ContractError::WrongDenom {
+                mix_denom: crate::support::tests::fixtures::TEST_MIX_DENOM.to_string()
+            }
+        );
 
         let invalid_data = SpendCredentialData::new(
-            Coin::new(1, MIX_DENOM.base),
+            Coin::new(1, crate::support::tests::fixtures::TEST_MIX_DENOM),
             String::new(),
             "Blinded Serial Number".to_string(),
         );

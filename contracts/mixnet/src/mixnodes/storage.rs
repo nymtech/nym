@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedSnapshotMap, Map, Strategy, UniqueIndex};
 use mixnet_contract_common::{
@@ -10,6 +9,8 @@ use mixnet_contract_common::{
 use mixnet_contract_common::{SphinxKey, U128};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+
+use crate::mixnet_contract_settings::storage::mix_denom;
 
 // storage prefixes
 const TOTAL_DELEGATION_NAMESPACE: &str = "td";
@@ -171,7 +172,7 @@ pub(crate) fn read_full_mixnode_bond(
             Ok(Some(MixNodeBond {
                 pledge_amount: stored_bond.pledge_amount,
                 total_delegation: Coin {
-                    denom: MIX_DENOM.base.to_owned(),
+                    denom: mix_denom(storage)?,
                     amount: total_delegation.unwrap_or_default(),
                 },
                 owner: stored_bond.owner,
@@ -190,7 +191,8 @@ mod tests {
     use super::super::storage;
     use super::*;
     use crate::support::tests;
-    use config::defaults::MIX_DENOM;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
+    use crate::support::tests::test_helpers::init_contract;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract_common::{IdentityKey, MixNode};
@@ -211,7 +213,7 @@ mod tests {
 
     #[test]
     fn reading_mixnode_bond() {
-        let mut mock_storage = MockStorage::new();
+        let mut mock_storage = init_contract().storage;
         let node_owner: Addr = Addr::unchecked("node-owner");
         let node_identity: IdentityKey = "nodeidentity".into();
 
@@ -223,7 +225,7 @@ mod tests {
         let pledge_value = 1000000000;
 
         let mixnode_bond = StoredMixnodeBond {
-            pledge_amount: coin(pledge_value, MIX_DENOM.base),
+            pledge_amount: coin(pledge_value, TEST_COIN_DENOM),
             owner: node_owner,
             layer: Layer::One,
             block_height: 12_345,

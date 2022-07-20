@@ -156,6 +156,8 @@ pub async fn execute(args: &Init) {
 
 #[cfg(test)]
 mod tests {
+    use network_defaults::var_names::BECH32_PREFIX;
+
     use crate::node::{storage::InMemStorage, Gateway};
 
     use super::*;
@@ -180,6 +182,7 @@ mod tests {
             #[cfg(all(feature = "eth", not(feature = "coconut")))]
             eth_endpoint: "".to_string(),
         };
+        std::env::set_var(BECH32_PREFIX, "n");
 
         let config = Config::new(&args.id);
         let config = override_config(config, OverrideConfig::from(args.clone()));

@@ -9,8 +9,6 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dev-dependencies]
-config = { path = "../../common/config"}
-
 [dependencies]
 bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 

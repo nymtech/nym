@@ -727,6 +727,7 @@ name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "multisig-contract-common",
  "schemars",
  "serde",
 ]
@@ -2790,7 +2791,6 @@ dependencies = [
  "cosmwasm-std",
  "fixed",
  "log",
- "network-defaults",
  "schemars",
  "serde",
  "serde_repr",
@@ -2887,6 +2887,7 @@ name = "network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
+ "dotenv",
  "hex-literal",
  "once_cell",
  "serde",
@@ -5585,7 +5586,6 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.0.1"
 dependencies = [
- "config",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",

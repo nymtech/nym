@@ -10,7 +10,10 @@ use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
-use ::config::defaults::DEFAULT_NETWORK;
+use ::config::defaults::setup_env;
+#[cfg(feature = "coconut")]
+use ::config::defaults::var_names::API_VALIDATOR;
+use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
@@ -23,6 +26,8 @@ use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
@@ -50,6 +55,7 @@ mod swagger;
 mod coconut;
 
 const ID: &str = "id";
+const CONFIG_ENV_FILE: &str = "config-env-file";
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
@@ -98,7 +104,6 @@ fn long_version() -> String {
 {:<20}{}
 {:<20}{}
 {:<20}{}
-{:<20}{}
 "#,
         "Build Timestamp:",
         env!("VERGEN_BUILD_TIMESTAMP"),
@@ -115,9 +120,7 @@ fn long_version() -> String {
         "rustc Channel:",
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE"),
-        "Network:",
-        DEFAULT_NETWORK
+        env!("VERGEN_CARGO_PROFILE")
     )
 }
 
@@ -127,6 +130,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .version(crate_version!())
         .long_version(&*build_details)
         .author("Nymtech")
+        .arg(
+            Arg::with_name(CONFIG_ENV_FILE)
+                .help("Path pointing to an env file that configures the validator API")
+                .long(CONFIG_ENV_FILE)
+                .takes_value(true)
+        )
         .arg(
             Arg::with_name(ID)
                 .help("Id of the validator-api we want to run")
@@ -273,6 +282,9 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     #[cfg(feature = "coconut")]
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
+        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
@@ -287,6 +299,10 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     }
 
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
+        config = config.with_custom_mixnet_contract(mixnet_contract)
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let mixnet_contract =
+            std::env::var(MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set");
         config = config.with_custom_mixnet_contract(mixnet_contract)
     }
 
@@ -413,6 +429,7 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
 
 async fn setup_rocket(
     config: &Config,
+    _mix_denom: String,
     liftoff_notify: Arc<Notify>,
     _nymd_client: Client<SigningNymdClient>,
 ) -> Result<Rocket<Ignite>> {
@@ -452,6 +469,7 @@ async fn setup_rocket(
         let keypair = KeyPair::try_from_bs58(keypair_bs58)?;
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
+            _mix_denom,
             keypair,
             QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
             storage.clone().unwrap(),
@@ -524,6 +542,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
     }
+    let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
 
     let signing_nymd_client = Client::new_signing(&config);
 
@@ -532,6 +551,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     // let's build our rocket!
     let rocket = setup_rocket(
         &config,
+        mix_denom,
         Arc::clone(&liftoff_notify),
         signing_nymd_client.clone(),
     )
@@ -605,8 +625,6 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 async fn main() -> Result<()> {
     println!("Starting validator api...");
 
-    let _ = dotenv::dotenv();
-
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
@@ -614,5 +632,9 @@ async fn main() -> Result<()> {
 
     setup_logging();
     let args = parse_args();
+    let config_env_file = args
+        .value_of(CONFIG_ENV_FILE)
+        .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
+    setup_env(config_env_file);
     run_validator_api(args).await
 }

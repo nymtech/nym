@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::*;
+use config::defaults::{
+    DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
+};
 use config::NymConfig;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
@@ -401,7 +403,7 @@ impl Default for MixNode {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            validator_api_urls: default_api_endpoints(),
+            validator_api_urls: vec![],
             nym_root_directory: Config::default_root_directory(),
             wallet_address: "nymXXXXXXXX".to_string(),
         }

@@ -6,7 +6,6 @@ use std::time::{Duration, SystemTime};
 use log::*;
 
 use coconut_interface::{Credential, VerificationKey};
-use network_defaults::MIX_DENOM;
 use validator_client::{
     nymd::{
         cosmwasm_client::logs::find_attribute,
@@ -24,6 +23,7 @@ const MAX_FEEGRANT_UNYM: u128 = 10000;
 pub(crate) struct CoconutVerifier {
     api_clients: Vec<ApiClient>,
     nymd_client: NymdClient<SigningNymdClient>,
+    mix_denom_base: String,
     aggregated_verification_key: VerificationKey,
 }
 
@@ -31,6 +31,7 @@ impl CoconutVerifier {
     pub fn new(
         api_clients: Vec<ApiClient>,
         nymd_client: NymdClient<SigningNymdClient>,
+        mix_denom_base: String,
         aggregated_verification_key: VerificationKey,
     ) -> Result<Self, RequestHandlingError> {
         if api_clients.is_empty() {
@@ -42,6 +43,7 @@ impl CoconutVerifier {
         Ok(CoconutVerifier {
             api_clients,
             nymd_client,
+            mix_denom_base,
             aggregated_verification_key,
         })
     }
@@ -58,7 +60,10 @@ impl CoconutVerifier {
         let res = self
             .nymd_client
             .spend_credential(
-                Coin::new(credential.voucher_value().into(), MIX_DENOM.base),
+                Coin::new(
+                    credential.voucher_value().into(),
+                    self.mix_denom_base.clone(),
+                ),
                 credential.blinded_serial_number(),
                 self.nymd_client.address().to_string(),
                 None,
@@ -91,7 +96,7 @@ impl CoconutVerifier {
             self.nymd_client
                 .grant_allowance(
                     &api_cosmos_addr,
-                    vec![Coin::new(MAX_FEEGRANT_UNYM, MIX_DENOM.base)],
+                    vec![Coin::new(MAX_FEEGRANT_UNYM, self.mix_denom_base.clone())],
                     SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
                     // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
                     vec![String::from("/cosmwasm.wasm.v1.MsgExecuteContract")],

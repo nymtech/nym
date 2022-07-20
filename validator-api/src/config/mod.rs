@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::DEFAULT_NETWORK;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -108,9 +107,7 @@ impl Default for Base {
             local_validator: DEFAULT_LOCAL_VALIDATOR
                 .parse()
                 .expect("default local validator is malformed!"),
-            mixnet_contract_address: DEFAULT_NETWORK
-                .mixnet_contract_address()
-                .expect("mixnet contract address is unavailable"),
+            mixnet_contract_address: String::default(),
             mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
     }
@@ -279,7 +276,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
@@ -292,16 +289,6 @@ pub struct CoconutSigner {
     /// A special care must be taken to ensure they are in correct order.
     /// The list must also contain THIS validator that is running the test
     all_validator_apis: Vec<Url>,
-}
-
-impl Default for CoconutSigner {
-    fn default() -> Self {
-        CoconutSigner {
-            enabled: false,
-            keypair_path: PathBuf::default(),
-            all_validator_apis: config::defaults::default_api_endpoints(),
-        }
-    }
 }
 
 impl Config {

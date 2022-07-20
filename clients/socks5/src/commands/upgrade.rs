@@ -3,7 +3,7 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 
-use config::{defaults::default_api_endpoints, NymConfig};
+use config::NymConfig;
 use version_checker::Version;
 
 use clap::Args;
@@ -103,15 +103,6 @@ fn minor_0_12_upgrade(
     };
 
     print_start_upgrade(&config_version, &to_version);
-
-    println!(
-        "Setting validator API endpoints to {:?}",
-        default_api_endpoints()
-    );
-
-    config
-        .get_base_mut()
-        .set_custom_validator_apis(default_api_endpoints());
 
     config
         .get_base_mut()

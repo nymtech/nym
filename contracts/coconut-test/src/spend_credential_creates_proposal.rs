@@ -6,16 +6,19 @@ use coconut_bandwidth_contract_common::{
     },
     spend_credential::SpendCredentialData,
 };
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{coins, Addr, Coin, Decimal};
 use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
 use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
+pub const TEST_COIN_DENOM: &str = "unym";
+pub const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
+    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+
 #[test]
 fn spend_credential_creates_proposal() {
-    let init_funds = coins(10, MIX_DENOM.base);
+    let init_funds = coins(10, TEST_COIN_DENOM);
     let mut app = mock_app(&init_funds);
     let pool_addr = String::from(POOL_CONTRACT);
 
@@ -42,6 +45,7 @@ fn spend_credential_creates_proposal() {
             percentage: Decimal::from_ratio(2u128, 3u128),
         },
         max_voting_period: Duration::Height(1000),
+        coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
     };
     let multisig_contract_addr = app
         .instantiate_contract(
@@ -58,6 +62,7 @@ fn spend_credential_creates_proposal() {
     let msg = CoconutBandwidthInstantiateMsg {
         multisig_addr: multisig_contract_addr.to_string(),
         pool_addr,
+        mix_denom: TEST_COIN_DENOM.to_string(),
     };
     let coconut_bandwidth_contract_addr = app
         .instantiate_contract(
@@ -83,7 +88,7 @@ fn spend_credential_creates_proposal() {
 
     let msg = CoconutBandwidthExecuteMsg::SpendCredential {
         data: SpendCredentialData::new(
-            Coin::new(1, MIX_DENOM.base),
+            Coin::new(1, TEST_COIN_DENOM),
             String::from("blinded_serial_number"),
             String::from("gateway_cosmos_address"),
         ),
@@ -126,7 +131,7 @@ fn spend_credential_creates_proposal() {
 
     let msg = CoconutBandwidthExecuteMsg::SpendCredential {
         data: SpendCredentialData::new(
-            Coin::new(1, MIX_DENOM.base),
+            Coin::new(1, TEST_COIN_DENOM),
             String::from("blinded_serial_number2"),
             String::from("gateway_cosmos_address"),
         ),

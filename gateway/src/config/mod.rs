@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::*;
+use config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use config::NymConfig;
 use log::error;
 use serde::{Deserialize, Serialize};
@@ -422,9 +422,9 @@ impl Default for Gateway {
             #[cfg(not(feature = "coconut"))]
             eth_endpoint: "".to_string(),
             enabled_statistics: false,
-            statistics_service_url: default_statistics_service_url(),
-            validator_api_urls: default_api_endpoints(),
-            validator_nymd_urls: default_nymd_endpoints(),
+            statistics_service_url: Url::from_str("http://127.0.0.1").unwrap(),
+            validator_api_urls: vec![],
+            validator_nymd_urls: vec![],
             cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),

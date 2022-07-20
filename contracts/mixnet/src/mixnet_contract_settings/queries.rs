@@ -45,6 +45,7 @@ pub(crate) mod tests {
 
         let dummy_state = ContractState {
             owner: Addr::unchecked("someowner"),
+            mix_denom: String::from("unym"),
             rewarding_validator_address: Addr::unchecked("monitor"),
             params: ContractStateParams {
                 minimum_mixnode_pledge: 123u128.into(),

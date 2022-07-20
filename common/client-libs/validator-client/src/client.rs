@@ -28,7 +28,7 @@ use mixnet_contract_common::{
     RewardedSetUpdateDetails,
 };
 #[cfg(feature = "nymd-client")]
-use network_defaults::{all::Network, NymNetworkDetails};
+use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
 
@@ -113,9 +113,6 @@ impl Config {
 
 #[cfg(feature = "nymd-client")]
 pub struct Client<C> {
-    // compatibility : (
-    pub network: Network,
-
     // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
     // non-trivial amount of work and it's out of scope of the current branch
     mnemonic: Option<bip39::Mnemonic>,
@@ -134,9 +131,6 @@ pub struct Client<C> {
 impl Client<SigningNymdClient> {
     pub fn new_signing(
         config: Config,
-        // we need to provide network argument due to compatibility with other components (wallet...)
-        // that rely on its existence...
-        network: Network,
         mnemonic: bip39::Mnemonic,
     ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
@@ -148,7 +142,6 @@ impl Client<SigningNymdClient> {
         )?;
 
         Ok(Client {
-            network,
             mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
@@ -176,18 +169,12 @@ impl Client<SigningNymdClient> {
 
 #[cfg(feature = "nymd-client")]
 impl Client<QueryNymdClient> {
-    pub fn new_query(
-        config: Config,
-        // we need to provide network argument due to compatibility with other components (wallet...)
-        // that rely on its existence...
-        network: Network,
-    ) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
+    pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
         let nymd_client =
             NymdClient::connect(config.nymd_config.clone(), config.nymd_url.as_str())?;
 
         Ok(Client {
-            network,
             mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,

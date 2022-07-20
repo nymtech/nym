@@ -31,7 +31,7 @@ pub fn validate_bech32_prefix(bech32_prefix: &str, address: &str) -> Result<(), 
 mod tests {
     use super::*;
 
-    const TEST_BECH32_PREFIX: &str = "u";
+    const TEST_BECH32_PREFIX: &str = "n";
 
     mod decoding_bech32_addresses {
         use super::*;

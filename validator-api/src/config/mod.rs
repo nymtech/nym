@@ -276,7 +276,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
@@ -289,16 +289,6 @@ pub struct CoconutSigner {
     /// A special care must be taken to ensure they are in correct order.
     /// The list must also contain THIS validator that is running the test
     all_validator_apis: Vec<Url>,
-}
-
-impl Default for CoconutSigner {
-    fn default() -> Self {
-        CoconutSigner {
-            enabled: false,
-            keypair_path: PathBuf::default(),
-            all_validator_apis: vec![],
-        }
-    }
 }
 
 impl Config {

@@ -179,7 +179,7 @@ pub(crate) fn _try_remove_gateway(
             amount: gateway_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom.clone())])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?;
         response = response.add_message(track_unbond_message);
     }
 

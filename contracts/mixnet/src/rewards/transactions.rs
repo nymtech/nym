@@ -7,6 +7,7 @@ use crate::interval::storage as interval_storage;
 use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
+use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
 use crate::support::helpers::{
     ensure_bonded, ensure_is_authorized, ensure_is_owner, ensure_proxy_match,
@@ -16,6 +17,7 @@ use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mix_rewarding_event, new_not_found_mix_operator_rewarding_event,
+    new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
@@ -142,32 +144,39 @@ pub(crate) fn _try_withdraw_operator_reward(
             owner: owner.clone(),
         },
     )?;
+    let mix_id = mix_details.mix_id();
 
     ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
     ensure_bonded(&mix_details.bond_information)?;
 
     let reward = helpers::withdraw_operator_reward(deps.storage, mix_details)?;
-    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
-    let mut response = Response::new().add_message(return_tokens);
+    let mut response = Response::new();
 
-    if let Some(proxy) = &proxy {
-        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-        // otherwise, we don't care
-        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-        if proxy == &vesting_contract {
-            // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
-            // to use the same call for both operator and delegators?
-            let msg = VestingContractExecuteMsg::TrackReward {
-                amount: reward,
-                address: owner.into_string(),
-            };
-            let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
-            response = response.add_message(track_reward_message);
+    // if the reward is zero, don't track or send anything - there's no point
+    if !reward.amount.is_zero() {
+        let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+        response = response.add_message(return_tokens);
+
+        if let Some(proxy) = &proxy {
+            // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
+            // otherwise, we don't care
+            let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
+            if proxy == &vesting_contract {
+                // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
+                // to use the same call for both operator and delegators?
+                let msg = VestingContractExecuteMsg::TrackReward {
+                    amount: reward.clone(),
+                    address: owner.clone().into_string(),
+                };
+                let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
+                response = response.add_message(track_reward_message);
+            }
         }
     }
 
-    // TODO: insert events and all of that
-    Ok(response)
+    Ok(response.add_event(new_withdraw_operator_reward_event(
+        &owner, &proxy, reward, mix_id,
+    )))
 }
 
 pub(crate) fn try_withdraw_delegator_reward(
@@ -198,9 +207,16 @@ pub(crate) fn _try_withdraw_delegator_reward(
     // see if the delegation even exists
     let storage_key = Delegation::generate_storage_key(mix_id, &owner, proxy.as_ref());
     let delegation = match delegations_storage::delegations().may_load(deps.storage, storage_key)? {
-        None => return Ok(Response::default()),
+        None => {
+            return Err(MixnetContractError::NoMixnodeDelegationFound {
+                mix_id,
+                address: owner.into_string(),
+                proxy: proxy.map(Addr::into_string),
+            })
+        }
         Some(delegation) => delegation,
     };
+
     // grab associated mixnode rewarding details
     let mix_rewarding =
         storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::InconsistentState {
@@ -208,30 +224,46 @@ pub(crate) fn _try_withdraw_delegator_reward(
                 .into(),
         })?;
 
+    // see if the mixnode is not in the process of unbonding or whether it has already unbonded
+    // (in that case the expected path of getting your tokens back is via undelegation)
+    match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
+        Some(mix_bond) if mix_bond.is_unbonding => {
+            return Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
+        }
+        None => return Err(MixnetContractError::MixnodeHasUnbonded { node_id: mix_id }),
+        _ => (),
+    };
+
     ensure_proxy_match(&proxy, &delegation.proxy)?;
 
     let reward = helpers::withdraw_delegator_reward(deps.storage, delegation, mix_rewarding)?;
-    let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
-    let mut response = Response::new().add_message(return_tokens);
+    let mut response = Response::new();
 
-    if let Some(proxy) = &proxy {
-        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-        // otherwise, we don't care
-        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-        if proxy == &vesting_contract {
-            // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
-            // to use the same call for both operator and delegators?
-            let msg = VestingContractExecuteMsg::TrackReward {
-                amount: reward,
-                address: owner.into_string(),
-            };
-            let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
-            response = response.add_message(track_reward_message);
+    // if the reward is zero, don't track or send anything - there's no point
+    if !reward.amount.is_zero() {
+        let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
+        response = response.add_message(return_tokens);
+
+        if let Some(proxy) = &proxy {
+            // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
+            // otherwise, we don't care
+            let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
+            if proxy == &vesting_contract {
+                // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
+                // to use the same call for both operator and delegators?
+                let msg = VestingContractExecuteMsg::TrackReward {
+                    amount: reward.clone(),
+                    address: owner.clone().into_string(),
+                };
+                let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
+                response = response.add_message(track_reward_message);
+            }
         }
     }
 
-    // TODO: insert events and all of that
-    Ok(response)
+    Ok(response.add_event(new_withdraw_delegator_reward_event(
+        &owner, &proxy, reward, mix_id,
+    )))
 }
 
 pub(crate) fn try_update_active_set_size(
@@ -301,6 +333,7 @@ pub(crate) fn try_update_rewarding_params(
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::mixnodes::storage as mixnodes_storage;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
 
@@ -308,9 +341,8 @@ pub mod tests {
     mod mixnode_rewarding {
         use super::*;
         use crate::interval::pending_events;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::{find_attribute, TestSetup};
-        use cosmwasm_std::{Coin, Decimal, Uint128};
+        use cosmwasm_std::{Decimal, Uint128};
         use mixnet_contract_common::events::{
             MixnetEventType, BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, NO_REWARD_REASON_KEY,
             OPERATOR_REWARD_KEY, ZERO_PERFORMANCE_VALUE,
@@ -665,18 +697,10 @@ pub mod tests {
             // we're basing this test on our simulator that we have separate unit tests for
             // to determine whether values it spits are equal to what we expect
 
-            let operator1 = Coin {
-                amount: Uint128::new(100_000_000),
-                denom: TEST_COIN_DENOM.into(),
-            };
-            let operator2 = Coin {
-                amount: Uint128::new(2_570_000_000),
-                denom: TEST_COIN_DENOM.into(),
-            };
-            let operator3 = Coin {
-                amount: Uint128::new(12_345_000_000),
-                denom: TEST_COIN_DENOM.into(),
-            };
+            let operator1 = Uint128::new(100_000_000);
+            let operator2 = Uint128::new(2_570_000_000);
+            let operator3 = Uint128::new(12_345_000_000);
+
             let mut test = TestSetup::new();
             let mix_id1 = test.add_dummy_mixnode("mix-owner1", Some(operator1));
             let mix_id2 = test.add_dummy_mixnode("mix-owner2", Some(operator2));
@@ -715,6 +739,8 @@ pub mod tests {
 
             test.add_delegation("delegator5", Uint128::new(123_000_000), mix_id3);
             test.add_delegation("delegator6", Uint128::new(456_000_000), mix_id3);
+
+            let performance = test_helpers::performance(12.3);
             for _ in 0..10 {
                 for &mix_id in &[mix_id1, mix_id2, mix_id3] {
                     let mut sim = test.instantiate_simulator(mix_id);
@@ -734,6 +760,325 @@ pub mod tests {
     #[cfg(test)]
     mod withdrawing_operator_reward {
         use super::*;
+        use crate::interval::pending_events;
+        use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
+        use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        #[test]
+        fn can_only_be_done_if_delegation_exists() {
+            let mut test = TestSetup::new();
+            // add relatively huge stake so that the reward would be high enough to offset operating costs
+            let mix_id1 =
+                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
+            let mix_id2 =
+                test.add_dummy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+
+            let delegator1 = "delegator1";
+            let delegator2 = "delegator2";
+
+            let sender1 = mock_info(delegator1, &[]);
+            let sender2 = mock_info(delegator2, &[]);
+
+            // note that there's no delegation from delegator1 towards mix1
+            test.add_immediate_delegation(delegator2, 100_000_000u128, mix_id1);
+
+            test.add_immediate_delegation(delegator1, 100_000_000u128, mix_id2);
+            test.add_immediate_delegation(delegator2, 100_000_000u128, mix_id2);
+
+            // perform some rewarding so that we'd have non-zero rewards
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id1, mix_id2]);
+            test.reward_with_distribution(mix_id1, test_helpers::performance(100.0));
+            test.reward_with_distribution(mix_id2, test_helpers::performance(100.0));
+
+            let res = try_withdraw_delegator_reward(test.deps_mut(), sender1.clone(), mix_id1);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoMixnodeDelegationFound {
+                    mix_id: mix_id1,
+                    address: delegator1.to_string(),
+                    proxy: None,
+                })
+            );
+
+            // sanity check for other ones
+            let res = try_withdraw_delegator_reward(test.deps_mut(), sender1, mix_id2);
+            assert!(res.is_ok());
+
+            let res = try_withdraw_delegator_reward(test.deps_mut(), sender2.clone(), mix_id1);
+            assert!(res.is_ok());
+
+            let res = try_withdraw_delegator_reward(test.deps_mut(), sender2, mix_id2);
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn tokens_are_only_sent_if_reward_is_nonzero() {
+            let mut test = TestSetup::new();
+            // add relatively huge stake so that the reward would be high enough to offset operating costs
+            let mix_id1 =
+                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
+            let mix_id2 =
+                test.add_dummy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+
+            // very low stake so operating cost would be higher than total reward
+            let low_stake_id =
+                test.add_dummy_mixnode("mix-owner3", Some(Uint128::new(100_000_000)));
+
+            let delegator = "delegator";
+            let sender = mock_info(delegator, &[]);
+
+            test.add_immediate_delegation(delegator, 100_000_000u128, mix_id1);
+            test.add_immediate_delegation(delegator, 100_000_000u128, mix_id2);
+            test.add_immediate_delegation(delegator, 1_000u128, low_stake_id);
+
+            // reward mix1, but don't reward mix2
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id1, low_stake_id]);
+            test.reward_with_distribution(mix_id1, test_helpers::performance(100.0));
+            test.reward_with_distribution(low_stake_id, test_helpers::performance(100.0));
+
+            let res1 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender.clone(), mix_id1).unwrap();
+            assert!(matches!(
+                &res1.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send { to_address, amount }) if to_address == delegator && !amount[0].amount.is_zero()
+            ),);
+
+            let res2 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender.clone(), mix_id2).unwrap();
+            assert!(res2.messages.is_empty());
+
+            let res3 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender, low_stake_id).unwrap();
+            assert!(res3.messages.is_empty());
+        }
+
+        #[test]
+        fn can_only_be_done_for_fully_bonded_nodes() {
+            // note: if node has unbonded or is in the process of unbonding, the expected
+            // way of getting back the rewards is to completely undelegate
+            let mut test = TestSetup::new();
+            let mix_id_unbonding =
+                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
+            let mix_id_unbonded_leftover =
+                test.add_dummy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+
+            let delegator = "delegator";
+            let sender = mock_info(delegator, &[]);
+
+            test.add_immediate_delegation(delegator, 100_000_000u128, mix_id_unbonding);
+            test.add_immediate_delegation(delegator, 100_000_000u128, mix_id_unbonded_leftover);
+
+            let performance = test_helpers::performance(100.0);
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_unbonding, mix_id_unbonded_leftover]);
+
+            // go through few rewarding cycles before unbonding nodes (partially or fully)
+            for _ in 0..10 {
+                test.reward_with_distribution(mix_id_unbonding, performance);
+                test.reward_with_distribution(mix_id_unbonded_leftover, performance);
+
+                test.skip_to_next_epoch_end();
+            }
+
+            // start unbonding the first node and fully unbond the other
+            let mut bond = mixnodes_storage::mixnode_bonds()
+                .load(test.deps().storage, mix_id_unbonding)
+                .unwrap();
+            bond.is_unbonding = true;
+            mixnodes_storage::mixnode_bonds()
+                .save(test.deps_mut().storage, mix_id_unbonding, &bond)
+                .unwrap();
+
+            let env = test.env();
+            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+                .unwrap();
+
+            let res =
+                try_withdraw_delegator_reward(test.deps_mut(), sender.clone(), mix_id_unbonding);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::MixnodeIsUnbonding {
+                    node_id: mix_id_unbonding
+                })
+            );
+
+            let res =
+                try_withdraw_delegator_reward(test.deps_mut(), sender, mix_id_unbonded_leftover);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::MixnodeHasUnbonded {
+                    node_id: mix_id_unbonded_leftover
+                })
+            );
+        }
+
+        #[test]
+        fn correctly_determines_earned_share_and_resets_reward_ratio() {
+            let mut test = TestSetup::new();
+            let mix_id_single =
+                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
+            let mix_id_quad =
+                test.add_dummy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+
+            let delegator1 = "delegator1";
+            let delegator2 = "delegator2";
+            let delegator3 = "delegator3";
+            let delegator4 = "delegator4";
+            let sender1 = mock_info(delegator1, &[]);
+            let sender2 = mock_info(delegator2, &[]);
+            let sender3 = mock_info(delegator3, &[]);
+            let sender4 = mock_info(delegator4, &[]);
+
+            let amount_single = 100_000_000u128;
+
+            let amount_quad1 = 50_000_000u128;
+            let amount_quad2 = 200_000_000u128;
+            let amount_quad3 = 250_000_000u128;
+            let amount_quad4 = 500_000_000u128;
+
+            test.add_immediate_delegation(delegator1, amount_single, mix_id_single);
+
+            test.add_immediate_delegation(delegator1, amount_quad1, mix_id_quad);
+            test.add_immediate_delegation(delegator2, amount_quad2, mix_id_quad);
+            test.add_immediate_delegation(delegator3, amount_quad3, mix_id_quad);
+            test.add_immediate_delegation(delegator4, amount_quad4, mix_id_quad);
+
+            let performance = test_helpers::performance(100.0);
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_single, mix_id_quad]);
+
+            // accumulate some rewards
+            let mut accumulated_single = Decimal::zero();
+            let mut accumulated_quad = Decimal::zero();
+            for _ in 0..10 {
+                let dist = test.reward_with_distribution(mix_id_single, performance);
+                // sanity check to make sure test is actually doing what it's supposed to be doing
+                assert!(!dist.delegates.is_zero());
+
+                accumulated_single += dist.delegates;
+                let dist = test.reward_with_distribution(mix_id_quad, performance);
+                accumulated_quad += dist.delegates;
+
+                test.skip_to_next_epoch_end();
+            }
+
+            let before = test.read_delegation(mix_id_single, delegator1, None);
+            assert_eq!(before.cumulative_reward_ratio, Decimal::zero());
+            let res1 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender1.clone(), mix_id_single)
+                    .unwrap();
+            let (_, reward) = test_helpers::get_bank_send_msg(&res1).unwrap();
+            assert_eq!(truncate_reward_amount(accumulated_single), reward[0].amount);
+            let after = test.read_delegation(mix_id_single, delegator1, None);
+            assert_ne!(after.cumulative_reward_ratio, Decimal::zero());
+            assert_eq!(
+                after.cumulative_reward_ratio,
+                test.mix_rewarding(mix_id_single).total_unit_reward
+            );
+
+            // withdraw first two rewards. note that due to scaling we expect second reward to be 4x the first one
+            let before1 = test.read_delegation(mix_id_quad, delegator1, None);
+            let before2 = test.read_delegation(mix_id_quad, delegator2, None);
+            assert_eq!(before1.cumulative_reward_ratio, Decimal::zero());
+            assert_eq!(before2.cumulative_reward_ratio, Decimal::zero());
+            let res1 = try_withdraw_delegator_reward(test.deps_mut(), sender1.clone(), mix_id_quad)
+                .unwrap();
+            let (_, reward1) = test_helpers::get_bank_send_msg(&res1).unwrap();
+            let res2 = try_withdraw_delegator_reward(test.deps_mut(), sender2.clone(), mix_id_quad)
+                .unwrap();
+            let (_, reward2) = test_helpers::get_bank_send_msg(&res2).unwrap();
+            // the seeming "error" comes from reward truncation,
+            // say "actual" reward1 was `100.9`, while reward2 was 4x that, i.e. `403.6
+            // however, upon truncating and conversion to coins they'd be `100` and `403` respectively
+            // (clearly no longer holding the 4x ratio exactly), but this is NOT a bug,
+            // this is the expected behaviour.
+            // what we must assert here is that |a - b| <= ratio, rather than just a == b
+            // assert_eq!(reward1[0].amount * Uint128::new(4), reward2[0].amount);
+            assert_eq_with_leeway(
+                reward1[0].amount * Uint128::new(4),
+                reward2[0].amount,
+                Uint128::new(4),
+            );
+
+            let after1 = test.read_delegation(mix_id_quad, delegator1, None);
+            assert_ne!(after1.cumulative_reward_ratio, Decimal::zero());
+            assert_eq!(
+                after1.cumulative_reward_ratio,
+                test.mix_rewarding(mix_id_quad).total_unit_reward
+            );
+            let after2 = test.read_delegation(mix_id_quad, delegator2, None);
+            assert_ne!(after2.cumulative_reward_ratio, Decimal::zero());
+            assert_eq!(
+                after2.cumulative_reward_ratio,
+                test.mix_rewarding(mix_id_quad).total_unit_reward
+            );
+
+            // accumulate some more
+            for _ in 0..10 {
+                let dist = test.reward_with_distribution(mix_id_quad, performance);
+                accumulated_quad += dist.delegates;
+                test.skip_to_next_epoch_end();
+            }
+
+            let before1_new = test.read_delegation(mix_id_quad, delegator1, None);
+            let before2_new = test.read_delegation(mix_id_quad, delegator2, None);
+            let before3 = test.read_delegation(mix_id_quad, delegator3, None);
+            let before4 = test.read_delegation(mix_id_quad, delegator4, None);
+
+            assert_eq!(
+                before1_new.cumulative_reward_ratio,
+                after1.cumulative_reward_ratio
+            );
+            assert_eq!(
+                before2_new.cumulative_reward_ratio,
+                after2.cumulative_reward_ratio
+            );
+            assert_eq!(before3.cumulative_reward_ratio, Decimal::zero());
+            assert_eq!(before4.cumulative_reward_ratio, Decimal::zero());
+
+            let res1 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender1, mix_id_quad).unwrap();
+            let (_, reward1_new) = test_helpers::get_bank_send_msg(&res1).unwrap();
+            let res2 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender2, mix_id_quad).unwrap();
+            let (_, reward2_new) = test_helpers::get_bank_send_msg(&res2).unwrap();
+
+            // the ratio between first and second delegator is still the same
+            assert_eq_with_leeway(
+                reward1_new[0].amount * Uint128::new(4),
+                reward2_new[0].amount,
+                Uint128::new(4),
+            );
+
+            let res3 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender3, mix_id_quad).unwrap();
+            let (_, reward3) = test_helpers::get_bank_send_msg(&res3).unwrap();
+            let res4 =
+                try_withdraw_delegator_reward(test.deps_mut(), sender4, mix_id_quad).unwrap();
+            let (_, reward4) = test_helpers::get_bank_send_msg(&res4).unwrap();
+
+            // (and so is the ratio between 3rd and 4th)
+            assert_eq_with_leeway(
+                reward3[0].amount * Uint128::new(2),
+                reward4[0].amount,
+                Uint128::new(2),
+            );
+
+            // and finally the total distributed equals to total reward claimed
+            let total_claimed = reward1[0].amount
+                + reward2[0].amount
+                + reward1_new[0].amount
+                + reward2_new[0].amount
+                + reward3[0].amount
+                + reward4[0].amount;
+
+            // we're adding 6 values together so our leeway can be at most 6
+            let accumulated_actual = truncate_reward_amount(accumulated_quad);
+            assert_eq_with_leeway(total_claimed, accumulated_actual, Uint128::new(6));
+        }
     }
 
     #[cfg(test)]

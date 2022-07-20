@@ -1084,6 +1084,120 @@ pub mod tests {
     #[cfg(test)]
     mod withdrawing_delegator_reward {
         use super::*;
+        use crate::interval::pending_events;
+        use crate::support::tests::test_helpers::TestSetup;
+        use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
+
+        // node must exist
+        // not unbonding
+        // non-zero reward
+
+        #[test]
+        fn can_only_be_done_if_bond_exists() {
+            let mut test = TestSetup::new();
+
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, Some(Uint128::new(1_000_000_000_000)));
+            let sender = mock_info("random-guy", &[]);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = try_withdraw_operator_reward(test.deps_mut(), sender.clone());
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: sender.sender
+                })
+            )
+        }
+
+        #[test]
+        fn tokens_are_only_sent_if_reward_is_nonzero() {
+            let mut test = TestSetup::new();
+
+            let owner1 = "mix-owner1";
+            let owner2 = "mix-owner2";
+            let mix_id1 = test.add_dummy_mixnode(owner1, Some(Uint128::new(1_000_000_000_000)));
+            test.add_dummy_mixnode(owner2, Some(Uint128::new(1_000_000_000_000)));
+
+            let sender1 = mock_info(owner1, &[]);
+            let sender2 = mock_info(owner2, &[]);
+
+            // reward mix1, but don't reward mix2
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id1]);
+            test.reward_with_distribution(mix_id1, test_helpers::performance(100.0));
+
+            let res1 = try_withdraw_operator_reward(test.deps_mut(), sender1).unwrap();
+            assert!(matches!(
+                &res1.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send { to_address, amount }) if to_address == owner1 && !amount[0].amount.is_zero()
+            ),);
+
+            let res2 = try_withdraw_operator_reward(test.deps_mut(), sender2).unwrap();
+            assert!(res2.messages.is_empty());
+        }
+
+        #[test]
+        fn can_only_be_done_for_fully_bonded_nodes() {
+            // note: if node has unbonded or is in the process of unbonding, the expected
+            // way of getting back the rewards is finish the undelegation
+            let mut test = TestSetup::new();
+            let owner1 = "mix-owner1";
+            let owner2 = "mix-owner2";
+            let sender1 = mock_info(owner1, &[]);
+            let sender2 = mock_info(owner2, &[]);
+            let mix_id_unbonding =
+                test.add_dummy_mixnode(owner1, Some(Uint128::new(1_000_000_000_000)));
+            let mix_id_unbonded_leftover =
+                test.add_dummy_mixnode(owner2, Some(Uint128::new(1_000_000_000_000)));
+
+            // add some delegation to the second node so that it wouldn't be cleared upon unbonding
+            test.add_immediate_delegation("delegator", 100_000_000u128, mix_id_unbonded_leftover);
+
+            let performance = test_helpers::performance(100.0);
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_unbonding, mix_id_unbonded_leftover]);
+
+            // go through few rewarding cycles before unbonding nodes (partially or fully)
+            for _ in 0..10 {
+                test.reward_with_distribution(mix_id_unbonding, performance);
+                test.reward_with_distribution(mix_id_unbonded_leftover, performance);
+
+                test.skip_to_next_epoch_end();
+            }
+
+            // start unbonding the first node and fully unbond the other
+            let mut bond = mixnodes_storage::mixnode_bonds()
+                .load(test.deps().storage, mix_id_unbonding)
+                .unwrap();
+            bond.is_unbonding = true;
+            mixnodes_storage::mixnode_bonds()
+                .save(test.deps_mut().storage, mix_id_unbonding, &bond)
+                .unwrap();
+
+            let env = test.env();
+            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+                .unwrap();
+
+            let res = try_withdraw_operator_reward(test.deps_mut(), sender1.clone());
+            assert_eq!(
+                res,
+                Err(MixnetContractError::MixnodeIsUnbonding {
+                    node_id: mix_id_unbonding
+                })
+            );
+
+            let res = try_withdraw_operator_reward(test.deps_mut(), sender2);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: Addr::unchecked(owner2)
+                })
+            );
+        }
     }
 
     #[cfg(test)]

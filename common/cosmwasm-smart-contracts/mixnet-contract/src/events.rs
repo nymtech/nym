@@ -15,6 +15,8 @@ pub enum MixnetEventType {
     PendingMixnodeCostParamsUpdate,
     MixnodeCostParamsUpdate,
     MixnodeRewarding,
+    WithdrawDelegatorReward,
+    WithdrawOperatorReward,
 }
 
 impl From<MixnetEventType> for String {
@@ -33,6 +35,8 @@ impl ToString for MixnetEventType {
             MixnetEventType::PendingMixnodeCostParamsUpdate => "pending_mixnode_cost_params_update",
             MixnetEventType::MixnodeCostParamsUpdate => "mixnode_cost_params_update",
             MixnetEventType::MixnodeRewarding => "mix_rewarding",
+            MixnetEventType::WithdrawDelegatorReward => "withdraw_delegator_reward",
+            MixnetEventType::WithdrawOperatorReward => "withdraw_operator_reward",
         }
         .into()
     }
@@ -51,10 +55,6 @@ pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
 pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
 pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
 pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
-pub const COMPOUND_DELEGATOR_REWARD_EVENT_TYPE: &str = "compound_delegator_reward";
-pub const CLAIM_DELEGATOR_REWARD_EVENT_TYPE: &str = "claim_delegator_reward";
-pub const COMPOUND_OPERATOR_REWARD_EVENT_TYPE: &str = "compound_operator_reward";
-pub const CLAIM_OPERATOR_REWARD_EVENT_TYPE: &str = "claim_operator_reward";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -152,54 +152,30 @@ pub fn new_pending_delegation_event(
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
 
-pub fn new_compound_operator_reward_event(owner: &Addr, amount: Uint128) -> Event {
-    let event = Event::new(COMPOUND_OPERATOR_REWARD_EVENT_TYPE).add_attribute(OWNER_KEY, owner);
-    event.add_attribute(AMOUNT_KEY, amount.to_string())
+pub fn new_withdraw_operator_reward_event(
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    amount: Coin,
+    mix_id: NodeId,
+) -> Event {
+    Event::new(MixnetEventType::WithdrawOperatorReward)
+        .add_attribute(OWNER_KEY, owner.as_str())
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(NODE_ID_KEY, mix_id.to_string())
 }
 
-pub fn new_claim_operator_reward_event(owner: &Addr, amount: Uint128) -> Event {
-    let event = Event::new(CLAIM_OPERATOR_REWARD_EVENT_TYPE).add_attribute(OWNER_KEY, owner);
-    event.add_attribute(AMOUNT_KEY, amount.to_string())
-}
-
-pub fn new_compound_delegator_reward_event(
+pub fn new_withdraw_delegator_reward_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
-    amount: Uint128,
-    mix_identity: IdentityKeyRef<'_>,
+    amount: Coin,
+    mix_id: NodeId,
 ) -> Event {
-    let mut event =
-        Event::new(COMPOUND_DELEGATOR_REWARD_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event
-        .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+    Event::new(MixnetEventType::WithdrawDelegatorReward)
         .add_attribute(DELEGATOR_KEY, delegator)
-}
-
-pub fn new_claim_delegator_reward_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    amount: Uint128,
-    mix_identity: IdentityKeyRef<'_>,
-) -> Event {
-    let mut event =
-        Event::new(CLAIM_DELEGATOR_REWARD_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event
+        .add_optional_argument(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
-        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
 
 pub fn new_undelegation_event(

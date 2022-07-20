@@ -106,6 +106,7 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
         return Err(MixnetContractError::NoMixnodeDelegationFound {
             mix_id,
             address: delegate.into_string(),
+            proxy: proxy.map(Addr::into_string),
         });
     }
 

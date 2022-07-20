@@ -5,7 +5,7 @@ use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::interval::FullEpochId;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
-use crate::rewarding::helpers::truncate_reward;
+use crate::rewarding::helpers::{truncate_reward, truncate_reward_amount};
 use crate::rewarding::RewardDistribution;
 use crate::{Delegation, IdentityKey, NodeId, Percent, SphinxKey};
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
@@ -164,6 +164,8 @@ impl MixNodeRewarding {
     ) -> Result<Coin, MixnetContractError> {
         let reward = self.determine_delegation_reward(delegation);
         self.decrease_delegates(reward)?;
+
+        println!("rounding {} to {}", reward, truncate_reward_amount(reward));
 
         delegation.cumulative_reward_ratio = self.full_reward_ratio();
         Ok(truncate_reward(reward, &delegation.amount.denom))

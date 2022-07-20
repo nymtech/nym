@@ -16,7 +16,9 @@ use crate::support::helpers::{
 use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
-    new_mix_rewarding_event, new_not_found_mix_operator_rewarding_event,
+    new_active_set_update_event, new_mix_rewarding_event,
+    new_not_found_mix_operator_rewarding_event, new_pending_active_set_update_event,
+    new_pending_rewarding_params_update_event, new_rewarding_params_update_event,
     new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
@@ -288,16 +290,21 @@ pub(crate) fn try_update_active_set_size(
     if force_immediately || interval.is_current_epoch_over(&env) {
         rewarding_params.try_change_active_set_size(active_set_size)?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+        Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
     } else {
         // push the epoch event
         let epoch_event = PendingEpochEvent::UpdateActiveSetSize {
             new_size: active_set_size,
         };
         push_new_epoch_event(deps.storage, &epoch_event)?;
+        let time_left = interval.secs_until_current_interval_end(&env);
+        Ok(
+            Response::new().add_event(new_pending_active_set_update_event(
+                active_set_size,
+                time_left,
+            )),
+        )
     }
-
-    // TODO: slap events
-    Ok(Response::new())
 }
 
 pub(crate) fn try_update_rewarding_params(
@@ -318,16 +325,24 @@ pub(crate) fn try_update_rewarding_params(
         let mut rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
         rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+        Ok(Response::new().add_event(new_rewarding_params_update_event(
+            Some(updated_params),
+            rewarding_params.interval,
+        )))
     } else {
         // push the interval event
         let interval_event = PendingIntervalEvent::UpdateRewardingParams {
             update: updated_params,
         };
         push_new_interval_event(deps.storage, &interval_event)?;
+        let time_left = interval.secs_until_current_interval_end(&env);
+        Ok(
+            Response::new().add_event(new_pending_rewarding_params_update_event(
+                updated_params,
+                time_left,
+            )),
+        )
     }
-
-    // TODO: slap events
-    Ok(Response::new())
 }
 
 #[cfg(test)]
@@ -1086,11 +1101,7 @@ pub mod tests {
         use super::*;
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
-
-        // node must exist
-        // not unbonding
-        // non-zero reward
+        use cosmwasm_std::{BankMsg, CosmosMsg, Uint128};
 
         #[test]
         fn can_only_be_done_if_bond_exists() {
@@ -1182,7 +1193,7 @@ pub mod tests {
             pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
                 .unwrap();
 
-            let res = try_withdraw_operator_reward(test.deps_mut(), sender1.clone());
+            let res = try_withdraw_operator_reward(test.deps_mut(), sender1);
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
@@ -1203,10 +1214,355 @@ pub mod tests {
     #[cfg(test)]
     mod updating_active_set {
         use super::*;
+        use crate::interval::storage as interval_storage;
+        use crate::support::tests::test_helpers::TestSetup;
+
+        #[test]
+        fn can_only_be_done_by_contract_owner() {
+            let mut test = TestSetup::new();
+
+            let rewarding_validator = test.rewarding_validator();
+            let owner = test.owner();
+            let random = mock_info("random-guy", &[]);
+
+            let env = test.env();
+            let res = try_update_active_set_size(
+                test.deps_mut(),
+                env.clone(),
+                rewarding_validator,
+                42,
+                false,
+            );
+            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+
+            let res = try_update_active_set_size(test.deps_mut(), env.clone(), random, 42, false);
+            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+
+            let res = try_update_active_set_size(test.deps_mut(), env, owner, 42, false);
+            assert!(res.is_ok())
+        }
+
+        #[test]
+        fn new_size_cant_be_bigger_than_rewarded_set() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let rewarded_set_size = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .rewarded_set_size;
+
+            let env = test.env();
+            let res = try_update_active_set_size(
+                test.deps_mut(),
+                env,
+                owner.clone(),
+                rewarded_set_size + 1,
+                false,
+            );
+            assert_eq!(res, Err(MixnetContractError::InvalidActiveSetSize));
+
+            // if its equal, its fine
+            // (make sure we start with the fresh state)
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let res = try_update_active_set_size(
+                test.deps_mut(),
+                env,
+                owner.clone(),
+                rewarded_set_size,
+                false,
+            );
+            assert!(res.is_ok());
+
+            // as well as if its any value lower than that
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let res = try_update_active_set_size(
+                test.deps_mut(),
+                env,
+                owner,
+                rewarded_set_size - 100,
+                false,
+            );
+            assert!(res.is_ok());
+        }
+
+        #[test]
+        fn if_interval_is_finished_change_happens_immediately() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let old = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            test.skip_to_current_interval_end();
+            let env = test.env();
+            let res = try_update_active_set_size(test.deps_mut(), env, owner.clone(), 42, false);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            assert_ne!(old, new);
+            assert_eq!(new, 42);
+
+            // sanity check for "normal" case
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let res = try_update_active_set_size(test.deps_mut(), env, owner, 42, false);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            assert_eq!(old, new);
+        }
+
+        #[test]
+        fn if_update_is_forced_it_happens_immediately() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let old = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            let env = test.env();
+            let res = try_update_active_set_size(test.deps_mut(), env, owner.clone(), 42, true);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            assert_ne!(old, new);
+            assert_eq!(new, 42);
+        }
+
+        #[test]
+        fn without_forcing_it_change_happens_upon_clearing_epoch_events() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let old = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            let env = test.env();
+            let res = try_update_active_set_size(test.deps_mut(), env, owner, 42, false);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            assert_eq!(old, new);
+
+            // make sure it's actually saved to pending events
+            let events = test.pending_epoch_events();
+            assert!(
+                matches!(events[0], PendingEpochEvent::UpdateActiveSetSize { new_size } if new_size == 42)
+            );
+
+            test.execute_all_pending_events();
+            let new = storage::REWARDING_PARAMS
+                .load(test.deps().storage)
+                .unwrap()
+                .active_set_size;
+            assert_ne!(old, new);
+            assert_eq!(new, 42);
+        }
     }
 
     #[cfg(test)]
     mod updating_rewarding_params {
         use super::*;
+        use crate::interval::storage as interval_storage;
+        use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
+        use cosmwasm_std::Decimal;
+
+        #[test]
+        fn can_only_be_done_by_contract_owner() {
+            let mut test = TestSetup::new();
+
+            let rewarding_validator = test.rewarding_validator();
+            let owner = test.owner();
+            let random = mock_info("random-guy", &[]);
+
+            let update = IntervalRewardingParamsUpdate {
+                reward_pool: None,
+                staking_supply: None,
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: Some(123),
+            };
+
+            let env = test.env();
+            let res = try_update_rewarding_params(
+                test.deps_mut(),
+                env.clone(),
+                rewarding_validator,
+                update,
+                false,
+            );
+            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+
+            let res =
+                try_update_rewarding_params(test.deps_mut(), env.clone(), random, update, false);
+            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+
+            let res = try_update_rewarding_params(test.deps_mut(), env, owner, update, false);
+            assert!(res.is_ok())
+        }
+
+        #[test]
+        fn request_must_contain_at_least_single_update() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let empty_update = IntervalRewardingParamsUpdate {
+                reward_pool: None,
+                staking_supply: None,
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: None,
+            };
+
+            let env = test.env();
+            let res = try_update_rewarding_params(test.deps_mut(), env, owner, empty_update, false);
+            assert_eq!(res, Err(MixnetContractError::EmptyParamsChangeMsg));
+        }
+
+        #[test]
+        fn if_interval_is_finished_change_happens_immediately() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let update = IntervalRewardingParamsUpdate {
+                reward_pool: None,
+                staking_supply: None,
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: Some(123),
+            };
+
+            let old = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            test.skip_to_current_interval_end();
+
+            let env = test.env();
+            let res =
+                try_update_rewarding_params(test.deps_mut(), env, owner.clone(), update, false);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            assert_ne!(old, new);
+            assert_eq!(new.rewarded_set_size, 123);
+
+            // sanity check for "normal" case
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let res = try_update_rewarding_params(test.deps_mut(), env, owner, update, false);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            assert_eq!(old, new);
+        }
+
+        #[test]
+        fn if_update_is_forced_it_happens_immediately() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let update = IntervalRewardingParamsUpdate {
+                reward_pool: None,
+                staking_supply: None,
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: Some(123),
+            };
+
+            let old = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            let env = test.env();
+            let res =
+                try_update_rewarding_params(test.deps_mut(), env, owner.clone(), update, true);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            assert_ne!(old, new);
+            assert_eq!(new.rewarded_set_size, 123);
+        }
+
+        #[test]
+        fn without_forcing_it_change_happens_upon_clearing_interval_events() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let update = IntervalRewardingParamsUpdate {
+                reward_pool: None,
+                staking_supply: None,
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: Some(123),
+            };
+
+            let old = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            let env = test.env();
+            let res = try_update_rewarding_params(test.deps_mut(), env, owner, update, false);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            assert_eq!(old, new);
+
+            // make sure it's actually saved to pending events
+            let events = test.pending_interval_events();
+            assert!(
+                matches!(events[0],PendingIntervalEvent::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
+            );
+
+            test.execute_all_pending_events();
+            let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+            assert_ne!(old, new);
+            assert_eq!(new.rewarded_set_size, 123);
+        }
+
+        #[test]
+        fn upon_update_fields_are_recomputed_accordingly() {
+            let mut test = TestSetup::new();
+            let owner = test.owner();
+
+            let old = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+
+            let two = Decimal::from_atomics(2u32, 0).unwrap();
+            let four = Decimal::from_atomics(4u32, 0).unwrap();
+
+            // TODO: be more fuzzy about it and try to vary other fields that can cause
+            // re-computation like pool emission or rewarded set size update
+            let update = IntervalRewardingParamsUpdate {
+                reward_pool: Some(old.interval.reward_pool / two),
+                staking_supply: Some(old.interval.staking_supply * four),
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: None,
+            };
+
+            let env = test.env();
+            let res = try_update_rewarding_params(test.deps_mut(), env, owner, update, true);
+            assert!(res.is_ok());
+            let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
+
+            // with half the reward pool, our reward budget is also halved
+            assert_decimals(
+                old.interval.epoch_reward_budget,
+                two * new.interval.epoch_reward_budget,
+            );
+
+            // and with 4x the staking supply, the saturation point is also increased 4-folds
+            assert_decimals(
+                four * old.interval.stake_saturation_point,
+                new.interval.stake_saturation_point,
+            );
+        }
     }
 }

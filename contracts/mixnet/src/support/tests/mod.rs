@@ -45,6 +45,7 @@ pub mod test_helpers {
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
+    use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
     use mixnet_contract_common::reward_params::Performance;
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
@@ -60,6 +61,15 @@ pub mod test_helpers {
             assert!(a - b <= leeway)
         } else {
             assert!(b - a <= leeway)
+        }
+    }
+
+    pub fn assert_decimals(a: Decimal, b: Decimal) {
+        let epsilon = Decimal::from_ratio(1u128, 100_000_000u128);
+        if a > b {
+            assert!(a - b < epsilon, "{} != {}", a, b)
+        } else {
+            assert!(b - a < epsilon, "{} != {}", a, b)
         }
     }
 
@@ -105,6 +115,10 @@ pub mod test_helpers {
 
         pub fn rewarding_validator(&self) -> MessageInfo {
             self.rewarding_validator.clone()
+        }
+
+        pub fn owner(&self) -> MessageInfo {
+            self.owner.clone()
         }
 
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
@@ -170,6 +184,14 @@ pub mod test_helpers {
             self.env.block.time = Timestamp::from_seconds(epoch_end as u64);
         }
 
+        pub fn skip_to_current_interval_end(&mut self) {
+            let interval = interval_storage::current_interval(self.deps().storage).unwrap();
+            let interval_end = interval.current_interval_end_unix_timestamp();
+            // skip few blocks just in case
+            self.env.block.height += 10;
+            self.env.block.time = Timestamp::from_seconds(interval_end as u64);
+        }
+
         pub fn skip_to_next_epoch(&mut self) {
             let interval = interval_storage::current_interval(self.deps().storage).unwrap();
             let epoch_end = interval.current_epoch_end_unix_timestamp();
@@ -201,6 +223,20 @@ pub mod test_helpers {
         pub fn execute_all_pending_events(&mut self) {
             let env = self.env();
             execute_all_pending_events(self.deps_mut(), env)
+        }
+
+        pub fn pending_interval_events(&self) -> Vec<PendingIntervalEvent> {
+            interval_storage::PENDING_INTERVAL_EVENTS
+                .range(self.deps().storage, None, None, Order::Ascending)
+                .map(|res| res.unwrap().1)
+                .collect::<Vec<_>>()
+        }
+
+        pub fn pending_epoch_events(&self) -> Vec<PendingEpochEvent> {
+            interval_storage::PENDING_EPOCH_EVENTS
+                .range(self.deps().storage, None, None, Order::Ascending)
+                .map(|res| res.unwrap().1)
+                .collect::<Vec<_>>()
         }
 
         pub fn reward_with_distribution(

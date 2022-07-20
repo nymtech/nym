@@ -45,7 +45,7 @@ impl InitialRewardingParams {
             / Decimal::from_atomics(epochs_in_interval, 0).unwrap()
             * self.interval_pool_emission;
         let stake_saturation_point =
-            self.initial_reward_pool / Decimal::from_atomics(self.rewarded_set_size, 0).unwrap();
+            self.initial_staking_supply / Decimal::from_atomics(self.rewarded_set_size, 0).unwrap();
 
         RewardingParams {
             interval: IntervalRewardParams {

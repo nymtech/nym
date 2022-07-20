@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use crate::reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
 use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
 pub use contracts_common::events::*;
@@ -17,6 +18,10 @@ pub enum MixnetEventType {
     MixnodeRewarding,
     WithdrawDelegatorReward,
     WithdrawOperatorReward,
+    PendingActiveSetUpdate,
+    ActiveSetUpdate,
+    PendingIntervalRewardingParamsUpdate,
+    IntervalRewardingParamsUpdate,
 }
 
 impl From<MixnetEventType> for String {
@@ -37,6 +42,12 @@ impl ToString for MixnetEventType {
             MixnetEventType::MixnodeRewarding => "mix_rewarding",
             MixnetEventType::WithdrawDelegatorReward => "withdraw_delegator_reward",
             MixnetEventType::WithdrawOperatorReward => "withdraw_operator_reward",
+            MixnetEventType::PendingActiveSetUpdate => "pending_active_set_update",
+            MixnetEventType::ActiveSetUpdate => "active_set_update",
+            MixnetEventType::PendingIntervalRewardingParamsUpdate => {
+                "pending_interval_rewarding_params_update"
+            }
+            MixnetEventType::IntervalRewardingParamsUpdate => "interval_rewarding_params_update",
         }
         .into()
     }
@@ -76,14 +87,11 @@ pub const ASSIGNED_LAYER_KEY: &str = "assigned_layer";
 // settings change
 pub const OLD_MINIMUM_MIXNODE_PLEDGE_KEY: &str = "old_minimum_mixnode_pledge";
 pub const OLD_MINIMUM_GATEWAY_PLEDGE_KEY: &str = "old_minimum_gateway_pledge";
-pub const OLD_MIXNODE_REWARDED_SET_SIZE_KEY: &str = "old_mixnode_rewarded_set_size";
-pub const OLD_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "old_mixnode_active_set_size";
-pub const OLD_ACTIVE_SET_WORK_FACTOR_KEY: &str = "old_active_set_work_factor";
+pub const OLD_MINIMUM_DELEGATION_KEY: &str = "old_minimum_delegation";
 
 pub const NEW_MINIMUM_MIXNODE_PLEDGE_KEY: &str = "new_minimum_mixnode_pledge";
 pub const NEW_MINIMUM_GATEWAY_PLEDGE_KEY: &str = "new_minimum_gateway_pledge";
-pub const NEW_MIXNODE_REWARDED_SET_SIZE_KEY: &str = "new_mixnode_rewarded_set_size";
-pub const NEW_MIXNODE_ACTIVE_SET_SIZE_KEY: &str = "new_mixnode_active_set_size";
+pub const NEW_MINIMUM_DELEGATION_KEY: &str = "new_minimum_delegation";
 
 pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_address";
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
@@ -98,6 +106,9 @@ pub const TOTAL_PLEDGE_KEY: &str = "pledge";
 pub const TOTAL_DELEGATIONS_KEY: &str = "delegated";
 pub const OPERATOR_REWARD_KEY: &str = "operator_reward";
 pub const DELEGATES_REWARD_KEY: &str = "delegates_reward";
+pub const APPROXIMATE_TIME_LEFT_SECS_KEY: &str = "approximate_time_left_secs";
+pub const INTERVAL_REWARDING_PARAMS_UPDATE_KEY: &str = "interval_rewarding_params_update";
+pub const UPDATED_INTERVAL_REWARDING_PARAMS_KEY: &str = "updated_interval_rewarding_params";
 
 pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
 pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
@@ -117,27 +128,23 @@ pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 pub const BLOCK_HEIGHT_KEY: &str = "block_height";
 pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
 
-pub fn new_error_event(err: String) -> Event {
-    Event::new(RECONCILIATION_ERROR_EVENT).add_attribute("error", err)
-}
-
-pub fn new_delegation_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    amount: &Coin,
-    mix_identity: IdentityKeyRef<'_>,
-) -> Event {
-    let mut event = Event::new(DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event
-        .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
-}
+// pub fn new_delegation_event(
+//     delegator: &Addr,
+//     proxy: &Option<Addr>,
+//     amount: &Coin,
+//     mix_identity: IdentityKeyRef<'_>,
+// ) -> Event {
+//     let mut event = Event::new(DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+//
+//     if let Some(proxy) = proxy {
+//         event = event.add_attribute(PROXY_KEY, proxy)
+//     }
+//
+//     // coin implements Display trait and we use that implementation here
+//     event
+//         .add_attribute(AMOUNT_KEY, amount.to_string())
+//         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+// }
 
 pub fn new_pending_delegation_event(
     delegator: &Addr,
@@ -147,7 +154,7 @@ pub fn new_pending_delegation_event(
 ) -> Event {
     Event::new(PENDING_DELEGATION_EVENT_TYPE)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
@@ -160,7 +167,7 @@ pub fn new_withdraw_operator_reward_event(
 ) -> Event {
     Event::new(MixnetEventType::WithdrawOperatorReward)
         .add_attribute(OWNER_KEY, owner.as_str())
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(NODE_ID_KEY, mix_id.to_string())
 }
@@ -173,28 +180,82 @@ pub fn new_withdraw_delegator_reward_event(
 ) -> Event {
     Event::new(MixnetEventType::WithdrawDelegatorReward)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
 
-pub fn new_undelegation_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    mix_identity: IdentityKeyRef<'_>,
-    amount: Uint128,
-) -> Event {
-    let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event
-        .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+pub fn new_active_set_update_event(new_size: u32) -> Event {
+    Event::new(MixnetEventType::ActiveSetUpdate)
+        .add_attribute(ACTIVE_SET_SIZE_KEY, new_size.to_string())
 }
+
+pub fn new_pending_active_set_update_event(
+    new_size: u32,
+    approximate_time_remaining_secs: i64,
+) -> Event {
+    Event::new(MixnetEventType::PendingActiveSetUpdate)
+        .add_attribute(ACTIVE_SET_SIZE_KEY, new_size.to_string())
+        .add_attribute(
+            APPROXIMATE_TIME_LEFT_SECS_KEY,
+            approximate_time_remaining_secs.to_string(),
+        )
+}
+
+pub fn new_rewarding_params_update_event(
+    update: Option<IntervalRewardingParamsUpdate>,
+    updated: IntervalRewardParams,
+) -> Event {
+    if let Some(update) = update {
+        Event::new(MixnetEventType::IntervalRewardingParamsUpdate)
+            .add_attribute(
+                INTERVAL_REWARDING_PARAMS_UPDATE_KEY,
+                update.to_inline_json(),
+            )
+            .add_attribute(
+                UPDATED_INTERVAL_REWARDING_PARAMS_KEY,
+                updated.to_inline_json(),
+            )
+    } else {
+        Event::new(MixnetEventType::IntervalRewardingParamsUpdate).add_attribute(
+            UPDATED_INTERVAL_REWARDING_PARAMS_KEY,
+            updated.to_inline_json(),
+        )
+    }
+}
+
+pub fn new_pending_rewarding_params_update_event(
+    update: IntervalRewardingParamsUpdate,
+    approximate_time_remaining_secs: i64,
+) -> Event {
+    Event::new(MixnetEventType::PendingIntervalRewardingParamsUpdate)
+        .add_attribute(
+            INTERVAL_REWARDING_PARAMS_UPDATE_KEY,
+            update.to_inline_json(),
+        )
+        .add_attribute(
+            APPROXIMATE_TIME_LEFT_SECS_KEY,
+            approximate_time_remaining_secs.to_string(),
+        )
+}
+
+// pub fn new_undelegation_event(
+//     delegator: &Addr,
+//     proxy: &Option<Addr>,
+//     mix_identity: IdentityKeyRef<'_>,
+//     amount: Uint128,
+// ) -> Event {
+//     let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
+//
+//     if let Some(proxy) = proxy {
+//         event = event.add_attribute(PROXY_KEY, proxy)
+//     }
+//
+//     // coin implements Display trait and we use that implementation here
+//     event
+//         .add_attribute(AMOUNT_KEY, amount.to_string())
+//         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
+// }
 
 pub fn new_pending_undelegation_event(
     delegator: &Addr,
@@ -203,7 +264,7 @@ pub fn new_pending_undelegation_event(
 ) -> Event {
     Event::new(PENDING_UNDELEGATION_EVENT_TYPE)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(NODE_ID_KEY, mix_id.to_string())
 }
 
@@ -213,16 +274,11 @@ pub fn new_gateway_bonding_event(
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
 ) -> Event {
-    let mut event = Event::new(GATEWAY_BONDING_EVENT_TYPE)
+    Event::new(GATEWAY_BONDING_EVENT_TYPE)
         .add_attribute(OWNER_KEY, owner)
-        .add_attribute(NODE_IDENTITY_KEY, identity);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event.add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
 pub fn new_gateway_unbonding_event(
@@ -231,16 +287,11 @@ pub fn new_gateway_unbonding_event(
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
 ) -> Event {
-    let mut event = Event::new(GATEWAY_UNBONDING_EVENT_TYPE)
+    Event::new(GATEWAY_UNBONDING_EVENT_TYPE)
         .add_attribute(OWNER_KEY, owner)
-        .add_attribute(NODE_IDENTITY_KEY, identity);
-
-    if let Some(proxy) = proxy {
-        event = event.add_attribute(PROXY_KEY, proxy)
-    }
-
-    // coin implements Display trait and we use that implementation here
-    event.add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
 pub fn new_mixnode_bonding_event(
@@ -256,7 +307,7 @@ pub fn new_mixnode_bonding_event(
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(ASSIGNED_LAYER_KEY, assigned_layer)
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
@@ -272,7 +323,7 @@ pub fn new_pending_mixnode_unbonding_event(
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
 }
 
 pub fn new_mixnode_config_update_event(
@@ -284,7 +335,7 @@ pub fn new_mixnode_config_update_event(
     Event::new(MixnetEventType::MixnodeConfigUpdate)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_CONFIG_KEY, update.to_inline_json())
 }
 
@@ -297,7 +348,7 @@ pub fn new_mixnode_pending_cost_params_update_event(
     Event::new(MixnetEventType::PendingMixnodeCostParamsUpdate)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_argument(PROXY_KEY, proxy.as_ref())
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 
@@ -335,6 +386,19 @@ pub fn new_settings_update_event(
                 NEW_MINIMUM_GATEWAY_PLEDGE_KEY,
                 new_params.minimum_gateway_pledge.to_string(),
             )
+    }
+
+    if old_params.minimum_mixnode_delegation != new_params.minimum_mixnode_delegation {
+        if let Some(ref old) = old_params.minimum_mixnode_delegation {
+            event = event.add_attribute(OLD_MINIMUM_DELEGATION_KEY, old.to_string())
+        } else {
+            event = event.add_attribute(OLD_MINIMUM_DELEGATION_KEY, "None")
+        }
+        if let Some(ref new) = new_params.minimum_mixnode_delegation {
+            event = event.add_attribute(NEW_MINIMUM_DELEGATION_KEY, new.to_string())
+        } else {
+            event = event.add_attribute(NEW_MINIMUM_DELEGATION_KEY, "None")
+        }
     }
 
     event
@@ -391,18 +455,18 @@ pub fn new_mix_delegators_rewarding_event(
         )
 }
 
-// note that when this event is emitted, we'll know the current block height
-pub fn new_change_rewarded_set_event(
-    active_set_size: u32,
-    rewarded_set_size: u32,
-    nodes_in_rewarded_set: u32,
-) -> Event {
-    Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
-        .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
-        .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
-        .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
-}
-
-pub fn new_advance_epoch_event(interval: Interval) -> Event {
-    Event::new(ADVANCE_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
-}
+// // note that when this event is emitted, we'll know the current block height
+// pub fn new_change_rewarded_set_event(
+//     active_set_size: u32,
+//     rewarded_set_size: u32,
+//     nodes_in_rewarded_set: u32,
+// ) -> Event {
+//     Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
+//         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
+//         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
+//         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
+// }
+//
+// pub fn new_advance_epoch_event(interval: Interval) -> Event {
+//     Event::new(ADVANCE_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
+// }

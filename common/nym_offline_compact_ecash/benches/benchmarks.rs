@@ -302,11 +302,11 @@ fn bench_compact_ecash(c: &mut Criterion) {
         ),
         |b| {
             b.iter(|| {
-                identify(&public_keys, payment.clone(), payment2.clone(), pay_info.clone(), pay_info2.clone()).unwrap()
+                identify(&params, &public_keys, &verification_key, payment.clone(), payment2.clone(), pay_info.clone(), pay_info2.clone()).unwrap()
             })
         },
     );
-    let identify_result = identify(&public_keys, payment, payment2, pay_info.clone(), pay_info2.clone()).unwrap();
+    let identify_result = identify(&params, &public_keys, &verification_key, payment, payment2, pay_info.clone(), pay_info2.clone()).unwrap();
     assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
 }
 

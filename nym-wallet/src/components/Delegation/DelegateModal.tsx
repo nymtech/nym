@@ -31,7 +31,7 @@ export const DelegateModal: React.FC<{
   estimatedReward?: number;
   profitMarginPercentage?: number | null;
   nodeUptimePercentage?: number | null;
-  currency: string;
+  denom: CurrencyDenom;
   initialAmount?: string;
   hasVestingContract: boolean;
   sx?: SxProps;
@@ -48,7 +48,7 @@ export const DelegateModal: React.FC<{
   rewardInterval,
   accountBalance,
   estimatedReward,
-  currency,
+  denom,
   profitMarginPercentage,
   nodeUptimePercentage,
   initialAmount,
@@ -103,7 +103,7 @@ export const DelegateModal: React.FC<{
     }
 
     if (amount && Number(amount) < MIN_AMOUNT_TO_DELEGATE) {
-      errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${currency}`;
+      errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${denom.toUpperCase()}`;
       newValidatedValue = false;
     }
 
@@ -118,7 +118,7 @@ export const DelegateModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom: currency as CurrencyDenom }, tokenPool, fee);
+      onOk(identityKey, { amount, denom }, tokenPool, fee);
     }
   };
 
@@ -170,7 +170,7 @@ export const DelegateModal: React.FC<{
         onConfirm={handleOk}
       >
         <ModalListItem label="Node identity key" value={identityKey} divider />
-        <ModalListItem label="Amount" value={`${amount} ${currency}`} divider />
+        <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
     );
   }
@@ -181,7 +181,7 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (identityKey && amount) {
-          handleConfirm({ identity: identityKey, value: { amount, denom: currency as CurrencyDenom } });
+          handleConfirm({ identity: identityKey, value: { amount, denom } });
         }
       }}
       header={header || 'Delegate'}
@@ -219,6 +219,7 @@ export const DelegateModal: React.FC<{
           initialValue={amount}
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
+          denom={denom}
         />
       </Box>
       <Typography
@@ -247,7 +248,12 @@ export const DelegateModal: React.FC<{
         divider
       />
 
-      <ModalListItem label="Node est. reward per epoch" value={`${estimatedReward} ${currency}`} hidden divider />
+      <ModalListItem
+        label="Node est. reward per epoch"
+        value={`${estimatedReward} ${denom.toUpperCase()}`}
+        hidden
+        divider
+      />
     </SimpleModal>
   );
 };

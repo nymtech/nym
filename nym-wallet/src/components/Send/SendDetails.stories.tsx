@@ -46,6 +46,7 @@ export const SendDetails = () => {
       fromAddress="nymt1w8qp7zsxggvtxhpqpt6e329j42wtv07dm5ts8u"
       toAddress="nymt1w8qp7zsxggvtxhpqpt6e329j42wtv07dm5ts8u"
       fee={{ amount: { amount: '0.01', denom: 'nym' }, fee: { Auto: null } }}
+      denom="nym"
       amount={{ amount: '100', denom: 'nym' }}
       onPrev={() => {}}
       onSend={() => {}}

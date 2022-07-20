@@ -74,7 +74,6 @@ export const DelegationContextProvider: FC<{
   };
 
   const resetState = () => {
-    setIsLoading(true);
     setError(undefined);
     setTotalDelegations(undefined);
     setTotalRewards(undefined);
@@ -82,6 +81,7 @@ export const DelegationContextProvider: FC<{
   };
 
   const refresh = useCallback(async () => {
+    setIsLoading(true);
     try {
       const data = await getDelegationSummary();
       const pending = await getAllPendingDelegations();

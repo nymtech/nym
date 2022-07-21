@@ -6,7 +6,7 @@ use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use mixnet_contract_common::reward_params::EpochRewardParams;
+use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
     GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, RewardedSetNodeStatus,
 };
@@ -66,7 +66,7 @@ struct ValidatorCacheInner {
     rewarded_set: Cache<Vec<MixNodeBondAnnotated>>,
     active_set: Cache<Vec<MixNodeBondAnnotated>>,
 
-    current_reward_params: Cache<EpochRewardParams>,
+    current_reward_params: Cache<RewardingParams>,
     current_epoch: Cache<Option<Interval>>,
     current_operator_base_cost: Cache<u64>,
 }
@@ -122,11 +122,12 @@ impl<C> ValidatorCacheRefresher<C> {
     }
 
     async fn get_uptime(&self, identity: &IdentityKey, epoch: Interval) -> Option<Uptime> {
-        self.storage
-            .as_ref()?
-            .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
-            .await
-            .ok()
+        todo!()
+        // self.storage
+        //     .as_ref()?
+        //     .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
+        //     .await
+        //     .ok()
     }
 
     pub fn subscribe(&self) -> watch::Receiver<CacheNotification> {
@@ -136,54 +137,55 @@ impl<C> ValidatorCacheRefresher<C> {
     async fn annotate_bond_with_details(
         &self,
         mixnodes: Vec<MixNodeBond>,
-        interval_reward_params: EpochRewardParams,
+        interval_reward_params: RewardingParams,
         current_epoch: Interval,
         epochs_in_interval: u64,
         current_operator_base_cost: u64,
         rewarded_set_identities: &HashMap<IdentityKey, RewardedSetNodeStatus>,
     ) -> Vec<MixNodeBondAnnotated> {
-        let mut annotated = Vec::new();
-        for mixnode_bond in mixnodes {
-            let stake_saturation = mixnode_bond
-                .stake_saturation(
-                    interval_reward_params.staking_supply(),
-                    interval_reward_params.rewarded_set_size() as u32,
-                )
-                .to_num();
-
-            let uptime = self
-                .get_uptime(mixnode_bond.identity(), current_epoch)
-                .await
-                .unwrap_or_default();
-
-            let is_active = rewarded_set_identities
-                .get(mixnode_bond.identity())
-                .map_or(false, RewardedSetNodeStatus::is_active);
-
-            let reward_estimate = reward_estimate::compute_reward_estimate(
-                &mixnode_bond,
-                uptime,
-                is_active,
-                interval_reward_params,
-                current_operator_base_cost,
-            );
-
-            let (estimated_operator_apy, estimated_delegators_apy) =
-                reward_estimate::compute_apy_from_reward(
-                    &mixnode_bond,
-                    reward_estimate,
-                    epochs_in_interval,
-                );
-
-            annotated.push(MixNodeBondAnnotated {
-                mixnode_bond,
-                stake_saturation,
-                uptime: uptime.u8(),
-                estimated_operator_apy,
-                estimated_delegators_apy,
-            });
-        }
-        annotated
+        todo!()
+        // let mut annotated = Vec::new();
+        // for mixnode_bond in mixnodes {
+        //     let stake_saturation = mixnode_bond
+        //         .stake_saturation(
+        //             interval_reward_params.staking_supply(),
+        //             interval_reward_params.rewarded_set_size() as u32,
+        //         )
+        //         .to_num();
+        //
+        //     let uptime = self
+        //         .get_uptime(mixnode_bond.identity(), current_epoch)
+        //         .await
+        //         .unwrap_or_default();
+        //
+        //     let is_active = rewarded_set_identities
+        //         .get(mixnode_bond.identity())
+        //         .map_or(false, RewardedSetNodeStatus::is_active);
+        //
+        //     let reward_estimate = reward_estimate::compute_reward_estimate(
+        //         &mixnode_bond,
+        //         uptime,
+        //         is_active,
+        //         interval_reward_params,
+        //         current_operator_base_cost,
+        //     );
+        //
+        //     let (estimated_operator_apy, estimated_delegators_apy) =
+        //         reward_estimate::compute_apy_from_reward(
+        //             &mixnode_bond,
+        //             reward_estimate,
+        //             epochs_in_interval,
+        //         );
+        //
+        //     annotated.push(MixNodeBondAnnotated {
+        //         mixnode_bond,
+        //         stake_saturation,
+        //         uptime: uptime.u8(),
+        //         estimated_operator_apy,
+        //         estimated_delegators_apy,
+        //     });
+        // }
+        // annotated
     }
 
     async fn get_rewarded_set_identities(&self) -> HashMap<String, RewardedSetNodeStatus>
@@ -317,7 +319,7 @@ pub(crate) fn validator_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>,
         routes::get_rewarded_set_detailed,
         routes::get_blacklisted_mixnodes,
         routes::get_blacklisted_gateways,
-        routes::get_epoch_reward_params,
+        routes::get_interval_reward_params,
         routes::get_current_epoch
     ]
 }
@@ -343,7 +345,7 @@ impl ValidatorCache {
         gateways: Vec<GatewayBond>,
         rewarded_set: Vec<MixNodeBondAnnotated>,
         active_set: Vec<MixNodeBondAnnotated>,
-        epoch_rewarding_params: EpochRewardParams,
+        epoch_rewarding_params: RewardingParams,
         current_epoch: Interval,
         current_operator_base_cost: u64,
     ) {
@@ -561,14 +563,15 @@ impl ValidatorCache {
             .collect()
     }
 
-    pub(crate) async fn epoch_reward_params(&self) -> Cache<EpochRewardParams> {
-        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.current_reward_params.clone(),
-            Err(e) => {
-                error!("{}", e);
-                Cache::new(EpochRewardParams::new_empty())
-            }
-        }
+    pub(crate) async fn interval_reward_params(&self) -> Cache<RewardingParams> {
+        todo!()
+        // match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+        //     Ok(cache) => cache.current_reward_params.clone(),
+        //     Err(e) => {
+        //         error!("{}", e);
+        //         Cache::new(EpochRewardParams::new_empty())
+        //     }
+        // }
     }
 
     pub(crate) async fn current_epoch(&self) -> Cache<Option<Interval>> {
@@ -577,16 +580,6 @@ impl ValidatorCache {
             Err(e) => {
                 error!("{}", e);
                 Cache::new(None)
-            }
-        }
-    }
-
-    pub(crate) async fn base_operator_cost(&self) -> Cache<u64> {
-        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.current_operator_base_cost.clone(),
-            Err(e) => {
-                error!("{}", e);
-                Cache::new(0)
             }
         }
     }
@@ -648,18 +641,19 @@ impl ValidatorCache {
 
 impl ValidatorCacheInner {
     fn new() -> Self {
-        ValidatorCacheInner {
-            mixnodes: Cache::default(),
-            gateways: Cache::default(),
-            rewarded_set: Cache::default(),
-            active_set: Cache::default(),
-            current_reward_params: Cache::new(EpochRewardParams::new_empty()),
-            mixnodes_blacklist: Cache::default(),
-            gateways_blacklist: Cache::default(),
-            // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
-            // since 'initialised' flag won't be set
-            current_epoch: Cache::new(None),
-            current_operator_base_cost: Cache::new(0),
-        }
+        todo!()
+        // ValidatorCacheInner {
+        //     mixnodes: Cache::default(),
+        //     gateways: Cache::default(),
+        //     rewarded_set: Cache::default(),
+        //     active_set: Cache::default(),
+        //     current_reward_params: Cache::new(EpochRewardParams::new_empty()),
+        //     mixnodes_blacklist: Cache::default(),
+        //     gateways_blacklist: Cache::default(),
+        //     // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
+        //     // since 'initialised' flag won't be set
+        //     current_epoch: Cache::new(None),
+        //     current_operator_base_cost: Cache::new(0),
+        // }
     }
 }

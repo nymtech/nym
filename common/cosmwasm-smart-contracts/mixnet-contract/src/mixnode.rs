@@ -62,6 +62,12 @@ impl MixNodeDetails {
         let pledge = self.original_pledge();
         self.rewarding_details.pending_operator_reward(pledge)
     }
+
+    pub fn pending_detailed_operator_reward(&self) -> Decimal {
+        let pledge = self.original_pledge();
+        self.rewarding_details
+            .pending_detailed_operator_reward(pledge)
+    }
 }
 
 // the fields on this one are not really finalised yet and I don't think they're going to be until
@@ -136,6 +142,16 @@ impl MixNodeRewarding {
         }
     }
 
+    pub fn pending_detailed_operator_reward(&self, original_pledge: &Coin) -> Decimal {
+        let initial_dec = Decimal::from_atomics(original_pledge.amount, 0).unwrap();
+        if initial_dec > self.operator {
+            panic!(
+                "seems slashing has occurred while it has not been implemented nor accounted for!"
+            )
+        }
+        self.operator - initial_dec
+    }
+
     pub fn operator_pledge_with_reward(&self, denom: impl Into<String>) -> Coin {
         truncate_reward(self.operator, denom)
     }
@@ -164,8 +180,6 @@ impl MixNodeRewarding {
     ) -> Result<Coin, MixnetContractError> {
         let reward = self.determine_delegation_reward(delegation);
         self.decrease_delegates(reward)?;
-
-        println!("rounding {} to {}", reward, truncate_reward_amount(reward));
 
         delegation.cumulative_reward_ratio = self.full_reward_ratio();
         Ok(truncate_reward(reward, &delegation.amount.denom))

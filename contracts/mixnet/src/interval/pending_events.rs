@@ -80,6 +80,7 @@ pub(crate) fn delegate(
 
         (amount, Some(existing_delegation))
     } else {
+        mix_rewarding.unique_delegations += 1;
         (amount, None)
     };
 

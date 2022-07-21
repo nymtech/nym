@@ -36,3 +36,26 @@ pub struct PendingRewardResponse {
     /// nor in the process of unbonding that would have finished at the epoch transition.
     pub mixnode_still_fully_bonded: bool,
 }
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
+pub struct EstimatedCurrentEpochRewardResponse {
+    pub original_stake: Option<Coin>,
+
+    pub current_stake_value: Option<Coin>,
+    pub current_stake_value_detailed_amount: Option<Decimal>,
+
+    pub estimation: Option<Coin>,
+    pub detailed_estimation_amount: Option<Decimal>,
+}
+
+impl EstimatedCurrentEpochRewardResponse {
+    pub fn empty_response() -> Self {
+        EstimatedCurrentEpochRewardResponse {
+            original_stake: None,
+            current_stake_value: None,
+            current_stake_value_detailed_amount: None,
+            estimation: None,
+            detailed_estimation_amount: None,
+        }
+    }
+}

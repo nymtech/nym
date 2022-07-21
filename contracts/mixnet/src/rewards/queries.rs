@@ -3,12 +3,16 @@
 
 use super::storage;
 use crate::delegations::storage as delegations_storage;
+use crate::interval::storage as interval_storage;
 use crate::mixnodes;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{Deps, StdResult};
+use cosmwasm_std::{coin, Coin, Decimal, Deps, StdResult};
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::rewarding::PendingRewardResponse;
+use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
+use mixnet_contract_common::rewarding::helpers::truncate_reward;
+use mixnet_contract_common::rewarding::{
+    EstimatedCurrentEpochRewardResponse, PendingRewardResponse,
+};
 use mixnet_contract_common::{Delegation, NodeId};
 
 pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
@@ -17,11 +21,11 @@ pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParam
 
 fn pending_operator_reward(mix_details: Option<MixNodeDetails>) -> PendingRewardResponse {
     match mix_details {
-        Some(mix_rewarding) => PendingRewardResponse {
-            amount_staked: Some(mix_rewarding.original_pledge().clone()),
-            amount_earned: Some(mix_rewarding.pending_operator_reward()),
-            amount_earned_detailed: Some(mix_rewarding.pending_detailed_operator_reward()),
-            mixnode_still_fully_bonded: !mix_rewarding.is_unbonding(),
+        Some(mix_details) => PendingRewardResponse {
+            amount_staked: Some(mix_details.original_pledge().clone()),
+            amount_earned: Some(mix_details.pending_operator_reward()),
+            amount_earned_detailed: Some(mix_details.pending_detailed_operator_reward()),
+            mixnode_still_fully_bonded: !mix_details.is_unbonding(),
         },
         None => PendingRewardResponse::default(),
     }
@@ -81,6 +85,144 @@ pub fn query_pending_delegator_reward(
         amount_earned: Some(delegator_reward),
         amount_earned_detailed: Some(detailed_reward),
         mixnode_still_fully_bonded: is_bonded,
+    })
+}
+
+fn zero_reward(
+    original_stake: Coin,
+    current_value: Decimal,
+) -> EstimatedCurrentEpochRewardResponse {
+    EstimatedCurrentEpochRewardResponse {
+        estimation: Some(coin(0, &original_stake.denom)),
+        detailed_estimation_amount: Some(Decimal::zero()),
+        current_stake_value: Some(truncate_reward(current_value, &original_stake.denom)),
+        current_stake_value_detailed_amount: Some(current_value),
+        original_stake: Some(original_stake),
+    }
+}
+
+pub(crate) fn query_estimated_current_epoch_operator_reward(
+    deps: Deps<'_>,
+    mix_id: NodeId,
+    estimated_performance: Performance,
+) -> StdResult<EstimatedCurrentEpochRewardResponse> {
+    let mix_details = match mixnodes::helpers::get_mixnode_details_by_id(deps.storage, mix_id)? {
+        None => return Ok(EstimatedCurrentEpochRewardResponse::empty_response()),
+        Some(mix_details) => mix_details,
+    };
+
+    let amount_staked = mix_details.original_pledge().clone();
+    let mix_rewarding = mix_details.rewarding_details;
+    let current_value = mix_rewarding.operator;
+
+    // if node is currently not in the rewarded set, the performance is 0,
+    // or the node has either unbonded or is in the process of unbonding,
+    // the calculations are trivial - the rewards are 0
+    if mix_details.bond_information.is_unbonding {
+        return Ok(zero_reward(amount_staked, current_value));
+    }
+
+    let node_status = match interval_storage::REWARDED_SET.may_load(deps.storage, mix_id)? {
+        None => return Ok(zero_reward(amount_staked, current_value)),
+        Some(node_status) => node_status,
+    };
+
+    if estimated_performance.is_zero() {
+        return Ok(zero_reward(amount_staked, current_value));
+    }
+
+    let rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
+    let interval = interval_storage::current_interval(deps.storage)?;
+
+    let node_reward_params = NodeRewardParams::new(estimated_performance, node_status.is_active());
+    let node_reward = mix_rewarding.node_reward(&rewarding_params, node_reward_params);
+    let reward_distribution = mix_rewarding.determine_reward_split(
+        node_reward,
+        estimated_performance,
+        interval.epochs_in_interval(),
+    );
+
+    Ok(EstimatedCurrentEpochRewardResponse {
+        estimation: Some(truncate_reward(
+            reward_distribution.operator,
+            &amount_staked.denom,
+        )),
+        detailed_estimation_amount: Some(reward_distribution.operator),
+        current_stake_value: Some(truncate_reward(current_value, &amount_staked.denom)),
+        current_stake_value_detailed_amount: Some(current_value),
+        original_stake: Some(amount_staked),
+    })
+}
+
+pub(crate) fn query_estimated_current_epoch_delegator_reward(
+    deps: Deps<'_>,
+    owner: String,
+    mix_id: NodeId,
+    proxy: Option<String>,
+    estimated_performance: Performance,
+) -> StdResult<EstimatedCurrentEpochRewardResponse> {
+    let owner_address = deps.api.addr_validate(&owner)?;
+    let proxy = proxy
+        .map(|proxy| deps.api.addr_validate(&proxy))
+        .transpose()?;
+
+    let mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
+        Some(mix_rewarding) => mix_rewarding,
+        None => return Ok(EstimatedCurrentEpochRewardResponse::empty_response()),
+    };
+
+    let storage_key = Delegation::generate_storage_key(mix_id, &owner_address, proxy.as_ref());
+    let delegation = match delegations_storage::delegations().may_load(deps.storage, storage_key)? {
+        Some(delegation) => delegation,
+        None => return Ok(EstimatedCurrentEpochRewardResponse::empty_response()),
+    };
+
+    let staked_dec = Decimal::from_atomics(delegation.amount.amount, 0).unwrap();
+    let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation);
+    let amount_staked = delegation.amount;
+
+    // check if the mixnode isnt in the process of unbonding (or has already unbonded)
+    let is_bonded = matches!(mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)?, Some(mix_bond) if !mix_bond.is_unbonding);
+
+    if !is_bonded {
+        return Ok(zero_reward(amount_staked, current_value));
+    }
+
+    // if node is currently not in the rewarded set, the performance is 0,
+    // or the node has either unbonded or is in the process of unbonding,
+    // the calculations are trivial - the rewards are 0
+    let node_status = match interval_storage::REWARDED_SET.may_load(deps.storage, mix_id)? {
+        None => return Ok(zero_reward(amount_staked, current_value)),
+        Some(node_status) => node_status,
+    };
+
+    if estimated_performance.is_zero() {
+        return Ok(zero_reward(amount_staked, current_value));
+    }
+
+    let rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
+    let interval = interval_storage::current_interval(deps.storage)?;
+
+    let node_reward_params = NodeRewardParams::new(estimated_performance, node_status.is_active());
+    let node_reward = mix_rewarding.node_reward(&rewarding_params, node_reward_params);
+    let reward_distribution = mix_rewarding.determine_reward_split(
+        node_reward,
+        estimated_performance,
+        interval.epochs_in_interval(),
+    );
+
+    if reward_distribution.delegates.is_zero() {
+        return Ok(zero_reward(amount_staked, current_value));
+    }
+
+    let reward_share = current_value / mix_rewarding.delegates * reward_distribution.delegates;
+
+    Ok(EstimatedCurrentEpochRewardResponse {
+        estimation: Some(truncate_reward(reward_share, &amount_staked.denom)),
+        detailed_estimation_amount: Some(reward_share),
+        current_stake_value: Some(truncate_reward(current_value, &amount_staked.denom)),
+        current_stake_value_detailed_amount: Some(current_value),
+        original_stake: Some(amount_staked),
     })
 }
 
@@ -466,6 +608,461 @@ mod tests {
                     .unwrap();
             let (_, actual4) = get_bank_send_msg(&actual4_res).unwrap();
             assert_eq!(pending4.amount_earned.unwrap(), actual4[0]);
+        }
+    }
+
+    #[cfg(test)]
+    mod querying_for_estimated_current_epoch_operator_reward {
+        use super::*;
+        use crate::mixnodes::transactions::try_remove_mixnode;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use cosmwasm_std::testing::mock_info;
+
+        fn expected_current_operator(
+            test: &TestSetup,
+            mix_id: NodeId,
+            initial_stake: Uint128,
+        ) -> EstimatedCurrentEpochRewardResponse {
+            let mix_rewarding = test.mix_rewarding(mix_id);
+            EstimatedCurrentEpochRewardResponse {
+                estimation: Some(coin(0, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(Decimal::zero()),
+                current_stake_value: Some(truncate_reward(mix_rewarding.operator, TEST_COIN_DENOM)),
+                current_stake_value_detailed_amount: Some(mix_rewarding.operator),
+                original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
+            }
+        }
+
+        #[test]
+        fn when_node_doesnt_exist() {
+            let test = TestSetup::new();
+            let res = query_estimated_current_epoch_operator_reward(
+                test.deps(),
+                42,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+            assert_eq!(res, EstimatedCurrentEpochRewardResponse::empty_response())
+        }
+
+        #[test]
+        fn when_node_is_unbonding() {
+            let mut test = TestSetup::new();
+            let initial_stake = Uint128::new(1_000_000_000_000);
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let sender = mock_info(owner, &[]);
+            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+
+            let res = query_estimated_current_epoch_operator_reward(
+                test.deps(),
+                mix_id,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_operator(&test, mix_id, initial_stake);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn when_node_has_already_unbonded() {
+            let mut test = TestSetup::new();
+            let initial_stake = Uint128::new(1_000_000_000_000);
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let sender = mock_info(owner, &[]);
+            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            test.execute_all_pending_events();
+
+            let res = query_estimated_current_epoch_operator_reward(
+                test.deps(),
+                mix_id,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+            assert_eq!(res, EstimatedCurrentEpochRewardResponse::empty_response())
+        }
+
+        #[test]
+        fn when_node_is_not_in_the_rewarded_set() {
+            let mut test = TestSetup::new();
+            let initial_stake = Uint128::new(1_000_000_000_000);
+            let mix_id = test.add_dummy_mixnode("mix-owner", Some(initial_stake));
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.update_rewarded_set(vec![]);
+
+            let res = query_estimated_current_epoch_operator_reward(
+                test.deps(),
+                mix_id,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_operator(&test, mix_id, initial_stake);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn when_estimated_performance_is_zero() {
+            let mut test = TestSetup::new();
+            let initial_stake = Uint128::new(1_000_000_000_000);
+            let mix_id = test.add_dummy_mixnode("mix-owner", Some(initial_stake));
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = query_estimated_current_epoch_operator_reward(
+                test.deps(),
+                mix_id,
+                test_helpers::performance(0.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_operator(&test, mix_id, initial_stake);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn with_correct_parameters_matches_actual_distribution() {
+            let mut test = TestSetup::new();
+            let initial_stake = Uint128::new(1_000_000_000_000);
+            let mix_id = test.add_dummy_mixnode("mix-owner", Some(initial_stake));
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let mix_rewarding = test.mix_rewarding(mix_id);
+            let res = query_estimated_current_epoch_operator_reward(
+                test.deps(),
+                mix_id,
+                test_helpers::performance(95.0),
+            )
+            .unwrap();
+
+            test.skip_to_next_epoch_end();
+            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+
+            let expected = EstimatedCurrentEpochRewardResponse {
+                original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
+                current_stake_value: Some(truncate_reward(mix_rewarding.operator, TEST_COIN_DENOM)),
+                current_stake_value_detailed_amount: Some(mix_rewarding.operator),
+                estimation: Some(truncate_reward(dist.operator, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(dist.operator),
+            };
+
+            assert_eq!(res, expected)
+        }
+    }
+
+    #[cfg(test)]
+    mod querying_for_estimated_current_epoch_delegator_reward {
+        use super::*;
+        use crate::mixnodes::transactions::try_remove_mixnode;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use cosmwasm_std::testing::mock_info;
+
+        fn expected_current_delegator(
+            test: &TestSetup,
+            mix_id: NodeId,
+            owner: &str,
+        ) -> EstimatedCurrentEpochRewardResponse {
+            let mix_rewarding = test.mix_rewarding(mix_id);
+            let delegation = test.delegation(mix_id, owner, &None);
+
+            let staked_dec = Decimal::from_atomics(delegation.amount.amount, 0).unwrap();
+            let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation);
+            let amount_staked = delegation.amount;
+
+            EstimatedCurrentEpochRewardResponse {
+                estimation: Some(coin(0, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(Decimal::zero()),
+                current_stake_value: Some(truncate_reward(current_value, TEST_COIN_DENOM)),
+                current_stake_value_detailed_amount: Some(current_value),
+                original_stake: Some(amount_staked),
+            }
+        }
+
+        #[test]
+        fn when_delegation_doesnt_exist() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = query_estimated_current_epoch_delegator_reward(
+                test.deps(),
+                "foomper".into(),
+                mix_id,
+                None,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+
+            assert_eq!(res, EstimatedCurrentEpochRewardResponse::empty_response())
+        }
+
+        #[test]
+        fn when_node_is_unbonding() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let initial_stake = Uint128::new(1_000_000_000);
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, initial_stake, mix_id);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let sender = mock_info("mix-owner", &[]);
+            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+
+            let res = query_estimated_current_epoch_delegator_reward(
+                test.deps(),
+                owner.into(),
+                mix_id,
+                None,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_delegator(&test, mix_id, owner);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn when_node_has_already_unbonded() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let initial_stake = Uint128::new(1_000_000_000);
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, initial_stake, mix_id);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let sender = mock_info("mix-owner", &[]);
+            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            test.execute_all_pending_events();
+
+            let res = query_estimated_current_epoch_delegator_reward(
+                test.deps(),
+                owner.into(),
+                mix_id,
+                None,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_delegator(&test, mix_id, owner);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn when_node_is_not_in_the_rewarded_set() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let initial_stake = Uint128::new(1_000_000_000);
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, initial_stake, mix_id);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.update_rewarded_set(vec![]);
+
+            let res = query_estimated_current_epoch_delegator_reward(
+                test.deps(),
+                owner.into(),
+                mix_id,
+                None,
+                test_helpers::performance(100.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_delegator(&test, mix_id, owner);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn when_estimated_performance_is_zero() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let initial_stake = Uint128::new(1_000_000_000);
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, initial_stake, mix_id);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = query_estimated_current_epoch_delegator_reward(
+                test.deps(),
+                owner.into(),
+                mix_id,
+                None,
+                test_helpers::performance(0.0),
+            )
+            .unwrap();
+
+            let expected = expected_current_delegator(&test, mix_id, owner);
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn with_correct_parameters_matches_actual_distribution_for_single_delegator() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let initial_stake = Uint128::new(1_000_000_000);
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, initial_stake, mix_id);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+
+            let mix_rewarding = test.mix_rewarding(mix_id);
+            let res = query_estimated_current_epoch_delegator_reward(
+                test.deps(),
+                owner.into(),
+                mix_id,
+                None,
+                test_helpers::performance(95.0),
+            )
+            .unwrap();
+
+            test.skip_to_next_epoch_end();
+            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+
+            let expected = EstimatedCurrentEpochRewardResponse {
+                original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
+                current_stake_value: Some(truncate_reward(
+                    mix_rewarding.delegates,
+                    TEST_COIN_DENOM,
+                )),
+                current_stake_value_detailed_amount: Some(mix_rewarding.delegates),
+                estimation: Some(truncate_reward(dist.delegates, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(dist.delegates),
+            };
+
+            assert_eq!(res, expected)
+        }
+
+        #[test]
+        fn with_correct_parameters_matches_actual_distribution_for_three_delegators() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let initial_stake1 = Uint128::new(1_000_000_000);
+            let initial_stake2 = Uint128::new(45_000_000_000);
+            let initial_stake3 = Uint128::new(8_500_000_000);
+
+            let initial_stake1_dec = Decimal::from_atomics(initial_stake1, 0).unwrap();
+            let initial_stake2_dec = Decimal::from_atomics(initial_stake2, 0).unwrap();
+            let initial_stake3_dec = Decimal::from_atomics(initial_stake3, 0).unwrap();
+            let del1 = "delegator1";
+            let del2 = "delegator2";
+            let del3 = "delegator3";
+            test.add_immediate_delegation(del1, initial_stake1, mix_id);
+            test.add_immediate_delegation(del2, initial_stake2, mix_id);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+
+            test.add_immediate_delegation(del3, initial_stake3, mix_id);
+            test.skip_to_next_epoch_end();
+            test.reward_with_distribution(mix_id, test_helpers::performance(85.0));
+
+            let mix_rewarding = test.mix_rewarding(mix_id);
+
+            let ress = [del1, del2, del3]
+                .iter()
+                .map(|owner| {
+                    query_estimated_current_epoch_delegator_reward(
+                        test.deps(),
+                        owner.to_string(),
+                        mix_id,
+                        None,
+                        test_helpers::performance(95.0),
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>();
+
+            // as verified by other tests those values are correct
+            let est1 = query_pending_delegator_reward(test.deps(), del1.into(), mix_id, None)
+                .unwrap()
+                .amount_earned_detailed
+                .unwrap();
+            let est2 = query_pending_delegator_reward(test.deps(), del2.into(), mix_id, None)
+                .unwrap()
+                .amount_earned_detailed
+                .unwrap();
+            let est3 = query_pending_delegator_reward(test.deps(), del3.into(), mix_id, None)
+                .unwrap()
+                .amount_earned_detailed
+                .unwrap();
+
+            let cur1 = initial_stake1_dec + est1;
+            let cur2 = initial_stake2_dec + est2;
+            let cur3 = initial_stake3_dec + est3;
+
+            test.skip_to_next_epoch_end();
+            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+
+            let share1 = cur1 / mix_rewarding.delegates * dist.delegates;
+            let share2 = cur2 / mix_rewarding.delegates * dist.delegates;
+            let share3 = cur3 / mix_rewarding.delegates * dist.delegates;
+
+            let expected1 = EstimatedCurrentEpochRewardResponse {
+                original_stake: Some(coin(initial_stake1.u128(), TEST_COIN_DENOM)),
+                current_stake_value: Some(truncate_reward(cur1, TEST_COIN_DENOM)),
+                current_stake_value_detailed_amount: Some(cur1),
+                estimation: Some(truncate_reward(share1, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(share1),
+            };
+            assert_eq!(ress[0], expected1);
+
+            let expected2 = EstimatedCurrentEpochRewardResponse {
+                original_stake: Some(coin(initial_stake2.u128(), TEST_COIN_DENOM)),
+                current_stake_value: Some(truncate_reward(cur2, TEST_COIN_DENOM)),
+                current_stake_value_detailed_amount: Some(cur2),
+                estimation: Some(truncate_reward(share2, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(share2),
+            };
+            assert_eq!(ress[1], expected2);
+
+            let expected3 = EstimatedCurrentEpochRewardResponse {
+                original_stake: Some(coin(initial_stake3.u128(), TEST_COIN_DENOM)),
+                current_stake_value: Some(truncate_reward(cur3, TEST_COIN_DENOM)),
+                current_stake_value_detailed_amount: Some(cur3),
+                estimation: Some(truncate_reward(share3, TEST_COIN_DENOM)),
+                detailed_estimation_amount: Some(share3),
+            };
+            assert_eq!(ress[2], expected3);
         }
     }
 }

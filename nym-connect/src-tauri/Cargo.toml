@@ -39,7 +39,7 @@ tokio = { version = "1.19.1", features = ["sync", "time"] }
 url = "2.2"
 
 client-core = { path = "../../clients/client-core" }
-config = { path = "../../common/config" }
+config-common = { path = "../../common/config", package = "config" }
 nym-socks5-client = { path = "../../clients/socks5" }
 topology = { path = "../../common/topology" }
 

@@ -96,7 +96,7 @@ pub(crate) async fn execute(args: &Cli) {
     }
 }
 
-fn parse_validators(raw: &str) -> Vec<Url> {
+pub fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
         .map(|raw_validator| {
             raw_validator

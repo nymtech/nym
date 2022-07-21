@@ -171,6 +171,11 @@ pub mod test_helpers {
             delegate(self.deps_mut(), delegator, vec![amount], target)
         }
 
+        pub fn remove_immediate_delegation(&mut self, delegator: &str, target: NodeId) {
+            pending_events::undelegate(self.deps_mut(), Addr::unchecked(delegator), target, None)
+                .unwrap();
+        }
+
         pub fn skip_to_next_epoch_end(&mut self) {
             self.skip_to_next_epoch();
             self.skip_to_current_epoch_end();

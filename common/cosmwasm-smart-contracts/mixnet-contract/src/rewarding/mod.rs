@@ -60,5 +60,9 @@ pub struct RewardDistribution {
 pub struct PendingRewardResponse {
     pub amount_staked: Option<Coin>,
     pub amount_earned: Option<Coin>,
-    pub mixnode_still_bonded: bool,
+    pub amount_earned_detailed: Option<Decimal>,
+
+    /// The associated mixnode is still fully bonded, meaning it is neither unbonded
+    /// nor in the process of unbonding that would have finished at the epoch transition.
+    pub mixnode_still_fully_bonded: bool,
 }

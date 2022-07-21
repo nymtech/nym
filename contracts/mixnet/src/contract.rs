@@ -391,6 +391,30 @@ pub fn query(
         } => to_binary(&crate::rewards::queries::query_pending_delegator_reward(
             deps, address, mix_id, proxy,
         )?),
+        QueryMsg::GetEstimatedCurrentEpochOperatorReward {
+            mix_id,
+            estimated_performance,
+        } => to_binary(
+            &crate::rewards::queries::query_estimated_current_epoch_operator_reward(
+                deps,
+                mix_id,
+                estimated_performance,
+            )?,
+        ),
+        QueryMsg::GetEstimatedCurrentEpochDelegatorReward {
+            address,
+            mix_id,
+            proxy,
+            estimated_performance,
+        } => to_binary(
+            &crate::rewards::queries::query_estimated_current_epoch_delegator_reward(
+                deps,
+                address,
+                mix_id,
+                proxy,
+                estimated_performance,
+            )?,
+        ),
 
         // interval-related
         QueryMsg::GetPendingEpochEvents { limit, start_after } => {

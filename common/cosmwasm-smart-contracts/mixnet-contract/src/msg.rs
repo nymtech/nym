@@ -3,8 +3,7 @@
 
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
-    IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
-    RewardingParams,
+    IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
 use crate::{delegation, ContractStateParams, NodeId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
@@ -272,6 +271,17 @@ pub enum QueryMsg {
         address: String,
         mix_id: NodeId,
         proxy: Option<String>,
+    },
+    // given the provided performance, estimate the reward at the end of the current epoch
+    GetEstimatedCurrentEpochOperatorReward {
+        mix_id: NodeId,
+        estimated_performance: Performance,
+    },
+    GetEstimatedCurrentEpochDelegatorReward {
+        address: String,
+        mix_id: NodeId,
+        proxy: Option<String>,
+        estimated_performance: Performance,
     },
 
     // interval-related

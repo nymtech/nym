@@ -295,6 +295,10 @@ pub mod test_helpers {
                 .load(self.deps().storage, node)
                 .unwrap()
         }
+
+        pub fn delegation(&self, mix: NodeId, owner: &str, proxy: &Option<Addr>) -> Delegation {
+            read_delegation(self.deps().storage, mix, &Addr::unchecked(owner), proxy).unwrap()
+        }
     }
 
     pub fn simulator_from_state(deps: Deps<'_>, node: NodeId) -> Simulator {

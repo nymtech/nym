@@ -137,49 +137,51 @@ impl ThreadsafeMixNodesCache {
         let bond = mixnodes_guard.get_mixnode(identity_key);
         let location = location_guard.get(identity_key);
 
-        match bond {
-            Some(bond) => Some(PrettyDetailedMixNodeBond {
-                location: location.and_then(|l| l.location.clone()),
-                status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
-                pledge_amount: bond.mixnode_bond.original_pledge,
-                total_delegation: bond.mixnode_bond.total_delegation,
-                owner: bond.mixnode_bond.owner,
-                layer: bond.mixnode_bond.layer,
-                mix_node: bond.mixnode_bond.mix_node,
-                avg_uptime: bond.uptime,
-                stake_saturation: bond.stake_saturation,
-                estimated_operator_apy: bond.estimated_operator_apy,
-                estimated_delegators_apy: bond.estimated_delegators_apy,
-            }),
-            None => None,
-        }
+        todo!()
+        // match bond {
+        //     Some(bond) => Some(PrettyDetailedMixNodeBond {
+        //         location: location.and_then(|l| l.location.clone()),
+        //         status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
+        //         pledge_amount: bond.mixnode_bond.original_pledge,
+        //         total_delegation: bond.mixnode_bond.total_delegation,
+        //         owner: bond.mixnode_bond.owner,
+        //         layer: bond.mixnode_bond.layer,
+        //         mix_node: bond.mixnode_bond.mix_node,
+        //         avg_uptime: bond.uptime,
+        //         stake_saturation: bond.stake_saturation,
+        //         estimated_operator_apy: bond.estimated_operator_apy,
+        //         estimated_delegators_apy: bond.estimated_delegators_apy,
+        //     }),
+        //     None => None,
+        // }
     }
 
     pub(crate) async fn get_detailed_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {
         let mixnodes_guard = self.mixnodes.read().await;
         let location_guard = self.locations.read().await;
 
-        mixnodes_guard
-            .all_mixnodes
-            .values()
-            .map(|bond| {
-                let location = location_guard.get(&bond.mix_node().identity_key);
-                let copy = bond.mixnode_bond.clone();
-                PrettyDetailedMixNodeBond {
-                    location: location.and_then(|l| l.location.clone()),
-                    status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
-                    pledge_amount: copy.original_pledge,
-                    total_delegation: copy.total_delegation,
-                    owner: copy.owner,
-                    layer: copy.layer,
-                    mix_node: copy.mix_node,
-                    avg_uptime: bond.uptime,
-                    stake_saturation: bond.stake_saturation,
-                    estimated_operator_apy: bond.estimated_operator_apy,
-                    estimated_delegators_apy: bond.estimated_delegators_apy,
-                }
-            })
-            .collect()
+        todo!()
+        // mixnodes_guard
+        //     .all_mixnodes
+        //     .values()
+        //     .map(|bond| {
+        //         let location = location_guard.get(&bond.mix_node().identity_key);
+        //         let copy = bond.mixnode_bond.clone();
+        //         PrettyDetailedMixNodeBond {
+        //             location: location.and_then(|l| l.location.clone()),
+        //             status: mixnodes_guard.determine_node_status(&bond.mix_node().identity_key),
+        //             pledge_amount: copy.original_pledge,
+        //             total_delegation: copy.total_delegation,
+        //             owner: copy.owner,
+        //             layer: copy.layer,
+        //             mix_node: copy.mix_node,
+        //             avg_uptime: bond.uptime,
+        //             stake_saturation: bond.stake_saturation,
+        //             estimated_operator_apy: bond.estimated_operator_apy,
+        //             estimated_delegators_apy: bond.estimated_delegators_apy,
+        //         }
+        //     })
+        //     .collect()
     }
 
     pub(crate) async fn update_cache(

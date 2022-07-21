@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::ValidatorCache;
-use mixnet_contract_common::reward_params::EpochRewardParams;
+use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{GatewayBond, Interval, MixNodeBond};
 use rocket::serde::json::Json;
 use rocket::State;
@@ -76,8 +76,8 @@ pub async fn get_blacklisted_gateways(
 
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/reward_params")]
-pub async fn get_epoch_reward_params(cache: &State<ValidatorCache>) -> Json<EpochRewardParams> {
-    Json(cache.epoch_reward_params().await.value)
+pub async fn get_interval_reward_params(cache: &State<ValidatorCache>) -> Json<RewardingParams> {
+    Json(cache.interval_reward_params().await.value)
 }
 
 #[openapi(tag = "contract-cache")]

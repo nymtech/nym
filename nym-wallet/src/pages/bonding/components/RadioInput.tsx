@@ -62,7 +62,7 @@ const RadioInput = ({
         {...muiRadioGroupProps}
       >
         {options.map(({ value: v, label: l }) => (
-          <FormControlLabel value={v} control={<Radio color="default" {...muiRadioProps} />} label={l} />
+          <FormControlLabel key={v} value={v} control={<Radio color="default" {...muiRadioProps} />} label={l} />
         ))}
       </RadioGroup>
     </FormControl>

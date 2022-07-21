@@ -43,7 +43,7 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
         reset();
         onClose();
       }}
-      onOk={handleSubmit(async (data) => onConfirm(data.amount, data.signature))}
+      onOk={handleSubmit((data) => onConfirm(data.amount, data.signature))}
       header="Bond more"
       subHeader="Bond more tokens on your node and receive more rewards"
       okLabel="Next"

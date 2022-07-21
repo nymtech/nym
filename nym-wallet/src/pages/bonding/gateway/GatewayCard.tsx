@@ -1,13 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { useTheme } from '@mui/material/styles';
-import EditIcon from '@mui/icons-material/Edit';
-import { BondedGateway } from '../../../context';
-import { NodeTable, Cell, Header, NodeMenu } from '../components';
-import { GatewayFlow } from './types';
-import Unbond from '../unbond';
-import { NymCard } from 'src/components';
+import { useState } from 'react';
 import { Stack, Typography } from '@mui/material';
+import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
+import { BondedGateway } from '../../../context';
+import { Cell, Header, NodeMenu, NodeTable } from '../components';
+import Unbond from '../unbond';
+import { GatewayFlow } from './types';
 
 const headers: Header[] = [
   {
@@ -29,36 +27,24 @@ const headers: Header[] = [
 const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
   const { ip, bond } = gateway;
   const [flow, setFlow] = useState<GatewayFlow>(null);
-  const [nodeMenuOpen, setNodeMenuOpen] = useState(false);
-  const theme = useTheme();
 
-  const cells: Cell[] = useMemo(
-    () => [
-      {
-        cell: ip,
-        id: 'ip-cell',
-        sx: { pl: 0 },
-      },
-      {
-        cell: `${bond.amount} ${bond.denom}`,
-        id: 'bond-cell',
-      },
-      {
-        cell: (
-          <NodeMenu
-            onFlowChange={(newFlow) => setFlow(newFlow as GatewayFlow)}
-            onOpen={(open) => setNodeMenuOpen(open)}
-            items={[{ label: 'Unbond', flow: 'unbond', icon: <EditIcon fontSize="inherit" /> }]}
-          />
-        ),
-        id: 'menu-button-cell',
-        align: 'center',
-        size: 'small',
-        sx: { backgroundColor: nodeMenuOpen ? '#FB6E4E0D' : undefined, px: 0 },
-      },
-    ],
-    [gateway, theme, nodeMenuOpen],
-  );
+  const cells: Cell[] = [
+    {
+      cell: ip,
+      id: 'ip-cell',
+      sx: { pl: 0 },
+    },
+    {
+      cell: `${bond.amount} ${bond.denom}`,
+      id: 'bond-cell',
+    },
+    {
+      cell: <NodeMenu onFlowChange={(newFlow) => setFlow(newFlow as GatewayFlow)} />,
+      id: 'menu-button-cell',
+      align: 'center',
+    },
+  ];
+
   return (
     <NymCard
       title={

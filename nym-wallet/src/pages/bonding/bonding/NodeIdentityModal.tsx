@@ -33,6 +33,11 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
     formState: { errors },
   } = useForm<NodeData>({
     defaultValues: {
+      identityKey: '2UB4668XV7qhmJDPp6KLGWGisiaUYThjA4in2o7WKcwA',
+      sphinxKey: '5Rh7X4TwMoUwrQ1ivkqWTCGi1pivmHtenaS7VZDUQPYW',
+      signature: '3ccrgwiHhqAbuhhdW7f6UCHZoPFJsQxPcSQRwNc42QVDnDwW8Ebe8p51RhvQp28uqpARysPz52XrE6JuuwJ6fsf8',
+      host: '1.1.1.1',
+      version: '1.0.7',
       nodeType: 'mixnode',
       advancedOpt: false,
       mixPort: 1789,

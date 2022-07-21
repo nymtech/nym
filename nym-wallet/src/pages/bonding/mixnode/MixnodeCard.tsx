@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
@@ -6,7 +6,6 @@ import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
 import { BondedMixnode } from '../../../context';
-import { Bond as BondIcon, Unbond as UnbondIcon } from '../../../svg-icons';
 import { Node as NodeIcon } from '../../../svg-icons/node';
 import { Cell, Header, NodeMenu, NodeTable } from '../components';
 import Unbond from '../unbond';
@@ -62,72 +61,44 @@ const headers: Header[] = [
 const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
   const { stake, bond, stakeSaturation, profitMargin, nodeRewards, operatorRewards, delegators } = mixnode;
   const [flow, setFlow] = useState<MixnodeFlow>(null);
-  const [nodeMenuOpen, setNodeMenuOpen] = useState(false);
   const theme = useTheme();
 
-  const cells: Cell[] = useMemo(
-    () => [
-      {
-        cell: `${stake.amount} ${stake.denom}`,
-        id: 'stake-cell',
-        sx: { pl: 0 },
-      },
-      {
-        cell: `${bond.amount} ${bond.denom}`,
-        id: 'bond-cell',
-      },
-      {
-        cell: `${stakeSaturation}%`,
-        id: 'stake-saturation-cell',
-        color: stakeSaturation > 100 ? theme.palette.nym.nymWallet.selectionChance.underModerate : undefined,
-      },
-      {
-        cell: `${profitMargin}%`,
-        id: 'pm-cell',
-      },
-      {
-        cell: `${nodeRewards.amount} ${nodeRewards.denom}`,
-        id: 'node-rewards-cell',
-      },
-      {
-        cell: `${operatorRewards.amount} ${operatorRewards.denom}`,
-        id: 'operator-rewards-cell',
-      },
-      {
-        cell: delegators,
-        id: 'delegators-cell',
-      },
-      {
-        cell: (
-          <NodeMenu
-            onFlowChange={(newFlow) => setFlow(newFlow as MixnodeFlow)}
-            onOpen={(open) => setNodeMenuOpen(open)}
-            items={[
-              { label: 'Bond more', flow: 'bondMore', icon: <BondIcon fontSize="inherit" /> },
-              { label: 'Unbond', flow: 'unbond', icon: <UnbondIcon fontSize="inherit" /> },
-              {
-                label: 'Compound rewards',
-                flow: 'compound',
-                icon: <Typography fontWeight={700}>C</Typography>,
-                description: 'Add operator rewards to bond',
-              },
-              {
-                label: 'Redeem rewards',
-                flow: 'redeem',
-                icon: <Typography fontWeight={700}>R</Typography>,
-                description: 'Add your rewards to bonding pool',
-              },
-            ]}
-          />
-        ),
-        id: 'menu-button-cell',
-        align: 'center',
-        size: 'small',
-        sx: { backgroundColor: nodeMenuOpen ? '#FB6E4E0D' : undefined, px: 0 },
-      },
-    ],
-    [mixnode, theme, nodeMenuOpen],
-  );
+  const cells: Cell[] = [
+    {
+      cell: `${stake.amount} ${stake.denom}`,
+      id: 'stake-cell',
+      sx: { pl: 0 },
+    },
+    {
+      cell: `${bond.amount} ${bond.denom}`,
+      id: 'bond-cell',
+    },
+    {
+      cell: `${stakeSaturation}%`,
+      id: 'stake-saturation-cell',
+      color: stakeSaturation > 100 ? theme.palette.nym.nymWallet.selectionChance.underModerate : undefined,
+    },
+    {
+      cell: `${profitMargin}%`,
+      id: 'pm-cell',
+    },
+    {
+      cell: `${nodeRewards.amount} ${nodeRewards.denom}`,
+      id: 'node-rewards-cell',
+    },
+    {
+      cell: `${operatorRewards.amount} ${operatorRewards.denom}`,
+      id: 'operator-rewards-cell',
+    },
+    {
+      cell: delegators,
+      id: 'delegators-cell',
+    },
+    {
+      cell: <NodeMenu onFlowChange={(newFlow) => setFlow(newFlow)} />,
+    },
+  ];
+
   return (
     <NymCard
       title={

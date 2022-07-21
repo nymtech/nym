@@ -60,7 +60,7 @@ function reducer(state: BondState, action: ACTIONTYPE) {
   }
 }
 
-const BondingCard = () => {
+const BondingCard = ({ onBond }: { onBond: () => void }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
 
@@ -81,6 +81,7 @@ const BondingCard = () => {
     const { signature, identityKey, sphinxKey, host, version, mixPort, verlocPort, httpApiPort } =
       state.nodeData as NodeData<MixnodeData>;
     const { profitMargin, amount, tokenPool } = state.amountData as MixnodeAmount;
+
     const payload = {
       ownerSignature: signature,
       mixnode: {
@@ -93,7 +94,7 @@ const BondingCard = () => {
         verloc_port: verlocPort,
         http_api_port: httpApiPort,
       },
-      pledge: amount,
+      pledge: { amount: amount.amount, denom: clientDetails?.display_mix_denom || 'nym' },
     };
     if (tokenPool !== 'locked' && tokenPool !== 'balance') {
       throw new Error(`token pool [${tokenPool}] not supported`);
@@ -127,6 +128,7 @@ const BondingCard = () => {
     if (tokenPool !== 'locked' && tokenPool !== 'balance') {
       throw new Error(`token pool [${tokenPool}] not supported`);
     }
+
     const tx = await bondGatewayRequest(payload, tokenPool);
     if (tx) {
       dispatch({ type: 'set_bond_status', payload: 'success' });
@@ -164,25 +166,16 @@ const BondingCard = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          pt: 0,
         }}
       >
         <Typography>Bond a node or a gateway</Typography>
-        <Button
-          disabled={false}
-          variant="contained"
-          color="primary"
-          type="button"
-          disableElevation
-          onClick={() => dispatch({ type: 'show_modal' })}
-          sx={{ py: 1.5, px: 3 }}
-        >
+        <Button size="large" variant="contained" color="primary" type="button" disableElevation onClick={onBond}>
           Bond
         </Button>
       </Box>
       {formStep === 1 && showModal && (
         <NodeIdentityModal
-          open={formStep === 1 && showModal}
+          open={true}
           onClose={() => dispatch({ type: 'reset' })}
           onSubmit={async (data) => {
             dispatch({ type: 'set_node_data', payload: data });
@@ -192,7 +185,7 @@ const BondingCard = () => {
       )}
       {formStep === 2 && showModal && (
         <AmountModal
-          open={formStep === 2 && showModal}
+          open={true}
           onClose={() => dispatch({ type: 'reset' })}
           onSubmit={async (data) => {
             dispatch({ type: 'set_amount_data', payload: data });
@@ -203,7 +196,7 @@ const BondingCard = () => {
       )}
       {formStep === 3 && showModal && (
         <SummaryModal
-          open={formStep === 3 && showModal}
+          open={true}
           onClose={() => dispatch({ type: 'reset' })}
           onCancel={() => dispatch({ type: 'prev_step' })}
           onSubmit={onSubmit}

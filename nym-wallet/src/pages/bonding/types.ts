@@ -33,9 +33,12 @@ export type MixnodeData = NodeIdentity & {
   httpApiPort: number;
 };
 
-export type MixnodeAmount = {
+export type GatewayAmount = {
   amount: DecCoin;
   tokenPool: string;
+};
+
+export type MixnodeAmount = GatewayAmount & {
   profitMargin: number;
 };
 
@@ -43,8 +46,6 @@ export type GatewayData = NodeIdentity & {
   location: string;
   clientsPort: number;
 };
-
-export type GatewayAmount = Omit<MixnodeAmount, 'profitMargin'>;
 
 export type NodeData<N = MixnodeData | GatewayData> = {
   nodeType: TNodeType;

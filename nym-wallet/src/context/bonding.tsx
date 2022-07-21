@@ -169,8 +169,6 @@ export const BondingContextProvider = ({
 
   const isVesting = Boolean(ownership.vestingPledge);
 
-  console.log(ownership);
-
   useEffect(() => {
     if (feeError) {
       setError(`An error occurred while retrieving fee: ${feeError}`);

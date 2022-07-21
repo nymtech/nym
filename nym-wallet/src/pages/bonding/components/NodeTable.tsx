@@ -40,7 +40,7 @@ const CellHeader = ({ children, tooltip, sx, size, align, color }: TableHeader) 
 );
 
 export type Header = Omit<TableHeader, 'children'> & { header?: React.ReactNode; id: string };
-export type Cell = Omit<TableCell, 'children'> & { cell: React.ReactNode; id: string };
+export type Cell = Omit<TableCell, 'children'> & { cell: React.ReactNode; id?: string };
 
 export interface TableProps {
   headers: Header[];

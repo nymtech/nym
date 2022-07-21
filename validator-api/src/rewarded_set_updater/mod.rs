@@ -17,7 +17,7 @@ use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::ValidatorApiStorage;
 use mixnet_contract_common::reward_params::NodeRewardParams;
-use mixnet_contract_common::ExecuteMsg;
+use mixnet_contract_common::{ExecuteMsg, NodeId};
 use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
@@ -30,6 +30,7 @@ use validator_client::nymd::{Coin, SigningNymdClient};
 pub(crate) mod error;
 
 use error::RewardingError;
+use mixnet_contract_common::mixnode::MixNodeDetails;
 
 #[derive(Debug, Clone)]
 pub(crate) struct MixnodeToReward {
@@ -50,10 +51,11 @@ impl MixnodeToReward {
 
     #[allow(dead_code)]
     pub(crate) fn to_reward_execute_msg(&self) -> ExecuteMsg {
-        ExecuteMsg::RewardMixnode {
-            identity: self.identity.clone(),
-            params: self.params(),
-        }
+        todo!()
+        // ExecuteMsg::RewardMixnode {
+        //     identity: self.identity.clone(),
+        //     params: self.params(),
+        // }
     }
 }
 
@@ -68,7 +70,8 @@ pub struct RewardedSetUpdater {
 
 impl RewardedSetUpdater {
     pub(crate) async fn epoch(&self) -> Result<Epoch, RewardingError> {
-        Ok(self.nymd_client.get_current_epoch().await?)
+        todo!()
+        // Ok(self.nymd_client.get_current_interval().await?)
     }
 
     pub(crate) async fn new(
@@ -85,9 +88,9 @@ impl RewardedSetUpdater {
 
     fn determine_rewarded_set(
         &self,
-        mixnodes: Vec<MixNodeBond>,
+        mixnodes: Vec<MixNodeDetails>,
         nodes_to_select: u32,
-    ) -> Vec<IdentityKey> {
+    ) -> Vec<NodeId> {
         if mixnodes.is_empty() {
             return Vec::new();
         }
@@ -101,8 +104,8 @@ impl RewardedSetUpdater {
                 // note that the theoretical maximum possible stake is equal to the total
                 // supply of all tokens, i.e. 1B (which is 1 quadrillion of native tokens, i.e. 10^15 ~ 2^50)
                 // which is way below maximum value of f64, so the cast is fine
-                let total_stake = mix.total_bond().unwrap_or_default() as f64;
-                (mix.mix_node.identity_key, total_stake)
+                let total_stake = mix.total_stake_f64().unwrap_or_default();
+                (mix.mix_id(), total_stake)
             }) // if for some reason node is invalid, treat it as 0 stake/weight
             .collect::<Vec<_>>();
 
@@ -126,17 +129,18 @@ impl RewardedSetUpdater {
 
         // self.storage.insert_started_epoch_rewarding(epoch).await?;
 
-        let rewarding_report = RewardingReport {
-            interval_rewarding_id: epoch.id() as i64,
-            eligible_mixnodes: to_reward.len() as i64,
-            possibly_unrewarded_mixnodes: 0,
-        };
-
-        self.storage
-            .insert_rewarding_report(rewarding_report)
-            .await?;
-
-        self.generate_reward_messages(&to_reward).await
+        todo!()
+        // let rewarding_report = RewardingReport {
+        //     interval_rewarding_id: epoch.id() as i64,
+        //     eligible_mixnodes: to_reward.len() as i64,
+        //     possibly_unrewarded_mixnodes: 0,
+        // };
+        //
+        // self.storage
+        //     .insert_rewarding_report(rewarding_report)
+        //     .await?;
+        //
+        // self.generate_reward_messages(&to_reward).await
     }
 
     #[allow(unused_variables)]
@@ -174,29 +178,31 @@ impl RewardedSetUpdater {
             .await
             .into_inner();
 
-        let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
-        for rewarded_node in rewarded_set.into_iter() {
-            let uptime = self
-                .storage
-                .get_average_mixnode_uptime_in_the_last_24hrs(
-                    rewarded_node.mixnode_bond.identity(),
-                    epoch.end_unix_timestamp(),
-                )
-                .await?;
+        // let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
 
-            let node_reward_params = NodeRewardParams::new(
-                0,
-                uptime.u8().into(),
-                active_set.contains(rewarded_node.mixnode_bond.identity()),
-            );
-
-            eligible_nodes.push(MixnodeToReward {
-                identity: rewarded_node.mixnode_bond.identity().clone(),
-                params: node_reward_params,
-            })
-        }
-
-        Ok(eligible_nodes)
+        todo!()
+        // for rewarded_node in rewarded_set.into_iter() {
+        //     let uptime = self
+        //         .storage
+        //         .get_average_mixnode_uptime_in_the_last_24hrs(
+        //             rewarded_node.mixnode_bond.identity(),
+        //             epoch.end_unix_timestamp(),
+        //         )
+        //         .await?;
+        //
+        //     let node_reward_params = NodeRewardParams::new(
+        //         0,
+        //         uptime.u8().into(),
+        //         active_set.contains(rewarded_node.mixnode_bond.identity()),
+        //     );
+        //
+        //     eligible_nodes.push(MixnodeToReward {
+        //         identity: rewarded_node.mixnode_bond.identity().clone(),
+        //         params: node_reward_params,
+        //     })
+        // }
+        //
+        // Ok(eligible_nodes)
     }
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
@@ -205,115 +211,120 @@ impl RewardedSetUpdater {
         log::info!("Starting rewarded set update");
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
         let all_nodes = self.validator_cache.mixnodes().await;
-        let epoch_reward_params = self
-            .validator_cache
-            .epoch_reward_params()
-            .await
-            .into_inner();
 
-        // Reward all the nodes in the still current, soon to be previous rewarded set
-        // if let Err(err) = self.reward_current_rewarded_set().await {
-        //     log::error!("FAILED to reward rewarded set - {}", err);
+        todo!()
+        // let epoch_reward_params = self
+        //     .validator_cache
+        //     .epoch_reward_params()
+        //     .await
+        //     .into_inner();
+        //
+        // // Reward all the nodes in the still current, soon to be previous rewarded set
+        // // if let Err(err) = self.reward_current_rewarded_set().await {
+        // //     log::error!("FAILED to reward rewarded set - {}", err);
+        // // } else {
+        // //     log::info!("Rewarded current rewarded set... SUCCESS");
+        // // }
+        //
+        // let reward_msgs = self.reward_current_rewarded_set().await?;
+        //
+        // let rewarded_set_size = epoch_reward_params.rewarded_set_size() as u32;
+        // let active_set_size = epoch_reward_params.active_set_size() as u32;
+        //
+        // // note that top k nodes are in the active set
+        // let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);
+        //
+        // if let Err(err) = self
+        //     .nymd_client
+        //     .epoch_operations(new_rewarded_set, active_set_size, reward_msgs)
+        //     .await
+        // {
+        //     log::error!("FAILED epoch operations - {}", err);
         // } else {
-        //     log::info!("Rewarded current rewarded set... SUCCESS");
+        //     log::info!("Epoch operations... SUCCESS");
         // }
-
-        let reward_msgs = self.reward_current_rewarded_set().await?;
-
-        let rewarded_set_size = epoch_reward_params.rewarded_set_size() as u32;
-        let active_set_size = epoch_reward_params.active_set_size() as u32;
-
-        // note that top k nodes are in the active set
-        let new_rewarded_set = self.determine_rewarded_set(all_nodes, rewarded_set_size);
-
-        if let Err(err) = self
-            .nymd_client
-            .epoch_operations(new_rewarded_set, active_set_size, reward_msgs)
-            .await
-        {
-            log::error!("FAILED epoch operations - {}", err);
-        } else {
-            log::info!("Epoch operations... SUCCESS");
-        }
-
-        let cutoff = (epoch.end() - Duration::from_secs(86400)).unix_timestamp();
-        self.storage.purge_old_statuses(cutoff).await?;
-
-        Ok(())
+        //
+        // let cutoff = (epoch.end() - Duration::from_secs(86400)).unix_timestamp();
+        // self.storage.purge_old_statuses(cutoff).await?;
+        //
+        // Ok(())
     }
 
     async fn update_blacklist(&mut self, epoch: &Interval) -> Result<(), RewardingError> {
         info!("Updating blacklist");
 
-        let mut mix_blacklist_add = HashSet::new();
-        let mut mix_blacklist_remove = HashSet::new();
-        let mut gate_blacklist_add = HashSet::new();
-        let mut gate_blacklist_remove = HashSet::new();
+        // let mut mix_blacklist_add = HashSet::new();
+        // let mut mix_blacklist_remove = HashSet::new();
+        // let mut gate_blacklist_add = HashSet::new();
+        // let mut gate_blacklist_remove = HashSet::new();
 
-        let mixnodes = self
-            .storage
-            .get_all_avg_mix_reliability_in_last_24hr(epoch.end_unix_timestamp())
-            .await?;
-        let gateways = self
-            .storage
-            .get_all_avg_gateway_reliability_in_last_24hr(epoch.end_unix_timestamp())
-            .await?;
-
-        // TODO: Make thresholds configurable
-        for mix in mixnodes {
-            if mix.value() <= 50.0 {
-                mix_blacklist_add.insert(mix.identity().to_string());
-            } else {
-                mix_blacklist_remove.insert(mix.identity().to_string());
-            }
-        }
-
-        self.validator_cache
-            .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
-            .await;
-
-        for gateway in gateways {
-            if gateway.value() <= 50.0 {
-                gate_blacklist_add.insert(gateway.identity().to_string());
-            } else {
-                gate_blacklist_remove.insert(gateway.identity().to_string());
-            }
-        }
-
-        self.validator_cache
-            .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
-            .await;
-        Ok(())
+        todo!()
+        //
+        // let mixnodes = self
+        //     .storage
+        //     .get_all_avg_mix_reliability_in_last_24hr(epoch.end_unix_timestamp())
+        //     .await?;
+        // let gateways = self
+        //     .storage
+        //     .get_all_avg_gateway_reliability_in_last_24hr(epoch.end_unix_timestamp())
+        //     .await?;
+        //
+        // // TODO: Make thresholds configurable
+        // for mix in mixnodes {
+        //     if mix.value() <= 50.0 {
+        //         mix_blacklist_add.insert(mix.identity().to_string());
+        //     } else {
+        //         mix_blacklist_remove.insert(mix.identity().to_string());
+        //     }
+        // }
+        //
+        // self.validator_cache
+        //     .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
+        //     .await;
+        //
+        // for gateway in gateways {
+        //     if gateway.value() <= 50.0 {
+        //         gate_blacklist_add.insert(gateway.identity().to_string());
+        //     } else {
+        //         gate_blacklist_remove.insert(gateway.identity().to_string());
+        //     }
+        // }
+        //
+        // self.validator_cache
+        //     .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
+        //     .await;
+        // Ok(())
     }
 
     pub(crate) async fn run(&mut self) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
-        loop {
-            // wait until the cache refresher determined its time to update the rewarded/active sets
-            let time = OffsetDateTime::now_utc().unix_timestamp();
-            let epoch = self.epoch().await?;
-            let time_to_epoch_change = epoch.end_unix_timestamp() - time;
-            if time_to_epoch_change <= 0 {
-                self.update_blacklist(&epoch).await?;
-                log::info!(
-                    "Time to epoch change is {}, updating rewarded set",
-                    time_to_epoch_change
-                );
-                self.update().await?;
-            } else {
-                log::info!(
-                    "Waiting for epoch change, time to epoch change is {}",
-                    time_to_epoch_change
-                );
-                // Sleep at most 300 before checking again, to keep logs busy
-                let s = time_to_epoch_change.min(300).max(0) as u64;
-                sleep(Duration::from_secs(s)).await;
-            }
-            // allow some blocks to pass
-            sleep(Duration::from_secs(10)).await;
-        }
-        #[allow(unreachable_code)]
-        Ok(())
+        todo!()
+        // loop {
+        //     // wait until the cache refresher determined its time to update the rewarded/active sets
+        //     let time = OffsetDateTime::now_utc().unix_timestamp();
+        //     let epoch = self.epoch().await?;
+        //     let time_to_epoch_change = epoch.end_unix_timestamp() - time;
+        //     if time_to_epoch_change <= 0 {
+        //         self.update_blacklist(&epoch).await?;
+        //         log::info!(
+        //             "Time to epoch change is {}, updating rewarded set",
+        //             time_to_epoch_change
+        //         );
+        //         self.update().await?;
+        //     } else {
+        //         log::info!(
+        //             "Waiting for epoch change, time to epoch change is {}",
+        //             time_to_epoch_change
+        //         );
+        //         // Sleep at most 300 before checking again, to keep logs busy
+        //         let s = time_to_epoch_change.min(300).max(0) as u64;
+        //         sleep(Duration::from_secs(s)).await;
+        //     }
+        //     // allow some blocks to pass
+        //     sleep(Duration::from_secs(10)).await;
+        // }
+        // #[allow(unreachable_code)]
+        // Ok(())
     }
 }

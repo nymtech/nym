@@ -68,6 +68,15 @@ impl MixNodeDetails {
         self.rewarding_details
             .pending_detailed_operator_reward(pledge)
     }
+
+    pub fn total_stake(&self) -> Decimal {
+        self.rewarding_details.node_bond()
+    }
+
+    pub fn total_stake_f64(&self) -> Option<f64> {
+        let stake = self.total_stake();
+        todo!()
+    }
 }
 
 // the fields on this one are not really finalised yet and I don't think they're going to be until

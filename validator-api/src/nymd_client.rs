@@ -12,9 +12,10 @@ use tokio::sync::RwLock;
 use tokio::time::sleep;
 
 use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
-    IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
+    ContractStateParams, CurrentIntervalResponse, Delegation, ExecuteMsg, GatewayBond, IdentityKey,
+    Interval, MixNodeBond, RewardedSetNodeStatus,
 };
 #[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
@@ -168,66 +169,30 @@ impl<C> Client<C> {
             .await
     }
 
-    pub(crate) async fn get_current_epoch(&self) -> Result<Interval, ValidatorClientError>
+    pub(crate) async fn get_current_interval(
+        &self,
+    ) -> Result<CurrentIntervalResponse, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        self.0.read().await.get_current_epoch().await
+        self.0.read().await.get_current_interval().await
     }
 
     pub(crate) async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        self.0.read().await.get_epochs_in_interval().await
+        todo!()
+        // self.0.read().await.get_epochs_in_interval().await
     }
 
-    pub(crate) async fn get_current_operator_cost(&self) -> Result<u64, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_current_operator_cost().await
-    }
-
-    pub(crate) async fn get_current_epoch_reward_params(
+    pub(crate) async fn get_current_rewarding_params(
         &self,
-    ) -> Result<EpochRewardParams, ValidatorClientError>
+    ) -> Result<RewardingParams, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        let this = self.0.read().await;
-
-        let state = this.get_contract_settings().await?;
-        let reward_pool = this.get_reward_pool().await?;
-        let interval_reward_percent = this.get_interval_reward_percent().await?;
-
-        let epoch_reward_params = EpochRewardParams::new(
-            (reward_pool / 100 / this.get_epochs_in_interval().await? as u128)
-                * interval_reward_percent as u128,
-            state.mixnode_rewarded_set_size as u128,
-            state.mixnode_active_set_size as u128,
-            state.staking_supply.u128(),
-            this.get_sybil_resistance_percent().await?,
-            this.get_active_set_work_factor().await?,
-        );
-
-        Ok(epoch_reward_params)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn get_rewarding_status(
-        &self,
-        mix_identity: mixnet_contract_common::IdentityKey,
-        interval_id: u32,
-    ) -> Result<MixnodeRewardingStatusResponse, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0
-            .read()
-            .await
-            .get_rewarding_status(mix_identity, interval_id)
-            .await
+        Ok(self.0.read().await.get_rewarding_params().await?)
     }
 
     /// Obtains the hash of a block specified by the provided height.
@@ -273,11 +238,12 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        self.0
-            .read()
-            .await
-            .get_all_nymd_rewarded_set_mixnode_identities()
-            .await
+        todo!()
+        // self.0
+        //     .read()
+        //     .await
+        //     .get_all_nymd_rewarded_set_mixnode_identities()
+        //     .await
     }
 
     #[allow(dead_code)]
@@ -344,29 +310,30 @@ impl<C> Client<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        // // First we create the checkpoint, all subsequent changes to a node will be made to the checkpoint
-        let mut msgs = vec![(ExecuteMsg::CheckpointMixnodes {}, vec![])];
-        msgs.extend(reward_msgs);
-
-        let epoch_msgs = vec![
-            (ExecuteMsg::ReconcileDelegations {}, vec![]),
-            (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
-            (
-                ExecuteMsg::WriteRewardedSet {
-                    rewarded_set,
-                    expected_active_set_size,
-                },
-                vec![],
-            ),
-        ];
-
-        msgs.extend_from_slice(&epoch_msgs);
-
-        let memo = "Performing epoch operations".to_string();
-
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await?;
-        Ok(())
+        todo!()
+        // // // First we create the checkpoint, all subsequent changes to a node will be made to the checkpoint
+        // let mut msgs = vec![(ExecuteMsg::CheckpointMixnodes {}, vec![])];
+        // msgs.extend(reward_msgs);
+        //
+        // let epoch_msgs = vec![
+        //     (ExecuteMsg::ReconcileDelegations {}, vec![]),
+        //     (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
+        //     (
+        //         ExecuteMsg::WriteRewardedSet {
+        //             rewarded_set,
+        //             expected_active_set_size,
+        //         },
+        //         vec![],
+        //     ),
+        // ];
+        //
+        // msgs.extend_from_slice(&epoch_msgs);
+        //
+        // let memo = "Performing epoch operations".to_string();
+        //
+        // self.execute_multiple_with_retry(msgs, Default::default(), memo)
+        //     .await?;
+        // Ok(())
     }
 
     async fn execute_multiple_with_retry<M>(

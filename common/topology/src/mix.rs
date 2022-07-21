@@ -115,17 +115,18 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
                 MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
             })?[0];
 
-        Ok(Node {
-            owner: bond.owner.as_str().to_owned(),
-            stake: bond.original_pledge.amount.into(),
-            delegation: bond.total_delegation.amount.into(),
-            host,
-            mix_host,
-            identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
-            sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
-            layer: bond.layer,
-            version: bond.mix_node.version.clone(),
-        })
+        todo!()
+        // Ok(Node {
+        //     owner: bond.owner.as_str().to_owned(),
+        //     stake: bond.original_pledge.amount.into(),
+        //     delegation: bond.total_delegation.amount.into(),
+        //     host,
+        //     mix_host,
+        //     identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
+        //     sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
+        //     layer: bond.layer,
+        //     version: bond.mix_node.version.clone(),
+        // })
     }
 }
 

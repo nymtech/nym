@@ -171,10 +171,10 @@ pub(crate) struct EconomicDynamicsStats {
 }
 
 fn get_common_owner(delegations: &[Delegation]) -> Option<Addr> {
-    let owner = delegations.iter().next()?.owner();
+    let owner = delegations.iter().next()?.owner.clone();
     if delegations
         .iter()
-        .any(|delegation| delegation.owner() != owner)
+        .any(|delegation| delegation.owner != owner)
     {
         log::warn!("Unexpected different owners when summing delegations");
         return None;
@@ -183,15 +183,16 @@ fn get_common_owner(delegations: &[Delegation]) -> Option<Addr> {
 }
 
 fn get_common_node_identity(delegations: &[Delegation]) -> Option<String> {
-    let node_identity = delegations.iter().next()?.node_identity();
-    if delegations
-        .iter()
-        .any(|delegation| delegation.node_identity() != node_identity)
-    {
-        log::warn!("Unexpected different node identities when summing delegations");
-        return None;
-    }
-    Some(node_identity)
+    todo!()
+    // let node_identity = delegations.iter().next()?.node_identity();
+    // if delegations
+    //     .iter()
+    //     .any(|delegation| delegation.node_identity() != node_identity)
+    // {
+    //     log::warn!("Unexpected different node identities when summing delegations");
+    //     return None;
+    // }
+    // Some(node_identity)
 }
 
 fn get_common_denom(delegations: &[Delegation]) -> Option<String> {

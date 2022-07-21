@@ -3,6 +3,7 @@
 
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
+use mixnet_contract_common::reward_params::Performance;
 use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
@@ -101,6 +102,12 @@ impl TryFrom<i64> for Uptime {
         } else {
             Ok(Uptime(value as u8))
         }
+    }
+}
+
+impl From<Uptime> for Performance {
+    fn from(uptime: Uptime) -> Self {
+        Performance::from_percentage_value(uptime.0 as u64).unwrap()
     }
 }
 

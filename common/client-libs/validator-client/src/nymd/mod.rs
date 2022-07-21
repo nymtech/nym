@@ -1007,6 +1007,29 @@ impl<C> NymdClient<C> {
     }
 
     #[execute("mixnet")]
+    fn _compound_reward(
+        &self,
+        operator: Option<String>,
+        delegator: Option<String>,
+        mix_identity: Option<IdentityKey>,
+        proxy: Option<String>,
+        fee: Option<Fee>,
+    ) -> (ExecuteMsg, Option<Fee>)
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        (
+            ExecuteMsg::CompoundReward {
+                operator,
+                delegator,
+                mix_identity,
+                proxy,
+            },
+            fee,
+        )
+    }
+
+    #[execute("mixnet")]
     fn _compound_operator_reward(&self, fee: Option<Fee>) -> (ExecuteMsg, Option<Fee>)
     where
         C: SigningCosmWasmClient + Sync,

@@ -5,7 +5,7 @@ use futures::StreamExt;
 use log::*;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
-use socks5_requests::Response;
+use socks5_requests::Message;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
@@ -44,12 +44,16 @@ impl MixnetResponseListener {
             warn!("this message had a surb - we didn't do anything with it");
         }
 
-        let response = match Response::try_from_bytes(&raw_message) {
+        let response = match Message::try_from_bytes(&raw_message) {
             Err(err) => {
                 warn!("failed to parse received response - {:?}", err);
                 return;
             }
-            Ok(data) => data,
+            Ok(Message::Request(_)) => {
+                warn!("unexpected request");
+                return;
+            }
+            Ok(Message::Response(data)) => data,
         };
 
         self.controller_sender

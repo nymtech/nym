@@ -1,19 +1,8 @@
-import React from 'react';
-import {
-  Box,
-  Button,
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Stack,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import { MoreVertSharp } from '@mui/icons-material';
+import React, { useState } from 'react';
+import { Box, Button, ListItemIcon, ListItemText, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
 import { DelegationEventKind } from '@nymproject/types';
 import { Delegate, Undelegate } from '../../svg-icons';
+import { ActionsMenu, ActionsMenuItem } from '../ActionsMenu';
 import { DelegateListItemPending } from './types';
 
 export type DelegationListItemActions = 'delegate' | 'undelegate' | 'redeem' | 'compound';
@@ -100,17 +89,14 @@ export const DelegationsActionsMenu: React.FC<{
   disableRedeemingRewards?: boolean;
   disableCompoundRewards?: boolean;
 }> = ({ disableRedeemingRewards, disableCompoundRewards, onActionClick, isPending }) => {
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
+  const [isOpen, setIsOpen] = useState(false);
 
-  const handleClose = () => setAnchorEl(null);
+  const handleOpenMenu = () => setIsOpen(true);
+  const handleOnClose = () => setIsOpen(false);
 
   const handleActionSelect = (action: DelegationListItemActions) => {
-    handleClose();
     onActionClick?.(action);
+    handleOnClose();
   };
 
   if (isPending) {
@@ -126,37 +112,28 @@ export const DelegationsActionsMenu: React.FC<{
   }
 
   return (
-    <>
-      <IconButton onClick={handleClick}>
-        <MoreVertSharp />
-      </IconButton>
-      <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-        <DelegationActionsMenuItem
-          title="Delegate more"
-          Icon={<Delegate />}
-          onClick={() => handleActionSelect?.('delegate')}
-        />
-        <DelegationActionsMenuItem
-          title="Undelegate"
-          Icon={<Undelegate />}
-          onClick={() => handleActionSelect?.('undelegate')}
-          disabled={false}
-        />
-        <DelegationActionsMenuItem
-          title="Redeem"
-          description="Trasfer your rewards to your balance"
-          Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
-          onClick={() => handleActionSelect?.('redeem')}
-          disabled={disableRedeemingRewards}
-        />
-        <DelegationActionsMenuItem
-          title="Compound"
-          description="Add your rewards to this delegation"
-          Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
-          onClick={() => handleActionSelect?.('compound')}
-          disabled={disableCompoundRewards}
-        />
-      </Menu>
-    </>
+    <ActionsMenu open={isOpen} onOpen={handleOpenMenu} onClose={handleOnClose}>
+      <ActionsMenuItem title="Delegate more" Icon={<Delegate />} onClick={() => handleActionSelect('delegate')} />
+      <ActionsMenuItem
+        title="Undelegate"
+        Icon={<Undelegate />}
+        onClick={() => handleActionSelect('undelegate')}
+        disabled={false}
+      />
+      <ActionsMenuItem
+        title="Redeem"
+        description="Trasfer your rewards to your balance"
+        Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
+        onClick={() => handleActionSelect('redeem')}
+        disabled={disableRedeemingRewards}
+      />
+      <ActionsMenuItem
+        title="Compound"
+        description="Add your rewards to this delegation"
+        Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
+        onClick={() => handleActionSelect('compound')}
+        disabled={disableCompoundRewards}
+      />
+    </ActionsMenu>
   );
 };

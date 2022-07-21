@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use config::NymConfig;
+use config_common::NymConfig;
 #[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};

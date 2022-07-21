@@ -6,8 +6,8 @@ use tap::TapFallible;
 use tokio::sync::RwLock;
 
 use client_core::config::Config as BaseConfig;
-use config::NymConfig;
-use nym_socks5::client::config::Config as Socks5Config;
+use config_common::NymConfig;
+use nym_socks5::{client::config::Config as Socks5Config, commands::parse_validators};
 
 use crate::{
     error::{BackendError, Result},
@@ -134,6 +134,11 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     config
         .get_base_mut()
         .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
+    if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::API_VALIDATOR) {
+        config
+            .get_base_mut()
+            .set_custom_validator_apis(parse_validators(&raw_validators));
+    }
 
     let gateway = setup_gateway(
         &id,

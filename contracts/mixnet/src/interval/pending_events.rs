@@ -11,6 +11,11 @@ use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
 use cosmwasm_std::{wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::events::{
+    new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
+    new_interval_config_update_event, new_mixnode_cost_params_update_event,
+    new_mixnode_unbonding_event, new_rewarding_params_update_event, new_undelegation_event,
+};
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
@@ -51,10 +56,13 @@ pub(crate) fn delegate(
             // TODO: @DU: do we need to do any vesting-specific tracking here?
             // to be figured out after undelegate is re-implemented
             let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![amount]);
-            return Ok(Response::new().add_message(return_tokens));
+            return Ok(Response::new().add_message(return_tokens).add_event(
+                new_delegation_on_unbonded_node_event(&owner, &proxy, mix_id),
+            ));
         }
     };
 
+    let original_amount = amount.clone();
     let mut mix_rewarding = mixnode_details.rewarding_details;
 
     // if there's an existing delegation, then withdraw the full reward and create a new delegation
@@ -87,6 +95,8 @@ pub(crate) fn delegate(
     // add the amount we're intending to delegate
     mix_rewarding.add_base_delegation(amount.amount);
 
+    let cosmos_event = new_delegation_event(&owner, &proxy, &original_amount, mix_id);
+
     // create delegation and store it
     let delegation = Delegation::new(
         owner,
@@ -106,7 +116,7 @@ pub(crate) fn delegate(
     )?;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_event(cosmos_event))
 }
 
 pub(crate) fn undelegate(
@@ -133,7 +143,9 @@ pub(crate) fn undelegate(
         delegations::helpers::undelegate(deps.storage, delegation, mix_rewarding)?;
 
     let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![tokens_to_return.clone()]);
-    let mut response = Response::new().add_message(return_tokens);
+    let mut response = Response::new()
+        .add_message(return_tokens)
+        .add_event(new_undelegation_event(&owner, &proxy, mix_id));
 
     if let Some(proxy) = &proxy {
         // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
@@ -145,12 +157,12 @@ pub(crate) fn undelegate(
                 mix_id,
                 amount: tokens_to_return,
             };
+
             let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_unbond_message);
         }
     }
 
-    // TODO: slap events on it
     Ok(response)
 }
 
@@ -185,7 +197,9 @@ pub(crate) fn unbond_mixnode(
     // decrement the associated layer count
     cleanup_post_unbond_mixnode_storage(deps.storage, env, &node_details)?;
 
-    let mut response = Response::new().add_message(return_tokens);
+    let mut response = Response::new()
+        .add_message(return_tokens)
+        .add_event(new_mixnode_unbonding_event(mix_id));
 
     if let Some(proxy) = &proxy {
         // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
@@ -194,16 +208,14 @@ pub(crate) fn unbond_mixnode(
         if proxy == &vesting_contract {
             let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
                 owner: owner.clone().into_string(),
-                amount: tokens.clone(),
+                amount: tokens,
             };
 
-            // TODO: do we need to send the 1ucoin here?
             let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
             response = response.add_message(track_unbond_message);
         }
     }
 
-    // TODO: slap events on it
     Ok(response)
 }
 
@@ -221,8 +233,7 @@ pub(crate) fn update_active_set_size(
     rewarding_params.try_change_active_set_size(active_set_size)?;
     rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
 
-    // TODO: slap events on it
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
 }
 
 impl ContractExecutableEvent for PendingEpochEvent {
@@ -256,7 +267,7 @@ pub(crate) fn change_mix_cost_params(
 ) -> Result<Response, MixnetContractError> {
     // almost an entire interval might have passed since the request was issued -> check if the
     // node still exists
-
+    //
     // note: there's no check if the bond is in "unbonding" state, as epoch actions would get
     // cleared before touching interval actions
     let mut mix_rewarding =
@@ -265,13 +276,15 @@ pub(crate) fn change_mix_cost_params(
             // if node doesn't exist anymore, don't do anything, simple as that.
             _ => return Ok(Response::default()),
         };
+
+    let cosmos_event = new_mixnode_cost_params_update_event(mix_id, &new_costs);
+
     // TODO: can we just change cost_params without breaking rewarding calculation?
     // (I'm almost certain we can, but well, it has to be tested)
     mix_rewarding.cost_params = new_costs;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
 
-    // TODO: slap events on it
-    Ok(Response::new())
+    Ok(Response::new().add_event(cosmos_event))
 }
 
 pub(crate) fn update_rewarding_params(
@@ -289,8 +302,10 @@ pub(crate) fn update_rewarding_params(
     rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
     rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
 
-    // TODO: slap events on it
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_rewarding_params_update_event(
+        updated_params,
+        rewarding_params.interval,
+    )))
 }
 
 pub(crate) fn update_interval_config(
@@ -306,8 +321,10 @@ pub(crate) fn update_interval_config(
     interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
     change_epochs_in_interval(deps.storage, interval, epochs_in_interval)?;
 
-    // TODO: slap events on it
-    Ok(Response::new())
+    Ok(Response::new().add_event(new_interval_config_update_event(
+        epochs_in_interval,
+        epoch_duration_secs,
+    )))
 }
 
 impl ContractExecutableEvent for PendingIntervalEvent {

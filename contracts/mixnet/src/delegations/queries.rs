@@ -6,14 +6,14 @@ use crate::constants::{
     DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT, DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT,
 };
 use crate::mixnodes::storage as mixnodes_storage;
+use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
-use cosmwasm_std::{Api, Deps, Storage};
-use cw_storage_plus::{Bound};
-use mixnet_contract_common::delegation::MixNodeDelegationResponse;
+use cw_storage_plus::Bound;
+use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use mixnet_contract_common::{
-    delegation, Delegation, NodeId, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedMixNodeDelegationsResponse,
+    delegation, Delegation, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedMixNodeDelegationsResponse,
 };
 
 pub(crate) fn query_mixnode_delegations_paged(
@@ -50,28 +50,19 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) fn query_delegator_delegations_paged(
     deps: Deps<'_>,
     delegation_owner: String,
-    proxy: Option<String>,
-    start_after: Option<NodeId>,
+    start_after: Option<(NodeId, OwnerProxySubKey)>,
     limit: Option<u32>,
 ) -> StdResult<PagedDelegatorDelegationsResponse> {
     let validated_owner = deps.api.addr_validate(&delegation_owner)?;
-    let validated_proxy = proxy
-        .map(|proxy| deps.api.addr_validate(&proxy))
-        .transpose()?;
 
     let limit = limit
         .unwrap_or(DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT)
         .min(DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT) as usize;
 
-    let start = start_after.map(|mix_id| {
-        Bound::exclusive(Delegation::generate_storage_key(
-            mix_id,
-            &validated_owner,
-            validated_proxy.as_ref(),
-        ))
+    let start = start_after.map(|(mix_id, subkey)| {
+        Bound::exclusive(Delegation::generate_storage_key_with_subkey(mix_id, subkey))
     });
 
-    // TODO: I don't know if I'm using the correct prefix here. Need some unit tests to verify it.
     let delegations = storage::delegations()
         .idx
         .owner
@@ -81,7 +72,9 @@ pub(crate) fn query_delegator_delegations_paged(
         .map(|record| record.map(|r| r.1))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = delegations.last().map(|del| del.node_id);
+    let start_next_after = delegations
+        .last()
+        .map(|del| (del.node_id, del.proxy_storage_key()));
 
     Ok(PagedDelegatorDelegationsResponse::new(
         delegations,
@@ -141,465 +134,603 @@ pub(crate) fn query_all_delegations_paged(
     ))
 }
 
-// pub fn query_all_delegation_keys(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
-//     Ok(storage::delegations()
-//         .keys_raw(storage, None, None, Order::Ascending)
-//         .map(hex::encode)
-//         .collect())
-// }
-//
-// use std::collections::HashSet;
-//
-// // This should only be exposed directly on the contract via nymd binary, not through the nymd clients
-// pub fn debug_query_all_delegation_values(
-//     storage: &dyn Storage,
-// ) -> Result<HashSet<Delegation>, ContractError> {
-//     use crate::delegations::storage::{
-//         DelegationIndex, DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE,
-//         DELEGATION_PK_NAMESPACE,
-//     };
-//
-//     use cw_storage_plus::{IndexedMap, MultiIndex};
-//
-//     type PrimaryKey = Vec<u8>;
-//
-//     fn all_delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
-//         let indexes = DelegationIndex {
-//             owner: MultiIndex::new(
-//                 |d| d.owner.clone(),
-//                 DELEGATION_PK_NAMESPACE,
-//                 DELEGATION_OWNER_IDX_NAMESPACE,
-//             ),
-//             mixnode: MultiIndex::new(
-//                 |d| d.node_identity.clone(),
-//                 DELEGATION_PK_NAMESPACE,
-//                 DELEGATION_MIXNODE_IDX_NAMESPACE,
-//             ),
-//         };
-//
-//         IndexedMap::new(DELEGATION_PK_NAMESPACE, indexes)
-//     }
-//
-//     let all_delegations = all_delegations()
-//         .range(storage, None, None, Order::Ascending)
-//         .filter_map(|r| r.ok())
-//         .map(|(_key, delegation)| delegation)
-//         .collect::<HashSet<Delegation>>();
-//
-//     Ok(all_delegations)
-// }
-//
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::test_helpers::TestSetup;
 
-// #[cfg(test)]
-// pub(crate) mod tests {
-//     use super::*;
-//     use crate::support::tests::test_helpers;
-//     use config::defaults::MIX_DENOM;
-//     use cosmwasm_std::{coin, Addr, Storage};
-//     use rand::Rng;
-//
-//     pub fn store_n_mix_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
-//         for i in 0..n {
-//             let address = format!("address{}", i);
-//             test_helpers::save_dummy_delegation(storage, node_identity, address, 1);
-//         }
-//     }
-//
-//     #[cfg(test)]
-//     mod querying_for_mixnode_delegations_paged {
-//         use std::collections::HashSet;
-//
-//         use super::*;
-//         use mixnet_contract_common::IdentityKey;
-//         use rand::{distributions::Alphanumeric, SeedableRng};
-//
-//         #[test]
-//         fn retrieval_obeys_limits() {
-//             let mut deps = test_helpers::init_contract();
-//             let limit = 2;
-//             let node_identity: IdentityKey = "foo".into();
-//             store_n_mix_delegations(100, &mut deps.storage, &node_identity);
-//
-//             let page1 = query_mixnode_delegations_paged(
-//                 deps.as_ref(),
-//                 node_identity,
-//                 None,
-//                 Option::from(limit),
-//             )
-//             .unwrap();
-//             assert_eq!(limit, page1.delegations.len() as u32);
-//         }
-//
-//         #[test]
-//         fn retrieval_has_default_limit() {
-//             let mut deps = test_helpers::init_contract();
-//             let node_identity: IdentityKey = "foo".into();
-//             store_n_mix_delegations(
-//                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-//                 &mut deps.storage,
-//                 &node_identity,
-//             );
-//
-//             // query without explicitly setting a limit
-//             let page1 =
-//                 query_mixnode_delegations_paged(deps.as_ref(), node_identity, None, None).unwrap();
-//             assert_eq!(
-//                 storage::DELEGATION_PAGE_DEFAULT_LIMIT,
-//                 page1.delegations.len() as u32
-//             );
-//         }
-//
-//         #[test]
-//         fn retrieval_has_max_limit() {
-//             let mut deps = test_helpers::init_contract();
-//             let node_identity: IdentityKey = "foo".into();
-//             store_n_mix_delegations(
-//                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-//                 &mut deps.storage,
-//                 &node_identity,
-//             );
-//
-//             // query with a crazily high limit in an attempt to use too many resources
-//             let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
-//             let page1 = query_mixnode_delegations_paged(
-//                 deps.as_ref(),
-//                 node_identity,
-//                 None,
-//                 Option::from(crazy_limit),
-//             )
-//             .unwrap();
-//
-//             // we default to a decent sized upper bound instead
-//             let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
-//             assert_eq!(expected_limit, page1.delegations.len() as u32);
-//         }
-//
-//         #[test]
-//         fn pagination_works() {
-//             let dummy_seed = [42u8; 32];
-//             let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
-//
-//             let mut deps = test_helpers::init_contract();
-//             let node_identity: IdentityKey = "foo".into();
-//
-//             let mut delegation_test_data = vec![];
-//             let mut returned_delegation_data = HashSet::new();
-//
-//             // Crete a bunch of randomly ordered (in storage) delegations
-//             for _ in 0..200 {
-//                 delegation_test_data.push((
-//                     rng.clone()
-//                         .sample_iter(&Alphanumeric)
-//                         .take(30)
-//                         .map(char::from)
-//                         .collect::<String>(),
-//                     rng.gen::<u32>() as u64,
-//                 ))
-//             }
-//
-//             for (address, block_height) in delegation_test_data.iter() {
-//                 test_helpers::save_dummy_delegation(
-//                     &mut deps.storage,
-//                     &node_identity,
-//                     address,
-//                     *block_height,
-//                 );
-//             }
-//
-//             let per_page = 100;
-//
-//             // page1 still has 2 results
-//             let page1 = query_mixnode_delegations_paged(
-//                 deps.as_ref(),
-//                 node_identity.clone(),
-//                 None,
-//                 Option::from(per_page),
-//             )
-//             .unwrap();
-//
-//             let start_after = page1.start_next_after.unwrap();
-//             assert_eq!(100, page1.delegations.len());
-//             assert_eq!(
-//                 ((
-//                     "5874735a724c52587679656777795a446a754a746c59694735423165694a".to_string(),
-//                     1594717548
-//                 )),
-//                 start_after
-//             );
-//
-//             for delegation in page1.delegations {
-//                 returned_delegation_data.insert(delegation.owner().to_string());
-//             }
-//
-//             // retrieving the next page should start after the last key on this page
-//
-//             let page2 = query_mixnode_delegations_paged(
-//                 deps.as_ref(),
-//                 node_identity.clone(),
-//                 Option::from(start_after.clone()),
-//                 Option::from(per_page),
-//             )
-//             .unwrap();
-//
-//             let start_after = page2.start_next_after.unwrap();
-//             assert_eq!(
-//                 (
-//                     "7a6b48546c63674f57417948384e6f494a326c6b5a63767668597346696b".to_string(),
-//                     3448133410
-//                 ),
-//                 start_after
-//             );
-//
-//             for delegation in page2.delegations {
-//                 returned_delegation_data.insert(delegation.owner().to_string());
-//             }
-//
-//             let page3 = query_mixnode_delegations_paged(
-//                 deps.as_ref(),
-//                 node_identity.clone(),
-//                 Option::from(start_after),
-//                 Option::from(per_page),
-//             )
-//             .unwrap();
-//
-//             assert!(page3.start_next_after.is_none());
-//
-//             for delegation in delegation_test_data {
-//                 assert!(returned_delegation_data.contains(&*delegation.0));
-//             }
-//         }
-//     }
-//
-//     #[test]
-//     fn mix_deletion_query_returns_current_delegation_value() {
-//         let mut deps = test_helpers::init_contract();
-//         let node_identity: IdentityKey = "foo".into();
-//         let delegation_owner = Addr::unchecked("bar");
-//
-//         let delegation = Delegation::new(
-//             delegation_owner.clone(),
-//             node_identity.clone(),
-//             coin(1234, MIX_DENOM.base),
-//             1234,
-//             None,
-//         );
-//
-//         storage::delegations()
-//             .save(deps.as_mut().storage, delegation.storage_key(), &delegation)
-//             .unwrap();
-//
-//         assert_eq!(
-//             Ok(vec![delegation]),
-//             query_mixnode_delegation(
-//                 &deps.storage,
-//                 &deps.api,
-//                 node_identity,
-//                 delegation_owner.to_string(),
-//                 None
-//             )
-//         )
-//     }
-//
-//     #[test]
-//     fn mix_deletion_query_returns_error_if_delegation_doesnt_exist() {
-//         let mut deps = test_helpers::init_contract();
-//
-//         let node_identity1: IdentityKey = "foo1".into();
-//         let node_identity2: IdentityKey = "foo2".into();
-//         let delegation_owner1 = Addr::unchecked("bar");
-//         let delegation_owner2 = Addr::unchecked("bar2");
-//
-//         assert_eq!(
-//             Err(ContractError::NoMixnodeDelegationFound {
-//                 identity: node_identity1.clone(),
-//                 address: delegation_owner1.to_string(),
-//             }),
-//             query_mixnode_delegation(
-//                 &deps.storage,
-//                 &deps.api,
-//                 node_identity1.clone(),
-//                 delegation_owner1.to_string(),
-//                 None
-//             )
-//         );
-//
-//         // add delegation from a different address
-//         let delegation = Delegation::new(
-//             delegation_owner2,
-//             node_identity1.clone(),
-//             coin(1234, MIX_DENOM.base),
-//             1234,
-//             None,
-//         );
-//
-//         storage::delegations()
-//             .save(deps.as_mut().storage, delegation.storage_key(), &delegation)
-//             .unwrap();
-//
-//         assert_eq!(
-//             Err(ContractError::NoMixnodeDelegationFound {
-//                 identity: node_identity1.clone(),
-//                 address: delegation_owner1.to_string(),
-//             }),
-//             query_mixnode_delegation(
-//                 &deps.storage,
-//                 &deps.api,
-//                 node_identity1.clone(),
-//                 delegation_owner1.to_string(),
-//                 None
-//             )
-//         );
-//
-//         // add delegation for a different node
-//         let delegation = Delegation::new(
-//             delegation_owner1.clone(),
-//             node_identity2,
-//             coin(1234, MIX_DENOM.base),
-//             1234,
-//             None,
-//         );
-//
-//         storage::delegations()
-//             .save(deps.as_mut().storage, delegation.storage_key(), &delegation)
-//             .unwrap();
-//
-//         assert_eq!(
-//             Err(ContractError::NoMixnodeDelegationFound {
-//                 identity: node_identity1.clone(),
-//                 address: delegation_owner1.to_string()
-//             }),
-//             query_mixnode_delegation(
-//                 &deps.storage,
-//                 &deps.api,
-//                 node_identity1,
-//                 delegation_owner1.to_string(),
-//                 None
-//             )
-//         )
-//     }
-//
-//     #[cfg(test)]
-//     mod querying_for_reverse_mixnode_delegations_paged {
-//         use super::*;
-//
-//         fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &str) {
-//             for i in 0..n {
-//                 let node_identity = format!("node{}", i);
-//                 test_helpers::save_dummy_delegation(storage, node_identity, delegation_owner, 1);
-//             }
-//         }
-//
-//         #[test]
-//         fn retrieval_obeys_limits() {
-//             let mut deps = test_helpers::init_contract();
-//             let limit = 2;
-//             let delegation_owner = "foo".to_string();
-//             store_n_reverse_delegations(100, &mut deps.storage, &delegation_owner);
-//
-//             let page1 = query_delegator_delegations_paged(
-//                 deps.as_ref(),
-//                 delegation_owner,
-//                 None,
-//                 Option::from(limit),
-//             )
-//             .unwrap();
-//             assert_eq!(limit, page1.delegations.len() as u32);
-//         }
-//
-//         #[test]
-//         fn retrieval_has_default_limit() {
-//             let mut deps = test_helpers::init_contract();
-//             let delegation_owner = "foo".to_string();
-//             store_n_reverse_delegations(
-//                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-//                 &mut deps.storage,
-//                 &delegation_owner,
-//             );
-//
-//             // query without explicitly setting a limit
-//             let page1 =
-//                 query_delegator_delegations_paged(deps.as_ref(), delegation_owner, None, None)
-//                     .unwrap();
-//             assert_eq!(
-//                 storage::DELEGATION_PAGE_DEFAULT_LIMIT,
-//                 page1.delegations.len() as u32
-//             );
-//         }
-//
-//         #[test]
-//         fn retrieval_has_max_limit() {
-//             let mut deps = test_helpers::init_contract();
-//             let delegation_owner = "foo".to_string();
-//             store_n_reverse_delegations(
-//                 storage::DELEGATION_PAGE_DEFAULT_LIMIT * 10,
-//                 &mut deps.storage,
-//                 &delegation_owner,
-//             );
-//
-//             // query with a crazy high limit in an attempt to use too many resources
-//             let crazy_limit = 1000 * storage::DELEGATION_PAGE_DEFAULT_LIMIT;
-//             let page1 = query_delegator_delegations_paged(
-//                 deps.as_ref(),
-//                 delegation_owner,
-//                 None,
-//                 Option::from(crazy_limit),
-//             )
-//             .unwrap();
-//
-//             // we default to a decent sized upper bound instead
-//             let expected_limit = storage::DELEGATION_PAGE_MAX_LIMIT;
-//             assert_eq!(expected_limit, page1.delegations.len() as u32);
-//         }
-//
-//         #[test]
-//         fn pagination_works() {
-//             let mut deps = test_helpers::init_contract();
-//             let delegation_owner = "bar".to_string();
-//
-//             for j in 0..20 {
-//                 for i in 0..10 {
-//                     test_helpers::save_dummy_delegation(
-//                         &mut deps.storage,
-//                         format!("{}-{}", j, i),
-//                         delegation_owner.clone(),
-//                         i,
-//                     );
-//                 }
-//             }
-//
-//             let per_page = 100;
-//             let page1 = query_delegator_delegations_paged(
-//                 deps.as_ref(),
-//                 delegation_owner.clone(),
-//                 None,
-//                 Option::from(per_page),
-//             )
-//             .unwrap();
-//
-//             let start_after = page1.start_next_after.unwrap();
-//             assert_eq!(per_page as usize, page1.delegations.len());
-//             assert_eq!(start_after, "9-9".to_string());
-//
-//             let page2 = query_delegator_delegations_paged(
-//                 deps.as_ref(),
-//                 delegation_owner.clone(),
-//                 Some(start_after),
-//                 Option::from(per_page),
-//             )
-//             .unwrap();
-//
-//             let start_after = page2.start_next_after.unwrap();
-//             assert_eq!(start_after, "19-9".to_string());
-//
-//             let page3 = query_delegator_delegations_paged(
-//                 deps.as_ref(),
-//                 delegation_owner.clone(),
-//                 Some(start_after),
-//                 Option::from(per_page),
-//             )
-//             .unwrap();
-//
-//             assert!(page3.start_next_after.is_none());
-//         }
-//     }
-// }
+    fn add_dummy_mixes_with_delegations(test: &mut TestSetup, delegators: usize, mixes: usize) {
+        for i in 0..mixes {
+            let mix_id = test.add_dummy_mixnode(&format!("mix-owner{}", i), None);
+            for delegator in 0..delegators {
+                let name = &format!("delegator{}", delegator);
+                test.add_immediate_delegation(name, 100_000_000u32, mix_id)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod mixnode_delegations {
+        use super::*;
+        use crate::support::tests::test_helpers;
+
+        #[test]
+        fn obeys_limits() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let env = test.env();
+            test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id, 200);
+
+            let limit = 2;
+
+            let page1 =
+                query_mixnode_delegations_paged(test.deps(), mix_id, None, Some(limit)).unwrap();
+            assert_eq!(limit, page1.delegations.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let env = test.env();
+            test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id, 500);
+
+            // query without explicitly setting a limit
+            let page1 = query_mixnode_delegations_paged(test.deps(), mix_id, None, None).unwrap();
+
+            assert_eq!(
+                DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT,
+                page1.delegations.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let env = test.env();
+            test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id, 5000);
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 10000;
+            let page1 =
+                query_mixnode_delegations_paged(test.deps(), mix_id, None, Some(crazy_limit))
+                    .unwrap();
+
+            assert_eq!(
+                DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT,
+                page1.delegations.len() as u32
+            );
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut test = TestSetup::new();
+
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.add_immediate_delegation("addr1", 1000u32, mix_id);
+
+            let per_page = 2;
+            let page1 =
+                query_mixnode_delegations_paged(test.deps(), mix_id, None, Some(per_page)).unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.delegations.len());
+
+            // save another
+            test.add_immediate_delegation("addr2", 1000u32, mix_id);
+
+            // page1 should have 2 results on it
+            let page1 =
+                query_mixnode_delegations_paged(test.deps(), mix_id, None, Some(per_page)).unwrap();
+            assert_eq!(2, page1.delegations.len());
+
+            test.add_immediate_delegation("addr3", 1000u32, mix_id);
+
+            // page1 still has the same 2 results
+            let another_page1 =
+                query_mixnode_delegations_paged(test.deps(), mix_id, None, Some(per_page)).unwrap();
+            assert_eq!(2, another_page1.delegations.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_mixnode_delegations_paged(
+                test.deps(),
+                mix_id,
+                Some(start_after.clone()),
+                Some(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.delegations.len());
+
+            // save another one
+            test.add_immediate_delegation("addr4", 1000u32, mix_id);
+
+            let page2 = query_mixnode_delegations_paged(
+                test.deps(),
+                mix_id,
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.delegations.len());
+        }
+
+        #[test]
+        fn all_retrieved_delegations_are_towards_specified_mixnode() {
+            let mut test = TestSetup::new();
+            let mix_id1 = test.add_dummy_mixnode("mix-owner1", None);
+            let mix_id2 = test.add_dummy_mixnode("mix-owner2", None);
+            let mix_id3 = test.add_dummy_mixnode("mix-owner3", None);
+            let mix_id4 = test.add_dummy_mixnode("mix-owner4", None);
+
+            let env = test.env();
+            // add other "out of order" delegations manually
+            test.add_immediate_delegation("random-delegator1", 1000u32, mix_id2);
+            test.add_immediate_delegation("random-delegator2", 1000u32, mix_id2);
+            test_helpers::add_dummy_delegations(test.deps_mut(), env.clone(), mix_id1, 10);
+            test_helpers::add_dummy_delegations(test.deps_mut(), env.clone(), mix_id2, 10);
+            test_helpers::add_dummy_delegations(test.deps_mut(), env.clone(), mix_id3, 10);
+            test.add_immediate_delegation("random-delegator3", 1000u32, mix_id2);
+            test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id4, 10);
+            test.add_immediate_delegation("random-delegator4", 1000u32, mix_id2);
+
+            let res1 = query_mixnode_delegations_paged(test.deps(), mix_id1, None, None).unwrap();
+            assert_eq!(res1.delegations.len(), 10);
+            assert!(res1.delegations.into_iter().all(|d| d.node_id == mix_id1));
+
+            let res2 = query_mixnode_delegations_paged(test.deps(), mix_id2, None, None).unwrap();
+            assert_eq!(res2.delegations.len(), 14);
+            assert!(res2.delegations.into_iter().all(|d| d.node_id == mix_id2));
+
+            let res3 = query_mixnode_delegations_paged(test.deps(), mix_id3, None, None).unwrap();
+            assert_eq!(res3.delegations.len(), 10);
+            assert!(res3.delegations.into_iter().all(|d| d.node_id == mix_id3));
+
+            let res4 = query_mixnode_delegations_paged(test.deps(), mix_id4, None, None).unwrap();
+            assert_eq!(res4.delegations.len(), 10);
+            assert!(res4.delegations.into_iter().all(|d| d.node_id == mix_id4));
+        }
+    }
+
+    mod delegator_delegations {
+        use super::*;
+        use crate::delegations::transactions::try_delegate_to_mixnode_on_behalf;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::{coin, Addr};
+
+        #[test]
+        fn obeys_limits() {
+            let mut test = TestSetup::new();
+
+            // 50 mixnodes with 500 delegations each;
+            add_dummy_mixes_with_delegations(&mut test, 500, 50);
+
+            let limit = 2;
+
+            let page1 = query_delegator_delegations_paged(
+                test.deps(),
+                "delegator1".into(),
+                None,
+                Some(limit),
+            )
+            .unwrap();
+            assert_eq!(limit, page1.delegations.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut test = TestSetup::new();
+            add_dummy_mixes_with_delegations(&mut test, 10, 500);
+
+            // query without explicitly setting a limit
+            let page1 =
+                query_delegator_delegations_paged(test.deps(), "delegator1".into(), None, None)
+                    .unwrap();
+
+            assert_eq!(
+                DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT,
+                page1.delegations.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut test = TestSetup::new();
+            add_dummy_mixes_with_delegations(&mut test, 10, 500);
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 10000;
+            let page1 = query_delegator_delegations_paged(
+                test.deps(),
+                "delegator1".into(),
+                None,
+                Some(crazy_limit),
+            )
+            .unwrap();
+
+            assert_eq!(
+                DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT,
+                page1.delegations.len() as u32
+            );
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut test = TestSetup::new();
+
+            // note that mix_ids are monotonically increasing
+            let mix_id1 = test.add_dummy_mixnode("mix-owner1", None);
+            let mix_id2 = test.add_dummy_mixnode("mix-owner2", None);
+            let mix_id3 = test.add_dummy_mixnode("mix-owner3", None);
+            let mix_id4 = test.add_dummy_mixnode("mix-owner4", None);
+            let mix_id5 = test.add_dummy_mixnode("mix-owner5", None);
+
+            // add few delegations from unrelated delegators
+            for mix_id in [mix_id1, mix_id2, mix_id3, mix_id4, mix_id5] {
+                test.add_immediate_delegation("random1", 1000u32, mix_id);
+                test.add_immediate_delegation("random2", 1000u32, mix_id);
+                test.add_immediate_delegation("random1", 1000u32, mix_id);
+            }
+
+            let delegator = "delegator";
+
+            test.add_immediate_delegation(delegator, 1000u32, mix_id1);
+
+            let per_page = 2;
+            let page1 = query_delegator_delegations_paged(
+                test.deps(),
+                delegator.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.delegations.len());
+
+            // save another
+            test.add_immediate_delegation(delegator, 1000u32, mix_id2);
+
+            // page1 should have 2 results on it
+            let page1 = query_delegator_delegations_paged(
+                test.deps(),
+                delegator.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.delegations.len());
+
+            test.add_immediate_delegation(delegator, 1000u32, mix_id3);
+
+            // page1 still has the same 2 results
+            let another_page1 = query_delegator_delegations_paged(
+                test.deps(),
+                delegator.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, another_page1.delegations.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_delegator_delegations_paged(
+                test.deps(),
+                delegator.into(),
+                Some(start_after.clone()),
+                Some(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.delegations.len());
+
+            // save another one
+            test.add_immediate_delegation(delegator, 1000u32, mix_id4);
+
+            let page2 = query_delegator_delegations_paged(
+                test.deps(),
+                delegator.into(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.delegations.len());
+        }
+
+        #[test]
+        fn all_retrieved_delegations_are_from_the_specified_delegator() {
+            let mut test = TestSetup::new();
+            // it means we have, for example, delegation from "delegator1" towards mix1, mix2, ...., from "delegator2" towards mix1, mix2, ...., etc
+            add_dummy_mixes_with_delegations(&mut test, 50, 100);
+
+            // add some proxies while we're at it to make sure they're queried for separately
+            let with_proxy = "delegator42";
+            let vesting_contract = test.vesting_contract();
+            for mix_id in 1..=25 {
+                try_delegate_to_mixnode_on_behalf(
+                    test.deps_mut(),
+                    mock_info(vesting_contract.as_ref(), &[coin(100_000, TEST_COIN_DENOM)]),
+                    mix_id,
+                    with_proxy.into(),
+                )
+                .unwrap();
+            }
+            test.execute_all_pending_events();
+
+            // make few queries
+            let res1 =
+                query_delegator_delegations_paged(test.deps(), "delegator2".into(), None, None)
+                    .unwrap();
+            assert_eq!(res1.delegations.len(), 100);
+            assert!(res1
+                .delegations
+                .into_iter()
+                .all(|d| d.owner == Addr::unchecked("delegator2")));
+
+            let res2 =
+                query_delegator_delegations_paged(test.deps(), "delegator35".into(), None, None)
+                    .unwrap();
+            assert_eq!(res2.delegations.len(), 100);
+            assert!(res2
+                .delegations
+                .into_iter()
+                .all(|d| d.owner == Addr::unchecked("delegator35")));
+
+            let with_proxy_full =
+                query_delegator_delegations_paged(test.deps(), with_proxy.into(), None, None)
+                    .unwrap();
+            assert_eq!(with_proxy_full.delegations.len(), 125);
+
+            // all delegations have correct owner
+            assert!(with_proxy_full
+                .delegations
+                .iter()
+                .all(|d| d.owner == Addr::unchecked(with_proxy)));
+
+            // and we have 100 delegations without proxy and 25 with
+            let no_proxy = with_proxy_full
+                .delegations
+                .iter()
+                .filter(|d| d.proxy.is_none())
+                .count();
+            assert_eq!(no_proxy, 100);
+            let proxy = with_proxy_full
+                .delegations
+                .iter()
+                .filter(|d| d.proxy.is_some())
+                .count();
+            assert_eq!(proxy, 25);
+
+            assert!(with_proxy_full
+                .delegations
+                .iter()
+                .filter(|d| d.proxy.is_some())
+                .all(|d| d.proxy.as_ref().unwrap() == &vesting_contract));
+
+            // now make sure that if we do it in paged manner, we'll get exactly the same result
+            let per_page = Some(15);
+            let mut delegations = Vec::new();
+            let mut start_after = None;
+            loop {
+                let mut paged_response = query_delegator_delegations_paged(
+                    test.deps(),
+                    with_proxy.into(),
+                    start_after,
+                    per_page,
+                )
+                .unwrap();
+                delegations.append(&mut paged_response.delegations);
+
+                if let Some(start_after_res) = paged_response.start_next_after {
+                    start_after = Some(start_after_res)
+                } else {
+                    break;
+                }
+            }
+            assert_eq!(with_proxy_full.delegations, delegations)
+        }
+    }
+
+    mod all_delegations {
+        use super::*;
+
+        #[test]
+        fn obeys_limits() {
+            let mut test = TestSetup::new();
+
+            // 50 mixnodes with 500 delegations each;
+            add_dummy_mixes_with_delegations(&mut test, 500, 50);
+
+            let limit = 2;
+
+            let page1 = query_all_delegations_paged(test.deps(), None, Some(limit)).unwrap();
+            assert_eq!(limit, page1.delegations.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut test = TestSetup::new();
+            add_dummy_mixes_with_delegations(&mut test, 10, 500);
+
+            // query without explicitly setting a limit
+            let page1 = query_all_delegations_paged(test.deps(), None, None).unwrap();
+
+            assert_eq!(
+                DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT,
+                page1.delegations.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut test = TestSetup::new();
+            add_dummy_mixes_with_delegations(&mut test, 10, 500);
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 10000;
+            let page1 = query_all_delegations_paged(test.deps(), None, Some(crazy_limit)).unwrap();
+
+            assert_eq!(
+                DELEGATION_PAGE_MAX_RETRIEVAL_LIMIT,
+                page1.delegations.len() as u32
+            );
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut test = TestSetup::new();
+
+            // note that mix_ids are monotonically increasing and are the first chunk of all
+            // delegation storage keys,
+            let mix_id1 = test.add_dummy_mixnode("mix-owner1", None);
+            let mix_id2 = test.add_dummy_mixnode("mix-owner2", None);
+
+            let delegator1 = "delegator1";
+            let delegator2 = "delegator2";
+
+            test.add_immediate_delegation(delegator1, 1000u32, mix_id1);
+
+            let per_page = 2;
+            let page1 = query_all_delegations_paged(test.deps(), None, Some(per_page)).unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.delegations.len());
+            assert!(
+                page1.delegations[0].owner.as_str() == delegator1
+                    && page1.delegations[0].node_id == mix_id1
+            );
+
+            test.add_immediate_delegation(delegator1, 1000u32, mix_id2);
+
+            let page1 = query_all_delegations_paged(test.deps(), None, Some(per_page)).unwrap();
+
+            // page1 should have 2 results on it
+            assert_eq!(2, page1.delegations.len());
+            assert!(
+                page1.delegations[0].owner.as_str() == delegator1
+                    && page1.delegations[0].node_id == mix_id1
+            );
+            assert!(
+                page1.delegations[1].owner.as_str() == delegator1
+                    && page1.delegations[1].node_id == mix_id2
+            );
+
+            test.add_immediate_delegation(delegator2, 1000u32, mix_id1);
+
+            // note that the order of results changed on page1
+            let another_page1 =
+                query_all_delegations_paged(test.deps(), None, Some(per_page)).unwrap();
+            assert_eq!(2, another_page1.delegations.len());
+            assert!(
+                another_page1.delegations[0].owner.as_str() == delegator1
+                    && another_page1.delegations[0].node_id == mix_id1
+            );
+            assert!(
+                another_page1.delegations[1].owner.as_str() == delegator2
+                    && another_page1.delegations[1].node_id == mix_id1
+            );
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = another_page1.start_next_after.unwrap();
+            let page2 =
+                query_all_delegations_paged(test.deps(), Some(start_after.clone()), Some(per_page))
+                    .unwrap();
+
+            assert_eq!(1, page2.delegations.len());
+            assert!(
+                page2.delegations[0].owner.as_str() == delegator1
+                    && page2.delegations[0].node_id == mix_id2
+            );
+
+            // save another one
+            test.add_immediate_delegation(delegator2, 1000u32, mix_id2);
+
+            let page2 = query_all_delegations_paged(test.deps(), Some(start_after), Some(per_page))
+                .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.delegations.len());
+            assert!(
+                page2.delegations[0].owner.as_str() == delegator1
+                    && page2.delegations[0].node_id == mix_id2
+            );
+            assert!(
+                page2.delegations[1].owner.as_str() == delegator2
+                    && page2.delegations[1].node_id == mix_id2
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod querying_for_specific_mixnode_delegation {
+        use super::*;
+
+        #[test]
+        fn when_delegation_doesnt_exist() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let owner = "owner";
+
+            let res = query_mixnode_delegation(test.deps(), mix_id, owner.into(), None).unwrap();
+            assert!(res.delegation.is_none());
+            assert!(res.mixnode_still_bonded);
+        }
+
+        #[test]
+        fn when_delegation_exists_but_mixnode_has_unbonded() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let owner = "owner";
+
+            test.add_immediate_delegation(owner, 1000u32, mix_id);
+            test.immediately_unbond_mixnode(mix_id);
+
+            let res = query_mixnode_delegation(test.deps(), mix_id, owner.into(), None).unwrap();
+            assert_eq!(res.delegation.as_ref().unwrap().owner.as_str(), owner);
+            assert_eq!(res.delegation.as_ref().unwrap().amount.amount.u128(), 1000);
+            assert!(!res.mixnode_still_bonded);
+        }
+
+        #[test]
+        fn when_delegation_exists_but_mixnode_is_unbonding() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let owner = "owner";
+
+            test.add_immediate_delegation(owner, 1000u32, mix_id);
+            test.start_unbonding_mixnode(mix_id);
+
+            let res = query_mixnode_delegation(test.deps(), mix_id, owner.into(), None).unwrap();
+            assert_eq!(res.delegation.as_ref().unwrap().owner.as_str(), owner);
+            assert_eq!(res.delegation.as_ref().unwrap().amount.amount.u128(), 1000);
+            assert!(!res.mixnode_still_bonded);
+        }
+
+        #[test]
+        fn when_delegation_exists_with_fully_bonded_node() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let owner = "owner";
+
+            test.add_immediate_delegation(owner, 1000u32, mix_id);
+
+            let res = query_mixnode_delegation(test.deps(), mix_id, owner.into(), None).unwrap();
+            assert_eq!(res.delegation.as_ref().unwrap().owner.as_str(), owner);
+            assert_eq!(res.delegation.as_ref().unwrap().amount.amount.u128(), 1000);
+            assert!(res.mixnode_still_bonded);
+        }
+    }
+}

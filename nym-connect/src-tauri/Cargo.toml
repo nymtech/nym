@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.0.0"
+version = "1.0.1"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""

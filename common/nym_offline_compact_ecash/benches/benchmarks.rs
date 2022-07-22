@@ -4,7 +4,7 @@
 use std::ops::Neg;
 use std::time::Duration;
 
-use bls12_381::{G1Affine, G2Affine, G2Prepared, multi_miller_loop, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, multi_miller_loop, Scalar};
 use criterion::{Criterion, criterion_group, criterion_main};
 use ff::Field;
 use group::{Curve, Group};
@@ -24,6 +24,26 @@ fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine
     let gt1 = bls12_381::pairing(g11, g21);
     let gt2 = bls12_381::pairing(g12, g22);
     assert_eq!(gt1, gt2)
+}
+
+#[allow(unused)]
+fn single_pairing(g11: &G1Affine, g21: &G2Affine) {
+    let gt1 = bls12_381::pairing(g11, g21);
+}
+
+#[allow(unused)]
+fn exponent_in_g1(g1: G1Projective, r: Scalar) {
+    let g11 = (g1 * r);
+}
+
+#[allow(unused)]
+fn exponent_in_g2(g2: G2Projective, r: Scalar) {
+    let g22 = (g2 * r);
+}
+
+#[allow(unused)]
+fn exponent_in_gt(gt: Gt, r: Scalar) {
+    let gtt = (gt * r);
 }
 
 #[allow(unused)]
@@ -67,6 +87,9 @@ fn multi_miller_pairing_with_semi_prepared(
 
 #[allow(unused)]
 fn bench_pairings(c: &mut Criterion) {
+    let mut group = c.benchmark_group("benchmark-pairings");
+    group.measurement_time(Duration::from_secs(200));
+
     let mut rng = rand::thread_rng();
 
     let g1 = G1Affine::generator();
@@ -82,19 +105,39 @@ fn bench_pairings(c: &mut Criterion) {
     let g22 = (g2 * r).to_affine();
     let g22_prep = G2Prepared::from(g22);
 
-    c.bench_function("double pairing", |b| {
+    let gt = bls12_381::pairing(&g11, &g21);
+    let gen1 = G1Projective::generator();
+    let gen2 = G2Projective::generator();
+
+    group.bench_function("exponent operation in G1", |b| {
+        b.iter(|| exponent_in_g1(gen1, r))
+    });
+
+    group.bench_function("exponent operation in G2", |b| {
+        b.iter(|| exponent_in_g2(gen2, r))
+    });
+
+    group.bench_function("exponent operation in Gt", |b| {
+        b.iter(|| exponent_in_gt(gt, r))
+    });
+
+    group.bench_function("single pairing", |b| {
+        b.iter(|| single_pairing(&g11, &g21))
+    });
+
+    group.bench_function("double pairing", |b| {
         b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
     });
 
-    c.bench_function("multi miller in affine", |b| {
+    group.bench_function("multi miller in affine", |b| {
         b.iter(|| multi_miller_pairing_affine(&g11, &g21, &g12, &g22))
     });
 
-    c.bench_function("multi miller with prepared g2", |b| {
+    group.bench_function("multi miller with prepared g2", |b| {
         b.iter(|| multi_miller_pairing_with_prepared(&g11, &g21_prep, &g12, &g22_prep))
     });
 
-    c.bench_function("multi miller with semi-prepared g2", |b| {
+    group.bench_function("multi miller with semi-prepared g2", |b| {
         b.iter(|| multi_miller_pairing_with_semi_prepared(&g11, &g21, &g12, &g22_prep))
     });
 }
@@ -310,5 +353,5 @@ fn bench_compact_ecash(c: &mut Criterion) {
     assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
 }
 
-criterion_group!(benches, bench_compact_ecash);
+criterion_group!(benches, bench_pairings, bench_compact_ecash);
 criterion_main!(benches);

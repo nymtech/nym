@@ -10,6 +10,11 @@ use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::{ensure_is_authorized, ensure_is_owner};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::events::{
+    new_advance_epoch_event, new_interval_config_update_event,
+    new_pending_epoch_events_execution_event, new_pending_interval_config_update_event,
+    new_pending_interval_events_execution_event, new_reconcile_pending_events,
+};
 use mixnet_contract_common::pending_events::PendingIntervalEvent;
 use mixnet_contract_common::NodeId;
 use std::time::Duration;
@@ -19,22 +24,33 @@ use std::time::Duration;
 // however, it should also be called when advancing epoch itself in case somebody
 // manage to sneak in a transaction between those two operations
 // (but then the amount of work is going to be minimal)
-// TODO: incorporate limit
 pub(crate) fn perform_pending_epoch_actions(
     mut deps: DepsMut<'_>,
     env: &Env,
-) -> Result<Response, MixnetContractError> {
+    limit: Option<u32>,
+) -> Result<(Response, u32), MixnetContractError> {
     let last_executed = storage::LAST_PROCESSED_EPOCH_EVENT.load(deps.storage)?;
     let last_inserted = storage::EPOCH_EVENT_ID_COUNTER.load(deps.storage)?;
 
     // no pending events
     if last_executed == last_inserted {
-        return Ok(Response::default());
+        return Ok((Response::new(), 0));
     }
+
+    let pending = last_inserted - last_executed;
+    let last = limit
+        .map(|limit| {
+            if limit >= pending {
+                last_inserted
+            } else {
+                last_executed + limit
+            }
+        })
+        .unwrap_or(last_inserted);
 
     let mut response = Response::new();
     // no need to use the [cosmwasm] range iterator as we know the exact keys in order
-    for event_id in last_executed + 1..=last_inserted {
+    for event_id in last_executed + 1..=last {
         let event = storage::PENDING_EPOCH_EVENTS.load(deps.storage, event_id)?;
         let mut sub_response = event.execute(deps.branch(), env)?;
         response.messages.append(&mut sub_response.messages);
@@ -45,27 +61,38 @@ pub(crate) fn perform_pending_epoch_actions(
         storage::PENDING_EPOCH_EVENTS.remove(deps.storage, event_id);
     }
 
-    storage::LAST_PROCESSED_EPOCH_EVENT.save(deps.storage, &last_inserted)?;
+    storage::LAST_PROCESSED_EPOCH_EVENT.save(deps.storage, &last)?;
 
-    Ok(response)
+    Ok((response, last - last_executed))
 }
 
-// TODO: incorporate limit
 pub(crate) fn perform_pending_interval_actions(
     mut deps: DepsMut<'_>,
     env: &Env,
-) -> Result<Response, MixnetContractError> {
+    limit: Option<u32>,
+) -> Result<(Response, u32), MixnetContractError> {
     let last_executed = storage::LAST_PROCESSED_INTERVAL_EVENT.load(deps.storage)?;
     let last_inserted = storage::INTERVAL_EVENT_ID_COUNTER.load(deps.storage)?;
 
     // no pending events
     if last_executed == last_inserted {
-        return Ok(Response::default());
+        return Ok((Response::new(), 0));
     }
+
+    let pending = last_inserted - last_executed;
+    let last = limit
+        .map(|limit| {
+            if limit >= pending {
+                last_inserted
+            } else {
+                last_executed + limit
+            }
+        })
+        .unwrap_or(last_inserted);
 
     let mut response = Response::new();
     // no need to use the [cosmwasm] range iterator as we know the exact keys in order
-    for event_id in last_executed + 1..=last_inserted {
+    for event_id in last_executed + 1..=last {
         let event = storage::PENDING_INTERVAL_EVENTS.load(deps.storage, event_id)?;
         let mut sub_response = event.execute(deps.branch(), env)?;
         response.messages.append(&mut sub_response.messages);
@@ -76,17 +103,18 @@ pub(crate) fn perform_pending_interval_actions(
         storage::PENDING_INTERVAL_EVENTS.remove(deps.storage, event_id);
     }
 
-    storage::LAST_PROCESSED_INTERVAL_EVENT.save(deps.storage, &last_inserted)?;
+    storage::LAST_PROCESSED_INTERVAL_EVENT.save(deps.storage, &last)?;
 
-    Ok(response)
+    Ok((response, last - last_executed))
 }
 
 pub fn try_reconcile_epoch_events(
     mut deps: DepsMut<'_>,
     env: Env,
-    // TODO: use that field
-    limit: Option<u32>,
+    mut limit: Option<u32>,
 ) -> Result<Response, MixnetContractError> {
+    let mut response = Response::new().add_event(new_reconcile_pending_events());
+
     // there's no need for authorization, as anyone willing to pay the fees should be allowed to reconcile
     // contract events ASSUMING the corresponding epoch/interval has finished
     let interval = storage::current_interval(deps.storage)?;
@@ -98,16 +126,31 @@ pub fn try_reconcile_epoch_events(
             epoch_end: interval.current_epoch_end_unix_timestamp(),
         });
     } else {
-        perform_pending_epoch_actions(deps.branch(), &env)?;
+        let (mut sub_response, executed) =
+            perform_pending_epoch_actions(deps.branch(), &env, limit)?;
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
+        response
+            .events
+            .push(new_pending_epoch_events_execution_event(executed));
+
+        limit = limit.map(|l| l - executed)
     }
 
     if interval.is_current_interval_over(&env) {
         // first clear epoch events queue and then touch the interval actions
-        perform_pending_interval_actions(deps.branch(), &env)?;
+        let (mut sub_response, executed) =
+            perform_pending_interval_actions(deps.branch(), &env, limit)?;
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
+        response
+            .events
+            .push(new_pending_interval_events_execution_event(executed));
     }
 
-    // TODO: emit events and all of that
-    Ok(Response::new())
+    Ok(response)
 }
 
 // We've distributed the rewards to the rewarded set from the validator api before making this call (implicit order, should be solved in the future)
@@ -152,6 +195,8 @@ pub fn try_advance_epoch(
     // Only rewarding validator can attempt to advance epoch
     ensure_is_authorized(info.sender, deps.storage)?;
 
+    let mut response = Response::new();
+
     // we must make sure that we roll into new epoch / interval with up to date state
     // with no pending actions (like somebody wanting to update their profit margin)
     let current_interval = storage::current_interval(deps.storage)?;
@@ -162,26 +207,31 @@ pub fn try_advance_epoch(
             epoch_end: current_interval.current_epoch_end_unix_timestamp(),
         });
     } else {
-        perform_pending_epoch_actions(deps.branch(), &env)?;
+        let (mut sub_response, _) = perform_pending_epoch_actions(deps.branch(), &env, None)?;
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
     }
 
     // first clear epoch events queue and then touch the interval actions
     if current_interval.is_current_interval_over(&env) {
         // the interval has finished -> we can change things such as the profit margin
-        perform_pending_interval_actions(deps.branch(), &env)?;
+        let (mut sub_response, _) = perform_pending_interval_actions(deps.branch(), &env, None)?;
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
 
-        // TODO: since the rest of the function is not yet implemented, be extremely careful about this one
-        // to make sure it doesn't influence epoch events results
         rewards::helpers::apply_reward_pool_changes(deps.storage)?;
     }
 
+    let updated_interval = current_interval.advance_epoch();
+    let num_nodes = new_rewarded_set.len();
+
     // finally save updated interval and the rewarded set
-    storage::save_interval(deps.storage, &current_interval.advance_epoch())?;
+    storage::save_interval(deps.storage, &updated_interval)?;
     update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
 
-    // TODO:  make sure we emit information about rewarding parameters
-    todo!("produce response with events and stuff")
-    //     return Ok(Response::new().add_event(new_advance_interval_event(next_epoch)));
+    Ok(response.add_event(new_advance_epoch_event(updated_interval, num_nodes as u32)))
 }
 
 pub(crate) fn try_update_interval_config(
@@ -198,6 +248,10 @@ pub(crate) fn try_update_interval_config(
     if force_immediately || interval.is_current_interval_over(&env) {
         interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
         change_epochs_in_interval(deps.storage, interval, epochs_in_interval)?;
+        Ok(Response::new().add_event(new_interval_config_update_event(
+            epochs_in_interval,
+            epoch_duration_secs,
+        )))
     } else {
         // push the interval event
         let interval_event = PendingIntervalEvent::UpdateIntervalConfig {
@@ -205,10 +259,20 @@ pub(crate) fn try_update_interval_config(
             epoch_duration_secs,
         };
         push_new_interval_event(deps.storage, &interval_event)?;
+        let time_left = interval.secs_until_current_interval_end(&env);
+        Ok(
+            Response::new().add_event(new_pending_interval_config_update_event(
+                epochs_in_interval,
+                epoch_duration_secs,
+                time_left,
+            )),
+        )
     }
+}
 
-    // TODO: slap events
-    Ok(Response::new())
+#[cfg(test)]
+mod tests {
+    use super::*;
 }
 
 //

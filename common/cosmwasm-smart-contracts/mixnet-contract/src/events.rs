@@ -10,6 +10,8 @@ use cosmwasm_std::{Addr, Coin, Event, Uint128};
 
 pub enum MixnetEventType {
     MixnodeBonding,
+    GatewayBonding,
+    GatewayUnbonding,
     PendingMixnodeUnbonding,
     MixnodeUnbonding,
     MixnodeConfigUpdate,
@@ -22,6 +24,18 @@ pub enum MixnetEventType {
     ActiveSetUpdate,
     PendingIntervalRewardingParamsUpdate,
     IntervalRewardingParamsUpdate,
+    PendingDelegation,
+    PendingUndelegation,
+    Delegation,
+    Undelegation,
+    ContractSettingsUpdate,
+    RewardingValidatorUpdate,
+    AdvanceEpoch,
+    ExecutePendingEpochEvents,
+    ExecutePendingIntervalEvents,
+    ReconcilePendingEvents,
+    PendingIntervalConfigUpdate,
+    IntervalConfigUpdate,
 }
 
 impl From<MixnetEventType> for String {
@@ -34,6 +48,8 @@ impl ToString for MixnetEventType {
     fn to_string(&self) -> String {
         match self {
             MixnetEventType::MixnodeBonding => "mixnode_bonding",
+            MixnetEventType::GatewayBonding => "gateway_bonding",
+            MixnetEventType::GatewayUnbonding => "gateway_unbonding",
             MixnetEventType::PendingMixnodeUnbonding => "pending_mixnode_unbonding",
             MixnetEventType::MixnodeConfigUpdate => "mixnode_config_update",
             MixnetEventType::MixnodeUnbonding => "mixnode_unbonding",
@@ -48,24 +64,22 @@ impl ToString for MixnetEventType {
                 "pending_interval_rewarding_params_update"
             }
             MixnetEventType::IntervalRewardingParamsUpdate => "interval_rewarding_params_update",
+            MixnetEventType::PendingDelegation => "pending_delegation",
+            MixnetEventType::PendingUndelegation => "pending_undelegation",
+            MixnetEventType::Delegation => "delegation",
+            MixnetEventType::Undelegation => "undelegation",
+            MixnetEventType::ContractSettingsUpdate => "settings_update",
+            MixnetEventType::RewardingValidatorUpdate => "rewarding_validator_address_update",
+            MixnetEventType::AdvanceEpoch => "advance_epoch",
+            MixnetEventType::ExecutePendingEpochEvents => "execute_pending_epoch_events",
+            MixnetEventType::ExecutePendingIntervalEvents => "execute_pending_interval_events",
+            MixnetEventType::ReconcilePendingEvents => "reconcile_pending_events",
+            MixnetEventType::PendingIntervalConfigUpdate => "pending_interval_config_update",
+            MixnetEventType::IntervalConfigUpdate => "interval_config_update",
         }
         .into()
     }
 }
-
-// FIXME: This should become an Enum
-// event types
-pub const DELEGATION_EVENT_TYPE: &str = "delegation";
-pub const PENDING_DELEGATION_EVENT_TYPE: &str = "pending_delegation";
-pub const UNDELEGATION_EVENT_TYPE: &str = "undelegation";
-pub const PENDING_UNDELEGATION_EVENT_TYPE: &str = "pending_undelegation";
-pub const GATEWAY_BONDING_EVENT_TYPE: &str = "gateway_bonding";
-pub const GATEWAY_UNBONDING_EVENT_TYPE: &str = "gateway_unbonding";
-pub const REWARDING_VALIDATOR_UPDATE_EVENT_TYPE: &str = "rewarding_validator_address_update";
-pub const SETTINGS_UPDATE_EVENT_TYPE: &str = "settings_update";
-pub const MIX_DELEGATORS_REWARDING_EVENT_TYPE: &str = "mix_delegators_rewarding";
-pub const CHANGE_REWARDED_SET_EVENT_TYPE: &str = "change_rewarded_set";
-pub const ADVANCE_EPOCH_EVENT_TYPE: &str = "advance_epoch";
 
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
@@ -128,6 +142,12 @@ pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 pub const BLOCK_HEIGHT_KEY: &str = "block_height";
 pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
 
+// interval
+pub const EVENTS_EXECUTED_KEY: &str = "number_of_events_executed";
+pub const REWARDED_SET_NODES_KEY: &str = "rewarded_set_nodes";
+pub const NEW_EPOCHS_DURATION_SECS_KEY: &str = "new_epoch_durations_secs";
+pub const NEW_EPOCHS_IN_INTERVAL: &str = "new_epochs_in_interval";
+
 // pub fn new_delegation_event(
 //     delegator: &Addr,
 //     proxy: &Option<Addr>,
@@ -152,7 +172,7 @@ pub fn new_pending_delegation_event(
     amount: &Coin,
     mix_id: NodeId,
 ) -> Event {
-    Event::new(PENDING_DELEGATION_EVENT_TYPE)
+    Event::new(MixnetEventType::PendingDelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
@@ -262,7 +282,7 @@ pub fn new_pending_undelegation_event(
     proxy: &Option<Addr>,
     mix_id: NodeId,
 ) -> Event {
-    Event::new(PENDING_UNDELEGATION_EVENT_TYPE)
+    Event::new(MixnetEventType::PendingUndelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(NODE_ID_KEY, mix_id.to_string())
@@ -274,7 +294,7 @@ pub fn new_gateway_bonding_event(
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
 ) -> Event {
-    Event::new(GATEWAY_BONDING_EVENT_TYPE)
+    Event::new(MixnetEventType::GatewayBonding)
         .add_attribute(OWNER_KEY, owner)
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
@@ -287,7 +307,7 @@ pub fn new_gateway_unbonding_event(
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
 ) -> Event {
-    Event::new(GATEWAY_UNBONDING_EVENT_TYPE)
+    Event::new(MixnetEventType::GatewayUnbonding)
         .add_attribute(OWNER_KEY, owner)
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
@@ -353,7 +373,7 @@ pub fn new_mixnode_pending_cost_params_update_event(
 }
 
 pub fn new_rewarding_validator_address_update_event(old: Addr, new: Addr) -> Event {
-    Event::new(REWARDING_VALIDATOR_UPDATE_EVENT_TYPE)
+    Event::new(MixnetEventType::RewardingValidatorUpdate)
         .add_attribute(OLD_REWARDING_VALIDATOR_ADDRESS_KEY, old)
         .add_attribute(NEW_REWARDING_VALIDATOR_ADDRESS_KEY, new)
 }
@@ -362,7 +382,7 @@ pub fn new_settings_update_event(
     old_params: &ContractStateParams,
     new_params: &ContractStateParams,
 ) -> Event {
-    let mut event = Event::new(SETTINGS_UPDATE_EVENT_TYPE);
+    let mut event = Event::new(MixnetEventType::ContractSettingsUpdate);
 
     if old_params.minimum_mixnode_pledge != new_params.minimum_mixnode_pledge {
         event = event
@@ -436,37 +456,54 @@ pub fn new_mix_rewarding_event(
         )
 }
 
-pub fn new_mix_delegators_rewarding_event(
-    interval_id: u32,
-    identity: IdentityKeyRef<'_>,
-    delegation_rewards_distributed: Uint128,
-    further_delegations: bool,
-) -> Event {
-    Event::new(MIX_DELEGATORS_REWARDING_EVENT_TYPE)
-        .add_attribute(INTERVAL_KEY, interval_id.to_string())
-        .add_attribute(NODE_IDENTITY_KEY, identity)
+pub fn new_advance_epoch_event(interval: Interval, rewarded_nodes: u32) -> Event {
+    Event::new(MixnetEventType::AdvanceEpoch)
         .add_attribute(
-            DISTRIBUTED_DELEGATION_REWARDS_KEY,
-            delegation_rewards_distributed,
+            NEW_CURRENT_EPOCH_KEY,
+            interval.current_full_epoch_id().to_string(),
         )
-        .add_attribute(
-            FURTHER_DELEGATIONS_TO_REWARD_KEY,
-            further_delegations.to_string(),
-        )
+        .add_attribute(REWARDED_SET_NODES_KEY, rewarded_nodes.to_string())
 }
 
-// // note that when this event is emitted, we'll know the current block height
-// pub fn new_change_rewarded_set_event(
-//     active_set_size: u32,
-//     rewarded_set_size: u32,
-//     nodes_in_rewarded_set: u32,
-// ) -> Event {
-//     Event::new(CHANGE_REWARDED_SET_EVENT_TYPE)
-//         .add_attribute(ACTIVE_SET_SIZE_KEY, active_set_size.to_string())
-//         .add_attribute(REWARDED_SET_SIZE_KEY, rewarded_set_size.to_string())
-//         .add_attribute(NODES_IN_REWARDED_SET_KEY, nodes_in_rewarded_set.to_string())
-// }
-//
-// pub fn new_advance_epoch_event(interval: Interval) -> Event {
-//     Event::new(ADVANCE_EPOCH_EVENT_TYPE).add_attribute(NEW_CURRENT_EPOCH_KEY, interval.to_string())
-// }
+pub fn new_pending_epoch_events_execution_event(executed: u32) -> Event {
+    Event::new(MixnetEventType::ExecutePendingEpochEvents)
+        .add_attribute(EVENTS_EXECUTED_KEY, executed.to_string())
+}
+
+pub fn new_pending_interval_events_execution_event(executed: u32) -> Event {
+    Event::new(MixnetEventType::ExecutePendingIntervalEvents)
+        .add_attribute(EVENTS_EXECUTED_KEY, executed.to_string())
+}
+
+pub fn new_reconcile_pending_events() -> Event {
+    Event::new(MixnetEventType::ReconcilePendingEvents)
+}
+
+pub fn new_interval_config_update_event(
+    epochs_in_interval: u32,
+    epoch_duration_secs: u64,
+) -> Event {
+    Event::new(MixnetEventType::IntervalConfigUpdate)
+        .add_attribute(
+            NEW_EPOCHS_DURATION_SECS_KEY,
+            epoch_duration_secs.to_string(),
+        )
+        .add_attribute(NEW_EPOCHS_IN_INTERVAL, epochs_in_interval.to_string())
+}
+
+pub fn new_pending_interval_config_update_event(
+    epochs_in_interval: u32,
+    epoch_duration_secs: u64,
+    approximate_time_remaining_secs: i64,
+) -> Event {
+    Event::new(MixnetEventType::PendingIntervalConfigUpdate)
+        .add_attribute(
+            NEW_EPOCHS_DURATION_SECS_KEY,
+            epoch_duration_secs.to_string(),
+        )
+        .add_attribute(NEW_EPOCHS_IN_INTERVAL, epochs_in_interval.to_string())
+        .add_attribute(
+            APPROXIMATE_TIME_LEFT_SECS_KEY,
+            approximate_time_remaining_secs.to_string(),
+        )
+}

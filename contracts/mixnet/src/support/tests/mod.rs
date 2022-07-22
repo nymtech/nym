@@ -394,8 +394,8 @@ pub mod test_helpers {
     }
 
     pub fn execute_all_pending_events(mut deps: DepsMut<'_>, env: Env) {
-        perform_pending_epoch_actions(deps.branch(), &env).unwrap();
-        perform_pending_interval_actions(deps.branch(), &env).unwrap();
+        perform_pending_epoch_actions(deps.branch(), &env, None).unwrap();
+        perform_pending_interval_actions(deps.branch(), &env, None).unwrap();
     }
 
     pub fn mixnode_with_signature(

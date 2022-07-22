@@ -73,26 +73,18 @@ pub(crate) fn delegate(
     {
         // remove the reward from the node
         let reward = mix_rewarding.determine_delegation_reward(&existing_delegation);
-        mix_rewarding.decrease_delegates(existing_delegation.dec_amount() + reward)?;
-
-        // TODO: code duplication with 'undelegate'
-        // if this is the only delegation, move all leftover decimal tokens to the operator
-        // (this is literally in the order of a millionth of a micronym)
-        if mix_rewarding.unique_delegations == 1 {
-            mix_rewarding.operator += mix_rewarding.delegates;
-            mix_rewarding.delegates = Decimal::zero();
-        }
+        mix_rewarding.remove_full_delegation_amount(reward)?;
 
         let truncated_reward = truncate_reward_amount(reward);
         amount.amount += truncated_reward;
 
         (amount, Some(existing_delegation))
     } else {
-        mix_rewarding.unique_delegations += 1;
         (amount, None)
     };
 
     // add the amount we're intending to delegate
+    mix_rewarding.unique_delegations += 1;
     mix_rewarding.add_base_delegation(amount.amount);
 
     let cosmos_event = new_delegation_event(&owner, &proxy, &original_amount, mix_id);

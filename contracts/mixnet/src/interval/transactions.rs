@@ -22,7 +22,7 @@ use std::time::Duration;
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
 // however, it should also be called when advancing epoch itself in case somebody
-// manage to sneak in a transaction between those two operations
+// managed to sneak in a transaction between those two operations
 // (but then the amount of work is going to be minimal)
 pub(crate) fn perform_pending_epoch_actions(
     mut deps: DepsMut<'_>,
@@ -273,6 +273,36 @@ pub(crate) fn try_update_interval_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(test)]
+    mod performing_pending_epoch_actions {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod performing_pending_interval_actions {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod reconciling_epoch_events {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod updating_rewarded_set {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod advancing_epoch {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod updating_interval_config {
+        use super::*;
+    }
 }
 
 //

@@ -35,7 +35,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
         fetchTokenAllocation: async () => undefined,
         refreshBalances: async () => {},
       },
-      denom: 'NYM',
+      displayDenom: 'NYM',
       showAdmin: false,
       showTerminal: false,
       showSettings: false,

@@ -57,8 +57,8 @@ export const vestingBondMixNode = async ({
 export const vestingUnbondMixnode = async (fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode', { fee });
 
-export const withdrawVestedCoins = async (amount: DecCoin) =>
-  invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount });
+export const withdrawVestedCoins = async (amount: DecCoin, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount, fee });
 
 export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
   invokeWrapper<TransactionExecuteResult>('vesting_update_mixnode', { profitMarginPercent });

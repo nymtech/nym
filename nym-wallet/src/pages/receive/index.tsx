@@ -6,11 +6,11 @@ import { AppContext } from '../../context/main';
 import { PageLayout } from '../../layouts';
 
 export const Receive = () => {
-  const { clientDetails, denom } = useContext(AppContext);
+  const { clientDetails } = useContext(AppContext);
 
   return (
     <PageLayout>
-      <NymCard title={`Receive ${denom}`}>
+      <NymCard title={`Receive ${clientDetails?.display_mix_denom.toUpperCase()}`}>
         <Stack spacing={3} alignItems="center">
           <Alert severity="info" data-testid="receive-nym" sx={{ width: '100%' }}>
             You can receive tokens by providing this address to the sender

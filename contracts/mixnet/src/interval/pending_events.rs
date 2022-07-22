@@ -9,7 +9,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
-use cosmwasm_std::{wasm_execute, Addr, Coin, Decimal, DepsMut, Env, Response};
+use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
@@ -335,5 +335,69 @@ impl ContractExecutableEvent for PendingIntervalEvent {
                 epoch_duration_secs,
             } => update_interval_config(deps, epochs_in_interval, epoch_duration_secs),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::test_helpers::TestSetup;
+
+    // note that authorization and basic validation has already been performed for all of those
+    // before being pushed onto the event queues
+
+    #[cfg(test)]
+    mod delegating {
+        use super::*;
+
+        #[test]
+        fn returns_the_tokens_if_mixnode_has_unbonded() {
+            let mut test = TestSetup::new();
+        }
+
+        #[test]
+        fn returns_the_tokens_is_mixnode_is_unbonding() {
+            let mut test = TestSetup::new();
+        }
+
+        #[test]
+        fn if_delegation_already_exists_a_fresh_one_with_sum_of_both_is_created() {
+            let mut test = TestSetup::new();
+        }
+
+        #[test]
+        fn appropriately_updates_state_for_fresh_delegation() {
+            let mut test = TestSetup::new();
+        }
+    }
+
+    #[cfg(test)]
+    mod undelegating {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod mixnode_unbonding {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod updating_active_set {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod changing_mix_cost_params {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod updating_interval_rewarding_params {
+        use super::*;
+    }
+
+    #[cfg(test)]
+    mod updating_interval_config {
+        use super::*;
     }
 }

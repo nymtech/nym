@@ -11,6 +11,7 @@ use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use crate::delegation::OwnerProxySubKey;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -241,11 +242,10 @@ pub enum QueryMsg {
     },
     // gets all [paged] delegations associated with particular delegator
     GetDelegatorDelegations {
-        // since `delegator` and `proxy` are user-provided inputs, we can't use `Addr` as we
-        // can't guarantee they're validated.
+        // since `delegator` is user-provided input, we can't use `Addr` as we
+        // can't guarantee it's validated.
         delegator: String,
-        proxy: Option<String>,
-        start_after: Option<NodeId>,
+        start_after: Option<(NodeId, OwnerProxySubKey)>,
         limit: Option<u32>,
     },
     // gets delegation associated with particular mixnode, delegator pair

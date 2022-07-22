@@ -96,10 +96,12 @@ pub(crate) fn validate_delegation_stake(
 
     // if we have a minimum set, check if enough tokens were sent, otherwise just check if its non-zero
     if let Some(minimum_delegation) = minimum_delegation {
-        return Err(MixnetContractError::InsufficientDelegation {
-            received: delegation[0].clone(),
-            minimum: minimum_delegation,
-        });
+        if delegation[0].amount < minimum_delegation.amount {
+            return Err(MixnetContractError::InsufficientDelegation {
+                received: delegation[0].clone(),
+                minimum: minimum_delegation,
+            });
+        }
     } else if delegation[0].amount.is_zero() {
         return Err(MixnetContractError::EmptyDelegation);
     }

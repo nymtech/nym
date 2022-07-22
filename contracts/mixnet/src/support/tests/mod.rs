@@ -24,7 +24,7 @@ pub mod test_helpers {
         minimum_mixnode_pledge, rewarding_denom, rewarding_validator_address,
     };
     use crate::mixnodes::storage as mixnodes_storage;
-    use crate::mixnodes::transactions::try_add_mixnode;
+    use crate::mixnodes::transactions::{try_add_mixnode, try_remove_mixnode};
     use crate::rewards::storage as rewards_storage;
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
@@ -121,6 +121,13 @@ pub mod test_helpers {
             self.owner.clone()
         }
 
+        pub fn vesting_contract(&self) -> Addr {
+            mixnet_params_storage::CONTRACT_STATE
+                .load(self.deps().storage)
+                .unwrap()
+                .vesting_contract_address
+        }
+
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
             let stake = match stake {
                 Some(amount) => {
@@ -132,6 +139,20 @@ pub mod test_helpers {
 
             let env = self.env();
             add_mixnode(&mut self.rng, self.deps.as_mut(), env, owner, vec![stake])
+        }
+
+        pub fn start_unbonding_mixnode(&mut self, mix_id: NodeId) {
+            let bond_details = mixnodes_storage::mixnode_bonds()
+                .load(self.deps().storage, mix_id)
+                .unwrap();
+
+            try_remove_mixnode(self.deps_mut(), mock_info(bond_details.owner.as_str(), &[]))
+                .unwrap();
+        }
+
+        pub fn immediately_unbond_mixnode(&mut self, mix_id: NodeId) {
+            let env = self.env();
+            pending_events::unbond_mixnode(self.deps_mut(), &env, mix_id).unwrap();
         }
 
         pub fn add_immediate_delegation(
@@ -399,6 +420,20 @@ pub mod test_helpers {
             },
             owner_signature,
         )
+    }
+
+    pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: NodeId, n: usize) {
+        for i in 0..n {
+            pending_events::delegate(
+                deps.branch(),
+                &env,
+                Addr::unchecked(&format!("owner{}", i)),
+                mix_id,
+                tests::fixtures::good_mixnode_pledge().pop().unwrap(),
+                None,
+            )
+            .unwrap();
+        }
     }
 
     pub fn add_dummy_mixnodes(

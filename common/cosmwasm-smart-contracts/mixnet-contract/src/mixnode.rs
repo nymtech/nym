@@ -343,6 +343,28 @@ impl MixNodeRewarding {
         self.delegates += Decimal::from_atomics(amount, 0).unwrap()
     }
 
+    pub fn remove_full_delegation_amount(
+        &mut self,
+        amount: Decimal,
+    ) -> Result<(), MixnetContractError> {
+        self.decrease_delegates(amount)?;
+        if self.unique_delegations == 0 {
+            return Err(MixnetContractError::OverflowSubtraction {
+                minuend: 0,
+                subtrahend: 1,
+            });
+        }
+        self.unique_delegations -= 1;
+
+        // if this was last delegation, move all leftover decimal tokens to the operator
+        // (this is literally in the order of a millionth of a micronym)
+        if self.unique_delegations == 0 {
+            self.operator += self.delegates;
+            self.delegates = Decimal::zero();
+        }
+        Ok(())
+    }
+
     pub fn decrease_delegates(&mut self, amount: Decimal) -> Result<(), MixnetContractError> {
         if self.delegates < amount {
             return Err(MixnetContractError::OverflowDecimalSubtraction {

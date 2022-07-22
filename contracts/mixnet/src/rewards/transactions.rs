@@ -326,7 +326,7 @@ pub(crate) fn try_update_rewarding_params(
         rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
         Ok(Response::new().add_event(new_rewarding_params_update_event(
-            Some(updated_params),
+            updated_params,
             rewarding_params.interval,
         )))
     } else {

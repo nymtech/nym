@@ -27,6 +27,7 @@ pub enum MixnetEventType {
     PendingDelegation,
     PendingUndelegation,
     Delegation,
+    DelegationOnUnbonding,
     Undelegation,
     ContractSettingsUpdate,
     RewardingValidatorUpdate,
@@ -76,6 +77,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::ReconcilePendingEvents => "reconcile_pending_events",
             MixnetEventType::PendingIntervalConfigUpdate => "pending_interval_config_update",
             MixnetEventType::IntervalConfigUpdate => "interval_config_update",
+            MixnetEventType::DelegationOnUnbonding => "delegation_on_unbonding_node",
         }
         .into()
     }
@@ -148,23 +150,29 @@ pub const REWARDED_SET_NODES_KEY: &str = "rewarded_set_nodes";
 pub const NEW_EPOCHS_DURATION_SECS_KEY: &str = "new_epoch_durations_secs";
 pub const NEW_EPOCHS_IN_INTERVAL: &str = "new_epochs_in_interval";
 
-// pub fn new_delegation_event(
-//     delegator: &Addr,
-//     proxy: &Option<Addr>,
-//     amount: &Coin,
-//     mix_identity: IdentityKeyRef<'_>,
-// ) -> Event {
-//     let mut event = Event::new(DELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-//
-//     if let Some(proxy) = proxy {
-//         event = event.add_attribute(PROXY_KEY, proxy)
-//     }
-//
-//     // coin implements Display trait and we use that implementation here
-//     event
-//         .add_attribute(AMOUNT_KEY, amount.to_string())
-//         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
-// }
+pub fn new_delegation_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    amount: &Coin,
+    mix_id: NodeId,
+) -> Event {
+    Event::new(MixnetEventType::Delegation)
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
+}
+
+pub fn new_delegation_on_unbonded_node_event(
+    delegator: &Addr,
+    proxy: &Option<Addr>,
+    mix_id: NodeId,
+) -> Event {
+    Event::new(MixnetEventType::Delegation)
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
+}
 
 pub fn new_pending_delegation_event(
     delegator: &Addr,
@@ -223,25 +231,18 @@ pub fn new_pending_active_set_update_event(
 }
 
 pub fn new_rewarding_params_update_event(
-    update: Option<IntervalRewardingParamsUpdate>,
+    update: IntervalRewardingParamsUpdate,
     updated: IntervalRewardParams,
 ) -> Event {
-    if let Some(update) = update {
-        Event::new(MixnetEventType::IntervalRewardingParamsUpdate)
-            .add_attribute(
-                INTERVAL_REWARDING_PARAMS_UPDATE_KEY,
-                update.to_inline_json(),
-            )
-            .add_attribute(
-                UPDATED_INTERVAL_REWARDING_PARAMS_KEY,
-                updated.to_inline_json(),
-            )
-    } else {
-        Event::new(MixnetEventType::IntervalRewardingParamsUpdate).add_attribute(
+    Event::new(MixnetEventType::IntervalRewardingParamsUpdate)
+        .add_attribute(
+            INTERVAL_REWARDING_PARAMS_UPDATE_KEY,
+            update.to_inline_json(),
+        )
+        .add_attribute(
             UPDATED_INTERVAL_REWARDING_PARAMS_KEY,
             updated.to_inline_json(),
         )
-    }
 }
 
 pub fn new_pending_rewarding_params_update_event(
@@ -259,23 +260,12 @@ pub fn new_pending_rewarding_params_update_event(
         )
 }
 
-// pub fn new_undelegation_event(
-//     delegator: &Addr,
-//     proxy: &Option<Addr>,
-//     mix_identity: IdentityKeyRef<'_>,
-//     amount: Uint128,
-// ) -> Event {
-//     let mut event = Event::new(UNDELEGATION_EVENT_TYPE).add_attribute(DELEGATOR_KEY, delegator);
-//
-//     if let Some(proxy) = proxy {
-//         event = event.add_attribute(PROXY_KEY, proxy)
-//     }
-//
-//     // coin implements Display trait and we use that implementation here
-//     event
-//         .add_attribute(AMOUNT_KEY, amount.to_string())
-//         .add_attribute(DELEGATION_TARGET_KEY, mix_identity)
-// }
+pub fn new_undelegation_event(delegator: &Addr, proxy: &Option<Addr>, mix_id: NodeId) -> Event {
+    Event::new(MixnetEventType::Undelegation)
+        .add_attribute(DELEGATOR_KEY, delegator)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(NODE_ID_KEY, mix_id.to_string())
+}
 
 pub fn new_pending_undelegation_event(
     delegator: &Addr,
@@ -332,13 +322,16 @@ pub fn new_mixnode_bonding_event(
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
+pub fn new_mixnode_unbonding_event(node_id: NodeId) -> Event {
+    Event::new(MixnetEventType::MixnodeUnbonding).add_attribute(NODE_ID_KEY, node_id.to_string())
+}
+
 pub fn new_pending_mixnode_unbonding_event(
     owner: &Addr,
     proxy: &Option<Addr>,
     identity: IdentityKeyRef<'_>,
     node_id: NodeId,
 ) -> Event {
-    // coin implements Display trait and we use that implementation here
     Event::new(MixnetEventType::PendingMixnodeUnbonding)
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
@@ -369,6 +362,15 @@ pub fn new_mixnode_pending_cost_params_update_event(
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
+}
+
+pub fn new_mixnode_cost_params_update_event(
+    node_id: NodeId,
+    new_costs: &MixNodeCostParams,
+) -> Event {
+    Event::new(MixnetEventType::MixnodeCostParamsUpdate)
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 

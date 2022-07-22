@@ -15,16 +15,7 @@ pub(crate) fn undelegate(
     mut mix_rewarding: MixNodeRewarding,
 ) -> Result<Coin, MixnetContractError> {
     let reward = mix_rewarding.determine_delegation_reward(&delegation);
-
-    mix_rewarding.decrease_delegates(delegation.dec_amount() + reward)?;
-    mix_rewarding.unique_delegations -= 1;
-
-    // if this was last delegation, move all leftover decimal tokens to the operator
-    // (this is literally in the order of a millionth of a micronym)
-    if mix_rewarding.unique_delegations == 0 {
-        mix_rewarding.operator += mix_rewarding.delegates;
-        mix_rewarding.delegates = Decimal::zero();
-    }
+    mix_rewarding.remove_full_delegation_amount(delegation.dec_amount() + reward)?;
 
     let truncated_reward = truncate_reward_amount(reward);
     let mut amount = delegation.amount.clone();

@@ -201,8 +201,7 @@ pub(crate) mod tests {
             let limit = 2;
 
             test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
-            let page1 =
-                query_mixnode_bonds_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
 
@@ -232,8 +231,7 @@ pub(crate) mod tests {
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
-            let page1 =
-                query_mixnode_bonds_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
+            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(crazy_limit)).unwrap();
 
             // we default to a decent sized upper bound instead
             assert_eq!(MIXNODE_BOND_MAX_RETRIEVAL_LIMIT, page1.nodes.len() as u32);
@@ -255,8 +253,7 @@ pub(crate) mod tests {
             );
 
             let per_page = 2;
-            let page1 =
-                query_mixnode_bonds_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(per_page)).unwrap();
 
             // page should have 1 result on it
             assert_eq!(1, page1.nodes.len());
@@ -271,8 +268,7 @@ pub(crate) mod tests {
             );
 
             // page1 should have 2 results on it
-            let page1 =
-                query_mixnode_bonds_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(per_page)).unwrap();
             assert_eq!(2, page1.nodes.len());
 
             test_helpers::add_mixnode(
@@ -285,15 +281,14 @@ pub(crate) mod tests {
 
             // page1 still has the same 2 results
             let another_page1 =
-                query_mixnode_bonds_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+                query_mixnode_bonds_paged(deps.as_ref(), None, Some(per_page)).unwrap();
             assert_eq!(2, another_page1.nodes.len());
             assert_eq!(page1, another_page1);
 
             // retrieving the next page should start after the last key on this page
             let start_after = page1.start_next_after.unwrap();
-            let page2 =
-                query_mixnode_bonds_paged(deps.as_ref(), Some(start_after), Option::from(per_page))
-                    .unwrap();
+            let page2 = query_mixnode_bonds_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                .unwrap();
 
             assert_eq!(1, page2.nodes.len());
 
@@ -306,12 +301,8 @@ pub(crate) mod tests {
                 good_mixnode_pledge(),
             );
 
-            let page2 = query_mixnode_bonds_paged(
-                deps.as_ref(),
-                Option::from(start_after),
-                Option::from(per_page),
-            )
-            .unwrap();
+            let page2 = query_mixnode_bonds_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                .unwrap();
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.nodes.len());
@@ -331,8 +322,7 @@ pub(crate) mod tests {
             let limit = 2;
 
             test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
-            let page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
 
@@ -362,8 +352,7 @@ pub(crate) mod tests {
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
             let page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Option::from(crazy_limit))
-                    .unwrap();
+                query_mixnodes_details_paged(deps.as_ref(), None, Some(crazy_limit)).unwrap();
 
             // we default to a decent sized upper bound instead
             assert_eq!(
@@ -388,8 +377,7 @@ pub(crate) mod tests {
             );
 
             let per_page = 2;
-            let page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, Some(per_page)).unwrap();
 
             // page should have 1 result on it
             assert_eq!(1, page1.nodes.len());
@@ -404,8 +392,7 @@ pub(crate) mod tests {
             );
 
             // page1 should have 2 results on it
-            let page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, Some(per_page)).unwrap();
             assert_eq!(2, page1.nodes.len());
 
             test_helpers::add_mixnode(
@@ -418,18 +405,15 @@ pub(crate) mod tests {
 
             // page1 still has the same 2 results
             let another_page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+                query_mixnodes_details_paged(deps.as_ref(), None, Some(per_page)).unwrap();
             assert_eq!(2, another_page1.nodes.len());
             assert_eq!(page1, another_page1);
 
             // retrieving the next page should start after the last key on this page
             let start_after = page1.start_next_after.unwrap();
-            let page2 = query_mixnodes_details_paged(
-                deps.as_ref(),
-                Some(start_after),
-                Option::from(per_page),
-            )
-            .unwrap();
+            let page2 =
+                query_mixnodes_details_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                    .unwrap();
 
             assert_eq!(1, page2.nodes.len());
 
@@ -442,12 +426,9 @@ pub(crate) mod tests {
                 good_mixnode_pledge(),
             );
 
-            let page2 = query_mixnodes_details_paged(
-                deps.as_ref(),
-                Option::from(start_after),
-                Option::from(per_page),
-            )
-            .unwrap();
+            let page2 =
+                query_mixnodes_details_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                    .unwrap();
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.nodes.len());
@@ -468,8 +449,7 @@ pub(crate) mod tests {
             let limit = 2;
 
             test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
-            let page1 =
-                query_unbonded_mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+            let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
 
@@ -499,8 +479,7 @@ pub(crate) mod tests {
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
             let page1 =
-                query_unbonded_mixnodes_paged(deps.as_ref(), None, Option::from(crazy_limit))
-                    .unwrap();
+                query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(crazy_limit)).unwrap();
 
             // we default to a decent sized upper bound instead
             assert_eq!(
@@ -531,8 +510,7 @@ pub(crate) mod tests {
             add_unbonded(deps.as_mut().storage, 1);
 
             let per_page = 2;
-            let page1 =
-                query_unbonded_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(per_page)).unwrap();
 
             // page should have 1 result on it
             assert_eq!(1, page1.nodes.len());
@@ -541,37 +519,30 @@ pub(crate) mod tests {
             add_unbonded(deps.as_mut().storage, 2);
 
             // page1 should have 2 results on it
-            let page1 =
-                query_unbonded_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(per_page)).unwrap();
             assert_eq!(2, page1.nodes.len());
 
             add_unbonded(deps.as_mut().storage, 3);
 
             // page1 still has the same 2 results
             let another_page1 =
-                query_unbonded_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+                query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(per_page)).unwrap();
             assert_eq!(2, another_page1.nodes.len());
             assert_eq!(page1, another_page1);
 
             // retrieving the next page should start after the last key on this page
             let start_after = page1.start_next_after.unwrap();
-            let page2 = query_unbonded_mixnodes_paged(
-                deps.as_ref(),
-                Some(start_after),
-                Option::from(per_page),
-            )
-            .unwrap();
+            let page2 =
+                query_unbonded_mixnodes_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                    .unwrap();
 
             assert_eq!(1, page2.nodes.len());
 
             // save another one
             add_unbonded(deps.as_mut().storage, 4);
-            let page2 = query_unbonded_mixnodes_paged(
-                deps.as_ref(),
-                Option::from(start_after),
-                Option::from(per_page),
-            )
-            .unwrap();
+            let page2 =
+                query_unbonded_mixnodes_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                    .unwrap();
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.nodes.len());

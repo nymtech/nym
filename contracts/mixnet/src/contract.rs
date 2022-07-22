@@ -354,14 +354,12 @@ pub fn query(
         ),
         QueryMsg::GetDelegatorDelegations {
             delegator,
-            proxy,
             start_after,
             limit,
         } => to_binary(
             &crate::delegations::queries::query_delegator_delegations_paged(
                 deps,
                 delegator,
-                proxy,
                 start_after,
                 limit,
             )?,

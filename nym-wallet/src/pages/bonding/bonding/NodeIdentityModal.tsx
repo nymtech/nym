@@ -35,7 +35,7 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
     defaultValues: {
       identityKey: '2UB4668XV7qhmJDPp6KLGWGisiaUYThjA4in2o7WKcwA',
       sphinxKey: '5Rh7X4TwMoUwrQ1ivkqWTCGi1pivmHtenaS7VZDUQPYW',
-      signature: '3ccrgwiHhqAbuhhdW7f6UCHZoPFJsQxPcSQRwNc42QVDnDwW8Ebe8p51RhvQp28uqpARysPz52XrE6JuuwJ6fsf8',
+      ownerSignature: '3ccrgwiHhqAbuhhdW7f6UCHZoPFJsQxPcSQRwNc42QVDnDwW8Ebe8p51RhvQp28uqpARysPz52XrE6JuuwJ6fsf8',
       host: '1.1.1.1',
       version: '1.0.7',
       nodeType: 'mixnode',
@@ -103,8 +103,8 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
           defaultValue=""
           label="Signature"
           placeholder="Signature"
-          error={Boolean(errors.signature)}
-          helperText={errors.signature?.message}
+          error={Boolean(errors.ownerSignature)}
+          helperText={errors.ownerSignature?.message}
           required
           muiTextFieldProps={{ fullWidth: true }}
           sx={{ mb: 2.5 }}

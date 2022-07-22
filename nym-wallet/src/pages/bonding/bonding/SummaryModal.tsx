@@ -22,11 +22,11 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
   }, [feeError]);
 
   const fetchFee = async () => {
-    const { signature, host, version, mixPort, identityKey, sphinxKey } = node;
+    const { ownerSignature, host, version, mixPort, identityKey, sphinxKey } = node;
     try {
       if (node.nodeType === 'mixnode') {
         await getFee(amount.tokenPool === 'locked' ? 'bondMixnodeWithVesting' : 'bondMixnode', {
-          ownerSignature: signature,
+          ownerSignature,
           mixnode: {
             identity_key: identityKey,
             sphinx_key: sphinxKey,
@@ -41,7 +41,7 @@ const SummaryModal = ({ open, onClose, onSubmit, node, amount, onCancel, onError
         });
       } else {
         await getFee(amount.tokenPool === 'locked' ? 'bondGatewayWithVesting' : 'bondGateway', {
-          ownerSignature: signature,
+          ownerSignature,
           gateway: {
             identity_key: identityKey,
             sphinx_key: sphinxKey,

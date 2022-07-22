@@ -78,12 +78,12 @@ const BondingCard = ({ onBond }: { onBond: () => void }) => {
   }, [error]);
 
   const bondMixnode = async () => {
-    const { signature, identityKey, sphinxKey, host, version, mixPort, verlocPort, httpApiPort } =
+    const { ownerSignature, identityKey, sphinxKey, host, version, mixPort, verlocPort, httpApiPort } =
       state.nodeData as NodeData<MixnodeData>;
     const { profitMargin, amount, tokenPool } = state.amountData as MixnodeAmount;
 
     const payload = {
-      ownerSignature: signature,
+      ownerSignature,
       mixnode: {
         identity_key: identityKey,
         sphinx_key: sphinxKey,
@@ -94,7 +94,7 @@ const BondingCard = ({ onBond }: { onBond: () => void }) => {
         verloc_port: verlocPort,
         http_api_port: httpApiPort,
       },
-      pledge: { amount: amount.amount, denom: clientDetails?.display_mix_denom || 'nym' },
+      pledge: amount,
     };
     if (tokenPool !== 'locked' && tokenPool !== 'balance') {
       throw new Error(`token pool [${tokenPool}] not supported`);
@@ -109,11 +109,11 @@ const BondingCard = ({ onBond }: { onBond: () => void }) => {
   };
 
   const bondGateway = async () => {
-    const { signature, identityKey, sphinxKey, host, version, location, mixPort, clientsPort } =
+    const { ownerSignature, identityKey, sphinxKey, host, version, location, mixPort, clientsPort } =
       state.nodeData as NodeData<GatewayData>;
     const { amount, tokenPool } = state.amountData as GatewayAmount;
     const payload = {
-      ownerSignature: signature,
+      ownerSignature,
       gateway: {
         identity_key: identityKey,
         sphinx_key: sphinxKey,
@@ -169,9 +169,21 @@ const BondingCard = ({ onBond }: { onBond: () => void }) => {
         }}
       >
         <Typography>Bond a node or a gateway</Typography>
-        <Button size="large" variant="contained" color="primary" type="button" disableElevation onClick={onBond}>
-          Bond
-        </Button>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 2,
+          }}
+        >
+          <Button size="large" variant="outlined">
+            Gateway
+          </Button>
+          <Button size="large" variant="contained" color="primary" type="button" disableElevation onClick={onBond}>
+            Mixnode
+          </Button>
+        </Box>
       </Box>
       {formStep === 1 && showModal && (
         <NodeIdentityModal

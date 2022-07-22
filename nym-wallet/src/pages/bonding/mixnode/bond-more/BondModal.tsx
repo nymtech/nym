@@ -61,7 +61,7 @@ const BondModal = ({ open, onClose, onConfirm, currentBond }: Props) => {
               fullWidth
               label="Amount"
               name="amount"
-              currencyDenom={clientDetails?.display_mix_denom}
+              currencyDenom={clientDetails?.display_mix_denom || 'nym'}
               errorMessage={errors.amount?.amount?.message}
             />
           </Stack>

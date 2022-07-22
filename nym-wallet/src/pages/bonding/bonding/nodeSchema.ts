@@ -5,7 +5,7 @@ import { NodeType } from '../types';
 const nodeSchema = object().shape({
   nodeType: string().required().oneOf(['mixnode', 'gateway']),
   identityKey: string()
-    .required('An indentity key is required')
+    .required('An identity key is required')
     .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),
 
   sphinxKey: string()

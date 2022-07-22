@@ -32,7 +32,7 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
     },
   });
 
-  const { userBalance, denom } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
 
   const onSubmitForm = async (data: AmountData) => {
     if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {
@@ -80,7 +80,7 @@ const AmountModal = ({ open, onClose, onSubmit, nodeType }: Props) => {
               fullWidth
               label="Amount"
               name="amount"
-              currencyDenom={denom}
+              currencyDenom={clientDetails?.display_mix_denom || 'nym'}
               errorMessage={errors.amount?.amount?.message}
             />
           </Stack>

@@ -1,4 +1,5 @@
 import { DecCoin, TNodeType, TransactionExecuteResult } from '@nymproject/types';
+import { TPoolOption } from 'src/components';
 
 export type FormStep = 1 | 2 | 3 | 4;
 export type NodeType = TNodeType;
@@ -21,7 +22,7 @@ export type ACTIONTYPE =
 export type NodeIdentity = {
   identityKey: string;
   sphinxKey: string;
-  signature: string;
+  ownerSignature: string;
   host: string;
   version: string;
   advancedOpt: boolean;
@@ -33,12 +34,14 @@ export type MixnodeData = NodeIdentity & {
   httpApiPort: number;
 };
 
-export type GatewayAmount = {
+export type Amount = {
   amount: DecCoin;
   tokenPool: string;
 };
 
-export type MixnodeAmount = GatewayAmount & {
+export type GatewayAmount = Amount;
+
+export type MixnodeAmount = Amount & {
   profitMargin: number;
 };
 
@@ -53,7 +56,7 @@ export type NodeData<N = MixnodeData | GatewayData> = {
 
 export interface AmountData {
   amount: DecCoin;
-  tokenPool: string;
+  tokenPool: TPoolOption;
   profitMargin?: number;
 }
 

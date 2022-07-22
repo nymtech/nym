@@ -3,7 +3,7 @@ import { isValidHostname, validateAmount, validateKey, validateRawPort, validate
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
-    .required('An indentity key is required')
+    .required('An identity key is required')
     .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),
 
   sphinxKey: Yup.string()
@@ -22,17 +22,17 @@ export const mixnodeValidationSchema = Yup.object().shape({
     .required('A version is required')
     .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
 
-  // mixPort: Yup.number()
-  //   .required('A mixport is required')
-  //   .test('valid-mixport', 'A valid mixport is required', (value) => (value ? validateRawPort(value) : false)),
+  mixPort: Yup.number()
+    .required('A mixport is required')
+    .test('valid-mixport', 'A valid mixport is required', (value) => (value ? validateRawPort(value) : false)),
 
-  // verlocPort: Yup.number()
-  //   .required('A verloc port is required')
-  //   .test('valid-verloc', 'A valid verloc port is required', (value) => (value ? validateRawPort(value) : false)),
+  verlocPort: Yup.number()
+    .required('A verloc port is required')
+    .test('valid-verloc', 'A valid verloc port is required', (value) => (value ? validateRawPort(value) : false)),
 
-  // httpApiPort: Yup.number()
-  //   .required('A http-api port is required')
-  //   .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
+  httpApiPort: Yup.number()
+    .required('A http-api port is required')
+    .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
 });
 
 export const amountSchema = Yup.object().shape({

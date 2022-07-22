@@ -8,8 +8,9 @@ import { TokenPoolSelector, TPoolOption } from 'src/components';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
 import { CurrencyDenom } from '@nymproject/types';
+import { AmountData, MixnodeData } from 'src/pages/bonding/types';
 
-const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
+const NodeData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const {
@@ -17,7 +18,7 @@ const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
     formState: { errors },
     handleSubmit,
     setValue,
-  } = useForm({ resolver: yupResolver(mixnodeValidationSchema) });
+  } = useForm({ resolver: yupResolver(mixnodeValidationSchema), defaultValues: mixnodeData });
 
   const captureEvent = (event: { detail: { step: number } }) => {
     if (event.detail.step === 1) {
@@ -33,23 +34,24 @@ const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
   return (
     <Stack gap={2}>
       <IdentityKeyFormField
-        fullWidth
-        placeholder="Identity Key"
         required
-        onChanged={(value) => setValue('identityKey', value)}
+        fullWidth
+        label="Identity Key"
+        initialValue={mixnodeData?.identityKey}
         errorText={errors.identityKey?.message}
+        onChanged={(value) => setValue('identityKey', value)}
       />
       <TextField
         {...register('sphinxKey')}
         name="sphinxKey"
-        placeholder="Sphinx key"
+        label="Sphinx key"
         error={Boolean(errors.sphinxKey)}
         helperText={errors.sphinxKey?.message}
       />
       <TextField
         {...register('ownerSignature')}
         name="ownerSignature"
-        placeholder="Owner signature"
+        label="Owner signature"
         error={Boolean(errors.host)}
         helperText={errors.host?.message}
       />
@@ -57,7 +59,7 @@ const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
         <TextField
           {...register('host')}
           name="host"
-          placeholder="Host"
+          label="Host"
           error={Boolean(errors.host)}
           helperText={errors.host?.message}
           required
@@ -66,7 +68,7 @@ const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
         <TextField
           {...register('version')}
           name="version"
-          placeholder="Version"
+          label="Version"
           error={Boolean(errors.version)}
           helperText={errors.version?.message}
           required
@@ -82,23 +84,23 @@ const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
           <TextField
             {...register('mixPort')}
             name="mixPort"
-            placeholder="Mix port"
+            label="Mix port"
             error={Boolean(errors.mixPort)}
             helperText={errors.mixPort?.message}
             fullWidth
           />
           <TextField
             {...register('verlocPort')}
-            name="verloc-port"
-            placeholder="Verloc port"
+            name="verlocPort"
+            label="Verloc port"
             error={Boolean(errors.verlocPort)}
             helperText={errors.verlocPort?.message}
             fullWidth
           />
           <TextField
             {...register('httpApiPort')}
-            name="http-api-port"
-            placeholder="HTTP api port"
+            name="httpApiPort"
+            label="HTTP api port"
             error={Boolean(errors.httpApiPort)}
             helperText={errors.httpApiPort?.message}
             fullWidth
@@ -110,22 +112,22 @@ const NodeData = ({ onNext }: { onNext: (data: any) => void }) => {
 };
 
 const AmountData = ({
+  amountData,
   hasVestingTokens,
   denom,
   onNext,
 }: {
+  amountData: AmountData;
   hasVestingTokens: boolean;
   denom: CurrencyDenom;
   onNext: (data: any) => void;
 }) => {
-  const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
-
   const {
     register,
     formState: { errors },
     handleSubmit,
     setValue,
-  } = useForm({ resolver: yupResolver(amountSchema) });
+  } = useForm({ resolver: yupResolver(amountSchema), defaultValues: amountData });
 
   const captureEvent = (event: { detail: { step: number } }) => {
     if (event.detail.step === 2) {
@@ -141,21 +143,22 @@ const AmountData = ({
   return (
     <Stack gap={2}>
       <Box display="flex" gap={2} justifyContent="center" sx={{ mt: 2 }}>
-        {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
+        {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setValue('tokenPool', pool)} />}
         <CurrencyFormField
           required
           fullWidth
-          placeholder="Amount"
+          label="Amount"
           autoFocus
           onChanged={(newValue) => setValue('amount', newValue, { shouldValidate: true })}
           validationError={errors.amount?.amount?.message}
           denom={denom}
+          initialValue={amountData.amount.amount}
         />
       </Box>
       <TextField
         {...register('profitMargin')}
         name="profitMargin"
-        placeholder="Profit margin"
+        label="Profit margin"
         error={Boolean(errors.profitMargin)}
         helperText={errors.profitMargin?.message}
       />
@@ -166,20 +169,31 @@ const AmountData = ({
 export const MixnodeForm = ({
   step,
   denom,
+  mixnodeData,
+  amountData,
   hasVestingTokens,
-  onValidateMixnodeDetail,
-  onValidateAmountDetail,
+  onValidateMixnodeData,
+  onValidateAmountData,
 }: {
   step: 1 | 2;
+  mixnodeData: MixnodeData;
+  amountData: AmountData;
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
-  onValidateMixnodeDetail: (data: any) => void;
-  onValidateAmountDetail: (data: any) => void;
+  onValidateMixnodeData: (data: MixnodeData) => void;
+  onValidateAmountData: (data: any) => void;
 }) => {
-  if (step === 1) return <NodeData onNext={onValidateMixnodeDetail} />;
+  if (step === 1) return <NodeData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />;
 
   if (step === 2)
-    return <AmountData hasVestingTokens={hasVestingTokens} denom={denom} onNext={onValidateAmountDetail} />;
+    return (
+      <AmountData
+        denom={denom}
+        amountData={amountData}
+        hasVestingTokens={hasVestingTokens}
+        onNext={onValidateAmountData}
+      />
+    );
 
   return null;
 };

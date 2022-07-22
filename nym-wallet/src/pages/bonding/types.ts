@@ -25,7 +25,6 @@ export type NodeIdentity = {
   ownerSignature: string;
   host: string;
   version: string;
-  advancedOpt: boolean;
   mixPort: number;
 };
 

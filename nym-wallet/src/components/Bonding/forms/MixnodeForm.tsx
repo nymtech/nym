@@ -1,16 +1,15 @@
-import React, { useEffect } from 'react';
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { Box, Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from '@mui/material';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { TokenPoolSelector, TPoolOption } from 'src/components';
+import React, { useEffect, useState } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
+import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
+import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom } from '@nymproject/types';
-import { AmountData, MixnodeData } from 'src/pages/bonding/types';
+import { useForm } from 'react-hook-form';
+import { TokenPoolSelector } from 'src/components';
+import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
+import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
 
-const NodeData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
+const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const {
@@ -27,8 +26,8 @@ const NodeData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (
   };
 
   useEffect(() => {
-    window.addEventListener('validate_step' as any, captureEvent);
-    return () => window.removeEventListener('validate_step' as any, captureEvent);
+    window.addEventListener('validate_mixnode_step' as any, captureEvent);
+    return () => window.removeEventListener('validate_mixnode_step' as any, captureEvent);
   }, []);
 
   return (
@@ -52,8 +51,8 @@ const NodeData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (
         {...register('ownerSignature')}
         name="ownerSignature"
         label="Owner signature"
-        error={Boolean(errors.host)}
-        helperText={errors.host?.message}
+        error={Boolean(errors.ownerSignature)}
+        helperText={errors.ownerSignature?.message}
       />
       <Stack direction="row" gap={2}>
         <TextField
@@ -111,16 +110,16 @@ const NodeData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (
   );
 };
 
-const AmountData = ({
+const AmountFormData = ({
   amountData,
   hasVestingTokens,
   denom,
   onNext,
 }: {
-  amountData: AmountData;
+  amountData: MixnodeAmount;
   hasVestingTokens: boolean;
   denom: CurrencyDenom;
-  onNext: (data: any) => void;
+  onNext: (data: MixnodeAmount) => void;
 }) => {
   const {
     register,
@@ -131,13 +130,14 @@ const AmountData = ({
 
   const captureEvent = (event: { detail: { step: number } }) => {
     if (event.detail.step === 2) {
+      console.log('>>>>>');
       handleSubmit(onNext)();
     }
   };
 
   useEffect(() => {
-    window.addEventListener('validate_step' as any, captureEvent);
-    return () => window.removeEventListener('validate_step' as any, captureEvent);
+    window.addEventListener('validate_mixnode_step' as any, captureEvent);
+    return () => window.removeEventListener('validate_mixnode_step' as any, captureEvent);
   }, []);
 
   return (
@@ -149,7 +149,9 @@ const AmountData = ({
           fullWidth
           label="Amount"
           autoFocus
-          onChanged={(newValue) => setValue('amount', newValue, { shouldValidate: true })}
+          onChanged={(newValue) => {
+            setValue('amount', newValue, { shouldValidate: true });
+          }}
           validationError={errors.amount?.amount?.message}
           denom={denom}
           initialValue={amountData.amount.amount}
@@ -175,19 +177,19 @@ export const MixnodeForm = ({
   onValidateMixnodeData,
   onValidateAmountData,
 }: {
-  step: 1 | 2;
+  step: 1 | 2 | 3;
   mixnodeData: MixnodeData;
-  amountData: AmountData;
+  amountData: MixnodeAmount;
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
   onValidateMixnodeData: (data: MixnodeData) => void;
-  onValidateAmountData: (data: any) => void;
+  onValidateAmountData: (data: MixnodeAmount) => Promise<void>;
 }) => {
-  if (step === 1) return <NodeData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />;
+  if (step === 1) return <NodeFormData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />;
 
   if (step === 2)
     return (
-      <AmountData
+      <AmountFormData
         denom={denom}
         amountData={amountData}
         hasVestingTokens={hasVestingTokens}

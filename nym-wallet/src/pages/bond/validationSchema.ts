@@ -10,7 +10,7 @@ import {
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
-    .required('An identity key is required')
+    .required('An indentity key is required')
     .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),
 
   sphinxKey: Yup.string()
@@ -60,7 +60,7 @@ export const mixnodeValidationSchema = Yup.object().shape({
 
 export const gatewayValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
-    .required('An identity key is required')
+    .required('An indentity key is required')
     .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),
 
   sphinxKey: Yup.string()

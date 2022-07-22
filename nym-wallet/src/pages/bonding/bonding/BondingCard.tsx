@@ -60,7 +60,7 @@ function reducer(state: BondState, action: ACTIONTYPE) {
   }
 }
 
-const BondingCard = ({ onBond }: { onBond: () => void }) => {
+const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => void; onBondGateway: () => void }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
 
@@ -168,7 +168,7 @@ const BondingCard = ({ onBond }: { onBond: () => void }) => {
           justifyContent: 'space-between',
         }}
       >
-        <Typography>Bond a node or a gateway</Typography>
+        <Typography>Bond a mixnode or a gateway</Typography>
         <Box
           sx={{
             display: 'flex',
@@ -177,10 +177,17 @@ const BondingCard = ({ onBond }: { onBond: () => void }) => {
             gap: 2,
           }}
         >
-          <Button size="large" variant="outlined">
+          <Button size="large" variant="contained" onClick={onBondGateway}>
             Gateway
           </Button>
-          <Button size="large" variant="contained" color="primary" type="button" disableElevation onClick={onBond}>
+          <Button
+            size="large"
+            variant="contained"
+            color="primary"
+            type="button"
+            disableElevation
+            onClick={onBondMixnode}
+          >
             Mixnode
           </Button>
         </Box>

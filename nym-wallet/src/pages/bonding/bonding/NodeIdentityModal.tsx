@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Stack } from '@mui/material';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -26,6 +26,7 @@ const radioOptions: { label: string; value: NodeType }[] = [
 ];
 
 const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
+  const [advancedOpt] = useState(false);
   const {
     control,
     getValues,
@@ -39,7 +40,6 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
       host: '1.1.1.1',
       version: '1.0.7',
       nodeType: 'mixnode',
-      advancedOpt: false,
       mixPort: 1789,
       verlocPort: 1790,
       httpApiPort: 8000,
@@ -49,7 +49,6 @@ const NodeIdentityModal = ({ open, onClose, onSubmit }: Props) => {
   });
 
   const nodeType = useWatch({ name: 'nodeType', control });
-  const advancedOpt = useWatch({ name: 'advancedOpt', control });
 
   const onSubmitForm = (data: NodeData) => {
     onSubmit(data);

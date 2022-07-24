@@ -4,13 +4,13 @@ import { DecCoin, TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
-import { AppContext, BondedMixnode, urls, useBondingContext } from '../../../../context';
+import { AppContext, TBondedMixnode, urls, useBondingContext } from '../../../../context';
 import SummaryModal from './SummaryModal';
 import { ConfirmationModal } from '../../../../components';
 import BondModal from './BondModal';
 
 interface Props {
-  mixnode: BondedMixnode;
+  mixnode: TBondedMixnode;
   show: boolean;
   onClose: () => void;
 }

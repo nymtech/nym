@@ -1,14 +1,13 @@
 import { FeeDetails, DecCoin, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
-import { BondedGateway, BondedMixnode, BondingContext, FeeOperation } from '../bonding';
+import { TBondedGateway, TBondedMixnode, BondingContext } from '../bonding';
 import { mockSleep } from './utils';
 
 const SLEEP_MS = 1000;
 
-const bondedMixnodeMock: BondedMixnode = {
+const bondedMixnodeMock: TBondedMixnode = {
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
-  ip: '112.43.234.56',
   stake: { denom: 'nym', amount: '1234' },
   bond: { denom: 'nym', amount: '1234' },
   stakeSaturation: 95,
@@ -19,7 +18,7 @@ const bondedMixnodeMock: BondedMixnode = {
   status: 'active',
 };
 
-const bondedGatewayMock: BondedGateway = {
+const bondedGatewayMock: TBondedGateway = {
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
   bond: { denom: 'nym', amount: '1234' },
@@ -48,26 +47,26 @@ export const MockBondingContextProvider = ({
   network?: Network;
   children?: React.ReactNode;
 }): JSX.Element => {
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [feeLoading, setFeeLoading] = useState(false);
   const [fee, setFee] = useState<FeeDetails | undefined>();
   const [error, setError] = useState<string>();
-  const [bondedData, setBondedData] = useState<BondedMixnode | BondedGateway | null>(null);
-  const [bondedMixnode, setBondedMixnode] = useState<BondedMixnode | null>(null);
-  const [bondedGateway, setBondedGateway] = useState<BondedGateway | null>(null);
+  const [bondedData, setBondedData] = useState<TBondedMixnode | TBondedGateway | null>(null);
+  const [bondedMixnode, setBondedMixnode] = useState<TBondedMixnode | null>(null);
+  const [bondedGateway, setBondedGateway] = useState<TBondedGateway | null>(null);
   const [trigger, setTrigger] = useState<Date>(new Date());
 
   const triggerStateUpdate = () => setTrigger(new Date());
 
   const resetState = () => {
-    setLoading(true);
+    setIsLoading(true);
     setError(undefined);
     setBondedGateway(null);
     setBondedMixnode(null);
   };
 
   // fake tauri request
-  const fetchBondingData: () => Promise<BondedMixnode | BondedGateway | null> = async () => {
+  const fetchBondingData: () => Promise<TBondedMixnode | TBondedGateway | null> = async () => {
     await mockSleep(SLEEP_MS);
     return bondedData;
   };
@@ -80,7 +79,7 @@ export const MockBondingContextProvider = ({
     if (bounded && !('stake' in bounded)) {
       setBondedGateway(bounded);
     }
-    setLoading(false);
+    setIsLoading(false);
   }, [network]);
 
   useEffect(() => {
@@ -89,70 +88,62 @@ export const MockBondingContextProvider = ({
   }, [network, bondedData]);
 
   const bondMixnode = async (): Promise<TransactionExecuteResult> => {
-    setLoading(true);
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     setBondedData(bondedMixnodeMock);
-    setLoading(false);
+    setIsLoading(false);
     return TxResultMock;
   };
 
   const bondGateway = async (): Promise<TransactionExecuteResult> => {
-    setLoading(true);
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     setBondedData(bondedGatewayMock);
-    setLoading(false);
+    setIsLoading(false);
     return TxResultMock;
   };
 
-  const unbondMixnode = async (): Promise<TransactionExecuteResult> => {
-    setLoading(true);
+  const unbond = async (): Promise<TransactionExecuteResult> => {
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     setBondedData(null);
-    setLoading(false);
-    return TxResultMock;
-  };
-
-  const unbondGateway = async (): Promise<TransactionExecuteResult> => {
-    setLoading(true);
-    await mockSleep(SLEEP_MS);
-    setBondedData(null);
-    setLoading(false);
+    setIsLoading(false);
     return TxResultMock;
   };
 
   const redeemRewards = async (): Promise<TransactionExecuteResult[] | undefined> => {
-    setLoading(true);
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
-    setLoading(false);
+    setIsLoading(false);
     return [TxResultMock];
   };
 
   const compoundRewards = async (): Promise<TransactionExecuteResult[] | undefined> => {
-    setLoading(true);
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
-    setLoading(false);
+    setIsLoading(false);
     return [TxResultMock];
   };
 
   const updateMixnode = async (): Promise<TransactionExecuteResult> => {
-    setLoading(true);
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
-    setLoading(false);
+    setIsLoading(false);
     return TxResultMock;
   };
 
   const bondMore = async (_signature: string, _additionalBond: DecCoin) => {
-    setLoading(true);
+    setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
-    setLoading(false);
+    setIsLoading(false);
     return TxResultMock;
   };
 
-  const getFee = async (_feeOperation: FeeOperation, _args: any) => {
+  const getFee = async (_feeOperation: any, _args: any) => {
     setFeeLoading(true);
     await mockSleep(SLEEP_MS);
     setFeeLoading(false);
@@ -164,12 +155,11 @@ export const MockBondingContextProvider = ({
 
   const memoizedValue = useMemo(
     () => ({
-      loading,
+      isLoading,
       error,
       bondMixnode,
       bondGateway,
-      unbondMixnode,
-      unbondGateway,
+      unbond,
       refresh,
       redeemRewards,
       compoundRewards,
@@ -180,7 +170,7 @@ export const MockBondingContextProvider = ({
       updateMixnode,
       bondMore,
     }),
-    [loading, error, bondedMixnode, bondedGateway, trigger, fee],
+    [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );
 
   return <BondingContext.Provider value={memoizedValue}>{children}</BondingContext.Provider>;

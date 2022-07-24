@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Link } from '@nymproject/react/link/Link';
 import { NymCard } from 'src/components';
+import { TBondedMixnode } from 'src/context';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
-import { BondedMixnode } from '../../../context';
 import { Node as NodeIcon } from '../../../svg-icons/node';
 import { Cell, Header, NodeMenu, NodeTable } from '../components';
 import Unbond from '../unbond';
@@ -58,7 +58,7 @@ const headers: Header[] = [
   },
 ];
 
-const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
+const MixnodeCard = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const { stake, bond, stakeSaturation, profitMargin, nodeRewards, operatorRewards, delegators } = mixnode;
   const [flow, setFlow] = useState<MixnodeFlow>(null);
   const theme = useTheme();
@@ -124,7 +124,7 @@ const MixnodeCard = ({ mixnode }: { mixnode: BondedMixnode }) => {
       <NodeSettings mixnode={mixnode} show={flow === 'nodeSettings'} onClose={() => setFlow(null)} />
       <BondMore mixnode={mixnode} show={flow === 'bondMore'} onClose={() => setFlow(null)} />
       <RedeemRewards mixnode={mixnode} show={flow === 'redeem'} onClose={() => setFlow(null)} />
-      <Unbond node={mixnode} show={flow === 'unbond'} onClose={() => setFlow(null)} />
+      {/* <Unbond node={mixnode} show={flow === 'unbond'} onClose={() => setFlow(null)} /> */}
       <CompoundRewards mixnode={mixnode} show={flow === 'compound'} onClose={() => setFlow(null)} />
     </NymCard>
   );

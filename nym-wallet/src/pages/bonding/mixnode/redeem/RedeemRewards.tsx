@@ -4,12 +4,12 @@ import { TransactionExecuteResult } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
-import { AppContext, BondedMixnode, urls, useBondingContext } from '../../../../context';
+import { AppContext, TBondedMixnode, urls, useBondingContext } from '../../../../context';
 import SummaryModal from './SummaryModal';
 import { ConfirmationModal } from '../../../../components';
 
 interface Props {
-  mixnode: BondedMixnode;
+  mixnode: TBondedMixnode;
   show: boolean;
   onClose: () => void;
 }
@@ -19,15 +19,7 @@ const RedeemRewards = ({ mixnode, show, onClose }: Props) => {
   const [tx, setTx] = useState<TransactionExecuteResult>();
 
   const { network } = useContext(AppContext);
-  const { redeemRewards, error, fee, getFee } = useBondingContext();
-
-  const fetchFee = async () => {
-    await getFee('redeemRewards', {});
-  };
-
-  useEffect(() => {
-    fetchFee();
-  }, []);
+  const { redeemRewards, error } = useBondingContext();
 
   const submit = async () => {
     const txResult = await redeemRewards();
@@ -50,7 +42,6 @@ const RedeemRewards = ({ mixnode, show, onClose }: Props) => {
         onConfirm={submit}
         onCancel={reset}
         rewards={mixnode.operatorRewards}
-        fee={fee?.amount}
       />
       <ConfirmationModal
         open={show && step === 2}

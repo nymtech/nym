@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom } from '@nymproject/types';
-import { useForm } from 'react-hook-form';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { TokenPoolSelector } from 'src/components';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
@@ -19,15 +20,15 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
     setValue,
   } = useForm({ resolver: yupResolver(mixnodeValidationSchema), defaultValues: mixnodeData });
 
-  const captureEvent = (event: { detail: { step: number } }) => {
+  const handleRequestValidation = (event: { detail: { step: number } }) => {
     if (event.detail.step === 1) {
       handleSubmit(onNext)();
     }
   };
 
   useEffect(() => {
-    window.addEventListener('validate_mixnode_step' as any, captureEvent);
-    return () => window.removeEventListener('validate_mixnode_step' as any, captureEvent);
+    window.addEventListener('validate_mixnode_step' as any, handleRequestValidation);
+    return () => window.removeEventListener('validate_mixnode_step' as any, handleRequestValidation);
   }, []);
 
   return (
@@ -126,18 +127,32 @@ const AmountFormData = ({
     formState: { errors },
     handleSubmit,
     setValue,
+    getValues,
+    setError,
   } = useForm({ resolver: yupResolver(amountSchema), defaultValues: amountData });
 
-  const captureEvent = (event: { detail: { step: number } }) => {
-    if (event.detail.step === 2) {
-      console.log('>>>>>');
+  const handleRequestValidation = async (event: { detail: { step: number } }) => {
+    let hasSufficientTokens = true;
+    const values = getValues();
+
+    if (values.tokenPool === 'balance') {
+      hasSufficientTokens = await checkHasEnoughFunds(values.amount.amount);
+    }
+
+    if (values.tokenPool === 'locked') {
+      hasSufficientTokens = await checkHasEnoughLockedTokens(values.amount.amount);
+    }
+
+    if (event.detail.step === 2 && hasSufficientTokens) {
       handleSubmit(onNext)();
+    } else {
+      setError('amount.amount', { message: 'Not enough tokens' });
     }
   };
 
   useEffect(() => {
-    window.addEventListener('validate_mixnode_step' as any, captureEvent);
-    return () => window.removeEventListener('validate_mixnode_step' as any, captureEvent);
+    window.addEventListener('validate_mixnode_step' as any, handleRequestValidation);
+    return () => window.removeEventListener('validate_mixnode_step' as any, handleRequestValidation);
   }, []);
 
   return (

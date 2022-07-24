@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { CurrencyDenom } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
+import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
-import { simulateBondMixnode } from 'src/requests';
+import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { MixnodeForm } from '../forms/MixnodeForm';
 
@@ -36,15 +37,21 @@ export const BondMixnodeModal = ({
 }: {
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
-  onBondMixnode: () => void;
+  onBondMixnode: (data: TBondMixNodeArgs, tokenPool: TPoolOption) => void;
   onClose: () => void;
-  onError: () => void;
+  onError: (e: string) => void;
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [mixnodeData, setMixnodeData] = useState<MixnodeData>(defaultMixnodeValues);
   const [amountData, setAmountData] = useState<MixnodeAmount>(defaultAmountValues(denom));
 
-  const { fee, getFee, resetFeeState } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
+
+  useEffect(() => {
+    if (feeError) {
+      onError(feeError);
+    }
+  }, [feeError]);
 
   const validateStep = async (step: number) => {
     const event = new CustomEvent('validate_mixnode_step', { detail: { step } });
@@ -63,7 +70,7 @@ export const BondMixnodeModal = ({
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
     setAmountData(data);
-    await getFee<TBondMixNodeArgs>(simulateBondMixnode, {
+    const payload = {
       pledge: data.amount,
       ownerSignature: mixnodeData.ownerSignature,
       mixnode: {
@@ -75,7 +82,32 @@ export const BondMixnodeModal = ({
         identity_key: mixnodeData.identityKey,
         profit_margin_percent: data.profitMargin,
       },
-    });
+    };
+
+    if (data.tokenPool === 'balance') {
+      await getFee<TBondMixNodeArgs>(simulateBondMixnode, payload);
+    } else {
+      await getFee<TBondMixNodeArgs>(simulateVestingBondMixnode, payload);
+    }
+  };
+
+  const handleConfirm = async () => {
+    await onBondMixnode(
+      {
+        pledge: amountData.amount,
+        ownerSignature: mixnodeData.ownerSignature,
+        mixnode: {
+          ...mixnodeData,
+          mix_port: mixnodeData.mixPort,
+          http_api_port: mixnodeData.httpApiPort,
+          verloc_port: mixnodeData.verlocPort,
+          sphinx_key: mixnodeData.sphinxKey,
+          identity_key: mixnodeData.identityKey,
+          profit_margin_percent: amountData.profitMargin,
+        },
+      },
+      amountData.tokenPool as TPoolOption,
+    );
   };
 
   if (fee) {
@@ -86,7 +118,7 @@ export const BondMixnodeModal = ({
         fee={fee}
         onClose={onClose}
         onPrev={resetFeeState}
-        onConfirm={async () => {}}
+        onConfirm={handleConfirm}
       >
         <ModalListItem label="Node identity key" value={mixnodeData.identityKey} divider />
         <ModalListItem

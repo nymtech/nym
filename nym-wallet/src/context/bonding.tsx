@@ -1,6 +1,6 @@
 import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Network } from 'src/types';
+import { isMixnode, Network } from 'src/types';
 import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import {
   bondGateway as bondGatewayRequest,
@@ -28,16 +28,16 @@ import {
   getGatewayBondDetails,
   getMixnodeBondDetails,
   getMixnodeStatus,
+  getOperatorRewards,
+  unbondMixNode,
 } from '../requests';
-import { useGetFee } from '../hooks/useGetFee';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 
-const bounded: BondedMixnode = {
+const bonded: TBondedMixnode = {
   identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   bond: { denom: 'nym', amount: '1234' },
   delegators: 123,
-  ip: '1.2.34.5',
   nodeRewards: { denom: 'nym', amount: '123' },
   operatorRewards: { denom: 'nym', amount: '12' },
   profitMargin: 10,
@@ -54,9 +54,8 @@ const bounded: BondedMixnode = {
 }; */
 
 // TODO add relevant data
-export interface BondedMixnode {
+export type TBondedMixnode = {
   identityKey: string;
-  ip: string;
   stake: DecCoin;
   bond: DecCoin;
   stakeSaturation: number;
@@ -65,61 +64,41 @@ export interface BondedMixnode {
   operatorRewards: DecCoin;
   delegators: number;
   status: MixnodeStatus;
-}
+  proxy?: string;
+};
 
 // TODO add relevant data
-export interface BondedGateway {
+export interface TBondedGateway {
   identityKey: string;
   ip: string;
   bond: DecCoin;
   location?: string; // TODO not yet available, only available in Network Explorer API
+  proxy?: string;
 }
 
 export type TokenPool = 'locked' | 'balance';
 
-export type FeeOperation =
-  | 'bondMixnode'
-  | 'bondMixnodeWithVesting'
-  | 'bondGateway'
-  | 'bondGatewayWithVesting'
-  | 'unbondMixnode'
-  | 'unbondGateway'
-  | 'updateMixnode'
-  | 'bondMore'
-  | 'compoundRewards'
-  | 'redeemRewards';
-
 export type TBondingContext = {
-  loading: boolean;
+  isLoading: boolean;
   error?: string;
-  bondedMixnode?: BondedMixnode | null;
-  bondedGateway?: BondedGateway | null;
+  bondedNode?: TBondedMixnode | TBondedGateway;
   refresh: () => Promise<void>;
-  bondMixnode: (
-    data: Omit<TBondMixNodeArgs, 'fee'>,
-    tokenPool: TokenPool,
-  ) => Promise<TransactionExecuteResult | undefined>;
-  bondGateway: (
-    data: Omit<TBondGatewayArgs, 'fee'>,
-    tokenPool: TokenPool,
-  ) => Promise<TransactionExecuteResult | undefined>;
+  bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
+  bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
+  unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   bondMore: (signature: string, additionalBond: DecCoin) => Promise<TransactionExecuteResult | undefined>;
-  unbondMixnode: () => Promise<TransactionExecuteResult | undefined>;
-  unbondGateway: () => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: () => Promise<TransactionExecuteResult[] | undefined>;
   compoundRewards: () => Promise<TransactionExecuteResult[] | undefined>;
   updateMixnode: (pm: number) => Promise<TransactionExecuteResult | undefined>;
-  fee?: FeeDetails;
-  getFee: <T>(feeOperation: FeeOperation, args: T) => Promise<FeeDetails | undefined>;
-  feeDetails?: FeeDetails;
-  feeLoading: boolean;
-  feeError?: string;
-  resetFeeState: () => void;
+};
+
+const calculateStake = (pledge: DecCoin, delegations: DecCoin) => {
+  const total = Number(pledge.amount) + Number(delegations.amount);
+  return { amount: total.toString(), denom: pledge.denom };
 };
 
 export const BondingContext = createContext<TBondingContext>({
-  loading: true,
-  feeLoading: false,
+  isLoading: true,
   refresh: async () => undefined,
   bondMixnode: async () => {
     throw new Error('Not implemented');
@@ -127,10 +106,7 @@ export const BondingContext = createContext<TBondingContext>({
   bondGateway: async () => {
     throw new Error('Not implemented');
   },
-  unbondMixnode: async () => {
-    throw new Error('Not implemented');
-  },
-  unbondGateway: async () => {
+  unbond: async () => {
     throw new Error('Not implemented');
   },
   redeemRewards: async () => {
@@ -139,10 +115,6 @@ export const BondingContext = createContext<TBondingContext>({
   compoundRewards: async () => {
     throw new Error('Not implemented');
   },
-  getFee(): Promise<FeeDetails> {
-    throw new Error('Not implemented');
-  },
-  resetFeeState(): void {},
   updateMixnode: async () => {
     throw new Error('Not implemented');
   },
@@ -158,178 +130,161 @@ export const BondingContextProvider = ({
   network?: Network;
   children?: React.ReactNode;
 }): JSX.Element => {
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const [bondedMixnode, setBondedMixnode] = useState<BondedMixnode | null>(null);
-  const [bondedGateway, setBondedGateway] = useState<BondedGateway | null>(null);
+  const [bondedNode, setBondedNode] = useState<TBondedMixnode | TBondedGateway>();
 
-  const { userBalance } = useContext(AppContext);
-  const { ownership, checkOwnership } = useCheckOwnership();
-  const { fee, resetFeeState, feeError, isFeeLoading } = useGetFee();
+  const { userBalance, clientDetails } = useContext(AppContext);
+  const { ownership, checkOwnership, isLoading: isOwnershipLoading } = useCheckOwnership();
 
   const isVesting = Boolean(ownership.vestingPledge);
 
-  useEffect(() => {
-    if (feeError) {
-      setError(`An error occurred while retrieving fee: ${feeError}`);
-    }
-  }, [feeError]);
-
   const resetState = () => {
-    setLoading(true);
     setError(undefined);
-    setBondedGateway(null);
-    setBondedMixnode(null);
+    setBondedNode(undefined);
   };
 
-  const refresh = useCallback(async () => {
-    let data, status;
-    setLoading(true);
-    if (ownership.hasOwnership && ownership.nodeType === 'mixnode') {
+  const refresh = async () => {
+    setIsLoading(true);
+    if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
       try {
-        data = await getMixnodeBondDetails();
-        status = data ? await getMixnodeStatus(data?.mix_node.identity_key) : undefined;
+        const data = await getMixnodeBondDetails();
+        const operatorRewards = await getOperatorRewards(clientDetails?.client_address);
+        if (data) {
+          console.log(data);
+          const statusResponse = await getMixnodeStatus(data.mix_node.identity_key);
+          setBondedNode({
+            identityKey: data.mix_node.identity_key,
+            ip: '',
+            stake: calculateStake(data.pledge_amount, data.total_delegation),
+            bond: data.pledge_amount,
+            stakeSaturation: bonded.stakeSaturation,
+            profitMargin: data.mix_node.profit_margin_percent,
+            status: statusResponse.status,
+            nodeRewards: data.accumulated_rewards,
+            delegators: bonded.delegators,
+            proxy: data.proxy,
+            operatorRewards,
+          } as TBondedMixnode);
+        }
       } catch (e: any) {
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
       // TODO convert the returned data from the request to `BondedMixnode` type
-      setBondedMixnode(bounded);
     }
-    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
-      try {
-        data = await getGatewayBondDetails();
-        status = data ? await getMixnodeStatus(data?.gateway.identity_key) : undefined;
-      } catch (e: any) {
-        setError(`While fetching current bond state, an error occurred: ${e}`);
-      }
-      // TODO convert the returned data from the request to `BondedGateway` type
-      setBondedGateway(bounded);
-    }
-    setLoading(false);
-  }, [network, ownership]);
+    // if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
+    //   try {
+    //     data = await getGatewayBondDetails();
+    //     status = data ? await getMixnodeStatus(data?.gateway.identity_key) : undefined;
+    //   } catch (e: any) {
+    //     setError(`While fetching current bond state, an error occurred: ${e}`);
+    //   }
+    //   // TODO convert the returned data from the request to `BondedGateway` type
+    //   setBondedGateway(bounded);
+    // }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
     resetState();
     refresh();
   }, [network, ownership]);
 
-  const bondMixnode = async (data: Omit<TBondMixNodeArgs, 'fee'>, tokenPool: TokenPool) => {
+  const bondMixnode = async (data: TBondMixNodeArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;
-    const payload = {
-      ...data,
-      fee: fee?.fee,
-    };
-    setLoading(true);
+    setIsLoading(true);
     try {
       if (tokenPool === 'balance') {
-        tx = await bondMixNodeRequest(payload);
+        tx = await bondMixNodeRequest(data);
         await userBalance.fetchBalance();
       }
       if (tokenPool === 'locked') {
-        tx = await vestingBondMixNode(payload);
+        tx = await vestingBondMixNode(data);
         await userBalance.fetchTokenAllocation();
       }
       return tx;
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
-      setLoading(false);
+      await checkOwnership();
     }
     return undefined;
   };
 
-  const bondGateway = async (data: Omit<TBondGatewayArgs, 'fee'>, tokenPool: TokenPool) => {
+  const bondGateway = async (data: TBondGatewayArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;
-    const payload = {
-      ...data,
-      fee: fee?.fee,
-    };
-    setLoading(true);
+
+    setIsLoading(true);
     try {
       if (tokenPool === 'balance') {
-        tx = await bondGatewayRequest(payload);
+        tx = await bondGatewayRequest(data);
         await userBalance.fetchBalance();
       }
       if (tokenPool === 'locked') {
-        tx = await vestingBondGateway(payload);
+        tx = await vestingBondGateway(data);
         await userBalance.fetchTokenAllocation();
       }
       return tx;
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
     return undefined;
   };
 
-  const unbondMixnode = async () => {
+  const unbond = async (fee?: FeeDetails) => {
     let tx;
-    setLoading(true);
+    setIsLoading(true);
     try {
-      if (isVesting) tx = await vestingUnbondMixnode(fee?.fee);
-      if (!isVesting) tx = await unbondMixnodeRequest(fee?.fee);
-    } catch (e: any) {
-      setError(`an error occurred: ${e}`);
+      if (bondedNode && isMixnode(bondedNode) && bondedNode.proxy) tx = await vestingUnbondMixnode(fee?.fee);
+      if (bondedNode && isMixnode(bondedNode) && !bondedNode.proxy) tx = await unbondMixnodeRequest(fee?.fee);
+    } catch (e) {
+      setError(`an error occurred: ${e as string}`);
     } finally {
       await checkOwnership();
-      setLoading(false);
+      setIsLoading(false);
     }
     return tx;
   };
 
-  const unbondGateway = async () => {
+  const updateMixnode = async (pm: number, fee?: FeeDetails) => {
     let tx;
-    setLoading(true);
-    try {
-      if (isVesting) tx = await vestingUnbondGateway(fee?.fee);
-      if (!isVesting) tx = await unbondGatewayRequest(fee?.fee);
-    } catch (e: any) {
-      setError(`an error occurred: ${e}`);
-    } finally {
-      await checkOwnership();
-      setLoading(false);
-    }
-    return tx;
-  };
-
-  const updateMixnode = async (pm: number) => {
-    let tx;
-    setLoading(true);
+    setIsLoading(true);
     try {
       // TODO use estimated fee, need requests update
-      if (isVesting) tx = await updateMixnodeRequest(pm);
-      if (!isVesting) tx = await updateMixnodeVestingRequest(pm);
+      if (isVesting) tx = await updateMixnodeRequest(pm, fee?.fee);
+      if (!isVesting) tx = await updateMixnodeVestingRequest(pm, fee?.fee);
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
     return tx;
   };
 
   const redeemRewards = async () => {
     let tx;
-    setLoading(true);
+    setIsLoading(true);
     try {
       tx = await claimOperatorRewards(); // TODO use estimated fee, update `claimOperatorRewards`
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
     return tx;
   };
 
   const compoundRewards = async () => {
     let tx;
-    setLoading(true);
+    setIsLoading(true);
     try {
       tx = await compoundOperatorRewards(); // TODO use estimated fee, update `compoundOperatorRewards`
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
     return tx;
   };
@@ -338,54 +293,21 @@ export const BondingContextProvider = ({
     // TODO to implement
     undefined;
 
-  const feeOps = useMemo(
-    () => ({
-      bondMixnode: simulateBondMixnode,
-      bondMixnodeWithVesting: simulateVestingBondMixnode,
-      bondGateway: simulateBondGateway,
-      bondGatewayWithVesting: simulateVestingBondGateway,
-      unbondMixnode: isVesting ? simulateVestingUnbondMixnode : simulateUnbondMixnode,
-      unbondGateway: isVesting ? simulateVestingUnbondGateway : simulateUnbondGateway,
-      updateMixnode: isVesting ? simulateVestingUpdateMixnode : simulateUpdateMixnode,
-      bondMore: () => undefined as unknown as Promise<FeeDetails>, // TODO fee request to implement
-      compoundRewards: () => undefined as unknown as Promise<FeeDetails>, // TODO fee request to implement
-      redeemRewards: () => undefined as unknown as Promise<FeeDetails>, // TODO fee request to implement
-    }),
-    [isVesting],
-  );
-
-  const getFee = async (feeOperation: FeeOperation, args: any) => {
-    let details;
-    try {
-      details = feeOps[feeOperation](args);
-    } catch (e: any) {
-      setError(`An error occurred while retrieving fee: ${e}`);
-    }
-    return details;
-  };
-
   const memoizedValue = useMemo(
     () => ({
-      loading,
+      isLoading: isLoading || isOwnershipLoading,
       error,
       bondMixnode,
-      bondedMixnode,
-      bondedGateway,
+      bondedNode,
       bondGateway,
-      unbondMixnode,
-      unbondGateway,
+      unbond,
       updateMixnode,
       refresh,
       redeemRewards,
       compoundRewards,
-      feeLoading: isFeeLoading,
-      feeError,
-      getFee,
-      fee,
-      resetFeeState,
       bondMore,
     }),
-    [loading, error, bondedMixnode, bondedGateway, isFeeLoading, feeError, fee, resetFeeState, isVesting],
+    [isLoading, isOwnershipLoading, error, bondedNode, isVesting],
   );
 
   return <BondingContext.Provider value={memoizedValue}>{children}</BondingContext.Provider>;

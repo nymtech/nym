@@ -1,5 +1,6 @@
 import { Gateway, DecCoin, MixNode, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
+import { TBondedGateway, TBondedMixnode } from 'src/context';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -51,3 +52,8 @@ export type TAccount = {
   address: string;
   mnemonic: string;
 };
+
+export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBondedMixnode =>
+  (node as TBondedMixnode).profitMargin !== undefined;
+
+export const isGateway = (node: TBondedMixnode | TBondedGateway): node is TBondedGateway => !isMixnode(node);

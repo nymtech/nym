@@ -17,15 +17,7 @@ export interface Props {
 }
 
 const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentBond, addBond }: Props) => {
-  const { getFee, fee, error } = useBondingContext();
-
-  const fetchFee = async () => {
-    await getFee('bondMore', {});
-  };
-
-  useEffect(() => {
-    fetchFee();
-  }, []);
+  const { error } = useBondingContext();
 
   if (error) {
     return (
@@ -64,7 +56,6 @@ const SummaryModal = ({ open, onClose, onConfirm, onCancel, currentBond, addBond
       <Divider sx={{ my: 1 }} />
       <Stack direction="row" justifyContent="space-between">
         <Typography fontWeight={400}>Fee for this operation</Typography>
-        <Typography fontWeight={400}>{fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : ''}</Typography>
       </Stack>
     </SimpleModal>
   );

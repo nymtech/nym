@@ -60,7 +60,15 @@ function reducer(state: BondState, action: ACTIONTYPE) {
   }
 }
 
-const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => void; onBondGateway: () => void }) => {
+const BondingCard = ({
+  disabled,
+  onBondMixnode,
+  onBondGateway,
+}: {
+  disabled: boolean;
+  onBondMixnode: () => void;
+  onBondGateway: () => void;
+}) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { formStep, showModal } = state;
 
@@ -177,7 +185,7 @@ const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => vo
             gap: 2,
           }}
         >
-          <Button size="large" variant="contained" onClick={onBondGateway}>
+          <Button size="large" variant="contained" onClick={onBondGateway} disabled={disabled}>
             Gateway
           </Button>
           <Button
@@ -187,6 +195,7 @@ const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => vo
             type="button"
             disableElevation
             onClick={onBondMixnode}
+            disabled={disabled}
           >
             Mixnode
           </Button>
@@ -194,7 +203,7 @@ const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => vo
       </Box>
       {formStep === 1 && showModal && (
         <NodeIdentityModal
-          open={true}
+          open
           onClose={() => dispatch({ type: 'reset' })}
           onSubmit={async (data) => {
             dispatch({ type: 'set_node_data', payload: data });
@@ -204,7 +213,7 @@ const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => vo
       )}
       {formStep === 2 && showModal && (
         <AmountModal
-          open={true}
+          open
           onClose={() => dispatch({ type: 'reset' })}
           onSubmit={async (data) => {
             dispatch({ type: 'set_amount_data', payload: data });
@@ -215,7 +224,7 @@ const BondingCard = ({ onBondMixnode, onBondGateway }: { onBondMixnode: () => vo
       )}
       {formStep === 3 && showModal && (
         <SummaryModal
-          open={true}
+          open
           onClose={() => dispatch({ type: 'reset' })}
           onCancel={() => dispatch({ type: 'prev_step' })}
           onSubmit={onSubmit}

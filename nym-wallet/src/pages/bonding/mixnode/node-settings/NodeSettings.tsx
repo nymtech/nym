@@ -5,12 +5,12 @@ import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
 import ProfitMarginModal from './ProfitMarginModal';
-import { AppContext, BondedMixnode, urls, useBondingContext } from '../../../../context';
+import { AppContext, TBondedMixnode, urls, useBondingContext } from '../../../../context';
 import SummaryModal from './SummaryModal';
 import { ConfirmationModal } from '../../../../components';
 
 interface Props {
-  mixnode: BondedMixnode;
+  mixnode: TBondedMixnode;
   show: boolean;
   onClose: () => void;
 }
@@ -25,7 +25,7 @@ const NodeSettings = ({ mixnode, show, onClose }: Props) => {
   const [tx, setTx] = useState<TransactionExecuteResult>();
 
   const { network } = useContext(AppContext);
-  const { updateMixnode, error, fee, getFee } = useBondingContext();
+  const { updateMixnode, error } = useBondingContext();
 
   const submit = async () => {
     const txResult = await updateMixnode(profitMargin as number);
@@ -62,7 +62,6 @@ const NodeSettings = ({ mixnode, show, onClose }: Props) => {
         onCancel={() => setStep(1)}
         currentPm={mixnode.profitMargin}
         newPm={profitMargin as number}
-        fee={fee?.amount}
       />
       {status === 'success' && (
         <ConfirmationModal

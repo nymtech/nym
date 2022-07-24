@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
-import { BondedGateway } from '../../../context';
+import { TBondedGateway } from '../../../context';
 import { Cell, Header, NodeMenu, NodeTable } from '../components';
 import Unbond from '../unbond';
 import { GatewayFlow } from './types';
@@ -24,7 +24,7 @@ const headers: Header[] = [
   },
 ];
 
-const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
+const GatewayCard = ({ gateway }: { gateway: TBondedGateway }) => {
   const { ip, bond } = gateway;
   const [flow, setFlow] = useState<GatewayFlow>(null);
 
@@ -55,7 +55,7 @@ const GatewayCard = ({ gateway }: { gateway: BondedGateway }) => {
       }
     >
       <NodeTable headers={headers} cells={cells} />
-      <Unbond node={gateway} show={flow === 'unbond'} onClose={() => setFlow(null)} />
+      {/* <Unbond node={gateway} show={flow === 'unbond'} onClose={() => setFlow(null)} /> */}
     </NymCard>
   );
 };

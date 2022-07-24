@@ -3,35 +3,32 @@ import { useContext, useEffect, useState } from 'react';
 import { Link } from '@nymproject/react/link/Link';
 import { Typography } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
-import { AppContext, BondedGateway, BondedMixnode, urls, useBondingContext } from '../../../context';
+import { AppContext, TBondedGateway, TBondedMixnode, urls, useBondingContext } from 'src/context';
 import SummaryModal from './SummaryModal';
 import { ConfirmationModal } from '../../../components';
 import { LoadingModal } from '../../../components/Modals/LoadingModal';
 import { NodeType } from '../types';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { SimpleModal } from 'src/components/Modals/SimpleModal';
+import { Network } from 'src/types';
+import { ModalListItem } from 'src/components/Modals/ModalListItem';
+import { ModalFee } from 'src/components/Modals/ModalFee';
 
 interface Props {
-  node: BondedMixnode | BondedGateway;
+  node: TBondedMixnode | TBondedGateway;
   show: boolean;
+  network: Network;
+  onConfirm: () => void;
   onClose: () => void;
 }
 
-type UnbondStatus = 'success' | 'error';
-
-const Unbond = ({ node, show, onClose }: Props) => {
-  const [step, setStep] = useState<1 | 2>(1);
+const Unbond = ({ node, show, onConfirm, onClose }: Props) => {
   const [txHash, setTxHash] = useState<string>();
-  const [status, setStatus] = useState<UnbondStatus>();
   const [nodeType, setNodeType] = useState<NodeType>('mixnode');
 
-  const { network } = useContext(AppContext);
-  const { fee, getFee, resetFeeState, feeLoading, feeError, loading, unbondMixnode, unbondGateway, error } =
-    useBondingContext();
+  const { fee, isFeeLoading, getFee, resetFeeState } = useGetFee();
 
-  useEffect(() => {
-    if (error || feeError) {
-      setStatus('error');
-    }
-  }, [error, feeError]);
+  const handleGetFee = async () => {};
 
   useEffect(() => {
     if ('profitMargin' in node) {
@@ -41,90 +38,20 @@ const Unbond = ({ node, show, onClose }: Props) => {
     }
   }, [node]);
 
-  const unbond = async () => {
-    let tx;
-    if (nodeType === 'mixnode') {
-      tx = await unbondMixnode();
-    } else {
-      tx = await unbondGateway();
-    }
-    if (!tx) {
-      setStatus('error');
-    }
-    setStatus('success');
-    setTxHash(tx?.transaction_hash);
-    return tx;
-  };
-
-  const fetchFee = async () => {
-    if (nodeType === 'mixnode') {
-      await getFee('unbondMixnode', {});
-    } else {
-      await getFee('unbondGateway', {});
-    }
-  };
-
-  useEffect(() => {
-    fetchFee();
-  }, [node]);
-
-  const submit = async () => {
-    if (status === 'error') {
-      // Fetch fee failed
-      return;
-    }
-    unbond();
-    resetFeeState();
-    setStep(2);
-  };
-
-  const reset = () => {
-    setStep(1);
-    onClose();
-  };
-
-  if (feeLoading || loading) return <LoadingModal />;
-
   return (
-    <>
-      <SummaryModal
-        open={show && step === 1}
-        onClose={reset}
-        onConfirm={submit}
-        onCancel={reset}
-        bond={node.bond}
-        rewards={nodeType === 'mixnode' ? (node as BondedMixnode).operatorRewards : undefined}
-        fee={fee?.amount}
-      />
-      {status === 'success' && (
-        <ConfirmationModal
-          open={show && step === 2}
-          onClose={reset}
-          onConfirm={reset}
-          title="Unbonding succesfull"
-          confirmButton="Done"
-          maxWidth="xs"
-        >
-          <Typography sx={{ mb: 2 }}>This operation can take up to one hour to process</Typography>
-          <Link href={`${urls(network).blockExplorer}/transaction/${txHash}`} noIcon>
-            View on blockchain
-          </Link>
-        </ConfirmationModal>
-      )}
-      {status === 'error' && (
-        <ConfirmationModal
-          open={show}
-          onClose={reset}
-          onConfirm={reset}
-          title="Unbonding failed"
-          confirmButton="Done"
-          maxWidth="xs"
-        >
-          <Typography variant="caption">Error: {error}</Typography>
-          <ErrorOutline color="error" />
-        </ConfirmationModal>
-      )}
-    </>
+    <SimpleModal
+      open
+      header="Unbond"
+      subHeader="Unbond and remove your node from the mixnet"
+      okLabel="Unbond"
+      onOk={handleGetFee}
+      onClose={resetFeeState}
+    >
+      <ModalListItem label="Amount to unbond" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} />
+      <ModalListItem label="Operator rewards" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} />
+      <ModalFee isLoading={isFeeLoading} fee={fee} />
+      <Typography>Tokens will be transferred to account you are logged in with now</Typography>
+    </SimpleModal>
   );
 };
 

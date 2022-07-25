@@ -9,9 +9,6 @@ pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 pub mod events;
 pub mod messages;
 
-pub fn one_ucoin(denom: String) -> Coin {
-    Coin::new(1, denom)
-}
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

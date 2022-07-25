@@ -16,6 +16,7 @@ CREATE TABLE service_statistics
 CREATE TABLE gateway_statistics
 (
     id                         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    gateway_id                 VARCHAR NOT NULL,
     inbox_count                INTEGER NOT NULL,
     timestamp                  DATETIME NOT NULL
 );

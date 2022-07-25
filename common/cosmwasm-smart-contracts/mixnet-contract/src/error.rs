@@ -1,5 +1,5 @@
 use crate::interval::FullEpochId;
-use crate::{IdentityKey, NodeId};
+use crate::NodeId;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
 

@@ -6,7 +6,7 @@ use crate::reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
 use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
 pub use contracts_common::events::*;
-use cosmwasm_std::{Addr, Coin, Event, Uint128};
+use cosmwasm_std::{Addr, Coin, Event};
 
 pub enum MixnetEventType {
     MixnodeBonding,

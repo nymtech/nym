@@ -51,12 +51,12 @@ jobs:
 
       - name: Install dependencies
         run: yarn install
-        working-directory: nym-wallet/webdriver
+        working-directory: nym-wallet/wallet-ui-tests
 
       - name: Remove existing user datafile
         uses: JesseTG/rm@v1.0.2
         with:
-          path: nym-wallet/webdriver/common/data/user-data.json
+          path: nym-wallet/wallet-ui-tests/common/user-data.json
 
       - name: Create user data json file
         id: create-json
@@ -64,7 +64,7 @@ jobs:
         with:
           name: "user-data.json"
           json: ${{ secrets.WALLET_USERDATA }}
-          dir: "nym-wallet/webdriver/common/data/"
+          dir: "nym-wallet/wallet-ui-tests/common/"
 
       - name: Install tauri-driver
         uses: actions-rs/cargo@v1
@@ -73,5 +73,5 @@ jobs:
           args: tauri-driver
 
       - name: Launch tests
-        run: xvfb-run yarn test:runall
-        working-directory: nym-wallet/webdriver
+        run: xvfb-run yarn test
+        working-directory: nym-wallet/wallet-ui-tests

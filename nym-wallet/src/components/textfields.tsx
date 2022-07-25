@@ -15,7 +15,7 @@ export const MnemonicInput: React.FC<{
         label="Mnemonic"
         inputProps={{
           "data-testid": "mnemonicInput",
-      }}
+        }}
         type={showPassword ? 'input' : 'password'}
         value={mnemonic}
         onChange={(e) => onUpdateMnemonic(e.target.value)}
@@ -65,6 +65,9 @@ export const PasswordInput: React.FC<{
                 {showPassword ? <VisibilityOff /> : <Visibility />}
               </IconButton>
             ),
+          }}
+          inputProps={{
+          "data-testid": label,
           }}
         />
       </Box>

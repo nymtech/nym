@@ -4,9 +4,10 @@
   "description": "ui tests for the nym wallet",
   "scripts": {
     "test": "wdio run wdio.conf.ts",
-    "test:welcome": "wdio run wdio.conf.ts --suite welcome",
+    "test:signup": "wdio run wdio.conf.ts --suite signup",
     "test:login": "wdio run wdio.conf.ts --suite login",
-    "test:balance": "wdio run wdio.conf.ts --suite balance"
+    "test:balance": "wdio run wdio.conf.ts --suite balance",
+    "test:nav": "wdio run wdio.conf.ts --suite nav"
     
   },
   "author": "",
@@ -15,6 +16,7 @@
     "-": "^0.0.1",
     "@wdio/cli": "^7.16.16",
     "save-dev": "^0.0.1-security",
+    "@zxing/browser": "^0.0.9",
     "ts-node": "^10.6.0"
   },
   "devDependencies": {

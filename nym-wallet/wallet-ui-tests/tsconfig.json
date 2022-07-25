@@ -1,7 +1,14 @@
 {
   "compilerOptions": {
-    "types": ["node", "webdriverio/async", "@wdio/mocha-framework", "expect-webdriverio"],
+    "types": [
+      "node",
+      "webdriverio/async",
+      "@wdio/mocha-framework",
+      "expect-webdriverio"
+    ],
     "target": "ES5"
   },
-  "include": ["wallet-ui-tests/*"]
+  "include": [
+    "wallet-ui-tests/*"
+  ]
 }

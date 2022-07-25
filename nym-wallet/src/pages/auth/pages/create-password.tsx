@@ -47,7 +47,6 @@ export const CreatePassword = () => {
               onUpdatePassword={(pswd) => setPassword(pswd)}
               label="Password"
               autoFocus
-              data-testid="password"
             />
             <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
           </>
@@ -55,7 +54,6 @@ export const CreatePassword = () => {
             password={confirmedPassword}
             onUpdatePassword={(pswd) => setConfirmedPassword(pswd)}
             label="Confirm password"
-            data-testid="confirmPassword"
           />
           <Button
             size="large"

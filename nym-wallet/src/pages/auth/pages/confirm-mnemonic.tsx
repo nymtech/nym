@@ -20,6 +20,7 @@ export const ConfirmMnemonic = () => {
       <Subtitle subtitle="Enter the mnemonic you wish to create a password for" />
       <MnemonicInput mnemonic={localMnemonic} onUpdateMnemonic={(mnc) => setLocalMnemonic(mnc)} error={error} />
       <Button
+        data-testid="nextToPasswordCreation"
         size="large"
         variant="contained"
         fullWidth
@@ -37,6 +38,7 @@ export const ConfirmMnemonic = () => {
         Next
       </Button>
       <Button
+        data-testid="backToMnemonicSignIn"
         size="large"
         color="inherit"
         fullWidth

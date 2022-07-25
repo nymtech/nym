@@ -28,7 +28,7 @@ type ClientAddressProps = {
   showEntireAddress?: boolean;
 };
 
-export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }> = ({
+export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string } > = ({
   withLabel,
   withCopy,
   showEntireAddress,
@@ -44,7 +44,7 @@ export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }>
     )}
 
     <AddressTooltip address={address} visible={!showEntireAddress}>
-      <Typography variant="body2" component="span" sx={{ mr: 1, color: 'text.primary', fontWeight: 400 }}>
+      <Typography data-testid="accountNumber" variant="body2" component="span" sx={{ mr: 1, color: 'text.primary', fontWeight: 400 }}>
         {showEntireAddress ? address || '' : splice(6, address)}
       </Typography>
     </AddressTooltip>

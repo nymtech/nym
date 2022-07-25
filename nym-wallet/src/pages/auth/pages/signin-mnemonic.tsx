@@ -39,7 +39,7 @@ export const SignInMnemonic = () => {
         >
           <Stack spacing={2}>
             <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(mnc) => setMnemonic(mnc)} error={error} />
-            <Button variant="contained" size="large" fullWidth type="submit" data-testid="signIn">
+            <Button variant="contained" size="large" fullWidth type="submit" data-testid="signInSubmitButton">
               Sign in with mnemonic
             </Button>
             <Box display="flex" justifyContent={passwordExists ? 'center' : 'space-between'}>
@@ -47,7 +47,7 @@ export const SignInMnemonic = () => {
                 Back
               </Button>
               {!passwordExists && (
-                <Button color="info" onClick={() => handlePageChange('/confirm-mnemonic')} data-testid="createPassword">
+                <Button color="info" onClick={() => handlePageChange('/confirm-mnemonic')} data-testid="goToCreatePassword">
                   Create a password
                 </Button>
               )}

@@ -45,15 +45,14 @@ export const VerifyMnemonic = () => {
         <Subtitle subtitle="Select the words from your mnmonic based on their order" />
         <HiddenWords mnemonicWords={hiddenRandomWords} />
         <WordTiles
-        data-testid="number"
           mnemonicWords={randomWords}
           onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined}
           buttons
         />
-        <Stack spacing={3} sx={{ width: 300 }} data-testid="randomMnemonicWords">
+        <Stack spacing={3} sx={{ width: 300 }}>
           <Button
             variant="contained"
-            data-testid="next"
+            data-testid="nextToStep3"
             fullWidth
             size="large"
             disabled={currentSelection !== numberOfRandomWords}

@@ -87,7 +87,7 @@ export const Nav = () => {
             }
           })
           .map(({ Icon, onClick, label, route }) => (
-            <ListItem disableGutters key={label} onClick={onClick} sx={{ cursor: 'pointer' }}>
+            <ListItem disableGutters key={label} onClick={onClick} sx={{ cursor: 'pointer' }} data-testid={label}>
               <ListItemIcon
                 sx={{
                   minWidth: 30,

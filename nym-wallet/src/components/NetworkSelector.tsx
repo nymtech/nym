@@ -7,8 +7,8 @@ import { config } from '../config';
 
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },
-  { networkName: 'SANDBOX', name: 'Testnet Sandbox'},
-  { networkName: 'QA', name: 'QA'  },
+  { networkName: 'SANDBOX', name: 'Testnet Sandbox' },
+  { networkName: 'QA', name: 'QA' },
 ];
 
 const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
@@ -16,7 +16,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
   isSelected,
   onSelect,
 }) => (
-  <ListItem button onClick={onSelect} data-testid={ title }>
+  <ListItem button onClick={onSelect} data-testid={title}>
     <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
     <ListItemText>{title}</ListItemText>
   </ListItem>
@@ -38,6 +38,7 @@ export const NetworkSelector = () => {
   return (
     <>
       <Button
+        data-testid="networkEnv"
         variant="text"
         color="primary"
         sx={{ color: 'text.primary' }}

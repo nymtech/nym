@@ -29,6 +29,7 @@ export const SignInPassword = () => {
               autoFocus
             />
             <Button
+              data-testid="signInPasswordButton"
               variant="contained"
               size="large"
               fullWidth
@@ -38,6 +39,7 @@ export const SignInPassword = () => {
             </Button>
             <Box display="flex" justifyContent="space-between">
               <Button
+                data-testid="backToSignInOptionsFromPassword"
                 color="inherit"
                 disableElevation
                 onClick={() => {
@@ -49,6 +51,7 @@ export const SignInPassword = () => {
               </Button>
 
               <Button
+                data-testid="forgotPasswordButton"
                 color="info"
                 onClick={() => {
                   setError(undefined);

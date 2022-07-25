@@ -99,7 +99,7 @@ const TerminalInner: React.FC = () => {
             <Box width="100%" display="flex" justifyContent="space-between">
               <Box display="flex" alignItems="center">
                 <TerminalIcon sx={{ mr: 1 }} />
-                <Typography mr={4}>Terminal</Typography>
+                <Typography mr={4} data-testid='terminal-header'>Terminal</Typography>
                 {!isBusy && <RefreshIcon onClick={refresh} cursor="pointer" />}
               </Box>
               <CloseIcon onClick={handleShowTerminal} cursor="pointer" />

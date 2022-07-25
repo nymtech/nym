@@ -31,7 +31,7 @@ export const NymCard: React.FC<{
     {noPadding ? (
       <CardContentNoPadding>{children}</CardContentNoPadding>
     ) : (
-      <CardContent sx={{ p: 3 }} data-testid="check-balance">{children}</CardContent>
+      <CardContent sx={{ p: 3 }} >{children}</CardContent>
     )}
   </Card>
 );

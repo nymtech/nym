@@ -17,7 +17,7 @@ exports.config = {
   specs: ['./tests/specs/**/*.ts'],
 
   suites: {
-    welcome: [
+    signup: [
       './tests/specs/newaccount/*.ts',
     ],
     login: [
@@ -25,6 +25,9 @@ exports.config = {
     ],
     balance: [
       './tests/specs/balance/*.ts',
+    ],
+    nav: [
+      './tests/specs/navbaritems/*.ts',
     ],
   },
   // Patterns to exclude.

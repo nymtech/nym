@@ -57,6 +57,7 @@ export const ConnectPassword = () => {
             label="Confirm password"
           />
           <Button
+            data-testid="createPasswordButton"
             size="large"
             variant="contained"
             disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
@@ -65,6 +66,7 @@ export const ConnectPassword = () => {
             {isLoading ? <CircularProgress size={25} /> : 'Create password'}
           </Button>
           <Button
+            data-testid="backToStep1PasswordCreation"
             size="large"
             color="inherit"
             onClick={() => {

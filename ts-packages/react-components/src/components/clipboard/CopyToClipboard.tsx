@@ -27,7 +27,7 @@ export const CopyToClipboard: React.FC<{
       {showConfirmation ? (
         <DoneIcon color="success" sx={sx} />
       ) : (
-        <ContentCopyIcon onClick={handleCopy} sx={{ cursor: 'pointer', ...sx }} />
+        <ContentCopyIcon data-testid="ContentCopyIcon" onClick={handleCopy} sx={{ cursor: 'pointer', ...sx }} />
       )}
     </Tooltip>
   );

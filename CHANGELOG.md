@@ -48,6 +48,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: fee payment for multisig operations comes from the gateway account instead of the validator APIs' accounts ([#1419])
 - multisig-contract: Limit the proposal creating functionality to one address (coconut-bandwidth-contract address) ([#1457])
 - All binaries and cosmwasm blobs are configured at runtime now; binaries are configured using environment variables or .env files and contracts keep the configuration parameters in storage ([#1463])
+- gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
 
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -71,6 +72,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1419]: https://github.com/nymtech/nym/pull/1419
 [#1457]: https://github.com/nymtech/nym/pull/1457
 [#1463]: https://github.com/nymtech/nym/pull/1463
+[#1478]: https://github.com/nymtech/nym/pull/1478
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

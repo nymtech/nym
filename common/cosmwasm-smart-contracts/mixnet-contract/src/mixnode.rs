@@ -5,14 +5,13 @@ use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::interval::FullEpochId;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
-use crate::rewarding::helpers::{truncate_reward, truncate_reward_amount};
+use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
 use crate::{Delegation, IdentityKey, NodeId, Percent, SphinxKey};
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::fmt::Display;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -71,11 +70,6 @@ impl MixNodeDetails {
 
     pub fn total_stake(&self) -> Decimal {
         self.rewarding_details.node_bond()
-    }
-
-    pub fn total_stake_f64(&self) -> Option<f64> {
-        let stake = self.total_stake();
-        todo!()
     }
 }
 

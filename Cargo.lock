@@ -6311,7 +6311,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.1"
+version = "2.0.0"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",

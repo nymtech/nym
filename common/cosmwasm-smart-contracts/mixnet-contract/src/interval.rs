@@ -8,7 +8,6 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;

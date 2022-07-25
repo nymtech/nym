@@ -7,7 +7,7 @@ use crate::storage::{
 };
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::NodeId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vesting_contract_common::{Period, PledgeData};
@@ -198,9 +198,9 @@ impl Account {
         remove_gateway_pledge(self.storage_key(), storage)
     }
 
-    pub fn any_delegation_for_mix(&self, mix: &str, storage: &dyn Storage) -> bool {
+    pub fn any_delegation_for_mix(&self, mix_id: NodeId, storage: &dyn Storage) -> bool {
         DELEGATIONS
-            .prefix((self.storage_key(), mix.to_string()))
+            .prefix((self.storage_key(), mix_id))
             .range(storage, None, None, Order::Ascending)
             .next()
             .is_some()
@@ -208,7 +208,7 @@ impl Account {
 
     pub fn remove_delegations_for_mix(
         &self,
-        mix: &str,
+        mix_id: NodeId,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         let limit = 50;
@@ -219,7 +219,7 @@ impl Account {
         loop {
             block_heights.extend(
                 DELEGATIONS
-                    .prefix((self.storage_key(), mix.to_string()))
+                    .prefix((self.storage_key(), mix_id))
                     .keys(storage, start_after, None, Order::Ascending)
                     .take(limit)
                     .filter_map(|key| key.ok()),
@@ -238,18 +238,18 @@ impl Account {
         }
 
         for block_height in block_heights {
-            remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
+            remove_delegation((self.storage_key(), mix_id, block_height), storage)?;
         }
         Ok(())
     }
 
     pub fn total_delegations_for_mix(
         &self,
-        mix: IdentityKey,
+        mix_id: NodeId,
         storage: &dyn Storage,
     ) -> Result<Uint128, ContractError> {
         Ok(DELEGATIONS
-            .prefix((self.storage_key(), mix))
+            .prefix((self.storage_key(), mix_id))
             .range(storage, None, None, Order::Ascending)
             .filter_map(|x| x.ok())
             .fold(Uint128::zero(), |acc, (_key, val)| acc + val))

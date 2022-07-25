@@ -1,7 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
 use crate::mixnode::{MixNodeCostParams, MixNodeRewarding};
 use crate::reward_params::{IntervalRewardParams, NodeRewardParams, RewardingParams};

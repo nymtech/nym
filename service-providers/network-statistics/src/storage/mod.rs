@@ -71,7 +71,11 @@ impl NetworkStatisticsStorage {
                 }
                 statistics_common::StatsData::Gateway(gateway_data) => {
                     self.manager
-                        .insert_gateway_statistics(gateway_data.inbox_count, timestamp)
+                        .insert_gateway_statistics(
+                            gateway_data.gateway_id,
+                            gateway_data.inbox_count,
+                            timestamp,
+                        )
                         .await?
                 }
             }

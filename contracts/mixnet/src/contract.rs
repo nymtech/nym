@@ -27,6 +27,7 @@ use crate::mixnodes::bonding_queries::{
     query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::queued_migrations::migrate_config_from_env;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
@@ -463,6 +464,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrate_config_from_env(_deps, _env, _msg)?;
     Ok(Default::default())
 }
 

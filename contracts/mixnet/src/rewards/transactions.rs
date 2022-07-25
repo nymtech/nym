@@ -164,8 +164,6 @@ pub(crate) fn _try_withdraw_operator_reward(
             // otherwise, we don't care
             let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
             if proxy == &vesting_contract {
-                // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
-                // to use the same call for both operator and delegators?
                 let msg = VestingContractExecuteMsg::TrackReward {
                     amount: reward.clone(),
                     address: owner.clone().into_string(),
@@ -251,8 +249,6 @@ pub(crate) fn _try_withdraw_delegator_reward(
             // otherwise, we don't care
             let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
             if proxy == &vesting_contract {
-                // TODO: ask @DU if this is the intended way of using "TrackReward" (are we supposed
-                // to use the same call for both operator and delegators?
                 let msg = VestingContractExecuteMsg::TrackReward {
                     amount: reward.clone(),
                     address: owner.clone().into_string(),

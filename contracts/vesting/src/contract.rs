@@ -14,7 +14,8 @@ use cosmwasm_std::{
     QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
-use mixnet_contract_common::{Gateway, IdentityKey, MixNode, NodeId};
+use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use mixnet_contract_common::{Gateway, MixNode, NodeId};
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -49,7 +50,6 @@ pub fn instantiate(
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     migrate_config_from_env(_deps, _env, _msg)?;
     todo!("we'd probably need to explicitly undelegate/unbond everyone here to move to the new system");
-    todo!("since we removed all 1ucoin sends on the mixnet contract side, we'd probably want to do the same thing here");
 
     Ok(Response::default())
 }
@@ -72,13 +72,9 @@ pub fn execute(
         ExecuteMsg::ClaimDelegatorReward { mix_id } => {
             try_claim_delegator_reward(deps, info, mix_id)
         }
-        ExecuteMsg::CompoundDelegatorReward { mix_id } => {
-            try_compound_delegator_reward(mix_id, info, deps)
+        ExecuteMsg::UpdateMixnodeConfig { new_config } => {
+            try_update_mixnode_config(new_config, info, deps)
         }
-        ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
-        ExecuteMsg::UpdateMixnodeConfig {
-            profit_margin_percent,
-        } => try_update_mixnode_config(profit_margin_percent, info, deps),
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
@@ -110,9 +106,18 @@ pub fn execute(
         } => try_track_undelegation(&owner, mix_id, amount, info, deps),
         ExecuteMsg::BondMixnode {
             mix_node,
+            cost_params,
             owner_signature,
             amount,
-        } => try_bond_mixnode(mix_node, owner_signature, amount, info, env, deps),
+        } => try_bond_mixnode(
+            mix_node,
+            cost_params,
+            owner_signature,
+            amount,
+            info,
+            env,
+            deps,
+        ),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
@@ -148,12 +153,12 @@ pub fn try_update_locked_pledge_cap(
 }
 
 pub fn try_update_mixnode_config(
-    profit_margin_percent: u8,
+    new_config: MixNodeConfigUpdate,
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_update_mixnode_config(profit_margin_percent, deps.storage)
+    account.try_update_mixnode_config(new_config, deps.storage)
 }
 
 // Only contract admin, set at init
@@ -277,16 +282,9 @@ pub fn try_track_unbond_gateway(
     Ok(Response::new().add_event(new_track_gateway_unbond_event()))
 }
 
-pub fn try_compound_operator_reward(
-    info: MessageInfo,
-    deps: DepsMut<'_>,
-) -> Result<Response, ContractError> {
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_compound_operator_reward(deps.storage)
-}
-
 pub fn try_bond_mixnode(
     mix_node: MixNode,
+    cost_params: MixNodeCostParams,
     owner_signature: String,
     amount: Coin,
     info: MessageInfo,
@@ -296,7 +294,14 @@ pub fn try_bond_mixnode(
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let pledge = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-    account.try_bond_mixnode(mix_node, owner_signature, pledge, &env, deps.storage)
+    account.try_bond_mixnode(
+        mix_node,
+        cost_params,
+        owner_signature,
+        pledge,
+        &env,
+        deps.storage,
+    )
 }
 
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut<'_>) -> Result<Response, ContractError> {
@@ -344,9 +349,8 @@ fn try_track_undelegation(
     }
     let account = account_from_address(address, deps.storage, deps.api)?;
 
-    todo!()
-    // account.track_undelegation(mix_identity, amount, deps.storage)?;
-    // Ok(Response::new().add_event(new_track_undelegation_event()))
+    account.track_undelegation(mix_id, amount, deps.storage)?;
+    Ok(Response::new().add_event(new_track_undelegation_event()))
 }
 
 fn try_delegate_to_mixnode(
@@ -360,19 +364,7 @@ fn try_delegate_to_mixnode(
     let amount = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
 
-    todo!()
-    // account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
-}
-
-fn try_compound_delegator_reward(
-    mix_id: NodeId,
-    info: MessageInfo,
-    deps: DepsMut<'_>,
-) -> Result<Response, ContractError> {
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
-
-    todo!()
-    // account.try_compound_delegator_reward(mix_identity, deps.storage)
+    account.try_delegate_to_mixnode(mix_id, amount, &env, deps.storage)
 }
 
 fn try_claim_operator_reward(
@@ -390,8 +382,7 @@ fn try_claim_delegator_reward(
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
 
-    todo!()
-    // account.try_claim_delegator_reward(mix_identity, deps.storage)
+    account.try_claim_delegator_reward(mix_id, deps.storage)
 }
 
 fn try_undelegate_from_mixnode(
@@ -401,8 +392,7 @@ fn try_undelegate_from_mixnode(
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
 
-    todo!()
-    // account.try_undelegate_from_mixnode(mix_identity, deps.storage)
+    account.try_undelegate_from_mixnode(mix_id, deps.storage)
 }
 
 fn try_create_periodic_vesting_account(
@@ -535,10 +525,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetCurrentVestingPeriod { address } => {
             to_binary(&try_get_current_vesting_period(&address, deps, env)?)
         }
-        QueryMsg::GetDelegationTimes {
-            address,
-            mix_identity,
-        } => to_binary(&try_get_delegation_times(deps, &address, mix_identity)?),
+        QueryMsg::GetDelegationTimes { address, mix_id } => {
+            to_binary(&try_get_delegation_times(deps, &address, mix_id)?)
+        }
         QueryMsg::GetAllDelegations { start_after, limit } => {
             to_binary(&try_get_all_delegations(deps, start_after, limit)?)
         }

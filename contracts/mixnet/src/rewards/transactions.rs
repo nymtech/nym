@@ -220,6 +220,7 @@ pub fn try_compound_operator_reward_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
+    return Err(ContractError::CompoundDisabled);
     let proxy = deps.api.addr_validate(info.sender.as_str())?;
     let owner = deps.api.addr_validate(&owner)?;
 
@@ -239,6 +240,7 @@ pub fn try_compound_operator_reward(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    return Err(ContractError::CompoundDisabled);
     let owner = deps.api.addr_validate(info.sender.as_str())?;
     let reward =
         _try_compound_operator_reward(deps.storage, deps.api, env.block.height, &owner, None)?;
@@ -352,6 +354,7 @@ pub fn try_compound_delegator_reward_on_behalf(
     owner: String,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
+    return Err(ContractError::CompoundDisabled);
     let proxy = deps.api.addr_validate(info.sender.as_str())?;
     let owner = deps.api.addr_validate(&owner)?;
     let reward = _try_compound_delegator_reward(
@@ -428,6 +431,7 @@ pub fn try_compound_delegator_reward(
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
+    return Err(ContractError::CompoundDisabled);
     let owner = deps.api.addr_validate(info.sender.as_str())?;
     let reward = _try_compound_delegator_reward(
         env.block.height,
@@ -1117,8 +1121,10 @@ pub mod tests {
         //     must_find_attribute(event, FURTHER_DELEGATIONS_TO_REWARD_KEY)
         // );
     }
-
+    
+    // TODO: Enable when enabling compound
     #[test]
+    #[ignore]
     fn test_reward_additivity_and_snapshots() {
         use crate::constants::INTERVAL_REWARD_PERCENT;
         use crate::contract::INITIAL_REWARD_POOL;

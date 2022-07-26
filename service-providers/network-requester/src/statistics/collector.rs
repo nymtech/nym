@@ -194,17 +194,10 @@ impl StatisticsCollector for ServiceStatisticsCollector {
     }
 
     async fn reset_stats(&mut self) {
-        self.request_stats_data
-            .write()
-            .await
-            .client_processed_bytes
-            .iter_mut()
-            .for_each(|(_, b)| *b = 0);
+        self.request_stats_data.write().await.client_processed_bytes = HashMap::new();
         self.response_stats_data
             .write()
             .await
-            .client_processed_bytes
-            .iter_mut()
-            .for_each(|(_, b)| *b = 0);
+            .client_processed_bytes = HashMap::new();
     }
 }

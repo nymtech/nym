@@ -19,7 +19,6 @@ use mixnet_contract_common::events::{
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::{Delegation, NodeId};
 use std::time::Duration;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
@@ -36,7 +35,7 @@ pub(crate) fn delegate(
     env: &Env,
     owner: Addr,
     mix_id: NodeId,
-    mut amount: Coin,
+    amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the target node still exists (it might have unbonded between this event getting created
@@ -62,39 +61,41 @@ pub(crate) fn delegate(
         }
     };
 
-    let original_amount = amount.clone();
+    let new_delegation_amount = amount.clone();
     let mut mix_rewarding = mixnode_details.rewarding_details;
+
+    // the delegation_amount might get increased if there's already a pre-existing delegation on this mixnode
+    // (in that case we just create a fresh delegation with the sum of both)
+    let mut stored_delegation_amount = amount;
 
     // if there's an existing delegation, then withdraw the full reward and create a new delegation
     // with the sum of both
     let storage_key = Delegation::generate_storage_key(mix_id, &owner, proxy.as_ref());
-    let (amount, old_delegation) = if let Some(existing_delegation) =
+    let old_delegation = if let Some(existing_delegation) =
         delegations_storage::delegations().may_load(deps.storage, storage_key.clone())?
     {
-        // remove the reward from the node
-        let reward = mix_rewarding.determine_delegation_reward(&existing_delegation);
-        mix_rewarding.remove_full_delegation_amount(reward)?;
+        // completely remove the delegation from the node
+        let og_with_reward = mix_rewarding.undelegate(&existing_delegation)?;
 
-        let truncated_reward = truncate_reward_amount(reward);
-        amount.amount += truncated_reward;
+        // and adjust the new value by the amount removed (which contains the original delegation
+        // alongside any earned rewards)
+        stored_delegation_amount.amount += og_with_reward.amount;
 
-        (amount, Some(existing_delegation))
+        Some(existing_delegation)
     } else {
-        (amount, None)
+        None
     };
 
-    // add the amount we're intending to delegate
-    mix_rewarding.unique_delegations += 1;
-    mix_rewarding.add_base_delegation(amount.amount);
+    // add the amount we're intending to delegate (whether it's fresh or we're adding to the existing one)
+    mix_rewarding.add_base_delegation(stored_delegation_amount.amount);
 
-    let cosmos_event = new_delegation_event(&owner, &proxy, &original_amount, mix_id);
+    let cosmos_event = new_delegation_event(&owner, &proxy, &new_delegation_amount, mix_id);
 
-    // create delegation and store it
     let delegation = Delegation::new(
         owner,
         mix_id,
         mix_rewarding.total_unit_reward,
-        amount,
+        stored_delegation_amount,
         env.block.height,
         proxy,
     );
@@ -341,6 +342,7 @@ impl ContractExecutableEvent for PendingIntervalEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::TestSetup;
 
     // note that authorization and basic validation has already been performed for all of those
@@ -349,31 +351,342 @@ mod tests {
     #[cfg(test)]
     mod delegating {
         use super::*;
+        use crate::mixnodes::transactions::try_remove_mixnode;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use crate::support::tests::test_helpers::get_bank_send_msg;
+        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::{coin, Decimal};
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
         fn returns_the_tokens_if_mixnode_has_unbonded() {
             let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let delegation = 120_000_000u128;
+            let delegation_coin = coin(delegation, TEST_COIN_DENOM);
+            let owner1 = "delegator1";
+            let owner2 = "delegator2";
+
+            // add pre-existing delegation
+            test.add_immediate_delegation(owner1, delegation, mix_id);
+
+            let env = test.env();
+            unbond_mixnode(test.deps_mut(), &env, mix_id).unwrap();
+
+            let res_increase = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner1),
+                mix_id,
+                delegation_coin.clone(),
+                None,
+            )
+            .unwrap();
+
+            // delegation wasn't increased
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner1), None);
+            let amount = delegations_storage::delegations()
+                .load(test.deps().storage, storage_key)
+                .unwrap()
+                .amount;
+            assert_eq!(amount, delegation_coin);
+
+            // and all tokens are returned back to the delegator
+            let (receiver, sent_amount) = get_bank_send_msg(&res_increase).unwrap();
+            assert_eq!(receiver, owner1);
+            assert_eq!(sent_amount[0], delegation_coin);
+
+            // for a fresh delegation, nothing was added to the storage either
+            let res_fresh = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner2),
+                mix_id,
+                delegation_coin.clone(),
+                None,
+            )
+            .unwrap();
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner2), None);
+            assert!(delegations_storage::delegations()
+                .may_load(test.deps().storage, storage_key)
+                .unwrap()
+                .is_none());
+
+            // and all tokens are returned back to the delegator
+            let (receiver, sent_amount) = get_bank_send_msg(&res_fresh).unwrap();
+            assert_eq!(receiver, owner2);
+            assert_eq!(sent_amount[0], delegation_coin);
         }
 
         #[test]
         fn returns_the_tokens_is_mixnode_is_unbonding() {
             let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let delegation = 120_000_000u128;
+            let delegation_coin = coin(delegation, TEST_COIN_DENOM);
+            let owner1 = "delegator1";
+            let owner2 = "delegator2";
+
+            // add pre-existing delegation
+            test.add_immediate_delegation(owner1, delegation, mix_id);
+
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), mock_info("mix-owner", &[])).unwrap();
+
+            let res_increase = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner1),
+                mix_id,
+                delegation_coin.clone(),
+                None,
+            )
+            .unwrap();
+
+            // delegation wasn't increased
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner1), None);
+            let amount = delegations_storage::delegations()
+                .load(test.deps().storage, storage_key)
+                .unwrap()
+                .amount;
+            assert_eq!(amount, delegation_coin);
+
+            // and all tokens are returned back to the delegator
+            let (receiver, sent_amount) = get_bank_send_msg(&res_increase).unwrap();
+            assert_eq!(receiver, owner1);
+            assert_eq!(sent_amount[0], delegation_coin);
+
+            // for a fresh delegation, nothing was added to the storage either
+            let res_fresh = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner2),
+                mix_id,
+                delegation_coin.clone(),
+                None,
+            )
+            .unwrap();
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner2), None);
+            assert!(delegations_storage::delegations()
+                .may_load(test.deps().storage, storage_key)
+                .unwrap()
+                .is_none());
+
+            // and all tokens are returned back to the delegator
+            let (receiver, sent_amount) = get_bank_send_msg(&res_fresh).unwrap();
+            assert_eq!(receiver, owner2);
+            assert_eq!(sent_amount[0], delegation_coin);
         }
 
         #[test]
         fn if_delegation_already_exists_a_fresh_one_with_sum_of_both_is_created() {
             let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+
+            let delegation_og = 120_000_000u128;
+            let delegation_new = 543_000_000u128;
+            let delegation_coin_new = coin(delegation_new, TEST_COIN_DENOM);
+
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, delegation_og, mix_id);
+
+            let env = test.env();
+            let res = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner),
+                mix_id,
+                delegation_coin_new,
+                None,
+            )
+            .unwrap();
+
+            let expected_amount = delegation_og + delegation_new;
+            let expected_amount_dec = Decimal::from_atomics(expected_amount, 0).unwrap();
+
+            // no refunds here!
+            assert!(get_bank_send_msg(&res).is_none());
+
+            let rewarding = rewards_storage::MIXNODE_REWARDING
+                .load(test.deps().storage, mix_id)
+                .unwrap();
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
+            let delegation = delegations_storage::delegations()
+                .load(test.deps().storage, storage_key)
+                .unwrap();
+
+            assert_eq!(rewarding.unique_delegations, 1);
+            assert_eq!(rewarding.delegates, expected_amount_dec);
+
+            assert_eq!(delegation.amount.amount.u128(), expected_amount)
+        }
+
+        #[test]
+        fn if_delegation_already_exists_with_unclaimed_rewards_fresh_one_is_created() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+
+            let delegation_og = 120_000_000u128;
+            let delegation_new = 543_000_000u128;
+            let delegation_coin_new = coin(delegation_new, TEST_COIN_DENOM);
+
+            // perform some rewarding here to advance the unit delegation beyond the initial value
+            test.update_rewarded_set(vec![mix_id]);
+            test.skip_to_next_epoch_end();
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.skip_to_next_epoch_end();
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let owner = "delegator";
+            test.add_immediate_delegation(owner, delegation_og, mix_id);
+
+            test.skip_to_next_epoch_end();
+            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.skip_to_next_epoch_end();
+            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
+            let delegation_pre = delegations_storage::delegations()
+                .load(test.deps().storage, storage_key.clone())
+                .unwrap();
+
+            let env = test.env();
+            let res = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner),
+                mix_id,
+                delegation_coin_new,
+                None,
+            )
+            .unwrap();
+
+            let earned_before_update = dist1.delegates + dist2.delegates;
+            let truncated_reward = truncate_reward_amount(earned_before_update);
+
+            let expected_amount = delegation_og + delegation_new + truncated_reward.u128();
+            let expected_amount_dec = Decimal::from_atomics(expected_amount, 0).unwrap();
+
+            // no refunds here!
+            assert!(get_bank_send_msg(&res).is_none());
+
+            let rewarding = test.mix_rewarding(mix_id);
+            let delegation_post = delegations_storage::delegations()
+                .load(test.deps().storage, storage_key)
+                .unwrap();
+
+            assert_ne!(
+                delegation_pre.cumulative_reward_ratio,
+                delegation_post.cumulative_reward_ratio
+            );
+            assert_eq!(
+                delegation_post.cumulative_reward_ratio,
+                rewarding.total_unit_reward
+            );
+
+            assert_eq!(rewarding.unique_delegations, 1);
+            assert_eq!(rewarding.delegates, expected_amount_dec);
+
+            assert_eq!(delegation_post.amount.amount.u128(), expected_amount)
         }
 
         #[test]
         fn appropriately_updates_state_for_fresh_delegation() {
             let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let owner = "delegator";
+
+            let delegation = 120_000_000u128;
+            let delegation_coin = coin(120_000_000u128, TEST_COIN_DENOM);
+
+            // perform some rewarding here to advance the unit delegation beyond the initial value
+            test.update_rewarded_set(vec![mix_id]);
+            test.skip_to_next_epoch_end();
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.skip_to_next_epoch_end();
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let storage_key =
+                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
+            let delegation_pre = delegations_storage::delegations()
+                .may_load(test.deps().storage, storage_key.clone())
+                .unwrap();
+            let rewarding_pre = test.mix_rewarding(mix_id);
+            assert!(delegation_pre.is_none());
+            assert!(rewarding_pre.delegates.is_zero());
+
+            let env = test.env();
+            let res = delegate(
+                test.deps_mut(),
+                &env,
+                Addr::unchecked(owner),
+                mix_id,
+                delegation_coin.clone(),
+                None,
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&res).is_none());
+
+            let delegation_post = delegations_storage::delegations()
+                .load(test.deps().storage, storage_key)
+                .unwrap();
+            let rewarding_post = test.mix_rewarding(mix_id);
+            assert_eq!(delegation_post.amount, delegation_coin);
+            assert_eq!(
+                delegation_post.cumulative_reward_ratio,
+                rewarding_post.total_unit_reward
+            );
+            assert_eq!(
+                rewarding_post.delegates,
+                Decimal::from_atomics(delegation, 0).unwrap()
+            )
+        }
+
+        #[test]
+        fn attaches_vesting_contract_track_message_if_tokens_are_returned() {
+            todo!()
         }
     }
 
     #[cfg(test)]
     mod undelegating {
         use super::*;
+
+        #[test]
+        fn doesnt_return_any_tokens_if_it_doesnt_exist() {
+            //
+        }
+
+        #[test]
+        fn errors_out_if_mix_rewarding_doesnt_exist() {
+            //
+        }
+
+        /*
+                   let mut test = TestSetup::new();
+           let mix_id = test.add_dummy_mixnode("mix-owner", None);
+           let owner1 = "delegator1";
+           let owner2 = "delegator2";
+           let og_amount = 100_000_000u32;
+
+           test.add_immediate_delegation(owner1, og_amount, mix_id);
+           test.skip_to_next_epoch_end();
+           test.update_rewarded_set(vec![mix_id]);
+           let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+           test.add_immediate_delegation(owner2, og_amount, mix_id);
+
+
+           // delegator1 has earned some rewards while delegator2 did not
+        */
     }
 
     #[cfg(test)]

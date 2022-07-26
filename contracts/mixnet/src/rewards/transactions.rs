@@ -466,7 +466,7 @@ pub fn _try_compound_delegator_reward(
         proxy.as_ref(),
     );
     let reward = calculate_delegator_reward(deps.storage, deps.api, key.clone(), mix_identity)?;
-    let mut compounded_delegation = reward;
+    let mut total_delegation_delegate = Uint128::zero();
 
     // Might want to introduce paging here
     let delegation_heights = delegation_map
@@ -478,7 +478,7 @@ pub fn _try_compound_delegator_reward(
     for h in delegation_heights {
         let delegation =
             delegation_map.load(deps.storage, (mix_identity.to_string(), key.clone(), h))?;
-        compounded_delegation += delegation.amount.amount;
+        total_delegation_delegate += delegation.amount.amount;
         delegation_map.replace(
             deps.storage,
             (mix_identity.to_string(), key.clone(), h),
@@ -487,7 +487,22 @@ pub fn _try_compound_delegator_reward(
         )?;
     }
 
+    let compounded_delegation = total_delegation_delegate + reward;
+
     if compounded_delegation != Uint128::zero() {
+        mixnodes_storage::TOTAL_DELEGATION.update::<_, ContractError>(
+            deps.storage,
+            mix_identity,
+            |total_delegation| {
+                // since we know that the target node exists and because the total_delegation bucket
+                // entry is created whenever the node itself is added, the unwrap here is fine
+                // as the entry MUST exist
+                Ok(total_delegation
+                    .unwrap()
+                    .saturating_sub(total_delegation_delegate))
+            },
+        )?;
+
         _try_delegate_to_mixnode(
             deps.branch(),
             block_height,

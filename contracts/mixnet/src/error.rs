@@ -181,5 +181,5 @@ pub enum ContractError {
     #[error("`mix_identity` is required when `delegator` is set")]
     MissingMixIdentity,
     #[error("Compounding has been disabled temporarily")]
-    CompoundDisabled
+    CompoundDisabled,
 }

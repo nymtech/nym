@@ -1121,7 +1121,7 @@ pub mod tests {
         //     must_find_attribute(event, FURTHER_DELEGATIONS_TO_REWARD_KEY)
         // );
     }
-    
+
     // TODO: Enable when enabling compound
     #[test]
     #[ignore]

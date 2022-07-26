@@ -252,10 +252,13 @@ pub(crate) mod tests {
         let res = query_owns_mixnode(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.mixnode.is_some());
 
+        let api = deps.api.clone();
+
         // but after unbonding it, he doesn't own one anymore
         crate::mixnodes::transactions::try_remove_mixnode(
-            env,
-            deps.as_mut(),
+            &env,
+            deps.as_mut().storage,
+            &api,
             mock_info("fred", &[]),
         )
         .unwrap();

@@ -28,16 +28,18 @@ use crate::mixnodes::bonding_queries::{
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::queued_migrations::migrate_config_from_env;
+use crate::mixnodes::transactions::_try_remove_mixnode;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Uint128,
+    Storage, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ContractStateParams, ExecuteMsg, IdentityKey, InstantiateMsg, MigrateMsg, NodeToRemove,
+    QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -141,7 +143,7 @@ pub fn execute(
             owner_signature,
         ),
         ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::transactions::try_remove_mixnode(env, deps, info)
+            crate::mixnodes::transactions::try_remove_mixnode(&env, deps.storage, deps.api, info)
         }
         ExecuteMsg::UpdateMixnodeConfig {
             profit_margin_percent,
@@ -235,7 +237,13 @@ pub fn execute(
             owner_signature,
         ),
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(env, deps, info, owner)
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(
+                &env,
+                deps.storage,
+                deps.api,
+                info,
+                owner,
+            )
         }
         ExecuteMsg::BondGatewayOnBehalf {
             gateway,
@@ -462,9 +470,28 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
+// Removes nodes we've deemed malicious, returns the pledge to the owners, but does not send any rewards
+fn remove_malicious_node(
+    storage: &mut dyn Storage,
+    api: &dyn Api,
+    env: &Env,
+    node: &NodeToRemove,
+) -> Result<Response, ContractError> {
+    let proxy = node.proxy().map(|p| {
+        api.addr_validate(p)
+            .unwrap_or_else(|_| panic!("Invalid address: {}", p))
+    });
+    _try_remove_mixnode(env, storage, api, node.owner(), proxy, false)
+}
+
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_config_from_env(_deps, _env, _msg)?;
+pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrate_config_from_env(deps, env, msg)?;
+    for node in msg.nodes_to_remove().iter() {
+        remove_malicious_node(deps.storage, deps.api, &env, node)
+            .unwrap_or_else(|_| panic!("Could not remove node: {:?}", node));
+    }
+
     Ok(Default::default())
 }
 

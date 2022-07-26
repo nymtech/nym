@@ -50,7 +50,6 @@ impl Simulator {
         // self.node_historical_records.insert(period, record);
         self.node_rewarding_details
             .add_base_delegation(amount.amount);
-        self.node_rewarding_details.unique_delegations += 1;
 
         // we don't care about the owner/node details here
         self.node_delegations.push(Delegation::new(
@@ -95,7 +94,7 @@ impl Simulator {
         let delegation = self.node_delegations.remove(delegation_index);
         let reward = self.determine_delegation_reward(&delegation);
         self.node_rewarding_details
-            .decrease_delegates(delegation.dec_amount() + reward)?;
+            .decrease_delegates_decimal(delegation.dec_amount() + reward)?;
         self.node_rewarding_details.unique_delegations -= 1;
 
         let reward_denom = &delegation.amount.denom;

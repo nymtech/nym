@@ -24,7 +24,7 @@ fn long_version_static() -> &'static str {
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = long_version_static())]
 struct Cli {
-    /// Path pointing to an env file that configures the gateway.
+    /// Path pointing to an env file that configures the mixnode.
     #[clap(long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 

@@ -48,3 +48,6 @@ export const getInclusionProbability = async (identity: string) =>
   invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { identity });
 
 export const getCurrentEpoch = async () => invokeWrapper<Epoch>('get_current_epoch');
+
+export const getNumberOfMixnodeDelegators = async (identity: string) =>
+  invokeWrapper<number>('get_number_of_mixnode_delegators', { identity });

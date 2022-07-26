@@ -71,6 +71,8 @@ export const MockBondingContextProvider = ({
     return bondedData;
   };
 
+  const checkOwnership = async () => {};
+
   const refresh = useCallback(async () => {
     const bounded = await fetchBondingData();
     if (bounded && 'stake' in bounded) {
@@ -111,20 +113,20 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const redeemRewards = async (): Promise<TransactionExecuteResult[] | undefined> => {
+  const redeemRewards = async (): Promise<TransactionExecuteResult | undefined> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
     setIsLoading(false);
-    return [TxResultMock];
+    return TxResultMock;
   };
 
-  const compoundRewards = async (): Promise<TransactionExecuteResult[] | undefined> => {
+  const compoundRewards = async (): Promise<TransactionExecuteResult | undefined> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
     setIsLoading(false);
-    return [TxResultMock];
+    return TxResultMock;
   };
 
   const updateMixnode = async (): Promise<TransactionExecuteResult> => {
@@ -169,6 +171,7 @@ export const MockBondingContextProvider = ({
       resetFeeState,
       updateMixnode,
       bondMore,
+      checkOwnership,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

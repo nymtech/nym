@@ -101,11 +101,11 @@ export const vestingUnbond = async (type: TNodeType) => {
   return vestingUnbondGateway();
 };
 
-export const vestingClaimOperatorRewards = async () =>
-  invokeWrapper<TransactionExecuteResult>('vesting_claim_operator_reward');
+export const vestingClaimOperatorReward = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_claim_operator_reward', { fee });
 
-export const vestingCompoundOperatorRewards = async () =>
-  invokeWrapper<TransactionExecuteResult>('vesting_compound_operator_reward');
+export const vestingCompoundOperatorReward = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_compound_operator_reward', { fee });
 
 export const vestingClaimDelegatorRewards = async (mixIdentity: string) =>
   invokeWrapper<TransactionExecuteResult>('vesting_claim_delegator_reward', { mixIdentity });

@@ -9,7 +9,7 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
-import { MixnodeForm } from '../forms/MixnodeForm';
+import { BondMixnodeForm } from '../forms/BondMixnodeForm';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '2UB4668XV7qhmJDPp6KLGWGisiaUYThjA4in2o7WKcwA',
@@ -54,7 +54,7 @@ export const BondMixnodeModal = ({
   }, [feeError]);
 
   const validateStep = async (step: number) => {
-    const event = new CustomEvent('validate_mixnode_step', { detail: { step } });
+    const event = new CustomEvent('validate_bond_mixnode_step', { detail: { step } });
     window.dispatchEvent(event);
   };
 
@@ -136,12 +136,12 @@ export const BondMixnodeModal = ({
       onOk={async () => validateStep(step)}
       onBack={step === 2 ? handleBack : undefined}
       onClose={onClose}
-      header="Bond"
+      header="Bond mixnode"
       subHeader={`Step ${step}/2`}
       okLabel="Next"
     >
       <Box sx={{ mb: 2 }}>
-        <MixnodeForm
+        <BondMixnodeForm
           step={step}
           hasVestingTokens={hasVestingTokens}
           denom={denom}

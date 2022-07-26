@@ -42,9 +42,11 @@ export const ConfirmationDetailsModal = ({
       backdropProps={backdropProps}
     >
       <Stack alignItems="center" spacing={2}>
-        <Typography variant="h5">{title}</Typography>
+        <Typography variant="h6" fontWeight={600}>
+          {title}
+        </Typography>
         <Typography>{subtitle}</Typography>
-        <Link href={txUrl} target="_blank" sx={{ ml: 1 }} text="View on blockchain" />
+        {txUrl && <Link href={txUrl} target="_blank" sx={{ ml: 1 }} text="View on blockchain" />}
       </Stack>
     </ConfirmationModal>
   );

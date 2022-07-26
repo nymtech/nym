@@ -6,7 +6,8 @@ export const Tabs: React.FC<{
   selectedTab: number;
   disabled?: boolean;
   onChange?: (event: React.SyntheticEvent, tab: number) => void;
-}> = ({ tabs, selectedTab, disabled, onChange }) => (
+  disableActiveTabHighlight?: boolean;
+}> = ({ tabs, selectedTab, disabled, disableActiveTabHighlight, onChange }) => (
   <MuiTabs
     value={selectedTab}
     onChange={onChange}
@@ -17,6 +18,15 @@ export const Tabs: React.FC<{
       borderColor: (theme) => theme.palette.nym.nymWallet.background.greyStroke,
     }}
     textColor="inherit"
+    TabIndicatorProps={
+      disableActiveTabHighlight
+        ? {
+            style: {
+              opacity: 0,
+            },
+          }
+        : {}
+    }
   >
     {tabs.map((tabName) => (
       <Tab key={tabName} label={tabName} sx={{ textTransform: 'capitalize' }} disabled={disabled} />

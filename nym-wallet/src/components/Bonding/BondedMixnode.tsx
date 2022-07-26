@@ -92,7 +92,12 @@ export const BondedMixnode = ({
       id: 'delegators-cell',
     },
     {
-      cell: <BondedMixnodeActions onActionSelect={onActionSelect} />,
+      cell: (
+        <BondedMixnodeActions
+          onActionSelect={onActionSelect}
+          disabledRedeemAndCompound={Number(mixnode.operatorRewards.amount) === 0}
+        />
+      ),
       id: 'actions-cell',
       align: 'right',
     },
@@ -124,7 +129,7 @@ export const BondedMixnode = ({
       <Typography sx={{ mt: 2 }}>
         Check more stats of your node on the{' '}
         {network && (
-          <Link href={urls(network).networkExplorer} target="_blank">
+          <Link href={`${urls(network).networkExplorer}/network-components/mixnodes`} target="_blank">
             explorer
           </Link>
         )}

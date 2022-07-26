@@ -1,16 +1,16 @@
-import React, { useEffect } from 'react';
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { Box, Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from '@mui/material';
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { TokenPoolSelector, TPoolOption } from 'src/components';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
+import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom } from '@nymproject/types';
-import { AmountData, GatewayData, MixnodeData } from 'src/pages/bonding/types';
-import { gatewayValidationSchema, amountSchema } from './gatewayValidationSchema';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
+import { TokenPoolSelector } from 'src/components';
+import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
+import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
 
-const NodeData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (data: GatewayData) => void }) => {
+const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const {
@@ -18,17 +18,17 @@ const NodeData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (
     formState: { errors },
     handleSubmit,
     setValue,
-  } = useForm({ resolver: yupResolver(gatewayValidationSchema), defaultValues: gatewayData });
+  } = useForm({ resolver: yupResolver(mixnodeValidationSchema), defaultValues: mixnodeData });
 
-  const captureEvent = (event: { detail: { step: number } }) => {
+  const handleRequestValidation = (event: { detail: { step: number } }) => {
     if (event.detail.step === 1) {
       handleSubmit(onNext)();
     }
   };
 
   useEffect(() => {
-    window.addEventListener('validate_gateway_step' as any, captureEvent);
-    return () => window.removeEventListener('validate_gateway_step' as any, captureEvent);
+    window.addEventListener('validate_bond_mixnode_step' as any, handleRequestValidation);
+    return () => window.removeEventListener('validate_bond_mixnode_step' as any, handleRequestValidation);
   }, []);
 
   return (
@@ -37,7 +37,7 @@ const NodeData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (
         required
         fullWidth
         label="Identity Key"
-        initialValue={gatewayData?.identityKey}
+        initialValue={mixnodeData?.identityKey}
         errorText={errors.identityKey?.message}
         onChanged={(value) => setValue('identityKey', value)}
       />
@@ -54,15 +54,6 @@ const NodeData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (
         label="Owner signature"
         error={Boolean(errors.ownerSignature)}
         helperText={errors.ownerSignature?.message}
-      />
-      <TextField
-        {...register('location')}
-        name="location"
-        label="Location"
-        error={Boolean(errors.location)}
-        helperText={errors.location?.message}
-        required
-        sx={{ flexBasis: '50%' }}
       />
       <Stack direction="row" gap={2}>
         <TextField
@@ -99,11 +90,19 @@ const NodeData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (
             fullWidth
           />
           <TextField
-            {...register('clientsPort')}
-            name="clientsPort"
-            label="Client WS API port"
-            error={Boolean(errors.clientsPort)}
-            helperText={errors.clientsPort?.message}
+            {...register('verlocPort')}
+            name="verlocPort"
+            label="Verloc port"
+            error={Boolean(errors.verlocPort)}
+            helperText={errors.verlocPort?.message}
+            fullWidth
+          />
+          <TextField
+            {...register('httpApiPort')}
+            name="httpApiPort"
+            label="HTTP api port"
+            error={Boolean(errors.httpApiPort)}
+            helperText={errors.httpApiPort?.message}
             fullWidth
           />
         </Stack>
@@ -112,34 +111,48 @@ const NodeData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (
   );
 };
 
-const AmountData = ({
+const AmountFormData = ({
   amountData,
   hasVestingTokens,
   denom,
   onNext,
 }: {
-  amountData: AmountData;
+  amountData: MixnodeAmount;
   hasVestingTokens: boolean;
   denom: CurrencyDenom;
-  onNext: (data: any) => void;
+  onNext: (data: MixnodeAmount) => void;
 }) => {
   const {
     register,
     formState: { errors },
     handleSubmit,
     setValue,
+    getValues,
+    setError,
   } = useForm({ resolver: yupResolver(amountSchema), defaultValues: amountData });
 
-  const captureEvent = (event: { detail: { step: number } }) => {
-    console.log('Bond gateway!');
-    if (event.detail.step === 2) {
+  const handleRequestValidation = async (event: { detail: { step: number } }) => {
+    let hasSufficientTokens = true;
+    const values = getValues();
+
+    if (values.tokenPool === 'balance') {
+      hasSufficientTokens = await checkHasEnoughFunds(values.amount.amount);
+    }
+
+    if (values.tokenPool === 'locked') {
+      hasSufficientTokens = await checkHasEnoughLockedTokens(values.amount.amount);
+    }
+
+    if (event.detail.step === 2 && hasSufficientTokens) {
       handleSubmit(onNext)();
+    } else {
+      setError('amount.amount', { message: 'Not enough tokens' });
     }
   };
 
   useEffect(() => {
-    window.addEventListener('validate_gateway_step' as any, captureEvent);
-    return () => window.removeEventListener('validate_gateway_step' as any, captureEvent);
+    window.addEventListener('validate_bond_mixnode_step' as any, handleRequestValidation);
+    return () => window.removeEventListener('validate_bond_mixnode_step' as any, handleRequestValidation);
   }, []);
 
   return (
@@ -151,38 +164,47 @@ const AmountData = ({
           fullWidth
           label="Amount"
           autoFocus
-          onChanged={(newValue) => setValue('amount', newValue, { shouldValidate: true })}
+          onChanged={(newValue) => {
+            setValue('amount', newValue, { shouldValidate: true });
+          }}
           validationError={errors.amount?.amount?.message}
           denom={denom}
           initialValue={amountData.amount.amount}
         />
       </Box>
+      <TextField
+        {...register('profitMargin')}
+        name="profitMargin"
+        label="Profit margin"
+        error={Boolean(errors.profitMargin)}
+        helperText={errors.profitMargin?.message}
+      />
     </Stack>
   );
 };
 
-export const GatewayForm = ({
+export const BondMixnodeForm = ({
   step,
   denom,
-  gatewayData,
+  mixnodeData,
   amountData,
   hasVestingTokens,
-  onValidateGatewayData,
+  onValidateMixnodeData,
   onValidateAmountData,
 }: {
-  step: 1 | 2;
-  gatewayData: GatewayData;
-  amountData: AmountData;
+  step: 1 | 2 | 3;
+  mixnodeData: MixnodeData;
+  amountData: MixnodeAmount;
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
-  onValidateGatewayData: (data: GatewayData) => void;
-  onValidateAmountData: (data: AmountData) => void;
+  onValidateMixnodeData: (data: MixnodeData) => void;
+  onValidateAmountData: (data: MixnodeAmount) => Promise<void>;
 }) => {
-  if (step === 1) return <NodeData onNext={onValidateGatewayData} gatewayData={gatewayData} />;
+  if (step === 1) return <NodeFormData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />;
 
   if (step === 2)
     return (
-      <AmountData
+      <AmountFormData
         denom={denom}
         amountData={amountData}
         hasVestingTokens={hasVestingTokens}

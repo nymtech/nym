@@ -26,7 +26,6 @@ const CompoundRewards = ({ mixnode, show, onClose }: Props) => {
     if (txResult) {
       setStep(2);
     }
-    setTx(txResult?.[0]);
   };
 
   const reset = () => {

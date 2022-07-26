@@ -3,12 +3,14 @@ import { Typography } from '@mui/material';
 import { ActionsMenu, ActionsMenuItem } from 'src/components/ActionsMenu';
 import { Bond as BondIcon, Unbond as UnbondIcon } from '../../svg-icons';
 
-export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'compound' | 'redeem' | null;
+export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem' | 'compound';
 
 export const BondedMixnodeActions = ({
   onActionSelect,
+  disabledRedeemAndCompound,
 }: {
   onActionSelect: (action: TBondedMixnodeActions) => void;
+  disabledRedeemAndCompound: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -35,14 +37,16 @@ export const BondedMixnodeActions = ({
       <ActionsMenuItem
         title="Compound rewards"
         Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
-        description="Add operator rewards to bond"
+        description={disabledRedeemAndCompound ? 'No rewards to compound' : 'Add your rewards to you balance'}
         onClick={() => handleActionClick('compound')}
+        disabled={disabledRedeemAndCompound}
       />
       <ActionsMenuItem
         title="Redeem rewards"
         Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
-        description="Add your rewards to bonding pool"
+        description={disabledRedeemAndCompound ? 'No rewards to redeem' : 'Add your rewards to you balance'}
         onClick={() => handleActionClick('redeem')}
+        disabled={disabledRedeemAndCompound}
       />
     </ActionsMenu>
   );

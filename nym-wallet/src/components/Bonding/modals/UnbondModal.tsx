@@ -41,11 +41,11 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
     }
 
     if (isGateway(node) && !node.proxy) {
-      getFee(simulateVestingUnbondGateway, {});
+      getFee(simulateUnbondGateway, {});
     }
 
     if (isGateway(node) && node.proxy) {
-      getFee(simulateUnbondGateway, {});
+      getFee(simulateVestingUnbondGateway, {});
     }
   }, [node]);
 
@@ -59,7 +59,13 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
       onClose={onClose}
     >
       <ModalListItem label="Amount to unbond" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} divider />
-      <ModalListItem label="Operator rewards" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} divider />
+      {isMixnode(node) && (
+        <ModalListItem
+          label="Operator rewards"
+          value={`${node.operatorRewards.amount} ${node.operatorRewards.denom.toUpperCase()}`}
+          divider
+        />
+      )}
       <ModalFee isLoading={isFeeLoading} fee={fee} divider />
       <Typography fontSize="small">Tokens will be transferred to the account you are logged in with now</Typography>
     </SimpleModal>

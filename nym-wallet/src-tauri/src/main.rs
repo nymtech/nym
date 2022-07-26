@@ -58,6 +58,7 @@ fn main() {
             mixnet::bond::unbond_gateway,
             mixnet::bond::unbond_mixnode,
             mixnet::bond::update_mixnode,
+            mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::delegate::delegate_to_mixnode,
             mixnet::delegate::get_delegator_rewards,
             mixnet::delegate::get_pending_delegation_events,

@@ -31,7 +31,7 @@ export const AppBar = () => {
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>
               <IconButton size="small" onClick={handleSwitchMode} sx={{ color: 'text.primary' }}>
-                {mode === 'light' ? (
+                {mode === 'dark' ? (
                   <LightModeOutlinedIcon fontSize="small" />
                 ) : (
                   <ModeNightOutlinedIcon fontSize="small" sx={{ transform: 'rotate(180deg)' }} />

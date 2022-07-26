@@ -198,3 +198,12 @@ pub async fn get_operator_rewards(
     );
     Ok(display_coin)
 }
+
+#[tauri::command]
+pub async fn get_number_of_mixnode_delegators(identity: String, state: tauri::State<'_, WalletState>) -> Result<usize, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let paged_delegations = client.nymd.get_mix_delegations_paged(identity, None, None).await?;
+
+    Ok(paged_delegations.delegations.len())
+} 

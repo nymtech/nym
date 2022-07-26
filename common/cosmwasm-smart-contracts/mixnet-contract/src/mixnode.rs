@@ -79,8 +79,6 @@ impl MixNodeDetails {
     }
 }
 
-// the fields on this one are not really finalised yet and I don't think they're going to be until
-// I properly implement the thing
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.    
@@ -103,9 +101,6 @@ pub struct MixNodeRewarding {
     #[serde(rename = "ud")]
     pub unit_delegation: Decimal,
 
-    // // TODO: this might be possibly redundant
-    // /// Rewards accumulated by the "unit delegation" in the current period.
-    // pub current_period_reward: Decimal,
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
     #[serde(rename = "le")]
@@ -188,7 +183,7 @@ impl MixNodeRewarding {
         delegation: &mut Delegation,
     ) -> Result<Coin, MixnetContractError> {
         let reward = self.determine_delegation_reward(delegation);
-        self.decrease_delegates(reward)?;
+        self.decrease_delegates_decimal(reward)?;
 
         delegation.cumulative_reward_ratio = self.full_reward_ratio();
         Ok(truncate_reward(reward, &delegation.amount.denom))
@@ -317,17 +312,6 @@ impl MixNodeRewarding {
         self.distribute_rewards(reward_distribution, full_epoch_id)
     }
 
-    // pub fn increment_period(&mut self) -> HistoricalRewards {
-    //     // let rewards = self.current_period_reward;
-    //
-    //     // self.past_periods_sum += rewards;
-    //     // self.current_period_reward = Decimal::zero();
-    //     self.current_period += 1;
-    //
-    //     // note: this already includes the sum for the period that just finished
-    //     HistoricalRewards::new(self.total_unit_reward)
-    // }
-
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
         let starting_ratio = delegation.cumulative_reward_ratio;
         let ending_ratio = self.full_reward_ratio();
@@ -336,18 +320,37 @@ impl MixNodeRewarding {
         (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
     }
 
-    // Special care must be taken when calling this method as it is expected it's called in conjunction
-    // with `increment_period`
+    // this updates `unique_delegations` field
     pub fn add_base_delegation(&mut self, amount: Uint128) {
+        self.increase_delegates_uint128(amount);
+        self.unique_delegations += 1;
+    }
+
+    pub fn increase_delegates_uint128(&mut self, amount: Uint128) {
         // the unwrap here is fine as the value is guaranteed to fit under provided constraints
         self.delegates += Decimal::from_atomics(amount, 0).unwrap()
     }
 
-    pub fn remove_full_delegation_amount(
+    // this updates `unique_delegations` field
+    // special care must be taken when calling this method as the caller has to ensure
+    // the corresponding delegation has not accumulated any rewards
+    pub fn remove_delegation_uint128(
         &mut self,
-        amount: Decimal,
+        amount: Uint128,
     ) -> Result<(), MixnetContractError> {
-        self.decrease_delegates(amount)?;
+        self.decrease_delegates_uint128(amount)?;
+        self.decrement_unique_delegations()
+    }
+
+    pub fn decrease_delegates_uint128(
+        &mut self,
+        amount: Uint128,
+    ) -> Result<(), MixnetContractError> {
+        let amount_dec = Decimal::from_atomics(amount, 0).unwrap();
+        self.decrease_delegates_decimal(amount_dec)
+    }
+
+    fn decrement_unique_delegations(&mut self) -> Result<(), MixnetContractError> {
         if self.unique_delegations == 0 {
             return Err(MixnetContractError::OverflowSubtraction {
                 minuend: 0,
@@ -355,6 +358,16 @@ impl MixNodeRewarding {
             });
         }
         self.unique_delegations -= 1;
+        Ok(())
+    }
+
+    // this updates `unique_delegations` field
+    pub fn remove_delegation_decimal(
+        &mut self,
+        amount: Decimal,
+    ) -> Result<(), MixnetContractError> {
+        self.decrease_delegates_decimal(amount)?;
+        self.decrement_unique_delegations()?;
 
         // if this was last delegation, move all leftover decimal tokens to the operator
         // (this is literally in the order of a millionth of a micronym)
@@ -365,7 +378,17 @@ impl MixNodeRewarding {
         Ok(())
     }
 
-    pub fn decrease_delegates(&mut self, amount: Decimal) -> Result<(), MixnetContractError> {
+    pub fn undelegate(&mut self, delegation: &Delegation) -> Result<Coin, MixnetContractError> {
+        let reward = self.determine_delegation_reward(delegation);
+        let full_amount = reward + delegation.dec_amount();
+        self.remove_delegation_decimal(full_amount)?;
+        Ok(truncate_reward(full_amount, &delegation.amount.denom))
+    }
+
+    pub fn decrease_delegates_decimal(
+        &mut self,
+        amount: Decimal,
+    ) -> Result<(), MixnetContractError> {
         if self.delegates < amount {
             return Err(MixnetContractError::OverflowDecimalSubtraction {
                 minuend: self.delegates,
@@ -377,7 +400,10 @@ impl MixNodeRewarding {
         Ok(())
     }
 
-    pub fn decrease_operator(&mut self, amount: Decimal) -> Result<(), MixnetContractError> {
+    pub fn decrease_operator_decimal(
+        &mut self,
+        amount: Decimal,
+    ) -> Result<(), MixnetContractError> {
         if self.operator < amount {
             return Err(MixnetContractError::OverflowDecimalSubtraction {
                 minuend: self.operator,

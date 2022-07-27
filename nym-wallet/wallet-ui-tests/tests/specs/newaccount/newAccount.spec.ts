@@ -53,7 +53,7 @@ describe('Create a new account and verify it exists', () => {
         await (await Auth.password).addValue(textConstants.incorrectPassword)
         await (await Auth.confirmPassword).click()
         await (await Auth.confirmPassword).addValue(textConstants.incorrectPassword)
-        const nextButton = await Auth.next
+        const nextButton = await Auth.nextStorePassword
         const isNextDisabled = await nextButton.getAttribute('disabled')
         expect(isNextDisabled).toBe("true")
 
@@ -64,13 +64,13 @@ describe('Create a new account and verify it exists', () => {
         await (await Auth.password).addValue(textConstants.password)
         await (await Auth.confirmPassword).click()
         await (await Auth.confirmPassword).addValue(textConstants.password)
-        const nextButton = await Auth.next
+        const nextButton = await Auth.nextStorePassword
         const isNextDisabled = await nextButton.getAttribute('disabled')
         expect(isNextDisabled).toBe(null)
     })
 
     it('proceed to login with newly created password', async () => {
-        await (await Auth.next).click()
+        await (await Auth.nextStorePassword).click()
         await (await Auth.enterPassword).waitForDisplayed({ timeout: 1500 })
         await (await Auth.enterPassword).addValue(textConstants.password)
         await (await Auth.signInPasswordButton).click()

@@ -57,7 +57,7 @@ export const CreatePassword = () => {
           />
           <Button
             size="large"
-            data-testid="next"
+            data-testid="nextStorePassword"
             variant="contained"
             disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
             onClick={storePassword}

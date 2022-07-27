@@ -3,7 +3,6 @@ import Auth from '../../pageobjects/authScreens'
 const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
 
-
 describe('Balance screen displays correctly', () => {
 
   it('selecting qa network', async () => {
@@ -28,10 +27,9 @@ describe('Balance screen displays correctly', () => {
     await (await Balance.accountNumber).waitForDisplayed({ timeout: 1500 })
     let accountnumber = await (await Balance.accountNumber).getText()
     expect(accountnumber[1]).toStrictEqual('1')
-    await (await Balance.copyAccountId).waitForDisplayed({ timeout: 1500 })
-    // TO-DO intercepted error when clicking copy,element exists though
+    await (await Balance.copyAccountId).waitForClickable({ timeout: 1500 })
     await (await Balance.copyAccountId).click()
-
+    // TO-DO is there a way to verify that the copy worked, aka pasting it somewhere maybe? 
   })
 
 })

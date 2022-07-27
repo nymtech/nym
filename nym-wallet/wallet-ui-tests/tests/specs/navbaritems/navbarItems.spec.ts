@@ -6,23 +6,28 @@ import Receive from '../../pageobjects/receiveScreen'
 import Bond from '../../pageobjects/bondScreen'
 import Unbond from '../../pageobjects/unbondScreen'
 import Delegation from '../../pageobjects/delegationScreen'
-
 const userData = require("../../../common/user-data.json");
 
 describe('Nav Items behave correctly', () => {
 
     it('switch from light to dark mode and back', async () => {
+
         //log in
         await Auth.loginWithMnemonic(userData.mnemonic)
         // click on different modes
-        await (await Nav.lightMode).waitForDisplayed({ timeout: 4000 })
+        await (await Nav.lightMode).waitForDisplayed({ timeout: 6000 })
         await (await Nav.lightMode).click()
         await (await Nav.darkMode).click()
         await (await Nav.lightMode).waitForDisplayed({ timeout: 2500 })
+
     })
 
     it('clicking terminal opens the modal', async () => {
+
+        // ensure the terminal button opens the terminal
+        await (await Nav.terminalIcon).waitForDisplayed({ timeout: 1500 })
         await (await Nav.terminalIcon).click()
+        await (await Nav.terminalTitle).waitForDisplayed({ timeout: 2000 })
         let terminalTitle = await (await Nav.terminalTitle).getText()
         expect(terminalTitle).toContain('Terminal')
 

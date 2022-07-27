@@ -3,6 +3,7 @@ import Balance from '../../pageobjects/balanceScreen'
 import ValidatorClient from '@nymproject/nym-validator-client';
 const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
+const { exec } = require("child_process")
 
 
 describe('Create password for existing account and use it to sign in', () => {
@@ -25,8 +26,10 @@ describe('Create password for existing account and use it to sign in', () => {
 
     it('enter random string', async () => {
 
+        // enter random string as mnemonic
         await (await Auth.mnemonicInput).addValue(textConstants.randomString)
         await (await Auth.nextToPasswordCreation).click()
+        // assert error is correct
         let getErrorWarning = await (await Auth.error).getText()
         expect(getErrorWarning).toStrictEqual(textConstants.incorrectMnemonicPasswordCreation)
 
@@ -49,14 +52,46 @@ describe('Create password for existing account and use it to sign in', () => {
     it('create an invalid password', async () => {
         // type an invalid password in both fields
         await (await Auth.password).addValue(textConstants.incorrectPassword)
-        await (await Auth.confirmPassword).click()
+        await (await Auth.confirmPassword).click({timeout: 1500})
         await (await Auth.confirmPassword).addValue(textConstants.incorrectPassword)
         // ensure the button to proceed is still disabled 
-        // TO-DO the next button seems to not be clickable here, despite the locator id existing in the right place
-        const nextButton = await Auth.next
+        const nextButton = await Auth.createPasswordButton
         const isNextDisabled = await nextButton.getAttribute('disabled')
-        expect(isNextDisabled).toBe(true)
+        expect(isNextDisabled).toBe("true")
 
+    })
+
+    it('create a valid password', async () =>{
+        await (await Auth.password).click({timeout: 1500})
+        await (await Auth.password).addValue(textConstants.password)
+        await (await Auth.confirmPassword).click({timeout: 1500})
+        await (await Auth.confirmPassword).addValue(textConstants.password)
+        await (await Auth.createPasswordButton).click()
+
+    })
+
+    it('sign in with no password throws error', async () => {
+
+        //click sign without entering a password
+        await (await Auth.signInPasswordButton).click()
+        // wait for error
+        await (await Auth.error).waitForDisplayed({ timeout: 1500 })
+        let getErrorWarning = await (await Auth.error).getText()
+        // verify error has the correct message
+        expect(getErrorWarning).toStrictEqual(textConstants.signInWithoutPassword)
+
+    })
+
+    it('sign in with invalid password throws error', async () => {
+
+        // enter invalid password
+        await (await Auth.enterPassword).addValue(textConstants.incorrectPassword)
+        await (await Auth.signInPasswordButton).click()
+        // wait for error
+        await (await Auth.error).waitForDisplayed({ timeout: 1500 })
+        let getErrorWarning = await (await Auth.error).getText()
+        expect(getErrorWarning).toStrictEqual(textConstants.invalidPasswordOnSignIn)
+        
     })
 
 })

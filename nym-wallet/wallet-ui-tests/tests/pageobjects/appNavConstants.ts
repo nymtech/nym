@@ -6,7 +6,6 @@ class Nav {
     get terminalIcon() { return $("[data-testid='TerminalIcon']") }
 
 
-
     get balance() { return $("[data-testid='Balance']") }
     get send() { return $("[data-testid='Send']") }
     get receive() { return $("[data-testid='Receive']") }

@@ -4,9 +4,7 @@ class Balance {
     get checkBalance() { return $("[data-testid='check-balance']") }
     get nymBalance() { return $("[data-testid='nym-balance']") }
 
-     // TO-DO figure out what's wrong with this copyAccountId locator being intercepted when clicked on 
-    get copyAccountId() { return $("[data-testid='ContentCopyIcon']")}
-    // get copyAccountId() { return $("[data-testid='copyy']")}
+    get copyAccountId() { return $("[data-testid='copyIcon']")}
 
     get accountNumber() { return $("[data-testid='accountNumber']")}
 

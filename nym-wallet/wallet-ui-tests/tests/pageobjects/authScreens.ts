@@ -1,6 +1,6 @@
 import Balance from '../pageobjects/balanceScreen'
 
-class Welcome {
+class Auth {
   //Welcome landing page
   get signInButton() { return $("[data-testid='signIn']") }
   get createAccount() { return $("[data-testid='createAccount']") }
@@ -40,7 +40,7 @@ class Welcome {
   get backToStep1() { return $("[data-testid='backToStep1']") }
 
   // Create account step 3/3
-  get next() { return $("[data-testid='next']") } // TO-DO possibly rename this?
+  get nextStorePassword() { return $("[data-testid='nextStorePassword']") }
   get skipPasswordAndSignInWithMnemonic() { return $("[data-testid='skipPasswordAndSignInWithMnemonic']") }
 
   // Enter password to sign in
@@ -57,7 +57,6 @@ class Welcome {
     await this.error.getText()
   }
 
-
   //login to the application
   loginWithMnemonic = async (mnemonic) => {
     await this.signInButton.click()
@@ -65,9 +64,9 @@ class Welcome {
     await this.mnemonicInput.waitForDisplayed()
     await this.mnemonicInput.addValue(mnemonic);
     await this.signIn.click();
-    await Balance.nymBalance.isExisting();
+    await Balance.nymBalance.isExisting({timeout:4000});
   };
 
 }
 
-export default new Welcome()
+export default new Auth()

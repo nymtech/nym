@@ -1,6 +1,6 @@
 import ValidatorClient from '@nymproject/nym-validator-client';
 
-describe('Creating valid account', () => {
+describe.skip('Creating valid account', () => {
   it('create mnemonic', async () => {
     const benny = "giraffe note order sun cradle bottom crime humble able antique rural donkey guess parent potato tongue truly way disagree exile zebra someone else typical";
     const mnemonic = ValidatorClient.randomMnemonic();

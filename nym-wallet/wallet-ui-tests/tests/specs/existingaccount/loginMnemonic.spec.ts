@@ -12,29 +12,32 @@ describe('Wallet sign in functionality with mnemonic', () => {
     await (await Auth.signInButton).click()
     await (await Auth.signInMnemonic).click()
     await (await Auth.signIn).click()
-    // wait for error
-    await (await Auth.error).waitForDisplayed({ timeout: 1500 })
-    let getErrorWarning = await (await Auth.error).getText()
+    
+    // // wait for error
+    // await (await Auth.error).waitForDisplayed({ timeout: 1500 })
+    // let getErrorWarning = await (await Auth.error).getText()
+    
     // verify error has the correct message
-    expect(getErrorWarning).toStrictEqual(textConstants.signInWithoutMnemonic)
+    expect(Auth.getErrorMessage).toStrictEqual(textConstants.signInWithoutMnemonic)
 
   })
 
   it('sign in with incorrect mnemonic throws error', async () => {
 
-    // await (await Auth.mnemonicInput).waitForDisplayed()
+    // enter an incorrect mnemonic string
     await (await Auth.mnemonicInput).addValue(textConstants.incorrectMnemonic)
     await (await Auth.signIn).click()
+    // verifty error message is correct
     let getErrorWarning = await (await Auth.error).getText()
     expect(getErrorWarning).toContain(textConstants.signInIncorrectMnemonic)
 
   })
 
   it('sign in with random string throws error', async () => {
-
-    // await (await Auth.mnemonicInput).waitForDisplayed()
+    // enter a random string not in mnemonic "format"
     await (await Auth.mnemonicInput).addValue(textConstants.randomString)
     await (await Auth.signIn).click()
+    // verifty error message is correct
     let getErrorWarning = await (await Auth.error).getText()
     expect(getErrorWarning).toContain(textConstants.signInRandomString)
 
@@ -56,9 +59,7 @@ describe('Wallet sign in functionality with mnemonic', () => {
     await (await Auth.mnemonicInput).addValue(mnemonic)
     await (await Auth.signIn).click()
     // verify successful login, balance is visible
-    await (await Balance.balance).waitForDisplayed({ timeout: 4000 })
-
-    // TO-DO the balance is not always caputred, some tests fail with ' ' not equal '0 NYM' ??
+    await (await Balance.balance).waitForDisplayed({ timeout: 5000 })
     let balance = await (await Balance.nymBalance).getText()
     //new accounts will always default to mainnet, so 0 balance
     expect(balance).toStrictEqual(textConstants.noNym)

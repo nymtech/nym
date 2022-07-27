@@ -52,8 +52,6 @@ pub(crate) fn delegate(
         _ => {
             // if mixnode is no longer bonded or in the process of unbonding, return the tokens back to the
             // delegator;
-            // TODO: @DU: do we need to do any vesting-specific tracking here?
-            // to be figured out after undelegate is re-implemented
             let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![amount.clone()]);
             let mut response = Response::new().add_message(return_tokens).add_event(
                 new_delegation_on_unbonded_node_event(&owner, &proxy, mix_id),

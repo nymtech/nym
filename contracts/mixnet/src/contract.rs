@@ -38,7 +38,7 @@ use cosmwasm_std::{
     Storage, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, IdentityKey, InstantiateMsg, MigrateMsg, NodeToRemove,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeToRemove,
     QueryMsg,
 };
 use time::OffsetDateTime;

@@ -13,6 +13,7 @@ use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage::mix_denom;
 use crate::mixnodes::storage::mixnodes;
 use crate::mixnodes::storage::{self as mixnodes_storage, StoredMixnodeBond};
+use crate::mixnodes::transactions::is_blacklisted;
 use crate::rewards::helpers;
 use crate::support::helpers::{is_authorized, operator_cost_at_epoch};
 use cosmwasm_std::{
@@ -220,7 +221,6 @@ pub fn try_compound_operator_reward_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
-    return Err(ContractError::CompoundDisabled);
     let proxy = deps.api.addr_validate(info.sender.as_str())?;
     let owner = deps.api.addr_validate(&owner)?;
 
@@ -240,7 +240,6 @@ pub fn try_compound_operator_reward(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    return Err(ContractError::CompoundDisabled);
     let owner = deps.api.addr_validate(info.sender.as_str())?;
     let reward =
         _try_compound_operator_reward(deps.storage, deps.api, env.block.height, &owner, None)?;
@@ -354,7 +353,6 @@ pub fn try_compound_delegator_reward_on_behalf(
     owner: String,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
-    return Err(ContractError::CompoundDisabled);
     let proxy = deps.api.addr_validate(info.sender.as_str())?;
     let owner = deps.api.addr_validate(&owner)?;
     let reward = _try_compound_delegator_reward(
@@ -431,7 +429,6 @@ pub fn try_compound_delegator_reward(
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
-    return Err(ContractError::CompoundDisabled);
     let owner = deps.api.addr_validate(info.sender.as_str())?;
     let reward = _try_compound_delegator_reward(
         env.block.height,
@@ -541,6 +538,10 @@ pub fn calculate_delegator_reward(
     key: Vec<u8>,
     mix_identity: &str,
 ) -> Result<Uint128, ContractError> {
+    if is_blacklisted(storage, mix_identity)? {
+        return Ok(Uint128::zero());
+    };
+
     let last_claimed_height = storage::DELEGATOR_REWARD_CLAIMED_HEIGHT
         .load(storage, (key.clone(), mix_identity.to_string()))
         .unwrap_or(0);
@@ -1139,7 +1140,6 @@ pub mod tests {
 
     // TODO: Enable when enabling compound
     #[test]
-    #[ignore]
     fn test_reward_additivity_and_snapshots() {
         use crate::constants::INTERVAL_REWARD_PERCENT;
         use crate::contract::INITIAL_REWARD_POOL;

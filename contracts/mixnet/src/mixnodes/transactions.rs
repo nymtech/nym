@@ -13,7 +13,7 @@ use cosmwasm_std::{
 use mixnet_contract_common::events::{
     new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
 };
-use mixnet_contract_common::MixNode;
+use mixnet_contract_common::{IdentityKeyRef, MixNode};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
 
@@ -87,6 +87,15 @@ pub fn try_add_mixnode_on_behalf(
     )
 }
 
+pub fn is_blacklisted(
+    storage: &dyn Storage,
+    identity: IdentityKeyRef,
+) -> Result<bool, ContractError> {
+    Ok(storage::MIXNODES_BOND_BLACKLIST
+        .may_load(storage, identity)?
+        .is_some())
+}
+
 fn _try_add_mixnode(
     deps: DepsMut<'_>,
     env: Env,
@@ -100,10 +109,7 @@ fn _try_add_mixnode(
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &owner)?;
 
-    if storage::MIXNODES_BOND_BLACKLIST
-        .may_load(deps.storage, &mix_node.identity_key)?
-        .is_some()
-    {
+    if is_blacklisted(deps.storage, &mix_node.identity_key)? {
         return Err(ContractError::MixnodeBlacklisted {
             identity: mix_node.identity_key,
         });

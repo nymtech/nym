@@ -38,8 +38,7 @@ use cosmwasm_std::{
     Storage, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeToRemove,
-    QueryMsg,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeToRemove, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -343,6 +342,9 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
+        QueryMsg::GetBlacklistedNodes {} => to_binary(
+            &crate::mixnodes::bonding_queries::get_blacklisted_nodes(deps),
+        ),
         QueryMsg::GetRewardingValidatorAddress {} => {
             to_binary(&query_rewarding_validator_address(deps)?)
         }
@@ -508,12 +510,16 @@ fn remove_malicious_node(
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     migrate_config_from_env(deps, env, msg)?;
+    let mut response = Response::new();
     for node in msg.nodes_to_remove().iter() {
-        remove_malicious_node(deps.storage, deps.api, &env, node)
+        let mut sub_response = remove_malicious_node(deps.storage, deps.api, &env, node)
             .unwrap_or_else(|_| panic!("Could not remove node: {:?}", node));
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
     }
 
-    Ok(Default::default())
+    Ok(response)
 }
 
 #[cfg(test)]

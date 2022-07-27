@@ -8,6 +8,13 @@ use mixnet_contract_common::{
     IdentityKey, MixNodeBond, MixOwnershipResponse, MixnodeBondResponse, PagedMixnodeResponse,
 };
 
+pub fn get_blacklisted_nodes(deps: Deps<'_>) -> Vec<IdentityKey> {
+    storage::MIXNODES_BOND_BLACKLIST
+        .keys(deps.storage, None, None, Order::Ascending)
+        .filter_map(|i| i.ok())
+        .collect()
+}
+
 pub fn query_mixnode_at_height(
     deps: Deps<'_>,
     mix_identity: String,

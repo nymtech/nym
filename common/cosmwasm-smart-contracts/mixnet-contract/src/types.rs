@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
-use std::ops::Mul;
+use std::ops::{Index, Mul};
 
 pub type EpochId = u32;
 pub type IntervalId = u32;
@@ -176,6 +176,18 @@ impl LayerDistribution {
         }
 
         Ok(())
+    }
+}
+
+impl Index<Layer> for LayerDistribution {
+    type Output = u64;
+
+    fn index(&self, index: Layer) -> &Self::Output {
+        match index {
+            Layer::One => &self.layer1,
+            Layer::Two => &self.layer2,
+            Layer::Three => &self.layer3,
+        }
     }
 }
 

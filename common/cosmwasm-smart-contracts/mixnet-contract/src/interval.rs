@@ -211,7 +211,10 @@ impl Interval {
     pub fn force_change_epochs_in_interval(&mut self, epochs_in_interval: u32) {
         self.epochs_in_interval = epochs_in_interval;
         if self.current_epoch_id >= epochs_in_interval {
-            self.current_epoch_id %= epochs_in_interval;
+            // we have to go to the next interval as we can't
+            // have the same (interval, epoch) combo as we had in the past
+            self.id += 1;
+            self.current_epoch_id = 0;
         }
     }
 

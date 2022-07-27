@@ -24,7 +24,9 @@ pub mod test_helpers {
         minimum_mixnode_pledge, rewarding_denom, rewarding_validator_address,
     };
     use crate::mixnodes::storage as mixnodes_storage;
-    use crate::mixnodes::transactions::{try_add_mixnode, try_remove_mixnode};
+    use crate::mixnodes::transactions::{
+        try_add_mixnode, try_add_mixnode_on_behalf, try_remove_mixnode,
+    };
     use crate::rewards::storage as rewards_storage;
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
@@ -141,6 +143,55 @@ pub mod test_helpers {
             add_mixnode(&mut self.rng, self.deps.as_mut(), env, owner, vec![stake])
         }
 
+        pub fn add_dummy_mixnode_with_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+            proxy: Addr,
+        ) -> NodeId {
+            let stake = match stake {
+                Some(amount) => {
+                    let denom = rewarding_denom(self.deps().storage).unwrap();
+                    Coin { denom, amount }
+                }
+                None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
+            };
+
+            let keypair = crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
+            let owner_signature = keypair
+                .private_key()
+                .sign(owner.as_bytes())
+                .to_base58_string();
+
+            let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let info = mock_info(proxy.as_str(), &[stake]);
+            let key = keypair.public_key().to_base58_string();
+            let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
+                .may_load(self.deps().storage)
+                .unwrap()
+                .unwrap_or_default();
+
+            let env = self.env();
+            try_add_mixnode_on_behalf(
+                self.deps_mut(),
+                env,
+                info,
+                MixNode {
+                    identity_key: key,
+                    sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
+                    ..tests::fixtures::mix_node_fixture()
+                },
+                tests::fixtures::mix_node_cost_params_fixture(),
+                owner.to_string(),
+                owner_signature,
+            )
+            .unwrap();
+
+            // newly added mixnode gets assigned the current counter + 1
+            current_id_counter + 1
+        }
+
         pub fn start_unbonding_mixnode(&mut self, mix_id: NodeId) {
             let bond_details = mixnodes_storage::mixnode_bonds()
                 .load(self.deps().storage, mix_id)
@@ -174,6 +225,30 @@ pub mod test_helpers {
                 target,
                 amount,
                 None,
+            )
+            .unwrap();
+        }
+
+        pub fn add_immediate_delegation_with_proxy(
+            &mut self,
+            delegator: &str,
+            amount: impl Into<Uint128>,
+            target: NodeId,
+            proxy: Addr,
+        ) {
+            let denom = rewarding_denom(self.deps().storage).unwrap();
+            let amount = Coin {
+                denom,
+                amount: amount.into(),
+            };
+            let env = self.env();
+            pending_events::delegate(
+                self.deps_mut(),
+                &env,
+                Addr::unchecked(delegator),
+                target,
+                amount,
+                Some(proxy),
             )
             .unwrap();
         }

@@ -1143,7 +1143,6 @@ mod tests {
 
             let before = test.mix_rewarding(mix_id).cost_params;
 
-            let env = test.env();
             let new_params = MixNodeCostParams {
                 profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
                 interval_operating_cost: coin(123_456_789, TEST_COIN_DENOM),

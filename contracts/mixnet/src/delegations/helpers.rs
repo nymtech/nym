@@ -3,10 +3,9 @@
 
 use crate::delegations::storage;
 use crate::rewards::storage as rewards_storage;
-use cosmwasm_std::{Coin, Decimal, Storage};
+use cosmwasm_std::{Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::MixNodeRewarding;
-use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::Delegation;
 
 pub(crate) fn undelegate(

@@ -16,7 +16,8 @@ use mixnet_contract_common::mixnode::{
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
-    MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedMixnodeBondsResponse,
+    LayerDistribution, MixOwnershipResponse, MixnodeDetailsResponse, NodeId,
+    PagedMixnodeBondsResponse,
 };
 
 pub fn query_mixnode_bonds_paged(
@@ -179,6 +180,10 @@ pub fn query_stake_saturation(
     })
 }
 
+pub(crate) fn query_layer_distribution(deps: Deps<'_>) -> StdResult<LayerDistribution> {
+    storage::LAYERS.load(deps.storage)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -293,13 +298,7 @@ pub(crate) mod tests {
             assert_eq!(1, page2.nodes.len());
 
             // save another one
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr4",
-                good_mixnode_pledge(),
-            );
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "addr4", good_mixnode_pledge());
 
             let page2 = query_mixnode_bonds_paged(deps.as_ref(), Some(start_after), Some(per_page))
                 .unwrap();
@@ -418,13 +417,7 @@ pub(crate) mod tests {
             assert_eq!(1, page2.nodes.len());
 
             // save another one
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr4",
-                good_mixnode_pledge(),
-            );
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "addr4", good_mixnode_pledge());
 
             let page2 =
                 query_mixnodes_details_paged(deps.as_ref(), Some(start_after), Some(per_page))
@@ -566,7 +559,7 @@ pub(crate) mod tests {
         let id = test_helpers::add_mixnode(
             &mut rng,
             deps.as_mut(),
-            env.clone(),
+            env,
             &address,
             good_mixnode_pledge(),
         );
@@ -608,13 +601,8 @@ pub(crate) mod tests {
         assert_eq!(42, res.mix_id);
 
         // it exists
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            "foomp",
-            good_mixnode_pledge(),
-        );
+        let mix_id =
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
         let res = query_mixnode_details(deps.as_ref(), mix_id).unwrap();
         let details = res.mixnode_details.unwrap();
         assert_eq!(mix_id, details.bond_information.id);
@@ -636,13 +624,8 @@ pub(crate) mod tests {
         assert!(res.rewarding_details.is_none());
         assert_eq!(42, res.mix_id);
 
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            "foomp",
-            good_mixnode_pledge(),
-        );
+        let mix_id =
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
         let res = query_mixnode_rewarding_details(deps.as_ref(), mix_id).unwrap();
         let details = res.rewarding_details.unwrap();
         assert_eq!(
@@ -666,13 +649,8 @@ pub(crate) mod tests {
         assert_eq!(42, res.mix_id);
 
         // add and unbond the mixnode
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender,
-            good_mixnode_pledge(),
-        );
+        let mix_id =
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, sender, good_mixnode_pledge());
         pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), mix_id).unwrap();
 
         let res = query_unbonded_mixnode(deps.as_ref(), mix_id).unwrap();
@@ -697,13 +675,8 @@ pub(crate) mod tests {
             .unwrap();
         let saturation_point = rewarding_params.interval.stake_saturation_point;
 
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            "foomp",
-            good_mixnode_pledge(),
-        );
+        let mix_id =
+            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
 
         // below saturation point
         // there's only the base pledge without any delegation

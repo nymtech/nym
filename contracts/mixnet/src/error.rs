@@ -182,4 +182,7 @@ pub enum ContractError {
     MissingMixIdentity,
     #[error("Compounding has been disabled temporarily")]
     CompoundDisabled,
+
+    #[error("Mixnode {identity} has been blacklisted on the network")]
+    MixnodeBlacklisted { identity: String },
 }

@@ -100,6 +100,15 @@ fn _try_add_mixnode(
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &owner)?;
 
+    if storage::MIXNODES_BOND_BLACKLIST
+        .may_load(deps.storage, &mix_node.identity_key)?
+        .is_some()
+    {
+        return Err(ContractError::MixnodeBlacklisted {
+            identity: mix_node.identity_key,
+        });
+    };
+
     // We don't have to check lower bound as its an u8
     if mix_node.profit_margin_percent > 100 {
         return Err(ContractError::InvalidProfitMarginPercent(

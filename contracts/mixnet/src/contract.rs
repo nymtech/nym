@@ -293,40 +293,32 @@ pub fn query(
 
         // mixnode-related:
         QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
-            &crate::mixnodes::bonding_queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
+            &crate::mixnodes::queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
         ),
         QueryMsg::GetMixNodesDetailed { start_after, limit } => to_binary(
-            &crate::mixnodes::bonding_queries::query_mixnodes_details_paged(
-                deps,
-                start_after,
-                limit,
-            )?,
+            &crate::mixnodes::queries::query_mixnodes_details_paged(deps, start_after, limit)?,
         ),
         QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_binary(
-            &crate::mixnodes::bonding_queries::query_unbonded_mixnodes_paged(
-                deps,
-                start_after,
-                limit,
-            )?,
+            &crate::mixnodes::queries::query_unbonded_mixnodes_paged(deps, start_after, limit)?,
         ),
         QueryMsg::GetOwnedMixnode { address } => to_binary(
-            &crate::mixnodes::bonding_queries::query_owned_mixnode(deps, address)?,
+            &crate::mixnodes::queries::query_owned_mixnode(deps, address)?,
         ),
         QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
-            &crate::mixnodes::bonding_queries::query_mixnode_details(deps, mix_id)?,
+            &crate::mixnodes::queries::query_mixnode_details(deps, mix_id)?,
         ),
         QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_binary(
-            &crate::mixnodes::bonding_queries::query_mixnode_rewarding_details(deps, mix_id)?,
+            &crate::mixnodes::queries::query_mixnode_rewarding_details(deps, mix_id)?,
         ),
         QueryMsg::GetStakeSaturation { mix_id } => to_binary(
-            &crate::mixnodes::bonding_queries::query_stake_saturation(deps, mix_id)?,
+            &crate::mixnodes::queries::query_stake_saturation(deps, mix_id)?,
         ),
         QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
-            &crate::mixnodes::bonding_queries::query_unbonded_mixnode(deps, mix_id)?,
+            &crate::mixnodes::queries::query_unbonded_mixnode(deps, mix_id)?,
         ),
-        QueryMsg::GetLayerDistribution {} => to_binary(
-            &crate::mixnodes::layer_queries::query_layer_distribution(deps)?,
-        ),
+        QueryMsg::GetLayerDistribution {} => {
+            to_binary(&crate::mixnodes::queries::query_layer_distribution(deps)?)
+        }
 
         // gateway-related:
         QueryMsg::GetGateways { limit, start_after } => to_binary(
@@ -443,6 +435,16 @@ pub fn migrate(
     _msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     Ok(Default::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initialize_contract() {
+        // todo!()
+    }
 }
 
 // #[cfg(test)]

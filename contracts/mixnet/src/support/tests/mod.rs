@@ -497,6 +497,30 @@ pub mod test_helpers {
         )
     }
 
+    pub fn gateway_with_signature(
+        mut rng: impl RngCore + CryptoRng,
+        sender: &str,
+    ) -> (Gateway, String) {
+        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+        let owner_signature = keypair
+            .private_key()
+            .sign(sender.as_bytes())
+            .to_base58_string();
+
+        let identity_key = keypair.public_key().to_base58_string();
+        let sphinx_key = legit_sphinx_key.public_key().to_base58_string();
+
+        (
+            Gateway {
+                identity_key,
+                sphinx_key,
+                ..tests::fixtures::gateway_fixture()
+            },
+            owner_signature,
+        )
+    }
+
     pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: NodeId, n: usize) {
         for i in 0..n {
             pending_events::delegate(

@@ -27,8 +27,8 @@ use crate::mixnodes::bonding_queries::{
     query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::queued_migrations::migrate_config_from_env;
 use crate::mixnodes::transactions::_try_remove_mixnode;
+use crate::queued_migrations::migrate_config_from_env;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
@@ -509,7 +509,7 @@ fn remove_malicious_node(
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_config_from_env(deps, env, msg)?;
+    migrate_config_from_env(deps.storage, &msg)?;
     let mut response = Response::new();
     for node in msg.nodes_to_remove().iter() {
         let mut sub_response = remove_malicious_node(deps.storage, deps.api, &env, node)

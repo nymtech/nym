@@ -255,8 +255,7 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message =
-            wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom(deps.storage)?)])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom(storage)?)])?;
         response = response.add_message(track_unbond_message);
     }
 

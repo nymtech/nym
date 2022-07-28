@@ -1138,7 +1138,6 @@ pub mod tests {
         // );
     }
 
-    // TODO: Enable when enabling compound
     #[test]
     fn test_reward_additivity_and_snapshots() {
         use crate::constants::INTERVAL_REWARD_PERCENT;

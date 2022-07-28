@@ -19,6 +19,7 @@ const MIXNODES_PK_CHECKPOINTS: &str = "mn__check";
 const MIXNODES_PK_CHANGELOG: &str = "mn__change";
 const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+const MIXNODES_BOND_BLACKLIST_NAMESPACE: &str = "mbb";
 
 const LAST_PM_UPDATE_NAMESPACE: &str = "lpm";
 
@@ -31,6 +32,9 @@ pub(crate) const TOTAL_DELEGATION: Map<'_, IdentityKeyRef<'_>, Uint128> =
 
 pub(crate) const LAST_PM_UPDATE_TIME: Map<'_, IdentityKeyRef<'_>, u64> =
     Map::new(LAST_PM_UPDATE_NAMESPACE);
+
+pub(crate) const MIXNODES_BOND_BLACKLIST: Map<'_, IdentityKeyRef<'_>, u8> =
+    Map::new(MIXNODES_BOND_BLACKLIST_NAMESPACE);
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, StoredMixnodeBond>,

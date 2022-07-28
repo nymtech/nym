@@ -621,7 +621,14 @@ mod tests {
                 deps.as_mut(),
             );
             let delegation_owner = Addr::unchecked("sender");
-            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            let api = deps.api.clone();
+            try_remove_mixnode(
+                &mock_env(),
+                deps.as_mut().storage,
+                &api,
+                mock_info(mixnode_owner, &[]),
+            )
+            .unwrap();
             assert_eq!(
                 Err(ContractError::MixNodeBondNotFound {
                     identity: identity.clone()
@@ -644,7 +651,14 @@ mod tests {
                 tests::fixtures::good_mixnode_pledge(),
                 deps.as_mut(),
             );
-            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            let api = deps.api.clone();
+            try_remove_mixnode(
+                &mock_env(),
+                deps.as_mut().storage,
+                &api,
+                mock_info(mixnode_owner, &[]),
+            )
+            .unwrap();
             let identity = test_helpers::add_mixnode(
                 mixnode_owner,
                 tests::fixtures::good_mixnode_pledge(),
@@ -908,7 +922,14 @@ mod tests {
                 identity.clone(),
             )
             .unwrap();
-            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            let api = deps.api.clone();
+            try_remove_mixnode(
+                &mock_env(),
+                deps.as_mut().storage,
+                &api,
+                mock_info(mixnode_owner, &[]),
+            )
+            .unwrap();
             assert_eq!(
                 Err(ContractError::MixNodeBondNotFound {
                     identity: identity.clone()
@@ -1049,8 +1070,14 @@ mod tests {
             .unwrap();
 
             _try_reconcile_all_delegation_events(&mut deps.storage, &deps.api).unwrap();
-
-            try_remove_mixnode(mock_env(), deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
+            let api = deps.api.clone();
+            try_remove_mixnode(
+                &mock_env(),
+                deps.as_mut().storage,
+                &api,
+                mock_info(mixnode_owner, &[]),
+            )
+            .unwrap();
 
             let expected = Delegation::new(
                 delegation_owner.clone(),

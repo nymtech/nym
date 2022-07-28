@@ -1,4 +1,4 @@
-test: build clippy-all cargo-test wasm fmt
+test: clippy-all cargo-test wasm fmt
 test-all: test cargo-test-expensive
 no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test

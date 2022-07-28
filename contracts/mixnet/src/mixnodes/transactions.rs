@@ -8,12 +8,12 @@ use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::storage::StoredMixnodeBond;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
 use cosmwasm_std::{
-    wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
+    wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Storage, Uint128,
 };
 use mixnet_contract_common::events::{
     new_checkpoint_mixnodes_event, new_mixnode_bonding_event, new_mixnode_unbonding_event,
 };
-use mixnet_contract_common::MixNode;
+use mixnet_contract_common::{IdentityKeyRef, MixNode};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 use vesting_contract_common::one_ucoin;
 
@@ -87,6 +87,15 @@ pub fn try_add_mixnode_on_behalf(
     )
 }
 
+pub fn is_blacklisted(
+    storage: &dyn Storage,
+    identity: IdentityKeyRef,
+) -> Result<bool, ContractError> {
+    Ok(storage::MIXNODES_BOND_BLACKLIST
+        .may_load(storage, identity)?
+        .is_some())
+}
+
 fn _try_add_mixnode(
     deps: DepsMut<'_>,
     env: Env,
@@ -99,6 +108,12 @@ fn _try_add_mixnode(
     let owner = deps.api.addr_validate(owner)?;
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     ensure_no_existing_bond(deps.storage, &owner)?;
+
+    if is_blacklisted(deps.storage, &mix_node.identity_key)? {
+        return Err(ContractError::MixnodeBlacklisted {
+            identity: mix_node.identity_key,
+        });
+    };
 
     // We don't have to check lower bound as its an u8
     if mix_node.profit_margin_percent > 100 {
@@ -167,45 +182,47 @@ fn _try_add_mixnode(
 }
 
 pub fn try_remove_mixnode_on_behalf(
-    env: Env,
-    deps: DepsMut<'_>,
+    env: &Env,
+    storage: &mut dyn Storage,
+    api: &dyn Api,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, ContractError> {
     let proxy = info.sender;
-    _try_remove_mixnode(env, deps, &owner, Some(proxy))
+    _try_remove_mixnode(env, storage, api, &owner, Some(proxy), true)
 }
 
 pub fn try_remove_mixnode(
-    env: Env,
-    deps: DepsMut<'_>,
+    env: &Env,
+    storage: &mut dyn Storage,
+    api: &dyn Api,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    _try_remove_mixnode(env, deps, info.sender.as_ref(), None)
+    _try_remove_mixnode(env, storage, api, info.sender.as_ref(), None, true)
 }
 
 pub(crate) fn _try_remove_mixnode(
-    env: Env,
-    deps: DepsMut<'_>,
+    env: &Env,
+    storage: &mut dyn Storage,
+    api: &dyn Api,
     owner: &str,
     proxy: Option<Addr>,
+    collect_rewards: bool,
 ) -> Result<Response, ContractError> {
-    let owner = deps.api.addr_validate(owner)?;
+    let owner = api.addr_validate(owner)?;
 
-    crate::rewards::transactions::_try_compound_operator_reward(
-        deps.storage,
-        deps.api,
-        env.block.height,
-        &owner,
-        None,
-    )?;
+    if collect_rewards {
+        crate::rewards::transactions::_try_compound_operator_reward(
+            storage,
+            api,
+            env.block.height,
+            &owner,
+            None,
+        )?;
+    }
 
     // try to find the node of the sender
-    let mixnode_bond = match storage::mixnodes()
-        .idx
-        .owner
-        .item(deps.storage, owner.clone())?
-    {
+    let mixnode_bond = match storage::mixnodes().idx.owner.item(storage, owner.clone())? {
         Some(record) => record.1,
         None => return Err(ContractError::NoAssociatedMixNodeBond { owner }),
     };
@@ -225,10 +242,10 @@ pub(crate) fn _try_remove_mixnode(
     };
 
     // remove the bond
-    storage::mixnodes().remove(deps.storage, mixnode_bond.identity(), env.block.height)?;
+    storage::mixnodes().remove(storage, mixnode_bond.identity(), env.block.height)?;
 
     // decrement layer count
-    mixnet_params_storage::decrement_layer_count(deps.storage, mixnode_bond.layer)?;
+    mixnet_params_storage::decrement_layer_count(storage, mixnode_bond.layer)?;
 
     let mut response = Response::new();
 
@@ -238,8 +255,7 @@ pub(crate) fn _try_remove_mixnode(
             amount: mixnode_bond.pledge_amount(),
         };
 
-        let track_unbond_message =
-            wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom(deps.storage)?)])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom(storage)?)])?;
         response = response.add_message(track_unbond_message);
     }
 

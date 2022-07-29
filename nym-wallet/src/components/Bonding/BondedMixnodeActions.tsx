@@ -25,11 +25,6 @@ export const BondedMixnodeActions = ({
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpen} onClose={handleClose}>
       <ActionsMenuItem
-        title="Bond more"
-        Icon={<BondIcon fontSize="inherit" />}
-        onClick={() => handleActionClick('bondMore')}
-      />
-      <ActionsMenuItem
         title="Unbond"
         Icon={<UnbondIcon fontSize="inherit" />}
         onClick={() => handleActionClick('unbond')}

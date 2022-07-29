@@ -51,3 +51,7 @@ export const getCurrentEpoch = async () => invokeWrapper<Epoch>('get_current_epo
 
 export const getNumberOfMixnodeDelegators = async (identity: string) =>
   invokeWrapper<number>('get_number_of_mixnode_delegators', { identity });
+
+export const getNodeDescription = async (host: string, port: number) => {
+  invokeWrapper<any>('get_mix_node_description', { host, port });
+};

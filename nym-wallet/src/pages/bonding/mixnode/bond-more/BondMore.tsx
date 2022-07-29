@@ -22,15 +22,9 @@ const BondMore = ({ mixnode, show, onClose }: Props) => {
   const [tx, setTx] = useState<TransactionExecuteResult>();
 
   const { network } = useContext(AppContext);
-  const { bondMore, error } = useBondingContext();
+  const { error } = useBondingContext();
 
-  const submit = async () => {
-    const txResult = await bondMore(signature as string, addBond);
-    if (txResult) {
-      setStep(3);
-    }
-    setTx(txResult);
-  };
+  const submit = async () => {};
 
   const reset = () => {
     setAddBond({ amount: '0', denom: 'nym' });

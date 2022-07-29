@@ -15,6 +15,7 @@ import {
   vestingUnbondMixnode,
   updateMixnode as updateMixnodeRequest,
   vestingUpdateMixnode as updateMixnodeVestingRequest,
+  getNodeDescription as getNodeDescriptioRequest,
   getGatewayBondDetails,
   getMixnodeBondDetails,
   getMixnodeStatus,
@@ -39,13 +40,6 @@ const bonded: TBondedMixnode = {
   stakeSaturation: 99,
   status: 'active',
 };
-
-/* const bounded: BondedMixnode | BondedGateway = {
-  bond: { denom: 'nym', amount: '1234' },
-  identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
-  ip: '1.2.34.5',
-  location: 'France',
-}; */
 
 // TODO add relevant data
 export type TBondedMixnode = {
@@ -80,7 +74,6 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  bondMore: (signature: string, additionalBond: DecCoin) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   compoundRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: number, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
@@ -111,9 +104,6 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   updateMixnode: async () => {
-    throw new Error('Not implemented');
-  },
-  bondMore(): Promise<TransactionExecuteResult | undefined> {
     throw new Error('Not implemented');
   },
   checkOwnership(): Promise<void> {
@@ -173,6 +163,15 @@ export const BondingContextProvider = ({
     return additionalDetails;
   };
 
+  const getNodeDescription = async (host: string, port: number) => {
+    try {
+      const nodeDescription = await getNodeDescriptioRequest(host, port);
+      console.log(nodeDescription);
+    } catch (e) {
+      Console.log(e);
+    }
+  };
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
     if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
@@ -183,6 +182,7 @@ export const BondingContextProvider = ({
           const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
             data.mix_node.identity_key,
           );
+          await getNodeDescription(data.mix_node.host, data.mix_node.http_api_port);
           setBondedNode({
             identityKey: data.mix_node.identity_key,
             ip: '',
@@ -289,7 +289,7 @@ export const BondingContextProvider = ({
     setIsLoading(true);
     try {
       if (bondedNode?.proxy) tx = await updateMixnodeVestingRequest(pm, fee?.fee);
-      else tx = await updateMixnodeVestingRequest(pm, fee?.fee);
+      else tx = await updateMixnodeRequest(pm, fee?.fee);
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {

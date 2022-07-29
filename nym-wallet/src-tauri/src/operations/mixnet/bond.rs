@@ -7,6 +7,14 @@ use nym_types::mixnode::MixNodeBond;
 use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::{Coin, Fee};
 
+struct NodeDescription {
+    name: String,
+    description: String,
+    link: String,
+    location: String,
+}
+
+
 #[tauri::command]
 pub async fn bond_gateway(
     gateway: Gateway,
@@ -203,7 +211,13 @@ pub async fn get_operator_rewards(
 pub async fn get_number_of_mixnode_delegators(identity: String, state: tauri::State<'_, WalletState>) -> Result<usize, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let paged_delegations = client.nymd.get_mix_delegations_paged(identity, None, None).await?;
+    let paged_delegations = client.nymd.get_mix_delegations_paged(identity, None, Some(20)).await?;
 
     Ok(paged_delegations.delegations.len())
 } 
+
+#[tokio::main]
+#[tauri::command]
+pub async fn get_mix_node_description(host: &str, port: u16)  {
+  let res = reqwest::get(format!("http://{}:{}/description", host, port)).await;
+}

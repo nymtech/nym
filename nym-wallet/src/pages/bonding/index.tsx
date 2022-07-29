@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { DecCoin, FeeDetails } from '@nymproject/types';
+import { FeeDetails } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
 import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
@@ -98,16 +98,6 @@ const Bonding = () => {
     });
   };
 
-  const handleBondMore = async (args: { additionalBond: DecCoin; signature: string; tokenPool: TPoolOption }) => {
-    setShowModal(undefined);
-    // const tx = await bondMixnode(data, tokenPool);
-    // setConfirmationDetails({
-    //   status: 'success',
-    //   title: 'Bond successful',
-    //   txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    // });
-  };
-
   const handleRedeemReward = async (fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await redeemRewards(fee);
@@ -197,16 +187,6 @@ const Bonding = () => {
         />
       )}
 
-      {bondedNode && showModal === 'bond-more' && (
-        <BondMoreModal
-          currentBond={bondedNode?.bond}
-          userBalance={balance?.printable_balance}
-          hasVestingTokens={Boolean(originalVesting)}
-          onClose={() => setShowModal(undefined)}
-          onConfirm={handleBondMore}
-        />
-      )}
-
       {showModal === 'unbond' && bondedNode && (
         <UnbondModal
           node={bondedNode}
@@ -239,7 +219,7 @@ const Bonding = () => {
           currentPm={bondedNode.profitMargin}
           isVesting={Boolean(bondedNode.proxy)}
           onConfirm={handleUpdateProfitMargin}
-          onClose={handleCloseModal}
+          onClose={() => setShowModal(undefined)}
           onError={handleError}
         />
       )}

@@ -144,7 +144,7 @@ export const DelegationsActionsMenu: React.FC<{
         />
         <DelegationActionsMenuItem
           title="Redeem"
-          description="Trasfer your rewards to your balance"
+          description="Transfer your rewards to your balance"
           Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
           onClick={() => handleActionSelect?.('redeem')}
           disabled={disableRedeemingRewards}

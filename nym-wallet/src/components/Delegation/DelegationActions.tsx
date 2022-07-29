@@ -114,12 +114,7 @@ export const DelegationsActionsMenu: React.FC<{
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpenMenu} onClose={handleOnClose}>
       <ActionsMenuItem title="Delegate more" Icon={<Delegate />} onClick={() => handleActionSelect('delegate')} />
-      <ActionsMenuItem
-        title="Undelegate"
-        Icon={<Undelegate />}
-        onClick={() => handleActionSelect('undelegate')}
-        disabled={false}
-      />
+      <ActionsMenuItem title="Undelegate" Icon={<Undelegate />} onClick={() => handleActionSelect('undelegate')} />
       <ActionsMenuItem
         title="Redeem"
         description="Trasfer your rewards to your balance"

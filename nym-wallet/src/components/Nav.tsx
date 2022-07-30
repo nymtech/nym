@@ -3,11 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
 import { AppContext } from '../context/main';
-<<<<<<< HEAD
-import { Delegate, Unbond, Bonding } from '../svg-icons';
-=======
-import { Bond, Delegate, Unbond, Bonding } from '../svg-icons';
->>>>>>> 530f1f044 (update coin types in new bonding page)
+import { Delegate, Bonding } from '../svg-icons';
 
 export const Nav = () => {
   const location = useLocation();
@@ -36,12 +32,6 @@ export const Nav = () => {
       label: 'Bonding',
       route: '/bonding',
       Icon: Bonding,
-    },
-    {
-      label: 'Unbond',
-      route: '/unbond',
-      Icon: Unbond,
-      onClick: () => navigate('/unbond'),
     },
     {
       label: 'Delegation',

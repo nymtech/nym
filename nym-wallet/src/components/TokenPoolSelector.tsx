@@ -10,7 +10,7 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
 }) => {
   const [value, setValue] = useState<TPoolOption>('balance');
   const {
-    userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation, isLoading },
+    userBalance: { tokenAllocation, balance, fetchBalance, fetchTokenAllocation },
     clientDetails,
   } = useContext(AppContext);
 

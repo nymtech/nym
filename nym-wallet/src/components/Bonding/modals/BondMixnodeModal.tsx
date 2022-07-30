@@ -53,8 +53,8 @@ export const BondMixnodeModal = ({
     }
   }, [feeError]);
 
-  const validateStep = async (step: number) => {
-    const event = new CustomEvent('validate_bond_mixnode_step', { detail: { step } });
+  const validateStep = async (s: number) => {
+    const event = new CustomEvent('validate_bond_mixnode_step', { detail: { step: s } });
     window.dispatchEvent(event);
   };
 

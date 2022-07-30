@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { Stack, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom, FeeDetails } from '@nymproject/types';
+import { SxProps } from '@mui/material';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateClaimDelgatorReward, simulateVestingClaimDelgatorReward } from 'src/requests';
 import { ModalFee } from '../Modals/ModalFee';

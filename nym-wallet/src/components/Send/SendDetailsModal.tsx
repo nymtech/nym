@@ -1,7 +1,6 @@
 import React from 'react';
 import { Stack, SxProps } from '@mui/material';
-import { CurrencyDenom } from '@nymproject/types';
-import { FeeDetails, DecCoin } from '@nymproject/types';
+import { FeeDetails, DecCoin, CurrencyDenom } from '@nymproject/types';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 

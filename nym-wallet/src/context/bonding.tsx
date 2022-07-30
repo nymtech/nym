@@ -1,7 +1,7 @@
 import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { isGateway, isMixnode, Network } from 'src/types';
-import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { isGateway, isMixnode, Network, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
@@ -27,9 +27,9 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import { Console } from 'src/utils/console';
 
 const bonded: TBondedMixnode = {
+  name: 'Monster node',
   identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   bond: { denom: 'nym', amount: '1234' },
   delegators: 123,
@@ -43,6 +43,7 @@ const bonded: TBondedMixnode = {
 
 // TODO add relevant data
 export type TBondedMixnode = {
+  name: string;
   identityKey: string;
   stake: DecCoin;
   bond: DecCoin;
@@ -57,6 +58,7 @@ export type TBondedMixnode = {
 
 // TODO add relevant data
 export interface TBondedGateway {
+  name: string;
   identityKey: string;
   ip: string;
   bond: DecCoin;
@@ -166,10 +168,11 @@ export const BondingContextProvider = ({
   const getNodeDescription = async (host: string, port: number) => {
     try {
       const nodeDescription = await getNodeDescriptioRequest(host, port);
-      console.log(nodeDescription);
+      return nodeDescription;
     } catch (e) {
       Console.log(e);
     }
+    return undefined;
   };
 
   const refresh = useCallback(async () => {
@@ -182,8 +185,9 @@ export const BondingContextProvider = ({
           const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
             data.mix_node.identity_key,
           );
-          await getNodeDescription(data.mix_node.host, data.mix_node.http_api_port);
+          const nodeDescription = await getNodeDescription(data.mix_node.host, data.mix_node.http_api_port);
           setBondedNode({
+            name: nodeDescription?.name || '-',
             identityKey: data.mix_node.identity_key,
             ip: '',
             stake: calculateStake(data.pledge_amount, data.total_delegation),
@@ -202,11 +206,14 @@ export const BondingContextProvider = ({
       }
     }
 
-    if (ownership.hasOwnership && ownership.nodeType === 'gateway' && clientDetails) {
+    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
       try {
         const data = await getGatewayBondDetails();
         if (data) {
+          const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
+
           setBondedNode({
+            name: nodeDescription?.name || '-',
             identityKey: data.gateway.identity_key,
             ip: data.gateway.host,
             location: data.gateway.location,
@@ -266,6 +273,7 @@ export const BondingContextProvider = ({
     } finally {
       setIsLoading(false);
     }
+    return undefined;
   };
 
   const unbond = async (fee?: FeeDetails) => {

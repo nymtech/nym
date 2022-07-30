@@ -6,7 +6,6 @@ import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
 import { TBondedMixnodeActions } from 'src/components/Bonding/BondedMixnodeActions';
 import { BondGatewayModal } from 'src/components/Bonding/modals/BondGatewayModal';
 import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal';
-import { BondMoreModal } from 'src/components/Bonding/modals/BondMoreModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
 import { NodeSettings } from 'src/components/Bonding/modals/NodeSettingsModal';
 import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
@@ -14,11 +13,11 @@ import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
-import { BondingContextProvider, useBondingContext } from '../../context';
-import { PageLayout } from '../../layouts';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
+import { PageLayout } from '../../layouts';
+import { BondingContextProvider, useBondingContext } from '../../context';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -29,7 +28,7 @@ const Bonding = () => {
   const {
     network,
     clientDetails,
-    userBalance: { originalVesting, balance },
+    userBalance: { originalVesting },
   } = useContext(AppContext);
 
   const {
@@ -66,6 +65,7 @@ const Bonding = () => {
       title: 'Bond successful',
       txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
     });
+    return undefined;
   };
 
   const handleBondGateway = async (data: TBondGatewayArgs, tokenPool: TPoolOption) => {
@@ -116,6 +116,7 @@ const Bonding = () => {
       title: 'Rewards compounded successfully',
       txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
     });
+    return undefined;
   };
 
   const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
@@ -144,6 +145,7 @@ const Bonding = () => {
         return undefined;
       }
     }
+    return undefined;
   };
 
   return (

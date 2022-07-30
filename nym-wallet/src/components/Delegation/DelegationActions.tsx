@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, ListItemIcon, ListItemText, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { DelegationEventKind } from '@nymproject/types';
 import { Delegate, Undelegate } from '../../svg-icons';
 import { ActionsMenu, ActionsMenuItem } from '../ActionsMenu';
@@ -63,25 +63,6 @@ export const DelegationActions: React.FC<{
     </Stack>
   );
 };
-
-const DelegationActionsMenuItem = ({
-  title,
-  description,
-  onClick,
-  Icon,
-  disabled,
-}: {
-  title: string;
-  description?: string;
-  onClick?: () => void;
-  Icon?: React.ReactNode;
-  disabled?: boolean;
-}) => (
-  <MenuItem sx={{ p: 2 }} onClick={onClick} disabled={disabled}>
-    <ListItemIcon sx={{ color: 'text.primary' }}>{Icon}</ListItemIcon>
-    <ListItemText sx={{ color: 'text.primary' }} primary={title} secondary={description} />
-  </MenuItem>
-);
 
 export const DelegationsActionsMenu: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;

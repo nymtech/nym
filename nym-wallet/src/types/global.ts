@@ -40,6 +40,13 @@ export type TBondMixNodeArgs = {
   fee?: Fee;
 };
 
+export type TNodeDescription = {
+  name: string;
+  description: string;
+  link: string;
+  location: string;
+};
+
 export type TDelegateArgs = {
   identity: string;
   amount: DecCoin;

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { DecCoin, FeeDetails } from '@nymproject/types';
+import { FeeDetails } from '@nymproject/types';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalFee } from 'src/components/Modals/ModalFee';

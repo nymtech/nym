@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Typography } from '@mui/material';
 import { ActionsMenu, ActionsMenuItem } from 'src/components/ActionsMenu';
-import { Bond as BondIcon, Unbond as UnbondIcon } from '../../svg-icons';
+import { Unbond as UnbondIcon } from '../../svg-icons';
 
 export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem' | 'compound';
 

@@ -7,6 +7,7 @@ import { mockSleep } from './utils';
 const SLEEP_MS = 1000;
 
 const bondedMixnodeMock: TBondedMixnode = {
+  name: 'Monster node',
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   stake: { denom: 'nym', amount: '1234' },
   bond: { denom: 'nym', amount: '1234' },
@@ -19,6 +20,7 @@ const bondedMixnodeMock: TBondedMixnode = {
 };
 
 const bondedGatewayMock: TBondedGateway = {
+  name: 'Monster node',
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
   bond: { denom: 'nym', amount: '1234' },

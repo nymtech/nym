@@ -7,7 +7,7 @@ import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
-import { simulateBondGateway, simulateVestingBondGateway, simulateVestingBondMixnode } from 'src/requests';
+import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
 import { TBondGatewayArgs } from 'src/types';
 import { BondGatewayForm } from '../forms/BondGatewayForm';
 
@@ -52,8 +52,8 @@ export const BondGatewayModal = ({
     }
   }, [feeError]);
 
-  const validateStep = async (step: number) => {
-    const event = new CustomEvent('validate_bond_gateway_step', { detail: { step } });
+  const validateStep = async (s: number) => {
+    const event = new CustomEvent('validate_bond_gateway_step', { detail: { step: s } });
     window.dispatchEvent(event);
   };
 

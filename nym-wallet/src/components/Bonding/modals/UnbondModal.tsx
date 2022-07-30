@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { TBondedGateway, TBondedMixnode } from 'src/context';
-import { NodeType } from 'src/pages/bonding/types';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';
 import { ModalFee } from '../../Modals/ModalFee';

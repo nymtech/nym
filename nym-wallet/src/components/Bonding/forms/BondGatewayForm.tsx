@@ -1,14 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { TokenPoolSelector } from 'src/components';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { CurrencyDenom } from '@nymproject/types';
-import { GatewayAmount, GatewayData, MixnodeData } from 'src/pages/bonding/types';
+import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
 import { gatewayValidationSchema, amountSchema } from './gatewayValidationSchema';
 
 const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNext: (data: GatewayData) => void }) => {

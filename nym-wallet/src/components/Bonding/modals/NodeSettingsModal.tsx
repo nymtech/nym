@@ -8,7 +8,7 @@ import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { isDecimal } from 'src/utils';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
-import { simulateUpdateMixnode, simulateVestingUpdateMixnode, updateMixnode } from 'src/requests';
+import { simulateUpdateMixnode, simulateVestingUpdateMixnode } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
 

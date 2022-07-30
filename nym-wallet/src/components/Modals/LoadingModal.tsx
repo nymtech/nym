@@ -1,5 +1,10 @@
 import React from 'react';
+<<<<<<< HEAD
 import { Box, CircularProgress, Modal, Stack, Typography, SxProps } from '@mui/material';
+=======
+import { Box, CircularProgress, Modal, Stack, Typography } from '@mui/material';
+import { SxProps } from '@mui/material';
+>>>>>>> 9ee38bfb5 (fix lint errors)
 
 const modalStyle: SxProps = {
   position: 'absolute',

@@ -60,7 +60,8 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
-  const { stake, bond, stakeSaturation, profitMargin, operatorRewards, delegators, status, identityKey } = mixnode;
+  const { name, stake, bond, stakeSaturation, profitMargin, operatorRewards, delegators, status, identityKey } =
+    mixnode;
   const cells: Cell[] = [
     {
       cell: `${stake.amount} ${stake.denom}`,
@@ -109,7 +110,7 @@ export const BondedMixnode = ({
         <Stack gap={2}>
           <NodeStatus status={status} />
           <Typography variant="h5" fontWeight={600}>
-            Monster node
+            {name}
           </Typography>
           <IdentityKey identityKey={identityKey} />
         </Stack>

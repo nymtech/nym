@@ -22,7 +22,7 @@ export const BondMoreModal = ({
   onConfirm: (args: { additionalBond: DecCoin; signature: string; tokenPool: TPoolOption }) => Promise<void>;
   onClose: () => void;
 }) => {
-  const { fee, getFee, resetFeeState } = useGetFee();
+  const { fee, resetFeeState } = useGetFee();
   const [additionalBond, setAdditionalBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
   const [signature, setSignature] = useState<string>('');
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
@@ -30,7 +30,7 @@ export const BondMoreModal = ({
   const [errorSignature, setErrorSignature] = useState(false);
 
   const handleOnOk = async () => {
-    let errors = {
+    const errors = {
       amount: false,
       signature: false,
     };

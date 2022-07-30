@@ -33,7 +33,7 @@ export const BondedGateway = ({
   network?: Network;
   onActionSelect: (action: TBondedGatwayActions) => void;
 }) => {
-  const { bond, ip, identityKey } = gateway;
+  const { name, bond, ip, identityKey } = gateway;
   const cells: Cell[] = [
     {
       cell: ip,
@@ -57,7 +57,7 @@ export const BondedGateway = ({
       title={
         <Stack gap={2}>
           <Typography variant="h5" fontWeight={600}>
-            Monster node
+            {name}
           </Typography>
           <IdentityKey identityKey={identityKey} />
         </Stack>

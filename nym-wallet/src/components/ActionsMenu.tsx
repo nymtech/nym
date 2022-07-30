@@ -34,11 +34,9 @@ export const ActionsMenuItem = ({
   onClick?: () => void;
   Icon?: React.ReactNode;
   disabled?: boolean;
-}) => {
-  return (
-    <MenuItem sx={{ p: 2 }} onClick={onClick} disabled={disabled}>
-      <ListItemIcon sx={{ color: 'text.primary' }}>{Icon}</ListItemIcon>
-      <ListItemText sx={{ color: 'text.primary' }} primary={title} secondary={description} />
-    </MenuItem>
-  );
-};
+}) => (
+  <MenuItem sx={{ p: 2 }} onClick={onClick} disabled={disabled}>
+    <ListItemIcon sx={{ color: 'text.primary' }}>{Icon}</ListItemIcon>
+    <ListItemText sx={{ color: 'text.primary' }} primary={title} secondary={description} />
+  </MenuItem>
+);

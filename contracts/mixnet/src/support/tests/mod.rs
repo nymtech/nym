@@ -48,11 +48,12 @@ pub mod test_helpers {
     };
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
     use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-    use mixnet_contract_common::reward_params::Performance;
+    use mixnet_contract_common::reward_params::{Performance, RewardingParams};
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, MixNode, NodeId, Percent,
+        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, Interval, MixNode, NodeId,
+        Percent, RewardedSetNodeStatus,
     };
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
@@ -119,6 +120,12 @@ pub mod test_helpers {
             self.rewarding_validator.clone()
         }
 
+        pub fn rewarding_params(&self) -> RewardingParams {
+            rewards_storage::REWARDING_PARAMS
+                .load(self.deps().storage)
+                .unwrap()
+        }
+
         pub fn owner(&self) -> MessageInfo {
             self.owner.clone()
         }
@@ -128,6 +135,17 @@ pub mod test_helpers {
                 .load(self.deps().storage)
                 .unwrap()
                 .vesting_contract_address
+        }
+
+        pub fn current_interval(&self) -> Interval {
+            interval_storage::current_interval(self.deps().storage).unwrap()
+        }
+
+        pub fn rewarded_set(&self) -> Vec<(NodeId, RewardedSetNodeStatus)> {
+            interval_storage::REWARDED_SET
+                .range(self.deps().storage, None, None, Order::Ascending)
+                .map(|res| res.unwrap())
+                .collect::<Vec<_>>()
         }
 
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {

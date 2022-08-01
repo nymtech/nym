@@ -63,8 +63,8 @@ pub(crate) mod string_rfc3339_offset_date_time {
 // uniquely identifies particular epoch
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct FullEpochId {
-    interval_id: IntervalId,
-    epoch_id: EpochId,
+    pub interval_id: IntervalId,
+    pub epoch_id: EpochId,
 }
 
 impl Display for FullEpochId {

@@ -19,17 +19,6 @@ pub struct NodeDescription {
     location: String,
 }
 
-impl NodeDescription {
-    fn new(name: String, description: String, link: String, location: String) -> NodeDescription {
-        NodeDescription {
-            name,
-            description,
-            link,
-            location,
-        }
-    }
-}
-
 #[tauri::command]
 pub async fn bond_gateway(
     gateway: Gateway,
@@ -237,12 +226,11 @@ pub async fn get_number_of_mixnode_delegators(
     Ok(paged_delegations.delegations.len())
 }
 
-#[tokio::main]
 async fn fetch_mix_node_description(
     host: &str,
     port: u16,
 ) -> Result<NodeDescription, ReqwestError> {
-    let milli_second = Duration::new(0, 100000000);
+    let milli_second = Duration::from_millis(1000);
     let client = reqwest::Client::builder().timeout(milli_second).build()?;
     let response = client
         .get(format!("http://{}:{}/description", host, port))
@@ -262,17 +250,14 @@ async fn fetch_mix_node_description(
 }
 
 #[tauri::command]
-pub fn get_mix_node_description(host: &str, port: u16) -> NodeDescription {
-    let res = fetch_mix_node_description(host, port);
+pub async fn get_mix_node_description(
+    host: &str,
+    port: u16,
+) -> Result<NodeDescription, BackendError> {
+    let res = fetch_mix_node_description(host, port).await;
 
-    let response = match res {
-        Ok(node_description) => node_description,
-        Err(_e) => NodeDescription::new(
-            "-".to_string(),
-            "-".to_string(),
-            "-".to_string(),
-            "-".to_string(),
-        ),
-    };
-    response
+    match res {
+        Ok(node_description) => Ok(node_description),
+        Err(e) => Err(BackendError::ReqwestError { source: e }),
+    }
 }

@@ -1,4 +1,5 @@
 use log::info;
+use task::ShutdownListener;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
 use crate::COUNTRY_DATA_REFRESH_INTERVAL;
@@ -7,11 +8,12 @@ use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct CountryStatisticsDistributionTask {
     state: ExplorerApiStateContext,
+    shutdown: ShutdownListener,
 }
 
 impl CountryStatisticsDistributionTask {
-    pub(crate) fn new(state: ExplorerApiStateContext) -> Self {
-        CountryStatisticsDistributionTask { state }
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+        CountryStatisticsDistributionTask { state, shutdown }
     }
 
     pub(crate) fn start(mut self) {
@@ -20,10 +22,15 @@ impl CountryStatisticsDistributionTask {
             let mut interval_timer = tokio::time::interval(std::time::Duration::from_secs(
                 COUNTRY_DATA_REFRESH_INTERVAL,
             ));
-            loop {
-                // wait for the next interval tick
-                interval_timer.tick().await;
-                self.calculate_nodes_per_country().await;
+            while !self.shutdown.is_shutdown() {
+                tokio::select! {
+                    _ = interval_timer.tick() => {
+                        self.calculate_nodes_per_country().await;
+                    }
+                    _ = self.shutdown.recv() => {
+                        trace!("Listener: Received shutdown");
+                    }
+                }
             }
         });
     }

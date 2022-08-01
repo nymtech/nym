@@ -5,15 +5,17 @@ use crate::mix_nodes::location::{GeoLocation, Location};
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
 use reqwest::Error as ReqwestError;
+use task::ShutdownListener;
 use thiserror::Error;
 
 pub(crate) struct GeoLocateTask {
     state: ExplorerApiStateContext,
+    shutdown: ShutdownListener,
 }
 
 impl GeoLocateTask {
-    pub(crate) fn new(state: ExplorerApiStateContext) -> Self {
-        GeoLocateTask { state }
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+        GeoLocateTask { state, shutdown }
     }
 
     pub(crate) fn start(mut self) {
@@ -27,10 +29,15 @@ impl GeoLocateTask {
         info!("Spawning mix node locator task runner...");
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(std::time::Duration::from_millis(50));
-            loop {
-                // wait for the next interval tick
-                interval_timer.tick().await;
-                self.locate_mix_nodes().await;
+            while !self.shutdown.is_shutdown() {
+                tokio::select! {
+                    _ = interval_timer.tick() => {
+                        self.locate_mix_nodes().await;
+                    }
+                    _ = self.shutdown.recv() => {
+                        trace!("Listener: Received shutdown");
+                    }
+                }
             }
         });
     }

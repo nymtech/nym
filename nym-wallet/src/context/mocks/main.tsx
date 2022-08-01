@@ -40,6 +40,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       showTerminal: false,
       showSettings: false,
       showSendModal: true,
+      showReceiveModal: false,
       network: 'SANDBOX',
       loginType: 'mnemonic',
       setIsLoading: () => undefined,
@@ -54,6 +55,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       onAccountChange: () => undefined,
       handleShowSettings: () => undefined,
       handleShowSendModal: () => undefined,
+      handleShowReceiveModal: () => undefined,
     }),
     [],
   );

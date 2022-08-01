@@ -25,11 +25,11 @@ export const ReceiveModal = ({
       onClose={onClose}
       open={open}
       onOk={async () => onClose()}
-      sx={sx}
+      sx={{ width: 'small', ...sx }}
       backdropProps={backdropProps}
       hideOkButton
     >
-      <Stack spacing={3}>
+      <Stack spacing={3} sx={{ mt: 1.6 }}>
         <Stack direction="row" alignItems="center" gap={4}>
           <Typography>Your address:</Typography>
           <ClientAddress withCopy showEntireAddress />

@@ -4,6 +4,7 @@
 use std::future::Future;
 
 use mixnet_contract_common::GatewayBond;
+use task::ShutdownListener;
 use validator_client::models::MixNodeBondAnnotated;
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
@@ -14,11 +15,12 @@ use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct ExplorerApiTasks {
     state: ExplorerApiStateContext,
+    shutdown: ShutdownListener,
 }
 
 impl ExplorerApiTasks {
-    pub(crate) fn new(state: ExplorerApiStateContext) -> Self {
-        ExplorerApiTasks { state }
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+        ExplorerApiTasks { state, shutdown }
     }
 
     // a helper to remove duplicate code when grabbing active/rewarded/all mixnodes
@@ -128,24 +130,28 @@ impl ExplorerApiTasks {
         }
     }
 
-    pub(crate) fn start(self) {
+    pub(crate) fn start(mut self) {
         info!("Spawning mix nodes task runner...");
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(CACHE_REFRESH_RATE);
-            loop {
-                // wait for the next interval tick
-                interval_timer.tick().await;
+            while !self.shutdown.is_shutdown() {
+                tokio::select! {
+                    _ = interval_timer.tick() => {
+                        info!("Updating validator cache...");
+                        self.update_validators_cache().await;
+                        info!("Done");
 
-                info!("Updating validator cache...");
-                self.update_validators_cache().await;
-                info!("Done");
+                        info!("Updating gateway cache...");
+                        self.update_gateways_cache().await;
+                        info!("Done");
 
-                info!("Updating gateway cache...");
-                self.update_gateways_cache().await;
-                info!("Done");
-
-                info!("Updating mix node cache...");
-                self.update_mixnode_cache().await;
+                        info!("Updating mix node cache...");
+                        self.update_mixnode_cache().await;
+                    }
+                    _ = self.shutdown.recv() => {
+                        trace!("Listener: Received shutdown");
+                    }
+                }
             }
         });
     }

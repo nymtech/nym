@@ -2,27 +2,43 @@ import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
 import { Box, Stack, Typography } from '@mui/material';
 import QRCode from 'qrcode.react';
+import { SxProps } from '@mui/system';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ClientAddress } from '../ClientAddress';
 
 export const ReceiveModal = ({
   onClose,
-  hasStorybookStyles,
   open,
+  sx,
+  backdropProps,
 }: {
   onClose: () => void;
-  hasStorybookStyles?: {};
   open: boolean;
+  sx?: SxProps;
+  backdropProps?: object;
 }) => {
   const { clientDetails } = useContext(AppContext);
   return (
-    <SimpleModal header="Receive" okLabel="Ok" onClose={onClose} open={open} onOk={async () => onClose()} hideOkButton>
+    <SimpleModal
+      header="Receive"
+      okLabel="Ok"
+      onClose={onClose}
+      open={open}
+      onOk={async () => onClose()}
+      sx={sx}
+      backdropProps={backdropProps}
+      hideOkButton
+    >
       <Stack spacing={3}>
         <Stack direction="row" alignItems="center" gap={4}>
           <Typography>Your address:</Typography>
           <ClientAddress withCopy showEntireAddress />
         </Stack>
-        {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
+        <Stack alignItems="center">
+          <Box sx={{ border: (t) => `1px solid ${t.palette.nym.highlight}`, borderRadius: 2, p: 2 }}>
+            {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
+          </Box>
+        </Stack>
       </Stack>
     </SimpleModal>
   );

@@ -6,9 +6,7 @@ export const Receive = ({ hasStorybookStyles }: { hasStorybookStyles?: {} }) => 
   const { showReceiveModal, handleShowReceiveModal } = useContext(AppContext);
 
   if (showReceiveModal)
-    return (
-      <ReceiveModal onClose={handleShowReceiveModal} hasStorybookStyles={hasStorybookStyles} open={showReceiveModal} />
-    );
+    return <ReceiveModal onClose={handleShowReceiveModal} open={showReceiveModal} {...hasStorybookStyles} />;
 
   return null;
 };

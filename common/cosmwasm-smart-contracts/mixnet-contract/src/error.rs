@@ -131,4 +131,7 @@ pub enum MixnetContractError {
 
     #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
     UnexpectedRewardedSetSize { received: u32, expected: u32 },
+
+    #[error("Mixnode {node_id} appears multiple times in the provided rewarded set update!")]
+    DuplicateRewardedSetNode { node_id: NodeId },
 }

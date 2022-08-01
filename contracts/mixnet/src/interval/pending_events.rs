@@ -3,7 +3,7 @@
 
 use crate::delegations;
 use crate::delegations::storage as delegations_storage;
-use crate::interval::helpers::change_epochs_in_interval;
+use crate::interval::helpers::change_interval_config;
 use crate::interval::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
@@ -326,14 +326,13 @@ pub(crate) fn update_interval_config(
     // by the authorized entity.
     // Furthermore, we don't need to check whether the interval is finished as the
     // queue is only emptied upon the interval finishing.
-    let mut interval = storage::current_interval(deps.storage)?;
-    interval.change_epoch_length(Duration::from_secs(epoch_duration_secs));
-    change_epochs_in_interval(deps.storage, interval, epochs_in_interval)?;
-
-    Ok(Response::new().add_event(new_interval_config_update_event(
+    let interval = storage::current_interval(deps.storage)?;
+    change_interval_config(
+        deps.storage,
+        interval,
         epochs_in_interval,
         epoch_duration_secs,
-    )))
+    )
 }
 
 impl ContractExecutableEvent for PendingIntervalEvent {

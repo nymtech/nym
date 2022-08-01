@@ -52,12 +52,7 @@ pub struct IntervalRewardParams {
 
 impl IntervalRewardParams {
     pub fn to_inline_json(&self) -> String {
-        // as per documentation on `to_string`:
-        //      > Serialization can fail if `T`'s implementation of `Serialize` decides to
-        //      > fail, or if `T` contains a map with non-string keys.
-        // We have derived the `Serialize`, thus we're pretty confident it's valid and
-        // the struct does not contain any maps, so the unwrap here is fine.
-        serde_json::to_string(self).unwrap()
+        serde_json::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 
@@ -202,7 +197,9 @@ impl NodeRewardParams {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema,
+)]
 pub struct IntervalRewardingParamsUpdate {
     pub reward_pool: Option<Decimal>,
     pub staking_supply: Option<Decimal>,
@@ -225,11 +222,6 @@ impl IntervalRewardingParamsUpdate {
     }
 
     pub fn to_inline_json(&self) -> String {
-        // as per documentation on `to_string`:
-        //      > Serialization can fail if `T`'s implementation of `Serialize` decides to
-        //      > fail, or if `T` contains a map with non-string keys.
-        // We have derived the `Serialize`, thus we're pretty confident it's valid and
-        // the struct does not contain any maps, so the unwrap here is fine.
-        serde_json::to_string(self).unwrap()
+        serde_json::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }

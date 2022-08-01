@@ -484,6 +484,7 @@ pub fn new_reconcile_pending_events() -> Event {
 pub fn new_interval_config_update_event(
     epochs_in_interval: u32,
     epoch_duration_secs: u64,
+    updated_rewarding_params: IntervalRewardParams,
 ) -> Event {
     Event::new(MixnetEventType::IntervalConfigUpdate)
         .add_attribute(
@@ -491,6 +492,10 @@ pub fn new_interval_config_update_event(
             epoch_duration_secs.to_string(),
         )
         .add_attribute(NEW_EPOCHS_IN_INTERVAL, epochs_in_interval.to_string())
+        .add_attribute(
+            UPDATED_INTERVAL_REWARDING_PARAMS_KEY,
+            updated_rewarding_params.to_inline_json(),
+        )
 }
 
 pub fn new_pending_interval_config_update_event(

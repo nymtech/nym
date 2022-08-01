@@ -22,9 +22,9 @@ impl<T> AttachOptionalMessage<T> for Response<T> {
     }
 }
 
-pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
-    api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
-}
+// pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
+//     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
+// }
 
 /// Attempts to construct a `BankMsg` to send specified tokens to the provided
 /// proxy address. If that's unavailable, the `BankMsg` will use the "owner" as the
@@ -35,7 +35,7 @@ pub(crate) fn send_to_proxy_or_owner(
     amount: Vec<Coin>,
 ) -> BankMsg {
     BankMsg::Send {
-        to_address: proxy.as_ref().unwrap_or(&owner).to_string(),
+        to_address: proxy.as_ref().unwrap_or(owner).to_string(),
         amount,
     }
 }

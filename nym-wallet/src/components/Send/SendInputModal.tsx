@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, TextField, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Stack, TextField, Typography, SxProps } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';

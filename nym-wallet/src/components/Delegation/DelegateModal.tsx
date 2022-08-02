@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';

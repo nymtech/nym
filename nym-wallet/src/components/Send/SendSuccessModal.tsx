@@ -1,6 +1,5 @@
 import React from 'react';
-import { Stack, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Stack, Typography, SxProps } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TTransactionDetails } from './types';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';

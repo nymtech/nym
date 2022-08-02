@@ -1,8 +1,7 @@
 import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, SxProps } from '@mui/material';
 import QRCode from 'qrcode.react';
-import { SxProps } from '@mui/system';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ClientAddress } from '../ClientAddress';
 

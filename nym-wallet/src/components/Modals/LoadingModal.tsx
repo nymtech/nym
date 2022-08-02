@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, CircularProgress, Modal, Stack, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Box, CircularProgress, Modal, Stack, Typography, SxProps } from '@mui/material';
 
 const modalStyle: SxProps = {
   position: 'absolute',

@@ -129,10 +129,10 @@ export const BondingContextProvider = ({
 
   const isVesting = Boolean(ownership.vestingPledge);
 
-  const resetState = useCallback(() => {
+  const resetState = () => {
     setError(undefined);
     setBondedNode(undefined);
-  }, []);
+  };
 
   const getAdditionalMixnodeDetails = async (identityKey: string) => {
     const additionalDetails: { status: MixnodeStatus; stakeSaturation: number; numberOfDelegators: number } = {
@@ -177,6 +177,7 @@ export const BondingContextProvider = ({
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
+
     if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
@@ -226,13 +227,16 @@ export const BondingContextProvider = ({
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
     }
+
+    if (!ownership.hasOwnership) {
+      resetState();
+    }
     setIsLoading(false);
   }, [ownership]);
 
   useEffect(() => {
-    resetState();
     refresh();
-  }, [network, ownership, refresh, resetState]);
+  }, [ownership, refresh]);
 
   const bondMixnode = async (data: TBondMixNodeArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;

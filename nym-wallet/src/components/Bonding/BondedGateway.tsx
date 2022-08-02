@@ -64,14 +64,14 @@ export const BondedGateway = ({
       }
     >
       <NodeTable headers={headers} cells={cells} />
-      <Typography sx={{ mt: 2 }}>
-        Check more stats of your node on the{' '}
-        {network && (
+      {network && (
+        <Typography sx={{ mt: 2, fontSize: 'small' }}>
+          Check more stats of your node on the{' '}
           <Link href={`${urls(network).networkExplorer}/network-components/gateways`} target="_blank">
             explorer
           </Link>
-        )}
-      </Typography>
+        </Typography>
+      )}
     </NymCard>
   );
 };

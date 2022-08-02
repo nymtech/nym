@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
-import { CurrencyDenom } from '@nymproject/types';
+import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { TPoolOption } from 'src/components/TokenPoolSelector';
+import { NodeTypeSelector } from 'src/components/NodeTypeSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
@@ -32,12 +33,14 @@ export const BondMixnodeModal = ({
   denom,
   hasVestingTokens,
   onBondMixnode,
+  onSelecteNodeType,
   onClose,
   onError,
 }: {
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
   onBondMixnode: (data: TBondMixNodeArgs, tokenPool: TPoolOption) => void;
+  onSelecteNodeType: (type: TNodeType) => void;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
@@ -141,6 +144,9 @@ export const BondMixnodeModal = ({
       okLabel="Next"
     >
       <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2 }}>
+          <NodeTypeSelector disabled={false} setNodeType={onSelecteNodeType} nodeType="mixnode" />
+        </Box>
         <BondMixnodeForm
           step={step}
           hasVestingTokens={hasVestingTokens}

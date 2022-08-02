@@ -3,12 +3,11 @@ import { Box, Button, Typography } from '@mui/material';
 import { NymCard } from '../NymCard';
 
 export const Bond = ({
-  onBondMixnode,
-  onBondGateway,
+  onBond,
   disabled,
 }: {
-  onBondMixnode: () => void;
-  onBondGateway: () => void;
+  onBond: () => void;
+
   disabled: boolean;
 }) => (
   <NymCard title="Bonding">
@@ -34,13 +33,10 @@ export const Bond = ({
           color="primary"
           type="button"
           disableElevation
-          onClick={onBondMixnode}
+          onClick={onBond}
           disabled={disabled}
         >
-          Mixnode
-        </Button>
-        <Button size="large" variant="contained" onClick={onBondGateway} disabled={disabled}>
-          Gateway
+          Bond
         </Button>
       </Box>
     </Box>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
-import { CurrencyDenom } from '@nymproject/types';
+import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
@@ -8,6 +8,7 @@ import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
 import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
+import { NodeTypeSelector } from 'src/components/NodeTypeSelector';
 import { TBondGatewayArgs } from 'src/types';
 import { BondGatewayForm } from '../forms/BondGatewayForm';
 
@@ -31,12 +32,14 @@ export const BondGatewayModal = ({
   denom,
   hasVestingTokens,
   onBondGateway,
+  onSelecteNodeType,
   onClose,
   onError,
 }: {
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
   onBondGateway: (data: TBondGatewayArgs, tokenPool: TPoolOption) => void;
+  onSelecteNodeType: (type: TNodeType) => void;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
@@ -142,6 +145,9 @@ export const BondGatewayModal = ({
       okLabel="Next"
     >
       <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2 }}>
+          <NodeTypeSelector disabled={false} setNodeType={onSelecteNodeType} nodeType="gateway" />
+        </Box>
         <BondGatewayForm
           step={step}
           hasVestingTokens={hasVestingTokens}

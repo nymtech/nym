@@ -150,13 +150,7 @@ const Bonding = () => {
 
   return (
     <PageLayout>
-      {!bondedNode && (
-        <Bond
-          disabled={isLoading}
-          onBondMixnode={() => setShowModal('bond-mixnode')}
-          onBondGateway={() => setShowModal('bond-gateway')}
-        />
-      )}
+      {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (
         <BondedMixnode
@@ -167,13 +161,14 @@ const Bonding = () => {
       )}
 
       {bondedNode && isGateway(bondedNode) && (
-        <BondedGateway gateway={bondedNode} onActionSelect={handleBondedMixnodeAction} />
+        <BondedGateway gateway={bondedNode} onActionSelect={handleBondedMixnodeAction} network={network} />
       )}
       {showModal === 'bond-mixnode' && (
         <BondMixnodeModal
           denom={clientDetails?.display_mix_denom || 'nym'}
           hasVestingTokens={Boolean(originalVesting)}
           onBondMixnode={handleBondMixnode}
+          onSelecteNodeType={() => setShowModal('bond-gateway')}
           onClose={() => setShowModal(undefined)}
           onError={handleError}
         />
@@ -181,10 +176,11 @@ const Bonding = () => {
 
       {showModal === 'bond-gateway' && (
         <BondGatewayModal
-          onBondGateway={handleBondGateway}
-          onClose={() => setShowModal(undefined)}
           denom={clientDetails?.display_mix_denom || 'nym'}
           hasVestingTokens={Boolean(originalVesting)}
+          onBondGateway={handleBondGateway}
+          onSelecteNodeType={() => setShowModal('bond-mixnode')}
+          onClose={() => setShowModal(undefined)}
           onError={handleError}
         />
       )}

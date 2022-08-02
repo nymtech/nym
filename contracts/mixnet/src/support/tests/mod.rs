@@ -10,6 +10,7 @@ pub mod queries;
 
 #[cfg(test)]
 pub mod test_helpers {
+    use crate::constants;
     use crate::contract::instantiate;
     use crate::delegations::queries::query_mixnode_delegations_paged;
     use crate::delegations::storage as delegations_storage;
@@ -31,13 +32,12 @@ pub mod test_helpers {
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
     use crate::support::tests::fixtures::TEST_COIN_DENOM;
-    use crate::{constants, interval};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{Addr, BankMsg, CosmosMsg, StdResult, Storage};
+    use cosmwasm_std::{Addr, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -709,7 +709,7 @@ pub mod test_helpers {
             initial_reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(), // 250M * 1M (we're expressing it all in base tokens)
             initial_staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
             sybil_resistance: Percent::from_percentage_value(30).unwrap(),
-            active_set_work_factor: Decimal::percent(1000), // value '10'
+            active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
             interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
             rewarded_set_size: 240,
             active_set_size: 100,
@@ -737,34 +737,6 @@ pub mod test_helpers {
         try_delegate_to_mixnode(deps, info, mix_id).unwrap();
     }
 
-    // // currently not used outside tests
-    // pub(crate) fn read_mixnode_pledge_amount(
-    //     storage: &dyn Storage,
-    //     identity: IdentityKeyRef<'_>,
-    // ) -> StdResult<cosmwasm_std::Uint128> {
-    //     let node = mixnodes_storage::mixnodes().load(storage, identity)?;
-    //     Ok(node.pledge_amount.amount)
-    // }
-
-    // pub(crate) fn save_dummy_delegation(
-    //     storage: &mut dyn Storage,
-    //     mix: NodeId,
-    //     owner: impl Into<String>,
-    // ) {
-    //     let delegation = Delegation {
-    //         owner: Addr::unchecked(owner.into()),
-    //         node_id: mix,
-    //         cumulative_reward_ratio: Default::default(),
-    //         amount: coin(12345, TEST_COIN_DENOM),
-    //         height: 12345,
-    //         proxy: None,
-    //     };
-    //
-    //     delegations_storage::delegations()
-    //         .save(storage, delegation.storage_key(), &delegation)
-    //         .unwrap();
-    // }
-
     pub(crate) fn read_delegation(
         storage: &dyn Storage,
         mix: NodeId,
@@ -777,55 +749,5 @@ pub mod test_helpers {
                 Delegation::generate_storage_key(mix, owner, proxy.as_ref()),
             )
             .unwrap()
-    }
-
-    pub(crate) fn update_env_and_progress_epoch(deps: DepsMut<'_>, env: &mut Env) {
-        // make sure current block time is within the expected next interval
-        env.block.time = Timestamp::from_seconds(
-            (interval_storage::current_interval(deps.storage)
-                .unwrap()
-                .current_epoch_end_unix_timestamp()
-                + 123) as u64,
-        );
-
-        let sender =
-            crate::mixnet_contract_settings::storage::rewarding_validator_address(deps.storage)
-                .unwrap();
-        let active_set_size = rewards_storage::REWARDING_PARAMS
-            .load(deps.storage)
-            .unwrap()
-            .active_set_size;
-
-        // don't bother updating the rewarded set, use what we have right now
-        let rewarded_set = interval_storage::REWARDED_SET
-            .range(deps.storage, None, None, Order::Ascending)
-            .collect::<StdResult<Vec<_>>>()
-            .unwrap();
-
-        let active = rewarded_set
-            .iter()
-            .filter(|(_id, status)| status.is_active())
-            .map(|(id, _)| *id)
-            .collect::<Vec<_>>();
-
-        let standby = rewarded_set
-            .iter()
-            .filter(|(_id, status)| !status.is_active())
-            .map(|(id, _)| *id)
-            .collect::<Vec<_>>();
-
-        let new_set = active
-            .into_iter()
-            .chain(standby.into_iter())
-            .collect::<Vec<_>>();
-
-        interval::transactions::try_advance_epoch(
-            deps,
-            env.clone(),
-            mock_info(sender.as_str(), &[]),
-            new_set,
-            active_set_size,
-        )
-        .unwrap();
     }
 }

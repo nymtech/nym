@@ -1,8 +1,7 @@
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
-use crate::support::tests;
-use cosmwasm_std::{coin, Addr, Coin};
+use cosmwasm_std::{coin, Coin};
 use mixnet_contract_common::mixnode::MixNodeCostParams;
-use mixnet_contract_common::{Gateway, GatewayBond, MixNode, Percent};
+use mixnet_contract_common::{Gateway, MixNode, Percent};
 
 pub const TEST_COIN_DENOM: &str = "unym";
 
@@ -35,20 +34,6 @@ pub fn gateway_fixture() -> Gateway {
         identity_key: "identity".to_string(),
         version: "0.10.0".to_string(),
     }
-}
-
-pub fn gateway_bond_fixture(owner: &str) -> GatewayBond {
-    let gateway = Gateway {
-        identity_key: format!("id-{}", owner),
-        ..tests::fixtures::gateway_fixture()
-    };
-    GatewayBond::new(
-        coin(50, TEST_COIN_DENOM),
-        Addr::unchecked(owner),
-        12_345,
-        gateway,
-        None,
-    )
 }
 
 pub fn good_mixnode_pledge() -> Vec<Coin> {

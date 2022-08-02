@@ -13,14 +13,13 @@ use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
-    new_interval_config_update_event, new_mixnode_cost_params_update_event,
-    new_mixnode_unbonding_event, new_rewarding_params_update_event, new_undelegation_event,
+    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event,
+    new_rewarding_params_update_event, new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 use mixnet_contract_common::{Delegation, NodeId};
-use std::time::Duration;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) trait ContractExecutableEvent {
@@ -361,6 +360,7 @@ mod tests {
     use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
     use cosmwasm_std::Decimal;
     use mixnet_contract_common::Percent;
+    use std::time::Duration;
 
     // note that authorization and basic validation has already been performed for all of those
     // before being pushed onto the event queues

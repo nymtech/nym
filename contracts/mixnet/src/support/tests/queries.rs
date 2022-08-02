@@ -1,33 +1,10 @@
+use crate::contract::query;
 use cosmwasm_std::{
     from_binary,
     testing::{mock_env, MockApi, MockQuerier, MockStorage},
-    Addr, Coin, OwnedDeps,
+    OwnedDeps,
 };
-use mixnet_contract_common::mixnode::{MixNodeDetails, PagedMixnodesDetailsResponse};
 use mixnet_contract_common::{GatewayBond, PagedGatewayResponse, QueryMsg};
-
-use crate::contract::query;
-use crate::support::tests::fixtures::TEST_COIN_DENOM;
-
-pub fn get_mix_nodes(
-    deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-) -> Vec<MixNodeDetails> {
-    let result = query(
-        deps.as_ref(),
-        mock_env(),
-        QueryMsg::GetMixNodesDetailed {
-            start_after: None,
-            limit: None,
-        },
-    )
-    .unwrap();
-
-    let page: PagedMixnodesDetailsResponse = from_binary(&result).unwrap();
-    if page.start_next_after.is_some() {
-        panic!("we didn't manage to get all mixnodes in a single query")
-    }
-    page.nodes
-}
 
 // I honestly don't know why we're using this way of querying in tests, but I couldn't be bothered to change it
 // since I haven't done anything to gateways
@@ -59,12 +36,4 @@ pub fn get_gateways(deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>) -> 
         }
     }
     page.nodes
-}
-
-pub fn query_contract_balance(
-    address: Addr,
-    deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
-) -> Vec<Coin> {
-    let querier = deps.as_ref().querier;
-    vec![querier.query_balance(address, TEST_COIN_DENOM).unwrap()]
 }

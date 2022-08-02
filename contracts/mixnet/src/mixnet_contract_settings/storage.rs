@@ -28,6 +28,7 @@ pub(crate) fn minimum_gateway_pledge(storage: &dyn Storage) -> Result<Coin, Mixn
         .map(|state| state.params.minimum_gateway_pledge)?)
 }
 
+#[allow(unused)]
 pub(crate) fn minimum_delegation_stake(
     storage: &dyn Storage,
 ) -> Result<Option<Coin>, MixnetContractError> {
@@ -36,6 +37,7 @@ pub(crate) fn minimum_delegation_stake(
         .map(|state| state.params.minimum_mixnode_delegation)?)
 }
 
+#[allow(unused)]
 pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)

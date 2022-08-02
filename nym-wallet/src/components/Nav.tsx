@@ -30,8 +30,9 @@ export const Nav = () => {
     },
     {
       label: 'Bonding',
-      onClick: () => navigate('/bonding'),
+      route: '/bonding',
       Icon: Bonding,
+      onClick: () => navigate('/bonding'),
     },
     {
       label: 'Delegation',

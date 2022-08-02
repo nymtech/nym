@@ -1,3 +1,6 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::interval::FullEpochId;
 use crate::NodeId;
 use cosmwasm_std::{Addr, Coin, Decimal};

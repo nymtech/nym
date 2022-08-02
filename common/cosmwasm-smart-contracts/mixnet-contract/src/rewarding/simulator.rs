@@ -1,5 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::error::MixnetContractError;
 use crate::mixnode::{MixNodeCostParams, MixNodeRewarding};
 use crate::reward_params::{IntervalRewardParams, NodeRewardParams, RewardingParams};
@@ -35,7 +36,6 @@ impl Simulator {
                 &initial_pledge,
                 Default::default(),
             ),
-            // node_historical_records: [(0, HistoricalRewards::new_zeroth())].into_iter().collect(),
             node_delegations: vec![],
             system_rewarding_params,
             interval,
@@ -60,27 +60,9 @@ impl Simulator {
         ))
     }
 
-    // TODO: ending period and all that stuff, to optimise it later
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
         self.node_rewarding_details
             .determine_delegation_reward(delegation)
-
-        // // let starting_entry = self
-        // //     .node_historical_records
-        // //     .get(&delegation.period)
-        // //     .expect("the delegation has been incorrectly saved");
-        // //
-        // // let starting_ratio = starting_entry.cumulative_reward_ratio;
-        // // let ending_ratio = self.node_rewarding_details.full_reward_ratio();
-        // // let adjust = starting_entry.cumulative_reward_ratio + UNIT_DELEGATION_BASE;
-        // //
-        // // (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
-        //
-        // let starting_ratio = delegation.cumulative_reward_ratio;
-        // let ending_ratio = self.node_rewarding_details.full_reward_ratio();
-        // let adjust = starting_ratio + UNIT_DELEGATION_BASE;
-        //
-        // (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
     }
 
     // since this is a simulator only, not something to be used in the production code, the unwraps are fine
@@ -126,15 +108,6 @@ impl Simulator {
         self.node_rewarding_details
             .distribute_rewards(reward_distribution, self.interval.current_full_epoch_id());
         self.interval = self.interval.advance_epoch();
-
-        // self.node_rewarding_details
-        //     .epoch_rewarding(
-        //         &self.system_rewarding_params,
-        //         node_params,
-        //         &self.node_cost_params,
-        //         self.epoch_id,
-        //     )
-        //     .unwrap();
 
         reward_distribution
     }

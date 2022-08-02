@@ -381,8 +381,7 @@ mod tests {
     mod pending_interval_events {
         use super::*;
         use crate::support::tests::fixtures;
-        use cosmwasm_std::Addr;
-        use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+        use mixnet_contract_common::pending_events::PendingIntervalEvent;
         use rand_chacha::rand_core::RngCore;
 
         fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {

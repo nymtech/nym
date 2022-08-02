@@ -8,7 +8,6 @@ import { modalStyle } from './styles';
 export const SimpleModal: React.FC<{
   open: boolean;
   hideCloseIcon?: boolean;
-  hideOkButton?: boolean;
   displayErrorIcon?: boolean;
   headerStyles?: SxProps;
   subHeaderStyles?: SxProps;
@@ -24,7 +23,6 @@ export const SimpleModal: React.FC<{
 }> = ({
   open,
   hideCloseIcon,
-  hideOkButton,
   displayErrorIcon,
   headerStyles,
   subHeaderStyles,
@@ -62,10 +60,10 @@ export const SimpleModal: React.FC<{
 
       {children}
 
-      {(!hideOkButton || onBack) && (
+      {(onOk || onBack) && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
           {onBack && <StyledBackButton onBack={onBack} />}
-          {!hideOkButton && (
+          {onOk && (
             <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
               {okLabel}
             </Button>

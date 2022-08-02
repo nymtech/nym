@@ -3,10 +3,10 @@ import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyForm
 import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { TokenPoolSelector } from 'src/components';
+import { NodeTypeSelector, TokenPoolSelector } from 'src/components';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
-import { CurrencyDenom } from '@nymproject/types';
+import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
 import { gatewayValidationSchema, amountSchema } from './gatewayValidationSchema';
 
@@ -182,6 +182,7 @@ export const BondGatewayForm = ({
   hasVestingTokens,
   onValidateGatewayData,
   onValidateAmountData,
+  onSelectNodeType,
 }: {
   step: 1 | 2 | 3;
   gatewayData: GatewayData;
@@ -190,18 +191,24 @@ export const BondGatewayForm = ({
   hasVestingTokens: boolean;
   onValidateGatewayData: (data: GatewayData) => void;
   onValidateAmountData: (data: GatewayAmount) => Promise<void>;
-}) => {
-  if (step === 1) return <NodeFormData onNext={onValidateGatewayData} gatewayData={gatewayData} />;
-
-  if (step === 2)
-    return (
+  onSelectNodeType: (nodeType: TNodeType) => void;
+}) => (
+  <>
+    {step === 1 && (
+      <>
+        <Box sx={{ mb: 2 }}>
+          <NodeTypeSelector disabled={false} setNodeType={onSelectNodeType} nodeType="gateway" />
+        </Box>
+        <NodeFormData onNext={onValidateGatewayData} gatewayData={gatewayData} />
+      </>
+    )}
+    {step === 2 && (
       <AmountFormData
         denom={denom}
         amountData={amountData}
         hasVestingTokens={hasVestingTokens}
         onNext={onValidateAmountData}
       />
-    );
-
-  return null;
-};
+    )}
+  </>
+);

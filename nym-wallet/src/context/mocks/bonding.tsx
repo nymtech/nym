@@ -13,7 +13,6 @@ const bondedMixnodeMock: TBondedMixnode = {
   bond: { denom: 'nym', amount: '1234' },
   stakeSaturation: 95,
   profitMargin: 15,
-  nodeRewards: { denom: 'nym', amount: '1234' },
   operatorRewards: { denom: 'nym', amount: '1234' },
   delegators: 5423,
   status: 'active',

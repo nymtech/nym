@@ -33,7 +33,6 @@ type TLoginType = 'mnemonic' | 'password';
 
 export type TAppContext = {
   mode: 'light' | 'dark';
-  handleSwitchMode: () => void;
   appEnv?: AppEnv;
   appVersion?: string;
   clientDetails?: Account;
@@ -47,10 +46,10 @@ export type TAppContext = {
   isAdminAddress: boolean;
   error?: string;
   loginType?: TLoginType;
-  showSettings: boolean;
   showSendModal: boolean;
   showReceiveModal: boolean;
-  handleShowSettings: () => void;
+  onAccountChange: ({ accountId, password }: { accountId: string; password: string }) => void;
+  handleSwitchMode: () => void;
   handleShowSendModal: () => void;
   handleShowReceiveModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
@@ -62,7 +61,6 @@ export type TAppContext = {
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
-  onAccountChange: ({ accountId, password }: { accountId: string; password: string }) => void;
 };
 
 export const AppContext = createContext({} as TAppContext);
@@ -81,7 +79,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState<string>();
   const [appVersion, setAppVersion] = useState<string>();
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
 
@@ -235,7 +232,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
-  const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowSendModal = () => setShowSendModal((show) => !show);
   const handleShowReceiveModal = () => setShowReceiveModal((show) => !show);
   const handleSwitchMode = () =>
@@ -259,7 +255,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       userBalance,
       showAdmin,
       showTerminal,
-      showSettings,
       network,
       loginType,
       setIsLoading,
@@ -272,7 +267,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       logIn,
       logOut,
       onAccountChange,
-      handleShowSettings,
       showSendModal,
       showReceiveModal,
       handleShowSendModal,
@@ -294,7 +288,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       network,
       storedAccounts,
       showTerminal,
-      showSettings,
       showSendModal,
       showReceiveModal,
     ],

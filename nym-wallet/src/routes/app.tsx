@@ -4,12 +4,11 @@ import { ApplicationLayout } from 'src/layouts';
 import { Terminal } from 'src/pages/terminal';
 import { Send } from 'src/components/Send';
 import { Receive } from '../components/Receive';
-import { Balance, InternalDocs, Unbond, DelegationPage, Admin, Settings, BondingPage } from '../pages';
+import { Balance, InternalDocs, Unbond, DelegationPage, Admin, BondingPage } from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>
     <Terminal />
-    <Settings />
     <Send />
     <Receive />
     <Routes>

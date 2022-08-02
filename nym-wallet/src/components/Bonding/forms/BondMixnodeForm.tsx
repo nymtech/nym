@@ -4,9 +4,9 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { CurrencyDenom } from '@nymproject/types';
+import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
-import { TokenPoolSelector } from 'src/components';
+import { NodeTypeSelector, TokenPoolSelector } from 'src/components';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
 
@@ -191,6 +191,7 @@ export const BondMixnodeForm = ({
   hasVestingTokens,
   onValidateMixnodeData,
   onValidateAmountData,
+  onSelectNodeType,
 }: {
   step: 1 | 2 | 3;
   mixnodeData: MixnodeData;
@@ -199,18 +200,24 @@ export const BondMixnodeForm = ({
   hasVestingTokens: boolean;
   onValidateMixnodeData: (data: MixnodeData) => void;
   onValidateAmountData: (data: MixnodeAmount) => Promise<void>;
-}) => {
-  if (step === 1) return <NodeFormData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />;
-
-  if (step === 2)
-    return (
+  onSelectNodeType: (nodeType: TNodeType) => void;
+}) => (
+  <>
+    {step === 1 && (
+      <>
+        <Box sx={{ mb: 2 }}>
+          <NodeTypeSelector disabled={false} setNodeType={onSelectNodeType} nodeType="mixnode" />
+        </Box>
+        <NodeFormData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />
+      </>
+    )}
+    {step === 2 && (
       <AmountFormData
         denom={denom}
         amountData={amountData}
         hasVestingTokens={hasVestingTokens}
         onNext={onValidateAmountData}
       />
-    );
-
-  return null;
-};
+    )}
+  </>
+);

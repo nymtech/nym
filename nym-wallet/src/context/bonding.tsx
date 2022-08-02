@@ -33,7 +33,6 @@ const bonded: TBondedMixnode = {
   identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
   bond: { denom: 'nym', amount: '1234' },
   delegators: 123,
-  nodeRewards: { denom: 'nym', amount: '123' },
   operatorRewards: { denom: 'nym', amount: '12' },
   profitMargin: 10,
   stake: { denom: 'nym', amount: '99' },
@@ -49,7 +48,6 @@ export type TBondedMixnode = {
   bond: DecCoin;
   stakeSaturation: number;
   profitMargin: number;
-  nodeRewards: DecCoin;
   operatorRewards: DecCoin;
   delegators: number;
   status: MixnodeStatus;
@@ -113,13 +111,7 @@ export const BondingContext = createContext<TBondingContext>({
   },
 });
 
-export const BondingContextProvider = ({
-  network,
-  children,
-}: {
-  network?: Network;
-  children?: React.ReactNode;
-}): JSX.Element => {
+export const BondingContextProvider = ({ children }: { children?: React.ReactNode }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [bondedNode, setBondedNode] = useState<TBondedMixnode | TBondedGateway>();

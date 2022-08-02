@@ -168,7 +168,7 @@ const Bonding = () => {
           denom={clientDetails?.display_mix_denom || 'nym'}
           hasVestingTokens={Boolean(originalVesting)}
           onBondMixnode={handleBondMixnode}
-          onSelecteNodeType={() => setShowModal('bond-gateway')}
+          onSelectNodeType={() => setShowModal('bond-gateway')}
           onClose={() => setShowModal(undefined)}
           onError={handleError}
         />
@@ -179,7 +179,7 @@ const Bonding = () => {
           denom={clientDetails?.display_mix_denom || 'nym'}
           hasVestingTokens={Boolean(originalVesting)}
           onBondGateway={handleBondGateway}
-          onSelecteNodeType={() => setShowModal('bond-mixnode')}
+          onSelectNodeType={() => setShowModal('bond-mixnode')}
           onClose={() => setShowModal(undefined)}
           onError={handleError}
         />
@@ -244,11 +244,8 @@ const Bonding = () => {
   );
 };
 
-export const BondingPage = () => {
-  const { network } = useContext(AppContext);
-  return (
-    <BondingContextProvider network={network}>
-      <Bonding />
-    </BondingContextProvider>
-  );
-};
+export const BondingPage = () => (
+  <BondingContextProvider>
+    <Bonding />
+  </BondingContextProvider>
+);

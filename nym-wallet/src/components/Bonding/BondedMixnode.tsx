@@ -31,11 +31,6 @@ const headers: Header[] = [
       'The percentage of the node rewards that you as the node operator will take before the rest of the reward is shared between you and the delegators.',
   },
   {
-    header: 'Node rewards',
-    id: 'node-rewards',
-    tooltipText: 'This is the total rewards for this node in this epoch including delegates and the operators share.',
-  },
-  {
     header: 'Operator rewards',
     id: 'operator-rewards',
     tooltipText:
@@ -66,7 +61,6 @@ export const BondedMixnode = ({
     {
       cell: `${stake.amount} ${stake.denom}`,
       id: 'stake-cell',
-      sx: { pl: 0 },
     },
     {
       cell: `${bond.amount} ${bond.denom}`,
@@ -79,10 +73,6 @@ export const BondedMixnode = ({
     {
       cell: `${profitMargin}%`,
       id: 'pm-cell',
-    },
-    {
-      cell: `${operatorRewards.amount} ${operatorRewards.denom}`,
-      id: 'node-rewards-cell',
     },
     {
       cell: `${operatorRewards.amount} ${operatorRewards.denom}`,

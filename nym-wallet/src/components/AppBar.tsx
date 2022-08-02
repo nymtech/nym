@@ -7,13 +7,11 @@ import ModeNightOutlinedIcon from '@mui/icons-material/ModeNightOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import { AppContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
-import { Node as NodeIcon } from '../svg-icons/node';
 import { MultiAccounts } from './Accounts';
 import { config } from '../config';
 
 export const AppBar = () => {
-  const { logOut, handleShowTerminal, appEnv, handleShowSettings, showSettings, mode, handleSwitchMode } =
-    useContext(AppContext);
+  const { logOut, handleShowTerminal, appEnv, mode, handleSwitchMode } = useContext(AppContext);
   const navigate = useNavigate();
 
   return (
@@ -45,15 +43,6 @@ export const AppBar = () => {
                 </IconButton>
               </Grid>
             )}
-            <Grid item>
-              <IconButton
-                onClick={handleShowSettings}
-                sx={{ color: showSettings ? 'primary.main' : 'text.primary' }}
-                size="small"
-              >
-                <NodeIcon fontSize="small" />
-              </IconButton>
-            </Grid>
             <Grid item>
               <IconButton
                 size="small"

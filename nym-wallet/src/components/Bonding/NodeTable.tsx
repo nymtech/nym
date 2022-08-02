@@ -23,7 +23,7 @@ export interface TableProps {
 
 export const NodeTable = ({ headers, cells }: TableProps) => (
   <TableContainer>
-    <Table sx={{ minWidth: 650 }} aria-label="node-table">
+    <Table aria-label="node-table">
       <TableHead>
         <TableRow>
           {headers.map(({ header, id, tooltipText }) => (

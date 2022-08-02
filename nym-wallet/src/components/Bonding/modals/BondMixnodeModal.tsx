@@ -5,7 +5,6 @@ import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { TPoolOption } from 'src/components/TokenPoolSelector';
-import { NodeTypeSelector } from 'src/components/NodeTypeSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
@@ -13,11 +12,11 @@ import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
 
 const defaultMixnodeValues: MixnodeData = {
-  identityKey: '2UB4668XV7qhmJDPp6KLGWGisiaUYThjA4in2o7WKcwA',
-  sphinxKey: '5Rh7X4TwMoUwrQ1ivkqWTCGi1pivmHtenaS7VZDUQPYW',
-  ownerSignature: '3ccrgwiHhqAbuhhdW7f6UCHZoPFJsQxPcSQRwNc42QVDnDwW8Ebe8p51RhvQp28uqpARysPz52XrE6JuuwJ6fsf8',
-  host: '1.1.1.1',
-  version: '1.1.1',
+  identityKey: '',
+  sphinxKey: '',
+  ownerSignature: '',
+  host: '',
+  version: '',
   mixPort: 1789,
   verlocPort: 1790,
   httpApiPort: 8000,
@@ -33,14 +32,14 @@ export const BondMixnodeModal = ({
   denom,
   hasVestingTokens,
   onBondMixnode,
-  onSelecteNodeType,
+  onSelectNodeType,
   onClose,
   onError,
 }: {
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
   onBondMixnode: (data: TBondMixNodeArgs, tokenPool: TPoolOption) => void;
-  onSelecteNodeType: (type: TNodeType) => void;
+  onSelectNodeType: (type: TNodeType) => void;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
@@ -62,7 +61,6 @@ export const BondMixnodeModal = ({
   };
 
   const handleBack = () => {
-    validateStep(2);
     setStep(1);
   };
 
@@ -136,7 +134,9 @@ export const BondMixnodeModal = ({
   return (
     <SimpleModal
       open
-      onOk={async () => validateStep(step)}
+      onOk={async () => {
+        await validateStep(step);
+      }}
       onBack={step === 2 ? handleBack : undefined}
       onClose={onClose}
       header="Bond mixnode"
@@ -144,17 +144,15 @@ export const BondMixnodeModal = ({
       okLabel="Next"
     >
       <Box sx={{ mb: 2 }}>
-        <Box sx={{ mb: 2 }}>
-          <NodeTypeSelector disabled={false} setNodeType={onSelecteNodeType} nodeType="mixnode" />
-        </Box>
         <BondMixnodeForm
           step={step}
-          hasVestingTokens={hasVestingTokens}
           denom={denom}
-          onValidateMixnodeData={handleUpdateMixnodeData}
-          onValidateAmountData={handleUpdateAmountData}
           mixnodeData={mixnodeData}
           amountData={amountData}
+          hasVestingTokens={hasVestingTokens}
+          onValidateMixnodeData={handleUpdateMixnodeData}
+          onValidateAmountData={handleUpdateAmountData}
+          onSelectNodeType={onSelectNodeType}
         />
       </Box>
     </SimpleModal>

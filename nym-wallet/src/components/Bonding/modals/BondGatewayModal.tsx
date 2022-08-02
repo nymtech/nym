@@ -8,17 +8,16 @@ import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
 import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
-import { NodeTypeSelector } from 'src/components/NodeTypeSelector';
 import { TBondGatewayArgs } from 'src/types';
 import { BondGatewayForm } from '../forms/BondGatewayForm';
 
 const defaultMixnodeValues: GatewayData = {
-  identityKey: '2UB4668XV7qhmJDPp6KLGWGisiaUYThjA4in2o7WKcwA',
-  sphinxKey: '5Rh7X4TwMoUwrQ1ivkqWTCGi1pivmHtenaS7VZDUQPYW',
-  ownerSignature: '3ccrgwiHhqAbuhhdW7f6UCHZoPFJsQxPcSQRwNc42QVDnDwW8Ebe8p51RhvQp28uqpARysPz52XrE6JuuwJ6fsf8',
+  identityKey: '',
+  sphinxKey: '',
+  ownerSignature: '',
   location: '',
-  host: '1.1.1.1',
-  version: '1.1.1',
+  host: '',
+  version: '',
   mixPort: 1789,
   clientsPort: 1790,
 };
@@ -32,14 +31,14 @@ export const BondGatewayModal = ({
   denom,
   hasVestingTokens,
   onBondGateway,
-  onSelecteNodeType,
+  onSelectNodeType,
   onClose,
   onError,
 }: {
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
   onBondGateway: (data: TBondGatewayArgs, tokenPool: TPoolOption) => void;
-  onSelecteNodeType: (type: TNodeType) => void;
+  onSelectNodeType: (type: TNodeType) => void;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
@@ -61,7 +60,6 @@ export const BondGatewayModal = ({
   };
 
   const handleBack = () => {
-    validateStep(2);
     setStep(1);
   };
 
@@ -137,7 +135,9 @@ export const BondGatewayModal = ({
   return (
     <SimpleModal
       open
-      onOk={async () => validateStep(step)}
+      onOk={async () => {
+        await validateStep(step);
+      }}
       onBack={step === 2 ? handleBack : undefined}
       onClose={onClose}
       header="Bond gateway"
@@ -145,17 +145,15 @@ export const BondGatewayModal = ({
       okLabel="Next"
     >
       <Box sx={{ mb: 2 }}>
-        <Box sx={{ mb: 2 }}>
-          <NodeTypeSelector disabled={false} setNodeType={onSelecteNodeType} nodeType="gateway" />
-        </Box>
         <BondGatewayForm
           step={step}
-          hasVestingTokens={hasVestingTokens}
           denom={denom}
-          onValidateGatewayData={handleUpdateGatwayData}
-          onValidateAmountData={handleUpdateAmountData}
           gatewayData={gatewayData}
           amountData={amountData}
+          hasVestingTokens={hasVestingTokens}
+          onValidateGatewayData={handleUpdateGatwayData}
+          onValidateAmountData={handleUpdateAmountData}
+          onSelectNodeType={onSelectNodeType}
         />
       </Box>
     </SimpleModal>

@@ -12,6 +12,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Index, Mul};
 
+// type aliases for better reasoning about available data
+pub type IdentityKey = String;
+pub type IdentityKeyRef<'a> = &'a str;
+pub type SphinxKey = String;
+pub type SphinxKeyRef<'a> = &'a str;
 pub type EpochId = u32;
 pub type IntervalId = u32;
 pub type NodeId = u64;
@@ -214,37 +219,6 @@ pub struct ContractStateParams {
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
 }
-//
-// #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-// pub struct RewardingResult {
-//     pub node_reward: Uint128,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct PendingDelegatorRewarding {
-//     // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
-//     pub running_results: RewardingResult,
-//
-//     pub next_start: Addr,
-//     // pub rewarding_params: DelegatorRewardParams,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub enum RewardingStatus {
-//     Complete(RewardingResult),
-//     PendingNextDelegatorPage(PendingDelegatorRewarding),
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct MixnodeRewardingStatusResponse {
-//     pub status: Option<RewardingStatus>,
-// }
-
-// type aliases for better reasoning about available data
-pub type IdentityKey = String;
-pub type IdentityKeyRef<'a> = &'a str;
-pub type SphinxKey = String;
-pub type SphinxKeyRef<'a> = &'a str;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct PagedRewardedSetResponse {

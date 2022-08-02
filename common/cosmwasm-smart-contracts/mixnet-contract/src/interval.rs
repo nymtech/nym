@@ -138,47 +138,6 @@ impl JsonSchema for Interval {
         Schema::Object(schema_object)
     }
 }
-//
-// #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
-// pub struct Interval {
-//     id: u32,
-//     #[serde(with = "string_rfc3339_offset_date_time")]
-//     start: OffsetDateTime,
-//     length: Duration,
-// }
-//
-// impl JsonSchema for Interval {
-//     fn schema_name() -> String {
-//         "Interval".to_owned()
-//     }
-//
-//     fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-//         let mut schema_object = SchemaObject {
-//             instance_type: Some(InstanceType::Object.into()),
-//             ..SchemaObject::default()
-//         };
-//
-//         let object_validation = schema_object.object();
-//         object_validation
-//             .properties
-//             .insert("id".to_owned(), gen.subschema_for::<u32>());
-//         object_validation.required.insert("id".to_owned());
-//
-//         // PrimitiveDateTime does not implement JsonSchema. However it has a custom
-//         // serialization to string, so we just specify the schema to be String.
-//         object_validation
-//             .properties
-//             .insert("start".to_owned(), gen.subschema_for::<String>());
-//         object_validation.required.insert("start".to_owned());
-//
-//         object_validation
-//             .properties
-//             .insert("length".to_owned(), gen.subschema_for::<Duration>());
-//         object_validation.required.insert("length".to_owned());
-//
-//         Schema::Object(schema_object)
-//     }
-// }
 
 impl Interval {
     /// Initialize epoch in the contract with default values.
@@ -293,48 +252,6 @@ impl Interval {
             }
         }
     }
-
-    //
-    // pub fn next_on_chain(&self, env: Env) -> Self {
-    //     let start = self
-    //         .end()
-    //         .max(OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap());
-    //     Interval {
-    //         id: self.id + 1,
-    //         start,
-    //         length: self.length,
-    //     }
-    // }
-    //
-    //
-    //
-    // /// Checks whether this interval has already finished
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `now`: current datetime
-    // pub fn has_elapsed(&self, now: OffsetDateTime) -> bool {
-    //     self.end() < now
-    // }
-    //
-    // /// Returns id of this interval
-    // pub const fn id(&self) -> u32 {
-    //     self.id
-    // }
-    //
-    // /// Determines amount of time left until this interval finishes.
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `now`: current datetime
-    // pub fn until_end(&self, now: OffsetDateTime) -> Option<Duration> {
-    //     let remaining = self.end() - now;
-    //     if remaining.is_negative() {
-    //         None
-    //     } else {
-    //         remaining.try_into().ok()
-    //     }
-    // }
 
     /// Returns the starting datetime of this interval.
     pub const fn current_epoch_start(&self) -> OffsetDateTime {
@@ -611,85 +528,4 @@ mod tests {
         interval.current_epoch_start -= 10 * epoch_length;
         assert!(interval.is_current_interval_over(&env));
     }
-
-    // #[test]
-    // fn checking_for_datetime_inclusion() {
-    //     let interval = Interval {
-    //         id: 100,
-    //         start: time::macros::datetime!(2021-08-23 12:00 UTC),
-    //         length: Duration::from_secs(60 * 60),
-    //     };
-    //
-    //     // it must contain its own boundaries
-    //     assert!(interval.contains(interval.start));
-    //     assert!(interval.contains(interval.end()));
-    //
-    //     let in_the_midle = interval.start + Duration::from_secs(interval.length.as_secs() / 2);
-    //     assert!(interval.contains(in_the_midle));
-    //
-    //     assert!(!interval.contains(interval.next().end()));
-    //     assert!(!interval.contains(interval.previous().unwrap().start()));
-    // }
-    //
-    // #[test]
-    // fn determining_current_interval() {
-    //     let first_interval = Interval {
-    //         id: 100,
-    //         start: time::macros::datetime!(2021-08-23 12:00 UTC),
-    //         length: Duration::from_secs(60 * 60),
-    //     };
-    //
-    //     // interval just before
-    //     let fake_now = first_interval.start - Duration::from_secs(123);
-    //     assert_eq!(first_interval.previous(), first_interval.current(fake_now));
-    //
-    //     // this interval (start boundary)
-    //     assert_eq!(
-    //         first_interval,
-    //         first_interval.current(first_interval.start).unwrap()
-    //     );
-    //
-    //     // this interval (in the middle)
-    //     let fake_now = first_interval.start + Duration::from_secs(123);
-    //     assert_eq!(first_interval, first_interval.current(fake_now).unwrap());
-    //
-    //     // this interval (end boundary)
-    //     assert_eq!(
-    //         first_interval,
-    //         first_interval.current(first_interval.end()).unwrap()
-    //     );
-    //
-    //     // next interval
-    //     let fake_now = first_interval.end() + Duration::from_secs(123);
-    //     assert_eq!(
-    //         first_interval.next(),
-    //         first_interval.current(fake_now).unwrap()
-    //     );
-    //
-    //     // few intervals in the past
-    //     let fake_now = first_interval.start()
-    //         - first_interval.length
-    //         - first_interval.length
-    //         - first_interval.length;
-    //     assert_eq!(
-    //         first_interval
-    //             .previous()
-    //             .unwrap()
-    //             .previous()
-    //             .unwrap()
-    //             .previous()
-    //             .unwrap(),
-    //         first_interval.current(fake_now).unwrap()
-    //     );
-    //
-    //     // few intervals in the future
-    //     let fake_now = first_interval.end()
-    //         + first_interval.length
-    //         + first_interval.length
-    //         + first_interval.length;
-    //     assert_eq!(
-    //         first_interval.next().next().next(),
-    //         first_interval.current(fake_now).unwrap()
-    //     );
-    // }
 }

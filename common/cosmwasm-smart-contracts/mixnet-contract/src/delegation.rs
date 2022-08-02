@@ -101,54 +101,7 @@ impl Delegation {
     pub fn storage_key(&self) -> StorageKey {
         Self::generate_storage_key(self.node_id, &self.owner, self.proxy.as_ref())
     }
-
-    //
-    // pub fn event_storage_key(&self) -> (OwnerAddressBytes, BlockHeight, IdentityKey) {
-    //     (
-    //         self.proxy_storage_key(),
-    //         self.block_height(),
-    //         self.node_identity(),
-    //     )
-    // }
-    //
-    //
-    // pub fn proxy(&self) -> Option<&Addr> {
-    //     self.proxy.as_ref()
-    // }
-    //
-    // pub fn increment_amount(&mut self, amount: Uint128, at_height: Option<u64>) {
-    //     self.amount.amount += amount;
-    //     if let Some(at_height) = at_height {
-    //         self.block_height = at_height;
-    //     }
-    // }
-    //
-    // pub fn amount(&self) -> &Coin {
-    //     &self.amount
-    // }
-    //
-    // pub fn node_identity(&self) -> IdentityKey {
-    //     self.node_identity.clone()
-    // }
-    //
-    // pub fn owner(&self) -> Addr {
-    //     self.owner.clone()
-    // }
-    //
-    // pub fn block_height(&self) -> u64 {
-    //     self.block_height
-    // }
 }
-
-// impl Display for Delegation {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(
-//             f,
-//             "{} delegated towards {} by {} at block {}",
-//             self.amount, self.node_identity, self.owner, self.block_height
-//         )
-//     }
-// }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixNodeDelegationsResponse {

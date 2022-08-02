@@ -1,5 +1,6 @@
 /* eslint-disable react/no-array-index-key */
 import React, { useContext } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { format } from 'date-fns';
 import { AppContext } from '../../../context/main';
@@ -21,6 +22,9 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
     userBalance: { currentVestingPeriod, vestingAccountInfo },
   } = useContext(AppContext);
 
+  const theme = useTheme();
+  const { mode } = theme.palette;
+
   const nextPeriod =
     typeof currentVestingPeriod === 'object' && !!vestingAccountInfo?.periods
       ? Number(vestingAccountInfo?.periods[currentVestingPeriod.In + 1]?.start_time)
@@ -30,11 +34,23 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
     <Box display="flex" flexDirection="column" gap={1} position="relative" width="100%">
       <svg width="100%" height="12">
         <rect y="2" width="100%" height="6" rx="0" fill="#E6E6E6" />
-        <rect y="2" width={`${percentageComplete}%`} height="6" rx="0" fill="#121726" />
+        <rect
+          y="2"
+          width={`${percentageComplete}%`}
+          height="6"
+          rx="0"
+          fill={mode === 'light' ? '#121726' : '#6cd925'}
+        />
         {vestingAccountInfo?.periods.map((period, i, arr) => (
           <Marker
             position={`${calculateMarkerPosition(arr.length, i)}%`}
-            color={+percentageComplete.toFixed(2) >= calculateMarkerPosition(arr.length, i) ? '#121726' : '#B9B9B9'}
+            color={
+              +percentageComplete.toFixed(2) >= calculateMarkerPosition(arr.length, i)
+                ? mode === 'light'
+                  ? '#121726'
+                  : '#6cd925'
+                : '#B9B9B9'
+            }
             tooltipText={format(new Date(Number(period.start_time) * 1000), 'HH:mm do MMM yyyy')}
             key={i}
           />

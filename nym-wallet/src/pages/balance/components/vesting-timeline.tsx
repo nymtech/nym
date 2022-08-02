@@ -39,7 +39,7 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
           width={`${percentageComplete}%`}
           height="6"
           rx="0"
-          fill={mode === 'light' ? '#121726' : '#6cd925'}
+          fill={mode === 'light' ? '#121726' : '#21D073'}
         />
         {vestingAccountInfo?.periods.map((period, i, arr) => (
           <Marker
@@ -48,7 +48,7 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
               +percentageComplete.toFixed(2) >= calculateMarkerPosition(arr.length, i)
                 ? mode === 'light'
                   ? '#121726'
-                  : '#6cd925'
+                  : '#21D073'
                 : '#B9B9B9'
             }
             tooltipText={format(new Date(Number(period.start_time) * 1000), 'HH:mm do MMM yyyy')}
@@ -57,7 +57,7 @@ export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ perc
         ))}
         <Marker
           position="calc(100% - 4px)"
-          color={percentageComplete === 100 ? '#121726' : '#B9B9B9'}
+          color={percentageComplete === 100 ? (mode === 'light' ? '#121726' : '#21D073') : '#B9B9B9'}
           tooltipText="End of vesting schedule"
         />
       </svg>

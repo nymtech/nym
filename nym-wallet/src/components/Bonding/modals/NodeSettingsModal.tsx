@@ -117,7 +117,6 @@ export const NodeSettings = ({
           <FormHelperText>Your new profit margin will be applied in the next epoch</FormHelperText>
         </Box>
         <Box sx={{ mb: 3 }}>
-          <ModalListItem label="Estimated operator reward for 10% profit margin" value="150 NYM" divider />
           <ModalListItem label="Est. fee for this operation will be caculated in the next page" value="" />
         </Box>
         <Button variant="contained" fullWidth size="large" onClick={handleValidate} disabled={error}>

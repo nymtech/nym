@@ -26,8 +26,8 @@ pub fn query_current_interval_details(
 
 pub fn query_rewarded_set_paged(
     deps: Deps<'_>,
-    limit: Option<u32>,
     start_after: Option<NodeId>,
+    limit: Option<u32>,
 ) -> StdResult<PagedRewardedSetResponse> {
     let limit = limit
         .unwrap_or(REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT)
@@ -51,8 +51,8 @@ pub fn query_rewarded_set_paged(
 pub fn query_pending_epoch_events_paged(
     deps: Deps<'_>,
     env: Env,
-    limit: Option<u32>,
     start_after: Option<EventId>,
+    limit: Option<u32>,
 ) -> StdResult<PendingEpochEventsResponse> {
     let interval = storage::current_interval(deps.storage)?;
 
@@ -81,8 +81,8 @@ pub fn query_pending_epoch_events_paged(
 pub fn query_pending_interval_events_paged(
     deps: Deps<'_>,
     env: Env,
-    limit: Option<u32>,
     start_after: Option<EventId>,
+    limit: Option<u32>,
 ) -> StdResult<PendingIntervalEventsResponse> {
     let interval = storage::current_interval(deps.storage)?;
 
@@ -108,353 +108,417 @@ pub fn query_pending_interval_events_paged(
     })
 }
 
-//
-// pub(crate) fn query_rewarded_set_refresh_minimum_blocks() -> u64 {
-//     crate::constants::REWARDED_SET_REFRESH_BLOCKS
-// }
-//
-// // note: I have removed the `query_rewarded_set_for_interval`, because I don't think it's appropriate
-// // for the contract to go through so much data (i.e. all "rewarded" sets of particular interval) in one go.
-// // To achieve the same result, the client would have to instead first call `query_rewarded_set_heights_for_interval`
-// // to learn the heights used in given interval and then for each of them `query_rewarded_set` for that particular height.
-//
-// pub fn query_current_rewarded_set_height(storage: &dyn Storage) -> Result<u64, ContractError> {
-//     Ok(storage::CURRENT_REWARDED_SET_HEIGHT.load(storage)?)
-// }
-//
-// fn query_rewarded_set_at_height(
-//     storage: &dyn Storage,
-//     height: u64,
-//     start_after: Option<IdentityKey>,
-//     limit: u32,
-// ) -> Result<Vec<(IdentityKey, RewardedSetNodeStatus)>, ContractError> {
-//     let start = start_after.map(Bound::exclusive);
-//
-//     let rewarded_set = storage::REWARDED_SET
-//         .prefix(height)
-//         .range(storage, start, None, Order::Ascending)
-//         .take(limit as usize)
-//         .collect::<StdResult<_>>()?;
-//     Ok(rewarded_set)
-// }
-//
-// pub fn query_rewarded_set(
-//     storage: &dyn Storage,
-//     height: Option<u64>,
-//     start_after: Option<IdentityKey>,
-//     limit: Option<u32>,
-// ) -> Result<PagedRewardedSetResponse, ContractError> {
-//     let height = match height {
-//         Some(height) => height,
-//         None => query_current_rewarded_set_height(storage)?,
-//     };
-//     let limit = limit
-//         .unwrap_or(storage::REWARDED_NODE_DEFAULT_PAGE_LIMIT)
-//         .min(storage::REWARDED_NODE_MAX_PAGE_LIMIT);
-//
-//     // query for an additional element to determine paging requirements
-//     let mut paged_result = query_rewarded_set_at_height(storage, height, start_after, limit + 1)?;
-//
-//     if paged_result.len() > limit as usize {
-//         paged_result.truncate(limit as usize);
-//         Ok(PagedRewardedSetResponse {
-//             start_next_after: paged_result.last().map(|res| res.0.clone()),
-//             identities: paged_result,
-//             at_height: height,
-//         })
-//     } else {
-//         Ok(PagedRewardedSetResponse {
-//             identities: paged_result,
-//             start_next_after: None,
-//             at_height: height,
-//         })
-//     }
-// }
-//
-// // this was all put together into the same query so that all information would be synced together
-// pub fn query_rewarded_set_update_details(
-//     env: Env,
-//     storage: &dyn Storage,
-// ) -> Result<RewardedSetUpdateDetails, ContractError> {
-//     Ok(RewardedSetUpdateDetails {
-//         refresh_rate_blocks: query_rewarded_set_refresh_minimum_blocks(),
-//         last_refreshed_block: query_current_rewarded_set_height(storage)?,
-//         current_height: env.block.height,
-//     })
-// }
-//
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::interval::storage::REWARDED_NODE_MAX_PAGE_LIMIT;
-//     use crate::support::tests::test_helpers;
-//     use cosmwasm_std::testing::mock_env;
-//
-//     fn store_rewarded_nodes(
-//         storage: &mut dyn Storage,
-//         height: u64,
-//         active_set: u32,
-//         rewarded_set: u32,
-//     ) -> Vec<IdentityKey> {
-//         let identities = (0..rewarded_set)
-//             .map(|i| format!("identity{:04}", i))
-//             .collect::<Vec<_>>();
-//         storage::save_rewarded_set(storage, height, active_set, identities.clone()).unwrap();
-//         identities
-//     }
-//
-//     #[test]
-//     fn querying_for_rewarded_set_at_height() {
-//         let mut deps = test_helpers::init_contract();
-//
-//         // store some nodes
-//         let identities1 = store_rewarded_nodes(deps.as_mut().storage, 1, 100, 200);
-//         let identities2 = store_rewarded_nodes(deps.as_mut().storage, 2, 50, 200);
-//         let identities3 = store_rewarded_nodes(deps.as_mut().storage, 3, 150, 200);
-//         let identities4 = store_rewarded_nodes(deps.as_mut().storage, 4, 300, 500);
-//         let identities5 = store_rewarded_nodes(deps.as_mut().storage, 5, 500, 500);
-//
-//         // expected2 and 3 are basically sanity checks to ensure changing active set size (increase or decrease)
-//         // doesn't affect the ordering
-//
-//         let expected1 = identities1
-//             .into_iter()
-//             .enumerate()
-//             .map(|(i, identity)| {
-//                 if i < 100 {
-//                     (identity, RewardedSetNodeStatus::Active)
-//                 } else {
-//                     (identity, RewardedSetNodeStatus::Standby)
-//                 }
-//             })
-//             .collect::<Vec<_>>();
-//
-//         assert_eq!(
-//             expected1,
-//             query_rewarded_set_at_height(deps.as_ref().storage, 1, None, 1000).unwrap()
-//         );
-//
-//         let expected2 = identities2
-//             .into_iter()
-//             .enumerate()
-//             .map(|(i, identity)| {
-//                 if i < 50 {
-//                     (identity, RewardedSetNodeStatus::Active)
-//                 } else {
-//                     (identity, RewardedSetNodeStatus::Standby)
-//                 }
-//             })
-//             .collect::<Vec<_>>();
-//
-//         assert_eq!(
-//             expected2,
-//             query_rewarded_set_at_height(deps.as_ref().storage, 2, None, 1000).unwrap()
-//         );
-//
-//         let expected3 = identities3
-//             .into_iter()
-//             .enumerate()
-//             .map(|(i, identity)| {
-//                 if i < 150 {
-//                     (identity, RewardedSetNodeStatus::Active)
-//                 } else {
-//                     (identity, RewardedSetNodeStatus::Standby)
-//                 }
-//             })
-//             .collect::<Vec<_>>();
-//
-//         assert_eq!(
-//             expected3,
-//             query_rewarded_set_at_height(deps.as_ref().storage, 3, None, 1000).unwrap()
-//         );
-//
-//         // check limit and paging
-//         // active: 300, rewarded: 500
-//         let first_100 = identities4
-//             .iter()
-//             .take(100)
-//             .map(|identity| (identity.clone(), RewardedSetNodeStatus::Active))
-//             .collect::<Vec<_>>();
-//         assert_eq!(
-//             first_100,
-//             query_rewarded_set_at_height(deps.as_ref().storage, 4, None, 100).unwrap()
-//         );
-//
-//         let expected_single1 = vec![("identity0299".to_string(), RewardedSetNodeStatus::Active)];
-//         let expected_single2 = vec![("identity0300".to_string(), RewardedSetNodeStatus::Standby)];
-//         assert_eq!(
-//             expected_single1,
-//             query_rewarded_set_at_height(
-//                 deps.as_ref().storage,
-//                 4,
-//                 Some("identity0298".to_string()),
-//                 1
-//             )
-//             .unwrap()
-//         );
-//         assert_eq!(
-//             expected_single2,
-//             query_rewarded_set_at_height(
-//                 deps.as_ref().storage,
-//                 4,
-//                 Some("identity0299".to_string()),
-//                 1
-//             )
-//             .unwrap()
-//         );
-//
-//         let last_100 = identities4
-//             .iter()
-//             .skip(400)
-//             .map(|identity| (identity.clone(), RewardedSetNodeStatus::Standby))
-//             .collect::<Vec<_>>();
-//         assert_eq!(
-//             last_100,
-//             query_rewarded_set_at_height(
-//                 deps.as_ref().storage,
-//                 4,
-//                 Some("identity0399".to_string()),
-//                 100
-//             )
-//             .unwrap()
-//         );
-//
-//         // all nodes are in the active set
-//         let expected5 = identities5
-//             .into_iter()
-//             .map(|identity| (identity, RewardedSetNodeStatus::Active))
-//             .collect::<Vec<_>>();
-//
-//         assert_eq!(
-//             expected5,
-//             query_rewarded_set_at_height(deps.as_ref().storage, 5, None, 1000).unwrap()
-//         );
-//     }
-//
-//     #[test]
-//     fn querying_for_rewarded_set() {
-//         let mut deps = test_helpers::init_contract();
-//
-//         let current_height = 123;
-//         let other_height = 456;
-//         let different_height = 789;
-//
-//         storage::CURRENT_REWARDED_SET_HEIGHT
-//             .save(deps.as_mut().storage, &current_height)
-//             .unwrap();
-//
-//         let identities1 = store_rewarded_nodes(deps.as_mut().storage, current_height, 50, 100);
-//         let identities2 = store_rewarded_nodes(deps.as_mut().storage, other_height, 100, 200);
-//         let identities3 = store_rewarded_nodes(
-//             deps.as_mut().storage,
-//             different_height,
-//             storage::REWARDED_NODE_MAX_PAGE_LIMIT,
-//             storage::REWARDED_NODE_MAX_PAGE_LIMIT * 2,
-//         );
-//
-//         // if height is not set, current height is used, else it's just passed
-//         let expected1 = PagedRewardedSetResponse {
-//             identities: identities1
-//                 .into_iter()
-//                 .enumerate()
-//                 .map(|(i, identity)| {
-//                     if i < 50 {
-//                         (identity, RewardedSetNodeStatus::Active)
-//                     } else {
-//                         (identity, RewardedSetNodeStatus::Standby)
-//                     }
-//                 })
-//                 .collect::<Vec<_>>(),
-//             start_next_after: None,
-//             at_height: current_height,
-//         };
-//         let expected2 = PagedRewardedSetResponse {
-//             identities: identities2
-//                 .into_iter()
-//                 .enumerate()
-//                 .map(|(i, identity)| {
-//                     if i < 100 {
-//                         (identity, RewardedSetNodeStatus::Active)
-//                     } else {
-//                         (identity, RewardedSetNodeStatus::Standby)
-//                     }
-//                 })
-//                 .collect::<Vec<_>>(),
-//             start_next_after: None,
-//             at_height: other_height,
-//         };
-//
-//         assert_eq!(
-//             Ok(expected1),
-//             query_rewarded_set(deps.as_ref().storage, None, None, None)
-//         );
-//         assert_eq!(
-//             Ok(expected2),
-//             query_rewarded_set(deps.as_ref().storage, Some(other_height), None, None)
-//         );
-//
-//         // if limit is not set, a default one is used instead
-//         let expected3 = PagedRewardedSetResponse {
-//             identities: identities3
-//                 .iter()
-//                 .take(storage::REWARDED_NODE_DEFAULT_PAGE_LIMIT as usize)
-//                 .cloned()
-//                 .map(|identity| (identity, RewardedSetNodeStatus::Active))
-//                 .collect::<Vec<_>>(),
-//             start_next_after: Some(format!(
-//                 "identity{:04}",
-//                 storage::REWARDED_NODE_DEFAULT_PAGE_LIMIT - 1
-//             )),
-//             at_height: different_height,
-//         };
-//         assert_eq!(
-//             Ok(expected3),
-//             query_rewarded_set(deps.as_ref().storage, Some(different_height), None, None)
-//         );
-//
-//         // limit cannot be larger that pre-defined maximum
-//         let expected4 = PagedRewardedSetResponse {
-//             identities: identities3
-//                 .iter()
-//                 .take(storage::REWARDED_NODE_MAX_PAGE_LIMIT as usize)
-//                 .cloned()
-//                 .map(|identity| (identity, RewardedSetNodeStatus::Active))
-//                 .collect::<Vec<_>>(),
-//             start_next_after: Some(format!(
-//                 "identity{:04}",
-//                 storage::REWARDED_NODE_MAX_PAGE_LIMIT - 1
-//             )),
-//             at_height: different_height,
-//         };
-//         assert_eq!(
-//             Ok(expected4),
-//             query_rewarded_set(
-//                 deps.as_ref().storage,
-//                 Some(different_height),
-//                 None,
-//                 Some(REWARDED_NODE_MAX_PAGE_LIMIT * 100)
-//             )
-//         );
-//     }
-//
-//     #[test]
-//     fn querying_for_rewarded_set_update_details() {
-//         let env = mock_env();
-//         let mut deps = test_helpers::init_contract();
-//
-//         let current_height = 123;
-//         storage::CURRENT_REWARDED_SET_HEIGHT
-//             .save(deps.as_mut().storage, &current_height)
-//             .unwrap();
-//
-//         // returns whatever is in the correct environment
-//         assert_eq!(
-//             RewardedSetUpdateDetails {
-//                 refresh_rate_blocks: crate::constants::REWARDED_SET_REFRESH_BLOCKS,
-//                 last_refreshed_block: current_height,
-//                 current_height: env.block.height
-//             },
-//             query_rewarded_set_update_details(env, deps.as_ref().storage).unwrap()
-//         )
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::test_helpers::TestSetup;
+
+    #[test]
+    fn querying_for_current_interval_details() {
+        let mut test = TestSetup::new();
+
+        let interval = test.current_interval();
+        let env = test.env();
+        let res = query_current_interval_details(test.deps(), env.clone()).unwrap();
+
+        assert_eq!(res.interval, interval);
+        assert!(!res.is_current_interval_over);
+        assert!(!res.is_current_epoch_over);
+        assert_eq!(res.current_blocktime, env.block.time.seconds());
+
+        test.skip_to_current_epoch_end();
+        let interval = test.current_interval();
+        let env = test.env();
+        let res = query_current_interval_details(test.deps(), env.clone()).unwrap();
+
+        assert_eq!(res.interval, interval);
+        assert!(!res.is_current_interval_over);
+        assert!(res.is_current_epoch_over);
+        assert_eq!(res.current_blocktime, env.block.time.seconds());
+
+        test.skip_to_current_interval_end();
+        let interval = test.current_interval();
+        let env = test.env();
+        let res = query_current_interval_details(test.deps(), env.clone()).unwrap();
+
+        assert_eq!(res.interval, interval);
+        assert!(res.is_current_interval_over);
+        assert!(res.is_current_epoch_over);
+        assert_eq!(res.current_blocktime, env.block.time.seconds());
+    }
+
+    #[cfg(test)]
+    mod rewarded_set {
+        use super::*;
+
+        fn set_rewarded_set_to_n_nodes(test: &mut TestSetup, n: usize) {
+            let set = (1u64..).take(n).collect::<Vec<_>>();
+            test.update_rewarded_set(set)
+        }
+
+        #[test]
+        fn obeys_limits() {
+            let mut test = TestSetup::new();
+            set_rewarded_set_to_n_nodes(&mut test, 200);
+
+            let limit = 2;
+            let page1 = query_rewarded_set_paged(test.deps(), None, Some(limit)).unwrap();
+            assert_eq!(limit, page1.nodes.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut test = TestSetup::new();
+            set_rewarded_set_to_n_nodes(&mut test, 2000);
+
+            // query without explicitly setting a limit
+            let page1 = query_rewarded_set_paged(test.deps(), None, None).unwrap();
+
+            assert_eq!(
+                REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT,
+                page1.nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut test = TestSetup::new();
+            set_rewarded_set_to_n_nodes(&mut test, 2000);
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 10000;
+            let page1 = query_rewarded_set_paged(test.deps(), None, Some(crazy_limit)).unwrap();
+
+            assert_eq!(REWARDED_SET_MAX_RETRIEVAL_LIMIT, page1.nodes.len() as u32);
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut test = TestSetup::new();
+
+            set_rewarded_set_to_n_nodes(&mut test, 1);
+
+            let per_page = 2;
+            let page1 = query_rewarded_set_paged(test.deps(), None, Some(per_page)).unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.nodes.len());
+
+            set_rewarded_set_to_n_nodes(&mut test, 2);
+
+            // page1 should have 2 results on it
+            let page1 = query_rewarded_set_paged(test.deps(), None, Some(per_page)).unwrap();
+            assert_eq!(2, page1.nodes.len());
+
+            set_rewarded_set_to_n_nodes(&mut test, 3);
+
+            // page1 still has the same 2 results
+            let another_page1 =
+                query_rewarded_set_paged(test.deps(), None, Some(per_page)).unwrap();
+            assert_eq!(2, another_page1.nodes.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 =
+                query_rewarded_set_paged(test.deps(), Some(start_after), Some(per_page)).unwrap();
+
+            assert_eq!(1, page2.nodes.len());
+
+            // save another one
+            set_rewarded_set_to_n_nodes(&mut test, 4);
+
+            let page2 =
+                query_rewarded_set_paged(test.deps(), Some(start_after), Some(per_page)).unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.nodes.len());
+        }
+    }
+
+    #[cfg(test)]
+    mod pending_epoch_events {
+        use super::*;
+        use cosmwasm_std::Addr;
+        use mixnet_contract_common::pending_events::PendingEpochEvent;
+        use rand_chacha::rand_core::RngCore;
+
+        fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
+            for _ in 0..n {
+                push_dummy_epoch_action(test)
+            }
+        }
+
+        fn push_dummy_epoch_action(test: &mut TestSetup) {
+            let dummy_action = PendingEpochEvent::Undelegate {
+                owner: Addr::unchecked("foomp"),
+                mix_id: test.rng.next_u64(),
+                proxy: None,
+            };
+            storage::push_new_epoch_event(test.deps_mut().storage, &dummy_action).unwrap();
+        }
+
+        #[test]
+        fn obeys_limits() {
+            let mut test = TestSetup::new();
+            push_n_dummy_epoch_actions(&mut test, 100);
+            let env = test.env();
+
+            let limit = 2;
+
+            let page1 =
+                query_pending_epoch_events_paged(test.deps(), env, None, Some(limit)).unwrap();
+            assert_eq!(limit, page1.events.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut test = TestSetup::new();
+            push_n_dummy_epoch_actions(&mut test, 1000);
+            let env = test.env();
+
+            // query without explicitly setting a limit
+            let page1 = query_pending_epoch_events_paged(test.deps(), env, None, None).unwrap();
+
+            assert_eq!(
+                EPOCH_EVENTS_DEFAULT_RETRIEVAL_LIMIT,
+                page1.events.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut test = TestSetup::new();
+            push_n_dummy_epoch_actions(&mut test, 1000);
+            let env = test.env();
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 10000;
+            let page1 = query_pending_epoch_events_paged(test.deps(), env, None, Some(crazy_limit))
+                .unwrap();
+
+            assert_eq!(EPOCH_EVENTS_MAX_RETRIEVAL_LIMIT, page1.events.len() as u32);
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            push_dummy_epoch_action(&mut test);
+
+            let per_page = 2;
+            let page1 =
+                query_pending_epoch_events_paged(test.deps(), env.clone(), None, Some(per_page))
+                    .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.events.len());
+
+            // save another
+            push_dummy_epoch_action(&mut test);
+
+            // page1 should have 2 results on it
+            let page1 =
+                query_pending_epoch_events_paged(test.deps(), env.clone(), None, Some(per_page))
+                    .unwrap();
+            assert_eq!(2, page1.events.len());
+
+            push_dummy_epoch_action(&mut test);
+
+            // page1 still has the same 2 results
+            let another_page1 =
+                query_pending_epoch_events_paged(test.deps(), env.clone(), None, Some(per_page))
+                    .unwrap();
+            assert_eq!(2, another_page1.events.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_pending_epoch_events_paged(
+                test.deps(),
+                env.clone(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.events.len());
+
+            // save another one
+            push_dummy_epoch_action(&mut test);
+
+            let page2 = query_pending_epoch_events_paged(
+                test.deps(),
+                env,
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.events.len());
+        }
+
+        #[test]
+        fn shows_correct_time_until_possible_execution() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            push_dummy_epoch_action(&mut test);
+
+            let res =
+                query_pending_epoch_events_paged(test.deps(), env.clone(), None, None).unwrap();
+            let interval = test.current_interval();
+
+            // it's essentially always the time until the epoch end
+            assert_eq!(
+                res.seconds_until_executable,
+                interval.secs_until_current_epoch_end(&env)
+            )
+        }
+    }
+
+    #[cfg(test)]
+    mod pending_interval_events {
+        use super::*;
+        use crate::support::tests::fixtures;
+        use cosmwasm_std::Addr;
+        use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+        use rand_chacha::rand_core::RngCore;
+
+        fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
+            for _ in 0..n {
+                push_dummy_interval_action(test)
+            }
+        }
+
+        fn push_dummy_interval_action(test: &mut TestSetup) {
+            let dummy_action = PendingIntervalEvent::ChangeMixCostParams {
+                mix: test.rng.next_u64(),
+                new_costs: fixtures::mix_node_cost_params_fixture(),
+            };
+            storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();
+        }
+
+        #[test]
+        fn obeys_limits() {
+            let mut test = TestSetup::new();
+            push_n_dummy_interval_actions(&mut test, 100);
+            let env = test.env();
+
+            let limit = 2;
+
+            let page1 =
+                query_pending_interval_events_paged(test.deps(), env, None, Some(limit)).unwrap();
+            assert_eq!(limit, page1.events.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut test = TestSetup::new();
+            push_n_dummy_interval_actions(&mut test, 1000);
+            let env = test.env();
+
+            // query without explicitly setting a limit
+            let page1 = query_pending_interval_events_paged(test.deps(), env, None, None).unwrap();
+
+            assert_eq!(
+                INTERVAL_EVENTS_DEFAULT_RETRIEVAL_LIMIT,
+                page1.events.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut test = TestSetup::new();
+            push_n_dummy_interval_actions(&mut test, 1000);
+            let env = test.env();
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 10000;
+            let page1 =
+                query_pending_interval_events_paged(test.deps(), env, None, Some(crazy_limit))
+                    .unwrap();
+
+            assert_eq!(
+                INTERVAL_EVENTS_MAX_RETRIEVAL_LIMIT,
+                page1.events.len() as u32
+            );
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            push_dummy_interval_action(&mut test);
+
+            let per_page = 2;
+            let page1 =
+                query_pending_interval_events_paged(test.deps(), env.clone(), None, Some(per_page))
+                    .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.events.len());
+
+            // save another
+            push_dummy_interval_action(&mut test);
+
+            // page1 should have 2 results on it
+            let page1 =
+                query_pending_interval_events_paged(test.deps(), env.clone(), None, Some(per_page))
+                    .unwrap();
+            assert_eq!(2, page1.events.len());
+
+            push_dummy_interval_action(&mut test);
+
+            // page1 still has the same 2 results
+            let another_page1 =
+                query_pending_interval_events_paged(test.deps(), env.clone(), None, Some(per_page))
+                    .unwrap();
+            assert_eq!(2, another_page1.events.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_pending_interval_events_paged(
+                test.deps(),
+                env.clone(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.events.len());
+
+            // save another one
+            push_dummy_interval_action(&mut test);
+
+            let page2 = query_pending_interval_events_paged(
+                test.deps(),
+                env,
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.events.len());
+        }
+
+        #[test]
+        fn shows_correct_time_until_possible_execution() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            push_dummy_interval_action(&mut test);
+
+            let res =
+                query_pending_interval_events_paged(test.deps(), env.clone(), None, None).unwrap();
+            let interval = test.current_interval();
+
+            // it's essentially always the time until the interval end
+            assert_eq!(
+                res.seconds_until_executable,
+                interval.secs_until_current_interval_end(&env)
+            )
+        }
+    }
+}

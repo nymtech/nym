@@ -49,8 +49,10 @@ export type TAppContext = {
   loginType?: TLoginType;
   showSettings: boolean;
   showSendModal: boolean;
+  showReceiveModal: boolean;
   handleShowSettings: () => void;
   handleShowSendModal: () => void;
+  handleShowReceiveModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
@@ -81,6 +83,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -234,6 +237,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const switchNetwork = (_network: Network) => setNetwork(_network);
   const handleShowSettings = () => setShowSettings((show) => !show);
   const handleShowSendModal = () => setShowSendModal((show) => !show);
+  const handleShowReceiveModal = () => setShowReceiveModal((show) => !show);
   const handleSwitchMode = () =>
     setMode((currentMode) => {
       const newMode = currentMode === 'light' ? 'dark' : 'light';
@@ -270,7 +274,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       onAccountChange,
       handleShowSettings,
       showSendModal,
+      showReceiveModal,
       handleShowSendModal,
+      handleShowReceiveModal,
       handleSwitchMode,
     }),
     [
@@ -290,6 +296,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       showTerminal,
       showSettings,
       showSendModal,
+      showReceiveModal,
     ],
   );
 

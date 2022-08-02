@@ -3,7 +3,7 @@
 
 use crate::gateways::storage as gateways_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{Addr, Api, BankMsg, Coin, CosmosMsg, Deps, Response, Storage};
+use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Deps, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{IdentityKeyRef, MixNodeBond};
 

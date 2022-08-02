@@ -440,51 +440,88 @@ pub fn migrate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::Decimal;
+    use mixnet_contract_common::reward_params::{IntervalRewardParams, RewardingParams};
+    use mixnet_contract_common::{InitialRewardingParams, Percent};
+    use std::time::Duration;
 
     #[test]
     fn initialize_contract() {
-        // todo!()
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+
+        let init_msg = InstantiateMsg {
+            rewarding_validator_address: "foomp123".to_string(),
+            vesting_contract_address: "bar456".to_string(),
+            rewarding_denom: "uatom".to_string(),
+            epochs_in_interval: 1234,
+            epoch_duration: Duration::from_secs(4321),
+            initial_rewarding_params: InitialRewardingParams {
+                initial_reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
+                initial_staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                sybil_resistance: Percent::from_percentage_value(23).unwrap(),
+                active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
+                interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
+                rewarded_set_size: 543,
+                active_set_size: 123,
+            },
+        };
+
+        let sender = mock_info("sender", &[]);
+        let res = instantiate(deps.as_mut(), env.clone(), sender, init_msg);
+        assert!(res.is_ok());
+
+        let expected_state = ContractState {
+            owner: Addr::unchecked("sender"),
+            rewarding_validator_address: Addr::unchecked("foomp123"),
+            vesting_contract_address: Addr::unchecked("bar456"),
+            rewarding_denom: "uatom".into(),
+            params: ContractStateParams {
+                minimum_mixnode_delegation: None,
+                minimum_mixnode_pledge: Coin {
+                    denom: "uatom".into(),
+                    amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+                },
+                minimum_gateway_pledge: Coin {
+                    denom: "uatom".into(),
+                    amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
+                },
+            },
+        };
+
+        let expected_epoch_reward_budget =
+            Decimal::from_ratio(100_000_000_000_000u128, 1234u32) * Decimal::percent(1);
+        let expected_stake_saturation_point = Decimal::from_ratio(123_456_000_000_000u128, 543u32);
+
+        let expected_rewarding_params = RewardingParams {
+            interval: IntervalRewardParams {
+                reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
+                staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                epoch_reward_budget: expected_epoch_reward_budget,
+                stake_saturation_point: expected_stake_saturation_point,
+                sybil_resistance: Percent::from_percentage_value(23).unwrap(),
+                active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
+                interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
+            },
+            rewarded_set_size: 543,
+            active_set_size: 123,
+        };
+
+        let state = mixnet_params_storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap();
+        assert_eq!(state, expected_state);
+
+        let rewarding_params = rewards_storage::REWARDING_PARAMS
+            .load(deps.as_ref().storage)
+            .unwrap();
+        assert_eq!(rewarding_params, expected_rewarding_params);
+
+        let interval = interval_storage::current_interval(deps.as_ref().storage).unwrap();
+        assert_eq!(interval.epochs_in_interval(), 1234);
+        assert_eq!(interval.epoch_length(), Duration::from_secs(4321));
+        assert_eq!(interval.current_interval_id(), 0);
+        assert_eq!(interval.current_epoch_id(), 0);
     }
 }
-
-// #[cfg(test)]
-// pub mod tests {
-//     use super::*;
-//     use crate::support::tests;
-//     use config::defaults::{DEFAULT_NETWORK, MIX_DENOM};
-//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-//     use cosmwasm_std::{coins, from_binary};
-//     use mixnet_contract_common::PagedMixnodeResponse;
-//
-//     #[test]
-//     fn initialize_contract() {
-//         let mut deps = mock_dependencies();
-//         let env = mock_env();
-//         let msg = InstantiateMsg {
-//             rewarding_validator_address: DEFAULT_NETWORK.rewarding_validator_address().to_string(),
-//         };
-//         let info = mock_info("creator", &[]);
-//
-//         let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-//         assert_eq!(0, res.messages.len());
-//
-//         // mix_node_bonds should be empty after initialization
-//         let res = query(
-//             deps.as_ref(),
-//             env.clone(),
-//             QueryMsg::GetMixNodes {
-//                 start_after: None,
-//                 limit: Option::from(2),
-//             },
-//         )
-//         .unwrap();
-//         let page: PagedMixnodeResponse = from_binary(&res).unwrap();
-//         assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
-//
-//         // Contract balance should match what we initialized it as
-//         assert_eq!(
-//             coins(0, MIX_DENOM.base),
-//             tests::queries::query_contract_balance(env.contract.address, deps)
-//         );
-//     }
-// }

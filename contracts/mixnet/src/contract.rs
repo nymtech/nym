@@ -288,7 +288,7 @@ pub fn query(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
         ),
         QueryMsg::GetRewardedSet { limit, start_after } => to_binary(
-            &crate::interval::queries::query_rewarded_set_paged(deps, limit, start_after)?,
+            &crate::interval::queries::query_rewarded_set_paged(deps, start_after, limit)?,
         ),
 
         // mixnode-related:
@@ -411,16 +411,16 @@ pub fn query(
             to_binary(&crate::interval::queries::query_pending_epoch_events_paged(
                 deps,
                 env,
-                limit,
                 start_after,
+                limit,
             )?)
         }
         QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_binary(
             &crate::interval::queries::query_pending_interval_events_paged(
                 deps,
                 env,
-                limit,
                 start_after,
+                limit,
             )?,
         ),
     };

@@ -423,6 +423,10 @@ pub fn query(
                 limit,
             )?,
         ),
+
+        QueryMsg::DeprecatedGetMixnodeDetailsByIdentity { mix_identity } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
+        ),
     };
 
     Ok(query_res?)
@@ -469,7 +473,7 @@ mod tests {
         };
 
         let sender = mock_info("sender", &[]);
-        let res = instantiate(deps.as_mut(), env.clone(), sender, init_msg);
+        let res = instantiate(deps.as_mut(), env, sender, init_msg);
         assert!(res.is_ok());
 
         let expected_state = ContractState {

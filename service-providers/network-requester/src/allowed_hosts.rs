@@ -109,9 +109,14 @@ impl OutboundRequestFilter {
     }
 
     /// Attempts to get the root domain, shorn of subdomains, using publicsuffix.
+    /// If the domain is itself a suffix, then just use the full address as root.
     fn get_domain_root(&self, host: &str) -> Option<String> {
         match self.domain_list.parse_domain(host) {
-            Ok(d) => d.root().map(|root| root.to_string()),
+            Ok(d) => Some(
+                d.root()
+                    .map(|root| root.to_string())
+                    .unwrap_or(d.full().to_string()),
+            ),
             Err(_) => {
                 log::warn!("Error parsing domain: {:?}", host);
                 None // domain couldn't be parsed

@@ -23,6 +23,7 @@ use crate::nymd::{
     self, error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 
+use crate::nymd::traits::MixnetQueryClient;
 use mixnet_contract_common::reward_params::RewardingParams;
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
@@ -251,14 +252,16 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_contract_settings().await?)
+        todo!()
+        // Ok(self.nymd.get_contract_settings().await?)
     }
 
     pub async fn get_operator_rewards(&self, address: String) -> Result<u128, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,
     {
-        Ok(self.nymd.get_operator_rewards(address).await?.u128())
+        todo!()
+        // Ok(self.nymd.get_operator_rewards(address).await?.u128())
     }
 
     pub async fn get_delegator_rewards(
@@ -302,7 +305,7 @@ impl<C> Client<C> {
 
     pub async fn get_mixnet_contract_version(&self) -> Result<ContractBuildInformation, NymdError>
     where
-        C: CosmWasmClient + Sync,
+        C: CosmWasmClient + Sync + Send,
     {
         self.nymd.get_mixnet_contract_version().await
     }
@@ -311,7 +314,8 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        self.nymd.get_rewarding_params().await
+        todo!()
+        // self.nymd.get_rewarding_params().await
     }
 
     // basically handles paging for us
@@ -447,7 +451,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
     where
-        C: CosmWasmClient + Sync,
+        C: CosmWasmClient + Sync + Send,
     {
         let mut gateways = Vec::new();
         let mut start_after = None;

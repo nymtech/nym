@@ -6,6 +6,7 @@ use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, 
 use criterion::{Criterion, criterion_group, criterion_main};
 use ff::Field;
 use group::{Curve, Group};
+use itertools::izip;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
@@ -218,7 +219,7 @@ fn bench_divisible_ecash(c: &mut Criterion) {
     );
 
 
-    let mut partial_wallets = Vec::new();
+    let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
         let blind_signature = issue(
             &params,
@@ -226,9 +227,24 @@ fn bench_divisible_ecash(c: &mut Criterion) {
             pk_user.clone(),
             &auth_keypair.secret_key(),
         ).unwrap();
-        let partial_wallet = issue_verify(&grp, &auth_keypair.verification_key(), &sk_user, &blind_signature, &req_info).unwrap();
-        partial_wallets.push(partial_wallet);
+        wallet_blinded_signatures.push(blind_signature);
     }
+
+    // CLIENT BENCHMARK: verify the issued partial wallet
+    let w = wallet_blinded_signatures.get(0).clone().unwrap();
+    let vk = verification_keys_auth.get(0).clone().unwrap();
+    group.bench_function(
+        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
+        |b| b.iter(|| issue_verify(&grp, vk, &sk_user, w, &req_info).unwrap()),
+    );
+
+    let partial_wallets: Vec<PartialWallet> = izip!(
+        wallet_blinded_signatures.iter(),
+        verification_keys_auth.iter()
+    )
+        .map(|(w, vk)| issue_verify(&grp, &vk, &sk_user, &w, &req_info).unwrap())
+        .collect();
+
 
     // AGGREGATE WALLET
     let mut wallet = aggregate_wallets(&grp, &verification_key, &sk_user, &partial_wallets).unwrap();

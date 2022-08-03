@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use mixnet_contract_common::mixnode::{
-    MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
-    StakeSaturationResponse, UnbondedMixnodeResponse,
+    MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
+    PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::{
@@ -321,28 +321,18 @@ pub trait MixnetQueryClient {
 
     // DEPRECATED AND ONLY HERE FOR THE BACKWARDS COMPATIBILITY:
 
-    /*
-
-    /// Checks whether there is a bonded mixnode associated with the provided identity key
     #[deprecated(
         note = "deprecated since mixnet v2; please query for mixnodes by their NodeId instead. This method will be removed soon."
     )]
-    pub async fn get_mixnode_bond(
+    async fn get_mixnode_details_by_identity(
         &self,
-        identity: IdentityKey,
-    ) -> Result<Option<MixNodeBond>, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let request = QueryMsg::GetMixnodeBond { identity };
-        // let response: MixnodeBondResponse = self
-        //     .client
-        //     .query_contract_smart(self.mixnet_contract_address(), &request)
-        //     .await?;
-        // Ok(response.mixnode)
+        mix_identity: IdentityKey,
+    ) -> Result<Option<MixNodeDetails>, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::DeprecatedGetMixnodeDetailsByIdentity {
+            mix_identity,
+        })
+        .await
     }
-     */
 }
 
 #[async_trait]

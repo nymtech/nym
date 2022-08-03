@@ -36,6 +36,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native & socks5 clients: deduplicate big chunks of init logic
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 - explorer-api: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service ([#1482]).
+- network-requester: fix filter for suffix-only domains ([#1487])
 
 ### Changed
 
@@ -75,6 +76,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1463]: https://github.com/nymtech/nym/pull/1463
 [#1478]: https://github.com/nymtech/nym/pull/1478
 [#1482]: https://github.com/nymtech/nym/pull/1482
+[#1487]: https://github.com/nymtech/nym/pull/1487
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

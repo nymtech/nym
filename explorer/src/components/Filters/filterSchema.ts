@@ -68,13 +68,6 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
   },
 });
 
-// const formatStakeValuesToMinorDenom = ([value_1, value_2]: number[]) => {
-//   const lowerValue = 10 ** (value_1 / 10) * 1_000_000;
-//   const upperValue = 10 ** (value_2 / 10) * 1_000_000;
-
-//   return [lowerValue, upperValue];
-// };
-
 const formatStakeSaturationValues = ([value_1, value_2]: number[]) => {
   const lowerValue = value_1 / 100;
   const upperValue = value_2 / 100;

@@ -14,20 +14,15 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
-use validator_api_requests::models::{MixNodeBondAnnotated, UptimeResponse};
-
-#[cfg(feature = "nymd-client")]
-use crate::nymd::{
-    self, error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
-};
-
 use crate::nymd::traits::MixnetQueryClient;
 #[cfg(feature = "nymd-client")]
-use mixnet_contract_common::{Delegation, IdentityKey, Interval, RewardedSetNodeStatus};
+use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
+#[cfg(feature = "nymd-client")]
+use mixnet_contract_common::{mixnode::MixNodeDetails, Delegation, NodeId, RewardedSetNodeStatus};
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
-use std::collections::{HashMap, HashSet};
+use validator_api_requests::models::{MixNodeBondAnnotated, UptimeResponse};
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
@@ -188,12 +183,9 @@ impl Client<QueryNymdClient> {
     }
 }
 
+// nymd wrappers
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
-    pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api.change_url(new_endpoint)
-    }
-
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
     pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
@@ -203,6 +195,198 @@ impl<C> Client<C> {
 
     pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
         self.nymd.mixnet_contract_address().clone()
+    }
+
+    // basically handles paging for us
+    pub async fn get_all_nymd_rewarded_set_mixnodes(
+        &self,
+    ) -> Result<Vec<(NodeId, RewardedSetNodeStatus)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut identities = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_rewarded_set_paged(start_after.take(), self.rewarded_set_page_limit)
+                .await?;
+            identities.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(identities)
+    }
+
+    pub async fn get_all_nymd_mixnode_bonds(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut mixnodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_mixnode_bonds_paged(self.mixnode_page_limit, start_after.take())
+                .await?;
+            mixnodes.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(mixnodes)
+    }
+
+    pub async fn get_all_nymd_mixnodes_detailed(
+        &self,
+    ) -> Result<Vec<MixNodeDetails>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut mixnodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_mixnodes_detailed_paged(self.mixnode_page_limit, start_after.take())
+                .await?;
+            mixnodes.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(mixnodes)
+    }
+
+    pub async fn get_all_nymd_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut gateways = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_gateways_paged(start_after.take(), self.gateway_page_limit)
+                .await?;
+            gateways.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(gateways)
+    }
+
+    pub async fn get_all_nymd_single_mixnode_delegations(
+        &self,
+        mix_id: NodeId,
+    ) -> Result<Vec<Delegation>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_mixnode_delegations_paged(
+                    mix_id,
+                    start_after.take(),
+                    self.mixnode_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_delegator_delegations(
+        &self,
+        delegation_owner: &cosmrs::AccountId,
+    ) -> Result<Vec<Delegation>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_delegator_delegations_paged(
+                    delegation_owner.to_string(),
+                    start_after.take(),
+                    self.mixnode_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    pub async fn get_all_network_delegations(&self) -> Result<Vec<Delegation>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_all_network_delegations_paged(
+                    start_after.take(),
+                    self.mixnode_delegations_page_limit,
+                )
+                .await?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+}
+
+// validator-api wrappers
+#[cfg(feature = "nymd-client")]
+impl<C> Client<C> {
+    pub fn change_validator_api(&mut self, new_endpoint: Url) {
+        self.validator_api.change_url(new_endpoint)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
@@ -241,222 +425,6 @@ impl<C> Client<C> {
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
-    }
-
-    // basically handles paging for us
-    // pub async fn get_all_nymd_rewarded_set_mixnode_identities(
-    //     &self,
-    // ) -> Result<Vec<(IdentityKey, RewardedSetNodeStatus)>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync,
-    // {
-    //     let mut identities = Vec::new();
-    //     let mut start_after = None;
-    //     let mut height = None;
-    //
-    //     loop {
-    //         let mut paged_response = self
-    //             .nymd
-    //             .get_rewarded_set_identities_paged(
-    //                 start_after.take(),
-    //                 self.rewarded_set_page_limit,
-    //                 height,
-    //             )
-    //             .await?;
-    //         identities.append(&mut paged_response.identities);
-    //
-    //         if height.is_none() {
-    //             // keep using the same height (the first query happened at the most recent height)
-    //             height = Some(paged_response.at_height)
-    //         }
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(identities)
-    // }
-
-    pub async fn get_nymd_rewarded_and_active_sets(
-        &self,
-    ) -> Result<Vec<(MixNodeBond, RewardedSetNodeStatus)>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let all_mixnodes = self.get_all_nymd_mixnodes().await?;
-        // let rewarded_set_identities = self
-        //     .get_all_nymd_rewarded_set_mixnode_identities()
-        //     .await?
-        //     .into_iter()
-        //     .collect::<HashMap<_, _>>();
-        //
-        // Ok(all_mixnodes
-        //     .into_iter()
-        //     .filter_map(|node| {
-        //         rewarded_set_identities
-        //             .get(node.identity())
-        //             .map(|status| (node, *status))
-        //     })
-        //     .collect())
-    }
-
-    /// If you need both rewarded and the active set, consider using [Self::get_nymd_rewarded_and_active_sets] instead
-    pub async fn get_nymd_rewarded_set(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let all_mixnodes = self.get_all_nymd_mixnodes().await?;
-        // let rewarded_set_identities = self
-        //     .get_all_nymd_rewarded_set_mixnode_identities()
-        //     .await?
-        //     .into_iter()
-        //     .map(|(identity, _status)| identity)
-        //     .collect::<HashSet<_>>();
-        //
-        // Ok(all_mixnodes
-        //     .into_iter()
-        //     .filter(|node| rewarded_set_identities.contains(node.identity()))
-        //     .collect())
-    }
-
-    /// If you need both rewarded and the active set, consider using [Self::get_nymd_rewarded_and_active_sets] instead
-    pub async fn get_nymd_active_set(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let all_mixnodes = self.get_all_nymd_mixnodes().await?;
-        // let active_set_identities = self
-        //     .get_all_nymd_rewarded_set_mixnode_identities()
-        //     .await?
-        //     .into_iter()
-        //     .filter_map(|(identity, status)| {
-        //         if status.is_active() {
-        //             Some(identity)
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .collect::<HashSet<_>>();
-        //
-        // Ok(all_mixnodes
-        //     .into_iter()
-        //     .filter(|node| active_set_identities.contains(node.identity()))
-        //     .collect())
-    }
-
-    pub async fn get_all_nymd_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let mut mixnodes = Vec::new();
-        // let mut start_after = None;
-        // loop {
-        //     let mut paged_response = self
-        //         .nymd
-        //         .get_mixnodes_paged(start_after.take(), self.mixnode_page_limit)
-        //         .await?;
-        //     mixnodes.append(&mut paged_response.nodes);
-        //
-        //     if let Some(start_after_res) = paged_response.start_next_after {
-        //         start_after = Some(start_after_res)
-        //     } else {
-        //         break;
-        //     }
-        // }
-        //
-        // Ok(mixnodes)
-    }
-
-    pub async fn get_all_nymd_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        let mut gateways = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nymd
-                .get_gateways_paged(start_after.take(), self.gateway_page_limit)
-                .await?;
-            gateways.append(&mut paged_response.nodes);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(gateways)
-    }
-
-    pub async fn get_all_nymd_single_mixnode_delegations(
-        &self,
-        identity: IdentityKey,
-    ) -> Result<Vec<Delegation>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let mut delegations = Vec::new();
-        // let mut start_after = None;
-        // loop {
-        //     let mut paged_response = self
-        //         .nymd
-        //         .get_mix_delegations_paged(
-        //             identity.clone(),
-        //             start_after.take(),
-        //             self.mixnode_delegations_page_limit,
-        //         )
-        //         .await?;
-        //     delegations.append(&mut paged_response.delegations);
-        //
-        //     if let Some(start_after_res) = paged_response.start_next_after {
-        //         start_after = Some(start_after_res)
-        //     } else {
-        //         break;
-        //     }
-        // }
-        //
-        // Ok(delegations)
-    }
-
-    pub async fn get_all_delegator_delegations(
-        &self,
-        delegation_owner: &cosmrs::AccountId,
-    ) -> Result<Vec<Delegation>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // let mut delegations = Vec::new();
-        // let mut start_after = None;
-        // loop {
-        //     let mut paged_response = self
-        //         .nymd
-        //         .get_delegator_delegations_paged(
-        //             delegation_owner.to_string(),
-        //             start_after.take(),
-        //             self.mixnode_delegations_page_limit,
-        //         )
-        //         .await?;
-        //     delegations.append(&mut paged_response.delegations);
-        //
-        //     if let Some(start_after_res) = paged_response.start_next_after {
-        //         start_after = Some(start_after_res)
-        //     } else {
-        //         break;
-        //     }
-        // }
-        //
-        // Ok(delegations)
     }
 
     pub async fn get_mixnode_avg_uptimes(

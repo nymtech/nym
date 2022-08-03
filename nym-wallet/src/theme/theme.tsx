@@ -61,7 +61,7 @@ const darkMode: NymPaletteVariant = {
 const lightMode: NymPaletteVariant = {
   mode: 'light',
   background: {
-    main: '#E5E5E5',
+    main: '#F4F6F8',
     paper: '#FFFFFF',
     warn: '#FFE600',
     grey: '#F5F5F5',

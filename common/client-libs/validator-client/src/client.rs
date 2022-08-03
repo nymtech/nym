@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use mixnet_contract_common::{
-    ContractBuildInformation, CurrentIntervalResponse, GatewayBond, IdentityKeyRef, MixNodeBond,
-};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixNodeBond};
 use url::Url;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
@@ -24,11 +22,8 @@ use crate::nymd::{
 };
 
 use crate::nymd::traits::MixnetQueryClient;
-use mixnet_contract_common::reward_params::RewardingParams;
 #[cfg(feature = "nymd-client")]
-use mixnet_contract_common::{
-    ContractStateParams, Delegation, IdentityKey, Interval, RewardedSetNodeStatus,
-};
+use mixnet_contract_common::{Delegation, IdentityKey, Interval, RewardedSetNodeStatus};
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
@@ -246,76 +241,6 @@ impl<C> Client<C> {
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
-    }
-
-    pub async fn get_contract_settings(&self) -> Result<ContractStateParams, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // Ok(self.nymd.get_contract_settings().await?)
-    }
-
-    pub async fn get_operator_rewards(&self, address: String) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // Ok(self.nymd.get_operator_rewards(address).await?.u128())
-    }
-
-    pub async fn get_delegator_rewards(
-        &self,
-        address: String,
-        mix_identity: IdentityKey,
-        proxy: Option<String>,
-    ) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self
-            .nymd
-            .get_delegator_rewards(address, mix_identity, proxy)
-            .await?
-            .u128())
-    }
-
-    // pub async fn get_pending_delegation_events(
-    //     &self,
-    //     owner_address: String,
-    //     proxy_address: Option<String>,
-    // ) -> Result<Vec<DelegationEvent>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync,
-    // {
-    //     Ok(self
-    //         .nymd
-    //         .get_pending_delegation_events(owner_address, proxy_address)
-    //         .await?)
-    // }
-
-    pub async fn get_current_interval(
-        &self,
-    ) -> Result<CurrentIntervalResponse, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.nymd.get_current_interval().await?)
-    }
-
-    pub async fn get_mixnet_contract_version(&self) -> Result<ContractBuildInformation, NymdError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        self.nymd.get_mixnet_contract_version().await
-    }
-
-    pub async fn get_rewarding_params(&self) -> Result<RewardingParams, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // self.nymd.get_rewarding_params().await
     }
 
     // basically handles paging for us

@@ -6,6 +6,7 @@ use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 
+pub(crate) mod deprecated_routes;
 pub(crate) mod local_guard;
 pub(crate) mod models;
 pub(crate) mod routes;

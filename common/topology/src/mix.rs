@@ -3,6 +3,7 @@
 
 use crate::{filter, NetworkAddress};
 use crypto::asymmetric::{encryption, identity};
+use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{Layer, MixNodeBond};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;
@@ -69,10 +70,6 @@ impl Display for MixnodeConversionError {
 #[derive(Debug, Clone)]
 pub struct Node {
     pub owner: String,
-    // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
-    // on the network at a type, right?
-    pub stake: u128,
-    pub delegation: u128,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -115,18 +112,15 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
                 MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
             })?[0];
 
-        todo!()
-        // Ok(Node {
-        //     owner: bond.owner.as_str().to_owned(),
-        //     stake: bond.original_pledge.amount.into(),
-        //     delegation: bond.total_delegation.amount.into(),
-        //     host,
-        //     mix_host,
-        //     identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
-        //     sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
-        //     layer: bond.layer,
-        //     version: bond.mix_node.version.clone(),
-        // })
+        Ok(Node {
+            owner: bond.owner.as_str().to_owned(),
+            host,
+            mix_host,
+            identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
+            layer: bond.layer,
+            version: bond.mix_node.version.clone(),
+        })
     }
 }
 

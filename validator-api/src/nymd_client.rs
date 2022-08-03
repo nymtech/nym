@@ -1,40 +1,41 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "coconut")]
-use async_trait::async_trait;
-#[cfg(feature = "coconut")]
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use crate::config::Config;
+use crate::rewarded_set_updater::error::RewardingError;
+use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::reward_params::RewardingParams;
+use mixnet_contract_common::{
+    CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, Interval, MixNodeBond, NodeId,
+    RewardedSetNodeStatus,
+};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
-
-use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
-use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::{
-    ContractStateParams, CurrentIntervalResponse, Delegation, ExecuteMsg, GatewayBond, IdentityKey,
-    Interval, MixNodeBond, RewardedSetNodeStatus,
-};
-#[cfg(feature = "coconut")]
-use multisig_contract_common::msg::ProposalResponse;
+use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
     Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
 };
+use validator_client::ValidatorClientError;
+
+#[cfg(feature = "coconut")]
+use crate::coconut::error::CoconutError;
+#[cfg(feature = "coconut")]
+use async_trait::async_trait;
+#[cfg(feature = "coconut")]
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+#[cfg(feature = "coconut")]
+use multisig_contract_common::msg::ProposalResponse;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
     traits::{CoconutBandwidthQueryClient, MultisigQueryClient, MultisigSigningClient},
     AccountId,
 };
-use validator_client::ValidatorClientError;
-
-#[cfg(feature = "coconut")]
-use crate::coconut::error::CoconutError;
-use crate::config::Config;
-use crate::rewarded_set_updater::error::RewardingError;
 
 pub(crate) struct Client<C>(pub(crate) Arc<RwLock<validator_client::Client<C>>>);
 
@@ -115,86 +116,6 @@ impl<C> Client<C> {
         Ok(time)
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_all_nymd_mixnodes().await
-    }
-
-    pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_all_nymd_gateways().await
-    }
-
-    #[allow(dead_code)]
-    // I've got a feeling we will need this again very soon, so I'd rather not remove this
-    // (and all subcalls in the various clients) just yet
-    pub(crate) async fn get_contract_settings(
-        &self,
-    ) -> Result<ContractStateParams, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_contract_settings().await
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn get_operator_rewards(
-        &self,
-        address: String,
-    ) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_operator_rewards(address).await
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn get_delegator_rewards(
-        &self,
-        address: String,
-        mix_identity: IdentityKey,
-        proxy: Option<String>,
-    ) -> Result<u128, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0
-            .read()
-            .await
-            .get_delegator_rewards(address, mix_identity, proxy)
-            .await
-    }
-
-    pub(crate) async fn get_current_interval(
-        &self,
-    ) -> Result<CurrentIntervalResponse, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.0.read().await.get_current_interval().await
-    }
-
-    pub(crate) async fn get_epochs_in_interval(&self) -> Result<u64, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        todo!()
-        // self.0.read().await.get_epochs_in_interval().await
-    }
-
-    pub(crate) async fn get_current_rewarding_params(
-        &self,
-    ) -> Result<RewardingParams, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.0.read().await.get_rewarding_params().await?)
-    }
-
     /// Obtains the hash of a block specified by the provided height.
     /// If the resulting digest is empty, a `None` is returned instead.
     ///
@@ -217,86 +138,74 @@ impl<C> Client<C> {
         Ok(hash)
     }
 
-    #[allow(dead_code)]
-    pub(crate) async fn get_mixnode_delegations(
-        &self,
-        identity: IdentityKey,
-    ) -> Result<Vec<Delegation>, ValidatorClientError>
+    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError>
     where
-        C: CosmWasmClient + Sync,
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0.read().await.get_all_nymd_mixnodes_detailed().await
+    }
+
+    pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0.read().await.get_all_nymd_gateways().await
+    }
+
+    pub(crate) async fn get_current_interval(
+        &self,
+    ) -> Result<CurrentIntervalResponse, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        Ok(self.0.read().await.get_current_interval_details().await?)
+    }
+
+    pub(crate) async fn get_current_rewarding_parameters(
+        &self,
+    ) -> Result<RewardingParams, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        Ok(self.0.read().await.get_rewarding_parameters().await?)
+    }
+
+    pub(crate) async fn get_rewarded_set_mixnodes(
+        &self,
+    ) -> Result<Vec<(NodeId, RewardedSetNodeStatus)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
     {
         self.0
             .read()
             .await
-            .get_all_nymd_single_mixnode_delegations(identity)
+            .get_all_nymd_rewarded_set_mixnodes()
             .await
     }
 
-    pub(crate) async fn get_rewarded_set_identities(
-        &self,
-    ) -> Result<Vec<(IdentityKey, RewardedSetNodeStatus)>, ValidatorClientError>
+    pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
     where
-        C: CosmWasmClient + Sync,
+        C: SigningCosmWasmClient + Sync + Send,
     {
         todo!()
         // self.0
-        //     .read()
+        //     .write()
         //     .await
-        //     .get_all_nymd_rewarded_set_mixnode_identities()
-        //     .await
+        //     .nymd
+        //     .advance_current_epoch(None)
+        //     .await?;
+        // Ok(())
     }
 
-    #[allow(dead_code)]
-    pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
+    pub(crate) async fn reconcile_epoch_events(&self) -> Result<(), ValidatorClientError>
     where
-        C: SigningCosmWasmClient + Sync,
+        C: SigningCosmWasmClient + Sync + Send,
     {
         self.0
             .write()
             .await
             .nymd
-            .advance_current_epoch(None)
-            .await?;
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn checkpoint_mixnodes(&self) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0.write().await.nymd.checkpoint_mixnodes(None).await?;
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn reconcile_delegations(&self) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0
-            .write()
-            .await
-            .nymd
-            .reconcile_delegations(None)
-            .await?;
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn write_rewarded_set(
-        &self,
-        rewarded_set: Vec<IdentityKey>,
-        expected_active_set_size: u32,
-    ) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.0
-            .write()
-            .await
-            .nymd
-            .write_rewarded_set(rewarded_set, expected_active_set_size, None)
+            .reconcile_epoch_events(None, None)
             .await?;
         Ok(())
     }

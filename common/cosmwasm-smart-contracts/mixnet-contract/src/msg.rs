@@ -379,6 +379,14 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<u32>,
     },
+
+    // deprecated
+    // this query shouldn't be used unless absolutely necessary. It only exists for the purposes
+    // if easing off migration. It might not do what you expect, because identity keys can point to
+    // possibly multiple node ids now!
+    DeprecatedGetMixnodeDetailsByIdentity {
+        mix_identity: IdentityKey,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

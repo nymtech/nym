@@ -1,8 +1,3 @@
-use std::collections::HashSet;
-
-use bls12_381::G1Projective;
-use group::Curve;
-
 use crate::{PayInfo, VerificationKeyAuth};
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::PublicKeyUser;
@@ -51,9 +46,6 @@ pub fn identify(params: &Parameters, public_keys_u: &[PublicKeyUser], verificati
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
-    use group::Curve;
     use itertools::izip;
 
     use crate::{aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify, issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request};
@@ -109,7 +101,7 @@ mod tests {
         let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 1;
 
-        let (payment1, upd_wallet) = aggr_wallet.spend(
+        let (payment1, _upd_wallet) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),
@@ -221,7 +213,7 @@ mod tests {
 
         //  GENERATE KEYS FOR OTHER USERS
         let mut public_keys: Vec<PublicKeyUser> = Default::default();
-        for i in 0..50 {
+        for _i in 0..50 {
             let sk = grp.random_scalar();
             let sk_user = SecretKeyUser { sk };
             let pk_user = sk_user.public_key(&grp);
@@ -271,7 +263,7 @@ mod tests {
         let pay_info1 = PayInfo { info: [6u8; 32] };
         let spend_vv = 1;
 
-        let (payment1, _) = aggr_wallet.spend(
+        let (payment1, _upd_wallet) = aggr_wallet.spend(
             &params,
             &verification_key,
             &user_keypair.secret_key(),

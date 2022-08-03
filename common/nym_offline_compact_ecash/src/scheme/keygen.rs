@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
-use group::{Curve, GroupEncoding};
+use group::Curve;
 
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;

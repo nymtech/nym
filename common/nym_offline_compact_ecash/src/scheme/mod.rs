@@ -1,9 +1,7 @@
 use std::cell::Cell;
-use std::convert::TryFrom;
-use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
-use group::{Curve, Group};
+use group::Curve;
 
 use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
@@ -11,7 +9,7 @@ use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{
-    check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective,
+    check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex,
 };
 
 pub mod aggregation;
@@ -59,9 +57,6 @@ impl Wallet {
         self.l.set(self.l.get() + 1);
     }
 
-    fn down(&self) {
-        self.l.set(self.l.get() - 1);
-    }
 
     pub fn spend(
         &self,
@@ -105,8 +100,6 @@ impl Wallet {
         let mut o_a: Vec<Scalar> = Default::default();
         let mut o_mu: Vec<Scalar> = Default::default();
         let mut mu: Vec<Scalar> = Default::default();
-        let mut o_lambda: Vec<Scalar> = Default::default();
-        let mut lambda: Vec<Scalar> = Default::default();
         let mut r_k_vec: Vec<Scalar> = Default::default();
         let mut kappa_k_vec: Vec<G2Projective> = Default::default();
         let mut sign_lk_prime_vec: Vec<Signature> = Default::default();
@@ -148,8 +141,8 @@ impl Wallet {
             r_k_vec.push(r_k);
             // compute kappa_k
             let kappa_k = grparams.gen2() * r_k
-                + params.pkRP().alpha
-                + params.pkRP().beta * Scalar::from(self.l() + k);
+                + params.pk_rp().alpha
+                + params.pk_rp().beta * Scalar::from(self.l() + k);
             kappa_k_vec.push(kappa_k);
         }
 

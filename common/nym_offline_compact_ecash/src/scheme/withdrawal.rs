@@ -6,9 +6,8 @@ use crate::proofs::proof_withdrawal::{
     WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
 };
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::keygen::ttp_keygen;
 use crate::scheme::PartialWallet;
-use crate::scheme::setup::{GroupParameters, Parameters};
+use crate::scheme::setup::GroupParameters;
 use crate::utils::{check_bilinear_pairing, hash_g1};
 use crate::utils::{BlindedSignature, Signature};
 
@@ -197,7 +196,3 @@ pub fn issue_verify(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
 use ff::Field;
-use group::{Curve, GroupEncoding};
 use rand::thread_rng;
 
 use crate::error::{CompactEcashError, Result};
@@ -102,7 +101,7 @@ pub struct Parameters {
     /// group parameters
     grp: GroupParameters,
     /// Public Key for range proof verification
-    pkRP: PublicKeyRP,
+    pk_rp: PublicKeyRP,
     /// Max value of wallet
     L: u64,
     /// list of signatures for values l in [0, L]
@@ -113,8 +112,8 @@ impl Parameters {
     pub fn grp(&self) -> &GroupParameters {
         &self.grp
     }
-    pub fn pkRP(&self) -> &PublicKeyRP {
-        &self.pkRP
+    pub fn pk_rp(&self) -> &PublicKeyRP {
+        &self.pk_rp
     }
     pub fn L(&self) -> u64 {
         self.L
@@ -140,8 +139,8 @@ pub fn setup(L: u64) -> Parameters {
     let grp = GroupParameters::new().unwrap();
     let x = grp.random_scalar();
     let y = grp.random_scalar();
-    let skRP = SecretKeyRP { x, y };
-    let pkRP = skRP.public_key(&grp);
+    let sk_rp = SecretKeyRP { x, y };
+    let pk_rp = sk_rp.public_key(&grp);
     let mut signs = HashMap::new();
     for l in 0..L {
         let r = grp.random_scalar();
@@ -156,7 +155,7 @@ pub fn setup(L: u64) -> Parameters {
     }
     Parameters {
         grp,
-        pkRP,
+        pk_rp,
         L,
         signs,
     }

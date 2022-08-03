@@ -1,13 +1,12 @@
 use std::convert::{TryFrom, TryInto};
-use std::ops::Neg;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
-use group::{Curve, Group, GroupEncoding};
+use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
-use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::setup::{GroupParameters, Parameters};
+use crate::scheme::keygen::VerificationKeyAuth;
+use crate::scheme::setup::Parameters;
 use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective};
 
 #[derive(Debug)]
@@ -303,7 +302,7 @@ impl SpendProof {
 
         let zkcm_kappa_k = r_lk.iter()
             .zip(r_r_lk.iter())
-            .map(|(r_k, r_r_k)| params.pkRP().alpha + params.pkRP().beta * r_k + grparams.gen2() * r_r_k)
+            .map(|(r_k, r_r_k)| params.pk_rp().alpha + params.pk_rp().beta * r_k + grparams.gen2() * r_r_k)
             .collect::<Vec<_>>();
 
         let zkcm_kappa_k_bytes = zkcm_kappa_k
@@ -439,7 +438,7 @@ impl SpendProof {
             .iter()
             .zip(self.response_r_l.iter())
             .zip(self.response_l.iter())
-            .map(|((kappa_k, resp_r_k), resp_r_l_k)| kappa_k * self.challenge + grparams.gen2() * resp_r_k + params.pkRP().alpha * (Scalar::one() - self.challenge) + params.pkRP().beta * resp_r_l_k)
+            .map(|((kappa_k, resp_r_k), resp_r_l_k)| kappa_k * self.challenge + grparams.gen2() * resp_r_k + params.pk_rp().alpha * (Scalar::one() - self.challenge) + params.pk_rp().beta * resp_r_l_k)
             .collect::<Vec<_>>();
 
         let zkcm_kappa_k_bytes = zkcm_kappa_k
@@ -469,26 +468,25 @@ impl SpendProof {
 
 #[cfg(test)]
 mod tests {
-    use bls12_381::{G1Projective, G2Projective, Scalar};
-    use group::Curve;
-    use rand::{Rng, thread_rng};
+    use bls12_381::{G2Projective, Scalar};
+    use rand::thread_rng;
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
     use crate::scheme::{pseudorandom_f_delta_v, pseudorandom_f_g_v};
     use crate::scheme::aggregation::aggregate_verification_keys;
     use crate::scheme::keygen::{PublicKeyUser, ttp_keygen, VerificationKeyAuth};
     use crate::scheme::PayInfo;
-    use crate::scheme::setup::{GroupParameters, setup};
+    use crate::scheme::setup::setup;
     use crate::utils::hash_to_scalar;
 
     #[test]
     fn spend_proof_construct_and_verify() {
-        let rng = thread_rng();
+        let _rng = thread_rng();
         let L = 32;
         let params = setup(L);
         let grparams = params.grp();
         let sk = grparams.random_scalar();
-        let pk_user = PublicKeyUser {
+        let _pk_user = PublicKeyUser {
             pk: grparams.gen1() * sk,
         };
         let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
@@ -539,10 +537,10 @@ mod tests {
         // parse the signature associated with value l
         let sign_l = params.get_sign_by_idx(l).unwrap();
         // randomise the signature associated with value l
-        let (sign_l_prime, r_l) = sign_l.randomise(grparams);
+        let (_sign_l_prime, r_l) = sign_l.randomise(grparams);
         // compute kappa_l
         let kappa_k =
-            grparams.gen2() * r_l + params.pkRP().alpha + params.pkRP().beta * Scalar::from(l);
+            grparams.gen2() * r_l + params.pk_rp().alpha + params.pk_rp().beta * Scalar::from(l);
 
         let instance = SpendInstance {
             kappa,

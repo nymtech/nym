@@ -18,6 +18,8 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
       { label: '90', value: 90 },
       { label: '100', value: 100 },
     ],
+    tooltipInfo:
+      'As a delegator you want to chose nodes with lower profit margin, meaning more payout for their delegators',
   },
   stakeSaturation: {
     label: 'Stake saturation (%)',
@@ -43,9 +45,10 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
       },
     ],
     max: upperSaturationValue,
+    tooltipInfo: "Select nodes with <100% saturation. Any additional stake above 100% saturation won't get rewards",
   },
   stake: {
-    label: 'Stake (NYM)',
+    label: 'Routing Score (%)',
     id: EnumFilterKey.stake,
     value: [20, 90],
     min: 20,
@@ -92,6 +95,7 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
         label: '1B',
       },
     ],
+    tooltipInfo: 'The higher the routing score the better the performance of the node and so its rewards',
   },
 });
 

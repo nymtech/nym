@@ -15,6 +15,7 @@ export type TFilterItem = {
   min?: number;
   max?: number;
   scale?: (value: number) => number;
+  tooltipInfo?: string;
 };
 
 export type TFilters = { [key in EnumFilterKey]: TFilterItem };

@@ -25,6 +25,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 const FilterItem = ({
   label,
   id,
+  tooltipInfo,
   value,
   marks,
   scale,
@@ -36,6 +37,7 @@ const FilterItem = ({
 }) => (
   <Box sx={{ p: 2 }}>
     <Typography gutterBottom>{label}</Typography>
+    <Typography fontSize={12}>{tooltipInfo}</Typography>
     <Slider
       value={value}
       onChange={(e: Event, newValue: number | number[]) => onChange(id, newValue as number[])}

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod helpers;
 pub mod simulator;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub struct RewardEstimate {
     pub total_node_reward: Decimal,
 

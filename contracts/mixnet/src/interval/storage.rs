@@ -9,31 +9,32 @@ use crate::constants::{
 use cosmwasm_std::{Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
+use mixnet_contract_common::{
+    EpochEventId, Interval, IntervalEventId, NodeId, RewardedSetNodeStatus,
+};
 use std::collections::HashMap;
-
-pub(crate) type EventId = u32;
 
 pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new(CURRENT_INTERVAL_KEY);
 pub(crate) const REWARDED_SET: Map<NodeId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);
 
-pub(crate) const EPOCH_EVENT_ID_COUNTER: Item<EventId> = Item::new(EPOCH_EVENT_ID_COUNTER_KEY);
-pub(crate) const INTERVAL_EVENT_ID_COUNTER: Item<EventId> =
+pub(crate) const EPOCH_EVENT_ID_COUNTER: Item<EpochEventId> = Item::new(EPOCH_EVENT_ID_COUNTER_KEY);
+pub(crate) const INTERVAL_EVENT_ID_COUNTER: Item<IntervalEventId> =
     Item::new(INTERVAL_EVENT_ID_COUNTER_KEY);
 
-pub(crate) const LAST_PROCESSED_EPOCH_EVENT: Item<EventId> = Item::new(LAST_EPOCH_EVENT_ID_KEY);
-pub(crate) const LAST_PROCESSED_INTERVAL_EVENT: Item<EventId> =
+pub(crate) const LAST_PROCESSED_EPOCH_EVENT: Item<EpochEventId> =
+    Item::new(LAST_EPOCH_EVENT_ID_KEY);
+pub(crate) const LAST_PROCESSED_INTERVAL_EVENT: Item<IntervalEventId> =
     Item::new(LAST_INTERVAL_EVENT_ID_KEY);
 
 // we're indexing the events by an increasing ID so that we'd execute them in the order they were created
 // (we can't use block height as it's very possible multiple requests might be created in the same block height,
 // and composite keys would be more complex than just using an increasing ID)
 /// Contains operations that should get resolved at the end of the current epoch.
-pub(crate) const PENDING_EPOCH_EVENTS: Map<EventId, PendingEpochEvent> =
+pub(crate) const PENDING_EPOCH_EVENTS: Map<EpochEventId, PendingEpochEvent> =
     Map::new(PENDING_EPOCH_EVENTS_NAMESPACE);
 
 /// Contains operations that should get resolved at the end of the current interval.
-pub(crate) const PENDING_INTERVAL_EVENTS: Map<EventId, PendingIntervalEvent> =
+pub(crate) const PENDING_INTERVAL_EVENTS: Map<IntervalEventId, PendingIntervalEvent> =
     Map::new(PENDING_INTERVAL_EVENTS_NAMESPACE);
 
 pub(crate) fn current_interval(storage: &dyn Storage) -> StdResult<Interval> {
@@ -44,14 +45,16 @@ pub(crate) fn save_interval(storage: &mut dyn Storage, interval: &Interval) -> S
     CURRENT_INTERVAL.save(storage, interval)
 }
 
-pub(crate) fn next_epoch_event_id_counter(store: &mut dyn Storage) -> StdResult<EventId> {
-    let id: EventId = EPOCH_EVENT_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+pub(crate) fn next_epoch_event_id_counter(store: &mut dyn Storage) -> StdResult<EpochEventId> {
+    let id: EpochEventId = EPOCH_EVENT_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     EPOCH_EVENT_ID_COUNTER.save(store, &id)?;
     Ok(id)
 }
 
-pub(crate) fn next_interval_event_id_counter(store: &mut dyn Storage) -> StdResult<EventId> {
-    let id: EventId = INTERVAL_EVENT_ID_COUNTER
+pub(crate) fn next_interval_event_id_counter(
+    store: &mut dyn Storage,
+) -> StdResult<IntervalEventId> {
+    let id: IntervalEventId = INTERVAL_EVENT_ID_COUNTER
         .may_load(store)?
         .unwrap_or_default()
         + 1;

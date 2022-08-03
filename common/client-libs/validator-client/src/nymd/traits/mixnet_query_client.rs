@@ -360,3 +360,16 @@ where
             .await
     }
 }
+
+#[async_trait]
+impl<C> MixnetQueryClient for crate::Client<C>
+where
+    C: CosmWasmClient + Sync + Send,
+{
+    async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NymdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.nymd.query_mixnet_contract(query)
+    }
+}

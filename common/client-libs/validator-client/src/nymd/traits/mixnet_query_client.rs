@@ -17,7 +17,7 @@ use mixnet_contract_common::rewarding::{
 };
 use mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
+    CurrentIntervalResponse, EpochEventId, Gateway, GatewayBond, GatewayBondResponse,
     GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixNode,
     MixNodeBond, MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixNodeDelegationsResponse,

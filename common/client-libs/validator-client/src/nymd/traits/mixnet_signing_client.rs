@@ -479,3 +479,18 @@ where
             .await
     }
 }
+
+#[async_trait]
+impl<C> MixnetSigningClient for crate::Client<C>
+where
+    C: SigningCosmWasmClient + Sync + Send,
+{
+    async fn execute_mixnet_contract(
+        &self,
+        fee: Option<Fee>,
+        msg: MixnetExecuteMsg,
+        funds: Vec<Coin>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.nymd.execute_mixnet_contract(fee, msg, funds).await
+    }
+}

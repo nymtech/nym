@@ -4,7 +4,7 @@ import { Mark } from '@mui/base';
 export enum EnumFilterKey {
   profitMargin = 'profitMargin',
   stakeSaturation = 'stakeSaturation',
-  stake = 'stake',
+  routingScore = 'routingScore',
 }
 
 export type TFilterItem = {

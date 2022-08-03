@@ -322,5 +322,5 @@ fn bench_divisible_ecash(c: &mut Criterion) {
     assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(pk_user));
 }
 
-criterion_group!(benches, bench_divisible_ecash);
+criterion_group!(benches, bench_pairings, bench_divisible_ecash);
 criterion_main!(benches);

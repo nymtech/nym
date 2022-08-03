@@ -1,7 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use mixnet_contract_common::{MixNode, MixNodeBond};
+use cosmwasm_std::Decimal;
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use mixnet_contract_common::{MixNode, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -49,16 +52,20 @@ pub struct MixnodeStatusResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MixNodeBondAnnotated {
-    pub mixnode_bond: MixNodeBond,
+    pub mixnode_details: MixNodeDetails,
     pub stake_saturation: StakeSaturation,
-    pub uptime: u8,
-    pub estimated_operator_apy: f64,
-    pub estimated_delegators_apy: f64,
+    pub performance: Performance,
+    pub estimated_operator_apy: Decimal,
+    pub estimated_delegators_apy: Decimal,
 }
 
 impl MixNodeBondAnnotated {
     pub fn mix_node(&self) -> &MixNode {
-        &self.mixnode_bond.mix_node
+        &self.mixnode_details.bond_information.mix_node
+    }
+
+    pub fn mix_id(&self) -> NodeId {
+        self.mixnode_details.mix_id()
     }
 }
 
@@ -70,8 +77,7 @@ pub struct RewardEstimationResponse {
     pub estimated_node_profit: u64,
     pub estimated_operator_cost: u64,
 
-    // pub reward_params: RewardParams,
-    pub reward_params: (),
+    pub reward_params: RewardingParams,
     pub as_at: i64,
 }
 
@@ -92,7 +98,7 @@ pub struct StakeSaturationResponse {
     pub as_at: i64,
 }
 
-pub type StakeSaturation = f32;
+pub type StakeSaturation = Decimal;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

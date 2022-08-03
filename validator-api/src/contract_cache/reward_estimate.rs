@@ -1,55 +1,75 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::models::Uptime;
-use mixnet_contract_common::reward_params::RewardingParams;
+use cosmwasm_std::Decimal;
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::MixNodeBond;
+use mixnet_contract_common::{Interval, RewardedSetNodeStatus};
 
-pub fn compute_apy(epochs_per_hour: f64, reward: f64, pledge_amount: f64) -> f64 {
-    epochs_per_hour * 24.0 * 365.0 * 100.0 * reward / pledge_amount
+pub fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal) -> Decimal {
+    let hundred = Decimal::from_ratio(100u32, 1u32);
+
+    epochs_in_year * hundred * reward / pledge_amount
 }
 
 pub fn compute_reward_estimate(
-    mixnode_bond: &MixNodeBond,
-    uptime: Uptime,
-    is_active: bool,
-    interval_reward_params: RewardingParams,
-    current_operator_base_cost: u64,
+    mixnode: &MixNodeDetails,
+    performance: Performance,
+    rewarded_set_status: Option<RewardedSetNodeStatus>,
+    rewarding_params: RewardingParams,
+    interval: Interval,
 ) -> RewardEstimate {
-    todo!()
-    // let node_reward_params = NodeRewardParams::new(0, u128::from(uptime.u8()), is_active);
-    // let reward_params = RewardParams::new(interval_reward_params, node_reward_params);
-    //
-    // mixnode_bond
-    //     .estimate_reward(current_operator_base_cost, &reward_params)
-    //     .unwrap_or(RewardEstimate {
-    //         total_node_reward: 0,
-    //         operator_reward: 0,
-    //         delegators_reward: 0,
-    //         node_profit: 0,
-    //         operator_cost: 0,
-    //     })
+    if mixnode.is_unbonding() {
+        return Default::default();
+    }
+
+    if performance.is_zero() {
+        return Default::default();
+    }
+
+    let node_status = match rewarded_set_status {
+        Some(status) => status,
+        // if node is not in the rewarded set, it's not going to get anything
+        None => return Default::default(),
+    };
+
+    let node_reward_params = NodeRewardParams::new(performance, node_status.is_active());
+    let node_reward = mixnode
+        .rewarding_details
+        .node_reward(&rewarding_params, node_reward_params);
+
+    let node_cost = mixnode
+        .rewarding_details
+        .cost_params
+        .epoch_operating_cost(interval.epochs_in_interval())
+        * performance;
+
+    let reward_distribution = mixnode.rewarding_details.determine_reward_split(
+        node_reward,
+        performance,
+        interval.epochs_in_interval(),
+    );
+
+    RewardEstimate {
+        total_node_reward: node_reward,
+        operator: reward_distribution.operator,
+        delegates: reward_distribution.delegates,
+        operating_cost: node_cost,
+    }
 }
 
 pub fn compute_apy_from_reward(
-    mixnode_bond: &MixNodeBond,
+    mixnode: &MixNodeDetails,
     reward_estimate: RewardEstimate,
-    epochs_in_interval: u64,
-) -> (f64, f64) {
-    todo!()
-    // let epochs_per_hour = epochs_in_interval as f64 / 720.0;
-    // let pledge = mixnode_bond.pledge_amount().amount.u128();
-    // let total_delegations = mixnode_bond.total_delegation().amount.u128();
-    // let estimated_operator_apy = compute_apy(
-    //     epochs_per_hour,
-    //     reward_estimate.operator_reward as f64,
-    //     pledge as f64,
-    // );
-    // let estimated_delegators_apy = compute_apy(
-    //     epochs_per_hour,
-    //     reward_estimate.delegators_reward as f64,
-    //     total_delegations as f64,
-    // );
-    // (estimated_operator_apy, estimated_delegators_apy)
+    interval: Interval,
+) -> (Decimal, Decimal) {
+    let epochs_in_year = Decimal::from_ratio(interval.epoch_length_secs(), 3600u64 * 24 * 365);
+
+    let operator = mixnode.rewarding_details.operator;
+    let total_delegations = mixnode.rewarding_details.delegates;
+    let estimated_operator_apy = compute_apy(epochs_in_year, reward_estimate.operator, operator);
+    let estimated_delegators_apy =
+        compute_apy(epochs_in_year, reward_estimate.delegates, total_delegations);
+    (estimated_operator_apy, estimated_delegators_apy)
 }

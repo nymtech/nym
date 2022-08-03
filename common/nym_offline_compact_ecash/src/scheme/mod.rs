@@ -41,7 +41,6 @@ impl PartialWallet {
 pub struct Wallet {
     sig: Signature,
     v: Scalar,
-    t: Scalar,
     pub l: Cell<u64>,
 }
 
@@ -51,9 +50,6 @@ impl Wallet {
     }
     pub fn v(&self) -> Scalar {
         self.v
-    }
-    pub fn t(&self) -> Scalar {
-        self.t
     }
     pub fn l(&self) -> u64 {
         self.l.get()
@@ -86,7 +82,7 @@ impl Wallet {
         // randomize signature in the wallet
         let (signature_prime, sign_blinding_factor) = self.signature().randomise(grparams);
         // construct kappa i.e., blinded attributes for show
-        let attributes = vec![sk_user.sk, self.v(), self.t()];
+        let attributes = vec![sk_user.sk, self.v()];
         // compute kappa
         let kappa = compute_kappa(
             &grparams,
@@ -95,13 +91,11 @@ impl Wallet {
             sign_blinding_factor,
         );
 
-        // pick random openings o_c, o_d
+        // pick random openings o_c
         let o_c = grparams.random_scalar();
-        let o_d = grparams.random_scalar();
 
-        // compute commitments C, D
+        // compute commitments C
         let cc = grparams.gen1() * o_c + grparams.gamma1() * self.v();
-        let dd = grparams.gen1() * o_d + grparams.gamma1() * self.t();
 
 
         let mut aa: Vec<G1Projective> = Default::default();
@@ -131,10 +125,10 @@ impl Wallet {
             aa.push(aa_k);
 
             // evaluate the pseudorandom functions
-            let ss_k = pseudorandom_fgv(&grparams, self.v(), self.l() + k);
+            let ss_k = pseudorandom_f_delta_v(&grparams, self.v(), self.l() + k);
             ss.push(ss_k);
             let tt_k =
-                grparams.gen1() * sk_user.sk + pseudorandom_fgt(&grparams, self.t(), self.l() + k) * rr_k;
+                grparams.gen1() * sk_user.sk + pseudorandom_f_g_v(&grparams, self.v(), self.l() + k) * rr_k;
             tt.push(tt_k);
 
             // compute values mu, o_mu, lambda, o_lambda
@@ -145,14 +139,6 @@ impl Wallet {
 
             let o_mu_k = ((o_a_k + o_c) * mu_k).neg();
             o_mu.push(o_mu_k);
-
-            let lambda_k = (self.t() + Scalar::from(self.l() + k) + Scalar::from(1))
-                .invert()
-                .unwrap();
-            lambda.push(lambda_k);
-
-            let o_lambda_k = ((o_a_k + o_d) * lambda_k).neg();
-            o_lambda.push(o_lambda_k);
 
             // parse the signature associated with value l+k
             let sign_lk = params.get_sign_by_idx(self.l() + k)?;
@@ -172,7 +158,6 @@ impl Wallet {
         let spend_instance = SpendInstance {
             kappa,
             cc,
-            dd,
             aa: aa.clone(),
             ss: ss.clone(),
             tt: tt.clone(),
@@ -182,13 +167,10 @@ impl Wallet {
             attributes,
             r: sign_blinding_factor,
             o_c,
-            o_d,
             lk,
             o_a,
             mu,
-            lambda,
             o_mu,
-            o_lambda,
             r_k: r_k_vec,
         };
         let zk_proof = SpendProof::construct(
@@ -210,7 +192,6 @@ impl Wallet {
             kappa_k: kappa_k_vec.clone(),
             sig_lk: sign_lk_prime_vec,
             cc,
-            dd,
             zk_proof,
             vv: spend_vv,
         };
@@ -229,13 +210,13 @@ impl Wallet {
     }
 }
 
-pub fn pseudorandom_fgv(params: &GroupParameters, v: Scalar, l: u64) -> G1Projective {
+pub fn pseudorandom_f_delta_v(params: &GroupParameters, v: Scalar, l: u64) -> G1Projective {
     let pow = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
-    params.gen1() * pow
+    params.delta() * pow
 }
 
-pub fn pseudorandom_fgt(params: &GroupParameters, t: Scalar, l: u64) -> G1Projective {
-    let pow = (t + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
+pub fn pseudorandom_f_g_v(params: &GroupParameters, v: Scalar, l: u64) -> G1Projective {
+    let pow = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
     params.gen1() * pow
 }
 
@@ -270,7 +251,6 @@ pub struct Payment {
     pub kappa_k: Vec<G2Projective>,
     pub sig_lk: Vec<Signature>,
     pub cc: G1Projective,
-    pub dd: G1Projective,
     pub zk_proof: SpendProof,
     pub vv: u64,
 }
@@ -331,7 +311,6 @@ impl Payment {
             kappa: self.kappa,
             aa: self.aa.clone(),
             cc: self.cc,
-            dd: self.dd,
             ss: self.ss.clone(),
             tt: self.tt.clone(),
             kappa_k: self.kappa_k.clone(),

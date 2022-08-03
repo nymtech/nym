@@ -24,7 +24,6 @@ pub struct RequestInfo {
     com_opening: Scalar,
     pc_coms_openings: Vec<Scalar>,
     v: Scalar,
-    t: Scalar,
 }
 
 impl RequestInfo {
@@ -40,9 +39,6 @@ impl RequestInfo {
     pub fn get_v(&self) -> Scalar {
         self.v
     }
-    pub fn get_t(&self) -> Scalar {
-        self.t
-    }
 }
 
 pub fn withdrawal_request(
@@ -50,9 +46,8 @@ pub fn withdrawal_request(
     sk_user: &SecretKeyUser,
 ) -> Result<(WithdrawalRequest, RequestInfo)> {
     let v = params.random_scalar();
-    let t = params.random_scalar();
 
-    let attributes = vec![sk_user.sk, v, t];
+    let attributes = vec![sk_user.sk, v];
     let gammas = params.gammas();
     let com_opening = params.random_scalar();
     let com = params.gen1() * com_opening
@@ -105,7 +100,6 @@ pub fn withdrawal_request(
         com_opening,
         pc_coms_openings: pc_coms_openings.clone(),
         v,
-        t,
     };
 
     Ok((req, req_info))
@@ -176,7 +170,7 @@ pub fn issue_verify(
 
     let unblinded_c = c - blinding_removers;
 
-    let attr = vec![sk_user.sk, req_info.v, req_info.t];
+    let attr = vec![sk_user.sk, req_info.v];
 
     let signed_attributes = attr
         .iter()

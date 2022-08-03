@@ -17,6 +17,8 @@ pub struct GroupParameters {
     g2: G2Affine,
     /// Additional generators of the G1 group
     gammas: Vec<G1Projective>,
+    // Additional generator of the G1 group
+    delta: G1Projective,
     /// Precomputed G2 generator used for the miller loop
     _g2_prepared_miller: G2Prepared,
 }
@@ -27,10 +29,13 @@ impl GroupParameters {
             .map(|i| hash_g1(format!("gamma{}", i)))
             .collect();
 
+        let delta = hash_g1("delta");
+
         Ok(GroupParameters {
             g1: G1Affine::generator(),
             g2: G2Affine::generator(),
             gammas,
+            delta,
             _g2_prepared_miller: G2Prepared::from(G2Affine::generator()),
         })
     }
@@ -55,9 +60,7 @@ impl GroupParameters {
         self.gammas.get(2)
     }
 
-    pub(crate) fn gamma3(&self) -> Option<&G1Projective> {
-        self.gammas.get(3)
-    }
+    pub(crate) fn delta(&self) -> &G1Projective { &self.delta }
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system

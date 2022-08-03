@@ -15,7 +15,6 @@ use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective}
 pub struct SpendInstance {
     pub kappa: G2Projective,
     pub cc: G1Projective,
-    pub dd: G1Projective,
     pub aa: Vec<G1Projective>,
     pub ss: Vec<G1Projective>,
     pub tt: Vec<G1Projective>,
@@ -75,13 +74,6 @@ impl TryFrom<&[u8]> for SpendInstance {
         let cc = try_deserialize_g1_projective(
             &cc_bytes,
             CompactEcashError::Deserialization("Failed to deserialize C".to_string()),
-        )?;
-        j += 48;
-
-        let dd_bytes = bytes[j..j + 48].try_into().unwrap();
-        let dd = try_deserialize_g1_projective(
-            &dd_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize D".to_string()),
         )?;
         j += 48;
 
@@ -167,7 +159,6 @@ impl TryFrom<&[u8]> for SpendInstance {
             kappa,
             aa,
             cc,
-            dd,
             ss,
             tt,
             kappa_k,
@@ -186,7 +177,6 @@ impl SpendInstance {
         }
 
         bytes.extend_from_slice(self.cc.to_bytes().as_ref());
-        bytes.extend_from_slice(self.dd.to_bytes().as_ref());
 
         bytes.extend_from_slice(&self.ss.len().to_le_bytes());
         for s in &self.ss {
@@ -211,13 +201,10 @@ pub struct SpendWitness {
     // signature randomizing element
     pub r: Scalar,
     pub o_c: Scalar,
-    pub o_d: Scalar,
     pub lk: Vec<Scalar>,
     pub o_a: Vec<Scalar>,
     pub mu: Vec<Scalar>,
-    pub lambda: Vec<Scalar>,
     pub o_mu: Vec<Scalar>,
-    pub o_lambda: Vec<Scalar>,
     pub r_k: Vec<Scalar>,
 }
 
@@ -229,11 +216,8 @@ pub struct SpendProof {
     response_l: Vec<Scalar>,
     response_o_a: Vec<Scalar>,
     response_o_c: Scalar,
-    response_o_d: Scalar,
     response_mu: Vec<Scalar>,
-    response_lambda: Vec<Scalar>,
     response_o_mu: Vec<Scalar>,
-    response_o_lambda: Vec<Scalar>,
     response_attributes: Vec<Scalar>,
 }
 
@@ -250,18 +234,14 @@ impl SpendProof {
         let r_attributes = grparams.n_random_scalars(witness.attributes.len());
         let r_sk = r_attributes[0];
         let r_v = r_attributes[1];
-        let r_t = r_attributes[2];
         let r_r = grparams.random_scalar();
         let r_o_c = grparams.random_scalar();
-        let r_o_d = grparams.random_scalar();
 
         let r_r_lk = grparams.n_random_scalars(witness.r_k.len());
         let r_lk = grparams.n_random_scalars(witness.lk.len());
         let r_o_a = grparams.n_random_scalars(witness.o_a.len());
         let r_mu = grparams.n_random_scalars(witness.mu.len());
-        let r_lambda = grparams.n_random_scalars(witness.lambda.len());
         let r_o_mu = grparams.n_random_scalars(witness.o_mu.len());
-        let r_o_lambda = grparams.n_random_scalars(witness.o_lambda.len());
 
         let g1 = *grparams.gen1();
         let gamma1 = *grparams.gamma1();
@@ -281,7 +261,6 @@ impl SpendProof {
             .sum::<G2Projective>();
 
         let zkcm_cc = g1 * r_o_c + gamma1 * r_v;
-        let zkcm_dd = g1 * r_o_d + gamma1 * r_t;
 
         let zkcm_aa: Vec<G1Projective> =
             r_o_a
@@ -294,7 +273,7 @@ impl SpendProof {
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
-        let zkcm_ss = r_mu.iter().map(|r_mu_k| g1 * r_mu_k).collect::<Vec<_>>();
+        let zkcm_ss = r_mu.iter().map(|r_mu_k| grparams.delta() * r_mu_k).collect::<Vec<_>>();
 
         let zkcm_ss_bytes = zkcm_ss
             .iter()
@@ -303,7 +282,7 @@ impl SpendProof {
 
         let zkcm_tt = rr
             .iter()
-            .zip(r_lambda.iter()).map(|(rr_k, r_lambda_k)| g1 * r_sk + (g1 * rr_k) * r_lambda_k).collect::<Vec<_>>();
+            .zip(r_mu.iter()).map(|(rr_k, r_mu_k)| g1 * r_sk + (g1 * rr_k) * r_mu_k).collect::<Vec<_>>();
 
         let zkcm_tt_bytes = zkcm_tt
             .iter()
@@ -318,18 +297,6 @@ impl SpendProof {
             .collect::<Vec<_>>();
 
         let zkcm_gamma11_bytes = zkcm_gamma11
-            .iter()
-            .map(|x| x.to_bytes())
-            .collect::<Vec<_>>();
-
-        let zkcm_gamma12 = instance.aa
-            .iter()
-            .zip(r_lambda.iter())
-            .zip(r_o_lambda.iter())
-            .map(|((aa_k, r_lambda_k), r_o_lambda_k)| (aa_k + instance.dd + gamma1) * r_lambda_k + g1 * r_o_lambda_k)
-            .collect::<Vec<_>>();
-
-        let zkcm_gamma12_bytes = zkcm_gamma12
             .iter()
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
@@ -353,13 +320,11 @@ impl SpendProof {
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_dd.to_bytes().as_ref()))
                 .chain(zkcm_aa_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_gamma11_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_gamma12_bytes.iter().map(|x| x.as_ref())),
         );
 
         // compute response for each witness
@@ -373,12 +338,9 @@ impl SpendProof {
         let response_l = produce_responses(&r_lk, &challenge, &witness.lk);
         let response_o_a = produce_responses(&r_o_a, &challenge, &witness.o_a);
         let response_o_c = produce_response(&r_o_c, &challenge, &witness.o_c);
-        let response_o_d = produce_response(&r_o_d, &challenge, &witness.o_d);
 
         let response_mu = produce_responses(&r_mu, &challenge, &witness.mu);
-        let response_lambda = produce_responses(&r_lambda, &challenge, &witness.lambda);
         let response_o_mu = produce_responses(&r_o_mu, &challenge, &witness.o_mu);
-        let response_o_lambda = produce_responses(&r_o_lambda, &challenge, &witness.o_lambda);
 
         SpendProof {
             challenge,
@@ -387,11 +349,8 @@ impl SpendProof {
             response_l,
             response_o_a,
             response_o_c,
-            response_o_d,
             response_mu,
-            response_lambda,
             response_o_mu,
-            response_o_lambda,
             response_attributes,
         }
     }
@@ -438,14 +397,11 @@ impl SpendProof {
         let zkcm_cc = g1 * self.response_o_c
             + gamma1 * self.response_attributes[1]
             + instance.cc * self.challenge;
-        let zkcm_dd = g1 * self.response_o_d
-            + gamma1 * self.response_attributes[2]
-            + instance.dd * self.challenge;
 
         let zkcm_ss = self.response_mu
             .iter()
             .zip(instance.ss.iter())
-            .map(|(resp_mu_k, ss_k)| g1 * resp_mu_k + ss_k * self.challenge)
+            .map(|(resp_mu_k, ss_k)| grparams.delta() * resp_mu_k + ss_k * self.challenge)
             .collect::<Vec<_>>();
 
         let zkcm_ss_bytes = zkcm_ss
@@ -453,11 +409,11 @@ impl SpendProof {
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
-        let zkcm_tt = self.response_lambda
+        let zkcm_tt = self.response_mu
             .iter()
             .zip(rr.iter())
             .zip(instance.tt.iter())
-            .map(|((resp_lambda_k, rr_k), tt_k)| g1 * self.response_attributes[0] + (g1 * rr_k) * resp_lambda_k + tt_k * self.challenge)
+            .map(|((resp_mu_k, rr_k), tt_k)| g1 * self.response_attributes[0] + (g1 * rr_k) * resp_mu_k + tt_k * self.challenge)
             .collect::<Vec<_>>();
 
         let zkcm_tt_bytes = zkcm_tt
@@ -478,19 +434,6 @@ impl SpendProof {
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
-
-        let zkcm_gamma12 = instance.aa
-            .iter()
-            .zip(self.response_lambda.iter())
-            .zip(self.response_o_lambda.iter())
-            .map(|((aa_k, resp_lambda_k), resp_o_lambda_k)| (aa_k + instance.dd + gamma1) * resp_lambda_k
-                + g1 * resp_o_lambda_k + gamma1 * self.challenge)
-            .collect::<Vec<_>>();
-
-        let zkcm_gamma12_bytes = zkcm_gamma12
-            .iter()
-            .map(|x| x.to_bytes())
-            .collect::<Vec<_>>();
 
         let zkcm_kappa_k = instance.kappa_k
             .iter()
@@ -513,13 +456,11 @@ impl SpendProof {
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
                 .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_dd.to_bytes().as_ref()))
                 .chain(zkcm_aa_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_gamma11_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_gamma12_bytes.iter().map(|x| x.as_ref())),
         );
 
         challenge == self.challenge
@@ -533,7 +474,7 @@ mod tests {
     use rand::{Rng, thread_rng};
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-    use crate::scheme::{pseudorandom_fgt, pseudorandom_fgv};
+    use crate::scheme::{pseudorandom_f_delta_v, pseudorandom_f_g_v};
     use crate::scheme::aggregation::aggregate_verification_keys;
     use crate::scheme::keygen::{PublicKeyUser, ttp_keygen, VerificationKeyAuth};
     use crate::scheme::PayInfo;
@@ -578,26 +519,22 @@ mod tests {
 
         let o_a = grparams.random_scalar();
         let o_c = grparams.random_scalar();
-        let o_d = grparams.random_scalar();
 
         // compute commitments A, C, D
         let aa = g1 * o_a + gamma1 * Scalar::from(l);
         let cc = g1 * o_c + gamma1 * v;
-        let dd = g1 * o_d + gamma1 * t;
 
         // compute hash of the payment info
         let pay_info = PayInfo { info: [37u8; 32] };
         let rr = hash_to_scalar(pay_info.info);
 
         // evaluate the pseudorandom functions
-        let ss = pseudorandom_fgv(&grparams, v, l);
-        let tt = g1 * sk + pseudorandom_fgt(&grparams, t, l) * rr;
+        let ss = pseudorandom_f_delta_v(&grparams, v, l);
+        let tt = g1 * sk + pseudorandom_f_g_v(&grparams, v, l) * rr;
 
         // compute values mu, o_mu, lambda, o_lambda
         let mu: Scalar = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
         let o_mu = ((o_a + o_c) * mu).neg();
-        let lambda = (t + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
-        let o_lambda = ((o_a + o_d) * lambda).neg();
 
         // parse the signature associated with value l
         let sign_l = params.get_sign_by_idx(l).unwrap();
@@ -611,7 +548,6 @@ mod tests {
             kappa,
             aa: vec![aa],
             cc,
-            dd,
             ss: vec![ss],
             tt: vec![tt],
             kappa_k: vec![kappa_k],
@@ -621,13 +557,10 @@ mod tests {
             attributes,
             r,
             o_c,
-            o_d,
             lk: vec![Scalar::from(l)],
             o_a: vec![o_a],
             mu: vec![mu],
-            lambda: vec![lambda],
             o_mu: vec![o_mu],
-            o_lambda: vec![o_lambda],
             r_k: vec![r_l],
         };
 

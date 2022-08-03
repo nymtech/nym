@@ -1,7 +1,7 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
-use crate::scheme::{PartialWallet, Payment, pseudorandom_fgt};
+use crate::scheme::{PartialWallet, Payment};
 use crate::scheme::aggregation::{
     aggregate_signature_shares, aggregate_verification_keys, aggregate_wallets,
 };

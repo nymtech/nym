@@ -15,14 +15,7 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use cosmwasm_std::Uint128;
 use execute::execute;
-use mixnet_contract_common::{
-    ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
-    Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse,
-    IdentityKey, LayerDistribution, MixNode, MixNodeBond, MixOwnershipResponse,
-    MixnodeDetailsResponse, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
-    PagedRewardedSetResponse, QueryMsg as MixnetQueryMsg,
-};
+use network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::Serialize;
 use std::convert::TryInto;
 use std::time::SystemTime;
@@ -49,12 +42,7 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-use mixnet_contract_common::delegation::OwnerProxySubKey;
-use mixnet_contract_common::mixnode::{
-    PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse, StakeSaturationResponse,
-    UnbondedMixnodeResponse,
-};
-use network_defaults::{ChainDetails, NymNetworkDetails};
+use mixnet_contract_common::IdentityKey;
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 

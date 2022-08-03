@@ -7,12 +7,11 @@ use crate::constants::{
     REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT, REWARDED_SET_MAX_RETRIEVAL_LIMIT,
 };
 use crate::interval::storage;
-use crate::interval::storage::EventId;
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, NodeId, PagedRewardedSetResponse, PendingEpochEventsResponse,
-    PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochEventId, IntervalEventId, NodeId, PagedRewardedSetResponse,
+    PendingEpochEventsResponse, PendingIntervalEventsResponse,
 };
 
 pub fn query_current_interval_details(
@@ -51,7 +50,7 @@ pub fn query_rewarded_set_paged(
 pub fn query_pending_epoch_events_paged(
     deps: Deps<'_>,
     env: Env,
-    start_after: Option<EventId>,
+    start_after: Option<EpochEventId>,
     limit: Option<u32>,
 ) -> StdResult<PendingEpochEventsResponse> {
     let interval = storage::current_interval(deps.storage)?;
@@ -81,7 +80,7 @@ pub fn query_pending_epoch_events_paged(
 pub fn query_pending_interval_events_paged(
     deps: Deps<'_>,
     env: Env,
-    start_after: Option<EventId>,
+    start_after: Option<IntervalEventId>,
     limit: Option<u32>,
 ) -> StdResult<PendingIntervalEventsResponse> {
     let interval = storage::current_interval(deps.storage)?;

@@ -26,21 +26,21 @@ export const ApplicationLayout: React.FC = ({ children }) => {
           sx={{
             background: (t) => t.palette.nym.nymWallet.nav.background,
             overflow: 'auto',
-            py: 3,
-            px: 5,
+            py: 5,
+            px: 0,
           }}
           display="flex"
           flexDirection="column"
           justifyContent="space-between"
         >
           <Box>
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ ml: 5, mb: 3 }}>
               <NymWordmark height={14} />
             </Box>
             <Nav />
           </Box>
           {appVersion && (
-            <Box color="#888" mt={8}>
+            <Box color="#888" ml={5} mt={8}>
               Version {appVersion}
             </Box>
           )}

@@ -68,9 +68,16 @@ export const Nav = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-start',
+        marginLeft: 12,
+        marginRight: 12,
       }}
     >
-      <List disablePadding>
+      <List
+        disablePadding
+        sx={{
+          width: '100%',
+        }}
+      >
         {routesSchema
           .filter(({ mode }) => {
             if (!mode) {
@@ -86,7 +93,18 @@ export const Nav = () => {
             }
           })
           .map(({ Icon, onClick, label, route }) => (
-            <ListItem disableGutters key={label} onClick={onClick} sx={{ cursor: 'pointer', py: '16px' }}>
+            <ListItem
+              disableGutters
+              key={label}
+              onClick={onClick}
+              sx={{
+                cursor: 'pointer',
+                py: '16px',
+                paddingLeft: '32px',
+                borderRadius: '8px',
+                '&:hover': { backgroundColor: (theme) => (theme.palette.mode === 'light' ? '#F9F9F9' : '#36393E') },
+              }}
+            >
               <ListItemIcon
                 sx={{
                   height: '20px',

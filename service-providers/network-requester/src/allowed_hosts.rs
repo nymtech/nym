@@ -115,7 +115,7 @@ impl OutboundRequestFilter {
             Ok(d) => Some(
                 d.root()
                     .map(|root| root.to_string())
-                    .unwrap_or(d.full().to_string()),
+                    .unwrap_or_else(|| d.full().to_string()),
             ),
             Err(_) => {
                 log::warn!("Error parsing domain: {:?}", host);

@@ -220,7 +220,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let vk = verification_keys_auth.get(0).clone().unwrap();
     group.bench_function(
         &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
-        |b| b.iter(|| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info)),
+        |b| b.iter(|| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()),
     );
 
     let unblinded_wallet_shares: Vec<PartialWallet> = izip!(

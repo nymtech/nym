@@ -8,13 +8,14 @@ edition = "2021"
 [dependencies]
 bs58 = "0.4.0"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmwasm-std = { version =  "1.0.0", default-features = false }
 getset = "0.1.1"
 schemars = { version = "0.8", features = ["preserve_order"] }
 serde = "1.0"
 ts-rs = "6.1.2"
 
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
-mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 
 [features]
 default = []

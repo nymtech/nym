@@ -6231,6 +6231,7 @@ dependencies = [
  "bs58",
  "coconut-interface",
  "cosmrs",
+ "cosmwasm-std",
  "getset",
  "mixnet-contract-common",
  "schemars",

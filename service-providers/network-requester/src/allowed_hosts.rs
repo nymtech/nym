@@ -353,9 +353,12 @@ mod tests {
         }
 
         #[test]
-        fn returns_none_on_nonsense_domains() {
+        fn returns_full_on_suffix_domains() {
             let filter = setup();
-            assert_eq!(None, filter.get_domain_root("flappappa"));
+            assert_eq!(
+                Some("s3.amazonaws.com".to_string()),
+                filter.get_domain_root("s3.amazonaws.com")
+            );
         }
     }
 

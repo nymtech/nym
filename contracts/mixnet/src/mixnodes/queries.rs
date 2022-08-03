@@ -16,7 +16,7 @@ use mixnet_contract_common::mixnode::{
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
-    LayerDistribution, MixOwnershipResponse, MixnodeDetailsResponse, NodeId,
+    IdentityKey, LayerDistribution, MixOwnershipResponse, MixnodeDetailsResponse, NodeId,
     PagedMixnodeBondsResponse,
 };
 
@@ -132,6 +132,28 @@ pub fn query_mixnode_details(deps: Deps<'_>, mix_id: NodeId) -> StdResult<Mixnod
     })
 }
 
+pub fn query_mixnode_details_by_identity(
+    deps: Deps<'_>,
+    mix_identity: IdentityKey,
+) -> StdResult<Option<MixNodeDetails>> {
+    if let Some(bond_information) = storage::mixnode_bonds()
+        .idx
+        .identity_key
+        .item(deps.storage, mix_identity)?
+        .map(|record| record.1)
+    {
+        // if bond exists, rewarding details MUST also exist
+        let rewarding_details =
+            rewards_storage::MIXNODE_REWARDING.load(deps.storage, bond_information.id)?;
+        Ok(Some(MixNodeDetails::new(
+            bond_information,
+            rewarding_details,
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn query_mixnode_rewarding_details(
     deps: Deps<'_>,
     mix_id: NodeId,
@@ -189,6 +211,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::interval::pending_events;
     use crate::support::tests::fixtures::good_mixnode_pledge;
+    use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Decimal;
@@ -611,6 +634,27 @@ pub(crate) mod tests {
             details.bond_information.original_pledge
         );
         assert_eq!(mix_id, res.mix_id);
+    }
+
+    #[test]
+    fn query_for_mixnode_details_by_identity() {
+        let mut test = TestSetup::new();
+
+        // no node under this identity
+        let res = query_mixnode_details_by_identity(test.deps(), "foomp".into()).unwrap();
+        assert!(res.is_none());
+
+        // it exists
+        let mix_id = test.add_dummy_mixnode("owner", None);
+        // this was already tested to be working : )
+        let expected = query_mixnode_details(test.deps(), mix_id)
+            .unwrap()
+            .mixnode_details
+            .unwrap();
+        let mix_identity = expected.bond_information.identity();
+
+        let res = query_mixnode_details_by_identity(test.deps(), mix_identity.into()).unwrap();
+        assert_eq!(expected, res.unwrap());
     }
 
     #[test]

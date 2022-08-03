@@ -174,6 +174,92 @@ pub enum ExecuteMsg {
     },
 }
 
+impl ExecuteMsg {
+    pub fn default_memo(&self) -> String {
+        match self {
+            ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+                format!("updating rewarding validator to {}", address)
+            }
+            ExecuteMsg::UpdateContractStateParams { .. } => {
+                "updating mixnet state parameters".into()
+            }
+            ExecuteMsg::UpdateActiveSetSize {
+                active_set_size,
+                force_immediately,
+            } => format!(
+                "updating active set size to {}. forced: {}",
+                active_set_size, force_immediately
+            ),
+            ExecuteMsg::UpdateRewardingParams {
+                force_immediately, ..
+            } => format!(
+                "updating mixnet rewarding parameters. forced: {}",
+                force_immediately
+            ),
+            ExecuteMsg::UpdateIntervalConfig {
+                force_immediately, ..
+            } => format!(
+                "updating mixnet interval configuration. forced: {}",
+                force_immediately
+            ),
+            ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
+            ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
+            ExecuteMsg::BondMixnode { mix_node, .. } => {
+                format!("bonding mixnode {}", mix_node.identity_key)
+            }
+            ExecuteMsg::BondMixnodeOnBehalf { mix_node, .. } => {
+                format!("bonding mixnode {} on behalf", mix_node.identity_key)
+            }
+            ExecuteMsg::UnbondMixnode { .. } => "unbonding mixnode".into(),
+            ExecuteMsg::UnbondMixnodeOnBehalf { .. } => "unbonding mixnode on behalf".into(),
+            ExecuteMsg::UpdateMixnodeCostParams { .. } => "updating mixnode cost parameters".into(),
+            ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { .. } => {
+                "updating mixnode cost parameters on behalf".into()
+            }
+            ExecuteMsg::UpdateMixnodeConfig { .. } => "updating mixnode configuration".into(),
+            ExecuteMsg::UpdateMixnodeConfigOnBehalf { .. } => {
+                "updating mixnode configuration on behalf".into()
+            }
+            ExecuteMsg::BondGateway { gateway, .. } => {
+                format!("bonding gateway {}", gateway.identity_key)
+            }
+            ExecuteMsg::BondGatewayOnBehalf { gateway, .. } => {
+                format!("bonding gateway {} on behalf", gateway.identity_key)
+            }
+            ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
+            ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),
+            ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {}", mix_id),
+            ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
+                format!("delegating to mixnode {} on behalf", mix_id)
+            }
+            ExecuteMsg::UndelegateFromMixnode { mix_id } => {
+                format!("removing delegation from mixnode {}", mix_id)
+            }
+            ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, .. } => {
+                format!("removing delegation from mixnode {} on behalf", mix_id)
+            }
+            ExecuteMsg::RewardMixnode {
+                mix_id,
+                performance,
+            } => format!(
+                "rewarding mixnode {} for performance {}",
+                mix_id, performance
+            ),
+            ExecuteMsg::WithdrawOperatorReward { .. } => "withdrawing operator reward".into(),
+            ExecuteMsg::WithdrawOperatorRewardOnBehalf { .. } => {
+                "withdrawing operator reward on behalf".into()
+            }
+            ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
+                format!("withdrawing delegator reward from mixnode {}", mix_id)
+            }
+            ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, .. } => format!(
+                "withdrawing delegator reward from mixnode {} on behalf",
+                mix_id
+            ),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {

@@ -17,12 +17,11 @@ use mixnet_contract_common::rewarding::{
 };
 use mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, Gateway, GatewayBond, GatewayBondResponse,
-    GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixNode,
-    MixNodeBond, MixOwnershipResponse, MixnodeDetailsResponse, NodeId, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixNodeDelegationsResponse,
-    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
-    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
+    IdentityKey, IntervalEventId, LayerDistribution, MixOwnershipResponse, MixnodeDetailsResponse,
+    NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
+    PendingEpochEventsResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -66,8 +65,8 @@ pub trait MixnetQueryClient {
 
     async fn get_rewarded_set_paged(
         &self,
-        limit: Option<u32>,
         start_after: Option<NodeId>,
+        limit: Option<u32>,
     ) -> Result<PagedRewardedSetResponse, NymdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetRewardedSet { limit, start_after })
             .await
@@ -370,6 +369,6 @@ where
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.nymd.query_mixnet_contract(query)
+        self.nymd.query_mixnet_contract(query).await
     }
 }

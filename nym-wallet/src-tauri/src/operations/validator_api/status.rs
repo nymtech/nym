@@ -6,7 +6,7 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use validator_client::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    DeprecatedRewardEstimationResponse, StakeSaturationResponse,
 };
 
 #[tauri::command]
@@ -43,7 +43,7 @@ pub async fn mixnode_status(
 pub async fn mixnode_reward_estimation(
     identity: &str,
     state: tauri::State<'_, WalletState>,
-) -> Result<RewardEstimationResponse, BackendError> {
+) -> Result<DeprecatedRewardEstimationResponse, BackendError> {
     Ok(api_client!(state)
         .get_mixnode_reward_estimation(identity)
         .await?)

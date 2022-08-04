@@ -126,9 +126,11 @@ export const Filters = () => {
         TransitionComponent={Slide}
         transitionDuration={250}
         sx={{
+          '& .MuiAlert-outlined': { pr: '11px' },
           '& .MuiAlert-action': {
             p: 0,
-            mr: 0,
+            marginRight: 0,
+            alignItems: 'center',
           },
         }}
       >
@@ -136,11 +138,10 @@ export const Filters = () => {
           severity="info"
           variant={isMobile ? 'standard' : 'outlined'}
           action={
-            <Button size="small" onClick={onClearFilters} sx={{ p: 0 }}>
+            <Button size="small" onClick={onClearFilters} sx={{ ml: 1.5 }}>
               CLEAR FILTERS
             </Button>
           }
-          sx={{ width: 400, alignItems: 'center' }}
         >
           {mixnodes?.data?.length} mixnodes matched your criteria
         </Alert>

@@ -4,7 +4,7 @@ import { Mark } from '@mui/base';
 export enum EnumFilterKey {
   profitMargin = 'profitMargin',
   stakeSaturation = 'stakeSaturation',
-  stake = 'stake',
+  routingScore = 'routingScore',
 }
 
 export type TFilterItem = {
@@ -15,6 +15,7 @@ export type TFilterItem = {
   min?: number;
   max?: number;
   scale?: (value: number) => number;
+  tooltipInfo?: string;
 };
 
 export type TFilters = { [key in EnumFilterKey]: TFilterItem };

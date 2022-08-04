@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogActions,
   DialogTitle,
-  IconButton,
   Slider,
   Typography,
   Box,
@@ -25,6 +24,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 const FilterItem = ({
   label,
   id,
+  tooltipInfo,
   value,
   marks,
   scale,
@@ -36,6 +36,7 @@ const FilterItem = ({
 }) => (
   <Box sx={{ p: 2 }}>
     <Typography gutterBottom>{label}</Typography>
+    <Typography fontSize={12}>{tooltipInfo}</Typography>
     <Slider
       value={value}
       onChange={(e: Event, newValue: number | number[]) => onChange(id, newValue as number[])}
@@ -50,7 +51,7 @@ const FilterItem = ({
 );
 
 export const Filters = () => {
-  const { filterMixnodes, fetchMixnodes } = useMainContext();
+  const { filterMixnodes, fetchMixnodes, mixnodes } = useMainContext();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
   const isMobile = useIsMobile();
 
@@ -129,17 +130,23 @@ export const Filters = () => {
           variant={isMobile ? 'standard' : 'outlined'}
           action={
             <Button size="small" onClick={onClearFilters}>
-              Clear
+              CLEAR FILTERS
             </Button>
           }
-          sx={{ width: 300 }}
         >
-          Filters applied
+          {mixnodes?.data?.length} mixnodes matched your criteria
         </Alert>
       </Snackbar>
-      <IconButton size="large" onClick={handleToggleShowFilters}>
-        <Tune />
-      </IconButton>
+      <Button
+        size="large"
+        variant="text"
+        color="inherit"
+        endIcon={<Tune />}
+        onClick={handleToggleShowFilters}
+        sx={{ textTransform: 'none' }}
+      >
+        Advanced filters
+      </Button>
       <Dialog open={showFilters} onClose={handleToggleShowFilters} maxWidth="md" fullWidth>
         <DialogTitle>Mixnode filters</DialogTitle>
         <DialogContent dividers>

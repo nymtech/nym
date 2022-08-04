@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogActions,
   DialogTitle,
-  IconButton,
   Slider,
   Typography,
   Box,
@@ -125,20 +124,12 @@ export const Filters = () => {
         message="Filters applied"
         TransitionComponent={Slide}
         transitionDuration={250}
-        sx={{
-          '& .MuiAlert-outlined': { pr: '11px' },
-          '& .MuiAlert-action': {
-            p: 0,
-            marginRight: 0,
-            alignItems: 'center',
-          },
-        }}
       >
         <Alert
           severity="info"
           variant={isMobile ? 'standard' : 'outlined'}
           action={
-            <Button size="small" onClick={onClearFilters} sx={{ ml: 1.5 }}>
+            <Button size="small" onClick={onClearFilters}>
               CLEAR FILTERS
             </Button>
           }

@@ -32,7 +32,7 @@ yarn install
 
 ## Development mode
 
-You can compile nym-connectin development mode by running the following command inside the `nym-connect` directory:
+You can compile nym-connect in development mode by running the following command inside the `nym-connect` directory:
 
 ```
 yarn dev

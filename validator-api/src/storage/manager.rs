@@ -12,12 +12,27 @@ pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,
 }
 
-pub struct AvgReliability {
+pub struct AvgMixnodeReliability {
+    mix_id: NodeId,
+    value: Option<f32>,
+}
+
+impl AvgMixnodeReliability {
+    pub fn mix_id(&self) -> NodeId {
+        self.mix_id
+    }
+
+    pub fn value(&self) -> f32 {
+        self.value.unwrap_or_default()
+    }
+}
+
+pub struct AvgGatewayReliability {
     identity: String,
     value: Option<f32>,
 }
 
-impl AvgReliability {
+impl AvgGatewayReliability {
     pub fn identity(&self) -> &str {
         &self.identity
     }
@@ -32,7 +47,7 @@ impl StorageManager {
     pub(super) async fn get_all_avg_mix_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgReliability>, sqlx::Error> {
+    ) -> Result<Vec<AvgMixnodeReliability>, sqlx::Error> {
         let start_ts_secs = end_ts_secs - 86400;
         self.get_all_avg_mix_reliability_in_interval(start_ts_secs, end_ts_secs)
             .await
@@ -41,7 +56,7 @@ impl StorageManager {
     pub(super) async fn get_all_avg_gateway_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgReliability>, sqlx::Error> {
+    ) -> Result<Vec<AvgGatewayReliability>, sqlx::Error> {
         let start_ts_secs = end_ts_secs - 86400;
         self.get_all_avg_gateway_reliability_in_interval(start_ts_secs, end_ts_secs)
             .await
@@ -51,37 +66,38 @@ impl StorageManager {
         &self,
         start_ts_secs: i64,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgReliability>, sqlx::Error> {
-        let result = sqlx::query_as!(
-            AvgReliability,
-            r#"
-            SELECT
-                d.identity as "identity: String",
-                AVG(s.reliability) as "value: f32"
-            FROM
-                mixnode_details d
-            JOIN
-                mixnode_status s on d.id = s.mixnode_details_id
-            WHERE
-                timestamp >= ? AND
-                timestamp <= ?
-            GROUP BY 1
-            "#,
-            start_ts_secs,
-            end_ts_secs
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-        Ok(result)
+    ) -> Result<Vec<AvgMixnodeReliability>, sqlx::Error> {
+        todo!()
+        // let result = sqlx::query_as!(
+        //     AvgReliability,
+        //     r#"
+        //     SELECT
+        //         d.identity as "identity: String",
+        //         AVG(s.reliability) as "value: f32"
+        //     FROM
+        //         mixnode_details d
+        //     JOIN
+        //         mixnode_status s on d.id = s.mixnode_details_id
+        //     WHERE
+        //         timestamp >= ? AND
+        //         timestamp <= ?
+        //     GROUP BY 1
+        //     "#,
+        //     start_ts_secs,
+        //     end_ts_secs
+        // )
+        // .fetch_all(&self.connection_pool)
+        // .await?;
+        // Ok(result)
     }
 
     pub(super) async fn get_all_avg_gateway_reliability_in_interval(
         &self,
         start_ts_secs: i64,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgReliability>, sqlx::Error> {
+    ) -> Result<Vec<AvgGatewayReliability>, sqlx::Error> {
         let result = sqlx::query_as!(
-            AvgReliability,
+            AvgGatewayReliability,
             r#"
             SELECT
                 d.identity as "identity: String",

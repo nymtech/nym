@@ -4,11 +4,15 @@
 use crate::node_status_api::models::{
     ErrorResponse, MixnodeStatusReport, MixnodeUptimeHistory, Uptime,
 };
-use crate::node_status_api::routes::_mixnode_report;
+use crate::node_status_api::routes::{
+    _get_mixnode_reward_estimation, _get_mixnode_status, _mixnode_core_status_count,
+    _mixnode_report, _mixnode_uptime_history,
+};
 use crate::{ValidatorApiStorage, ValidatorCache};
 use crypto::asymmetric::identity;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
+use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::{IdentityKey, Interval, NodeId};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -18,8 +22,8 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, DeprecatedRewardEstimationResponse, InclusionProbabilityResponse,
-    MixnodeStatusResponse, StakeSaturationResponse, UptimeResponse,
+    DeprecatedRewardEstimationResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub trait Deprecatable {
@@ -64,24 +68,24 @@ async fn mixnode_identity_to_current_node_id(
             Status::NotFound,
         ))
 }
-
-enum LegacyQueryRouter {
-    Deprecated(IdentityKey),
-    Updated(NodeId),
-    Invalid(String),
-}
-
-impl From<&str> for LegacyQueryRouter {
-    fn from(raw: &str) -> Self {
-        if identity::PublicKey::from_base58_string(raw).is_ok() {
-            return LegacyQueryRouter::Deprecated(raw.into());
-        } else if let Ok(parsed_id) = raw.parse() {
-            return LegacyQueryRouter::Updated(parsed_id);
-        } else {
-            LegacyQueryRouter::Invalid(raw.into())
-        }
-    }
-}
+//
+// enum LegacyQueryRouter {
+//     Deprecated(IdentityKey),
+//     Updated(NodeId),
+//     Invalid(String),
+// }
+//
+// impl From<&str> for LegacyQueryRouter {
+//     fn from(raw: &str) -> Self {
+//         if identity::PublicKey::from_base58_string(raw).is_ok() {
+//             return LegacyQueryRouter::Deprecated(raw.into());
+//         } else if let Ok(parsed_id) = raw.parse() {
+//             return LegacyQueryRouter::Updated(parsed_id);
+//         } else {
+//             LegacyQueryRouter::Invalid(raw.into())
+//         }
+//     }
+// }
 
 async fn average_mixnode_uptime(
     identity: &str,
@@ -131,17 +135,6 @@ pub(crate) struct ComputeRewardEstParam {
     is_active: Option<bool>,
     pledge_amount: Option<u64>,
     total_delegation: Option<u64>,
-}
-
-#[openapi(tag = "status")]
-#[get("/mixnode/deprecated/<identity>/status")]
-pub(crate) async fn get_mixnode_status_by_identity(
-    cache: &State<ValidatorCache>,
-    identity: String,
-) -> Json<MixnodeStatusResponse> {
-    Json(MixnodeStatusResponse {
-        status: cache.mixnode_status(identity).await,
-    })
 }
 
 #[openapi(tag = "status")]
@@ -225,7 +218,7 @@ pub(crate) async fn mixnode_report_by_identity(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
 ) -> Result<Json<Deprecated<MixnodeStatusReport>>, ErrorResponse> {
-    let mix_id = mixnode_identity_to_current_node_id(&storage, identity).await?;
+    let mix_id = mixnode_identity_to_current_node_id(storage, identity).await?;
     Ok(Json(_mixnode_report(storage, mix_id).await?.deprecate()))
 }
 
@@ -234,13 +227,11 @@ pub(crate) async fn mixnode_report_by_identity(
 pub(crate) async fn mixnode_uptime_history_by_identity(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
-) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
-    todo!()
-    // storage
-    //     .get_mixnode_uptime_history(identity)
-    //     .await
-    //     .map(Json)
-    //     .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+) -> Result<Json<Deprecated<MixnodeUptimeHistory>>, ErrorResponse> {
+    let mix_id = mixnode_identity_to_current_node_id(storage, identity).await?;
+    Ok(Json(
+        _mixnode_uptime_history(storage, mix_id).await?.deprecate(),
+    ))
 }
 
 #[openapi(tag = "status")]
@@ -249,32 +240,85 @@ pub(crate) async fn mixnode_core_status_count_by_identity(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
     since: Option<i64>,
-) -> Json<CoreNodeStatusResponse> {
-    let count = storage
-        .get_core_mixnode_status_count(identity, since)
-        .await
-        .unwrap_or_default();
-
-    Json(CoreNodeStatusResponse {
-        identity: identity.to_string(),
-        count,
-    })
+) -> Result<Json<Deprecated<MixnodeCoreStatusResponse>>, ErrorResponse> {
+    let mix_id = mixnode_identity_to_current_node_id(storage, identity).await?;
+    Ok(Json(
+        _mixnode_core_status_count(storage, mix_id, since)
+            .await?
+            .deprecate(),
+    ))
 }
 
 #[openapi(tag = "status")]
-#[get("/mixnode/deprecated/<identity>/avg_uptime")]
-pub(crate) async fn get_mixnode_avg_uptime_by_identity(
+#[get("/mixnode/deprecated/<identity>/status")]
+pub(crate) async fn get_mixnode_status_by_identity(
+    storage: &State<ValidatorApiStorage>,
+    cache: &State<ValidatorCache>,
+    identity: &str,
+) -> Json<Deprecated<MixnodeStatusResponse>> {
+    match mixnode_identity_to_current_node_id(storage, identity).await {
+        Ok(mix_id) => Json(_get_mixnode_status(cache, mix_id).await.deprecate()),
+        Err(_) => Json(
+            MixnodeStatusResponse {
+                status: MixnodeStatus::NotFound,
+            }
+            .deprecate(),
+        ),
+    }
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnode/deprecated/<identity>/reward-estimation")]
+pub(crate) async fn get_mixnode_reward_estimation_by_identity(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    identity: String,
-) -> Result<Json<UptimeResponse>, ErrorResponse> {
-    let current_epoch = cache.current_epoch().await.into_inner();
-    let uptime = average_mixnode_uptime(&identity, current_epoch, storage).await?;
+    identity: &str,
+) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
+    let mix_id = mixnode_identity_to_current_node_id(storage, identity).await?;
+    let new_estimation = _get_mixnode_reward_estimation(cache, mix_id).await?;
 
-    Ok(Json(UptimeResponse {
-        identity,
-        avg_uptime: uptime.u8(),
+    Ok(Json(DeprecatedRewardEstimationResponse {
+        estimated_total_node_reward: truncate_reward_amount(
+            new_estimation.estimation.total_node_reward,
+        )
+        .u128()
+        .try_into()
+        .unwrap_or_default(),
+        estimated_operator_reward: truncate_reward_amount(new_estimation.estimation.operator)
+            .u128()
+            .try_into()
+            .unwrap_or_default(),
+        estimated_delegators_reward: truncate_reward_amount(new_estimation.estimation.delegates)
+            .u128()
+            .try_into()
+            .unwrap_or_default(),
+        estimated_node_profit: if new_estimation.estimation.operator
+            < new_estimation.estimation.operating_cost
+        {
+            0
+        } else {
+            truncate_reward_amount(
+                new_estimation.estimation.operator - new_estimation.estimation.operating_cost,
+            )
+            .u128()
+            .try_into()
+            .unwrap_or_default()
+        },
+        estimated_operator_cost: truncate_reward_amount(new_estimation.estimation.operating_cost)
+            .u128()
+            .try_into()
+            .unwrap_or_default(),
+        reward_params: new_estimation.reward_params,
+        as_at: new_estimation.as_at,
     }))
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub(crate) struct DeprecatedComputeRewardEstParam {
+    uptime: Option<u8>,
+    is_active: Option<bool>,
+    pledge_amount: Option<u64>,
+    total_delegation: Option<u64>,
 }
 
 #[openapi(tag = "status")]
@@ -286,7 +330,7 @@ pub(crate) async fn compute_mixnode_reward_estimation_by_identity(
     user_reward_param: Json<ComputeRewardEstParam>,
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    identity: String,
+    identity: &str,
 ) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
     todo!()
     // let (bond, status) = cache.mixnode_details(&identity).await;
@@ -333,37 +377,20 @@ pub(crate) async fn compute_mixnode_reward_estimation_by_identity(
 }
 
 #[openapi(tag = "status")]
-#[get("/mixnode/deprecated/<identity>/reward-estimation")]
-pub(crate) async fn get_mixnode_reward_estimation_by_identity(
+#[get("/mixnode/deprecated/<identity>/avg_uptime")]
+pub(crate) async fn get_mixnode_avg_uptime_by_identity(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    identity: String,
-) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
+    identity: &str,
+) -> Result<Json<UptimeResponse>, ErrorResponse> {
     todo!()
-    // let (bond, status) = cache.mixnode_details(&identity).await;
-    // if let Some(bond) = bond {
-    //     let reward_params = cache.epoch_reward_params().await;
-    //     let as_at = reward_params.timestamp();
-    //     let reward_params = reward_params.into_inner();
-    //     let base_operator_cost = cache.base_operator_cost().await.into_inner();
+    // let current_epoch = cache.current_epoch().await.into_inner();
+    // let uptime = average_mixnode_uptime(&identity, current_epoch, storage).await?;
     //
-    //     let current_epoch = cache.current_epoch().await.into_inner();
-    //     info!("{:?}", current_epoch);
-    //
-    //     let uptime = average_mixnode_uptime(&identity, current_epoch, storage)
-    //         .await?
-    //         .u8();
-    //
-    //     let node_reward_params = NodeRewardParams::new(0, u128::from(uptime), status.is_active());
-    //     let reward_params = RewardParams::new(reward_params, node_reward_params);
-    //
-    //     estimate_reward(&bond.mixnode_bond, base_operator_cost, reward_params, as_at)
-    // } else {
-    //     Err(ErrorResponse::new(
-    //         "mixnode bond not found",
-    //         Status::NotFound,
-    //     ))
-    // }
+    // Ok(Json(UptimeResponse {
+    //     identity,
+    //     avg_uptime: uptime.u8(),
+    // }))
 }
 
 // DEPRECATED: the uptime is available as part of the `/mixnodes/detailed` endpoint

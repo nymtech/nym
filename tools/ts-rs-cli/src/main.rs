@@ -23,8 +23,8 @@ use nym_wallet_types::epoch::Epoch;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatus, MixnodeStatusResponse,
-    SelectionChance, StakeSaturationResponse,
+    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, SelectionChance, StakeSaturationResponse,
 };
 use vesting_contract_common::Period;
 
@@ -42,6 +42,8 @@ macro_rules! do_export {
 }
 
 fn main() {
+    todo!("add new mixnet contract types here");
+
     println!("Starting export of types using ts-rs...");
     println!();
 
@@ -92,7 +94,8 @@ fn main() {
     do_export!(VestingPeriod);
 
     // validator-api-requests
-    do_export!(CoreNodeStatusResponse);
+    do_export!(MixnodeCoreStatusResponse);
+    do_export!(GatewayCoreStatusResponse);
     do_export!(InclusionProbabilityResponse);
     do_export!(MixnodeStatus);
     do_export!(MixnodeStatusResponse);

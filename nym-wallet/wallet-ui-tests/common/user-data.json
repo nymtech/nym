@@ -1,9 +1,9 @@
 {
   "mnemonic": "giraffe note order sun cradle bottom crime humble able antique rural donkey guess parent potato tongue truly way disagree exile zebra someone else typical",
-  "punk_address": "",
-  "receiver_address": "",
-  "amount_to_send": "",
-  "identity_key_to_delegate_mix_node": "",
+  "qa_address": "n1qqct7gs79yrjncpkumljxeqjsnwvn42j2g3fw4",
+  "receiver_address": "n167rupnmpput2alw62sz43eelks03zek4fwvjk0",
+  "amount_to_send": "1",
+  "identity_key_to_delegate_mix_node": "HqW2HStFHtAZ3PxRaiSCh7xJK6B7swoR1gSmJzH2iV9g",
   "identity_key_to_delegate_gateway": "",
-  "delegate_amount": ""
+  "delegate_amount": "10"
 }

@@ -60,6 +60,9 @@ export const SendInputModal = ({
           fullWidth
           onChange={(e) => onAddressChange(e.target.value)}
           value={toAddress}
+          inputProps={{
+            "data-testid": "recipientAddress",
+            }}
         />
         <CurrencyFormField
           placeholder="Amount"
@@ -70,7 +73,7 @@ export const SendInputModal = ({
           }}
           initialValue={amount?.amount}
         />
-        <Typography fontSize="smaller" sx={{ color: 'error.main' }}>
+        <Typography fontSize="smaller" sx={{ color: 'error.main' }} >
           {error}
         </Typography>
       </Stack>

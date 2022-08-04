@@ -12,6 +12,7 @@ class Auth {
   get forgotPassword() { return $("[data-testid='forgotPassword']") }
 
   // Sign in with mnemonic page 
+  get mnemonicLoginScreenHeader() { return $("[data-testid='Enter a mnemonic to sign in']") }
   get mnemonicInput() { return $("[data-testid='mnemonicInput']") }
   get signIn() { return $("[data-testid='signInSubmitButton']") }
   get backToSignInOptions() { return $("[data-testid='backToSignInOptions']") }
@@ -44,6 +45,7 @@ class Auth {
   get skipPasswordAndSignInWithMnemonic() { return $("[data-testid='skipPasswordAndSignInWithMnemonic']") }
 
   // Enter password to sign in
+  get passwordLoginScreenHeader() { return $("[data-testid='Enter a password to sign in']") }
   get enterPassword() { return $("[data-testid='Enter password']") }
   get signInPasswordButton() { return $("[data-testid='signInPasswordButton']") }
   get backToSignInOptionsFromPassword() { return $("[data-testid='backToSignInOptionsFromPassword']") }
@@ -64,7 +66,7 @@ class Auth {
     await this.mnemonicInput.waitForDisplayed()
     await this.mnemonicInput.addValue(mnemonic);
     await this.signIn.click();
-    await Balance.nymBalance.isExisting({timeout:4000});
+    await Balance.nymBalance.isExisting({ timeout: 4000 });
   };
 
 }

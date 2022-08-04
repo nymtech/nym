@@ -7,29 +7,29 @@ import Bond from '../../pageobjects/bondScreen'
 import Unbond from '../../pageobjects/unbondScreen'
 import Delegation from '../../pageobjects/delegationScreen'
 const userData = require("../../../common/user-data.json");
+const Helper = require('../../../common/helper');
+
 
 describe('Nav Items behave correctly', () => {
 
     it('switch from light to dark mode and back', async () => {
 
         //log in
-        await Auth.loginWithMnemonic(userData.mnemonic)
+        await Helper.freshMnemonicLoginQaNetwork()
         // click on different modes
-        await (await Nav.lightMode).waitForDisplayed({ timeout: 6000 })
-        await (await Nav.lightMode).click()
-        await (await Nav.darkMode).click()
-        await (await Nav.lightMode).waitForDisplayed({ timeout: 2500 })
+        await Helper.navigateAndClick(Nav.lightMode)
+        await Helper.navigateAndClick(Nav.darkMode)
+        await Helper.elementVisible(Nav.lightMode)
 
     })
 
     it('clicking terminal opens the modal', async () => {
 
         // ensure the terminal button opens the terminal
-        await (await Nav.terminalIcon).waitForDisplayed({ timeout: 1500 })
-        await (await Nav.terminalIcon).click()
-        await (await Nav.terminalTitle).waitForDisplayed({ timeout: 2000 })
-        let terminalTitle = await (await Nav.terminalTitle).getText()
-        expect(terminalTitle).toContain('Terminal')
+        await Helper.elementVisible(Nav.terminalIcon)
+        await Helper.navigateAndClick(Nav.terminalIcon)
+        await Helper.elementVisible(Nav.terminalTitle)
+        await Helper.verifyPartialText(Nav.terminalTitle, 'Terminal')
 
     })
 
@@ -37,41 +37,37 @@ describe('Nav Items behave correctly', () => {
 
 describe('Menu items lead to correct screen', () => {
 
+    //TO-DO none of this works 
+    //check each menu item opens the right screen/modal
     it('check Balance link works', async () => {
-        await (await Nav.balance).click()
-        let balanceTitle = await (await Balance.balance).getText()
-        expect(balanceTitle).toContain('Balance')
+        await Helper.navigateAndClick(Nav.balance)
+        await Helper.verifyPartialText(Balance.balance, 'Balance')
     })
 
     it('check Send link works', async () => {
-        await (await Nav.send).click()
-        let sendTitle = await (await Send.sendHeader).getText()
-        expect(sendTitle).toContain('Send')
-        await (await Nav.closeIcon).click()
+        await Helper.navigateAndClick(Nav.send)
+        await Helper.verifyPartialText(Send.sendHeader, 'Send')
+        await Helper.navigateAndClick(Nav.closeIcon)
     })
 
     it('check Receive link works', async () => {
-        await (await Nav.receive).click()
-        let receiveNymTitle = await (await Receive.receiveNymTitle).getText()
-        expect(receiveNymTitle).toContain('Receive NYM')
+        await Helper.navigateAndClick(Nav.receive)
+        await Helper.verifyPartialText(Receive.receiveNymTitle, 'Receive NYM')
     })
 
     it('check Bond link works', async () => {
-        await (await Nav.bond).click()
-        let bondTitle = await (await Bond.bondTitle).getText()
-        expect(bondTitle).toContain('Bond')
+        await Helper.navigateAndClick(Nav.bond)
+        await Helper.verifyPartialText(Bond.bondTitle, 'Bond')
     })
 
     it('check Unbond link works', async () => {
-        await (await Nav.unbond).click()
-        let unbondTitle = await (await Unbond.unbondTitle).getText()
-        expect(unbondTitle).toContain('Unbond')
+        await Helper.navigateAndClick(Nav.unbond)
+        await Helper.verifyPartialText(Unbond.unbondTitle, 'Unbond')
     })
 
     it('check Delegation link works', async () => {
-        await (await Nav.delegation).click()
-        let delegationTitle = await (await Delegation.delegationTitle).getText()
-        expect(delegationTitle).toContain('Delegation')
+        await Helper.navigateAndClick(Nav.delegation)
+        await Helper.verifyPartialText(Delegation.delegationTitle, 'Delegation')
     })
 
 })

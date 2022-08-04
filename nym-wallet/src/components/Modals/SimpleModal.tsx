@@ -62,7 +62,7 @@ export const SimpleModal: React.FC<{
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
         {onBack && <StyledBackButton onBack={onBack} />}
-        <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+        <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} data-testid={okLabel}>
           {okLabel}
         </Button>
       </Box>

@@ -4,23 +4,25 @@ const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
 const deleteWallet = require("../../../scripts/deletesavedwallet");
 const walletExists = require("../../../scripts/savedwalletexists")
-const { exec } = require("child_process")
+const Helper = require('../../../common/helper');
 
 
 describe('Wallet sign in functionality without creating password', () => {
 
     it('sign in with invalid password and no saved wallet.json file throws error', async () => {
-        //click through sign without entering a password
-        await (await Auth.signInButton).click()
-        await (await Auth.signInPassword).click()
 
+        // delete existing saved wallet file
+        deleteWallet
+        //click through sign without entering a password
+        await Helper.navigateAndClick(Auth.signInButton)
+        await Helper.navigateAndClick(Auth.signInPassword)
         // enter invalid password
-        await (await Auth.enterPassword).addValue(textConstants.incorrectPassword)
-        await (await Auth.signInPasswordButton).click()
+        await Helper.addValueToTextField(Auth.enterPassword,textConstants.incorrectPassword)
+        await Helper.navigateAndClick(Auth.signInPasswordButton)
         // wait for error
-        await (await Auth.error).waitForDisplayed({ timeout: 1500 })
-        let getErrorWarning = await (await Auth.error).getText()
-        expect(getErrorWarning).toStrictEqual(textConstants.failedToFindWalletFile)
+        await Helper.elementVisible(Auth.error)
+        // verify error has the correct message
+        await Helper.verifyStrictText(Auth.error, textConstants.failedToFindWalletFile)
 
     })
 

@@ -7,7 +7,9 @@
     "test:signup": "wdio run wdio.conf.ts --suite signup",
     "test:login": "wdio run wdio.conf.ts --suite login",
     "test:balance": "wdio run wdio.conf.ts --suite balance",
-    "test:nav": "wdio run wdio.conf.ts --suite nav"
+    "test:nav": "wdio run wdio.conf.ts --suite nav",
+    "test:send": "wdio run wdio.conf.ts --suite send",
+    "test:delegation": "wdio run wdio.conf.ts --suite delegation"
     
   },
   "author": "",

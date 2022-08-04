@@ -5,8 +5,10 @@ import { AppContext } from '../../context/main';
 
 const SendReviewField = ({ title, subtitle, info }: { title: string; subtitle?: string; info?: boolean }) => (
   <>
-    <Typography sx={{ color: info ? 'nym.fee' : '' }}>{title}</Typography>
-    <Typography data-testid={title} sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }}>
+    <Typography sx={{ color: info ? 'nym.fee' : '' }} data-testid={title}>
+      {title}
+    </Typography>
+    <Typography sx={{ color: info ? 'nym.fee' : '', wordBreak: 'break-all' }} data-testid={subtitle}>
       {subtitle}
     </Typography>
   </>

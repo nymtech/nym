@@ -32,7 +32,7 @@ export const SendSuccessModal = ({
       {txDetails && (
         <>
           <Typography variant="h5">{txDetails.amount}</Typography>
-          <Link href={txDetails.txUrl} target="_blank" sx={{ ml: 1 }} text="View on blockchain" />
+          <Link href={txDetails.txUrl} target="_blank" sx={{ ml: 1 }} text="View on blockchain" data-testid="viewOnBlockchain"/>
         </>
       )}
     </Stack>

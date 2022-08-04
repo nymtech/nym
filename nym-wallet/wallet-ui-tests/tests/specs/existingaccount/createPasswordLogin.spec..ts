@@ -1,9 +1,10 @@
 import Auth from '../../pageobjects/authScreens'
 import Balance from '../../pageobjects/balanceScreen'
 import ValidatorClient from '@nymproject/nym-validator-client';
+const deleteScript = require("../../../scripts/deletesavedwallet")
 const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
-const { exec } = require("child_process")
+    const Helper = require('../../../common/helper');
 
 
 describe('Create password for existing account and use it to sign in', () => {
@@ -11,27 +12,25 @@ describe('Create password for existing account and use it to sign in', () => {
     it('enter incorrect mnemonic', async () => {
 
         //click through sign in
-        await (await Auth.signInButton).click()
-        await (await Auth.signInMnemonic).click()
+        await Helper.navigateAndClick(Auth.signInButton)
+        await Helper.navigateAndClick(Auth.signInMnemonic)
         //instead of entering mnemonic, click on create a password
-        await (await Auth.createPassword).click()
+        await Helper.navigateAndClick(Auth.createPassword)
         //enter incorrect  mnemonic
-        await (await Auth.mnemonicInput).addValue(textConstants.incorrectMnemonic)
-        await (await Auth.nextToPasswordCreation).click()
-        // assert error message is correct
-        let getErrorWarning = await (await Auth.error).getText()
-        expect(getErrorWarning).toStrictEqual(textConstants.incorrectMnemonicPasswordCreation)
+        await Helper.addValueToTextField(Auth.mnemonicInput, textConstants.incorrectMnemonic)
+        await Helper.navigateAndClick(Auth.nextToPasswordCreation)
 
+        // assert error message is correct
+        await Helper.verifyStrictText(Auth.error, textConstants.incorrectMnemonicPasswordCreation)
     })
 
     it('enter random string', async () => {
 
         // enter random string as mnemonic
-        await (await Auth.mnemonicInput).addValue(textConstants.randomString)
-        await (await Auth.nextToPasswordCreation).click()
+        await Helper.addValueToTextField(Auth.mnemonicInput, textConstants.randomString)
+        await Helper.navigateAndClick(Auth.nextToPasswordCreation)
         // assert error is correct
-        let getErrorWarning = await (await Auth.error).getText()
-        expect(getErrorWarning).toStrictEqual(textConstants.incorrectMnemonicPasswordCreation)
+        await Helper.verifyStrictText(Auth.error, textConstants.incorrectMnemonicPasswordCreation)
 
     })
 
@@ -40,20 +39,21 @@ describe('Create password for existing account and use it to sign in', () => {
 
         // generate random mnemonic in the backend
         const randomMnemonic = ValidatorClient.randomMnemonic();
+        deleteScript
         // use it to continue with password creation flow
-        await (await Auth.backToMnemonicSignIn).click()
-        await (await Auth.createPassword).click()
-        await (await Auth.mnemonicInput).addValue(randomMnemonic)
-        await (await Auth.nextToPasswordCreation).click()
-        await (await Auth.password).waitForDisplayed({ timeout: 2500 })
-
+        await Helper.navigateAndClick(Auth.backToMnemonicSignIn)
+        await Helper.navigateAndClick(Auth.createPassword)
+        await Helper.addValueToTextField(Auth.mnemonicInput, randomMnemonic)
+        await Helper.navigateAndClick(Auth.nextToPasswordCreation)
+        await Helper.elementVisible(Auth.password)
     })
 
     it('create an invalid password', async () => {
+
         // type an invalid password in both fields
-        await (await Auth.password).addValue(textConstants.incorrectPassword)
-        await (await Auth.confirmPassword).click({timeout: 1500})
-        await (await Auth.confirmPassword).addValue(textConstants.incorrectPassword)
+        await Helper.addValueToTextField(Auth.password, textConstants.incorrectPassword)
+        await Helper.navigateAndClick(Auth.confirmPassword)
+        await Helper.addValueToTextField(Auth.confirmPassword, textConstants.incorrectPassword)
         // ensure the button to proceed is still disabled 
         const nextButton = await Auth.createPasswordButton
         const isNextDisabled = await nextButton.getAttribute('disabled')
@@ -61,37 +61,39 @@ describe('Create password for existing account and use it to sign in', () => {
 
     })
 
-    it('create a valid password', async () =>{
-        await (await Auth.password).click({timeout: 1500})
-        await (await Auth.password).addValue(textConstants.password)
-        await (await Auth.confirmPassword).click({timeout: 1500})
-        await (await Auth.confirmPassword).addValue(textConstants.password)
-        await (await Auth.createPasswordButton).click()
+    it('create a valid password', async () => {
+
+        // type a valid password in both fields
+        await Helper.navigateAndClick(Auth.password)
+        await Helper.addValueToTextField(Auth.password, textConstants.password)
+        await Helper.navigateAndClick(Auth.confirmPassword)
+        await Helper.addValueToTextField(Auth.confirmPassword, textConstants.password)
+        // verify the password is created and the next screen is visible
+        await Helper.navigateAndClick(Auth.createPasswordButton)
+        await Helper.verifyStrictText(Auth.passwordLoginScreenHeader, textConstants.passwordSignIn)
 
     })
 
     it('sign in with no password throws error', async () => {
 
         //click sign without entering a password
-        await (await Auth.signInPasswordButton).click()
+        await Helper.navigateAndClick(Auth.signInPasswordButton)
         // wait for error
-        await (await Auth.error).waitForDisplayed({ timeout: 1500 })
-        let getErrorWarning = await (await Auth.error).getText()
+        await Helper.elementVisible(Auth.error)
         // verify error has the correct message
-        expect(getErrorWarning).toStrictEqual(textConstants.signInWithoutPassword)
+        await Helper.verifyStrictText(Auth.error, textConstants.signInWithoutPassword)
 
     })
 
     it('sign in with invalid password throws error', async () => {
 
         // enter invalid password
-        await (await Auth.enterPassword).addValue(textConstants.incorrectPassword)
-        await (await Auth.signInPasswordButton).click()
+        await Helper.addValueToTextField(Auth.enterPassword, textConstants.incorrectPassword)
+        await Helper.navigateAndClick(Auth.signInPasswordButton)
         // wait for error
-        await (await Auth.error).waitForDisplayed({ timeout: 1500 })
-        let getErrorWarning = await (await Auth.error).getText()
-        expect(getErrorWarning).toStrictEqual(textConstants.invalidPasswordOnSignIn)
-        
+        await Helper.elementVisible(Auth.error)
+        await Helper.verifyStrictText(Auth.error, textConstants.invalidPasswordOnSignIn)
+
     })
 
 })

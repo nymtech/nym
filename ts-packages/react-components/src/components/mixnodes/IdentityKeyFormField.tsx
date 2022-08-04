@@ -72,6 +72,9 @@ export const IdentityKeyFormField: React.FC<{
   return (
     <TextField
       fullWidth={fullWidth}
+      inputProps={{
+        "data-testid": placeholder
+      }}
       InputProps={{
         readOnly,
         required,

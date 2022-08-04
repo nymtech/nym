@@ -56,7 +56,7 @@ export const ConfirmationModal = ({
   const ConfirmButton =
     typeof confirmButton === 'string' ? (
       <Button onClick={onConfirm} variant="contained" fullWidth disabled={disabled} sx={{ py: 1.6 }}>
-        <Typography variant="button" fontSize="large">
+        <Typography variant="button" fontSize="large" data-testid={confirmButton}>
           {confirmButton}
         </Typography>
       </Button>

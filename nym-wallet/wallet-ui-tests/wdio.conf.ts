@@ -29,6 +29,12 @@ exports.config = {
     nav: [
       './tests/specs/navbaritems/*.ts',
     ],
+    send: [
+      './tests/specs/send/*.ts',
+    ],
+    delegation: [
+      './tests/specs/delegation/*.ts',
+    ],
   },
   // Patterns to exclude.
   exclude: [

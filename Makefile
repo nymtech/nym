@@ -69,6 +69,9 @@ build-wallet:
 build-connect:
 	cargo build --manifest-path nym-connect/Cargo.toml --workspace
 
+build-nym-cli:
+	cargo build --release --manifest-path tools/nym-cli/Cargo.toml
+
 fmt-main:
 	cargo fmt --all
 

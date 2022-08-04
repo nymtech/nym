@@ -26,8 +26,7 @@ pub(crate) async fn migrate(client: Client, args: Args) {
 
     let memo = args.memo.unwrap_or_else(|| "contract migration".to_owned());
     let contract_address = client.mixnet_contract_address();
-
-    // currently (as of time of writing this - look at commit time)
+    
     // the EmptyMsg{} argument is equivalent to `--init-message='{}'`
     let res = if let Some(raw_msg) = args.init_message {
         let msg: serde_json::Value =

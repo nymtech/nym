@@ -36,7 +36,5 @@ pub(crate) async fn upload(client: Client, args: Args) {
 
     info!("Upload result: {:?}", res);
 
-    // I can only assume ansible will only care about code id, so let's output it on separate line
-    // to stdout for easier parsing from ansible
     println!("{}", res.code_id)
 }

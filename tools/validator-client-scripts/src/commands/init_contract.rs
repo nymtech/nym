@@ -41,7 +41,6 @@ pub(crate) async fn init(client: Client, args: Args, denom: &str) {
         admin: Some(client.address().clone()),
     });
 
-    // currently (as of time of writing this - look at commit time)
     // the EmptyMsg{} argument is equivalent to `--init-message='{}'`
     let res = if let Some(raw_msg) = args.init_message {
         let msg: serde_json::Value =
@@ -71,7 +70,5 @@ pub(crate) async fn init(client: Client, args: Args, denom: &str) {
 
     info!("Init result: {:?}", res);
 
-    // I can only assume ansible will only care about contract address, so let's output it on separate line
-    // to stdout for easier parsing from ansible
     println!("{}", res.contract_address)
 }

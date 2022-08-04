@@ -16,7 +16,7 @@ use sqlx::ConnectOptions;
 use std::path::PathBuf;
 use time::OffsetDateTime;
 
-use self::manager::AvgReliability;
+use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
 
 pub(crate) mod manager;
 pub(crate) mod models;
@@ -88,7 +88,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgReliability>, ValidatorApiStorageError> {
+    ) -> Result<Vec<AvgGatewayReliability>, ValidatorApiStorageError> {
         let result = self
             .manager
             .get_all_avg_gateway_reliability_in_last_24hr(end_ts_secs)
@@ -100,7 +100,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_all_avg_mix_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgReliability>, ValidatorApiStorageError> {
+    ) -> Result<Vec<AvgMixnodeReliability>, ValidatorApiStorageError> {
         let result = self
             .manager
             .get_all_avg_mix_reliability_in_last_24hr(end_ts_secs)
@@ -296,11 +296,11 @@ impl ValidatorApiStorage {
 
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
-        identity: &str,
+        mix_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
         let start = end_ts_secs - 86400;
-        self.get_average_mixnode_uptime_in_interval(identity, start, end_ts_secs)
+        self.get_average_mixnode_uptime_in_interval(mix_id, start, end_ts_secs)
             .await
     }
 
@@ -309,30 +309,31 @@ impl ValidatorApiStorage {
     ///
     /// # Arguments
     ///
-    /// * `identity`: base58-encoded identity of the mixnode.
+    /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
     pub(crate) async fn get_average_mixnode_uptime_in_interval(
         &self,
-        identity: &str,
+        mix_id: NodeId,
         start: i64,
         end: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
-        let mixnode_database_id = match self.manager.get_mixnode_id(identity).await? {
-            Some(id) => id,
-            None => return Ok(Uptime::zero()),
-        };
-
-        let reliability = self
-            .manager
-            .get_average_reliability_in_interval(mixnode_database_id, start, end)
-            .await?;
-
-        if let Some(reliability) = reliability {
-            Ok(Uptime::new(reliability))
-        } else {
-            Ok(Uptime::zero())
-        }
+        todo!()
+        // let mixnode_database_id = match self.manager.get_mixnode_id(identity).await? {
+        //     Some(id) => id,
+        //     None => return Ok(Uptime::zero()),
+        // };
+        //
+        // let reliability = self
+        //     .manager
+        //     .get_average_reliability_in_interval(mixnode_database_id, start, end)
+        //     .await?;
+        //
+        // if let Some(reliability) = reliability {
+        //     Ok(Uptime::new(reliability))
+        // } else {
+        //     Ok(Uptime::zero())
+        // }
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.
@@ -482,30 +483,32 @@ impl ValidatorApiStorage {
     ///
     /// # Arguments
     ///
-    /// * `identity`: identity (base58-encoded public key) of the mixnode.
+    /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
     pub(crate) async fn get_core_mixnode_status_count(
         &self,
-        identity: &str,
+        mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
-        let node_id = self
-            .manager
-            .get_mixnode_id(identity)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
-
-        if let Some(node_id) = node_id {
-            let since = since
-                .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
-
-            self.manager
-                .get_mixnode_testing_route_presence_count_since(node_id, since)
-                .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
-        } else {
-            Ok(0)
-        }
+        todo!()
+        //
+        // let node_id = self
+        //     .manager
+        //     .get_mixnode_id(identity)
+        //     .await
+        //     .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+        //
+        // if let Some(node_id) = node_id {
+        //     let since = since
+        //         .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
+        //
+        //     self.manager
+        //         .get_mixnode_testing_route_presence_count_since(node_id, since)
+        //         .await
+        //         .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+        // } else {
+        //     Ok(0)
+        // }
     }
 
     /// Retrieves number of times particular gateway was used as a core node during network monitor

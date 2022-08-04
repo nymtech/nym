@@ -5,7 +5,7 @@ use cosmwasm_std::Decimal;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{MixNode, NodeId};
+use mixnet_contract_common::{Interval, MixNode, NodeId, RewardedSetNodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -24,6 +24,17 @@ pub enum MixnodeStatus {
     NotFound, // doesn't even exist in the bonded set
 }
 
+impl From<MixnodeStatus> for Option<RewardedSetNodeStatus> {
+    fn from(status: MixnodeStatus) -> Self {
+        match status {
+            MixnodeStatus::Active => Some(RewardedSetNodeStatus::Active),
+            MixnodeStatus::Standby => Some(RewardedSetNodeStatus::Standby),
+            MixnodeStatus::Inactive => None,
+            MixnodeStatus::NotFound => None,
+        }
+    }
+}
+
 impl MixnodeStatus {
     pub fn is_active(&self) -> bool {
         *self == MixnodeStatus::Active
@@ -34,9 +45,20 @@ impl MixnodeStatus {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/CoreNodeStatusResponse.ts")
+    ts(export_to = "ts-packages/types/src/types/rust/MixnodeCoreStatusResponse.ts")
 )]
-pub struct CoreNodeStatusResponse {
+pub struct MixnodeCoreStatusResponse {
+    pub mix_id: NodeId,
+    pub count: i32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/GatewayCoreStatusResponse.ts")
+)]
+pub struct GatewayCoreStatusResponse {
     pub identity: String,
     pub count: i32,
 }
@@ -88,6 +110,7 @@ pub struct RewardEstimationResponse {
     pub estimation: RewardEstimate,
 
     pub reward_params: RewardingParams,
+    pub epoch: Interval,
     pub as_at: i64,
 }
 
@@ -104,6 +127,7 @@ pub struct UptimeResponse {
     ts(export_to = "ts-packages/types/src/types/rust/StakeSaturationResponse.ts")
 )]
 pub struct StakeSaturationResponse {
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub saturation: StakeSaturation,
     pub as_at: i64,
 }

@@ -12,8 +12,9 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeStatusResponse, DeprecatedRewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    DeprecatedRewardEstimationResponse, GatewayCoreStatusResponse, InclusionProbabilityResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -170,7 +171,7 @@ impl Client {
         &self,
         identity: IdentityKeyRef<'_>,
         since: Option<i64>,
-    ) -> Result<CoreNodeStatusResponse, ValidatorAPIError> {
+    ) -> Result<GatewayCoreStatusResponse, ValidatorAPIError> {
         if let Some(since) = since {
             self.query_validator_api(
                 &[
@@ -201,7 +202,7 @@ impl Client {
         &self,
         identity: IdentityKeyRef<'_>,
         since: Option<i64>,
-    ) -> Result<CoreNodeStatusResponse, ValidatorAPIError> {
+    ) -> Result<MixnodeCoreStatusResponse, ValidatorAPIError> {
         if let Some(since) = since {
             self.query_validator_api(
                 &[

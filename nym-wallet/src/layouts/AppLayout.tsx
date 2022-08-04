@@ -27,7 +27,6 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             background: (t) => t.palette.nym.nymWallet.nav.background,
             overflow: 'auto',
             py: 5,
-            px: 0,
           }}
           display="flex"
           flexDirection="column"

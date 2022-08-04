@@ -99,10 +99,10 @@ export const Nav = () => {
               onClick={onClick}
               sx={{
                 cursor: 'pointer',
-                py: '16px',
-                paddingLeft: '32px',
-                borderRadius: '8px',
-                '&:hover': { backgroundColor: (theme) => (theme.palette.mode === 'light' ? '#F9F9F9' : '#36393E') },
+                py: 2,
+                paddingLeft: 3.5,
+                borderRadius: 1,
+                '&:hover': { backgroundColor: (theme) => theme.palette.nym.nymWallet.hover.background },
               }}
             >
               <ListItemIcon

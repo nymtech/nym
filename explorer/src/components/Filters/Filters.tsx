@@ -146,7 +146,14 @@ export const Filters = () => {
           {mixnodes?.data?.length} mixnodes matched your criteria
         </Alert>
       </Snackbar>
-      <Button size="large" variant="text" color="inherit" endIcon={<Tune />} onClick={handleToggleShowFilters}>
+      <Button
+        size="large"
+        variant="text"
+        color="inherit"
+        endIcon={<Tune />}
+        onClick={handleToggleShowFilters}
+        sx={{ textTransform: 'none' }}
+      >
         Advanced filters
       </Button>
       <Dialog open={showFilters} onClose={handleToggleShowFilters} maxWidth="md" fullWidth>

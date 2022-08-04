@@ -86,5 +86,5 @@ pub async fn get_interval_reward_params(
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/current")]
 pub async fn get_current_epoch(cache: &State<ValidatorCache>) -> Json<Option<Interval>> {
-    Json(cache.current_epoch().await.value)
+    Json(cache.current_interval().await.value)
 }

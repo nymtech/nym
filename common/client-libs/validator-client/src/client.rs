@@ -9,8 +9,8 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, MixnodeStatusResponse, DeprecatedRewardEstimationResponse,
-    StakeSaturationResponse,
+    DeprecatedRewardEstimationResponse, GatewayCoreStatusResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, StakeSaturationResponse,
 };
 
 #[cfg(feature = "nymd-client")]
@@ -490,7 +490,7 @@ impl ApiClient {
         &self,
         identity: IdentityKeyRef<'_>,
         since: Option<i64>,
-    ) -> Result<CoreNodeStatusResponse, ValidatorClientError> {
+    ) -> Result<GatewayCoreStatusResponse, ValidatorClientError> {
         Ok(self
             .validator_api
             .get_gateway_core_status_count(identity, since)
@@ -501,7 +501,7 @@ impl ApiClient {
         &self,
         identity: IdentityKeyRef<'_>,
         since: Option<i64>,
-    ) -> Result<CoreNodeStatusResponse, ValidatorClientError> {
+    ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
             .validator_api
             .get_mixnode_core_status_count(identity, since)

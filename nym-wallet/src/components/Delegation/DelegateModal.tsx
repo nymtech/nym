@@ -168,8 +168,8 @@ export const DelegateModal: React.FC<{
         onPrev={resetFeeState}
         onConfirm={handleOk}
       >
-        <ModalListItem label="Node identity key" value={identityKey} divider />
-        <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
+        <ModalListItem label="Node identity key:" value={identityKey} divider />
+        <ModalListItem label="Amount:" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
     );
   }
@@ -189,7 +189,7 @@ export const DelegateModal: React.FC<{
       sx={sx}
       backdropProps={backdropProps}
     >
-      <Box sx={{ mt: 1.8 }}>
+      <Box sx={{ mt: 2 }}>
         <IdentityKeyFormField
           required
           fullWidth
@@ -231,32 +231,30 @@ export const DelegateModal: React.FC<{
         {errorAmount}
       </Typography>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance" value={accountBalance} divider strong />
+        <ModalListItem label="Account balance:" value={accountBalance} divider strong />
       </Box>
 
-      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
+      <ModalListItem label="Rewards payout interval:" value={rewardInterval} hidden divider />
       <ModalListItem
-        label="Node profit margin"
+        label="Node profit margin:"
         value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}
         hidden={profitMarginPercentage === undefined}
         divider
       />
       <ModalListItem
-        label="Node avg. uptime"
+        label="Node avg. uptime:"
         value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
         hidden={nodeUptimePercentage === undefined}
         divider
       />
 
       <ModalListItem
-        label="Node est. reward per epoch"
+        label="Node est. reward per epoch:"
         value={`${estimatedReward} ${denom.toUpperCase()}`}
         hidden
         divider
       />
-      <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
-        Est. fee for this transaction will be cauculated in the next page
-      </Typography>
+      <ModalListItem label="Est. fee for this transaction will be calculated in the next page" />
     </SimpleModal>
   );
 };

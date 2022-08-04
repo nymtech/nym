@@ -184,23 +184,24 @@ export const DelegateModal: React.FC<{
         }
       }}
       header={header || 'Delegate'}
-      subHeader="Delegate to mixnode"
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
       sx={sx}
       backdropProps={backdropProps}
     >
-      <IdentityKeyFormField
-        required
-        fullWidth
-        placeholder="Node identity key"
-        onChanged={handleIdentityKeyChanged}
-        initialValue={identityKey}
-        readOnly={Boolean(initialIdentityKey)}
-        textFieldProps={{
-          autoFocus: !initialIdentityKey,
-        }}
-      />
+      <Box sx={{ mt: 1.8 }}>
+        <IdentityKeyFormField
+          required
+          fullWidth
+          placeholder="Node identity key"
+          onChanged={handleIdentityKeyChanged}
+          initialValue={identityKey}
+          readOnly={Boolean(initialIdentityKey)}
+          textFieldProps={{
+            autoFocus: !initialIdentityKey,
+          }}
+        />
+      </Box>
       <Typography
         component="div"
         textAlign="left"
@@ -230,7 +231,7 @@ export const DelegateModal: React.FC<{
         {errorAmount}
       </Typography>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance" value={accountBalance} divider />
+        <ModalListItem label="Account balance" value={accountBalance} divider strong />
       </Box>
 
       <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
@@ -241,7 +242,7 @@ export const DelegateModal: React.FC<{
         divider
       />
       <ModalListItem
-        label="Node uptime"
+        label="Node avg. uptime"
         value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
         hidden={nodeUptimePercentage === undefined}
         divider
@@ -253,6 +254,9 @@ export const DelegateModal: React.FC<{
         hidden
         divider
       />
+      <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
+        Est. fee for this transaction will be cauculated in the next page
+      </Typography>
     </SimpleModal>
   );
 };

@@ -125,6 +125,7 @@ export const Filters = () => {
         message="Filters applied"
         TransitionComponent={Slide}
         transitionDuration={250}
+        id="hello"
       >
         <Alert
           severity="info"
@@ -139,7 +140,8 @@ export const Filters = () => {
           Filters applied
         </Alert>
       </Snackbar>
-      <IconButton size="large" onClick={handleToggleShowFilters}>
+      <IconButton size="large" sx={{ borderRadius: 1 }} onClick={handleToggleShowFilters}>
+        <Typography sx={{ marginRight: 1 }}>Advanced filtering</Typography>
         <Tune />
       </IconButton>
       <Dialog open={showFilters} onClose={handleToggleShowFilters} maxWidth="md" fullWidth>

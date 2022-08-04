@@ -18,6 +18,7 @@ import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsM
 import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
 import { PageLayout } from '../../layouts';
 import { BondingContextProvider, useBondingContext } from '../../context';
+import { Box } from '@mui/material';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -149,7 +150,7 @@ const Bonding = () => {
   };
 
   return (
-    <PageLayout>
+    <Box sx={{ mt: 4 }}>
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (
@@ -240,7 +241,7 @@ const Bonding = () => {
       )}
 
       {isLoading && <LoadingModal />}
-    </PageLayout>
+    </Box>
   );
 };
 

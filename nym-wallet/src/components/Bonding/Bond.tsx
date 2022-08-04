@@ -10,7 +10,7 @@ export const Bond = ({
 
   disabled: boolean;
 }) => (
-  <NymCard title="Bonding">
+  <NymCard title="Bonding" borderless>
     <Box
       sx={{
         display: 'flex',

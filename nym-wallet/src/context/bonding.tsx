@@ -42,7 +42,7 @@ const bonded: TBondedMixnode = {
 
 // TODO add relevant data
 export type TBondedMixnode = {
-  name: string;
+  name?: string;
   identityKey: string;
   stake: DecCoin;
   bond: DecCoin;
@@ -180,7 +180,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           );
           const nodeDescription = await getNodeDescription(data.mix_node.host, data.mix_node.http_api_port);
           setBondedNode({
-            name: nodeDescription?.name || '-',
+            name: nodeDescription?.name,
             identityKey: data.mix_node.identity_key,
             ip: '',
             stake: calculateStake(data.pledge_amount, data.total_delegation),
@@ -206,7 +206,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
 
           setBondedNode({
-            name: nodeDescription?.name || '-',
+            name: nodeDescription?.name,
             identityKey: data.gateway.identity_key,
             ip: data.gateway.host,
             location: data.gateway.location,

@@ -288,7 +288,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 4, mt: 4 }}>
+      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
         <Stack spacing={5}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Delegations</Typography>
@@ -323,7 +323,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       </Paper>
 
       {pendingDelegations && (
-        <Paper elevation={0} sx={{ p: 4, mt: 2 }}>
+        <Paper elevation={0} sx={{ p: 3, mt: 2 }}>
           <Stack spacing={5}>
             <Typography variant="h6">Pending Delegation Events</Typography>
             <PendingEvents pendingEvents={pendingDelegations} explorerUrl={urls(network).networkExplorer} />

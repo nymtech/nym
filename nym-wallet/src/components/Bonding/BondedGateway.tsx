@@ -54,11 +54,18 @@ export const BondedGateway = ({
 
   return (
     <NymCard
+      borderless
       title={
         <Stack gap={2}>
           <Typography variant="h5" fontWeight={600}>
-            {name}
+            Gateway
           </Typography>
+
+          {name && (
+            <Typography fontWeight="regular" variant="h6">
+              {name}
+            </Typography>
+          )}
           <IdentityKey identityKey={identityKey} />
         </Stack>
       }

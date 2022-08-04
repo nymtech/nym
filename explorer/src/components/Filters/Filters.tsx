@@ -52,7 +52,7 @@ const FilterItem = ({
 );
 
 export const Filters = () => {
-  const { filterMixnodes, fetchMixnodes } = useMainContext();
+  const { filterMixnodes, fetchMixnodes, mixnodes } = useMainContext();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
   const isMobile = useIsMobile();
 
@@ -125,7 +125,6 @@ export const Filters = () => {
         message="Filters applied"
         TransitionComponent={Slide}
         transitionDuration={250}
-        id="hello"
       >
         <Alert
           severity="info"
@@ -135,9 +134,9 @@ export const Filters = () => {
               Clear
             </Button>
           }
-          sx={{ width: 300 }}
+          sx={{ width: 300, alignItems: 'center' }}
         >
-          Filters applied
+          {mixnodes?.data?.length} mix nodes matched your criteria
         </Alert>
       </Snackbar>
       <IconButton size="large" sx={{ borderRadius: 1 }} onClick={handleToggleShowFilters}>

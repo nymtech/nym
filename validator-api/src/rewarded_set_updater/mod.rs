@@ -16,6 +16,7 @@ use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::ValidatorApiStorage;
+use cosmwasm_std::{Decimal, Fraction};
 use mixnet_contract_common::reward_params::NodeRewardParams;
 use mixnet_contract_common::{ExecuteMsg, NodeId};
 use mixnet_contract_common::{IdentityKey, Interval, MixNodeBond};
@@ -86,6 +87,20 @@ impl RewardedSetUpdater {
         })
     }
 
+    fn stake_to_f64(stake: Decimal) -> f64 {
+        let max = f64::MAX.round() as u128;
+
+        let num = stake.numerator().u128();
+        let den = stake.denominator().u128();
+
+        if num > max || den > max {
+            // we know actual stake can't possibly exceed 1B, so worst case scenario just use integer rounding
+            (num / den) as f64
+        } else {
+            (num as f64) / (den as f64)
+        }
+    }
+
     fn determine_rewarded_set(
         &self,
         mixnodes: Vec<MixNodeDetails>,
@@ -104,7 +119,7 @@ impl RewardedSetUpdater {
                 // note that the theoretical maximum possible stake is equal to the total
                 // supply of all tokens, i.e. 1B (which is 1 quadrillion of native tokens, i.e. 10^15 ~ 2^50)
                 // which is way below maximum value of f64, so the cast is fine
-                let total_stake = mix.total_stake_f64().unwrap_or_default();
+                let total_stake = Self::stake_to_f64(mix.total_stake());
                 (mix.mix_id(), total_stake)
             }) // if for some reason node is invalid, treat it as 0 stake/weight
             .collect::<Vec<_>>();

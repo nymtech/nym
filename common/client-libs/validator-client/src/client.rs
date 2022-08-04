@@ -9,7 +9,7 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    CoreNodeStatusResponse, MixnodeStatusResponse, DeprecatedRewardEstimationResponse,
     StakeSaturationResponse,
 };
 
@@ -518,7 +518,7 @@ impl ApiClient {
     pub async fn get_mixnode_reward_estimation(
         &self,
         identity: IdentityKeyRef<'_>,
-    ) -> Result<RewardEstimationResponse, ValidatorClientError> {
+    ) -> Result<DeprecatedRewardEstimationResponse, ValidatorClientError> {
         Ok(self
             .validator_api
             .get_mixnode_reward_estimation(identity)

@@ -125,24 +125,29 @@ export const Filters = () => {
         message="Filters applied"
         TransitionComponent={Slide}
         transitionDuration={250}
+        sx={{
+          '& .MuiAlert-action': {
+            p: 0,
+            mr: 0,
+          },
+        }}
       >
         <Alert
           severity="info"
           variant={isMobile ? 'standard' : 'outlined'}
           action={
-            <Button size="small" onClick={onClearFilters}>
-              Clear
+            <Button size="small" onClick={onClearFilters} sx={{ p: 0 }}>
+              CLEAR FILTERS
             </Button>
           }
-          sx={{ width: 300, alignItems: 'center' }}
+          sx={{ width: 400, alignItems: 'center' }}
         >
-          {mixnodes?.data?.length} mix nodes matched your criteria
+          {mixnodes?.data?.length} mixnodes matched your criteria
         </Alert>
       </Snackbar>
-      <IconButton size="large" sx={{ borderRadius: 1 }} onClick={handleToggleShowFilters}>
-        <Typography sx={{ marginRight: 1 }}>Advanced filtering</Typography>
-        <Tune />
-      </IconButton>
+      <Button size="large" variant="text" color="inherit" endIcon={<Tune />} onClick={handleToggleShowFilters}>
+        Advanced filters
+      </Button>
       <Dialog open={showFilters} onClose={handleToggleShowFilters} maxWidth="md" fullWidth>
         <DialogTitle>Mixnode filters</DialogTitle>
         <DialogContent dividers>

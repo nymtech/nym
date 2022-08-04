@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use mixnet_contract_common::NodeId;
+
 // Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
 pub(crate) struct NodeStatus {
     pub timestamp: Option<i64>,
@@ -20,6 +22,7 @@ impl NodeStatus {
 // Internally used struct to catch results from the database to find active mixnodes/gateways
 pub(crate) struct ActiveNode {
     pub(crate) id: i64,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: String,
     pub(crate) owner: String,
 }

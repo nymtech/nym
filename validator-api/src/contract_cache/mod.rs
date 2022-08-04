@@ -8,7 +8,7 @@ use ::time::OffsetDateTime;
 use anyhow::Result;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
-    FullEpochId, GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNodeBond, NodeId,
+    FullEpochId, GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNode, MixNodeBond, NodeId,
     RewardedSetNodeStatus,
 };
 use okapi::openapi3::OpenApi;
@@ -124,7 +124,7 @@ impl<C> ValidatorCacheRefresher<C> {
         todo!("figure out how to translate epoch to timestamps")
     }
 
-    async fn annotate_bond_with_details(
+    async fn annotate_node_with_details(
         &self,
         mixnodes: Vec<MixNodeDetails>,
         interval_reward_params: RewardingParams,
@@ -166,6 +166,7 @@ impl<C> ValidatorCacheRefresher<C> {
             annotated.push(MixNodeBondAnnotated {
                 mixnode_details: mixnode,
                 stake_saturation,
+                uncapped_stake_saturation,
                 performance,
                 estimated_operator_apy,
                 estimated_delegators_apy,
@@ -217,11 +218,11 @@ impl<C> ValidatorCacheRefresher<C> {
         let rewarded_set = self.get_rewarded_set_map().await;
 
         let mixnodes = self
-            .annotate_bond_with_details(mixnodes, rewarding_params, current_interval, &rewarded_set)
+            .annotate_node_with_details(mixnodes, rewarding_params, current_interval, &rewarded_set)
             .await;
 
         let (rewarded_set, active_set) =
-            Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set_identities);
+            Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set);
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -235,9 +236,8 @@ impl<C> ValidatorCacheRefresher<C> {
                 gateways,
                 rewarded_set,
                 active_set,
-                epoch_rewarding_params,
-                current_epoch,
-                current_operator_base_cost,
+                rewarding_params,
+                current_interval,
             )
             .await;
 
@@ -246,7 +246,7 @@ impl<C> ValidatorCacheRefresher<C> {
 
     pub(crate) async fn run(&self, mut shutdown: ShutdownListener)
     where
-        C: CosmWasmClient + Sync,
+        C: CosmWasmClient + Sync + Send,
     {
         let mut interval = time::interval(self.caching_interval);
         while !shutdown.is_shutdown() {
@@ -429,14 +429,14 @@ impl ValidatorCache {
             .collect()
     }
 
-    pub async fn mixnodes_all(&self) -> Vec<MixNodeDetails> {
+    pub async fn mixnodes_basic(&self) -> Vec<MixNodeBond> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache
                 .mixnodes
                 .clone()
                 .into_inner()
                 .into_iter()
-                .map(|bond| bond.mixnode_details)
+                .map(|bond| bond.mixnode_details.bond_information)
                 .collect(),
             Err(e) => {
                 error!("{}", e);

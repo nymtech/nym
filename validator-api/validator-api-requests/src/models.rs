@@ -4,6 +4,7 @@
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use mixnet_contract_common::rewarding::RewardEstimate;
 use mixnet_contract_common::{MixNode, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,7 @@ pub struct MixnodeStatusResponse {
 pub struct MixNodeBondAnnotated {
     pub mixnode_details: MixNodeDetails,
     pub stake_saturation: StakeSaturation,
+    pub uncapped_stake_saturation: StakeSaturation,
     pub performance: Performance,
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
@@ -70,12 +72,20 @@ impl MixNodeBondAnnotated {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct RewardEstimationResponse {
+pub struct DeprecatedRewardEstimationResponse {
     pub estimated_total_node_reward: u64,
     pub estimated_operator_reward: u64,
     pub estimated_delegators_reward: u64,
     pub estimated_node_profit: u64,
     pub estimated_operator_cost: u64,
+
+    pub reward_params: RewardingParams,
+    pub as_at: i64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct RewardEstimationResponse {
+    pub estimation: RewardEstimate,
 
     pub reward_params: RewardingParams,
     pub as_at: i64,

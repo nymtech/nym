@@ -13,7 +13,7 @@ use validator_api_requests::coconut::{
 };
 use validator_api_requests::models::{
     CoreNodeStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    MixnodeStatusResponse, DeprecatedRewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -248,7 +248,7 @@ impl Client {
     pub async fn get_mixnode_reward_estimation(
         &self,
         identity: IdentityKeyRef<'_>,
-    ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
+    ) -> Result<DeprecatedRewardEstimationResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
                 routes::API_VERSION,

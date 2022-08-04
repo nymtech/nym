@@ -1,14 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::models::Uptime;
 use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
 };
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
+use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{NodeRewardParams, RewardingParams};
-use mixnet_contract_common::{Interval, MixNodeBond};
+use mixnet_contract_common::{Interval, MixNodeBond, NodeId};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -16,67 +18,9 @@ use rocket_okapi::openapi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    CoreNodeStatusResponse, DeprecatedRewardEstimationResponse, InclusionProbabilityResponse,
+    MixnodeStatusResponse, StakeSaturationResponse, UptimeResponse,
 };
-
-use super::models::Uptime;
-
-async fn average_mixnode_uptime(
-    identity: &str,
-    current_epoch: Option<Interval>,
-    storage: &State<ValidatorApiStorage>,
-) -> Result<Uptime, ErrorResponse> {
-    todo!()
-    // Ok(if let Some(epoch) = current_epoch {
-    //     storage
-    //         .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
-    //         .await
-    //         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?
-    // } else {
-    //     Uptime::default()
-    // })
-}
-
-fn estimate_reward(
-    mixnode_bond: &MixNodeBond,
-    base_operator_cost: u64,
-    reward_params: RewardingParams,
-    as_at: i64,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
-    todo!()
-    // match mixnode_bond.estimate_reward(base_operator_cost, &reward_params) {
-    //     Ok(reward_estimate) => {
-    //         let reponse = RewardEstimationResponse {
-    //             estimated_total_node_reward: reward_estimate.total_node_reward,
-    //             estimated_operator_reward: reward_estimate.operator_reward,
-    //             estimated_delegators_reward: reward_estimate.delegators_reward,
-    //             estimated_node_profit: reward_estimate.node_profit,
-    //             estimated_operator_cost: reward_estimate.operator_cost,
-    //             reward_params,
-    //             as_at,
-    //         };
-    //         Ok(Json(reponse))
-    //     }
-    //     Err(e) => Err(ErrorResponse::new(
-    //         e.to_string(),
-    //         Status::InternalServerError,
-    //     )),
-    // }
-}
-
-#[openapi(tag = "status")]
-#[get("/mixnode/<identity>/report")]
-pub(crate) async fn mixnode_report(
-    storage: &State<ValidatorApiStorage>,
-    identity: &str,
-) -> Result<Json<MixnodeStatusReport>, ErrorResponse> {
-    storage
-        .construct_mixnode_report(identity)
-        .await
-        .map(Json)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
-}
 
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]
@@ -86,19 +30,6 @@ pub(crate) async fn gateway_report(
 ) -> Result<Json<GatewayStatusReport>, ErrorResponse> {
     storage
         .construct_gateway_report(identity)
-        .await
-        .map(Json)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
-}
-
-#[openapi(tag = "status")]
-#[get("/mixnode/<identity>/history")]
-pub(crate) async fn mixnode_uptime_history(
-    storage: &State<ValidatorApiStorage>,
-    identity: &str,
-) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
-    storage
-        .get_mixnode_uptime_history(identity)
         .await
         .map(Json)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
@@ -115,24 +46,6 @@ pub(crate) async fn gateway_uptime_history(
         .await
         .map(Json)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
-}
-
-#[openapi(tag = "status")]
-#[get("/mixnode/<identity>/core-status-count?<since>")]
-pub(crate) async fn mixnode_core_status_count(
-    storage: &State<ValidatorApiStorage>,
-    identity: &str,
-    since: Option<i64>,
-) -> Json<CoreNodeStatusResponse> {
-    let count = storage
-        .get_core_mixnode_status_count(identity, since)
-        .await
-        .unwrap_or_default();
-
-    Json(CoreNodeStatusResponse {
-        identity: identity.to_string(),
-        count,
-    })
 }
 
 #[openapi(tag = "status")]
@@ -153,24 +66,119 @@ pub(crate) async fn gateway_core_status_count(
     })
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<identity>/status")]
-pub(crate) async fn get_mixnode_status(
-    cache: &State<ValidatorCache>,
-    identity: String,
-) -> Json<MixnodeStatusResponse> {
-    Json(MixnodeStatusResponse {
-        status: cache.mixnode_status(identity).await,
-    })
+async fn average_mixnode_uptime(
+    mix_id: NodeId,
+    current_epoch: Option<Interval>,
+    storage: &State<ValidatorApiStorage>,
+) -> Result<Uptime, ErrorResponse> {
+    todo!()
+    // Ok(if let Some(epoch) = current_epoch {
+    //     storage
+    //         .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
+    //         .await
+    //         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?
+    // } else {
+    //     Uptime::default()
+    // })
+}
+
+fn estimate_reward(
+    mixnode: &MixNodeDetails,
+    reward_params: RewardingParams,
+    as_at: i64,
+) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
+    todo!()
+    // match mixnode_bond.estimate_reward(base_operator_cost, &reward_params) {
+    //     Ok(reward_estimate) => {
+    //         let response = DeprecatedRewardEstimationResponse {
+    //             estimated_total_node_reward: reward_estimate.total_node_reward,
+    //             estimated_operator_reward: reward_estimate.operator_reward,
+    //             estimated_delegators_reward: reward_estimate.delegators_reward,
+    //             estimated_node_profit: reward_estimate.node_profit,
+    //             estimated_operator_cost: reward_estimate.operator_cost,
+    //             reward_params,
+    //             as_at,
+    //         };
+    //         Ok(Json(response))
+    //     }
+    //     Err(e) => Err(ErrorResponse::new(
+    //         e.to_string(),
+    //         Status::InternalServerError,
+    //     )),
+    // }
+}
+
+pub(crate) async fn _mixnode_report(
+    storage: &State<ValidatorApiStorage>,
+    mix_id: NodeId,
+) -> Result<MixnodeStatusReport, ErrorResponse> {
+    storage
+        .construct_mixnode_report(mix_id)
+        .await
+        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
 #[openapi(tag = "status")]
-#[get("/mixnode/<identity>/reward-estimation")]
+#[get("/mixnode/<mix_id>/report")]
+pub(crate) async fn mixnode_report(
+    storage: &State<ValidatorApiStorage>,
+    mix_id: NodeId,
+) -> Result<Json<MixnodeStatusReport>, ErrorResponse> {
+    Ok(Json(_mixnode_report(storage, mix_id).await?))
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnode/<mix_id>/history")]
+pub(crate) async fn mixnode_uptime_history(
+    storage: &State<ValidatorApiStorage>,
+    mix_id: NodeId,
+) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
+    todo!()
+    // storage
+    //     .get_mixnode_uptime_history(identity)
+    //     .await
+    //     .map(Json)
+    //     .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnode/<mix_id>/core-status-count?<since>")]
+pub(crate) async fn mixnode_core_status_count(
+    storage: &State<ValidatorApiStorage>,
+    mix_id: NodeId,
+    since: Option<i64>,
+) -> Json<CoreNodeStatusResponse> {
+    todo!()
+    // let count = storage
+    //     .get_core_mixnode_status_count(identity, since)
+    //     .await
+    //     .unwrap_or_default();
+    //
+    // Json(CoreNodeStatusResponse {
+    //     identity: identity.to_string(),
+    //     count,
+    // })
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnode/<mix_id>/status")]
+pub(crate) async fn get_mixnode_status(
+    cache: &State<ValidatorCache>,
+    mix_id: NodeId,
+) -> Json<MixnodeStatusResponse> {
+    todo!()
+    // Json(MixnodeStatusResponse {
+    //     status: cache.mixnode_status(identity).await,
+    // })
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    identity: String,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
+    mix_id: NodeId,
+) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
     todo!()
     // let (bond, status) = cache.mixnode_details(&identity).await;
     // if let Some(bond) = bond {
@@ -208,15 +216,15 @@ pub(crate) struct ComputeRewardEstParam {
 
 #[openapi(tag = "status")]
 #[post(
-    "/mixnode/<identity>/compute-reward-estimation",
+    "/mixnode/<mix_id>/compute-reward-estimation",
     data = "<user_reward_param>"
 )]
 pub(crate) async fn compute_mixnode_reward_estimation(
     user_reward_param: Json<ComputeRewardEstParam>,
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    identity: String,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
+    mix_id: NodeId,
+) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
     todo!()
     // let (bond, status) = cache.mixnode_details(&identity).await;
     // if let Some(mut bond) = bond {
@@ -262,10 +270,10 @@ pub(crate) async fn compute_mixnode_reward_estimation(
 }
 
 #[openapi(tag = "status")]
-#[get("/mixnode/<identity>/stake-saturation")]
+#[get("/mixnode/<mix_id>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
     cache: &State<ValidatorCache>,
-    identity: String,
+    mix_id: NodeId,
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     todo!()
     // let (bond, _) = cache.mixnode_details(&identity).await;
@@ -294,10 +302,10 @@ pub(crate) async fn get_mixnode_stake_saturation(
 }
 
 #[openapi(tag = "status")]
-#[get("/mixnode/<identity>/inclusion-probability")]
+#[get("/mixnode/<mix_id>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<ValidatorCache>,
-    identity: String,
+    mix_id: NodeId,
 ) -> Json<Option<InclusionProbabilityResponse>> {
     let mixnodes = cache.mixnodes().await;
     // let rewarding_params = cache.epoch_reward_params().await.into_inner();
@@ -337,19 +345,20 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 }
 
 #[openapi(tag = "status")]
-#[get("/mixnode/<identity>/avg_uptime")]
+#[get("/mixnode/<mix_id>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    identity: String,
+    mix_id: NodeId,
 ) -> Result<Json<UptimeResponse>, ErrorResponse> {
-    let current_epoch = cache.current_epoch().await.into_inner();
-    let uptime = average_mixnode_uptime(&identity, current_epoch, storage).await?;
-
-    Ok(Json(UptimeResponse {
-        identity,
-        avg_uptime: uptime.u8(),
-    }))
+    todo!()
+    // let current_epoch = cache.current_epoch().await.into_inner();
+    // let uptime = average_mixnode_uptime(&identity, current_epoch, storage).await?;
+    //
+    // Ok(Json(UptimeResponse {
+    //     identity,
+    //     avg_uptime: uptime.u8(),
+    // }))
 }
 
 // DEPRECATED: the uptime is available as part of the `/mixnodes/detailed` endpoint
@@ -359,18 +368,19 @@ pub(crate) async fn get_mixnode_avg_uptimes(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
 ) -> Result<Json<Vec<UptimeResponse>>, ErrorResponse> {
-    let mixnodes = cache.mixnodes().await;
-    let current_epoch = cache.current_epoch().await.into_inner();
-
-    let mut response = Vec::new();
-    for mixnode in mixnodes {
-        let uptime = average_mixnode_uptime(mixnode.identity(), current_epoch, storage).await?;
-
-        response.push(UptimeResponse {
-            identity: mixnode.identity().to_string(),
-            avg_uptime: uptime.u8(),
-        })
-    }
-
-    Ok(Json(response))
+    todo!()
+    // let mixnodes = cache.mixnodes().await;
+    // let current_epoch = cache.current_epoch().await.into_inner();
+    //
+    // let mut response = Vec::new();
+    // for mixnode in mixnodes {
+    //     let uptime = average_mixnode_uptime(mixnode.identity(), current_epoch, storage).await?;
+    //
+    //     response.push(UptimeResponse {
+    //         identity: mixnode.identity().to_string(),
+    //         avg_uptime: uptime.u8(),
+    //     })
+    // }
+    //
+    // Ok(Json(response))
 }

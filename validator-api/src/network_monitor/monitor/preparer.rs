@@ -186,7 +186,7 @@ impl PacketPreparer {
         let initialisation_backoff = Duration::from_secs(30);
         loop {
             let gateways = self.validator_cache.gateways_all().await;
-            let mixnodes = self.validator_cache.mixnodes_all().await;
+            let mixnodes = self.validator_cache.mixnodes_basic().await;
 
             if gateways.len() < minimum_full_routes {
                 info!(
@@ -228,7 +228,7 @@ impl PacketPreparer {
     async fn all_mixnodes_and_gateways(&self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!("Obtaining network topology...");
 
-        let mixnodes = self.validator_cache.mixnodes_all().await;
+        let mixnodes = self.validator_cache.mixnodes_basic().await;
         let gateways = self.validator_cache.gateways_all().await;
 
         (mixnodes, gateways)

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::ValidatorCache;
+use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::{GatewayBond, Interval, MixNodeBond};
+use mixnet_contract_common::{GatewayBond, Interval, MixNodeBond, NodeId};
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
@@ -12,7 +13,7 @@ use validator_api_requests::models::MixNodeBondAnnotated;
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes")]
-pub async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
+pub async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDetails>> {
     Json(cache.mixnodes().await)
 }
 
@@ -32,7 +33,7 @@ pub async fn get_gateways(cache: &State<ValidatorCache>) -> Json<Vec<GatewayBond
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/rewarded")]
-pub async fn get_rewarded_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
+pub async fn get_rewarded_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDetails>> {
     Json(cache.rewarded_set().await)
 }
 
@@ -46,7 +47,7 @@ pub async fn get_rewarded_set_detailed(
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active")]
-pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeBond>> {
+pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDetails>> {
     Json(cache.active_set().await)
 }
 
@@ -62,7 +63,7 @@ pub async fn get_active_set_detailed(
 #[get("/mixnodes/blacklisted")]
 pub async fn get_blacklisted_mixnodes(
     cache: &State<ValidatorCache>,
-) -> Json<Option<HashSet<String>>> {
+) -> Json<Option<HashSet<NodeId>>> {
     Json(cache.mixnodes_blacklist().await.map(|c| c.value))
 }
 
@@ -76,7 +77,9 @@ pub async fn get_blacklisted_gateways(
 
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/reward_params")]
-pub async fn get_interval_reward_params(cache: &State<ValidatorCache>) -> Json<RewardingParams> {
+pub async fn get_interval_reward_params(
+    cache: &State<ValidatorCache>,
+) -> Json<Option<RewardingParams>> {
     Json(cache.interval_reward_params().await.value)
 }
 

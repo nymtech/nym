@@ -4,6 +4,7 @@
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use mixnet_contract_common::reward_params::Performance;
+use mixnet_contract_common::{IdentityKey, NodeId};
 use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
@@ -15,6 +16,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::Error;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
@@ -113,7 +115,8 @@ impl From<Uptime> for Performance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeStatusReport {
-    pub(crate) identity: String,
+    pub(crate) mix_id: NodeId,
+    pub(crate) identity: IdentityKey,
     pub(crate) owner: String,
 
     pub(crate) most_recent: Uptime,
@@ -125,7 +128,8 @@ pub struct MixnodeStatusReport {
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         report_time: OffsetDateTime,
-        identity: String,
+        mix_id: NodeId,
+        identity: IdentityKey,
         owner: String,
         last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
@@ -139,6 +143,7 @@ impl MixnodeStatusReport {
         );
 
         MixnodeStatusReport {
+            mix_id,
             identity,
             owner,
             most_recent: node_uptimes.most_recent,
@@ -187,6 +192,7 @@ impl GatewayStatusReport {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeUptimeHistory {
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: String,
     pub(crate) owner: String,
 
@@ -194,8 +200,14 @@ pub struct MixnodeUptimeHistory {
 }
 
 impl MixnodeUptimeHistory {
-    pub(crate) fn new(identity: String, owner: String, history: Vec<HistoricalUptime>) -> Self {
+    pub(crate) fn new(
+        mix_id: NodeId,
+        identity: String,
+        owner: String,
+        history: Vec<HistoricalUptime>,
+    ) -> Self {
         MixnodeUptimeHistory {
+            mix_id,
             identity,
             owner,
             history,
@@ -293,32 +305,38 @@ impl OpenApiResponderInner for ErrorResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorApiStorageError {
-    MixnodeReportNotFound(String),
+    MixnodeReportNotFound(NodeId),
     GatewayReportNotFound(String),
-    MixnodeUptimeHistoryNotFound(String),
+    MixnodeUptimeHistoryNotFound(NodeId),
     GatewayUptimeHistoryNotFound(String),
 
     // I don't think we want to expose errors to the user about what really happened
     InternalDatabaseError(String),
 }
 
+impl From<sqlx::Error> for ValidatorApiStorageError {
+    fn from(err: Error) -> Self {
+        ValidatorApiStorageError::InternalDatabaseError(err.to_string())
+    }
+}
+
 impl Display for ValidatorApiStorageError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ValidatorApiStorageError::MixnodeReportNotFound(identity) => write!(
+            ValidatorApiStorageError::MixnodeReportNotFound(mix_id) => write!(
                 f,
                 "Could not find status report associated with mixnode {}",
-                identity
+                mix_id
             ),
             ValidatorApiStorageError::GatewayReportNotFound(identity) => write!(
                 f,
                 "Could not find status report associated with gateway {}",
                 identity
             ),
-            ValidatorApiStorageError::MixnodeUptimeHistoryNotFound(identity) => write!(
+            ValidatorApiStorageError::MixnodeUptimeHistoryNotFound(mix_id) => write!(
                 f,
                 "Could not find uptime history associated with mixnode {}",
-                identity
+                mix_id
             ),
             ValidatorApiStorageError::GatewayUptimeHistoryNotFound(identity) => write!(
                 f,

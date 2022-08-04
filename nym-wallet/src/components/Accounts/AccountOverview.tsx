@@ -7,8 +7,8 @@ export const AccountOverview = ({ account, onClick }: { account: AccountEntry; o
   <Button
     startIcon={<AccountAvatar name={account.id} />}
     sx={{ color: 'text.primary' }}
+    color="inherit"
     onClick={onClick}
-    disableRipple
   >
     {account.id}
   </Button>

@@ -254,10 +254,7 @@ pub async fn get_mix_node_description(
     host: &str,
     port: u16,
 ) -> Result<NodeDescription, BackendError> {
-    let res = fetch_mix_node_description(host, port).await;
-
-    match res {
-        Ok(node_description) => Ok(node_description),
-        Err(e) => Err(BackendError::ReqwestError { source: e }),
-    }
+    return fetch_mix_node_description(host, port)
+        .await
+        .map_err(|e| BackendError::ReqwestError { source: e });
 }

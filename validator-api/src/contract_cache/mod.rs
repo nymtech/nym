@@ -525,7 +525,7 @@ impl ValidatorCache {
         }
     }
 
-    pub(crate) async fn current_epoch(&self) -> Cache<Option<Interval>> {
+    pub(crate) async fn current_interval(&self) -> Cache<Option<Interval>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.current_interval.clone(),
             Err(e) => {
@@ -537,40 +537,31 @@ impl ValidatorCache {
 
     pub async fn mixnode_details(
         &self,
-        identity: IdentityKeyRef<'_>,
+        mix_id: NodeId,
     ) -> (Option<MixNodeBondAnnotated>, MixnodeStatus) {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
 
         let active_set = &self.active_set_detailed().await.value;
-        if let Some(bond) = active_set
-            .iter()
-            .find(|mix| mix.mix_node().identity_key == identity)
-        {
+        if let Some(bond) = active_set.iter().find(|mix| mix.mix_id() == mix_id) {
             return (Some(bond.clone()), MixnodeStatus::Active);
         }
 
         let rewarded_set = &self.rewarded_set_detailed().await.value;
-        if let Some(bond) = rewarded_set
-            .iter()
-            .find(|mix| mix.mix_node().identity_key == identity)
-        {
+        if let Some(bond) = rewarded_set.iter().find(|mix| mix.mix_id() == mix_id) {
             return (Some(bond.clone()), MixnodeStatus::Standby);
         }
 
         let all_bonded = &self.mixnodes_detailed().await;
-        if let Some(bond) = all_bonded
-            .iter()
-            .find(|mix| mix.mix_node().identity_key == identity)
-        {
+        if let Some(bond) = all_bonded.iter().find(|mix| mix.mix_id() == mix_id) {
             (Some(bond.clone()), MixnodeStatus::Inactive)
         } else {
             (None, MixnodeStatus::NotFound)
         }
     }
 
-    pub async fn mixnode_status(&self, identity: IdentityKey) -> MixnodeStatus {
-        self.mixnode_details(&identity).await.1
+    pub async fn mixnode_status(&self, mix_id: NodeId) -> MixnodeStatus {
+        self.mixnode_details(mix_id).await.1
     }
 
     pub fn initialised(&self) -> bool {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::models::Uptime;
+use crate::contract_cache::reward_estimate::compute_reward_estimate;
 use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
@@ -9,7 +10,7 @@ use crate::node_status_api::models::{
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::reward_params::{NodeRewardParams, RewardingParams};
+use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
 use mixnet_contract_common::{Interval, MixNodeBond, NodeId};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -18,8 +19,9 @@ use rocket_okapi::openapi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, DeprecatedRewardEstimationResponse, InclusionProbabilityResponse,
-    MixnodeStatusResponse, StakeSaturationResponse, UptimeResponse,
+    DeprecatedRewardEstimationResponse, GatewayCoreStatusResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 
 #[openapi(tag = "status")]
@@ -54,13 +56,13 @@ pub(crate) async fn gateway_core_status_count(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
     since: Option<i64>,
-) -> Json<CoreNodeStatusResponse> {
+) -> Json<GatewayCoreStatusResponse> {
     let count = storage
         .get_core_gateway_status_count(identity, since)
         .await
         .unwrap_or_default();
 
-    Json(CoreNodeStatusResponse {
+    Json(GatewayCoreStatusResponse {
         identity: identity.to_string(),
         count,
     })
@@ -82,34 +84,8 @@ async fn average_mixnode_uptime(
     // })
 }
 
-fn estimate_reward(
-    mixnode: &MixNodeDetails,
-    reward_params: RewardingParams,
-    as_at: i64,
-) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
-    todo!()
-    // match mixnode_bond.estimate_reward(base_operator_cost, &reward_params) {
-    //     Ok(reward_estimate) => {
-    //         let response = DeprecatedRewardEstimationResponse {
-    //             estimated_total_node_reward: reward_estimate.total_node_reward,
-    //             estimated_operator_reward: reward_estimate.operator_reward,
-    //             estimated_delegators_reward: reward_estimate.delegators_reward,
-    //             estimated_node_profit: reward_estimate.node_profit,
-    //             estimated_operator_cost: reward_estimate.operator_cost,
-    //             reward_params,
-    //             as_at,
-    //         };
-    //         Ok(Json(response))
-    //     }
-    //     Err(e) => Err(ErrorResponse::new(
-    //         e.to_string(),
-    //         Status::InternalServerError,
-    //     )),
-    // }
-}
-
 pub(crate) async fn _mixnode_report(
-    storage: &State<ValidatorApiStorage>,
+    storage: &ValidatorApiStorage,
     mix_id: NodeId,
 ) -> Result<MixnodeStatusReport, ErrorResponse> {
     storage
@@ -127,18 +103,36 @@ pub(crate) async fn mixnode_report(
     Ok(Json(_mixnode_report(storage, mix_id).await?))
 }
 
+pub(crate) async fn _mixnode_uptime_history(
+    storage: &ValidatorApiStorage,
+    mix_id: NodeId,
+) -> Result<MixnodeUptimeHistory, ErrorResponse> {
+    storage
+        .get_mixnode_uptime_history(mix_id)
+        .await
+        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+}
+
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/history")]
 pub(crate) async fn mixnode_uptime_history(
     storage: &State<ValidatorApiStorage>,
     mix_id: NodeId,
 ) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
-    todo!()
-    // storage
-    //     .get_mixnode_uptime_history(identity)
-    //     .await
-    //     .map(Json)
-    //     .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+    Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
+}
+
+pub(crate) async fn _mixnode_core_status_count(
+    storage: &State<ValidatorApiStorage>,
+    mix_id: NodeId,
+    since: Option<i64>,
+) -> Result<MixnodeCoreStatusResponse, ErrorResponse> {
+    let count = storage
+        .get_core_mixnode_status_count(mix_id, since)
+        .await
+        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
+
+    Ok(MixnodeCoreStatusResponse { mix_id, count })
 }
 
 #[openapi(tag = "status")]
@@ -147,17 +141,19 @@ pub(crate) async fn mixnode_core_status_count(
     storage: &State<ValidatorApiStorage>,
     mix_id: NodeId,
     since: Option<i64>,
-) -> Json<CoreNodeStatusResponse> {
-    todo!()
-    // let count = storage
-    //     .get_core_mixnode_status_count(identity, since)
-    //     .await
-    //     .unwrap_or_default();
-    //
-    // Json(CoreNodeStatusResponse {
-    //     identity: identity.to_string(),
-    //     count,
-    // })
+) -> Result<Json<MixnodeCoreStatusResponse>, ErrorResponse> {
+    Ok(Json(
+        _mixnode_core_status_count(storage, mix_id, since).await?,
+    ))
+}
+
+pub(crate) async fn _get_mixnode_status(
+    cache: &ValidatorCache,
+    mix_id: NodeId,
+) -> MixnodeStatusResponse {
+    MixnodeStatusResponse {
+        status: cache.mixnode_status(mix_id).await,
+    }
 }
 
 #[openapi(tag = "status")]
@@ -166,52 +162,72 @@ pub(crate) async fn get_mixnode_status(
     cache: &State<ValidatorCache>,
     mix_id: NodeId,
 ) -> Json<MixnodeStatusResponse> {
-    todo!()
-    // Json(MixnodeStatusResponse {
-    //     status: cache.mixnode_status(identity).await,
-    // })
+    Json(_get_mixnode_status(cache, mix_id).await)
+}
+
+pub(crate) async fn _get_mixnode_reward_estimation(
+    cache: &State<ValidatorCache>,
+    mix_id: NodeId,
+) -> Result<RewardEstimationResponse, ErrorResponse> {
+    let (mixnode, status) = cache.mixnode_details(mix_id).await;
+    if let Some(mixnode) = mixnode {
+        let reward_params = cache.interval_reward_params().await;
+        let as_at = reward_params.timestamp();
+        let reward_params = reward_params
+            .into_inner()
+            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+        let current_interval = cache
+            .current_interval()
+            .await
+            .into_inner()
+            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+
+        let reward_estimation = compute_reward_estimate(
+            &mixnode.mixnode_details,
+            mixnode.performance,
+            status.into(),
+            reward_params,
+            current_interval,
+        );
+
+        Ok(RewardEstimationResponse {
+            estimation: reward_estimation,
+            reward_params,
+            epoch: current_interval,
+            as_at,
+        })
+    } else {
+        Err(ErrorResponse::new(
+            "mixnode bond not found",
+            Status::NotFound,
+        ))
+    }
 }
 
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<ValidatorCache>,
-    storage: &State<ValidatorApiStorage>,
     mix_id: NodeId,
-) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
-    todo!()
-    // let (bond, status) = cache.mixnode_details(&identity).await;
-    // if let Some(bond) = bond {
-    //     let reward_params = cache.epoch_reward_params().await;
-    //     let as_at = reward_params.timestamp();
-    //     let reward_params = reward_params.into_inner();
-    //     let base_operator_cost = cache.base_operator_cost().await.into_inner();
-    //
-    //     let current_epoch = cache.current_epoch().await.into_inner();
-    //     info!("{:?}", current_epoch);
-    //
-    //     let uptime = average_mixnode_uptime(&identity, current_epoch, storage)
-    //         .await?
-    //         .u8();
-    //
-    //     let node_reward_params = NodeRewardParams::new(0, u128::from(uptime), status.is_active());
-    //     let reward_params = RewardParams::new(reward_params, node_reward_params);
-    //
-    //     estimate_reward(&bond.mixnode_bond, base_operator_cost, reward_params, as_at)
-    // } else {
-    //     Err(ErrorResponse::new(
-    //         "mixnode bond not found",
-    //         Status::NotFound,
-    //     ))
-    // }
+) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
+    Ok(Json(_get_mixnode_reward_estimation(cache, mix_id).await?))
 }
 
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct ComputeRewardEstParam {
-    uptime: Option<u8>,
-    is_active: Option<bool>,
+    performance: Option<Performance>,
+    active_in_rewarded_set: Option<bool>,
     pledge_amount: Option<u64>,
     total_delegation: Option<u64>,
+}
+
+pub(crate) async fn _compute_mixnode_reward_estimation(
+    user_reward_param: ComputeRewardEstParam,
+    cache: &ValidatorCache,
+    storage: &ValidatorApiStorage,
+    mix_id: NodeId,
+) -> Result<RewardEstimationResponse, ErrorResponse> {
+    todo!()
 }
 
 #[openapi(tag = "status")]
@@ -224,7 +240,7 @@ pub(crate) async fn compute_mixnode_reward_estimation(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
     mix_id: NodeId,
-) -> Result<Json<DeprecatedRewardEstimationResponse>, ErrorResponse> {
+) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     todo!()
     // let (bond, status) = cache.mixnode_details(&identity).await;
     // if let Some(mut bond) = bond {

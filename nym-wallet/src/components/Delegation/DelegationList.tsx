@@ -153,6 +153,15 @@ export const DelegationList: React.FC<{
     setOrderBy(property);
   };
 
+  const getRewardValue = (item: DelegationWithEverything | DelegationEvent) => {
+    if (isPendingDelegation(item)) {
+      return '';
+    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { accumulated_rewards } = item;
+    return !accumulated_rewards ? '-' : `${accumulated_rewards.amount} ${accumulated_rewards.denom}`;
+  };
+
   return (
     <TableContainer>
       <Table sx={{ width: '100%' }}>
@@ -227,26 +236,35 @@ export const DelegationList: React.FC<{
                     </span>
                   </Tooltip>
                 </TableCell>
-                <TableCell sx={{ textTransform: 'uppercase' }}>
-                  {isPendingDelegation(item) || !item.accumulated_rewards
-                    ? '-'
-                    : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}
-                </TableCell>
+                <TableCell sx={{ textTransform: 'uppercase' }}>{getRewardValue(item)}</TableCell>
 
                 <TableCell align="right">
-                  {!isPendingDelegation(item) && !item.pending_events.length ? (
+                  {!isPendingDelegation(item) && !item.pending_events.length && (
                     <DelegationsActionsMenu
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
                       disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
                       disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
                     />
-                  ) : (
+                  )}
+                  {!isPendingDelegation(item) && item.pending_events.length > 0 && (
                     <Tooltip
-                      title="There will be a new epoch roughly every hour when your changes will take effect"
+                      title="Your changes will take effect when
+the new epoch starts. There is a new
+epoch every hour."
                       arrow
                     >
-                      <Chip label="Pending events" />
+                      <Chip label="Pending Events" />
+                    </Tooltip>
+                  )}
+                  {isPendingDelegation(item) && (
+                    <Tooltip
+                      title={`Your delegation of ${item.amount?.amount} ${item.amount?.denom} will take effect 
+                        when the new epoch starts. There is a new
+                        epoch every hour.`}
+                      arrow
+                    >
+                      <Chip label="Delegation Pending" />
                     </Tooltip>
                   )}
                 </TableCell>

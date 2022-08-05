@@ -56,12 +56,15 @@ const darkMode: NymPaletteVariant = {
   nav: {
     background: '#292E34',
   },
+  hover: {
+    background: '#36393E',
+  },
 };
 
 const lightMode: NymPaletteVariant = {
   mode: 'light',
   background: {
-    main: '#E5E5E5',
+    main: '#F4F6F8',
     paper: '#FFFFFF',
     warn: '#FFE600',
     grey: '#F5F5F5',
@@ -79,6 +82,9 @@ const lightMode: NymPaletteVariant = {
   },
   nav: {
     background: '#FFFFFF',
+  },
+  hover: {
+    background: '#F9F9F9',
   },
 };
 

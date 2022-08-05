@@ -68,9 +68,16 @@ export const Nav = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-start',
+        marginLeft: 12,
+        marginRight: 12,
       }}
     >
-      <List disablePadding>
+      <List
+        disablePadding
+        sx={{
+          width: '100%',
+        }}
+      >
         {routesSchema
           .filter(({ mode }) => {
             if (!mode) {
@@ -86,17 +93,35 @@ export const Nav = () => {
             }
           })
           .map(({ Icon, onClick, label, route }) => (
-            <ListItem disableGutters key={label} onClick={onClick} sx={{ cursor: 'pointer' }}>
+            <ListItem
+              disableGutters
+              key={label}
+              onClick={onClick}
+              sx={{
+                cursor: 'pointer',
+                py: 2,
+                paddingLeft: 3.5,
+                borderRadius: 1,
+                '&:hover': { backgroundColor: (theme) => theme.palette.nym.nymWallet.hover.background },
+              }}
+            >
               <ListItemIcon
                 sx={{
+                  height: '20px',
                   minWidth: 30,
                   color: location.pathname === route ? 'primary.main' : 'text.primary',
                 }}
               >
-                <Icon sx={{ fontSize: 20 }} />
+                <Icon
+                  sx={{
+                    fontSize: 20,
+                  }}
+                />
               </ListItemIcon>
               <ListItemText
                 sx={{
+                  height: '20px',
+                  margin: 0,
                   color: location.pathname === route ? 'primary.main' : 'text.primary',
                   '& .MuiListItemText-primary': {
                     fontSize: 14,

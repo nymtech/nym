@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 
+use config_common::defaults::setup_env;
 use tauri::Menu;
 use tokio::sync::RwLock;
 
@@ -24,6 +25,7 @@ mod window;
 
 fn main() {
     setup_logging();
+    setup_env(None);
     println!("Starting up...");
 
     // As per breaking change description here

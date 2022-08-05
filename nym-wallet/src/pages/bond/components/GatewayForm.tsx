@@ -63,7 +63,7 @@ export const GatewayForm = ({
     resolver: yupResolver(gatewayValidationSchema),
     defaultValues,
   });
-  const { userBalance, clientDetails, denom } = useContext(AppContext);
+  const { userBalance, clientDetails } = useContext(AppContext);
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
@@ -209,7 +209,7 @@ export const GatewayForm = ({
               fullWidth
               label="Amount"
               onChanged={(val) => setValue('amount', val, { shouldValidate: true })}
-              denom={denom}
+              denom={clientDetails?.display_mix_denom}
               validationError={errors.amount?.amount?.message}
             />
           </Grid>

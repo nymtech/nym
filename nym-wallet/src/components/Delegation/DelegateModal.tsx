@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';
@@ -31,7 +30,7 @@ export const DelegateModal: React.FC<{
   estimatedReward?: number;
   profitMarginPercentage?: number | null;
   nodeUptimePercentage?: number | null;
-  currency: string;
+  denom: CurrencyDenom;
   initialAmount?: string;
   hasVestingContract: boolean;
   sx?: SxProps;
@@ -48,7 +47,7 @@ export const DelegateModal: React.FC<{
   rewardInterval,
   accountBalance,
   estimatedReward,
-  currency,
+  denom,
   profitMarginPercentage,
   nodeUptimePercentage,
   initialAmount,
@@ -103,7 +102,7 @@ export const DelegateModal: React.FC<{
     }
 
     if (amount && Number(amount) < MIN_AMOUNT_TO_DELEGATE) {
-      errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${currency}`;
+      errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${denom.toUpperCase()}`;
       newValidatedValue = false;
     }
 
@@ -118,7 +117,7 @@ export const DelegateModal: React.FC<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom: currency as CurrencyDenom }, tokenPool, fee);
+      onOk(identityKey, { amount, denom }, tokenPool, fee);
     }
   };
 
@@ -169,8 +168,8 @@ export const DelegateModal: React.FC<{
         onPrev={resetFeeState}
         onConfirm={handleOk}
       >
-        <ModalListItem label="Node identity key" value={identityKey} divider />
-        <ModalListItem label="Amount" value={`${amount} ${currency}`} divider />
+        <ModalListItem label="Node identity key:" value={identityKey} divider />
+        <ModalListItem label="Amount:" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
     );
   }
@@ -181,27 +180,28 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (identityKey && amount) {
-          handleConfirm({ identity: identityKey, value: { amount, denom: currency as CurrencyDenom } });
+          handleConfirm({ identity: identityKey, value: { amount, denom } });
         }
       }}
       header={header || 'Delegate'}
-      subHeader="Delegate to mixnode"
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
       sx={sx}
       backdropProps={backdropProps}
     >
-      <IdentityKeyFormField
-        required
-        fullWidth
-        placeholder="Node identity key"
-        onChanged={handleIdentityKeyChanged}
-        initialValue={identityKey}
-        readOnly={Boolean(initialIdentityKey)}
-        textFieldProps={{
-          autoFocus: !initialIdentityKey,
-        }}
-      />
+      <Box sx={{ mt: 2 }}>
+        <IdentityKeyFormField
+          required
+          fullWidth
+          placeholder="Node identity key"
+          onChanged={handleIdentityKeyChanged}
+          initialValue={identityKey}
+          readOnly={Boolean(initialIdentityKey)}
+          textFieldProps={{
+            autoFocus: !initialIdentityKey,
+          }}
+        />
+      </Box>
       <Typography
         component="div"
         textAlign="left"
@@ -219,6 +219,7 @@ export const DelegateModal: React.FC<{
           initialValue={amount}
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
+          denom={denom}
         />
       </Box>
       <Typography
@@ -230,24 +231,30 @@ export const DelegateModal: React.FC<{
         {errorAmount}
       </Typography>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance" value={accountBalance} divider />
+        <ModalListItem label="Account balance:" value={accountBalance} divider strong />
       </Box>
 
-      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
+      <ModalListItem label="Rewards payout interval:" value={rewardInterval} hidden divider />
       <ModalListItem
-        label="Node profit margin"
+        label="Node profit margin:"
         value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}
         hidden={profitMarginPercentage === undefined}
         divider
       />
       <ModalListItem
-        label="Node uptime"
+        label="Node avg. uptime:"
         value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
         hidden={nodeUptimePercentage === undefined}
         divider
       />
 
-      <ModalListItem label="Node est. reward per epoch" value={`${estimatedReward} ${currency}`} hidden divider />
+      <ModalListItem
+        label="Node est. reward per epoch:"
+        value={`${estimatedReward} ${denom.toUpperCase()}`}
+        hidden
+        divider
+      />
+      <ModalListItem label="Est. fee for this transaction will be calculated in the next page" />
     </SimpleModal>
   );
 };

@@ -39,12 +39,11 @@ mod tests {
     use crate::contract::execute;
     use crate::storage::load_account;
     use crate::support::tests::helpers::{
-        init_contract, vesting_account_mid_fixture, vesting_account_new_fixture,
+        init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
-    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::{Gateway, MixNode};
@@ -55,7 +54,7 @@ mod tests {
     fn test_account_creation() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("not_admin", &coins(1_000_000_000_000, MIX_DENOM.base));
+        let info = mock_info("not_admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
         let msg = ExecuteMsg::CreateAccount {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
@@ -65,7 +64,7 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert!(response.is_err());
 
-        let info = mock_info("admin", &coins(1_000_000_000_000, MIX_DENOM.base));
+        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
             .unwrap()
@@ -131,7 +130,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawVestedCoins {
             amount: Coin {
                 amount: Uint128::new(1),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
         };
         let info = mock_info("new_owner", &[]);
@@ -186,8 +185,12 @@ mod tests {
             Timestamp::from_seconds(account.start_time().seconds() + vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
         assert_eq!(current_period, Period::In(1));
-        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
+        let vested_coins = account
+            .get_vested_coins(Some(block_time), &env, &deps.storage)
+            .unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(Some(block_time), &env, &deps.storage)
+            .unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
@@ -207,8 +210,12 @@ mod tests {
             Timestamp::from_seconds(account.start_time().seconds() + 5 * vesting_period + 1);
         let current_period = account.get_current_vesting_period(block_time);
         assert_eq!(current_period, Period::In(5));
-        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
+        let vested_coins = account
+            .get_vested_coins(Some(block_time), &env, &deps.storage)
+            .unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(Some(block_time), &env, &deps.storage)
+            .unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
@@ -230,8 +237,12 @@ mod tests {
         );
         let current_period = account.get_current_vesting_period(block_time);
         assert_eq!(current_period, Period::After);
-        let vested_coins = account.get_vested_coins(Some(block_time), &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(Some(block_time), &env).unwrap();
+        let vested_coins = account
+            .get_vested_coins(Some(block_time), &env, &deps.storage)
+            .unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(Some(block_time), &env, &deps.storage)
+            .unwrap();
         assert_eq!(
             vested_coins.amount,
             Uint128::new(account.get_original_vesting().amount().amount.u128())
@@ -245,8 +256,10 @@ mod tests {
         let env = mock_env();
         let account = vesting_account_mid_fixture(&mut deps.storage, &env);
 
-        let vested_coins = account.get_vested_coins(None, &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(None, &env, &deps.storage)
+            .unwrap();
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
         assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
@@ -262,7 +275,7 @@ mod tests {
 
         let delegation = Coin {
             amount: Uint128::new(90_000_000_000),
-            denom: MIX_DENOM.base.to_string(),
+            denom: TEST_COIN_DENOM.to_string(),
         };
 
         let ok = account.try_delegate_to_mixnode(
@@ -273,8 +286,10 @@ mod tests {
         );
         assert!(ok.is_ok());
 
-        let vested_coins = account.get_vested_coins(None, &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(None, &env, &deps.storage)
+            .unwrap();
         assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
         assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
 
@@ -333,8 +348,10 @@ mod tests {
         let withdrawn = account.load_withdrawn(&deps.storage).unwrap();
         assert_eq!(withdrawn, Uint128::new(250_000_000_000));
 
-        let vested_coins = account.get_vested_coins(None, &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(None, &env, &deps.storage)
+            .unwrap();
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
         assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
@@ -352,8 +369,10 @@ mod tests {
         );
         assert!(ok.is_ok());
 
-        let vested_coins = account.get_vested_coins(None, &env).unwrap();
-        let vesting_coins = account.get_vesting_coins(None, &env).unwrap();
+        let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
+        let vesting_coins = account
+            .get_vesting_coins(None, &env, &deps.storage)
+            .unwrap();
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
         assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
@@ -388,7 +407,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -399,7 +418,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -411,7 +430,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(20_000_000_000),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -426,7 +445,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -522,7 +541,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -534,7 +553,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -550,7 +569,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(10_000_000_001),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -642,7 +661,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -654,7 +673,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,
@@ -670,7 +689,7 @@ mod tests {
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(500_000_000_001),
-                denom: MIX_DENOM.base.to_string(),
+                denom: TEST_COIN_DENOM.to_string(),
             },
             &env,
             &mut deps.storage,

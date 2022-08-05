@@ -21,7 +21,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   const [isLoading, setIsLoading] = useState(false);
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
 
-  const { clientDetails, userBalance, network, denom } = useContext(AppContext);
+  const { clientDetails, userBalance, network } = useContext(AppContext);
   const { fee, getFee } = useGetFee();
 
   const handleOnNext = async () => {
@@ -47,7 +47,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
     try {
       const txResponse = await send({ amount: val, address: to, memo: '', fee: fee?.fee });
       setTxDetails({
-        amount: `${amount?.amount} ${denom}`,
+        amount: `${amount?.amount} ${clientDetails?.display_mix_denom.toUpperCase()}`,
         txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,
       });
     } catch (e) {
@@ -74,6 +74,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
         onClose={onClose}
         onPrev={() => setModal('send')}
         onSend={handleSend}
+        denom={clientDetails?.display_mix_denom || 'nym'}
         {...hasStorybookStyles}
       />
     );
@@ -87,6 +88,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       onClose={onClose}
       onNext={handleOnNext}
       error={error}
+      denom={clientDetails?.display_mix_denom}
       onAmountChange={(value) => setAmount(value)}
       onAddressChange={(value) => setToAddress(value)}
       {...hasStorybookStyles}

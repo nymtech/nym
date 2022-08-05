@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use ::config::NymConfig;
+use ::config_common::NymConfig;
 use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;

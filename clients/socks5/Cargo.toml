@@ -13,7 +13,6 @@ path = "src/lib.rs"
 [dependencies]
 clap = { version = "3.2.8", features = ["cargo", "derive"] }
 dirs = "4.0"
-dotenv = "0.15.0"
 futures = "0.3"
 log = "0.4"
 pin-project = "1.0"

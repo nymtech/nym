@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, TextField, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Stack, TextField, Typography, SxProps } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { DecCoin } from '@nymproject/types';
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
@@ -12,6 +11,7 @@ export const SendInputModal = ({
   toAddress,
   amount,
   balance,
+  denom,
   error,
   onNext,
   onClose,
@@ -24,6 +24,7 @@ export const SendInputModal = ({
   toAddress: string;
   amount?: DecCoin;
   balance?: string;
+  denom?: CurrencyDenom;
   error?: string;
   onNext: () => void;
   onClose: () => void;
@@ -69,14 +70,15 @@ export const SendInputModal = ({
             validate(value);
           }}
           initialValue={amount?.amount}
+          denom={denom}
         />
         <Typography fontSize="smaller" sx={{ color: 'error.main' }}>
           {error}
         </Typography>
       </Stack>
       <Stack gap={0.5} sx={{ mt: 2 }}>
-        <ModalListItem label="Account balance" value={balance} divider strong />
-        <ModalListItem label="Your address" value={fromAddress} divider />
+        <ModalListItem label="Account balance:" value={balance} divider strong />
+        <ModalListItem label="Your address:" value={fromAddress} divider />
         <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
           Est. fee for this transaction will be show on the next page
         </Typography>

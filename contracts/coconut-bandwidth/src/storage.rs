@@ -43,8 +43,8 @@ mod tests {
     use super::super::storage;
     use crate::storage::SpendCredential;
     use crate::support::tests::fixtures;
+    use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use coconut_bandwidth_contract_common::spend_credential::SpendCredentialStatus;
-    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn mark_as_spent_credential() {
         let mut mock_storage = MockStorage::new();
-        let funds = Coin::new(100, MIX_DENOM.base);
+        let funds = Coin::new(100, TEST_MIX_DENOM);
         let blind_serial_number = "blind_serial_number";
         let gateway_cosmos_address: Addr = Addr::unchecked("gateway_cosmos_address");
 

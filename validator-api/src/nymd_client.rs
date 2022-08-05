@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
-use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
@@ -51,17 +51,16 @@ impl Client<QueryNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
-        let network = DEFAULT_NETWORK;
-        let details = network
-            .details()
+
+        let details = NymNetworkDetails::new_from_env()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
             .with_urls(nymd_url, api_url);
 
-        let inner = validator_client::Client::new_query(client_config, network)
-            .expect("Failed to connect to nymd!");
+        let inner =
+            validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
         Client(Arc::new(RwLock::new(inner)))
     }
@@ -76,9 +75,7 @@ impl Client<SigningNymdClient> {
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
 
-        let network = DEFAULT_NETWORK;
-        let details = network
-            .details()
+        let details = NymNetworkDetails::new_from_env()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
@@ -90,7 +87,7 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let inner = validator_client::Client::new_signing(client_config, network, mnemonic)
+        let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 
         Client(Arc::new(RwLock::new(inner)))

@@ -55,7 +55,7 @@ export const UndelegateModal: React.FC<{
       />
 
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Delegation amount" value={`${amount} ${currency}`} divider />
+        <ModalListItem label="Delegation amount:" value={`${amount} ${currency}`} divider />
       </Box>
 
       <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>

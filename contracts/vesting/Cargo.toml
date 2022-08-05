@@ -16,7 +16,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
-config = { path = "../../common/config" }
 
 cosmwasm-std = { version = "1.0.0 "}
 cw-storage-plus = { version = "0.13.4", features = ["iterator"] }

@@ -16,18 +16,19 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   const [fee, setFee] = useState<FeeDetails>();
   const [tx, setTx] = useState<TTransactionDetails>();
 
-  const { userBalance, denom, network } = useContext(AppContext);
+  const { userBalance, clientDetails, network } = useContext(AppContext);
 
   const getFee = async () => {
-    if (userBalance.tokenAllocation?.spendable && denom) {
+    if (userBalance.tokenAllocation?.spendable && clientDetails?.display_mix_denom) {
       try {
         const simulatedFee = await simulateWithdrawVestedCoins({
-          amount: { amount: userBalance.tokenAllocation?.spendable, denom },
+          amount: { amount: userBalance.tokenAllocation?.spendable, denom: clientDetails?.display_mix_denom },
         });
         setFee(simulatedFee);
+        await userBalance.refreshBalances();
       } catch (e) {
         setFee({
-          amount: { amount: 'n/a', denom: denom as CurrencyDenom },
+          amount: { amount: 'n/a', denom: clientDetails?.display_mix_denom.toUpperCase() as CurrencyDenom },
           fee: { Auto: null },
         });
         Console.error(e);
@@ -40,16 +41,19 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   }, []);
 
   const handleTransfer = async () => {
-    if (userBalance.tokenAllocation?.spendable && denom) {
+    if (userBalance.tokenAllocation?.spendable && clientDetails?.display_mix_denom) {
       setState('loading');
       try {
-        const txResponse = await withdrawVestedCoins({
-          amount: userBalance.tokenAllocation?.spendable,
-          denom: denom as CurrencyDenom,
-        });
+        const txResponse = await withdrawVestedCoins(
+          {
+            amount: userBalance.tokenAllocation?.spendable,
+            denom: clientDetails?.display_mix_denom,
+          },
+          fee?.fee,
+        );
         setState('success');
         setTx({
-          amount: `${userBalance.tokenAllocation?.spendable} ${denom}`,
+          amount: `${userBalance.tokenAllocation?.spendable} ${clientDetails.display_mix_denom.toUpperCase()}`,
           url: `${urls(network).blockExplorer}/transaction/${txResponse.transaction_hash}`,
         });
         await userBalance.refreshBalances();
@@ -83,12 +87,12 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
         ) : (
           <>
             <ModalListItem
-              label="Unlocked transferrable tokens"
-              value={`${userBalance.tokenAllocation?.spendable} ${denom}`}
+              label="Unlocked transferrable tokens:"
+              value={`${userBalance.tokenAllocation?.spendable} ${clientDetails?.display_mix_denom.toUpperCase()}`}
               divider
             />
             <ModalListItem
-              label="Est. fee for this transaction"
+              label="Est. fee for this transaction:"
               value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : <CircularProgress size={15} />}
               divider
             />

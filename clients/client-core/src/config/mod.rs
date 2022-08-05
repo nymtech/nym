@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::*;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -366,7 +365,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
-            validator_api_urls: default_api_endpoints(),
+            validator_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),

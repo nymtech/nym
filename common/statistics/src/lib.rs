@@ -34,12 +34,16 @@ pub enum StatsData {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StatsGatewayData {
+    pub gateway_id: String,
     pub inbox_count: u32,
 }
 
 impl StatsGatewayData {
-    pub fn new(inbox_count: u32) -> Self {
-        StatsGatewayData { inbox_count }
+    pub fn new(gateway_id: String, inbox_count: u32) -> Self {
+        StatsGatewayData {
+            gateway_id,
+            inbox_count,
+        }
     }
 }
 

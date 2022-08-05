@@ -1,4 +1,3 @@
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     from_binary,
     testing::{mock_env, MockApi, MockQuerier, MockStorage},
@@ -9,6 +8,8 @@ use mixnet_contract_common::{
 };
 
 use crate::contract::query;
+
+use super::fixtures::TEST_COIN_DENOM;
 
 pub fn get_mix_nodes(deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>) -> Vec<MixNodeBond> {
     let result = query(
@@ -45,5 +46,5 @@ pub fn query_contract_balance(
     deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
 ) -> Vec<Coin> {
     let querier = deps.as_ref().querier;
-    vec![querier.query_balance(address, MIX_DENOM.base).unwrap()]
+    vec![querier.query_balance(address, TEST_COIN_DENOM).unwrap()]
 }

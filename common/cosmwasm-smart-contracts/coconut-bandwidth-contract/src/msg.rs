@@ -11,6 +11,7 @@ use crate::{deposit::DepositData, spend_credential::SpendCredentialData};
 pub struct InstantiateMsg {
     pub multisig_addr: String,
     pub pool_addr: String,
+    pub mix_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

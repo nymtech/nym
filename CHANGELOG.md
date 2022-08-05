@@ -8,10 +8,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Added
 
 - socks5 client/websocket client: add `--force-register-gateway` flag, useful when rerunning init ([#1353])
-- nym-connect: initial proof-of-concept of a UI around the socks5 client was added
-- nym-connect: add ability to select network requester and gateway ([#1427])
-- nym-connect: add ability to export gateway keys as JSON
-- nym-connect: add auto updater
 - all: added network compilation target to `--help` (or `--version`) commands ([#1256]).
 - explorer-api: learned how to sum the delegations by owner in a new endpoint.
 - explorer-api: add apy values to `mix_nodes` endpoint
@@ -39,10 +35,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native & socks5 clients: rerun init will now reuse previous gateway configuration instead of failing ([#1353])
 - native & socks5 clients: deduplicate big chunks of init logic
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
+- explorer-api: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service ([#1482]).
+- network-requester: fix filter for suffix-only domains ([#1487])
 
 ### Changed
 
-- nym-connect: reuse config id instead of creating a new id on each connection
 - validator-client: created internal `Coin` type that replaces coins from `cosmrs` and `cosmwasm` for API entrypoints [[#1295]]
 - all: updated all `cosmwasm`-related dependencies to `1.0.0` and `cw-storage-plus` to `0.13.4` [[#1318]]
 - all: updated `rocket` to `0.5.0-rc.2`.
@@ -52,6 +49,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - socks5 client/websocket client: upgrade to latest clap and switched to declarative commandline parsing.
 - validator-api: fee payment for multisig operations comes from the gateway account instead of the validator APIs' accounts ([#1419])
 - multisig-contract: Limit the proposal creating functionality to one address (coconut-bandwidth-contract address) ([#1457])
+- All binaries and cosmwasm blobs are configured at runtime now; binaries are configured using environment variables or .env files and contracts keep the configuration parameters in storage ([#1463])
+- gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
+
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -72,8 +72,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1393]: https://github.com/nymtech/nym/pull/1393
 [#1404]: https://github.com/nymtech/nym/pull/1404
 [#1419]: https://github.com/nymtech/nym/pull/1419
-[#1427]: https://github.com/nymtech/nym/pull/1427
 [#1457]: https://github.com/nymtech/nym/pull/1457
+[#1463]: https://github.com/nymtech/nym/pull/1463
+[#1478]: https://github.com/nymtech/nym/pull/1478
+[#1482]: https://github.com/nymtech/nym/pull/1482
+[#1487]: https://github.com/nymtech/nym/pull/1487
+
+## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
+
+### Added
+
+- nym-connect: initial proof-of-concept of a UI around the socks5 client was added
+- nym-connect: add ability to select network requester and gateway ([#1427])
+- nym-connect: add ability to export gateway keys as JSON
+- nym-connect: add auto updater
+
+### Changed
+
+- nym-connect: reuse config id instead of creating a new id on each connection
+
+[#1427]: https://github.com/nymtech/nym/pull/1427
 
 ## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
 

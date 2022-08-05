@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
+    pub mixnet_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -31,6 +32,12 @@ pub enum ExecuteMsg {
     CompoundOperatorReward {},
     CompoundDelegatorReward {
         mix_identity: IdentityKey,
+    },
+    CompoundReward {
+        operator: Option<String>,
+        delegator: Option<String>,
+        mix_identity: Option<IdentityKey>,
+        proxy: Option<String>,
     },
     BondMixnode {
         mix_node: MixNode,
@@ -115,6 +122,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetBlacklistedNodes {},
     GetCurrentOperatorCost {},
     GetRewardingValidatorAddress {},
     GetAllDelegationKeys {},
@@ -205,6 +213,31 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    pub mixnet_denom: String,
+    nodes_to_remove: Option<Vec<NodeToRemove>>,
+}
+
+impl MigrateMsg {
+    pub fn nodes_to_remove(&self) -> Vec<NodeToRemove> {
+        self.nodes_to_remove.clone().unwrap_or_default()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NodeToRemove {
+    owner: String,
+    proxy: Option<String>,
+}
+
+impl NodeToRemove {
+    pub fn owner(&self) -> &str {
+        &self.owner
+    }
+
+    pub fn proxy(&self) -> Option<&String> {
+        self.proxy.as_ref()
+    }
+}

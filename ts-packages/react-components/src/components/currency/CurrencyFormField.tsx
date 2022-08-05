@@ -18,7 +18,7 @@ export const CurrencyFormField: React.FC<{
   validationError?: string;
   placeholder?: string;
   label?: string;
-  denom?: string;
+  denom?: CurrencyDenom;
   onChanged?: (newValue: DecCoin) => void;
   onValidate?: (newValue: string | undefined, isValid: boolean, error?: string) => void;
   sx?: SxProps;
@@ -35,7 +35,7 @@ export const CurrencyFormField: React.FC<{
   onValidate,
   sx,
   showCoinMark = true,
-  denom = 'NYM',
+  denom = 'nym',
 }) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [value, setValue] = React.useState<string | undefined>(initialValue);
@@ -113,7 +113,7 @@ export const CurrencyFormField: React.FC<{
     if (onChanged) {
       const newMajorCurrencyAmount: DecCoin = {
         amount: newValue,
-        denom: denom as CurrencyDenom,
+        denom,
       };
       onChanged(newMajorCurrencyAmount);
     }
@@ -132,8 +132,8 @@ export const CurrencyFormField: React.FC<{
         required,
         endAdornment: showCoinMark && (
           <InputAdornment position="end">
-            {denom === 'unym' && <CoinMark height="20px" />}
-            {denom !== 'unym' && <span>NYMT</span>}
+            {denom === 'nym' && <CoinMark height="20px" />}
+            {denom !== 'nym' && <span>NYMT</span>}
           </InputAdornment>
         ),
         ...{

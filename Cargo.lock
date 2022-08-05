@@ -5398,15 +5398,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "streaming-stats"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0d670ce4e348a2081843569e0f79b21c99c91bb9028b3b3ecb0f050306de547"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "stringprep"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6290,29 +6281,6 @@ dependencies = [
  "url",
  "validator-api-requests",
  "vesting-contract",
- "vesting-contract-common",
-]
-
-[[package]]
-name = "validator-client-scripts"
-version = "0.1.0"
-dependencies = [
- "base64",
- "bip39",
- "bs58",
- "clap 3.2.8",
- "csv",
- "dotenv",
- "log",
- "mixnet-contract-common",
- "network-defaults",
- "pretty_env_logger",
- "serde",
- "serde_json",
- "streaming-stats",
- "tokio",
- "url",
- "validator-client",
  "vesting-contract-common",
 ]
 

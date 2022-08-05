@@ -19,10 +19,16 @@ impl NodeStatus {
     }
 }
 
-// Internally used struct to catch results from the database to find active mixnodes/gateways
-pub(crate) struct ActiveNode {
+// Internally used structs to catch results from the database to find active mixnodes
+pub(crate) struct ActiveMixnode {
     pub(crate) id: i64,
     pub(crate) mix_id: NodeId,
+    pub(crate) identity_key: String,
+    pub(crate) owner: String,
+}
+
+pub(crate) struct ActiveGateway {
+    pub(crate) id: i64,
     pub(crate) identity: String,
     pub(crate) owner: String,
 }

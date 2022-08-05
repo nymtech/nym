@@ -28,11 +28,11 @@ pub(crate) struct ActiveNode {
 }
 
 pub(crate) struct TestingRoute {
-    pub(crate) gateway_id: i64,
-    pub(crate) layer1_mix_id: i64,
-    pub(crate) layer2_mix_id: i64,
-    pub(crate) layer3_mix_id: i64,
-    pub(crate) monitor_run_id: i64,
+    pub(crate) gateway_db_id: i64,
+    pub(crate) layer1_mix_db_id: i64,
+    pub(crate) layer2_mix_db_id: i64,
+    pub(crate) layer3_mix_db_id: i64,
+    pub(crate) monitor_run_db_id: i64,
 }
 
 pub(crate) struct RewardingReport {

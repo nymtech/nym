@@ -15,5 +15,9 @@ pub fn truncate_reward(reward: Decimal, denom: impl Into<String>) -> Coin {
 }
 
 pub fn truncate_reward_amount(reward: Decimal) -> Uint128 {
-    reward * Uint128::new(1)
+    truncate_decimal(reward)
+}
+
+pub fn truncate_decimal(amount: Decimal) -> Uint128 {
+    amount * Uint128::new(1)
 }

@@ -1,9 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmrs::Decimal;
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 use mixnet_contract_common::rewarding::RewardEstimate;
 use mixnet_contract_common::{Interval, MixNode, NodeId, RewardedSetNodeStatus};
 use schemars::JsonSchema;
@@ -93,16 +95,12 @@ impl MixNodeBondAnnotated {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct DeprecatedRewardEstimationResponse {
-    pub estimated_total_node_reward: u64,
-    pub estimated_operator_reward: u64,
-    pub estimated_delegators_reward: u64,
-    pub estimated_node_profit: u64,
-    pub estimated_operator_cost: u64,
-
-    pub reward_params: RewardingParams,
-    pub as_at: i64,
+#[derive(Deserialize, JsonSchema)]
+pub struct ComputeRewardEstParam {
+    pub performance: Option<Performance>,
+    pub active_in_rewarded_set: Option<bool>,
+    pub pledge_amount: Option<u64>,
+    pub total_delegation: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
@@ -116,7 +114,7 @@ pub struct RewardEstimationResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
-    pub identity: String,
+    pub mix_id: NodeId,
     pub avg_uptime: u8,
 }
 
@@ -129,6 +127,9 @@ pub struct UptimeResponse {
 pub struct StakeSaturationResponse {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub saturation: StakeSaturation,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    pub uncapped_saturation: StakeSaturation,
     pub as_at: i64,
 }
 
@@ -151,6 +152,16 @@ impl From<f64> for SelectionChance {
         match p {
             p if p > 0.15 => SelectionChance::VeryHigh,
             p if p >= 0.05 => SelectionChance::Moderate,
+            _ => SelectionChance::Low,
+        }
+    }
+}
+
+impl From<Decimal> for SelectionChance {
+    fn from(p: Decimal) -> Self {
+        match p {
+            p if p >= Decimal::from_ratio(15u32, 100u32) => SelectionChance::VeryHigh,
+            p if p > Decimal::from_ratio(5u32, 100u32) => SelectionChance::Moderate,
             _ => SelectionChance::Low,
         }
     }
@@ -184,5 +195,105 @@ impl fmt::Display for InclusionProbabilityResponse {
             "in_active: {}, in_reserve: {}",
             self.in_active, self.in_reserve
         )
+    }
+}
+
+// deprecated
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DeprecatedUptimeResponse {
+    pub identity: String,
+    pub avg_uptime: u8,
+    pub deprecated: bool,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct DeprecatedComputeRewardEstParam {
+    pub uptime: Option<u8>,
+    pub is_active: Option<bool>,
+    pub pledge_amount: Option<u64>,
+    pub total_delegation: Option<u64>,
+    pub deprecated: bool,
+}
+
+impl From<DeprecatedComputeRewardEstParam> for ComputeRewardEstParam {
+    fn from(deprecated_params: DeprecatedComputeRewardEstParam) -> Self {
+        ComputeRewardEstParam {
+            performance: deprecated_params
+                .uptime
+                .map(|u| Performance::from_percentage_value(u as u64).unwrap_or_default()),
+            active_in_rewarded_set: deprecated_params.is_active,
+            pledge_amount: deprecated_params.pledge_amount,
+            total_delegation: deprecated_params.total_delegation,
+        }
+    }
+}
+
+impl From<ComputeRewardEstParam> for DeprecatedComputeRewardEstParam {
+    fn from(new_params: ComputeRewardEstParam) -> Self {
+        DeprecatedComputeRewardEstParam {
+            uptime: new_params.performance.map(|p| p.round_to_integer()),
+            is_active: new_params.active_in_rewarded_set,
+            pledge_amount: new_params.pledge_amount,
+            total_delegation: new_params.total_delegation,
+            deprecated: true,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DeprecatedRewardEstimationResponse {
+    pub estimated_total_node_reward: u64,
+    pub estimated_operator_reward: u64,
+    pub estimated_delegators_reward: u64,
+    pub estimated_node_profit: u64,
+    pub estimated_operator_cost: u64,
+
+    pub reward_params: RewardingParams,
+    pub as_at: i64,
+    pub deprecated: bool,
+}
+
+impl From<RewardEstimationResponse> for DeprecatedRewardEstimationResponse {
+    fn from(new_estimation: RewardEstimationResponse) -> Self {
+        DeprecatedRewardEstimationResponse {
+            estimated_total_node_reward: truncate_reward_amount(
+                new_estimation.estimation.total_node_reward,
+            )
+            .u128()
+            .try_into()
+            .unwrap_or_default(),
+            estimated_operator_reward: truncate_reward_amount(new_estimation.estimation.operator)
+                .u128()
+                .try_into()
+                .unwrap_or_default(),
+            estimated_delegators_reward: truncate_reward_amount(
+                new_estimation.estimation.delegates,
+            )
+            .u128()
+            .try_into()
+            .unwrap_or_default(),
+            estimated_node_profit: if new_estimation.estimation.operator
+                < new_estimation.estimation.operating_cost
+            {
+                0
+            } else {
+                truncate_reward_amount(
+                    new_estimation.estimation.operator - new_estimation.estimation.operating_cost,
+                )
+                .u128()
+                .try_into()
+                .unwrap_or_default()
+            },
+            estimated_operator_cost: truncate_reward_amount(
+                new_estimation.estimation.operating_cost,
+            )
+            .u128()
+            .try_into()
+            .unwrap_or_default(),
+            reward_params: new_estimation.reward_params,
+            as_at: new_estimation.as_at,
+            deprecated: true,
+        }
     }
 }

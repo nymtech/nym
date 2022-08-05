@@ -58,6 +58,7 @@ gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymsphinx = { path="../common/nymsphinx" }
+task = { path = "../common/task" }
 topology = { path="../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }
 validator-client = { path="../common/client-libs/validator-client", features = ["nymd-client"] }

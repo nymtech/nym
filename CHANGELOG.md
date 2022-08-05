@@ -25,6 +25,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-client: add `denom` argument and add simple test for querying an account balance
 - gateway, validator-api: Checks for coconut credential double spending attempts, taking the coconut bandwidth contract as source of truth ([#1457])
 - coconut-bandwidth-contract: Record the state of a coconut credential; create specific proposal for releasing funds ([#1457])
+- add validator-client script rust binary /tools/validator-client-scripts
 
 ### Fixed
 

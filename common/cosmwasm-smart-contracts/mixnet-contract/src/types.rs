@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
+use crate::rewarding::helpers::truncate_decimal;
 use crate::{Layer, RewardedSetNodeStatus};
 use cosmwasm_std::{Addr, Uint128};
 use cosmwasm_std::{Coin, Decimal};
@@ -48,6 +49,12 @@ impl Percent {
 
     pub fn value(&self) -> Decimal {
         self.0
+    }
+
+    pub fn round_to_integer(&self) -> u8 {
+        let hundred = Decimal::from_ratio(100u32, 1u32);
+        // we know the cast from u128 to u8 is a safe one since the internal value must be within 0 - 1 range
+        truncate_decimal(hundred * self.0).u128() as u8
     }
 }
 
@@ -220,5 +227,26 @@ mod tests {
             serde_json::from_str::<'_, Percent>("\"0.95\"").unwrap(),
             Percent::from_percentage_value(95).unwrap()
         )
+    }
+
+    #[test]
+    fn percent_to_absolute_integer() {
+        let p = serde_json::from_str::<'_, Percent>("\"0.0001\"").unwrap();
+        assert_eq!(p.round_to_integer(), 0);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.0099\"").unwrap();
+        assert_eq!(p.round_to_integer(), 0);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.0199\"").unwrap();
+        assert_eq!(p.round_to_integer(), 1);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.45123\"").unwrap();
+        assert_eq!(p.round_to_integer(), 45);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.999999999\"").unwrap();
+        assert_eq!(p.round_to_integer(), 99);
+
+        let p = serde_json::from_str::<'_, Percent>("\"1.00\"").unwrap();
+        assert_eq!(p.round_to_integer(), 100);
     }
 }

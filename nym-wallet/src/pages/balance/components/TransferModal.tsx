@@ -87,12 +87,12 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
         ) : (
           <>
             <ModalListItem
-              label="Unlocked transferrable tokens"
+              label="Unlocked transferrable tokens:"
               value={`${userBalance.tokenAllocation?.spendable} ${clientDetails?.display_mix_denom.toUpperCase()}`}
               divider
             />
             <ModalListItem
-              label="Est. fee for this transaction"
+              label="Est. fee for this transaction:"
               value={fee ? `${fee.amount?.amount} ${fee.amount?.denom}` : <CircularProgress size={15} />}
               divider
             />

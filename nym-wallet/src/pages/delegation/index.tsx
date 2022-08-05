@@ -138,7 +138,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        message: 'Delegations can take up to one hour to process',
+        message: 'This operation can take up to one hour to process',
         ...balances,
         transactions: [
           { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
@@ -240,11 +240,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
     try {
       const txs = await claimRewards(identityKey, fee);
-      const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem',
-        balance: bal?.printable_balance || '-',
         transactions: txs.map((tx) => ({
           url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
           hash: tx.transaction_hash,
@@ -270,11 +268,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
     try {
       const txs = await compoundRewards(identityKey, fee);
-      const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'compound',
-        balance: bal?.printable_balance || '-',
         transactions: txs.map((tx) => ({
           url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
           hash: tx.transaction_hash,

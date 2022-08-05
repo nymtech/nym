@@ -13,5 +13,5 @@ const getValue = ({ fee, isLoading, error }: TFeeProps) => {
 };
 
 export const ModalFee = ({ fee, isLoading, error }: TFeeProps) => (
-  <ModalListItem label="Estimated fee for this operation" value={getValue({ fee, isLoading, error })} />
+  <ModalListItem label="Estimated fee for this operation:" value={getValue({ fee, isLoading, error })} />
 );

@@ -10,9 +10,9 @@ export default {
 
 const Template: ComponentStory<typeof ConfirmTx> = (args) => (
   <ConfirmTx {...args}>
-    <ModalListItem label="Transaction type" value="Bond" divider />
-    <ModalListItem label="Current bond" value="100 NYM" divider />
-    <ModalListItem label="Additional bond" value="50 NYM" divider />
+    <ModalListItem label="Transaction type:" value="Bond" divider />
+    <ModalListItem label="Current bond:" value="100 NYM" divider />
+    <ModalListItem label="Additional bond:" value="50 NYM" divider />
   </ConfirmTx>
 );
 

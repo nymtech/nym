@@ -77,8 +77,8 @@ export const SendInputModal = ({
         </Typography>
       </Stack>
       <Stack gap={0.5} sx={{ mt: 2 }}>
-        <ModalListItem label="Account balance" value={balance} divider strong />
-        <ModalListItem label="Your address" value={fromAddress} divider />
+        <ModalListItem label="Account balance:" value={balance} divider strong />
+        <ModalListItem label="Your address:" value={fromAddress} divider />
         <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
           Est. fee for this transaction will be show on the next page
         </Typography>

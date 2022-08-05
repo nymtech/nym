@@ -20,8 +20,8 @@ export const ConfirmationModal = ({
 }) => (
   <SimpleModal header="Bond confirmation" open onOk={onConfirm} okLabel="Confirm" hideCloseIcon onBack={onPrev}>
     <Box sx={{ mt: 3 }}>
-      <ModalListItem label="Mixnode identity" value={identity} />
-      <ModalListItem label="Amount" value={`${amount.amount} ${amount.denom}`} />
+      <ModalListItem label="Mixnode identity:" value={identity} />
+      <ModalListItem label="Amount:" value={`${amount.amount} ${amount.denom}`} />
       <ModalFee fee={fee} isLoading={false} />
     </Box>
   </SimpleModal>

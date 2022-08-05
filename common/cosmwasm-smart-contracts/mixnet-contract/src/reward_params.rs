@@ -85,10 +85,16 @@ impl RewardingParams {
         one / (f * k - (f - one) * k_r)
     }
 
-    pub(crate) fn dec_rewarded_set_size(&self) -> Decimal {
+    pub fn dec_rewarded_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
         Decimal::from_atomics(self.rewarded_set_size, 0).unwrap()
+    }
+
+    pub fn dec_active_set_size(&self) -> Decimal {
+        // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
+        // with 0 decimal places
+        Decimal::from_atomics(self.active_set_size, 0).unwrap()
     }
 
     fn dec_standby_set_size(&self) -> Decimal {

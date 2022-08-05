@@ -4,7 +4,7 @@
 use crate::{filter, NetworkAddress};
 use crypto::asymmetric::{encryption, identity};
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::{Layer, MixNodeBond};
+use mixnet_contract_common::{Layer, MixNodeBond, NodeId};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
@@ -69,6 +69,7 @@ impl Display for MixnodeConversionError {
 
 #[derive(Debug, Clone)]
 pub struct Node {
+    pub mix_id: NodeId,
     pub owner: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
@@ -113,6 +114,7 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
             })?[0];
 
         Ok(Node {
+            mix_id: bond.id,
             owner: bond.owner.as_str().to_owned(),
             host,
             mix_host,

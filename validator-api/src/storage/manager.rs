@@ -44,6 +44,13 @@ impl AvgGatewayReliability {
 
 // all SQL goes here
 impl StorageManager {
+    pub(super) async fn get_mixnode_mix_ids_by_identity(
+        &self,
+        identity: &str,
+    ) -> Result<Vec<NodeId>, sqlx::Error> {
+        todo!()
+    }
+
     pub(super) async fn get_all_avg_mix_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
@@ -123,17 +130,21 @@ impl StorageManager {
     ///
     /// # Arguments
     ///
-    /// * `identity`: identity (base58-encoded public key) of the mixnode.
-    pub(super) async fn get_mixnode_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
-        let id = sqlx::query!(
-            "SELECT id FROM mixnode_details WHERE identity = ?",
-            identity
-        )
-        .fetch_optional(&self.connection_pool)
-        .await?
-        .map(|row| row.id);
-
-        Ok(id)
+    /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
+    pub(super) async fn get_mixnode_database_id(
+        &self,
+        mix_id: NodeId,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        todo!()
+        // let id = sqlx::query!(
+        //     "SELECT id FROM mixnode_details WHERE identity = ?",
+        //     identity
+        // )
+        // .fetch_optional(&self.connection_pool)
+        // .await?
+        // .map(|row| row.id);
+        //
+        // Ok(id)
     }
 
     /// Tries to obtain row id of given gateway given its identity
@@ -530,21 +541,22 @@ impl StorageManager {
         &self,
         testing_route: TestingRoute,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO testing_route 
-                (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id) 
-                VALUES (?, ?, ?, ?, ?);
-            "#,
-            testing_route.gateway_id,
-            testing_route.layer1_mix_id,
-            testing_route.layer2_mix_id,
-            testing_route.layer3_mix_id,
-            testing_route.monitor_run_id,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO testing_route
+        //         (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id)
+        //         VALUES (?, ?, ?, ?, ?);
+        //     "#,
+        //     testing_route.gateway_id,
+        //     testing_route.layer1_mix_id,
+        //     testing_route.layer2_mix_id,
+        //     testing_route.layer3_mix_id,
+        //     testing_route.monitor_run_id,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 
     /// Get the number of times mixnode with the particular id is present in any `testing_route`

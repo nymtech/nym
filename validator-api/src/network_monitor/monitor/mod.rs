@@ -12,6 +12,7 @@ use crate::storage::ValidatorApiStorage;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 use std::process;
+use task::ShutdownListener;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod gateway_clients_cache;
@@ -296,7 +297,7 @@ impl Monitor {
         self.test_nonce += 1;
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
         self.received_processor.start_receiving();
 
         // wait for validator cache to be ready
@@ -308,9 +309,13 @@ impl Monitor {
             .spawn_gateways_pinger(self.gateway_ping_interval);
 
         let mut run_interval = tokio::time::interval(self.run_interval);
-        loop {
-            run_interval.tick().await;
-            self.test_run().await;
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                _  = run_interval.tick() => self.test_run().await,
+                _ = shutdown.recv() => {
+                    trace!("UpdateHandler: Received shutdown");
+                }
+            }
         }
     }
 }

@@ -3325,6 +3325,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "task",
  "thiserror",
  "time 0.3.9",
  "tokio",

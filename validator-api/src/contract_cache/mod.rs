@@ -14,6 +14,7 @@ use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
+use task::ShutdownListener;
 
 use rocket::fairing::AdHoc;
 use serde::Serialize;
@@ -252,20 +253,26 @@ impl<C> ValidatorCacheRefresher<C> {
         Ok(())
     }
 
-    pub(crate) async fn run(&self)
+    pub(crate) async fn run(&self, mut shutdown: ShutdownListener)
     where
         C: CosmWasmClient + Sync,
     {
         let mut interval = time::interval(self.caching_interval);
-        loop {
-            interval.tick().await;
-            if let Err(err) = self.refresh_cache().await {
-                error!("Failed to refresh validator cache - {}", err);
-            } else {
-                // relaxed memory ordering is fine here. worst case scenario network monitor
-                // will just have to wait for an additional backoff to see the change.
-                // And so this will not really incur any performance penalties by setting it every loop iteration
-                self.cache.initialised.store(true, Ordering::Relaxed)
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if let Err(err) = self.refresh_cache().await {
+                        error!("Failed to refresh validator cache - {}", err);
+                    } else {
+                        // relaxed memory ordering is fine here. worst case scenario network monitor
+                        // will just have to wait for an additional backoff to see the change.
+                        // And so this will not really incur any performance penalties by setting it every loop iteration
+                        self.cache.initialised.store(true, Ordering::Relaxed)
+                    }
+                }
+                _ = shutdown.recv() => {
+                    trace!("UpdateHandler: Received shutdown");
+                }
             }
         }
     }

@@ -7,6 +7,7 @@ use crate::node_status_api::models::{
 use crate::node_status_api::ONE_DAY;
 use crate::storage::ValidatorApiStorage;
 use log::error;
+use task::ShutdownListener;
 use time::OffsetDateTime;
 use tokio::time::sleep;
 
@@ -67,18 +68,23 @@ impl HistoricalUptimeUpdater {
         Ok(())
     }
 
-    pub(crate) async fn run(&self) {
-        loop {
-            // start any updates a day after starting the task so that we would have complete data
-            sleep(ONE_DAY).await;
-            if let Err(err) = self.update_uptimes().await {
-                // normally that would have been a warning rather than an error,
-                // however, in this case it implies some underlying issues with our database
-                // that might affect the entire program
-                error!(
-                    "We failed to update daily uptimes of active nodes - {}",
-                    err
-                )
+    pub(crate) async fn run(&self, mut shutdown: ShutdownListener) {
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                _ = sleep(ONE_DAY) => {
+                    if let Err(err) = self.update_uptimes().await {
+                        // normally that would have been a warning rather than an error,
+                        // however, in this case it implies some underlying issues with our database
+                        // that might affect the entire program
+                        error!(
+                            "We failed to update daily uptimes of active nodes - {}",
+                            err
+                        )
+                    }
+                }
+                _ = shutdown.recv() => {
+                    trace!("UpdateHandler: Received shutdown");
+                }
             }
         }
     }

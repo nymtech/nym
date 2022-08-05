@@ -16,12 +16,13 @@ import {
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { DelegationWithEverything } from '@nymproject/types';
+import { DelegationEvent, DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { styled } from '@mui/material/styles';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
+import { isPendingDelegation, TDelegations } from '../../context/delegations';
 
 const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
@@ -71,13 +72,33 @@ function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   return 0;
 }
 
+function sortPendingDelegation(
+  a: DelegationWithEverything | DelegationEvent,
+  b: DelegationWithEverything | DelegationEvent,
+) {
+  if (isPendingDelegation(a) && isPendingDelegation(b)) return 0;
+  if (isPendingDelegation(b)) return -1;
+  if (isPendingDelegation(a)) return 1;
+  return 2;
+}
+
 function getComparator<Key extends keyof DelegationWithEverything>(
   order: Order,
   orderBy: Key,
-): (a: DelegationWithEverything, b: DelegationWithEverything) => number {
+): (a: DelegationWithEverything | DelegationEvent, b: DelegationWithEverything | DelegationEvent) => number {
   return order === 'desc'
-    ? (a, b) => descendingComparator(a, b, orderBy)
-    : (a, b) => -descendingComparator(a, b, orderBy);
+    ? (a, b) => {
+        const pendingSort = sortPendingDelegation(a, b);
+        if (pendingSort === 2)
+          return descendingComparator(a as DelegationWithEverything, b as DelegationWithEverything, orderBy);
+        return pendingSort;
+      }
+    : (a, b) => {
+        const pendingSort = -sortPendingDelegation(a, b);
+        if (pendingSort === 2)
+          return -descendingComparator(a as DelegationWithEverything, b as DelegationWithEverything, orderBy);
+        return pendingSort;
+      };
 }
 
 const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
@@ -119,7 +140,7 @@ const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onReq
 
 export const DelegationList: React.FC<{
   isLoading?: boolean;
-  items?: DelegationWithEverything[];
+  items?: TDelegations;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
   explorerUrl: string;
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
@@ -149,12 +170,19 @@ export const DelegationList: React.FC<{
                     noIcon
                   />
                 </TableCell>
-                <TableCell>{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
-                <TableCell>{!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}</TableCell>
                 <TableCell>
-                  {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
+                  {!isPendingDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
                 </TableCell>
-                <TableCell>{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
+                <TableCell>
+                  {!isPendingDelegation(item) && (!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`)}
+                </TableCell>
+                <TableCell>
+                  {!isPendingDelegation(item) &&
+                    (!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`)}
+                </TableCell>
+                <TableCell>
+                  {!isPendingDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
+                </TableCell>
                 <TableCell>
                   <Tooltip
                     placement="right"
@@ -169,43 +197,44 @@ export const DelegationList: React.FC<{
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {item.history.map((historyItem) => (
-                              <TableRow key={`${historyItem.block_height}`}>
-                                <StyledTooltipTableCell>
-                                  {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
-                                    addSuffix: true,
-                                  })}
-                                </StyledTooltipTableCell>
-                                <StyledTooltipTableCell>
-                                  <Typography fontSize="inherit" noWrap>
-                                    {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
-                                    {historyItem.uses_vesting_contract_tokens && (
-                                      <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
-                                    )}
-                                  </Typography>
-                                </StyledTooltipTableCell>
-                                <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
-                              </TableRow>
-                            ))}
+                            {!isPendingDelegation(item) &&
+                              item.history.map((historyItem) => (
+                                <TableRow key={`${historyItem.block_height}`}>
+                                  <StyledTooltipTableCell>
+                                    {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
+                                      addSuffix: true,
+                                    })}
+                                  </StyledTooltipTableCell>
+                                  <StyledTooltipTableCell>
+                                    <Typography fontSize="inherit" noWrap>
+                                      {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
+                                      {historyItem.uses_vesting_contract_tokens && (
+                                        <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
+                                      )}
+                                    </Typography>
+                                  </StyledTooltipTableCell>
+                                  <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
+                                </TableRow>
+                              ))}
                           </TableBody>
                         </Table>
                       </TableContainer>
                     }
                     arrow
                   >
-                    <span
-                      style={{ cursor: 'pointer', textTransform: 'uppercase' }}
-                    >{`${item.amount.amount} ${item.amount.denom}`}</span>
+                    <span style={{ cursor: 'pointer', textTransform: 'uppercase' }}>
+                      {!isPendingDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
+                    </span>
                   </Tooltip>
                 </TableCell>
                 <TableCell sx={{ textTransform: 'uppercase' }}>
-                  {!item.accumulated_rewards
+                  {isPendingDelegation(item) || !item.accumulated_rewards
                     ? '-'
                     : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}
                 </TableCell>
 
                 <TableCell align="right">
-                  {!item.pending_events.length ? (
+                  {!isPendingDelegation(item) && !item.pending_events.length ? (
                     <DelegationsActionsMenu
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}

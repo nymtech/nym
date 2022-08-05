@@ -22,7 +22,7 @@ import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { styled } from '@mui/material/styles';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
-import { isPendingDelegation, TDelegations } from '../../context/delegations';
+import { DelegationWithEvent, isPendingDelegation, TDelegations } from '../../context/delegations';
 
 const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
@@ -72,10 +72,7 @@ function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   return 0;
 }
 
-function sortPendingDelegation(
-  a: DelegationWithEverything | DelegationEvent,
-  b: DelegationWithEverything | DelegationEvent,
-) {
+function sortPendingDelegation(a: DelegationWithEvent, b: DelegationWithEvent) {
   if (isPendingDelegation(a) && isPendingDelegation(b)) return 0;
   if (isPendingDelegation(b)) return -1;
   if (isPendingDelegation(a)) return 1;
@@ -85,7 +82,7 @@ function sortPendingDelegation(
 function getComparator<Key extends keyof DelegationWithEverything>(
   order: Order,
   orderBy: Key,
-): (a: DelegationWithEverything | DelegationEvent, b: DelegationWithEverything | DelegationEvent) => number {
+): (a: DelegationWithEvent, b: DelegationWithEvent) => number {
   return order === 'desc'
     ? (a, b) => {
         const pendingSort = sortPendingDelegation(a, b);
@@ -153,7 +150,7 @@ export const DelegationList: React.FC<{
     setOrderBy(property);
   };
 
-  const getRewardValue = (item: DelegationWithEverything | DelegationEvent) => {
+  const getRewardValue = (item: DelegationWithEvent) => {
     if (isPendingDelegation(item)) {
       return '';
     }

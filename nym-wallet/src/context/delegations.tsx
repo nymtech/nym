@@ -35,11 +35,11 @@ export type TDelegationTransaction = {
   transactionUrl: string;
 };
 
-export type TDelegations = (DelegationWithEverything | DelegationEvent)[];
+export type DelegationWithEvent = DelegationWithEverything | DelegationEvent;
+export type TDelegations = DelegationWithEvent[];
 
-export const isPendingDelegation = (
-  delegation: DelegationWithEverything | DelegationEvent,
-): delegation is DelegationEvent => 'kind' in delegation;
+export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is DelegationEvent =>
+  'kind' in delegation;
 
 export const DelegationContext = createContext<TDelegationContext>({
   isLoading: true,

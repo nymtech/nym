@@ -1,9 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use crate::network_monitor::monitor::summary_producer::NodeResult;
+use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
-use crate::node_status_api::utils::ActiveNodeStatuses;
-use crate::storage::models::{ActiveNode, NodeStatus, RewardingReport, TestingRoute};
+use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
+use crate::storage::models::{
+    ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
+};
 use mixnet_contract_common::{IdentityKey, NodeId};
 use std::convert::TryFrom;
 
@@ -48,7 +50,17 @@ impl StorageManager {
         &self,
         identity: &str,
     ) -> Result<Vec<NodeId>, sqlx::Error> {
-        todo!()
+        let ids = sqlx::query!(
+            r#"SELECT mix_id as "mix_id: NodeId" FROM mixnode_details WHERE identity_key = ?"#,
+            identity
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|row| row.mix_id)
+        .collect();
+
+        Ok(ids)
     }
 
     pub(super) async fn get_all_avg_mix_reliability_in_last_24hr(
@@ -56,7 +68,7 @@ impl StorageManager {
         end_ts_secs: i64,
     ) -> Result<Vec<AvgMixnodeReliability>, sqlx::Error> {
         let start_ts_secs = end_ts_secs - 86400;
-        self.get_all_avg_mix_reliability_in_interval(start_ts_secs, end_ts_secs)
+        self.get_all_avg_mix_reliability_in_time_interval(start_ts_secs, end_ts_secs)
             .await
     }
 
@@ -69,33 +81,32 @@ impl StorageManager {
             .await
     }
 
-    pub(super) async fn get_all_avg_mix_reliability_in_interval(
+    pub(super) async fn get_all_avg_mix_reliability_in_time_interval(
         &self,
         start_ts_secs: i64,
         end_ts_secs: i64,
     ) -> Result<Vec<AvgMixnodeReliability>, sqlx::Error> {
-        todo!()
-        // let result = sqlx::query_as!(
-        //     AvgReliability,
-        //     r#"
-        //     SELECT
-        //         d.identity as "identity: String",
-        //         AVG(s.reliability) as "value: f32"
-        //     FROM
-        //         mixnode_details d
-        //     JOIN
-        //         mixnode_status s on d.id = s.mixnode_details_id
-        //     WHERE
-        //         timestamp >= ? AND
-        //         timestamp <= ?
-        //     GROUP BY 1
-        //     "#,
-        //     start_ts_secs,
-        //     end_ts_secs
-        // )
-        // .fetch_all(&self.connection_pool)
-        // .await?;
-        // Ok(result)
+        let result = sqlx::query_as!(
+            AvgMixnodeReliability,
+            r#"
+            SELECT
+                d.mix_id as "mix_id: NodeId",
+                AVG(s.reliability) as "value: f32"
+            FROM
+                mixnode_details d
+            JOIN
+                mixnode_status s on d.id = s.mixnode_details_id
+            WHERE
+                timestamp >= ? AND
+                timestamp <= ?
+            GROUP BY 1
+            "#,
+            start_ts_secs,
+            end_ts_secs
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(result)
     }
 
     pub(super) async fn get_all_avg_gateway_reliability_in_interval(
@@ -135,16 +146,12 @@ impl StorageManager {
         &self,
         mix_id: NodeId,
     ) -> Result<Option<i64>, sqlx::Error> {
-        todo!()
-        // let id = sqlx::query!(
-        //     "SELECT id FROM mixnode_details WHERE identity = ?",
-        //     identity
-        // )
-        // .fetch_optional(&self.connection_pool)
-        // .await?
-        // .map(|row| row.id);
-        //
-        // Ok(id)
+        let id = sqlx::query!("SELECT id FROM mixnode_details WHERE mix_id = ?", mix_id)
+            .fetch_optional(&self.connection_pool)
+            .await?
+            .map(|row| row.id);
+
+        Ok(id)
     }
 
     /// Tries to obtain row id of given gateway given its identity
@@ -173,16 +180,12 @@ impl StorageManager {
         &self,
         mix_id: NodeId,
     ) -> Result<Option<String>, sqlx::Error> {
-        todo!()
-        // let owner = sqlx::query!(
-        //     "SELECT owner FROM mixnode_details WHERE identity = ?",
-        //     identity
-        // )
-        // .fetch_optional(&self.connection_pool)
-        // .await?
-        // .map(|row| row.owner);
-        //
-        // Ok(owner)
+        let owner = sqlx::query!("SELECT owner FROM mixnode_details WHERE mix_id = ?", mix_id)
+            .fetch_optional(&self.connection_pool)
+            .await?
+            .map(|row| row.owner);
+
+        Ok(owner)
     }
 
     /// Tries to obtain identity value of given mixnode given its mix_id
@@ -190,20 +193,19 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    pub(super) async fn get_mixnode_identity(
+    pub(super) async fn get_mixnode_identity_key(
         &self,
         mix_id: NodeId,
     ) -> Result<Option<IdentityKey>, sqlx::Error> {
-        todo!()
-        // let owner = sqlx::query!(
-        //     "SELECT owner FROM mixnode_details WHERE identity = ?",
-        //     identity
-        // )
-        // .fetch_optional(&self.connection_pool)
-        // .await?
-        // .map(|row| row.owner);
-        //
-        // Ok(owner)
+        let identity_key = sqlx::query!(
+            "SELECT identity_key FROM mixnode_details WHERE mix_id = ?",
+            mix_id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|row| row.identity_key);
+
+        Ok(identity_key)
     }
 
     /// Tries to obtain owner value of given gateway given its identity
@@ -238,21 +240,20 @@ impl StorageManager {
         mix_id: NodeId,
         timestamp: i64,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        todo!()
-        // sqlx::query_as!(
-        //     NodeStatus,
-        //     r#"
-        //         SELECT timestamp, reliability as "reliability: u8"
-        //             FROM mixnode_status
-        //             JOIN mixnode_details
-        //             ON mixnode_status.mixnode_details_id = mixnode_details.id
-        //             WHERE mixnode_details.identity=? AND mixnode_status.timestamp > ?;
-        //     "#,
-        //     identity,
-        //     timestamp,
-        // )
-        // .fetch_all(&self.connection_pool)
-        // .await
+        sqlx::query_as!(
+            NodeStatus,
+            r#"
+                SELECT timestamp, reliability as "reliability: u8"
+                    FROM mixnode_status
+                    JOIN mixnode_details
+                    ON mixnode_status.mixnode_details_id = mixnode_details.id
+                    WHERE mixnode_details.mix_id=? AND mixnode_status.timestamp > ?;
+            "#,
+            mix_id,
+            timestamp,
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 
     /// Gets all reliability statuses for gateway with particular identity that were inserted
@@ -292,35 +293,33 @@ impl StorageManager {
         &self,
         mix_id: NodeId,
     ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
-        todo!()
-        //
-        // let uptimes = sqlx::query!(
-        //     r#"
-        //         SELECT date, uptime
-        //             FROM mixnode_historical_uptime
-        //             JOIN mixnode_details
-        //             ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id
-        //             WHERE mixnode_details.identity = ?
-        //             ORDER BY date ASC
-        //     "#,
-        //     identity
-        // )
-        // .fetch_all(&self.connection_pool)
-        // .await?
-        // .into_iter()
-        // // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
-        // // better safe than sorry and not use an unwrap)
-        // .filter_map(|row| {
-        //     Uptime::try_from(row.uptime.unwrap_or_default())
-        //         .map(|uptime| HistoricalUptime {
-        //             date: row.date.unwrap_or_default(),
-        //             uptime,
-        //         })
-        //         .ok()
-        // })
-        // .collect();
-        //
-        // Ok(uptimes)
+        let uptimes = sqlx::query!(
+            r#"
+                SELECT date, uptime
+                    FROM mixnode_historical_uptime
+                    JOIN mixnode_details
+                    ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id
+                    WHERE mixnode_details.mix_id = ?
+                    ORDER BY date ASC
+            "#,
+            mix_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
+        // better safe than sorry and not use an unwrap)
+        .filter_map(|row| {
+            Uptime::try_from(row.uptime.unwrap_or_default())
+                .map(|uptime| HistoricalUptime {
+                    date: row.date.unwrap_or_default(),
+                    uptime,
+                })
+                .ok()
+        })
+        .collect();
+
+        Ok(uptimes)
     }
 
     /// Gets the historical daily uptime associated with the particular gateway
@@ -446,7 +445,7 @@ impl StorageManager {
     pub(super) async fn submit_mixnode_statuses(
         &self,
         timestamp: i64,
-        mixnode_results: Vec<NodeResult>,
+        mixnode_results: Vec<MixnodeResult>,
     ) -> Result<(), sqlx::Error> {
         // insert it all in a transaction to make sure all nodes are updated at the same time
         // (plus it's a nice guard against new nodes)
@@ -454,12 +453,13 @@ impl StorageManager {
         for mixnode_result in mixnode_results {
             let mixnode_id = sqlx::query!(
                 r#"
-                    INSERT OR IGNORE INTO mixnode_details(identity, owner) VALUES (?, ?);
-                    SELECT id FROM mixnode_details WHERE identity = ?;
+                    INSERT OR IGNORE INTO mixnode_details(mix_id, identity_key, owner) VALUES (?, ?, ?);
+                    SELECT id FROM mixnode_details WHERE mix_id = ?;
                 "#,
+                mixnode_result.mix_id,
                 mixnode_result.identity,
                 mixnode_result.owner,
-                mixnode_result.identity,
+                mixnode_result.mix_id,
             )
             .fetch_one(&mut tx)
             .await?
@@ -491,7 +491,7 @@ impl StorageManager {
     pub(super) async fn submit_gateway_statuses(
         &self,
         timestamp: i64,
-        gateway_results: Vec<NodeResult>,
+        gateway_results: Vec<GatewayResult>,
     ) -> Result<(), sqlx::Error> {
         // insert it all in a transaction to make sure all nodes are updated at the same time
         // (plus it's a nice guard against new nodes)
@@ -541,22 +541,21 @@ impl StorageManager {
         &self,
         testing_route: TestingRoute,
     ) -> Result<(), sqlx::Error> {
-        todo!()
-        // sqlx::query!(
-        //     r#"
-        //         INSERT INTO testing_route
-        //         (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id)
-        //         VALUES (?, ?, ?, ?, ?);
-        //     "#,
-        //     testing_route.gateway_id,
-        //     testing_route.layer1_mix_id,
-        //     testing_route.layer2_mix_id,
-        //     testing_route.layer3_mix_id,
-        //     testing_route.monitor_run_id,
-        // )
-        // .execute(&self.connection_pool)
-        // .await?;
-        // Ok(())
+        sqlx::query!(
+            r#"
+                INSERT INTO testing_route
+                (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id)
+                VALUES (?, ?, ?, ?, ?);
+            "#,
+            testing_route.gateway_db_id,
+            testing_route.layer1_mix_db_id,
+            testing_route.layer2_mix_db_id,
+            testing_route.layer3_mix_db_id,
+            testing_route.monitor_run_db_id,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
     }
 
     /// Get the number of times mixnode with the particular id is present in any `testing_route`
@@ -772,28 +771,27 @@ impl StorageManager {
         &self,
         since: i64,
         until: i64,
-    ) -> Result<Vec<ActiveNode>, sqlx::Error> {
-        todo!()
-        // // find mixnode details of all nodes that have had at least 1 status information since the provided
-        // // timestamp
-        // // TODO: I dont know if theres a potential issue of if we have a lot of inactive nodes that
-        // // haven't mixed in ages, they might increase the query times?
-        // sqlx::query_as!(
-        //     ActiveNode,
-        //     r#"
-        //         SELECT DISTINCT identity, owner, id
-        //             FROM mixnode_details
-        //             JOIN mixnode_status
-        //             ON mixnode_details.id = mixnode_status.mixnode_details_id
-        //             WHERE EXISTS (
-        //                 SELECT 1 FROM mixnode_status WHERE timestamp > ? AND timestamp < ?
-        //             )
-        //     "#,
-        //     since,
-        //     until
-        // )
-        // .fetch_all(&self.connection_pool)
-        // .await
+    ) -> Result<Vec<ActiveMixnode>, sqlx::Error> {
+        // find mixnode details of all nodes that have had at least 1 status information since the provided
+        // timestamp
+        // TODO: I dont know if theres a potential issue of if we have a lot of inactive nodes that
+        // haven't mixed in ages, they might increase the query times?
+        sqlx::query_as!(
+            ActiveMixnode,
+            r#"
+                SELECT DISTINCT identity_key, mix_id as "mix_id: NodeId", owner, id
+                    FROM mixnode_details
+                    JOIN mixnode_status
+                    ON mixnode_details.id = mixnode_status.mixnode_details_id
+                    WHERE EXISTS (
+                        SELECT 1 FROM mixnode_status WHERE timestamp > ? AND timestamp < ?
+                    )
+            "#,
+            since,
+            until
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 
     /// Returns public key, owner and id of all gateways that have had any statuses submitted
@@ -807,24 +805,23 @@ impl StorageManager {
         &self,
         since: i64,
         until: i64,
-    ) -> Result<Vec<ActiveNode>, sqlx::Error> {
-        todo!()
-        // sqlx::query_as!(
-        //     ActiveNode,
-        //     r#"
-        //         SELECT DISTINCT identity, owner, id
-        //             FROM gateway_details
-        //             JOIN gateway_status
-        //             ON gateway_details.id = gateway_status.gateway_details_id
-        //             WHERE EXISTS (
-        //                 SELECT 1 FROM gateway_status WHERE timestamp > ? AND timestamp < ?
-        //             )
-        //     "#,
-        //     since,
-        //     until,
-        // )
-        // .fetch_all(&self.connection_pool)
-        // .await
+    ) -> Result<Vec<ActiveGateway>, sqlx::Error> {
+        sqlx::query_as!(
+            ActiveGateway,
+            r#"
+                SELECT DISTINCT identity, owner, id
+                    FROM gateway_details
+                    JOIN gateway_status
+                    ON gateway_details.id = gateway_status.gateway_details_id
+                    WHERE EXISTS (
+                        SELECT 1 FROM gateway_status WHERE timestamp > ? AND timestamp < ?
+                    )
+            "#,
+            since,
+            until,
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 
     // /// Tries to obtain the most recent interval rewarding entry currently stored.
@@ -879,7 +876,7 @@ impl StorageManager {
         &self,
         since: i64,
         until: i64,
-    ) -> Result<Vec<ActiveNodeStatuses>, sqlx::Error> {
+    ) -> Result<Vec<ActiveMixnodeStatuses>, sqlx::Error> {
         let active_nodes = self
             .get_all_active_mixnodes_in_interval(since, until)
             .await?;
@@ -890,9 +887,9 @@ impl StorageManager {
                 .get_mixnode_statuses_by_database_id(active_node.id, since, until)
                 .await?;
 
-            let statuses = ActiveNodeStatuses {
+            let statuses = ActiveMixnodeStatuses {
                 mix_id: active_node.mix_id,
-                identity: active_node.identity,
+                identity: active_node.identity_key,
                 owner: active_node.owner,
                 statuses,
             };
@@ -913,7 +910,7 @@ impl StorageManager {
         &self,
         since: i64,
         until: i64,
-    ) -> Result<Vec<ActiveNodeStatuses>, sqlx::Error> {
+    ) -> Result<Vec<ActiveGatewayStatuses>, sqlx::Error> {
         let active_nodes = self
             .get_all_active_gateways_in_interval(since, until)
             .await?;
@@ -924,8 +921,7 @@ impl StorageManager {
                 .get_gateway_statuses_by_id(active_node.id, since, until)
                 .await?;
 
-            let statuses = ActiveNodeStatuses {
-                mix_id: active_node.mix_id,
+            let statuses = ActiveGatewayStatuses {
                 identity: active_node.identity,
                 owner: active_node.owner,
                 statuses,

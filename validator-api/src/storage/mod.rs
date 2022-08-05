@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::monitor::summary_producer::NodeResult;
+use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory, Uptime,
@@ -192,7 +192,7 @@ impl ValidatorApiStorage {
             );
 
         let mixnode_identity =
-            self.manager.get_mixnode_identity(mix_id).await?.expect(
+            self.manager.get_mixnode_identity_key(mix_id).await?.expect(
                 "The node doesn't have an owner even though we have status information on it!",
             );
 
@@ -264,7 +264,7 @@ impl ValidatorApiStorage {
             );
 
         let mixnode_identity =
-            self.manager.get_mixnode_identity(mix_id).await?.expect(
+            self.manager.get_mixnode_identity_key(mix_id).await?.expect(
                 "The node doesn't have an identity even though we have uptime history for it!",
             );
 
@@ -559,8 +559,8 @@ impl ValidatorApiStorage {
     /// * `route_results`:
     pub(crate) async fn insert_monitor_run_results(
         &self,
-        mixnode_results: Vec<NodeResult>,
-        gateway_results: Vec<NodeResult>,
+        mixnode_results: Vec<MixnodeResult>,
+        gateway_results: Vec<GatewayResult>,
         test_routes: Vec<TestRoute>,
     ) -> Result<(), ValidatorApiStorageError> {
         info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());

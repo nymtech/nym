@@ -604,7 +604,7 @@ pub mod test_helpers {
         owner: &str,
     ) -> NodeId {
         let id = loop {
-            let candidate = rng.next_u64();
+            let candidate = rng.next_u32();
             if !mixnodes_storage::UNBONDED_MIXNODES.has(deps.storage, candidate) {
                 break candidate;
             }

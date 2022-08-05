@@ -165,7 +165,7 @@ mod tests {
     fn next_id() {
         let mut deps = test_helpers::init_contract();
 
-        for i in 1u64..1000 {
+        for i in 1u32..1000 {
             assert_eq!(i, next_mixnode_id_counter(deps.as_mut().storage).unwrap());
         }
     }

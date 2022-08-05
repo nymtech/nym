@@ -984,14 +984,14 @@ mod tests {
         let res = update_rewarded_set(test.deps_mut().storage, vec![1, 2, 3], current_active_set);
         assert!(res.is_ok());
 
-        let exact_num = (1u64..)
+        let exact_num = (1u32..)
             .take(current_rewarded_set as usize)
             .collect::<Vec<_>>();
         let res = update_rewarded_set(test.deps_mut().storage, exact_num, current_active_set);
         assert!(res.is_ok());
 
         // one more
-        let too_many = (1u64..)
+        let too_many = (1u32..)
             .take((current_rewarded_set + 1) as usize)
             .collect::<Vec<_>>();
         let err =

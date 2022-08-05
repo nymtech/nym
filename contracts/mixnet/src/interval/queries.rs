@@ -151,7 +151,7 @@ mod tests {
         use super::*;
 
         fn set_rewarded_set_to_n_nodes(test: &mut TestSetup, n: usize) {
-            let set = (1u64..).take(n).collect::<Vec<_>>();
+            let set = (1u32..).take(n).collect::<Vec<_>>();
             test.update_rewarded_set(set)
         }
 
@@ -251,7 +251,7 @@ mod tests {
         fn push_dummy_epoch_action(test: &mut TestSetup) {
             let dummy_action = PendingEpochEvent::Undelegate {
                 owner: Addr::unchecked("foomp"),
-                mix_id: test.rng.next_u64(),
+                mix_id: test.rng.next_u32(),
                 proxy: None,
             };
             storage::push_new_epoch_event(test.deps_mut().storage, &dummy_action).unwrap();
@@ -391,7 +391,7 @@ mod tests {
 
         fn push_dummy_interval_action(test: &mut TestSetup) {
             let dummy_action = PendingIntervalEvent::ChangeMixCostParams {
-                mix: test.rng.next_u64(),
+                mix: test.rng.next_u32(),
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
             storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();

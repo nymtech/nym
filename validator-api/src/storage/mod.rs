@@ -75,14 +75,23 @@ impl ValidatorApiStorage {
         &self,
         identity: &str,
     ) -> Result<Vec<NodeId>, ValidatorApiStorageError> {
-        todo!("here be a query that goes through mixnode details and filters by the identity key to grab mix_id field")
+        Ok(self
+            .manager
+            .get_mixnode_mix_ids_by_identity(identity)
+            .await?)
     }
 
     pub(crate) async fn mix_identity_to_latest_mix_id(
         &self,
         identity: &str,
     ) -> Result<Option<NodeId>, ValidatorApiStorageError> {
-        todo!("here be a query that goes through mixnode details and filters by the identity key to grab mix_id field. HOWEVER, we return only the highest one")
+        Ok(self
+            .manager
+            .get_mixnode_mix_ids_by_identity(identity)
+            .await?
+            .iter()
+            .copied()
+            .max())
     }
 
     pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
@@ -300,7 +309,7 @@ impl ValidatorApiStorage {
         end_ts_secs: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
         let start = end_ts_secs - 86400;
-        self.get_average_mixnode_uptime_in_interval(mix_id, start, end_ts_secs)
+        self.get_average_mixnode_uptime_in_time_interval(mix_id, start, end_ts_secs)
             .await
     }
 
@@ -312,28 +321,27 @@ impl ValidatorApiStorage {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
-    pub(crate) async fn get_average_mixnode_uptime_in_interval(
+    pub(crate) async fn get_average_mixnode_uptime_in_time_interval(
         &self,
         mix_id: NodeId,
         start: i64,
         end: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
-        todo!()
-        // let mixnode_database_id = match self.manager.get_mixnode_id(identity).await? {
-        //     Some(id) => id,
-        //     None => return Ok(Uptime::zero()),
-        // };
-        //
-        // let reliability = self
-        //     .manager
-        //     .get_average_reliability_in_interval(mixnode_database_id, start, end)
-        //     .await?;
-        //
-        // if let Some(reliability) = reliability {
-        //     Ok(Uptime::new(reliability))
-        // } else {
-        //     Ok(Uptime::zero())
-        // }
+        let mixnode_database_id = match self.manager.get_mixnode_database_id(mix_id).await? {
+            Some(id) => id,
+            None => return Ok(Uptime::zero()),
+        };
+
+        let reliability = self
+            .manager
+            .get_average_reliability_in_interval(mixnode_database_id, start, end)
+            .await?;
+
+        if let Some(reliability) = reliability {
+            Ok(Uptime::new(reliability))
+        } else {
+            Ok(Uptime::zero())
+        }
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.
@@ -431,33 +439,33 @@ impl ValidatorApiStorage {
     /// * `test_route`: one of the test routes used during network testing.
     async fn insert_test_route(
         &self,
-        monitor_run_id: i64,
+        monitor_run_db_id: i64,
         test_route: TestRoute,
     ) -> Result<(), ValidatorApiStorageError> {
         // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
         // in the first place
-        let layer1_mix_id = self
+        let layer1_mix_db_id = self
             .manager
-            .get_mixnode_id(&test_route.layer_one_mix().identity_key.to_base58_string())
+            .get_mixnode_database_id(test_route.layer_one_mix().mix_id)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?
             .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
-        let layer2_mix_id = self
+        let layer2_mix_db_id = self
             .manager
-            .get_mixnode_id(&test_route.layer_two_mix().identity_key.to_base58_string())
+            .get_mixnode_database_id(test_route.layer_two_mix().mix_id)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
             .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
-        let layer3_mix_id = self
+        let layer3_mix_db_id = self
             .manager
-            .get_mixnode_id(&test_route.layer_three_mix().identity_key.to_base58_string())
+            .get_mixnode_database_id(test_route.layer_three_mix().mix_id)
             .await
             .map_err(|_| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?
             .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
 
-        let gateway_id = self
+        let gateway_db_id = self
             .manager
             .get_gateway_id(&test_route.gateway().identity_key.to_base58_string())
             .await
@@ -466,11 +474,11 @@ impl ValidatorApiStorage {
 
         self.manager
             .submit_testing_route_used(TestingRoute {
-                gateway_id,
-                layer1_mix_id,
-                layer2_mix_id,
-                layer3_mix_id,
-                monitor_run_id,
+                gateway_db_id,
+                layer1_mix_db_id,
+                layer2_mix_db_id,
+                layer3_mix_db_id,
+                monitor_run_db_id,
             })
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
@@ -490,25 +498,23 @@ impl ValidatorApiStorage {
         mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
-        todo!()
-        //
-        // let node_id = self
-        //     .manager
-        //     .get_mixnode_id(identity)
-        //     .await
-        //     .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
-        //
-        // if let Some(node_id) = node_id {
-        //     let since = since
-        //         .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
-        //
-        //     self.manager
-        //         .get_mixnode_testing_route_presence_count_since(node_id, since)
-        //         .await
-        //         .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
-        // } else {
-        //     Ok(0)
-        // }
+        let db_id = self
+            .manager
+            .get_mixnode_database_id(mix_id)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+
+        if let Some(node_id) = db_id {
+            let since = since
+                .unwrap_or_else(|| (OffsetDateTime::now_utc() - (30 * ONE_DAY)).unix_timestamp());
+
+            self.manager
+                .get_mixnode_testing_route_presence_count_since(node_id, since)
+                .await
+                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+        } else {
+            Ok(0)
+        }
     }
 
     /// Retrieves number of times particular gateway was used as a core node during network monitor
@@ -625,15 +631,15 @@ impl ValidatorApiStorage {
             // and we never delete node data!
             let node_id = match self
                 .manager
-                .get_mixnode_id(&report.identity)
+                .get_mixnode_database_id(report.mix_id)
                 .await
                 .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
             {
                 Some(node_id) => node_id,
                 None => {
                     error!(
-                        "Somehow we failed to grab id of mixnode {} from the database!",
-                        &report.identity
+                        "Somehow we failed to grab id of mixnode {} ({}) from the database!",
+                        report.mix_id, report.identity
                     );
                     continue;
                 }

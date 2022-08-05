@@ -7,6 +7,7 @@ use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 
 pub(crate) mod deprecated_routes;
+pub(crate) mod helpers;
 pub(crate) mod local_guard;
 pub(crate) mod models;
 pub(crate) mod routes;
@@ -35,7 +36,6 @@ pub(crate) fn node_status_routes(
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
             routes::get_mixnode_avg_uptime,
-            routes::get_mixnode_avg_uptimes,
             // =================================================
             // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
             // =================================================

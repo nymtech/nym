@@ -13,7 +13,7 @@ Note: to work it requires rust 1.60+
     -./validator-client-scripts --help
     - will produce a list of it's capabilites 
 
-The binary requires mandatory OPTIONS:        
+The binary takes optional args which are as follows -> OPTIONS:        
 ```
 --config-env-file <CONFIG_ENV_FILE>
 --mixnet-contract <MIXNET_CONTRACT>      

@@ -105,7 +105,7 @@ export const BondMoreModal = ({
         </Box>
 
         <Box>
-          <ModalListItem label="Account balance" value={userBalance || '-'} divider />
+          <ModalListItem label="Account balance" value={userBalance?.toUpperCase() || '-'} divider />
           <ModalListItem label="Current bond" value={`${currentBond.amount} ${currentBond.denom}`} divider />
           <ModalListItem label="Est. fee for this operation will be calculated in the next page" value="" divider />
         </Box>

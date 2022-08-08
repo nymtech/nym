@@ -9,7 +9,7 @@ type TFeeProps = { fee?: FeeDetails; isLoading: boolean; error?: string; divider
 const getValue = ({ fee, isLoading, error }: TFeeProps) => {
   if (isLoading) return <CircularProgress size={15} />;
   if (error && !isLoading) return 'n/a';
-  if (fee) return `${fee.amount?.amount} ${fee.amount?.denom}`;
+  if (fee) return `${fee.amount?.amount} ${fee.amount?.denom.toUpperCase()}`;
   return '-';
 };
 

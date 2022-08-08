@@ -8,7 +8,7 @@ use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
 use crypto::asymmetric::{encryption, identity};
 use log::info;
-use mixnet_contract_common::{Addr, GatewayBond, Layer, MixNodeBond};
+use mixnet_contract_common::{Addr, GatewayBond, Layer, MixNodeBond, NodeId};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::seq::SliceRandom;
@@ -27,21 +27,21 @@ type Owner = Addr;
 #[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) enum InvalidNode {
-    Outdated(Id, Owner, Version),
-    Malformed(Id, Owner),
+    Outdated(Id, Owner, NodeType, Version),
+    Malformed(Id, Owner, NodeType),
 }
 
 impl Display for InvalidNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            InvalidNode::Outdated(id, owner, version) => {
+            InvalidNode::Outdated(id, owner, _, version) => {
                 write!(
                     f,
                     "Node {} (v{}) owned by {} is outdated",
                     id, version, owner
                 )
             }
-            InvalidNode::Malformed(id, owner) => {
+            InvalidNode::Malformed(id, owner, _) => {
                 write!(f, "Node {} owned by {} is malformed", id, owner)
             }
         }
@@ -49,17 +49,24 @@ impl Display for InvalidNode {
 }
 
 impl InvalidNode {
+    pub(crate) fn mix_id(&self) -> Option<NodeId> {
+        match self {
+            InvalidNode::Outdated(_, _, node_type, _) => node_type.mix_id(),
+            InvalidNode::Malformed(_, _, node_type) => node_type.mix_id(),
+        }
+    }
+
     pub(crate) fn identity(&self) -> String {
         match self {
-            InvalidNode::Outdated(id, _, _) => id.clone(),
-            InvalidNode::Malformed(id, _) => id.clone(),
+            InvalidNode::Outdated(id, _, _, _) => id.clone(),
+            InvalidNode::Malformed(id, _, _) => id.clone(),
         }
     }
 
     pub(crate) fn owner(&self) -> String {
         match self {
-            InvalidNode::Outdated(_, owner, _) => owner.into(),
-            InvalidNode::Malformed(_, owner) => owner.into(),
+            InvalidNode::Outdated(_, owner, _, _) => owner.into(),
+            InvalidNode::Malformed(_, owner, _) => owner.into(),
         }
     }
 }
@@ -71,12 +78,18 @@ pub(crate) struct TestedNode {
     pub(crate) node_type: NodeType,
 }
 
+impl TestedNode {
+    pub(crate) fn mix_id(&self) -> Option<NodeId> {
+        self.node_type.mix_id()
+    }
+}
+
 impl<'a> From<&'a mix::Node> for TestedNode {
     fn from(node: &'a mix::Node) -> Self {
         TestedNode {
             identity: node.identity_key.to_base58_string(),
             owner: node.owner.clone(),
-            node_type: NodeType::Mixnode,
+            node_type: NodeType::Mixnode(node.mix_id),
         }
     }
 }
@@ -387,6 +400,7 @@ impl PacketPreparer {
                 invalid_nodes.push(InvalidNode::Malformed(
                     mixnode.mix_node.identity_key,
                     mixnode.owner,
+                    NodeType::Mixnode(mixnode.id),
                 ));
             }
         }
@@ -406,6 +420,7 @@ impl PacketPreparer {
                 invalid_nodes.push(InvalidNode::Malformed(
                     gateway.gateway.identity_key,
                     gateway.owner,
+                    NodeType::Gateway,
                 ));
             }
         }

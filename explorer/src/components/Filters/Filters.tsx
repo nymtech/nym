@@ -128,6 +128,7 @@ export const Filters = () => {
         <Alert
           severity="info"
           variant={isMobile ? 'standard' : 'outlined'}
+          sx={{ color: (t) => t.palette.info.light }}
           action={
             <Button size="small" onClick={onClearFilters}>
               CLEAR FILTERS

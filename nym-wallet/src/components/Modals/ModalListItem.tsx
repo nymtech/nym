@@ -15,11 +15,7 @@ export const ModalListItem: React.FC<{
         {label}
       </Typography>
       {value && (
-        <Typography
-          fontSize="smaller"
-          fontWeight={strong ? 600 : undefined}
-          sx={{ color: 'text.primary', textTransform: 'uppercase' }}
-        >
+        <Typography fontSize="smaller" fontWeight={strong ? 600 : undefined} sx={{ color: 'text.primary' }}>
           {value}
         </Typography>
       )}

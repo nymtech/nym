@@ -12,8 +12,8 @@ export const bondMixNode = async (args: TBondMixNodeArgs) =>
 
 export const unbondMixNode = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_mixnode', { fee });
 
-export const updateMixnode = async (profitMarginPercent: number) =>
-  invokeWrapper<TransactionExecuteResult>('update_mixnode', { profitMarginPercent });
+export const updateMixnode = async (profitMarginPercent: number, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_mixnode', { profitMarginPercent, fee });
 
 export const send = async (args: { amount: DecCoin; address: string; memo: string; fee?: Fee }) =>
   invokeWrapper<SendTxResult>('send', args);

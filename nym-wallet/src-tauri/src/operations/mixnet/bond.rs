@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
@@ -5,7 +7,17 @@ use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::MixNodeBond;
 use nym_types::transaction::TransactionExecuteResult;
+use reqwest::Error as ReqwestError;
+use serde::{Deserialize, Serialize};
 use validator_client::nymd::{Coin, Fee};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NodeDescription {
+    name: String,
+    description: String,
+    link: String,
+    location: String,
+}
 
 #[tauri::command]
 pub async fn bond_gateway(
@@ -197,4 +209,52 @@ pub async fn get_operator_rewards(
         display_coin
     );
     Ok(display_coin)
+}
+
+#[tauri::command]
+pub async fn get_number_of_mixnode_delegators(
+    identity: String,
+    state: tauri::State<'_, WalletState>,
+) -> Result<usize, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let paged_delegations = client
+        .nymd
+        .get_mix_delegations_paged(identity, None, Some(20))
+        .await?;
+
+    Ok(paged_delegations.delegations.len())
+}
+
+async fn fetch_mix_node_description(
+    host: &str,
+    port: u16,
+) -> Result<NodeDescription, ReqwestError> {
+    let milli_second = Duration::from_millis(1000);
+    let client = reqwest::Client::builder().timeout(milli_second).build()?;
+    let response = client
+        .get(format!("http://{}:{}/description", host, port))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            let json = res.json::<NodeDescription>().await;
+            match json {
+                Ok(json) => Ok(json),
+                Err(e) => Err(e),
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+pub async fn get_mix_node_description(
+    host: &str,
+    port: u16,
+) -> Result<NodeDescription, BackendError> {
+    return fetch_mix_node_description(host, port)
+        .await
+        .map_err(|e| BackendError::ReqwestError { source: e });
 }

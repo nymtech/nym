@@ -121,3 +121,5 @@ export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) 
 
   return hasEnoughFunds;
 };
+
+export const isDecimal = (value: number) => value - Math.floor(value) !== 0;

@@ -60,8 +60,8 @@ export const vestingUnbondMixnode = async (fee?: Fee) =>
 export const withdrawVestedCoins = async (amount: DecCoin, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount, fee });
 
-export const vestingUpdateMixnode = async (profitMarginPercent: number) =>
-  invokeWrapper<TransactionExecuteResult>('vesting_update_mixnode', { profitMarginPercent });
+export const vestingUpdateMixnode = async (profitMarginPercent: number, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_update_mixnode', { profitMarginPercent, fee });
 
 export const vestingDelegateToMixnode = async ({
   identity,
@@ -101,11 +101,11 @@ export const vestingUnbond = async (type: TNodeType) => {
   return vestingUnbondGateway();
 };
 
-export const vestingClaimOperatorRewards = async () =>
-  invokeWrapper<TransactionExecuteResult>('vesting_claim_operator_reward');
+export const vestingClaimOperatorReward = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_claim_operator_reward', { fee });
 
-export const vestingCompoundOperatorRewards = async () =>
-  invokeWrapper<TransactionExecuteResult>('vesting_compound_operator_reward');
+export const vestingCompoundOperatorReward = async (fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_compound_operator_reward', { fee });
 
 export const vestingClaimDelegatorRewards = async (mixIdentity: string) =>
   invokeWrapper<TransactionExecuteResult>('vesting_claim_delegator_reward', { mixIdentity });

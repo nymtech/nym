@@ -1,9 +1,9 @@
 import React from 'react';
 import { Stack, SxProps } from '@mui/material';
-import { CurrencyDenom } from '@nymproject/types';
-import { FeeDetails, DecCoin } from '@nymproject/types';
+import { FeeDetails, DecCoin, CurrencyDenom } from '@nymproject/types';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
+import { ModalFee } from '../Modals/ModalFee';
 
 export const SendDetailsModal = ({
   amount,
@@ -42,11 +42,7 @@ export const SendDetailsModal = ({
       <ModalListItem label="From:" value={fromAddress} divider />
       <ModalListItem label="To:" value={toAddress} divider />
       <ModalListItem label="Amount:" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />
-      <ModalListItem
-        label="Fee for this transaction:"
-        value={!fee ? 'n/a' : `${fee.amount?.amount} ${fee.amount?.denom}`}
-        divider
-      />
+      <ModalFee fee={fee} divider isLoading={false} />
     </Stack>
   </SimpleModal>
 );

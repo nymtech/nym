@@ -36,7 +36,7 @@ export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; icon
             color: 'text.primary',
           }}
         >
-          {!copied ? <ContentCopy fontSize="small" /> : <Check color="success" />}
+          {!copied ? <ContentCopy sx={{ fontSize: 14 }} /> : <Check color="success" sx={{ fontSize: 14 }} />}
         </IconButton>
       </Tooltip>
     );

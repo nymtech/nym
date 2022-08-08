@@ -41,7 +41,7 @@ export const ConfirmationModal = ({
   backdropProps,
 }: ConfirmationModalProps) => {
   const Title = (
-    <DialogTitle id="responsive-dialog-title" sx={{ py: 3, pb: 2, fontWeight: 600 }} color="text.primary">
+    <DialogTitle id="responsive-dialog-title" sx={{ pb: 2 }}>
       {title}
       {subTitle &&
         (typeof subTitle === 'string' ? (

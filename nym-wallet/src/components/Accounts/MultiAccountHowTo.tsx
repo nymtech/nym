@@ -20,7 +20,7 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
             <Close />
           </IconButton>
         </Box>
-        <Typography variant="body1" sx={{ color: (t) => t.palette.nym.text.muted }}>
+        <Typography variant="body1" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
           How to set up multiple accounts
         </Typography>
       </DialogTitle>
@@ -29,7 +29,7 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
           <Alert
             severity="warning"
             icon={false}
-            sx={(t) => (t.palette.mode === 'dark' ? { bgcolor: (t) => t.palette.background.paper } : {})}
+            sx={(t) => (t.palette.mode === 'dark' ? { bgcolor: (theme) => theme.palette.background.paper } : {})}
           >
             <Typography>In order to create multiple accounts your wallet needs a password.</Typography>
             <Typography>Follow steps below to create password.</Typography>

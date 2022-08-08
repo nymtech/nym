@@ -13,16 +13,21 @@ export const IdentityKeyFormField: React.FC<{
   readOnly?: boolean;
   initialValue?: string;
   placeholder?: string;
+  label?: string;
+  helperText?: string;
   onChanged?: (newValue: string) => void;
   onValidate?: (isValid: boolean, error?: string) => void;
   textFieldProps?: TextFieldProps;
+  errorText?: string;
   sx?: SxProps;
 }> = ({
   required,
   fullWidth,
   placeholder,
+  label,
   readOnly,
   initialValue,
+  errorText,
   sx,
   onChanged,
   onValidate,
@@ -55,7 +60,11 @@ export const IdentityKeyFormField: React.FC<{
     if (initialValue) {
       doValidation(initialValue);
     }
-  }, [initialValue]);
+
+    if (errorText) {
+      setValidationError(errorText);
+    }
+  }, [initialValue, errorText]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
@@ -82,6 +91,7 @@ export const IdentityKeyFormField: React.FC<{
         ),
       }}
       placeholder={placeholder}
+      label={label}
       sx={sx}
       {...textFieldProps}
       aria-readonly={readOnly}

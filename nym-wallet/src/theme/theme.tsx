@@ -229,13 +229,6 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       },
     },
     components: {
-      MuiTypography: {
-        styleOverrides: {
-          root: {
-            fontSize: 14,
-          },
-        },
-      },
       MuiButton: {
         styleOverrides: {
           root: {
@@ -277,6 +270,13 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       MuiLink: {
         defaultProps: {
           underline: 'none',
+        },
+      },
+      MuiDialogTitle: {
+        styleOverrides: {
+          root: {
+            fontWeight: 600,
+          },
         },
       },
     },

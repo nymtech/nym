@@ -30,18 +30,14 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
 );
 
 const colorMap: { [key in SelectionChance]: string } = {
-  VeryLow: 'error.main',
   Low: 'error.main',
   Moderate: 'warning.main',
-  High: 'success.main',
   VeryHigh: 'success.main',
 };
 
 const textMap: { [key in SelectionChance]: string } = {
-  VeryLow: 'Very low',
   Low: 'Low',
   Moderate: 'Moderate',
-  High: 'High',
   VeryHigh: 'Very high',
 };
 

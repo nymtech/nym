@@ -41,7 +41,7 @@ const FilterItem = ({
     <Slider
       value={value}
       onChange={(e: Event, newValue: number | number[]) => onChange(id, newValue as number[])}
-      valueLabelDisplay="off"
+      valueLabelDisplay={isSmooth ? 'auto' : 'off'}
       marks={marks}
       step={isSmooth ? 1 : null}
       scale={scale}

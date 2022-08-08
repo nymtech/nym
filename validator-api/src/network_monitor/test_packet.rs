@@ -3,33 +3,65 @@
 
 use crate::network_monitor::monitor::preparer::TestedNode;
 use crypto::asymmetric::identity;
-use std::convert::{TryFrom, TryInto};
+use mixnet_contract_common::NodeId;
+use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::str::Utf8Error;
 use topology::{gateway, mix};
 
+const MIXNODE_TYPE: u8 = 0;
+const GATEWAY_TYPE: u8 = 1;
+
 #[repr(u8)]
 #[derive(Eq, PartialEq, Debug, Hash, Clone, Copy)]
 pub(crate) enum NodeType {
-    Mixnode = 0,
-    Gateway = 1,
+    Mixnode(NodeId),
+    Gateway,
 }
 
 impl NodeType {
-    pub(crate) fn is_mixnode(&self) -> bool {
-        matches!(self, NodeType::Mixnode)
+    fn size(&self) -> usize {
+        match self {
+            NodeType::Mixnode(_) => 1 + mem::size_of::<NodeId>(),
+            NodeType::Gateway => 1,
+        }
     }
-}
 
-impl TryFrom<u8> for NodeType {
-    type Error = TestPacketError;
+    pub(crate) fn mix_id(&self) -> Option<NodeId> {
+        match self {
+            NodeType::Mixnode(mix_id) => Some(*mix_id),
+            NodeType::Gateway => None,
+        }
+    }
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            _ if value == (Self::Mixnode as u8) => Ok(Self::Mixnode),
-            _ if value == (Self::Gateway as u8) => Ok(Self::Gateway),
+    pub(crate) fn into_bytes(self) -> Vec<u8> {
+        match self {
+            NodeType::Mixnode(mix_id) => {
+                let mut bytes = Vec::with_capacity(5);
+                bytes.push(MIXNODE_TYPE);
+                bytes.extend_from_slice(&mix_id.to_be_bytes());
+                bytes
+            }
+            NodeType::Gateway => vec![GATEWAY_TYPE],
+        }
+    }
+
+    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, TestPacketError> {
+        if b.is_empty() {
+            return Err(TestPacketError::InvalidNodeType);
+        }
+        match b[0] {
+            t if t == MIXNODE_TYPE => {
+                if b.len() < (1 + mem::size_of::<NodeId>()) {
+                    return Err(TestPacketError::InvalidNodeType);
+                }
+                Ok(NodeType::Mixnode(NodeId::from_be_bytes(
+                    b[1..1 + mem::size_of::<NodeId>()].try_into().unwrap(),
+                )))
+            }
+            t if t == GATEWAY_TYPE => Ok(NodeType::Gateway),
             _ => Err(TestPacketError::InvalidNodeType),
         }
     }
@@ -104,7 +136,7 @@ impl TestPacket {
             owner: mix.owner.clone(),
             route_id,
             test_nonce,
-            node_type: NodeType::Mixnode,
+            node_type: NodeType::Mixnode(mix.mix_id),
         }
     }
 
@@ -141,7 +173,7 @@ impl TestPacket {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         IntoIterator::into_iter(self.route_id.to_be_bytes())
             .chain(IntoIterator::into_iter(self.test_nonce.to_be_bytes()))
-            .chain(std::iter::once(self.node_type as u8))
+            .chain(self.node_type.into_bytes().iter().cloned())
             .chain(self.pub_key.to_bytes().iter().cloned())
             .chain(self.owner.as_bytes().iter().cloned())
             .collect()
@@ -158,12 +190,13 @@ impl TestPacket {
         // those unwraps can't fail as we've already checked for the size
         let route_id = u64::from_be_bytes(b[0..n].try_into().unwrap());
         let test_nonce = u64::from_be_bytes(b[n..2 * n].try_into().unwrap());
-        let node_type = NodeType::try_from(b[2 * n])?;
+        let node_type = NodeType::try_from_bytes(&b[2 * n..])?;
+        let type_size = node_type.size();
 
         let pub_key = identity::PublicKey::from_bytes(
-            &b[2 * n + 1..2 * n + 1 + identity::PUBLIC_KEY_LENGTH],
+            &b[2 * n + type_size..2 * n + type_size + identity::PUBLIC_KEY_LENGTH],
         )?;
-        let owner = std::str::from_utf8(&b[2 * n + 1 + identity::PUBLIC_KEY_LENGTH..])?;
+        let owner = std::str::from_utf8(&b[2 * n + type_size + identity::PUBLIC_KEY_LENGTH..])?;
 
         Ok(TestPacket {
             route_id,
@@ -194,16 +227,28 @@ mod tests {
         let mut rng = rand_07::thread_rng();
         let dummy_keypair = identity::KeyPair::new(&mut rng);
         let owner = "some owner".to_string();
-        let packet = TestPacket::new(
+        let mix_packet = TestPacket::new(
+            *dummy_keypair.public_key(),
+            owner.clone(),
+            42,
+            123,
+            NodeType::Mixnode(1234),
+        );
+
+        let bytes = mix_packet.to_bytes();
+        let recovered = TestPacket::try_from_bytes(&bytes).unwrap();
+        assert_eq!(mix_packet, recovered);
+
+        let gateway_packet = TestPacket::new(
             *dummy_keypair.public_key(),
             owner,
             42,
             123,
-            NodeType::Mixnode,
+            NodeType::Gateway,
         );
 
-        let bytes = packet.to_bytes();
+        let bytes = gateway_packet.to_bytes();
         let recovered = TestPacket::try_from_bytes(&bytes).unwrap();
-        assert_eq!(packet, recovered);
+        assert_eq!(gateway_packet, recovered);
     }
 }

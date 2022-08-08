@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
-use crate::network_monitor::test_packet::TestPacket;
+use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
+use mixnet_contract_common::NodeId;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+
+const INVALID_MIX_ID: u32 = u32::MAX;
 
 // just some approximate measures to print to stdout (well, technically stderr since it's being printed via log)
 const EXCEPTIONAL_THRESHOLD: u8 = 95; // 95 - 100
@@ -19,15 +22,34 @@ const UNRELIABLE_THRESHOLD: u8 = 1; // 1 - 60
 // const ALLOWED_RELIABILITY_DEVIATION: f32 = 5.0;
 
 #[derive(Debug)]
-pub(crate) struct NodeResult {
+pub(crate) struct MixnodeResult {
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: String,
     pub(crate) owner: String,
     pub(crate) reliability: u8,
 }
 
-impl NodeResult {
+impl MixnodeResult {
+    pub(crate) fn new(mix_id: NodeId, identity: String, owner: String, reliability: u8) -> Self {
+        MixnodeResult {
+            mix_id,
+            identity,
+            owner,
+            reliability,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct GatewayResult {
+    pub(crate) identity: String,
+    pub(crate) owner: String,
+    pub(crate) reliability: u8,
+}
+
+impl GatewayResult {
     pub(crate) fn new(identity: String, owner: String, reliability: u8) -> Self {
-        NodeResult {
+        GatewayResult {
             identity,
             owner,
             reliability,
@@ -75,8 +97,8 @@ impl TestReport {
     fn new(
         total_sent: usize,
         total_received: usize,
-        mixnode_results: &[NodeResult],
-        gateway_results: &[NodeResult],
+        mixnode_results: &[MixnodeResult],
+        gateway_results: &[GatewayResult],
         route_results: &[RouteResult],
     ) -> Self {
         let mut exceptional_mixnodes = 0;
@@ -221,8 +243,8 @@ impl Display for TestReport {
 }
 
 pub(crate) struct TestSummary {
-    pub(crate) mixnode_results: Vec<NodeResult>,
-    pub(crate) gateway_results: Vec<NodeResult>,
+    pub(crate) mixnode_results: Vec<MixnodeResult>,
+    pub(crate) gateway_results: Vec<GatewayResult>,
     pub(crate) route_results: Vec<RouteResult>,
 }
 
@@ -276,8 +298,17 @@ impl SummaryProducer {
             (tested_mixnodes.len() + tested_gateways.len()) * self.per_node_test_packets;
         let per_node_expected = test_routes.len() * self.per_node_test_packets;
 
+        // TODO: whenever somebody feels like it, this should really get refactored.
+        // probably some wrapper struct would be appropriate here.
         for tested_mixnode in tested_mixnodes {
-            raw_mixnode_results.insert((tested_mixnode.identity, tested_mixnode.owner), 0);
+            raw_mixnode_results.insert(
+                (
+                    tested_mixnode.mix_id().unwrap_or(INVALID_MIX_ID),
+                    tested_mixnode.identity,
+                    tested_mixnode.owner,
+                ),
+                0,
+            );
         }
 
         for tested_gateway in tested_gateways {
@@ -285,7 +316,14 @@ impl SummaryProducer {
         }
 
         for invalid_mixnode in invalid_mixnodes {
-            raw_mixnode_results.insert((invalid_mixnode.identity(), invalid_mixnode.owner()), 0);
+            raw_mixnode_results.insert(
+                (
+                    invalid_mixnode.mix_id().unwrap_or(INVALID_MIX_ID),
+                    invalid_mixnode.identity(),
+                    invalid_mixnode.owner(),
+                ),
+                0,
+            );
         }
 
         for invalid_gateway in invalid_gateways {
@@ -297,12 +335,19 @@ impl SummaryProducer {
         }
 
         for received in received_packets {
-            let id_owner = (received.pub_key.to_base58_string(), received.owner);
+            let pub_key = received.pub_key.to_base58_string();
 
-            if received.node_type.is_mixnode() {
-                *raw_mixnode_results.entry(id_owner).or_default() += 1usize;
-            } else {
-                *raw_gateway_results.entry(id_owner).or_default() += 1usize;
+            match received.node_type {
+                NodeType::Mixnode(mix_id) => {
+                    *raw_mixnode_results
+                        .entry((mix_id, pub_key, received.owner))
+                        .or_default() += 1usize;
+                }
+                NodeType::Gateway => {
+                    *raw_gateway_results
+                        .entry((pub_key, received.owner))
+                        .or_default() += 1usize;
+                }
             }
 
             *raw_route_results.entry(received.route_id).or_default() += 1usize;
@@ -310,19 +355,19 @@ impl SummaryProducer {
 
         let mixnode_results = raw_mixnode_results
             .into_iter()
-            .map(|((id, owner), received)| {
+            .map(|((mix_id, identity_key, owner), received)| {
                 let reliability =
                     (received as f32 / per_node_expected as f32 * 100.0).round() as u8;
-                NodeResult::new(id, owner, reliability)
+                MixnodeResult::new(mix_id, identity_key, owner, reliability)
             })
             .collect();
 
         let gateway_results = raw_gateway_results
             .into_iter()
-            .map(|((id, owner), received)| {
+            .map(|((identity_key, owner), received)| {
                 let reliability =
                     (received as f32 / per_node_expected as f32 * 100.0).round() as u8;
-                NodeResult::new(id, owner, reliability)
+                GatewayResult::new(identity_key, owner, reliability)
             })
             .collect();
 

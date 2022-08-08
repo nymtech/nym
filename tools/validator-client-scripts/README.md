@@ -5,12 +5,12 @@ Note: to work it requires rust 1.60+
 
 ## The binary
     - Build the binary 
-    - cargo build --release 
+    - cargo build --release --bin validator-client-scripts
     - this will compile the binary to "your/main/nym/path/target/release"
-    - the binary is named ./validator-client-scripts-rs
+    - the binary is named ./validator-client-scripts
 
 ## Executing commands
-    -./validator-scripts-rs --help
+    -./validator-client-scripts --help
     - will produce a list of it's capabilites 
 
 The binary requires mandatory OPTIONS:        

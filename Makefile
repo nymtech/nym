@@ -69,6 +69,9 @@ build-wallet:
 build-connect:
 	cargo build --manifest-path nym-connect/Cargo.toml --workspace
 
+build-validator-scripts:
+	cargo build --release --manifest-path tools/validator-client-scripts/Cargo.toml
+
 fmt-main:
 	cargo fmt --all
 

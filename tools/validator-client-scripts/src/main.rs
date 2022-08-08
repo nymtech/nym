@@ -208,7 +208,7 @@ async fn wait_for_interrupt() {
         );
     }
     println!(
-        "Received SIGINT - the gateway will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
+        "Received SIGINT - the process will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
     );
 }
 

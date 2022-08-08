@@ -3,7 +3,7 @@ import React, { useContext } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { format } from 'date-fns';
-import { AppContext } from '../../../context/main';
+import { AppContext } from '../../../context';
 
 const calculateMarkerPosition = (arrLength: number, index: number) => (1 / arrLength) * 100 * index;
 

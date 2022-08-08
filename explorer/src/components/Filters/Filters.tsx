@@ -26,6 +26,7 @@ const FilterItem = ({
   id,
   tooltipInfo,
   value,
+  isSmooth,
   marks,
   scale,
   min,
@@ -42,7 +43,7 @@ const FilterItem = ({
       onChange={(e: Event, newValue: number | number[]) => onChange(id, newValue as number[])}
       valueLabelDisplay="off"
       marks={marks}
-      step={null}
+      step={isSmooth ? 1 : null}
       scale={scale}
       min={min}
       max={max}

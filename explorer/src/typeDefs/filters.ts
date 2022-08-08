@@ -11,6 +11,7 @@ export type TFilterItem = {
   label: string;
   id: EnumFilterKey;
   value: number[];
+  isSmooth?: boolean;
   marks: Mark[];
   min?: number;
   max?: number;

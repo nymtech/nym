@@ -507,7 +507,7 @@ mod test {
 
         for (expected, raw_display) in values {
             let coin = DecCoin {
-                denom: Network::MAINNET.mix_denom().display.into(),
+                denom: Network::MAINNET.mix_denom().display,
                 amount: raw_display.parse().unwrap(),
             };
             let base = reg.attempt_convert_to_base_coin(coin).unwrap();

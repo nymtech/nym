@@ -22,7 +22,7 @@ The binary takes optional args which are as follows -> OPTIONS:
 --vesting-contract <VESTING_CONTRACT>   
 ```
 If you specify --config-env-file it will read the values from the envs/directory:
-`./validator-client-scripts-rs --config-env-file env/qa.env .....` and you don't need to supply the 
+`./validator-client-scripts --config-env-file env/qa.env .....` and you don't need to supply the 
 mixnet-contract nor the vesting-contract argument
 
 An example of a command is as follows:

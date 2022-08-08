@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Button, CircularProgress, DialogActions, DialogContent, Typography } from '@mui/material';
 import { useKeyPress } from 'src/hooks/useKeyPress';
 import { PasswordInput } from './textfields';
+import { StyledBackButton } from './StyledBackButton';
 
 export const ConfirmPassword = ({
   error,
   isLoading,
   onConfirm,
+  onCancel,
   buttonTitle,
 }: {
   error?: string;
   isLoading?: boolean;
   buttonTitle: string;
+  onCancel?: () => void;
   onConfirm: (password: string) => void;
 }) => {
   const [value, setValue] = useState('');
@@ -39,7 +42,8 @@ export const ConfirmPassword = ({
           disabled={isLoading}
         />
       </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 0 }}>
+      <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+        {onCancel && <StyledBackButton onBack={onCancel} />}
         <Button
           disabled={!value.length || isLoading}
           fullWidth

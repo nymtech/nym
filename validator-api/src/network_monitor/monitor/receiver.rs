@@ -7,6 +7,7 @@ use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
+use task::ShutdownListener;
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;
@@ -55,8 +56,8 @@ impl PacketReceiver {
             .expect("packet processor seems to have crashed!");
     }
 
-    pub(crate) async fn run(&mut self) {
-        loop {
+    pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state
@@ -66,6 +67,9 @@ impl PacketReceiver {
                 // to return
                 Some((_gateway_id, message)) = self.gateways_reader.stream_map().next() => {
                         self.process_gateway_messages(message)
+                }
+                _ = shutdown.recv() => {
+                    trace!("UpdateHandler: Received shutdown");
                 }
             }
         }

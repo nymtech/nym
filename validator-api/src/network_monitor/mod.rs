@@ -6,6 +6,7 @@ use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
+use task::ShutdownNotifier;
 
 use crate::config::Config;
 use crate::contract_cache::ValidatorCache;
@@ -131,11 +132,13 @@ impl NetworkMonitorRunnables {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
-    pub(crate) fn spawn_tasks(self) {
+    pub(crate) fn spawn_tasks(self, shutdown: &ShutdownNotifier) {
         let mut packet_receiver = self.packet_receiver;
         let mut monitor = self.monitor;
-        tokio::spawn(async move { packet_receiver.run().await });
-        tokio::spawn(async move { monitor.run().await });
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { packet_receiver.run(shutdown_listener).await });
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { monitor.run(shutdown_listener).await });
     }
 }
 

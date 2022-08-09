@@ -1,4 +1,5 @@
 import React from 'react';
+import { SxProps } from '@mui/material';
 import { Box, Card, CardContent, CardHeader } from '@mui/material';
 import { styled, Theme } from '@mui/material/styles';
 import { Title } from './Title';
@@ -12,7 +13,7 @@ const CardContentNoPadding = styled(CardContent)(() => ({
 
 export const NymCard: React.FC<{
   title: string | React.ReactElement;
-  titleSx?: object;
+  titleSx?: SxProps;
   subheader?: string;
   Action?: React.ReactNode;
   Icon?: React.ReactNode;

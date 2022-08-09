@@ -6,14 +6,13 @@ use crate::node_status_api::models::{ErrorResponse, MixnodeStatusReport, Mixnode
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
 use rocket::http::Status;
 use rocket::State;
 use validator_api_requests::models::{
-    ComputeRewardEstParam, GatewayCoreStatusResponse, InclusionProbabilityResponse,
-    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
+    ComputeRewardEstParam, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub(crate) async fn _mixnode_report(

@@ -3,7 +3,6 @@
 
 use crate::{filter, NetworkAddress};
 use crypto::asymmetric::{encryption, identity};
-use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{Layer, MixNodeBond, NodeId};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;

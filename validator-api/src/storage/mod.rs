@@ -86,11 +86,9 @@ impl ValidatorApiStorage {
         identity: &str,
     ) -> Result<Option<NodeId>, ValidatorApiStorageError> {
         Ok(self
-            .manager
-            .get_mixnode_mix_ids_by_identity(identity)
+            .mix_identity_to_mix_ids(identity)
             .await?
-            .iter()
-            .copied()
+            .into_iter()
             .max())
     }
 

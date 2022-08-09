@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::rewarded_set_updater::error::RewardingError;
 use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
@@ -25,6 +24,8 @@ use validator_client::ValidatorClientError;
 
 #[cfg(feature = "coconut")]
 use crate::coconut::error::CoconutError;
+use crate::epoch_operations::error::RewardingError;
+use crate::epoch_operations::MixnodeToReward;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
 #[cfg(feature = "coconut")]
@@ -183,18 +184,65 @@ impl<C> Client<C> {
             .await
     }
 
-    pub(crate) async fn advance_current_epoch(&self) -> Result<(), ValidatorClientError>
+    pub(crate) async fn send_rewarding_messages(
+        &self,
+        nodes: &[MixnodeToReward],
+    ) -> Result<(), ValidatorClientError>
     where
         C: SigningCosmWasmClient + Sync + Send,
     {
-        todo!()
-        // self.0
-        //     .write()
-        //     .await
-        //     .nymd
-        //     .advance_current_epoch(None)
-        //     .await?;
-        // Ok(())
+        // for some reason, compiler complains if this is explicitly inline in code ¯\_(ツ)_/¯
+        #[inline]
+        #[allow(unused_variables)]
+        fn generate_reward_messages(
+            eligible_mixnodes: &[MixnodeToReward],
+        ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "no-reward")] {
+                    vec![]
+                } else {
+                    eligible_mixnodes
+                        .iter()
+                    .map(|node| (*node).into())
+                        .zip(std::iter::repeat(Vec::new()))
+                        .collect()
+                }
+            }
+        }
+
+        let contract = self.0.read().await.get_mixnet_contract_address();
+
+        let msgs = generate_reward_messages(nodes);
+
+        self.0
+            .write()
+            .await
+            .nymd
+            .execute_multiple(
+                &contract,
+                msgs,
+                Default::default(),
+                format!("rewarding {} mixnodes", nodes.len()),
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn advance_current_epoch(
+        &self,
+        new_rewarded_set: Vec<NodeId>,
+        expected_active_set_size: u32,
+    ) -> Result<(), ValidatorClientError>
+    where
+        C: SigningCosmWasmClient + Sync + Send,
+    {
+        self.0
+            .write()
+            .await
+            .nymd
+            .advance_current_epoch(new_rewarded_set, expected_active_set_size, None)
+            .await?;
+        Ok(())
     }
 
     pub(crate) async fn reconcile_epoch_events(&self) -> Result<(), ValidatorClientError>
@@ -245,6 +293,9 @@ impl<C> Client<C> {
         // Ok(())
     }
 
+    // this method is now useless as under the hood we're now broadcasting txs in `sync` mode
+    // rather than in `commit` mode
+    #[deprecated]
     async fn execute_multiple_with_retry<M>(
         &self,
         msgs: Vec<(M, Vec<Coin>)>,

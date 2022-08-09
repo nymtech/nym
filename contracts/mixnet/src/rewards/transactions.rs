@@ -65,11 +65,11 @@ pub(crate) fn try_reward_mixnode(
     // check if this node has already been rewarded for the current epoch.
     // unlike the previous check, this one should be a hard error since this cannot be
     // influenced by users actions
-    let epoch_details = interval.current_full_epoch_id();
-    if epoch_details == mix_rewarding.last_rewarded_epoch {
+    let absolute_epoch_id = interval.current_epoch_absolute_id();
+    if absolute_epoch_id == mix_rewarding.last_rewarded_epoch {
         return Err(MixnetContractError::MixnodeAlreadyRewarded {
             node_id,
-            epoch_details,
+            absolute_epoch_id,
         });
     }
 
@@ -78,13 +78,13 @@ pub(crate) fn try_reward_mixnode(
         .load(deps.storage, node_id)
         .map_err(|_| MixnetContractError::MixnodeNotInRewardedSet {
             node_id,
-            epoch_details,
+            absolute_epoch_id,
         })?;
 
     // no need to calculate anything as rewards are going to be 0 for everything
     // however, we still need to update last_rewarded_epoch field
     if node_performance.is_zero() {
-        mix_rewarding.last_rewarded_epoch = epoch_details;
+        mix_rewarding.last_rewarded_epoch = absolute_epoch_id;
         storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
@@ -103,7 +103,7 @@ pub(crate) fn try_reward_mixnode(
         node_performance,
         interval.epochs_in_interval(),
     );
-    mix_rewarding.distribute_rewards(reward_distribution, epoch_details);
+    mix_rewarding.distribute_rewards(reward_distribution, absolute_epoch_id);
 
     // persist changes happened to the storage
     storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;

@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::interval::FullEpochId;
 use crate::NodeId;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
@@ -84,16 +83,16 @@ pub enum MixnetContractError {
         epoch_end: i64,
     },
 
-    #[error("Mixnode {node_id} has already been rewarded during the current rewarding epoch ({epoch_details})")]
+    #[error("Mixnode {node_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
     MixnodeAlreadyRewarded {
         node_id: NodeId,
-        epoch_details: FullEpochId,
+        absolute_epoch_id: u32,
     },
 
-    #[error("Mixnode {node_id} hasn't been selected to the rewarding set in this epoch ({epoch_details})")]
+    #[error("Mixnode {node_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
     MixnodeNotInRewardedSet {
         node_id: NodeId,
-        epoch_details: FullEpochId,
+        absolute_epoch_id: u32,
     },
 
     #[error("Mixnode {node_id} is currently in the process of unbonding")]

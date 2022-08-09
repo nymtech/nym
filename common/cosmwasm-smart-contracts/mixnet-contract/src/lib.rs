@@ -24,8 +24,7 @@ pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
 };
 pub use interval::{
-    CurrentIntervalResponse, FullEpochId, Interval, PendingEpochEventsResponse,
-    PendingIntervalEventsResponse,
+    CurrentIntervalResponse, Interval, PendingEpochEventsResponse, PendingIntervalEventsResponse,
 };
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeDetailsResponse,

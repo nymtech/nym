@@ -462,7 +462,7 @@ pub fn new_advance_epoch_event(interval: Interval, rewarded_nodes: u32) -> Event
     Event::new(MixnetEventType::AdvanceEpoch)
         .add_attribute(
             NEW_CURRENT_EPOCH_KEY,
-            interval.current_full_epoch_id().to_string(),
+            interval.current_epoch_absolute_id().to_string(),
         )
         .add_attribute(REWARDED_SET_NODES_KEY, rewarded_nodes.to_string())
 }

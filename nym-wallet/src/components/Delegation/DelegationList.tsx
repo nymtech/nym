@@ -261,7 +261,7 @@ epoch every hour."
                         epoch every hour.`}
                       arrow
                     >
-                      <Chip label="Delegation Pending" />
+                      <Chip label="Pending Events" />
                     </Tooltip>
                   )}
                 </TableCell>

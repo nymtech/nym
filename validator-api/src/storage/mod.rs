@@ -10,7 +10,7 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, RewardingReport, TestingRoute};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::{EpochId, NodeId};
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
@@ -715,6 +715,16 @@ impl ValidatorApiStorage {
     ) -> Result<(), ValidatorApiStorageError> {
         self.manager
             .insert_rewarding_report(report)
+            .await
+            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+    }
+
+    pub(crate) async fn get_rewarding_report(
+        &self,
+        absolute_epoch_id: EpochId,
+    ) -> Result<Option<RewardingReport>, ValidatorApiStorageError> {
+        self.manager
+            .get_rewarding_report(absolute_epoch_id)
             .await
             .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
     }

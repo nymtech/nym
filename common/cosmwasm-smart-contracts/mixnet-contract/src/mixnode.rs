@@ -6,11 +6,10 @@
 
 use crate::constants::UNIT_DELEGATION_BASE;
 use crate::error::MixnetContractError;
-use crate::interval::FullEpochId;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
-use crate::{Delegation, IdentityKey, NodeId, Percent, SphinxKey};
+use crate::{Delegation, EpochId, IdentityKey, NodeId, Percent, SphinxKey};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -101,7 +100,7 @@ pub struct MixNodeRewarding {
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
     #[serde(rename = "le")]
-    pub last_rewarded_epoch: FullEpochId,
+    pub last_rewarded_epoch: EpochId,
 
     // technically we don't need that field to determine reward magnitude or anything
     // but it saves on extra queries to determine if we're removing the final delegation
@@ -114,7 +113,7 @@ impl MixNodeRewarding {
     pub fn initialise_new(
         cost_params: MixNodeCostParams,
         initial_pledge: &Coin,
-        current_epoch: FullEpochId,
+        current_epoch: EpochId,
     ) -> Self {
         MixNodeRewarding {
             cost_params,
@@ -284,7 +283,7 @@ impl MixNodeRewarding {
     pub fn distribute_rewards(
         &mut self,
         distribution: RewardDistribution,
-        full_epoch_id: FullEpochId,
+        absolute_epoch_id: EpochId,
     ) {
         let unit_delegation_reward = distribution.delegates
             * self.delegator_share(self.unit_delegation + self.total_unit_reward);
@@ -294,7 +293,7 @@ impl MixNodeRewarding {
 
         // self.current_period_reward += unit_delegation_reward;
         self.total_unit_reward += unit_delegation_reward;
-        self.last_rewarded_epoch = full_epoch_id;
+        self.last_rewarded_epoch = absolute_epoch_id;
     }
 
     pub fn epoch_rewarding(
@@ -302,11 +301,11 @@ impl MixNodeRewarding {
         reward_params: &RewardingParams,
         node_params: NodeRewardParams,
         epochs_in_interval: u32,
-        full_epoch_id: FullEpochId,
+        absolute_epoch_id: EpochId,
     ) {
         let reward_distribution =
             self.calculate_epoch_reward(reward_params, node_params, epochs_in_interval);
-        self.distribute_rewards(reward_distribution, full_epoch_id)
+        self.distribute_rewards(reward_distribution, absolute_epoch_id)
     }
 
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {

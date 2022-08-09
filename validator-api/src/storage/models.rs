@@ -43,9 +43,9 @@ pub(crate) struct TestingRoute {
 
 pub(crate) struct RewardingReport {
     // references particular interval_rewarding
-    pub(crate) interval_rewarding_id: i64,
+    pub(crate) absolute_epoch_id: u32,
 
-    pub(crate) eligible_mixnodes: i64,
+    pub(crate) eligible_mixnodes: u32,
 
-    pub(crate) possibly_unrewarded_mixnodes: i64,
+    pub(crate) possibly_unrewarded_mixnodes: u32,
 }

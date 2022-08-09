@@ -2853,6 +2853,7 @@ dependencies = [
  "contracts-common",
  "cosmwasm-std",
  "log",
+ "rand_chacha 0.3.1",
  "schemars",
  "serde",
  "serde_json",

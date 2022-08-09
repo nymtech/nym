@@ -1040,7 +1040,7 @@ mod tests {
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
         };
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-        use mixnet_contract_common::{FullEpochId, RewardedSetNodeStatus};
+        use mixnet_contract_common::RewardedSetNodeStatus;
 
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
@@ -1329,11 +1329,8 @@ mod tests {
             let interval_post = test.current_interval();
             let rewarded_set = test.rewarded_set();
 
-            let expected_id = FullEpochId {
-                interval_id: interval_pre.current_interval_id(),
-                epoch_id: interval_pre.current_epoch_id() + 1,
-            };
-            assert_eq!(interval_post.current_full_epoch_id(), expected_id);
+            let expected_id = interval_pre.current_epoch_absolute_id() + 1;
+            assert_eq!(interval_post.current_epoch_absolute_id(), expected_id);
             assert_eq!(
                 rewarded_set,
                 vec![

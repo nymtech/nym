@@ -6,7 +6,7 @@ use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses
 use crate::storage::models::{
     ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
 };
-use mixnet_contract_common::{IdentityKey, NodeId};
+use mixnet_contract_common::{EpochId, IdentityKey, NodeId};
 use std::convert::TryFrom;
 
 #[derive(Clone)]
@@ -851,19 +851,36 @@ impl StorageManager {
         &self,
         report: RewardingReport,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO rewarding_report
-                (interval_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
-                VALUES (?, ?, ?);
-            "#,
-            report.interval_rewarding_id,
-            report.eligible_mixnodes,
-            report.possibly_unrewarded_mixnodes,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO rewarding_report
+        //         (interval_rewarding_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
+        //         VALUES (?, ?, ?);
+        //     "#,
+        //     report.interval_rewarding_id,
+        //     report.eligible_mixnodes,
+        //     report.possibly_unrewarded_mixnodes,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
+    }
+
+    pub(super) async fn get_rewarding_report(
+        &self,
+        absolute_epoch_id: EpochId,
+    ) -> Result<Option<RewardingReport>, sqlx::Error> {
+        todo!()
+        // sqlx::query_as!(
+        //     RewardingReport,
+        //     r#"
+        //         SELECT * FROM rewarding_report WHERE absolute_epoch_id = ?
+        //     "#,
+        //     absolute_epoch_id
+        // )
+        // .fetch_optional(&self.connection_pool)
+        // .await
     }
 
     /// Obtains all statuses of active mixnodes from the specified time interval.

@@ -8,7 +8,7 @@ use ::time::OffsetDateTime;
 use anyhow::Result;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
-    FullEpochId, GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNode, MixNodeBond, NodeId,
+    GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNode, MixNodeBond, NodeId,
     RewardedSetNodeStatus,
 };
 use okapi::openapi3::OpenApi;

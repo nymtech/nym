@@ -33,22 +33,20 @@ use std::time::Duration;
 use std::{fs, process};
 use task::ShutdownNotifier;
 use tokio::sync::Notify;
-// use validator_client::nymd::SigningNymdClient;
-// use validator_client::ValidatorClientError;
+use validator_client::nymd::SigningNymdClient;
 
-use crate::rewarded_set_updater::RewardedSetUpdater;
+use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::{comm::QueryCommunicationChannel, InternalSignRequest};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
-use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
+mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
-mod rewarded_set_updater;
 pub(crate) mod storage;
 mod swagger;
 

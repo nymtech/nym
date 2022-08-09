@@ -121,6 +121,32 @@ pub enum ExecuteMsg {
     },
 }
 
+impl ExecuteMsg {
+    pub fn name(&self) -> &str {
+        match self {
+            ExecuteMsg::TrackReward { .. } => "VestingExecuteMsg::TrackReward",
+            ExecuteMsg::ClaimOperatorReward { .. } => "VestingExecuteMsg::ClaimOperatorReward",
+            ExecuteMsg::ClaimDelegatorReward { .. } => "VestingExecuteMsg::ClaimDelegatorReward",
+            ExecuteMsg::UpdateMixnodeConfig { .. } => "VestingExecuteMsg::UpdateMixnodeConfig",
+            ExecuteMsg::UpdateMixnetAddress { .. } => "VestingExecuteMsg::UpdateMixnetAddress",
+            ExecuteMsg::DelegateToMixnode { .. } => "VestingExecuteMsg::DelegateToMixnode",
+            ExecuteMsg::UndelegateFromMixnode { .. } => "VestingExecuteMsg::UndelegateFromMixnode",
+            ExecuteMsg::CreateAccount { .. } => "VestingExecuteMsg::CreateAccount",
+            ExecuteMsg::WithdrawVestedCoins { .. } => "VestingExecuteMsg::WithdrawVestedCoins",
+            ExecuteMsg::TrackUndelegation { .. } => "VestingExecuteMsg::TrackUndelegation",
+            ExecuteMsg::BondMixnode { .. } => "VestingExecuteMsg::BondMixnode",
+            ExecuteMsg::UnbondMixnode { .. } => "VestingExecuteMsg::UnbondMixnode",
+            ExecuteMsg::TrackUnbondMixnode { .. } => "VestingExecuteMsg::TrackUnbondMixnode",
+            ExecuteMsg::BondGateway { .. } => "VestingExecuteMsg::BondGateway",
+            ExecuteMsg::UnbondGateway { .. } => "VestingExecuteMsg::UnbondGateway",
+            ExecuteMsg::TrackUnbondGateway { .. } => "VestingExecuteMsg::TrackUnbondGateway",
+            ExecuteMsg::TransferOwnership { .. } => "VestingExecuteMsg::TransferOwnership",
+            ExecuteMsg::UpdateStakingAddress { .. } => "VestingExecuteMsg::UpdateStakingAddress",
+            ExecuteMsg::UpdateLockedPledgeCap { .. } => "VestingExecuteMsg::UpdateLockedPledgeCap",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {

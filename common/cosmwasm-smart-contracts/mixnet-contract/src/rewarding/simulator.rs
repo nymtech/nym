@@ -105,8 +105,10 @@ impl Simulator {
             node_params,
             self.interval.epochs_in_interval(),
         );
-        self.node_rewarding_details
-            .distribute_rewards(reward_distribution, self.interval.current_full_epoch_id());
+        self.node_rewarding_details.distribute_rewards(
+            reward_distribution,
+            self.interval.current_epoch_absolute_id(),
+        );
         self.interval = self.interval.advance_epoch();
 
         reward_distribution

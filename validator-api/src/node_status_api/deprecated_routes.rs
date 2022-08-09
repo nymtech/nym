@@ -14,40 +14,12 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use validator_api_requests::models::{
     DeprecatedComputeRewardEstParam, DeprecatedRewardEstimationResponse, DeprecatedUptimeResponse,
     InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse,
     StakeSaturationResponse,
 };
-
-pub trait Deprecatable {
-    fn deprecate(self) -> Deprecated<Self>
-    where
-        Self: Sized,
-    {
-        self.into()
-    }
-}
-
-impl<T> Deprecatable for T {}
-
-#[derive(Serialize, Deserialize, JsonSchema)]
-pub struct Deprecated<T> {
-    deprecated: bool,
-    #[serde(flatten)]
-    response: T,
-}
-
-impl<T> From<T> for Deprecated<T> {
-    fn from(response: T) -> Self {
-        Deprecated {
-            deprecated: true,
-            response,
-        }
-    }
-}
+use validator_api_requests::{Deprecatable, Deprecated};
 
 // Note: this is a very dangerous method to call as the same identity in the past might have
 // referred to a completely different node id!

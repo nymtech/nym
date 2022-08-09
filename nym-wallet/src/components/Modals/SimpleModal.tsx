@@ -50,17 +50,16 @@ export const SimpleModal: React.FC<{
         )}
         {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
       </Stack>
-      {subHeader && (
-        <Typography
-          mt={0.5}
-          mb={3}
-          fontSize={12}
-          color={(theme) => theme.palette.text.secondary}
-          sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
-        >
-          {subHeader}
-        </Typography>
-      )}
+
+      <Typography
+        mt={0.5}
+        mb={3}
+        fontSize={12}
+        color={(theme) => theme.palette.text.secondary}
+        sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
+      >
+        {subHeader}
+      </Typography>
 
       {children}
 

@@ -5,6 +5,7 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
     label: 'Profit margin (%)',
     id: EnumFilterKey.profitMargin,
     value: [0, 100],
+    isSmooth: true,
     marks: [
       { label: '0', value: 0 },
       { label: '10', value: 10 },

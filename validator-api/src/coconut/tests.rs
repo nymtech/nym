@@ -716,7 +716,7 @@ async fn verification_of_bandwidth_credential() {
     let voucher_info = "voucher info";
     let public_attributes = vec![
         hash_to_scalar(voucher_value.to_string()),
-        hash_to_scalar(voucher_info.to_string()),
+        hash_to_scalar(voucher_info),
     ];
     let theta = theta_from_keys_and_attributes(&params, &key_pairs, &public_attributes).unwrap();
     let key_pair = key_pairs.remove(0);

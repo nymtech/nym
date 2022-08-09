@@ -13,8 +13,7 @@ use crate::node_status_api::models::{
 };
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
-use mixnet_contract_common::reward_params::{Performance, RewardingParams};
-use mixnet_contract_common::{MixNodeBond, NodeId};
+use mixnet_contract_common::NodeId;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;

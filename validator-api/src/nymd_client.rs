@@ -2,30 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
+use crate::epoch_operations::MixnodeToReward;
 use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, Interval, MixNodeBond, NodeId,
-    RewardedSetNodeStatus,
+    CurrentIntervalResponse, ExecuteMsg, GatewayBond, NodeId, RewardedSetNodeStatus,
 };
-use serde::Serialize;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::RwLock;
-use tokio::time::sleep;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    Coin, CosmWasmClient, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
 };
 use validator_client::ValidatorClientError;
 
 #[cfg(feature = "coconut")]
 use crate::coconut::error::CoconutError;
-use crate::epoch_operations::error::RewardingError;
-use crate::epoch_operations::MixnodeToReward;
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
 #[cfg(feature = "coconut")]
@@ -256,98 +251,6 @@ impl<C> Client<C> {
             .reconcile_epoch_events(None, None)
             .await?;
         Ok(())
-    }
-
-    pub(crate) async fn epoch_operations(
-        &self,
-        rewarded_set: Vec<IdentityKey>,
-        expected_active_set_size: u32,
-        reward_msgs: Vec<(ExecuteMsg, Vec<Coin>)>,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        todo!()
-        // // // First we create the checkpoint, all subsequent changes to a node will be made to the checkpoint
-        // let mut msgs = vec![(ExecuteMsg::CheckpointMixnodes {}, vec![])];
-        // msgs.extend(reward_msgs);
-        //
-        // let epoch_msgs = vec![
-        //     (ExecuteMsg::ReconcileDelegations {}, vec![]),
-        //     (ExecuteMsg::AdvanceCurrentEpoch {}, vec![]),
-        //     (
-        //         ExecuteMsg::WriteRewardedSet {
-        //             rewarded_set,
-        //             expected_active_set_size,
-        //         },
-        //         vec![],
-        //     ),
-        // ];
-        //
-        // msgs.extend_from_slice(&epoch_msgs);
-        //
-        // let memo = "Performing epoch operations".to_string();
-        //
-        // self.execute_multiple_with_retry(msgs, Default::default(), memo)
-        //     .await?;
-        // Ok(())
-    }
-
-    // this method is now useless as under the hood we're now broadcasting txs in `sync` mode
-    // rather than in `commit` mode
-    #[deprecated]
-    async fn execute_multiple_with_retry<M>(
-        &self,
-        msgs: Vec<(M, Vec<Coin>)>,
-        fee: Fee,
-        memo: String,
-    ) -> Result<(), RewardingError>
-    where
-        C: SigningCosmWasmClient + Sync,
-        M: Serialize + Clone + Send,
-    {
-        let contract = self.0.read().await.get_mixnet_contract_address();
-
-        // grab the write lock here so we're sure nothing else is executing anything on the contract
-        // in the meantime
-        // however, we're not 100% guarded against everything
-        // for example somebody might have taken the mnemonic used by the validator
-        // and sent a transaction manually using the same account. The sequence number
-        // would have gotten incremented, yet the rewarding transaction might have actually not
-        // been included in the block. sadly we can't do much about that.
-        let client_guard = self.0.write().await;
-        let pre_sequence = client_guard.nymd.account_sequence().await?;
-
-        let res = client_guard
-            .nymd
-            .execute_multiple(&contract, msgs.clone(), fee.clone(), memo.clone())
-            .await;
-
-        match res {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                if err.is_tendermint_response_timeout() {
-                    // wait until we're sure we're into the next block (remember we're holding the lock)
-                    sleep(Duration::from_secs(11)).await;
-                    let curr_sequence = client_guard.nymd.account_sequence().await?;
-                    if curr_sequence.sequence > pre_sequence.sequence {
-                        // unless somebody was messing around doing stuff manually in that tiny time interval
-                        // we're good. It was a false negative.
-                        Ok(())
-                    } else {
-                        // the sequence number has not increased, meaning the transaction was not executed
-                        // so attempt to send it again
-                        client_guard
-                            .nymd
-                            .execute_multiple(&contract, msgs, fee, memo)
-                            .await?;
-                        Ok(())
-                    }
-                } else {
-                    Err(err.into())
-                }
-            }
-        }
     }
 }
 

@@ -1,34 +1,32 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::models::Uptime;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
-    GatewayBond, IdentityKey, IdentityKeyRef, Interval, MixNode, MixNodeBond, NodeId,
-    RewardedSetNodeStatus,
+    GatewayBond, IdentityKey, Interval, MixNodeBond, NodeId, RewardedSetNodeStatus,
 };
 use okapi::openapi3::OpenApi;
+use rocket::fairing::AdHoc;
+use rocket::fairing::AdHoc;
 use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
-use task::ShutdownListener;
-
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tokio::sync::RwLock;
 use tokio::time;
 use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
-use validator_client::nymd::traits::MixnetQueryClient;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod reward_estimate;
@@ -111,17 +109,16 @@ impl<C> ValidatorCacheRefresher<C> {
         }
     }
 
-    async fn get_uptime(&self, identity: &IdentityKey, epoch: Interval) -> Option<Uptime> {
-        todo!()
-        // self.storage
-        //     .as_ref()?
-        //     .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
-        //     .await
-        //     .ok()
-    }
-
     async fn get_performance(&self, node_id: NodeId, epoch: Interval) -> Option<Performance> {
-        todo!("figure out how to translate epoch to timestamps")
+        self.storage
+            .as_ref()?
+            .get_average_mixnode_uptime_in_the_last_24hrs(
+                node_id,
+                epoch.current_epoch_end_unix_timestamp(),
+            )
+            .await
+            .ok()
+            .map(Into::into)
     }
 
     async fn annotate_node_with_details(

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, Typography, SxProps } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, SxProps, Modal, Button } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';
@@ -13,6 +13,8 @@ import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
 
 import { getMixnodeStakeSaturation } from '../../requests';
+import { modalStyle } from '../Modals/styles';
+import { ErrorModal } from './ErrorModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -62,7 +64,7 @@ export const DelegateModal: React.FC<{
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
 
-  const { fee, getFee, resetFeeState } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
   const handleCheckStakeSaturation = async (identity: string) => {
     try {
@@ -171,6 +173,18 @@ export const DelegateModal: React.FC<{
         <ModalListItem label="Node identity key:" value={identityKey} divider />
         <ModalListItem label="Amount:" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
+    );
+  }
+
+  if (feeError) {
+    return (
+      <ErrorModal
+        message="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
+        error={feeError}
+        sx={sx}
+        open={open}
+        onClose={onClose}
+      />
     );
   }
 

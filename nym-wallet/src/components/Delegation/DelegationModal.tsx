@@ -1,10 +1,10 @@
 import React from 'react';
-import { Box, Button, Modal, Typography, SxProps, Stack } from '@mui/material';
+import { Typography, SxProps, Stack } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { Console } from 'src/utils/console';
-import { modalStyle } from '../Modals/styles';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';
+import { ErrorModal } from './ErrorModal';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -48,20 +48,9 @@ export const DelegationModal: React.FC<
 
   if (status === 'error') {
     return (
-      <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-        <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
-          <Typography color={(theme) => theme.palette.error.main} mb={1}>
-            Oh no! Something went wrong...
-          </Typography>
-          <Typography my={5} color="text.primary">
-            {message}
-          </Typography>
-          {children}
-          <Button variant="contained" onClick={onClose}>
-            Close
-          </Button>
-        </Box>
-      </Modal>
+      <ErrorModal message="Oh no! Something went wrong..." error={message} sx={sx} open={open} onClose={onClose}>
+        {children}
+      </ErrorModal>
     );
   }
 

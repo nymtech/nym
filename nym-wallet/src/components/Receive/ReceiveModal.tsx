@@ -1,42 +1,33 @@
 import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
-import { Box, Stack, Typography, SxProps } from '@mui/material';
+import { Box, Stack, Typography, SxProps, Dialog, DialogTitle, DialogContent } from '@mui/material';
 import QRCode from 'qrcode.react';
-import { SimpleModal } from '../Modals/SimpleModal';
 import { ClientAddress } from '../ClientAddress';
+import { ModalListItem } from '../Modals/ModalListItem';
+import { Close as CloseIcon } from '@mui/icons-material';
 
-export const ReceiveModal = ({
-  onClose,
-  open,
-  sx,
-  backdropProps,
-}: {
-  onClose: () => void;
-  open: boolean;
-  sx?: SxProps;
-  backdropProps?: object;
-}) => {
+export const ReceiveModal = ({ onClose }: { onClose: () => void; sx?: SxProps; backdropProps?: object }) => {
   const { clientDetails } = useContext(AppContext);
   return (
-    <SimpleModal
-      header="Receive"
-      okLabel="Ok"
-      onClose={onClose}
-      open={open}
-      sx={{ width: 'small', ...sx }}
-      backdropProps={backdropProps}
-    >
-      <Stack spacing={3} sx={{ mt: 1.6 }}>
-        <Stack direction="row" alignItems="center" gap={4}>
-          <Typography>Your address:</Typography>
-          <ClientAddress withCopy showEntireAddress />
-        </Stack>
-        <Stack alignItems="center">
-          <Box sx={{ border: (t) => `1px solid ${t.palette.nym.highlight}`, borderRadius: 2, p: 2 }}>
+    <Dialog open maxWidth="sm" fullWidth onClose={onClose}>
+      <DialogTitle>
+        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography fontSize={20} fontWeight={600}>
+            Receive
+          </Typography>
+          <CloseIcon onClick={onClose} cursor="pointer" />
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 0 }}>
+        <Box sx={{ px: 3 }}>
+          <ModalListItem label="Your address:" value={<ClientAddress withCopy showEntireAddress />} />
+        </Box>
+        <Stack alignItems="center" sx={{ px: 0, py: 3, mt: 3, bgcolor: 'rgba(251, 110, 78, 5%)' }}>
+          <Box sx={{ border: (t) => `1px solid ${t.palette.nym.highlight}`, bgcolor: 'white', borderRadius: 2, p: 3 }}>
             {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
           </Box>
         </Stack>
-      </Stack>
-    </SimpleModal>
+      </DialogContent>
+    </Dialog>
   );
 };

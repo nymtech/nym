@@ -56,6 +56,7 @@ export const SendInputModal = ({
       backdropProps={backdropProps}
     >
       <Stack gap={2} sx={{ mt: 2 }}>
+        <ModalListItem label="Your address:" value={fromAddress} fontWeight="light" />
         <TextField
           placeholder="Recipient address"
           fullWidth
@@ -76,9 +77,8 @@ export const SendInputModal = ({
           {error}
         </Typography>
       </Stack>
-      <Stack gap={0.5} sx={{ mt: 2 }}>
-        <ModalListItem label="Account balance:" value={balance?.toUpperCase()} divider strong />
-        <ModalListItem label="Your address:" value={fromAddress} divider />
+      <Stack gap={0.5} sx={{ mt: 1 }}>
+        <ModalListItem label="Account balance:" value={balance?.toUpperCase()} divider fontWeight={600} />
         <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
           Est. fee for this transaction will be show on the next page
         </Typography>

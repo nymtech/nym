@@ -1,15 +1,20 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::time::{Duration, SystemTime};
 
 const DEFAULT_CACHE_VALIDITY: Duration = Duration::from_secs(60);
 
 #[derive(Clone)]
-pub(crate) struct Cache<T: Clone> {
-    inner: HashMap<String, CacheItem<T>>,
+pub(crate) struct Cache<K, V: Clone> {
+    inner: HashMap<K, CacheItem<V>>,
     cache_validity_duration: Duration,
 }
 
-impl<T: Clone> Cache<T> {
+impl<K, V: Clone> Cache<K, V>
+where
+    K: Eq + Hash,
+{
     pub(crate) fn new() -> Self {
         Cache {
             inner: HashMap::new(),
@@ -29,23 +34,27 @@ impl<T: Clone> Cache<T> {
         self.inner.len()
     }
 
-    pub(crate) fn get_all(&self) -> Vec<T> {
+    pub(crate) fn get_all(&self) -> Vec<V> {
         self.inner
             .values()
             .map(|cache_item| cache_item.value.clone())
             .collect()
     }
 
-    pub(crate) fn get(&self, key: &str) -> Option<T> {
+    pub(crate) fn get<Q: ?Sized>(&self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         self.inner
             .get(key)
             .filter(|cache_item| cache_item.valid_until >= SystemTime::now())
             .map(|cache_item| cache_item.value.clone())
     }
 
-    pub(crate) fn set(&mut self, key: &str, value: T) {
+    pub(crate) fn set(&mut self, key: K, value: V) {
         self.inner.insert(
-            key.to_string(),
+            key,
             CacheItem {
                 valid_until: SystemTime::now() + self.cache_validity_duration,
                 value,
@@ -54,12 +63,20 @@ impl<T: Clone> Cache<T> {
     }
 
     #[allow(unused)]
-    pub(crate) fn remove(&mut self, key: &str) -> Option<T> {
+    pub(crate) fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         self.inner.remove(key).map(|item| item.value)
     }
 
     #[allow(unused)]
-    pub(crate) fn remove_if_expired(&mut self, key: &str) -> Option<T> {
+    pub(crate) fn remove_if_expired<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         if self.inner.get(key)?.has_expired() {
             self.remove(key)
         } else {

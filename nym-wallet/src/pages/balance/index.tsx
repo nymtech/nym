@@ -15,9 +15,6 @@ export const Balance = () => {
 
   useEffect(() => {
     const { originalVesting, currentVestingPeriod, tokenAllocation } = userBalance;
-    if (originalVesting) {
-      setShowVestingCard(true);
-    }
     if (
       originalVesting &&
       currentVestingPeriod === 'After' &&
@@ -26,6 +23,8 @@ export const Balance = () => {
       tokenAllocation?.spendable === '0'
     ) {
       setShowVestingCard(false);
+    } else if (originalVesting) {
+      setShowVestingCard(true);
     }
   }, [userBalance]);
 

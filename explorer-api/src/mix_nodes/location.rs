@@ -5,8 +5,9 @@ use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
+use mixnet_contract_common::NodeId;
 
-pub(crate) type LocationCache = HashMap<String, LocationCacheItem>;
+pub(crate) type LocationCache = HashMap<NodeId, LocationCacheItem>;
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]

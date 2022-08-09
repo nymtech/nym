@@ -97,13 +97,13 @@ impl ExplorerApiTasks {
             .retrieve_rewarded_mixnodes()
             .await
             .into_iter()
-            .map(|bond| bond.mix_node().identity_key.clone())
+            .map(|bond| bond.mix_id())
             .collect();
         let active_nodes = self
             .retrieve_active_mixnodes()
             .await
             .into_iter()
-            .map(|bond| bond.mix_node().identity_key.clone())
+            .map(|bond| bond.mix_id())
             .collect();
         self.state
             .inner

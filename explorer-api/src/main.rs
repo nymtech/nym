@@ -13,6 +13,7 @@ mod client;
 pub(crate) mod commands;
 mod country_statistics;
 mod gateways;
+mod helpers;
 mod http;
 mod mix_node;
 pub(crate) mod mix_nodes;

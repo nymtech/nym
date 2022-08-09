@@ -10,8 +10,7 @@ pub(crate) async fn best_effort_pubkey_to_mix_id(
 ) -> Option<NodeId> {
     state
         .inner
-        .mixnodes
-        .get_mixnode_by_identity(pub_key)
+        .get_mix_node_by_pubkey(pub_key)
         .await
         .map(|node| node.mix_id())
 }

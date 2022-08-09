@@ -3,6 +3,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use log::info;
+use mixnet_contract_common::{IdentityKeyRef, NodeId};
 use serde::{Deserialize, Serialize};
 
 use crate::client::ThreadsafeValidatorClient;
@@ -35,8 +36,15 @@ pub struct ExplorerApiState {
 }
 
 impl ExplorerApiState {
-    pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBondAnnotated> {
-        self.mixnodes.get_mixnode(pubkey).await
+    pub(crate) async fn get_mix_node(&self, mix_id: NodeId) -> Option<MixNodeBondAnnotated> {
+        self.mixnodes.get_mixnode(mix_id).await
+    }
+
+    pub(crate) async fn get_mix_node_by_pubkey(
+        &self,
+        pubkey: IdentityKeyRef<'_>,
+    ) -> Option<MixNodeBondAnnotated> {
+        self.mixnodes.get_mixnode_by_identity(pubkey).await
     }
 }
 

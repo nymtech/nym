@@ -4,7 +4,7 @@ import { Link } from '@nymproject/react/link/Link';
 import { Console } from 'src/utils/console';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';
-import { ErrorModal } from './ErrorModal';
+import { ErrorModal } from '../Modals/ErrorModal';
 
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
@@ -39,7 +39,7 @@ export type DelegationModalProps = {
 export const DelegationModal: React.FC<
   DelegationModalProps & {
     open: boolean;
-    onClose?: () => void;
+    onClose: () => void;
     sx?: SxProps;
     backdropProps?: object;
   }
@@ -48,7 +48,7 @@ export const DelegationModal: React.FC<
 
   if (status === 'error') {
     return (
-      <ErrorModal message="Oh no! Something went wrong..." error={message} sx={sx} open={open} onClose={onClose}>
+      <ErrorModal message={message} sx={sx} open={open} onClose={onClose}>
         {children}
       </ErrorModal>
     );

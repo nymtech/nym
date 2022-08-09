@@ -13,13 +13,13 @@ import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
 
 import { getMixnodeStakeSaturation } from '../../requests';
-import { ErrorModal } from './ErrorModal';
+import { ErrorModal } from '../Modals/ErrorModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
 export const DelegateModal: React.FC<{
   open: boolean;
-  onClose?: () => void;
+  onClose: () => void;
   onOk?: (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
@@ -178,8 +178,8 @@ export const DelegateModal: React.FC<{
   if (feeError) {
     return (
       <ErrorModal
-        message="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
-        error={feeError}
+        title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
+        message={feeError}
         sx={sx}
         open={open}
         onClose={onClose}

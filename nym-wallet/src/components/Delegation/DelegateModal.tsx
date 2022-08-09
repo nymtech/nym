@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Typography, SxProps, Modal, Button } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';
@@ -13,7 +13,6 @@ import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
 
 import { getMixnodeStakeSaturation } from '../../requests';
-import { modalStyle } from '../Modals/styles';
 import { ErrorModal } from './ErrorModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;

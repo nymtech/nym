@@ -85,7 +85,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   useEffect(() => {
     refresh();
-  }, [network, clientDetails, confirmationModalProps]);
+  }, [clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     if ((action === 'delegate' || action === 'compound') && item.stake_saturation && item.stake_saturation > 1) {
@@ -427,8 +427,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const { network } = useContext(AppContext);
   return (
-    <DelegationContextProvider network={network}>
-      <RewardsContextProvider network={network}>
+    <DelegationContextProvider>
+      <RewardsContextProvider>
         <Delegation isStorybook={isStorybook} />
       </RewardsContextProvider>
     </DelegationContextProvider>

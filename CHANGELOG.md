@@ -52,6 +52,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - multisig-contract: Limit the proposal creating functionality to one address (coconut-bandwidth-contract address) ([#1457])
 - All binaries and cosmwasm blobs are configured at runtime now; binaries are configured using environment variables or .env files and contracts keep the configuration parameters in storage ([#1463])
 - gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
+- network explorer: tweak how active set probability is shown ([#1503])
 
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -79,6 +80,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1482]: https://github.com/nymtech/nym/pull/1482
 [#1487]: https://github.com/nymtech/nym/pull/1487
 [#1496]: https://github.com/nymtech/nym/pull/1496
+[#1503]: https://github.com/nymtech/nym/pull/1503
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

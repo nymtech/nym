@@ -13,12 +13,13 @@ import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
 
 import { getMixnodeStakeSaturation } from '../../requests';
+import { ErrorModal } from '../Modals/ErrorModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
 export const DelegateModal: React.FC<{
   open: boolean;
-  onClose?: () => void;
+  onClose: () => void;
   onOk?: (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
@@ -62,7 +63,7 @@ export const DelegateModal: React.FC<{
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
 
-  const { fee, getFee, resetFeeState } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
   const handleCheckStakeSaturation = async (identity: string) => {
     try {
@@ -171,6 +172,18 @@ export const DelegateModal: React.FC<{
         <ModalListItem label="Node identity key:" value={identityKey} divider />
         <ModalListItem label="Amount:" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
+    );
+  }
+
+  if (feeError) {
+    return (
+      <ErrorModal
+        title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
+        message={feeError}
+        sx={sx}
+        open={open}
+        onClose={onClose}
+      />
     );
   }
 

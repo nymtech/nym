@@ -9,7 +9,6 @@ pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 pub mod events;
 pub mod messages;
 
-
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",

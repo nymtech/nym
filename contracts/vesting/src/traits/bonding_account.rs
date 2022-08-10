@@ -1,6 +1,9 @@
 use crate::errors::ContractError;
 use cosmwasm_std::{Coin, Env, Response, Storage};
-use mixnet_contract_common::{Gateway, MixNode, mixnode::{MixNodeConfigUpdate, MixNodeCostParams}};
+use mixnet_contract_common::{
+    mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
+    Gateway, MixNode,
+};
 
 pub trait MixnodeBondingAccount {
     fn try_claim_operator_reward(&self, storage: &dyn Storage) -> Result<Response, ContractError>;

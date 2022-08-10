@@ -58,7 +58,7 @@ impl GeoLocateTask {
                 .state
                 .inner
                 .mixnodes
-                .is_location_valid(&cache_item.mix_node().identity_key)
+                .is_location_valid(cache_item.mix_id())
                 .await
             {
                 // when the cached location is valid, don't locate and continue to next mix node
@@ -87,7 +87,7 @@ impl GeoLocateTask {
                     self.state
                         .inner
                         .mixnodes
-                        .set_location(&cache_item.mix_node().identity_key, Some(location))
+                        .set_location(cache_item.mix_id(), Some(location))
                         .await;
 
                     // one node has been located, so return out of the loop
@@ -106,7 +106,7 @@ impl GeoLocateTask {
                         self.state
                             .inner
                             .mixnodes
-                            .set_location(&cache_item.mix_node().identity_key, None)
+                            .set_location(cache_item.mix_id(), None)
                             .await;
                     },
                     LocateError::RateLimited(e) => warn!(

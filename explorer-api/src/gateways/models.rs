@@ -1,17 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
-
+use crate::cache::Cache;
+use mixnet_contract_common::{GatewayBond, IdentityKey};
 use serde::Serialize;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use mixnet_contract_common::GatewayBond;
-
-use crate::cache::Cache;
-
 pub(crate) struct GatewayCache {
-    pub(crate) gateways: Cache<GatewayBond>,
+    pub(crate) gateways: Cache<IdentityKey, GatewayBond>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -49,7 +46,7 @@ impl ThreadsafeGatewayCache {
         for gateway in gateways {
             guard
                 .gateways
-                .set(gateway.clone().gateway.identity_key.as_str(), gateway)
+                .set(gateway.gateway.identity_key.clone(), gateway)
         }
     }
 }

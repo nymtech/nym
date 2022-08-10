@@ -1,8 +1,6 @@
-use std::path::Path;
-use ts_rs::TS;
-use walkdir::WalkDir;
-
-use mixnet_contract_common::mixnode::RewardedSetNodeStatus;
+use mixnet_contract_common::{
+    MixNode, MixNodeConfigUpdate, RewardedSetNodeStatus, UnbondedMixnode,
+};
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
 use nym_types::delegation::{
@@ -12,7 +10,7 @@ use nym_types::delegation::{
 use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
-use nym_types::mixnode::{MixNode, MixNodeBond};
+use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
 use nym_types::transaction::{
     RpcTransactionResponse, SendTxResult, TransactionDetails, TransactionExecuteResult,
 };
@@ -22,11 +20,14 @@ use nym_wallet_types::app::AppEnv;
 use nym_wallet_types::epoch::Epoch;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
+use std::path::Path;
+use ts_rs::TS;
 use validator_api_requests::models::{
     GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
     MixnodeStatus, MixnodeStatusResponse, SelectionChance, StakeSaturationResponse,
 };
 use vesting_contract_common::Period;
+use walkdir::WalkDir;
 
 macro_rules! do_export {
     ($a:ty) => {{
@@ -46,6 +47,16 @@ fn main() {
 
     println!("Starting export of types using ts-rs...");
     println!();
+
+    // added directly in mixnet-common (NOT IN common/types)
+    do_export!(MixNode);
+    do_export!(UnbondedMixnode);
+    do_export!(MixNodeConfigUpdate);
+
+    // new common/types
+    do_export!(MixNodeCostParams);
+    do_export!(MixNodeDetails);
+    do_export!(MixNodeRewarding);
 
     //
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling
@@ -80,7 +91,6 @@ fn main() {
     do_export!(GatewayBond);
     do_export!(CurrencyDenom);
     do_export!(DecCoin);
-    do_export!(MixNode);
     do_export!(MixNodeBond);
     do_export!(OriginalVestingResponse);
     do_export!(PendingUndelegate);

@@ -26,7 +26,7 @@ pub type IntervalEventId = u32;
 /// Percent represents a value between 0 and 100%
 /// (i.e. between 0.0 and 1.0)
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, PartialOrd, Serialize, Deserialize, JsonSchema,
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Serialize, Deserialize, JsonSchema,
 )]
 pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 

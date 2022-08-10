@@ -433,7 +433,6 @@ pub struct MixNodeBond {
     /// Address of the owner of this mixnode.
     pub owner: Addr,
 
-    // TODO: do we even care about this field?
     /// Original amount pledged by the operator of this node.
     pub original_pledge: Coin,
 
@@ -495,7 +494,12 @@ impl MixNodeBond {
 }
 
 // information provided by the operator
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
+)]
 pub struct MixNode {
     /// Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com
     pub host: String,
@@ -561,13 +565,24 @@ impl From<Layer> for String {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts")
+)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct UnbondedMixnode {
     pub identity: IdentityKey,
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub owner: Addr,
     pub unbonding_height: u64,
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts")
+)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeConfigUpdate {
     pub host: String,

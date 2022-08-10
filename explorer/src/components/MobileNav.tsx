@@ -30,8 +30,15 @@ type MobileNavProps = {
 
 export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }: MobileNavProps) => {
   const theme = useTheme();
-  const { navState, updateNavState } = useMainContext();
+  const { navState, updateNavState, environment } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const explorerName =
+    `${environment && environment.charAt(0).toUpperCase() + environment.slice(1)} Explorer` || 'Mainnet Explorer';
+
+  const switchNetworkText = environment === 'mainnet' ? 'Switch to Testnet' : 'Switch to Mainnet';
+  const switchNetworkLink =
+    environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -81,11 +88,22 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
                 fontSize: '18px',
                 fontWeight: 600,
                 ml: 2,
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               <MuiLink component={Link} to="/overview" underline="none" color="inherit">
-                Network Explorer
+                {explorerName}
               </MuiLink>
+              <Button
+                size="small"
+                variant="outlined"
+                color="inherit"
+                href={switchNetworkLink}
+                sx={{ textTransform: 'none', width: 150 }}
+              >
+                {switchNetworkText}
+              </Button>
             </Typography>
           </Box>
 

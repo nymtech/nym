@@ -308,11 +308,11 @@ export const Nav: React.FC = ({ children }) => {
                 {explorerName}
               </MuiLink>
               <Button
-                size="large"
+                size="small"
                 variant="outlined"
                 color="inherit"
                 href={switchNetworkLink}
-                sx={{ textTransform: 'none', width: 200, ml: 4 }}
+                sx={{ textTransform: 'none', width: 150, ml: 4 }}
               >
                 {switchNetworkText}
               </Button>

@@ -46,9 +46,9 @@ export const CompoundModal: React.FC<{
         <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} sx={{ mb: 2 }} />
       )}
       <ModalListItem label="Rewards amount" value={` ${amount} ${denom.toUpperCase()}`} divider />
-      {fee && <FeeWarning amount={amount} fee={fee} />}
       <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
       <ModalListItem label="Rewards will be added to this delegation" value="" divider />
+      {fee && <FeeWarning amount={amount} fee={fee} />}
     </SimpleModal>
   );
 };

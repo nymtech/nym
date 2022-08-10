@@ -52,9 +52,9 @@ export const RedeemModal: React.FC<{
         <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} sx={{ mb: 2 }} />
       )}
       <ModalListItem label="Rewards amount" value={` ${amount} ${denom.toUpperCase()}`} divider />
-      {fee && <FeeWarning amount={amount} fee={fee} />}
       <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
       <ModalListItem label="Rewards will be transferred to account you are logged in with now" value="" divider />
+      {fee && <FeeWarning amount={amount} fee={fee} />}
     </SimpleModal>
   );
 };

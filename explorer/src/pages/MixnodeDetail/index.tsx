@@ -137,9 +137,14 @@ const PageMixnodeDetailWithState: React.FC = () => {
         </Grid>
         <Grid item xs={12} md={8}>
           {uptimeStory && (
-            <ContentCard title="Uptime story">
-              {uptimeStory.error && <ComponentError text="There was a problem retrieving uptime history." />}
-              <UptimeChart loading={uptimeStory.isLoading} xLabel="date" yLabel="uptime" uptimeStory={uptimeStory} />
+            <ContentCard title="Routing Score">
+              {uptimeStory.error && <ComponentError text="There was a problem retrieving routing score." />}
+              <UptimeChart
+                loading={uptimeStory.isLoading}
+                xLabel="date"
+                yLabel="Routing Score"
+                uptimeStory={uptimeStory}
+              />
             </ContentCard>
           )}
         </Grid>

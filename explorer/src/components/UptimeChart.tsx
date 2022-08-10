@@ -23,7 +23,7 @@ export const UptimeChart: React.FC<ChartProps> = ({ title, xLabel, yLabel, uptim
   const color = theme.palette.text.primary;
   React.useEffect(() => {
     if (uptimeStory.data?.history) {
-      const allFormattedChartData: FormattedChartData = [['Date', 'Uptime']];
+      const allFormattedChartData: FormattedChartData = [['Date', 'Routing Score']];
       uptimeStory.data.history.forEach((eachDate) => {
         const formattedDateUptimeRecord: FormattedDateRecord = [
           format(new Date(eachDate.date), 'MMM dd'),
@@ -34,7 +34,7 @@ export const UptimeChart: React.FC<ChartProps> = ({ title, xLabel, yLabel, uptim
       setFormattedChartData(allFormattedChartData);
     } else {
       const emptyData: any = [
-        ['Date', 'Uptime'],
+        ['Date', 'Routing Score'],
         ['Jul 27', 10],
       ];
       setFormattedChartData(emptyData);
@@ -55,7 +55,7 @@ export const UptimeChart: React.FC<ChartProps> = ({ title, xLabel, yLabel, uptim
             uptimeStory.data
               ? formattedChartData
               : [
-                  ['Date', 'Uptime'],
+                  ['Date', 'Routing Score'],
                   [format(new Date(Date.now()), 'MMM dd'), 0],
                 ]
           }

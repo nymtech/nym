@@ -29,7 +29,7 @@ export const EconomicsInfoColumns: ColumnsType[] = [
     flex: 1,
     headerAlign: 'left',
     tooltipInfo:
-      'Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set.',
+      'Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 400k NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set.',
   },
   {
     field: 'profitMargin',

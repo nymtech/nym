@@ -11,6 +11,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notification:
+    if: ${{ failure() }}
     needs: security_audit
     runs-on: ubuntu-latest
     steps:

@@ -76,6 +76,7 @@ default-members = [
     "clients/socks5",
     "gateway",
     "service-providers/network-requester",
+    "service-providers/network-statistics",
     "mixnode",
     "validator-api",
     "explorer-api",

@@ -3056,7 +3056,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "clap 3.2.8",
  "client-core",
@@ -3090,7 +3090,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3138,7 +3138,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "bs58",
@@ -3178,7 +3178,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "async-trait",
  "clap 2.34.0",
@@ -3206,7 +3206,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "0.1.0"
+version = "1.0.2"
 dependencies = [
  "dirs",
  "log",
@@ -3222,7 +3222,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "clap 3.2.8",
  "client-core",
@@ -3283,7 +3283,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",

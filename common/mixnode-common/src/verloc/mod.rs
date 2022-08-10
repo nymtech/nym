@@ -321,17 +321,18 @@ impl VerlocMeasurer {
             let tested_nodes = all_mixes
                 .into_iter()
                 .filter_map(|node| {
+                    let mix_node = node.bond_information.mix_node;
                     // check if the node has sufficient version to be able to understand the packets
-                    let node_version = parse_version(&node.mix_node.version).ok()?;
+                    let node_version = parse_version(&mix_node.version).ok()?;
                     if node_version < self.config.minimum_compatible_node_version {
                         return None;
                     }
 
                     // try to parse the identity and host
                     let node_identity =
-                        identity::PublicKey::from_base58_string(node.mix_node.identity_key).ok()?;
+                        identity::PublicKey::from_base58_string(mix_node.identity_key).ok()?;
 
-                    let verloc_host = (&*node.mix_node.host, node.mix_node.verloc_port)
+                    let verloc_host = (&*mix_node.host, mix_node.verloc_port)
                         .to_socket_addrs()
                         .ok()?
                         .next()?;

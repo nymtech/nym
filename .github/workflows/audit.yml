@@ -1,0 +1,34 @@
+name: Daily security audit
+
+on: workflow_dispatch
+jobs:
+  security_audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/audit-check@v1
+
+  notification:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Keybase - Node Install
+        run: npm install
+        working-directory: .github/workflows/support-files
+      - name: Keybase - Send Notification
+        env:
+          NYM_NOTIFICATION_KIND: nightly
+          NYM_PROJECT_NAME: "Nym daily audit"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+          GIT_BRANCH: "${GITHUB_REF##*/}"
+          KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
+          KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
+          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBTECH_TEAM }}"
+          KEYBASE_NYM_CHANNEL: "test"
+          IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
+        uses: docker://keybaseio/client:stable-node
+        with:
+          args: .github/workflows/support-files/notifications/entry_point.sh

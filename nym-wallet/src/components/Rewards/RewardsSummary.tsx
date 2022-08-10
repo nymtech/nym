@@ -2,12 +2,22 @@ import React from 'react';
 import { CircularProgress, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { InfoTooltip } from '../InfoToolTip';
+import { Link } from '@nymproject/react/link/Link';
 
 export const RewardsSummary: React.FC<{
   isLoading?: boolean;
+  explorerUrl?: string;
   totalDelegation?: string;
   totalRewards?: string;
-}> = ({ isLoading, totalDelegation, totalRewards }) => {
+}> = ({ isLoading, explorerUrl, totalDelegation, totalRewards }) => {
+  if (explorerUrl)
+    return (
+      <Typography>
+        Check out a <Link target="_blank" text="list of mixnodes " href={explorerUrl} noIcon /> for performance and
+        other parameters to help make a delegation decision
+      </Typography>
+    );
+
   const theme = useTheme();
   return (
     <Stack direction="row" justifyContent="space-between">

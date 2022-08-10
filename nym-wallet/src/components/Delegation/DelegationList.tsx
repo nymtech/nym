@@ -132,6 +132,8 @@ export const DelegationList: React.FC<{
     setOrderBy(property);
   };
 
+  if (!Boolean(items?.length)) return null;
+
   return (
     <TableContainer>
       <Table sx={{ width: '100%' }}>

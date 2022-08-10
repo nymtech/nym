@@ -20,6 +20,7 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -292,23 +293,30 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         <Stack spacing={5}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Delegations</Typography>
-            <Link
-              href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
-              target="_blank"
-              rel="noreferrer"
-              text="Network Explorer"
-              fontSize={14}
-              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
-              noIcon
-            />
+            {Boolean(delegations?.length) && (
+              <Link
+                href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                target="_blank"
+                rel="noreferrer"
+                text="Network Explorer"
+                fontSize={14}
+                fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+                noIcon
+              />
+            )}
           </Box>
           <Box display="flex" justifyContent="space-between" alignItems="end">
-            <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
+            <RewardsSummary
+              isLoading={isLoading}
+              totalDelegation={totalDelegations}
+              totalRewards={totalRewards}
+              explorerUrl={!Boolean(delegations?.length) ? urls(network).networkExplorer : undefined}
+            />
             <Button
               variant="contained"
               disableElevation
               onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+              sx={{ py: 1.5, px: 5, color: 'primary.contrastText', ml: 'auto' }}
             >
               Delegate
             </Button>
@@ -420,6 +428,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           subHeader="This node is over saturated. Choose a new mix node to delegate to and start compounding rewards."
         />
       )}
+
+      {isLoading && <LoadingModal />}
     </>
   );
 };

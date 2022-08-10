@@ -6,8 +6,9 @@ import {
   InclusionProbabilityResponse,
   DecCoin,
   MixNodeBond,
+  GatewayBond,
 } from '@nymproject/types';
-import { Epoch } from 'src/types';
+import { Epoch, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
 export const getReverseMixDelegations = async () =>
@@ -25,6 +26,7 @@ export const getAllPendingDelegations = async () =>
   invokeWrapper<DelegationEvent[]>('get_all_pending_delegation_events');
 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeBond | null>('mixnode_bond_details');
+export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');
 
 export const getOperatorRewards = async (address: string) =>
   invokeWrapper<DecCoin>('get_operator_rewards', { address });
@@ -46,3 +48,9 @@ export const getInclusionProbability = async (identity: string) =>
   invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { identity });
 
 export const getCurrentEpoch = async () => invokeWrapper<Epoch>('get_current_epoch');
+
+export const getNumberOfMixnodeDelegators = async (identity: string) =>
+  invokeWrapper<number>('get_number_of_mixnode_delegators', { identity });
+
+export const getNodeDescription = async (host: string, port: number) =>
+  invokeWrapper<TNodeDescription>('get_mix_node_description', { host, port });

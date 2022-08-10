@@ -85,7 +85,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   useEffect(() => {
     refresh();
-  }, [network, clientDetails, confirmationModalProps]);
+  }, [clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     if ((action === 'delegate' || action === 'compound') && item.stake_saturation && item.stake_saturation > 1) {
@@ -288,7 +288,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 4, mt: 4 }}>
+      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
         <Stack spacing={5}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Delegations</Typography>
@@ -302,7 +302,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               noIcon
             />
           </Box>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box display="flex" justifyContent="space-between" alignItems="end">
             <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
             <Button
               variant="contained"
@@ -323,7 +323,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       </Paper>
 
       {pendingDelegations && (
-        <Paper elevation={0} sx={{ p: 4, mt: 2 }}>
+        <Paper elevation={0} sx={{ p: 3, mt: 2 }}>
           <Stack spacing={5}>
             <Typography variant="h6">Pending Delegation Events</Typography>
             <PendingEvents pendingEvents={pendingDelegations} explorerUrl={urls(network).networkExplorer} />
@@ -427,8 +427,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const { network } = useContext(AppContext);
   return (
-    <DelegationContextProvider network={network}>
-      <RewardsContextProvider network={network}>
+    <DelegationContextProvider>
+      <RewardsContextProvider>
         <Delegation isStorybook={isStorybook} />
       </RewardsContextProvider>
     </DelegationContextProvider>

@@ -13,12 +13,13 @@ import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
 
 import { getMixnodeStakeSaturation } from '../../requests';
+import { ErrorModal } from '../Modals/ErrorModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
 export const DelegateModal: React.FC<{
   open: boolean;
-  onClose?: () => void;
+  onClose: () => void;
   onOk?: (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
@@ -62,7 +63,7 @@ export const DelegateModal: React.FC<{
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
 
-  const { fee, getFee, resetFeeState } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
   const handleCheckStakeSaturation = async (identity: string) => {
     try {
@@ -174,6 +175,18 @@ export const DelegateModal: React.FC<{
     );
   }
 
+  if (feeError) {
+    return (
+      <ErrorModal
+        title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
+        message={feeError}
+        sx={sx}
+        open={open}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
     <SimpleModal
       open={open}
@@ -193,7 +206,7 @@ export const DelegateModal: React.FC<{
         <IdentityKeyFormField
           required
           fullWidth
-          placeholder="Node identity key"
+          label="Node identity key"
           onChanged={handleIdentityKeyChanged}
           initialValue={identityKey}
           readOnly={Boolean(initialIdentityKey)}
@@ -215,7 +228,7 @@ export const DelegateModal: React.FC<{
         <CurrencyFormField
           required
           fullWidth
-          placeholder="Amount"
+          label="Amount"
           initialValue={amount}
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
@@ -231,25 +244,25 @@ export const DelegateModal: React.FC<{
         {errorAmount}
       </Typography>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance:" value={accountBalance} divider strong />
+        <ModalListItem label="Account balance" value={accountBalance?.toUpperCase()} divider fontWeight={600} />
       </Box>
 
-      <ModalListItem label="Rewards payout interval:" value={rewardInterval} hidden divider />
+      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
       <ModalListItem
-        label="Node profit margin:"
+        label="Node profit margin"
         value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}
         hidden={profitMarginPercentage === undefined}
         divider
       />
       <ModalListItem
-        label="Node avg. uptime:"
+        label="Node avg. uptime"
         value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
         hidden={nodeUptimePercentage === undefined}
         divider
       />
 
       <ModalListItem
-        label="Node est. reward per epoch:"
+        label="Node est. reward per epoch"
         value={`${estimatedReward} ${denom.toUpperCase()}`}
         hidden
         divider

@@ -26,6 +26,7 @@ const FilterItem = ({
   id,
   tooltipInfo,
   value,
+  isSmooth,
   marks,
   scale,
   min,
@@ -40,9 +41,9 @@ const FilterItem = ({
     <Slider
       value={value}
       onChange={(e: Event, newValue: number | number[]) => onChange(id, newValue as number[])}
-      valueLabelDisplay="off"
+      valueLabelDisplay={isSmooth ? 'auto' : 'off'}
       marks={marks}
-      step={null}
+      step={isSmooth ? 1 : null}
       scale={scale}
       min={min}
       max={max}
@@ -128,6 +129,7 @@ export const Filters = () => {
         <Alert
           severity="info"
           variant={isMobile ? 'standard' : 'outlined'}
+          sx={{ color: (t) => t.palette.info.light }}
           action={
             <Button size="small" onClick={onClearFilters}>
               CLEAR FILTERS

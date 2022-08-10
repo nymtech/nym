@@ -33,7 +33,7 @@ export const EditAccountModal = () => {
               <Close />
             </IconButton>
           </Box>
-          <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
+          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
             New wallet address
           </Typography>
         </DialogTitle>

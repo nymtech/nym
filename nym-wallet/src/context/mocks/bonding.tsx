@@ -123,14 +123,6 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const compoundRewards = async (): Promise<TransactionExecuteResult | undefined> => {
-    setIsLoading(true);
-    await mockSleep(SLEEP_MS);
-    triggerStateUpdate();
-    setIsLoading(false);
-    return TxResultMock;
-  };
-
   const updateMixnode = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
@@ -166,7 +158,6 @@ export const MockBondingContextProvider = ({
       unbond,
       refresh,
       redeemRewards,
-      compoundRewards,
       fee,
       feeLoading,
       getFee,

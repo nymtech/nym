@@ -13,22 +13,22 @@ import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
+  getGatewayBondDetails,
+  getMixnodeBondDetails,
   getMixnodeRewardEstimation,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
   vestingBondMixNode,
+  vestingClaimOperatorReward,
   vestingUnbondGateway,
   vestingUnbondMixnode,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptioRequest,
-  getGatewayBondDetails,
-  getMixnodeBondDetails,
   getMixnodeStatus,
   getPendingOperatorRewards,
   getMixnodeStakeSaturation,
-  vestingClaimOperatorReward,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -68,6 +68,7 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (signature: string, amount: DecCoin, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
@@ -86,6 +87,9 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   unbond: async () => {
+    throw new Error('Not implemented');
+  },
+  bondMore: async () => {
     throw new Error('Not implemented');
   },
   redeemRewards: async () => {

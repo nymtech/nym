@@ -3,7 +3,7 @@ import { Typography } from '@mui/material';
 import { ActionsMenu, ActionsMenuItem } from 'src/components/ActionsMenu';
 import { Unbond as UnbondIcon, Bond as BondIcon } from '../../svg-icons';
 
-export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem' | 'compound';
+export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem';
 
 export const BondedMixnodeActions = ({
   onActionSelect,

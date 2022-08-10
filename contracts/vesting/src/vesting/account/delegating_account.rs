@@ -23,13 +23,10 @@ impl DelegatingAccount for Account {
             owner: self.owner_address().to_string(),
             mix_id,
         };
-        
-        let compound_delegator_reward_msg = wasm_execute(
-            MIXNET_CONTRACT_ADDRESS.load(storage)?,
-            &msg,
-            vec![],
-        )?;
-        
+
+        let compound_delegator_reward_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
         Ok(Response::new().add_message(compound_delegator_reward_msg))
     }
 
@@ -67,13 +64,7 @@ impl DelegatingAccount for Account {
             &msg,
             vec![coin.clone()],
         )?;
-        self.track_delegation(
-            env.block.height,
-            mix_id,
-            current_balance,
-            coin,
-            storage,
-        )?;
+        self.track_delegation(env.block.height, mix_id, current_balance, coin, storage)?;
 
         Ok(Response::new()
             .add_message(delegate_to_mixnode)
@@ -91,17 +82,14 @@ impl DelegatingAccount for Account {
                 mix_id,
             ));
         }
-        
+
         let msg = MixnetExecuteMsg::UndelegateFromMixnodeOnBehalf {
             mix_id,
             delegate: self.owner_address().into_string(),
         };
-        let undelegate_from_mixnode = wasm_execute(
-            MIXNET_CONTRACT_ADDRESS.load(storage)?,
-            &msg,
-            vec![],
-        )?;
-        
+        let undelegate_from_mixnode =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
         Ok(Response::new()
             .add_message(undelegate_from_mixnode)
             .add_event(new_vesting_undelegation_event()))

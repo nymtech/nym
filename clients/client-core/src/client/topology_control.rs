@@ -265,8 +265,8 @@ impl TopologyRefresher {
         };
 
         let mixnodes_count = mixnodes.len();
-        let topology =
-            nym_topology_from_detailed(mixnodes, gateways).filter_system_version(&self.client_version);
+        let topology = nym_topology_from_detailed(mixnodes, gateways)
+            .filter_system_version(&self.client_version);
 
         if !self.check_layer_distribution(&topology, mixnodes_count) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used.");

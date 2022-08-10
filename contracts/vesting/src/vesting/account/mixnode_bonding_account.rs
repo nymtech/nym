@@ -21,13 +21,10 @@ impl MixnodeBondingAccount for Account {
         let msg = MixnetExecuteMsg::WithdrawOperatorRewardOnBehalf {
             owner: self.owner_address().into_string(),
         };
-        
-        let compound_operator_reward_msg = wasm_execute(
-            MIXNET_CONTRACT_ADDRESS.load(storage)?,
-            &msg,
-            vec![],
-        )?;
-        
+
+        let compound_operator_reward_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
         Ok(Response::new().add_message(compound_operator_reward_msg))
     }
 
@@ -40,13 +37,10 @@ impl MixnodeBondingAccount for Account {
             new_config,
             owner: self.owner_address().into_string(),
         };
-        
-        let update_mixnode_config_msg = wasm_execute(
-            MIXNET_CONTRACT_ADDRESS.load(storage)?,
-            &msg,
-            vec![],
-        )?;
-        
+
+        let update_mixnode_config_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
         Ok(Response::new()
             .add_message(update_mixnode_config_msg)
             .add_event(new_vesting_update_mixnode_config_event()))
@@ -64,21 +58,21 @@ impl MixnodeBondingAccount for Account {
         let current_balance = self.load_balance(storage)?;
         let total_pledged_after = self.total_pledged_locked(storage, env)? + pledge.amount;
         let locked_pledge_cap = locked_pledge_cap(storage);
-        
+
         if locked_pledge_cap < total_pledged_after {
             return Err(ContractError::LockedPledgeCapReached {
                 current: total_pledged_after,
                 cap: locked_pledge_cap,
             });
         }
-        
+
         if current_balance < pledge.amount {
             return Err(ContractError::InsufficientBalance(
                 self.owner_address().as_str().to_string(),
                 current_balance.u128(),
             ));
         }
-        
+
         let pledge_data = if self.load_mixnode_pledge(storage)?.is_some() {
             return Err(ContractError::AlreadyBonded(
                 self.owner_address().as_str().to_string(),
@@ -86,22 +80,22 @@ impl MixnodeBondingAccount for Account {
         } else {
             PledgeData::new(pledge.clone(), env.block.time)
         };
-        
+
         let msg = MixnetExecuteMsg::BondMixnodeOnBehalf {
             mix_node,
             cost_params,
             owner: self.owner_address().into_string(),
             owner_signature,
         };
-        
+
         let new_balance = Uint128::new(current_balance.u128() - pledge.amount.u128());
-        
+
         let bond_mixnode_mag =
             wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![pledge])?;
-        
+
         self.save_balance(new_balance, storage)?;
         self.save_mixnode_pledge(pledge_data, storage)?;
-        
+
         Ok(Response::new()
             .add_message(bond_mixnode_mag)
             .add_event(new_vesting_mixnode_bonding_event()))
@@ -113,11 +107,7 @@ impl MixnodeBondingAccount for Account {
         };
 
         if self.load_mixnode_pledge(storage)?.is_some() {
-            let unbond_msg = wasm_execute(
-                MIXNET_CONTRACT_ADDRESS.load(storage)?,
-                &msg,
-                vec![],
-            )?;
+            let unbond_msg = wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
 
             Ok(Response::new()
                 .add_message(unbond_msg)

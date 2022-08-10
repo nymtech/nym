@@ -72,11 +72,7 @@ impl GatewayBondingAccount for Account {
         };
 
         if let Some(_bond) = self.load_gateway_pledge(storage)? {
-            let unbond_msg = wasm_execute(
-                MIXNET_CONTRACT_ADDRESS.load(storage)?,
-                &msg,
-                vec![],
-            )?;
+            let unbond_msg = wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
 
             Ok(Response::new()
                 .add_message(unbond_msg)

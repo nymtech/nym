@@ -265,6 +265,8 @@ impl MixNode {
 
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+        // TODO: if anything, this should be getting data directly from the contract
+        // as opposed to the validator API
         let validator_client = self.random_api_client();
         let existing_nodes = match validator_client.get_cached_mixnodes().await {
             Ok(nodes) => nodes,
@@ -281,8 +283,8 @@ impl MixNode {
 
         existing_nodes
             .iter()
-            .find(|node| node.mix_node.host == our_host)
-            .map(|node| node.mix_node.identity_key.clone())
+            .find(|node| node.bond_information.mix_node.host == our_host)
+            .map(|node| node.bond_information.mix_node.identity_key.clone())
     }
 
     async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {

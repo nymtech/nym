@@ -45,3 +45,4 @@ jobs:
             target/release/nym-socks5-client
             target/release/nym-validator-api
             target/release/nym-network-requester
+            target/release/nym-network-statistics

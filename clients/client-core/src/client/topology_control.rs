@@ -12,7 +12,7 @@ use std::time;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
-use topology::{nym_topology_from_bonds, NymTopology};
+use topology::{nym_topology_from_detailed, NymTopology};
 use url::Url;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
@@ -266,7 +266,7 @@ impl TopologyRefresher {
 
         let mixnodes_count = mixnodes.len();
         let topology =
-            nym_topology_from_bonds(mixnodes, gateways).filter_system_version(&self.client_version);
+            nym_topology_from_detailed(mixnodes, gateways).filter_system_version(&self.client_version);
 
         if !self.check_layer_distribution(&topology, mixnodes_count) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used.");

@@ -53,6 +53,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - All binaries and cosmwasm blobs are configured at runtime now; binaries are configured using environment variables or .env files and contracts keep the configuration parameters in storage ([#1463])
 - gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
 - network explorer: tweak how active set probability is shown ([#1503])
+- validator-api: rewarder set update fails without panicking on possible nymd queries ([#1520])
 
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -81,6 +82,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1487]: https://github.com/nymtech/nym/pull/1487
 [#1496]: https://github.com/nymtech/nym/pull/1496
 [#1503]: https://github.com/nymtech/nym/pull/1503
+[#1520]: https://github.com/nymtech/nym/pull/1520
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

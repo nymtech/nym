@@ -3,7 +3,7 @@
 
 use crate::client::config::Config;
 use clap::{Parser, Subcommand};
-use url::Url;
+use config::parse_validators;
 
 pub mod init;
 pub(crate) mod run;
@@ -94,17 +94,6 @@ pub(crate) async fn execute(args: &Cli) {
         Commands::Run(m) => run::execute(m).await,
         Commands::Upgrade(m) => upgrade::execute(m),
     }
-}
-
-pub fn parse_validators(raw: &str) -> Vec<Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {

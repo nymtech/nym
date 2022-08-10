@@ -3,7 +3,6 @@
 
 use crate::client::config::{Config, SocketType};
 use clap::{Parser, Subcommand};
-use url::Url;
 
 #[cfg(not(feature = "coconut"))]
 pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
@@ -97,28 +96,17 @@ pub(crate) async fn execute(args: &Cli) {
     }
 }
 
-fn parse_validators(raw: &str) -> Vec<Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
-}
-
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(raw_validators) = args.validators {
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(&raw_validators));
+            .set_custom_validator_apis(config::parse_validators(&raw_validators));
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
         let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
             .expect("api validator not set");
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(&raw_validators));
+            .set_custom_validator_apis(config::parse_validators(&raw_validators));
     }
 
     if args.disable_socket {

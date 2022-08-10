@@ -88,3 +88,14 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
             .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 }
+
+pub fn parse_validators(raw: &str) -> Vec<url::Url> {
+    raw.split(',')
+        .map(|raw_validator| {
+            raw_validator
+                .trim()
+                .parse()
+                .expect("one of the provided validator api urls is invalid")
+        })
+        .collect()
+}

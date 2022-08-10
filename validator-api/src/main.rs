@@ -82,18 +82,6 @@ const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
 const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
 
-#[cfg(feature = "coconut")]
-fn parse_validators(raw: &str) -> Vec<url::Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
-}
-
 fn long_version() -> String {
     format!(
         r#"
@@ -312,10 +300,10 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
 
     #[cfg(feature = "coconut")]
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
-        config = config.with_custom_validator_apis(parse_validators(raw_validators));
+        config = config.with_custom_validator_apis(::config::parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
-        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
+        config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {

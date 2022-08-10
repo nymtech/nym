@@ -6,7 +6,10 @@ use std::process;
 use crate::{config::Config, Cli};
 use clap::Subcommand;
 use colored::Colorize;
-use config::{defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED}, parse_validators};
+use config::{
+    defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED},
+    parse_validators,
+};
 use crypto::bech32_address_validation;
 
 mod describe;

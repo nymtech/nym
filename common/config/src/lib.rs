@@ -99,4 +99,3 @@ pub fn parse_validators(raw: &str) -> Vec<url::Url> {
         })
         .collect()
 }
-

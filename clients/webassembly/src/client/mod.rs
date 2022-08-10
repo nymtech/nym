@@ -11,7 +11,7 @@ use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::{gateway, nym_topology_from_bonds, NymTopology};
+use topology::{gateway, nym_topology_from_detailed, NymTopology};
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -268,7 +268,7 @@ impl NymClient {
             Ok(gateways) => gateways,
         };
 
-        let topology = nym_topology_from_bonds(mixnodes, gateways);
+        let topology = nym_topology_from_detailed(mixnodes, gateways);
         let version = env!("CARGO_PKG_VERSION");
         topology.filter_system_version(version)
     }

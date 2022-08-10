@@ -244,7 +244,7 @@ export const DelegateModal: React.FC<{
         {errorAmount}
       </Typography>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance" value={accountBalance?.toUpperCase()} divider strong />
+        <ModalListItem label="Account balance" value={accountBalance?.toUpperCase()} divider fontWeight={600} />
       </Box>
 
       <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />

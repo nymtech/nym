@@ -2,41 +2,56 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::ThreadsafeValidatorClient;
+use crate::helpers::best_effort_small_dec_to_f64;
 use crate::mix_node::models::EconomicDynamicsStats;
+use mixnet_contract_common::rewarding::helpers::truncate_decimal;
+use mixnet_contract_common::NodeId;
 
 pub(crate) async fn retrieve_mixnode_econ_stats(
     client: &ThreadsafeValidatorClient,
-    identity: &str,
+    mix_id: NodeId,
 ) -> Option<EconomicDynamicsStats> {
     let stake_saturation = client
         .0
         .validator_api
-        .get_mixnode_stake_saturation(identity)
+        .get_mixnode_stake_saturation(mix_id)
         .await
         .ok()?;
 
     let inclusion_probability = client
         .0
         .validator_api
-        .get_mixnode_inclusion_probability(identity)
+        .get_mixnode_inclusion_probability(mix_id)
         .await
         .ok()?;
 
     let reward_estimation = client
         .0
         .validator_api
-        .get_mixnode_reward_estimation(identity)
+        .get_mixnode_reward_estimation(mix_id)
         .await
         .ok()?;
 
-    todo!()
-    // Some(EconomicDynamicsStats {
-    //     stake_saturation: stake_saturation.saturation,
-    //     active_set_inclusion_probability: inclusion_probability.in_active,
-    //     reserve_set_inclusion_probability: inclusion_probability.in_reserve,
-    //     estimated_total_node_reward: reward_estimation.estimated_total_node_reward,
-    //     estimated_operator_reward: reward_estimation.estimated_operator_reward,
-    //     estimated_delegators_reward: reward_estimation.estimated_delegators_reward,
-    //     current_interval_uptime: reward_estimation.reward_params.node.uptime().u128() as u8,
-    // })
+    let uptime_response = client
+        .0
+        .validator_api
+        .get_mixnode_avg_uptime(mix_id)
+        .await
+        .ok()?;
+
+    Some(EconomicDynamicsStats {
+        stake_saturation: best_effort_small_dec_to_f64(stake_saturation.saturation) as f32,
+        active_set_inclusion_probability: inclusion_probability.in_active,
+        reserve_set_inclusion_probability: inclusion_probability.in_reserve,
+        // drop precision for compatibility sake
+        estimated_total_node_reward: truncate_decimal(
+            reward_estimation.estimation.total_node_reward,
+        )
+        .u128() as u64,
+        estimated_operator_reward: truncate_decimal(reward_estimation.estimation.operator).u128()
+            as u64,
+        estimated_delegators_reward: truncate_decimal(reward_estimation.estimation.delegates).u128()
+            as u64,
+        current_interval_uptime: uptime_response.avg_uptime,
+    })
 }

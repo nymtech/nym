@@ -15,7 +15,7 @@ pub mod rewarding;
 mod types;
 
 pub use contracts_common::types::*;
-pub use cosmwasm_std::{Addr, Coin};
+pub use cosmwasm_std::{Addr, Coin, Decimal, Fraction};
 pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,

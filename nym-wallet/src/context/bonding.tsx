@@ -13,6 +13,7 @@ import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
+  getMixnodeRewardEstimation,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
@@ -45,6 +46,7 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
+  operatorCost: number;
 };
 
 export interface TBondedGateway {
@@ -113,10 +115,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string } = {
+    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost: number } = {
       status: 'not_found',
       stakeSaturation: '0',
+      operatorCost: 0,
     };
+
     try {
       const statusResponse = await getMixnodeStatus(mixId);
       additionalDetails.status = statusResponse.status;
@@ -127,6 +131,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
       additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
+    } catch (e) {
+      Console.log(e);
+    }
+    try {
+      const rewardEstimation = await getMixnodeRewardEstimation(mixId);
+      additionalDetails.operatorCost = rewardEstimation.estimated_operator_cost;
     } catch (e) {
       Console.log(e);
     }
@@ -155,7 +165,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
-          const { status, stakeSaturation } = await getAdditionalMixnodeDetails(data.bond_information.id);
+          const { status, stakeSaturation, operatorCost } = await getAdditionalMixnodeDetails(data.bond_information.id);
           const nodeDescription = await getNodeDescription(
             data.bond_information.mix_node.host,
             data.bond_information.mix_node.http_api_port,
@@ -175,6 +185,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
+            operatorCost,
           } as TBondedMixnode);
         }
       } catch (e: any) {

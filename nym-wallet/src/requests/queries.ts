@@ -5,6 +5,7 @@ import {
   DecCoin,
   MixNodeDetails,
   GatewayBond,
+  RewardEstimationResponse,
   WrappedDelegationEvent,
 } from '@nymproject/types';
 import { Interval, TNodeDescription } from 'src/types';
@@ -22,8 +23,8 @@ export const getPendingOperatorRewards = async (address: string) =>
 export const getMixnodeStakeSaturation = async (mixId: number) =>
   invokeWrapper<StakeSaturationResponse>('mixnode_stake_saturation', { mixId });
 
-// export const getMixnodeRewardEstimation = async (mixId: number) =>
-//   invokeWrapper<RewardEstimationResponse>('mixnode_reward_estimation', { identity });
+export const getMixnodeRewardEstimation = async (mixId: number) =>
+  invokeWrapper<RewardEstimationResponse>('mixnode_reward_estimation', { mixId });
 
 export const getMixnodeStatus = async (mixId: number) =>
   invokeWrapper<MixnodeStatusResponse>('mixnode_status', { mixId });

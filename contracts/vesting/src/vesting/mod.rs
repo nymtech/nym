@@ -279,12 +279,8 @@ mod tests {
             denom: TEST_COIN_DENOM.to_string(),
         };
 
-        let ok = account.try_delegate_to_mixnode(
-            mix_id,
-            delegation.clone(),
-            &env,
-            &mut deps.storage,
-        );
+        let ok =
+            account.try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage);
         assert!(ok.is_ok());
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
@@ -362,12 +358,8 @@ mod tests {
             .unwrap();
         assert_eq!(spendable.amount, Uint128::zero());
 
-        let ok = account.try_delegate_to_mixnode(
-            mix_id,
-            delegation.clone(),
-            &env,
-            &mut deps.storage,
-        );
+        let ok =
+            account.try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage);
         assert!(ok.is_ok());
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
@@ -453,9 +445,7 @@ mod tests {
         );
         assert!(err.is_err());
 
-        let total_delegations = account
-            .total_delegations_for_mix(1, &deps.storage)
-            .unwrap();
+        let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
         assert_eq!(Uint128::new(90_000_000_000), total_delegations);
 
         // Current period -> block_time: None
@@ -538,7 +528,10 @@ mod tests {
 
         let cost_params = MixNodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-            interval_operating_cost: Coin { denom: "NYM".to_string(), amount: Uint128::new(40) }
+            interval_operating_cost: Coin {
+                denom: "NYM".to_string(),
+                amount: Uint128::new(40),
+            },
         };
         // Try delegating too much
         let err = account.try_bond_mixnode(

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
+use mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use mixnet_contract_common::NodeId;
 
 pub(crate) type LocationCache = HashMap<NodeId, LocationCacheItem>;
 

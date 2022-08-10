@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ExpandLess, ExpandMore, Menu } from '@mui/icons-material';
 import { CSSObject, styled, Theme, useTheme } from '@mui/material/styles';
+import Button from '@mui/material/Button';
 import MuiLink from '@mui/material/Link';
 import Box from '@mui/material/Box';
 import ListItem from '@mui/material/ListItem';
@@ -229,10 +230,17 @@ ExpandableButton.defaultProps = {
 };
 
 export const Nav: React.FC = ({ children }) => {
-  const { updateNavState, navState } = useMainContext();
+  const { updateNavState, navState, environment } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);
   const theme = useTheme();
+
+  const explorerName =
+    `${environment && environment.charAt(0).toUpperCase() + environment.slice(1)} Explorer` || 'Mainnet Explorer';
+
+  const switchNetworkText = environment === 'mainnet' ? 'Switch to Testnet' : 'Switch to Mainnet';
+  const switchNetworkLink =
+    environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
 
   const setToActive = (id: number) => {
     updateNavState(id);
@@ -297,8 +305,17 @@ export const Nav: React.FC = ({ children }) => {
               }}
             >
               <MuiLink component={Link} to="/" underline="none" color="inherit">
-                Network Explorer
+                {explorerName}
               </MuiLink>
+              <Button
+                size="large"
+                variant="outlined"
+                color="inherit"
+                href={switchNetworkLink}
+                sx={{ textTransform: 'none', width: 200, ml: 4 }}
+              >
+                {switchNetworkText}
+              </Button>
             </Typography>
           </Box>
           <Box

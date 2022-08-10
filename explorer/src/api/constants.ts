@@ -1,7 +1,7 @@
 // master APIs
 export const API_BASE_URL = process.env.EXPLORER_API_URL;
 export const VALIDATOR_API_BASE_URL = process.env.VALIDATOR_API_URL;
-export const VALIDATOR_URL = process.env.VALIDATOR_URL;
+export const { VALIDATOR_URL } = process.env;
 export const BIG_DIPPER = process.env.BIG_DIPPER_URL;
 
 // specific API routes

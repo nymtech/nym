@@ -312,7 +312,7 @@ export const Nav: React.FC = ({ children }) => {
                 variant="outlined"
                 color="inherit"
                 href={switchNetworkLink}
-                sx={{ textTransform: 'none', width: 150, ml: 4 }}
+                sx={{ borderRadius: 2, textTransform: 'none', width: 150, ml: 4, fontSize: 14, fontWeight: 600 }}
               >
                 {switchNetworkText}
               </Button>

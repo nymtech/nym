@@ -78,7 +78,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
             }}
           >
             <IconButton component="a" href={NYM_WEBSITE} target="_blank">
-              <NymLogo height="40px" width="40px" />
+              <NymLogo height="24px" width="24px" />
             </IconButton>
             <Typography
               variant="h6"
@@ -87,12 +87,9 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
                 color: theme.palette.nym.networkExplorer.nav.text,
                 fontSize: '18px',
                 fontWeight: 600,
-                ml: 2,
-                display: 'flex',
-                flexDirection: 'column',
               }}
             >
-              <MuiLink component={Link} to="/overview" underline="none" color="inherit">
+              <MuiLink component={Link} to="/overview" underline="none" color="inherit" fontSize={14} fontWeight={700}>
                 {explorerName}
               </MuiLink>
               <Button
@@ -100,16 +97,16 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
                 variant="outlined"
                 color="inherit"
                 href={switchNetworkLink}
-                sx={{ textTransform: 'none', width: 150 }}
+                sx={{ textTransform: 'none', width: 114, fontSize: '12px', fontWeight: 600, ml: 1 }}
               >
                 {switchNetworkText}
               </Button>
             </Typography>
           </Box>
 
-          <Box>
+          <Box sx={{ mr: 1 }}>
             <DarkLightSwitchMobile />
-            <Button onClick={toggleDrawer}>
+            <Button onClick={toggleDrawer} sx={{ p: 0, minWidth: 0 }}>
               <Menu sx={{ color: theme.palette.primary.contrastText }} />
             </Button>
           </Box>

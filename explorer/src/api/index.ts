@@ -1,4 +1,5 @@
 import {
+  API_BASE_URL,
   BLOCK_API,
   COUNTRY_DATA_API,
   GATEWAYS_API,
@@ -27,6 +28,7 @@ import {
   StatusResponse,
   SummaryOverviewResponse,
   ValidatorsResponse,
+  Environment,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -143,3 +145,8 @@ export class Api {
   static fetchUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
     (await fetch(`${UPTIME_STORY_API}/${id}/history`)).json();
 }
+
+export const getEnvironment = (): Environment => {
+  const matchEnv = (env: Environment) => API_BASE_URL?.toLocaleLowerCase().includes(env) && env;
+  return matchEnv('sandbox') || matchEnv('qa') || 'mainnet';
+};

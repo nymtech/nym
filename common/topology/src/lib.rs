@@ -3,7 +3,8 @@
 
 use crate::filter::VersionFilterable;
 use log::warn;
-use mixnet_contract_common::{GatewayBond, MixNodeBond};
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::GatewayBond;
 use nymsphinx_addressing::nodes::NodeIdentity;
 use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
@@ -224,12 +225,15 @@ impl NymTopology {
     }
 }
 
-pub fn nym_topology_from_bonds(
-    mix_bonds: Vec<MixNodeBond>,
+pub fn nym_topology_from_detailed(
+    mix_details: Vec<MixNodeDetails>,
     gateway_bonds: Vec<GatewayBond>,
 ) -> NymTopology {
     let mut mixes = HashMap::new();
-    for bond in mix_bonds.into_iter() {
+    for bond in mix_details
+        .into_iter()
+        .map(|details| details.bond_information)
+    {
         let layer = bond.layer as MixLayer;
         if layer == 0 || layer > 3 {
             warn!(
@@ -238,13 +242,14 @@ pub fn nym_topology_from_bonds(
             );
             continue;
         }
-        let mix_id = bond.mix_node.identity_key.clone();
+        let mix_id = bond.id;
+        let mix_identity = bond.mix_node.identity_key.clone();
 
         let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
         match bond.try_into() {
             Ok(mix) => layer_entry.push(mix),
             Err(err) => {
-                warn!("Mix {} is malformed - {}", mix_id, err);
+                warn!("Mix {} / {} is malformed - {}", mix_id, mix_identity, err);
                 continue;
             }
         }
@@ -279,9 +284,8 @@ mod converting_mixes_to_vec {
         #[test]
         fn returns_a_vec_with_hashmap_values() {
             let node1 = mix::Node {
+                mix_id: 42,
                 owner: "N/A".to_string(),
-                stake: 0,
-                delegation: 0,
                 host: "3.3.3.3".parse().unwrap(),
                 mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(

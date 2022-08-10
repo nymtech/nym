@@ -9,7 +9,7 @@ jobs:
       - uses: actions-rs/audit-check@v1
 
   notification:
-    needs: build
+    needs: security_audit
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code

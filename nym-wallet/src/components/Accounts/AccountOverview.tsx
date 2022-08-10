@@ -5,10 +5,10 @@ import { AccountAvatar } from './AccountAvatar';
 
 export const AccountOverview = ({ account, onClick }: { account: AccountEntry; onClick: () => void }) => (
   <Button
-    startIcon={<AccountAvatar name={account.id} />}
+    startIcon={<AccountAvatar name={account.id} small />}
     sx={{ color: 'text.primary' }}
+    color="inherit"
     onClick={onClick}
-    disableRipple
   >
     {account.id}
   </Button>

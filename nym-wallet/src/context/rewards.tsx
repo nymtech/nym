@@ -1,5 +1,4 @@
 import React, { createContext, FC, useContext, useEffect, useMemo, useState } from 'react';
-import { Network } from 'src/types';
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
 import { claimDelegatorRewards, compoundDelegatorRewards } from '../requests';
@@ -29,11 +28,8 @@ export const RewardsContext = createContext<TRewardsContext>({
   },
 });
 
-export const RewardsContextProvider: FC<{
-  network?: Network;
-}> = ({ network, children }) => {
+export const RewardsContextProvider: FC<{}> = ({ children }) => {
   const { isLoading, totalRewards, refresh } = useDelegationContext();
-  const [currentNetwork, setCurrentNetwork] = useState<undefined | Network>();
   const [error, setError] = useState<string>();
 
   const resetState = async () => {
@@ -41,12 +37,8 @@ export const RewardsContextProvider: FC<{
   };
 
   useEffect(() => {
-    if (currentNetwork !== network) {
-      // reset state and refresh
-      resetState();
-      setCurrentNetwork(network);
-    }
-  }, [network]);
+    resetState();
+  }, []);
 
   const memoizedValue = useMemo(
     () => ({
@@ -60,7 +52,7 @@ export const RewardsContextProvider: FC<{
         throw new Error('Not implemented');
       },
     }),
-    [isLoading, error, totalRewards, network],
+    [isLoading, error, totalRewards],
   );
 
   return <RewardsContext.Provider value={memoizedValue}>{children}</RewardsContext.Provider>;

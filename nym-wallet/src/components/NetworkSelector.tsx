@@ -39,7 +39,7 @@ export const NetworkSelector = () => {
     <>
       <Button
         variant="text"
-        color="primary"
+        color="inherit"
         sx={{ color: 'text.primary' }}
         onClick={handleClick}
         disableElevation

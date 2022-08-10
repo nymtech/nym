@@ -81,6 +81,7 @@ export const DelegationContextProvider: FC<{
   };
 
   const refresh = useCallback(async () => {
+    resetState();
     setIsLoading(true);
     try {
       const data = await getDelegationSummary();
@@ -94,12 +95,11 @@ export const DelegationContextProvider: FC<{
       setError((e as Error).message);
     }
     setIsLoading(false);
-  }, [network]);
+  }, []);
 
   useEffect(() => {
-    resetState();
     refresh();
-  }, [network]);
+  }, []);
 
   const memoizedValue = useMemo(
     () => ({

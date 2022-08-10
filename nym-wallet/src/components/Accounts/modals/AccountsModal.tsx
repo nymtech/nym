@@ -9,6 +9,7 @@ import {
   DialogTitle,
   IconButton,
   Typography,
+  Divider,
 } from '@mui/material';
 import { Add, ArrowDownwardSharp, Close } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
@@ -51,7 +52,7 @@ export const AccountsModal = () => {
               <Close />
             </IconButton>
           </Box>
-          <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
+          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
             Switch between accounts
           </Typography>
         </DialogTitle>
@@ -69,6 +70,7 @@ export const AccountsModal = () => {
             />
           ))}
         </DialogContent>
+        <Divider variant="middle" sx={{ mt: 3 }} />
         <DialogActions sx={{ p: 3 }}>
           <Button startIcon={<ArrowDownwardSharp />} onClick={() => setDialogToDisplay('Import')}>
             Import account

@@ -10,7 +10,6 @@ use mixnet_contract_common::{IdentityKey, NodeId};
 pub mod events;
 pub mod messages;
 
-
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",

@@ -578,19 +578,15 @@ impl ValidatorCache {
 
 impl ValidatorCacheInner {
     fn new() -> Self {
-        todo!()
-        // ValidatorCacheInner {
-        //     mixnodes: Cache::default(),
-        //     gateways: Cache::default(),
-        //     rewarded_set: Cache::default(),
-        //     active_set: Cache::default(),
-        //     current_reward_params: Cache::new(EpochRewardParams::new_empty()),
-        //     mixnodes_blacklist: Cache::default(),
-        //     gateways_blacklist: Cache::default(),
-        //     // setting it to a dummy value on creation is fine, as nothing will be able to ready from it
-        //     // since 'initialised' flag won't be set
-        //     current_epoch: Cache::new(None),
-        //     current_operator_base_cost: Cache::new(0),
-        // }
+        ValidatorCacheInner {
+            mixnodes: Cache::default(),
+            gateways: Cache::default(),
+            rewarded_set: Cache::default(),
+            active_set: Cache::default(),
+            mixnodes_blacklist: Cache::default(),
+            gateways_blacklist: Cache::default(),
+            current_interval: Cache::default(),
+            current_reward_params: Cache::default(),
+        }
     }
 }

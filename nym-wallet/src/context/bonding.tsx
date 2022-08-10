@@ -20,6 +20,7 @@ import {
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
   vestingBondMixNode,
+  vestingClaimOperatorReward,
   vestingUnbondGateway,
   vestingUnbondMixnode,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
@@ -28,7 +29,6 @@ import {
   getMixnodeStatus,
   getPendingOperatorRewards,
   getMixnodeStakeSaturation,
-  vestingClaimOperatorReward,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';

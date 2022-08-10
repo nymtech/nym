@@ -82,7 +82,7 @@ fn version_check(cfg: &Config) -> bool {
     if binary_version == config_version {
         true
     } else {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+        warn!("The native-client binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
         if is_minor_version_compatible(binary_version, config_version) {
             info!("but they are still semver compatible. However, consider running the `upgrade` command");
             true

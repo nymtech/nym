@@ -62,14 +62,31 @@ impl MixnodeToReward {
 pub struct Epoch(Interval);
 
 impl Epoch {
-    pub(crate) async fn update_to_latest(&mut self, rewarded_set_updater: &RewardedSetUpdater) {
-        match rewarded_set_updater.nymd_client.get_current_epoch().await {
-            Ok(epoch) => *self = Epoch(epoch),
-            Err(e) => warn!(
-                "Could not update epoch: {:?}. Last available epoch will be used {}",
-                e, self.0
-            ),
+    pub(crate) async fn update_to_latest(
+        &mut self,
+        rewarded_set_updater: &RewardedSetUpdater,
+    ) -> Result<(), RewardingError> {
+        let mut wait_time = 2;
+        let mut ret = Ok(());
+        for _ in 0..3 {
+            match rewarded_set_updater.nymd_client.get_current_epoch().await {
+                Ok(epoch) => {
+                    *self = Epoch(epoch);
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!(
+                        "Could not update epoch: {:?}. Retrying again in {} seconds",
+                        e, wait_time
+                    );
+                    ret = Err(e);
+                }
+            };
+            sleep(Duration::from_secs(wait_time)).await;
+            wait_time *= wait_time;
         }
+        error!("Failed to update epoch. Exiting now");
+        Ok(ret?)
     }
 }
 
@@ -144,7 +161,7 @@ impl RewardedSetUpdater {
         epoch: &mut Epoch,
     ) -> Result<Vec<(ExecuteMsg, Vec<Coin>)>, RewardingError> {
         let to_reward = self.nodes_to_reward(epoch).await?;
-        epoch.update_to_latest(self).await;
+        epoch.update_to_latest(self).await?;
 
         // self.storage.insert_started_epoch_rewarding(epoch).await?;
 
@@ -183,7 +200,7 @@ impl RewardedSetUpdater {
         &self,
         epoch: &mut Epoch,
     ) -> Result<Vec<MixnodeToReward>, RewardingError> {
-        epoch.update_to_latest(self).await;
+        epoch.update_to_latest(self).await?;
         let active_set = self
             .validator_cache
             .active_set_detailed()
@@ -226,7 +243,7 @@ impl RewardedSetUpdater {
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
     async fn update(&self, epoch: &mut Epoch) -> Result<(), RewardingError> {
-        epoch.update_to_latest(self).await;
+        epoch.update_to_latest(self).await?;
         log::info!("Starting rewarded set update");
         // we know the entries are not stale, as a matter of fact they were JUST updated, since we got notified
         let all_nodes = self.validator_cache.mixnodes().await;
@@ -318,7 +335,7 @@ impl RewardedSetUpdater {
         loop {
             // wait until the cache refresher determined its time to update the rewarded/active sets
             let time = OffsetDateTime::now_utc().unix_timestamp();
-            epoch.update_to_latest(self).await;
+            epoch.update_to_latest(self).await?;
             let time_to_epoch_change = epoch.end_unix_timestamp() - time;
             if time_to_epoch_change <= 0 {
                 self.update_blacklist(&epoch).await?;

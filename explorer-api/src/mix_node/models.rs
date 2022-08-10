@@ -3,8 +3,8 @@
 
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
-use mixnet_contract_common::{Addr, Coin, Layer, MixNode};
-use mixnet_contract_common::{Delegation, IdentityKey};
+use mixnet_contract_common::Delegation;
+use mixnet_contract_common::{Addr, Coin, Layer, MixNode, NodeId};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -22,6 +22,8 @@ pub(crate) enum MixnodeStatus {
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub(crate) struct PrettyDetailedMixNodeBond {
+    // I leave this to @MS to refactor this type as a lot of things here are redundant thanks to
+    // the existence of `MixNodeDetails`
     pub location: Option<Location>,
     pub status: MixnodeStatus,
     pub pledge_amount: Coin,
@@ -38,14 +40,14 @@ pub(crate) struct PrettyDetailedMixNodeBond {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct SummedDelegations {
     pub owner: Addr,
-    pub node_identity: IdentityKey,
+    pub mix_id: NodeId,
     pub amount: Coin,
 }
 
 impl SummedDelegations {
     pub fn from(delegations: &[Delegation]) -> Option<Self> {
         let owner = get_common_owner(delegations)?;
-        let node_identity = get_common_node_identity(delegations)?;
+        let mix_id = get_common_mix_id(delegations)?;
         let denom = get_common_denom(delegations)?;
 
         let sum = delegations
@@ -57,16 +59,16 @@ impl SummedDelegations {
 
         Some(SummedDelegations {
             owner,
-            node_identity,
+            mix_id,
             amount,
         })
     }
 }
 
 pub(crate) struct MixNodeCache {
-    pub(crate) descriptions: Cache<NodeDescription>,
-    pub(crate) node_stats: Cache<NodeStats>,
-    pub(crate) econ_stats: Cache<EconomicDynamicsStats>,
+    pub(crate) descriptions: Cache<NodeId, NodeDescription>,
+    pub(crate) node_stats: Cache<NodeId, NodeStats>,
+    pub(crate) econ_stats: Cache<NodeId, EconomicDynamicsStats>,
 }
 
 #[derive(Clone)]
@@ -85,44 +87,32 @@ impl ThreadsafeMixNodeCache {
         }
     }
 
-    pub(crate) async fn get_description(&self, identity_key: &str) -> Option<NodeDescription> {
-        self.inner.read().await.descriptions.get(identity_key)
+    pub(crate) async fn get_description(&self, mix_id: NodeId) -> Option<NodeDescription> {
+        self.inner.read().await.descriptions.get(&mix_id)
     }
 
-    pub(crate) async fn get_node_stats(&self, identity_key: &str) -> Option<NodeStats> {
-        self.inner.read().await.node_stats.get(identity_key)
+    pub(crate) async fn get_node_stats(&self, mix_id: NodeId) -> Option<NodeStats> {
+        self.inner.read().await.node_stats.get(&mix_id)
     }
 
-    pub(crate) async fn get_econ_stats(&self, identity_key: &str) -> Option<EconomicDynamicsStats> {
-        self.inner.read().await.econ_stats.get(identity_key)
+    pub(crate) async fn get_econ_stats(&self, mix_id: NodeId) -> Option<EconomicDynamicsStats> {
+        self.inner.read().await.econ_stats.get(&mix_id)
     }
 
-    pub(crate) async fn set_description(&self, identity_key: &str, description: NodeDescription) {
+    pub(crate) async fn set_description(&self, mix_id: NodeId, description: NodeDescription) {
         self.inner
             .write()
             .await
             .descriptions
-            .set(identity_key, description);
+            .set(mix_id, description);
     }
 
-    pub(crate) async fn set_node_stats(&self, identity_key: &str, node_stats: NodeStats) {
-        self.inner
-            .write()
-            .await
-            .node_stats
-            .set(identity_key, node_stats);
+    pub(crate) async fn set_node_stats(&self, mix_id: NodeId, node_stats: NodeStats) {
+        self.inner.write().await.node_stats.set(mix_id, node_stats);
     }
 
-    pub(crate) async fn set_econ_stats(
-        &self,
-        identity_key: &str,
-        econ_stats: EconomicDynamicsStats,
-    ) {
-        self.inner
-            .write()
-            .await
-            .econ_stats
-            .set(identity_key, econ_stats);
+    pub(crate) async fn set_econ_stats(&self, mix_id: NodeId, econ_stats: EconomicDynamicsStats) {
+        self.inner.write().await.econ_stats.set(mix_id, econ_stats);
     }
 }
 
@@ -182,17 +172,16 @@ fn get_common_owner(delegations: &[Delegation]) -> Option<Addr> {
     Some(owner)
 }
 
-fn get_common_node_identity(delegations: &[Delegation]) -> Option<String> {
-    todo!()
-    // let node_identity = delegations.iter().next()?.node_identity();
-    // if delegations
-    //     .iter()
-    //     .any(|delegation| delegation.node_identity() != node_identity)
-    // {
-    //     log::warn!("Unexpected different node identities when summing delegations");
-    //     return None;
-    // }
-    // Some(node_identity)
+fn get_common_mix_id(delegations: &[Delegation]) -> Option<NodeId> {
+    let mix_id = delegations.iter().next()?.node_id;
+    if delegations
+        .iter()
+        .any(|delegation| delegation.node_id != mix_id)
+    {
+        log::warn!("Unexpected different node identities when summing delegations");
+        return None;
+    }
+    Some(mix_id)
 }
 
 fn get_common_denom(delegations: &[Delegation]) -> Option<String> {

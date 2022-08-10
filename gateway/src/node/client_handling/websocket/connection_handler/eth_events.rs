@@ -9,6 +9,7 @@ use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use gateway_client::bandwidth::eth_contract;
 use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use std::str::FromStr;
+use validator_client::nymd::traits::MixnetQueryClient;
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};
@@ -89,8 +90,9 @@ impl ERC20Bridge {
         })?;
         let gateway_bond = self
             .nymd_client
-            .owns_gateway(&owner_address)
+            .get_owned_gateway(&owner_address)
             .await?
+            .gateway
             .ok_or_else(|| {
                 RequestHandlingError::InvalidBandwidthCredential(String::from("gateway"))
             })?;

@@ -27,10 +27,6 @@ pub fn identify(
     payment2: Payment,
     pay_info1: PayInfo,
     pay_info2: PayInfo) -> Result<IdentifyResult> {
-    //  verify first the validity of both payments
-    assert!(payment1.spend_verify(&params, &verification_key, &pay_info1).unwrap());
-    assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());
-
     let params_a = params.get_params_a();
 
     // compute the serial numbers for k1 in [0, V1-1]

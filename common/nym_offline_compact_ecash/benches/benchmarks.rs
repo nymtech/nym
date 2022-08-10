@@ -152,7 +152,8 @@ struct BenchCase {
 
 fn bench_compact_ecash(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-compact-ecash");
-    group.measurement_time(Duration::from_secs(200));
+    group.sample_size(300);
+    group.measurement_time(Duration::from_secs(1500));
 
     let case = BenchCase {
         num_authorities: 100,
@@ -353,5 +354,5 @@ fn bench_compact_ecash(c: &mut Criterion) {
     assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
 }
 
-criterion_group!(benches, bench_pairings, bench_compact_ecash);
+criterion_group!(benches, bench_compact_ecash);
 criterion_main!(benches);

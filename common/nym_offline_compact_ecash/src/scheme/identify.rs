@@ -13,10 +13,6 @@ pub enum IdentifyResult {
 
 
 pub fn identify(params: &Parameters, public_keys_u: &[PublicKeyUser], verification_key: &VerificationKeyAuth, payment1: Payment, payment2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
-    //  verify first the validity of both payments
-    assert!(payment1.spend_verify(&params, &verification_key, &pay_info1).unwrap());
-    assert!(payment2.spend_verify(&params, &verification_key, &pay_info2).unwrap());
-
     let mut k = 0;
     let mut j = 0;
     'outer: for (id1, pay1_ss) in payment1.ss.iter().enumerate() {

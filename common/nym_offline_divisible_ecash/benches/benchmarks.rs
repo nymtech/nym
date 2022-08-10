@@ -149,7 +149,8 @@ struct BenchCase {
 
 fn bench_divisible_ecash(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-divisible-ecash");
-    group.measurement_time(Duration::from_secs(200));
+    group.sample_size(300);
+    group.measurement_time(Duration::from_secs(1500));
 
     let case = BenchCase {
         num_authorities: 100,
@@ -322,5 +323,5 @@ fn bench_divisible_ecash(c: &mut Criterion) {
     assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(pk_user));
 }
 
-criterion_group!(benches, bench_pairings, bench_divisible_ecash);
+criterion_group!(benches, bench_divisible_ecash);
 criterion_main!(benches);

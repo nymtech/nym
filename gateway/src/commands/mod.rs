@@ -6,11 +6,11 @@ use std::{process, str::FromStr};
 use crate::{config::Config, Cli};
 use clap::Subcommand;
 use colored::Colorize;
+use config::parse_validators;
 use crypto::bech32_address_validation;
 use network_defaults::var_names::{
     API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
-use url::Url;
 
 pub(crate) mod init;
 pub(crate) mod node_details;
@@ -67,17 +67,6 @@ pub(crate) async fn execute(args: Cli) {
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m).await,
     }
-}
-
-fn parse_validators(raw: &str) -> Vec<Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {

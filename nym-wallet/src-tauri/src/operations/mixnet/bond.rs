@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::{nymd_client, Gateway, MixNode};
-use mixnet_contract_common::MixNodeConfigUpdate;
+use mixnet_contract_common::{MixNodeConfigUpdate, NodeId};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails};
@@ -264,12 +264,13 @@ pub async fn get_pending_operator_rewards(
 
 #[tauri::command]
 pub async fn get_number_of_mixnode_delegators(
-    identity: String,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<usize, BackendError> {
     Ok(nymd_client!(state)
-        .deprecated_get_mixnode_details_by_identity(identity)
+        .get_mixnode_details(mix_id)
         .await?
+        .mixnode_details
         .map(|details| details.rewarding_details.unique_delegations)
         .unwrap_or_default() as usize)
 }

@@ -274,36 +274,17 @@ pub async fn get_number_of_mixnode_delegators(
         .unwrap_or_default() as usize)
 }
 
-async fn fetch_mix_node_description(
-    host: &str,
-    port: u16,
-) -> Result<NodeDescription, ReqwestError> {
-    todo!()
-    // let milli_second = Duration::from_millis(1000);
-    // let client = reqwest::Client::builder().timeout(milli_second).build()?;
-    // let response = client
-    //     .get(format!("http://{}:{}/description", host, port))
-    //     .send()
-    //     .await;
-    //
-    // match response {
-    //     Ok(res) => {
-    //         let json = res.json::<NodeDescription>().await;
-    //         match json {
-    //             Ok(json) => Ok(json),
-    //             Err(e) => Err(e),
-    //         }
-    //     }
-    //     Err(e) => Err(e),
-    // }
-}
-
 #[tauri::command]
 pub async fn get_mix_node_description(
     host: &str,
     port: u16,
 ) -> Result<NodeDescription, BackendError> {
-    return fetch_mix_node_description(host, port)
-        .await
-        .map_err(|e| BackendError::ReqwestError { source: e });
+    Ok(reqwest::Client::builder()
+        .timeout(Duration::from_millis(1000))
+        .build()?
+        .get(format!("http://{}:{}/description", host, port))
+        .send()
+        .await?
+        .json()
+        .await?)
 }

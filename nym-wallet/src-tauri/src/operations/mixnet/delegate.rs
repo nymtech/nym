@@ -1,16 +1,20 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::delegate::{
     get_pending_vesting_delegation_events, vesting_undelegate_from_mixnode,
 };
 use crate::{api_client, nymd_client};
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::{IdentityKey, NodeId};
 use nym_types::currency::DecCoin;
 use nym_types::delegation::{
     Delegation, DelegationRecord, DelegationWithEverything, DelegationsSummaryResponse,
 };
 use nym_types::transaction::TransactionExecuteResult;
 use std::collections::HashMap;
+use validator_client::nymd::traits::MixnetSigningClient;
 use validator_client::nymd::{Coin, Fee};
 
 #[tauri::command]
@@ -38,31 +42,32 @@ pub async fn get_pending_delegation_events(
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
-    identity: &str,
+    mix_id: NodeId,
     amount: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let delegation_base = guard.attempt_convert_to_base_coin(amount.clone())?;
-    // let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    //
-    // log::info!(
-    //     ">>> Delegate to mixnode: identity_key = {}, display_amount = {}, base_amount = {}, fee = {:?}",
-    //     identity,
-    //     amount,
-    //     delegation_base,
-    //     fee,
-    // );
-    // let res = nymd_client!(state)
-    //     .delegate_to_mixnode(identity, delegation_base, fee)
-    //     .await?;
-    // log::info!("<<< tx hash = {}", res.transaction_hash);
-    // log::trace!("<<< {:?}", res);
-    // Ok(TransactionExecuteResult::from_execute_result(
-    //     res, fee_amount,
-    // )?)
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let delegation_base = guard.attempt_convert_to_base_coin(amount.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
+    log::info!(
+        ">>> Delegate to mixnode: mix_id = {}, display_amount = {}, base_amount = {}, fee = {:?}",
+        mix_id,
+        amount,
+        delegation_base,
+        fee,
+    );
+    let res = client
+        .nymd
+        .delegate_to_mixnode(mix_id, delegation_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
 }
 
 #[tauri::command]

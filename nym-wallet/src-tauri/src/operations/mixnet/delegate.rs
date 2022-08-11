@@ -14,7 +14,7 @@ use nym_types::delegation::{
 };
 use nym_types::transaction::TransactionExecuteResult;
 use std::collections::HashMap;
-use validator_client::nymd::traits::MixnetSigningClient;
+use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::{Coin, Fee};
 
 #[tauri::command]
@@ -355,35 +355,46 @@ pub async fn get_all_mix_delegations(
 // }
 
 #[tauri::command]
-pub async fn get_delegator_rewards(
+pub async fn get_pending_delegator_rewards(
     address: String,
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     proxy: Option<String>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    todo!()
-    // log::info!(
-    //     ">>> Get delegator rewards: mix_identity = {}, proxy = {:?}",
-    //     mix_identity,
-    //     proxy
-    // );
-    // let guard = state.read().await;
-    // let network = guard.current_network();
-    // let denom = network.base_mix_denom();
-    // let reward_amount = guard
-    //     .current_client()?
-    //     .nymd
-    //     .get_delegator_rewards(address, mix_identity, proxy)
-    //     .await?;
-    // let base_coin = Coin::new(reward_amount.u128(), denom);
-    // let display_coin: DecCoin = guard.attempt_convert_to_display_dec_coin(base_coin.clone())?;
-    //
-    // log::info!(
-    //     "<<< rewards_base = {}, rewards_display = {}",
-    //     base_coin,
-    //     display_coin
-    // );
-    // Ok(display_coin)
+    log::info!(
+        ">>> Get pending delegator rewards: mix_id = {}, proxy = {:?}",
+        mix_id,
+        proxy
+    );
+    let guard = state.read().await;
+    let res = guard
+        .current_client()?
+        .nymd
+        .get_pending_delegator_reward(&address.parse()?, mix_id, proxy)
+        .await?;
+
+    // note to @MS: now we're able to obtain more information than just the pending reward
+    // the entire returned struct contains the following:
+    /*
+       pub amount_staked: Option<Coin>,
+       pub amount_earned: Option<Coin>,
+       pub amount_earned_detailed: Option<Decimal>,
+       pub mixnode_still_fully_bonded: bool,
+    */
+
+    let base_coin = res.amount_earned;
+    let display_coin = base_coin
+        .as_ref()
+        .map(|c| guard.attempt_convert_to_display_dec_coin(c.clone().into()))
+        .transpose()?
+        .unwrap_or_else(|| guard.default_zero_mix_display_coin());
+
+    log::info!(
+        "<<< rewards_base = {:?}, rewards_display = {}",
+        base_coin,
+        display_coin
+    );
+    Ok(display_coin)
 }
 
 #[tauri::command]

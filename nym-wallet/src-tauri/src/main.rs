@@ -62,7 +62,7 @@ fn main() {
             mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::bond::get_mix_node_description,
             mixnet::delegate::delegate_to_mixnode,
-            mixnet::delegate::get_delegator_rewards,
+            mixnet::delegate::get_pending_delegator_rewards,
             mixnet::delegate::get_pending_delegation_events,
             mixnet::delegate::get_delegation_summary,
             mixnet::delegate::get_all_pending_delegation_events,

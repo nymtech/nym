@@ -166,8 +166,8 @@ jobs:
           GIT_BRANCH: "${GITHUB_REF##*/}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
-          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
-          KEYBASE_NYM_CHANNEL: "ci-nightly"
+          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMTECH_TEAM }}"
+          KEYBASE_NYM_CHANNEL: "test"
           IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
         uses: docker://keybaseio/client:stable-node
         with:

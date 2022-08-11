@@ -53,7 +53,7 @@ fn main() {
             mixnet::bond::bond_gateway,
             mixnet::bond::bond_mixnode,
             mixnet::bond::gateway_bond_details,
-            mixnet::bond::get_operator_rewards,
+            mixnet::bond::get_pending_operator_rewards,
             mixnet::bond::mixnode_bond_details,
             mixnet::bond::unbond_gateway,
             mixnet::bond::unbond_mixnode,

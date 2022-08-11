@@ -226,28 +226,40 @@ pub async fn gateway_bond_details(
 }
 
 #[tauri::command]
-pub async fn get_operator_rewards(
+pub async fn get_pending_operator_rewards(
     address: String,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    todo!()
-    // log::info!(">>> Get operator rewards for {}", address);
-    // let guard = state.read().await;
-    // let network = guard.current_network();
-    // let denom = network.base_mix_denom();
-    // let reward_amount = guard
-    //     .current_client()?
-    //     .nymd
-    //     .get_operator_rewards(address)
-    //     .await?;
-    // let base_coin = Coin::new(reward_amount.u128(), denom);
-    // let display_coin: DecCoin = guard.attempt_convert_to_display_dec_coin(base_coin.clone())?;
-    // log::info!(
-    //     "<<< rewards_base = {}, rewards_display = {}",
-    //     base_coin,
-    //     display_coin
-    // );
-    // Ok(display_coin)
+    log::info!(">>> Get pending operator rewards for {}", address);
+    let guard = state.read().await;
+    let res = guard
+        .current_client()?
+        .nymd
+        .get_pending_operator_reward(&address.parse()?)
+        .await?;
+
+    // note to @MS: now we're able to obtain more information than just the pending reward
+    // the entire returned struct contains the following:
+    /*
+       pub amount_staked: Option<Coin>,
+       pub amount_earned: Option<Coin>,
+       pub amount_earned_detailed: Option<Decimal>,
+       pub mixnode_still_fully_bonded: bool,
+    */
+
+    let base_coin = res.amount_earned;
+    let display_coin = base_coin
+        .as_ref()
+        .map(|c| guard.attempt_convert_to_display_dec_coin(c.clone().into()))
+        .transpose()?
+        .unwrap_or_else(|| guard.default_zero_mix_display_coin());
+
+    log::info!(
+        "<<< rewards_base = {:?}, rewards_display = {}",
+        base_coin,
+        display_coin
+    );
+    Ok(display_coin)
 }
 
 #[tauri::command]

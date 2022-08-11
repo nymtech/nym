@@ -3,6 +3,7 @@
 
 use config::defaults::all::Network as ConfigNetwork;
 use config::defaults::{mainnet, qa, sandbox, DenomDetails};
+use nym_types::currency::DecCoin;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use strum::EnumIter;
@@ -47,6 +48,10 @@ impl Network {
             Network::SANDBOX => sandbox::MIX_DENOM.display,
             Network::MAINNET => mainnet::MIX_DENOM.display,
         }
+    }
+
+    pub fn default_zero_mix_display_coin(&self) -> DecCoin {
+        DecCoin::zero(self.display_mix_denom())
     }
 }
 

@@ -105,6 +105,10 @@ impl WalletStateInner {
         Ok(registered_coins.attempt_convert_to_display_dec_coin(coin)?)
     }
 
+    pub(crate) fn default_zero_mix_display_coin(&self) -> DecCoin {
+        self.current_network.default_zero_mix_display_coin()
+    }
+
     pub(crate) fn registered_coins(&self) -> Result<&RegisteredCoins, BackendError> {
         self.registered_coins
             .get(&self.current_network)

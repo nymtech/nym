@@ -4,6 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
+use mixnet_contract_common::MixNodeConfigUpdate;
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeBond, MixNodeCostParams};
@@ -144,6 +145,30 @@ pub async fn update_mixnode_cost_params(
         res, fee_amount,
     )?)
 }
+
+#[tauri::command]
+pub async fn update_mixnode_config(
+    update: MixNodeConfigUpdate,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Update mixnode config: update = {}, fee {:?}",
+        update.to_inline_json(),
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nymd
+        .update_mixnode_config(update, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
 }
 
 #[tauri::command]

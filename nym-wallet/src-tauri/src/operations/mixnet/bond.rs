@@ -1,4 +1,5 @@
-use std::time::Duration;
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
 use crate::state::WalletState;
@@ -9,6 +10,8 @@ use nym_types::mixnode::MixNodeBond;
 use nym_types::transaction::TransactionExecuteResult;
 use reqwest::Error as ReqwestError;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use validator_client::nymd::traits::MixnetSigningClient;
 use validator_client::nymd::{Coin, Fee};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,28 +30,27 @@ pub async fn bond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
-    // let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    // 
-    // log::info!(
-    //     ">>> Bond gateway: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
-    //     gateway.identity_key,
-    //     pledge,
-    //     pledge_base,
-    //     fee,
-    // );
-    // let res = guard
-    //     .current_client()?
-    //     .nymd
-    //     .bond_gateway(gateway, owner_signature, pledge_base, fee)
-    //     .await?;
-    // log::info!("<<< tx hash = {}", res.transaction_hash);
-    // log::trace!("<<< {:?}", res);
-    // Ok(TransactionExecuteResult::from_execute_result(
-    //     res, fee_amount,
-    // )?)
+    let guard = state.read().await;
+    let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
+    log::info!(
+        ">>> Bond gateway: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
+        gateway.identity_key,
+        pledge,
+        pledge_base,
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nymd
+        .bond_gateway(gateway, owner_signature, pledge_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
 }
 
 #[tauri::command]
@@ -80,7 +82,7 @@ pub async fn bond_mixnode(
     // let guard = state.read().await;
     // let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
     // let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    // 
+    //
     // log::info!(
     //     ">>> Bond mixnode: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
     //     mixnode.identity_key,
@@ -185,7 +187,7 @@ pub async fn gateway_bond_details(
     //     })
     //     .transpose()?
     //     .transpose()?;
-    // 
+    //
     // log::info!(
     //     "<<< identity_key = {:?}",
     //     res.as_ref().map(|r| r.gateway.identity_key.to_string())
@@ -231,7 +233,7 @@ pub async fn get_number_of_mixnode_delegators(
     //     .nymd
     //     .get_mix_delegations_paged(identity, None, Some(20))
     //     .await?;
-    // 
+    //
     // Ok(paged_delegations.delegations.len())
 }
 
@@ -246,7 +248,7 @@ async fn fetch_mix_node_description(
     //     .get(format!("http://{}:{}/description", host, port))
     //     .send()
     //     .await;
-    // 
+    //
     // match response {
     //     Ok(res) => {
     //         let json = res.json::<NodeDescription>().await;

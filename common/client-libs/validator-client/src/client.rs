@@ -15,6 +15,8 @@ use validator_api_requests::models::{
     MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
+use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use validator_api_requests::Deprecated;
 
 #[cfg(feature = "nymd-client")]
 use crate::nymd::traits::MixnetQueryClient;
@@ -26,7 +28,6 @@ use mixnet_contract_common::{mixnode::MixNodeBond, Delegation, RewardedSetNodeSt
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::MixNodeBondAnnotated;
-use validator_api_requests::Deprecated;
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
@@ -383,6 +384,58 @@ impl<C> Client<C> {
         }
 
         Ok(delegations)
+    }
+
+    pub async fn get_all_nymd_pending_epoch_events(
+        &self,
+    ) -> Result<Vec<PendingEpochEvent>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut events = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_pending_epoch_events_paged(start_after.take(), self.rewarded_set_page_limit)
+                .await?;
+            events.append(&mut paged_response.events);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(events)
+    }
+
+    pub async fn get_all_nymd_pending_interval_events(
+        &self,
+    ) -> Result<Vec<PendingIntervalEvent>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut events = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_pending_interval_events_paged(start_after.take(), self.rewarded_set_page_limit)
+                .await?;
+            events.append(&mut paged_response.events);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(events)
     }
 }
 

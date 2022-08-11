@@ -119,29 +119,31 @@ pub async fn unbond_mixnode(
 }
 
 #[tauri::command]
-pub async fn update_mixnode(
-    profit_margin_percent: u8,
+pub async fn update_mixnode_cost_params(
+    new_costs: MixNodeCostParams,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    // log::info!(
-    //     ">>> Update mixnode: profit_margin_percent = {}, fee {:?}",
-    //     profit_margin_percent,
-    //     fee,
-    // );
-    // let res = guard
-    //     .current_client()?
-    //     .nymd
-    //     .update_mixnode_config(profit_margin_percent, fee)
-    //     .await?;
-    // log::info!("<<< tx hash = {}", res.transaction_hash);
-    // log::trace!("<<< {:?}", res);
-    // Ok(TransactionExecuteResult::from_execute_result(
-    //     res, fee_amount,
-    // )?)
+    let guard = state.read().await;
+    let reg = guard.registered_coins()?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let cost_params = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
+    log::info!(
+        ">>> Update mixnode cost parameters: new parameters = {}, fee {:?}",
+        cost_params.to_inline_json(),
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nymd
+        .update_mixnode_cost_params(cost_params, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
 }
 
 #[tauri::command]

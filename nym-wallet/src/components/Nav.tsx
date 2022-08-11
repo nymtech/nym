@@ -29,16 +29,16 @@ export const Nav = () => {
       onClick: handleShowReceiveModal,
     },
     {
-      label: 'Bonding',
-      route: '/bonding',
-      Icon: Bonding,
-      onClick: () => navigate('/bonding'),
-    },
-    {
       label: 'Delegation',
       route: '/delegation',
       Icon: Delegate,
       onClick: () => navigate('/delegation'),
+    },
+    {
+      label: 'Bonding',
+      route: '/bonding',
+      Icon: Bonding,
+      onClick: () => navigate('/bonding'),
     },
     {
       label: 'Docs',

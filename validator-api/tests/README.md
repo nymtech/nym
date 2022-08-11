@@ -27,8 +27,4 @@ A Typescript test framework utilising Jest and Node to perform tests against the
 4. Run in CI 
 5. Docker?
 
-- [ ] Dockerization
-- [ ] Reporting Integration
-- [ ] Tag-based test collection
-
 Kudos to jmfiola21@gmail.com for the baseline of this framework

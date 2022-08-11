@@ -1,9 +1,16 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::WalletState;
+use cosmwasm_std::Decimal;
+use mixnet_contract_common::{IdentityKey, NodeId, Percent};
 use nym_types::currency::DecCoin;
+use nym_types::mixnode::MixNodeCostParams;
 use nym_wallet_types::app::AppEnv;
 use serde::{Deserialize, Serialize};
+use validator_client::nymd::traits::MixnetQueryClient;
 use validator_client::nymd::{tx, Coin, CosmosCoin, Gas, GasPrice};
 
 fn get_env_as_option(key: &str) -> Option<String> {
@@ -38,6 +45,39 @@ pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, 
     //     .owns_gateway(nymd_client!(state).address())
     //     .await?
     //     .is_some())
+}
+
+#[tauri::command]
+pub async fn try_convert_pubkey_to_mix_id(
+    state: tauri::State<'_, WalletState>,
+    mix_identity: IdentityKey,
+) -> Result<Option<NodeId>, BackendError> {
+    let res = nymd_client!(state)
+        .deprecated_get_mixnode_details_by_identity(mix_identity)
+        .await?;
+    Ok(res.map(|mixnode_details| mixnode_details.mix_id()))
+}
+
+#[tauri::command]
+pub async fn default_mixnode_cost_params(
+    state: tauri::State<'_, WalletState>,
+    profit_margin_percent: Percent,
+) -> Result<MixNodeCostParams, BackendError> {
+    // attaches the old pre-update default operating cost of 40 nym per interval
+    let guard = state.read().await;
+
+    // since this is only a temporary solution until users are required to provide their own cost
+    // params, we can make the assumption that it's always safe to use the mix denom here
+    let current_network = guard.current_network();
+    let denom = current_network.mix_denom().display;
+
+    Ok(MixNodeCostParams {
+        profit_margin_percent,
+        interval_operating_cost: DecCoin {
+            denom: denom.into(),
+            amount: Decimal::from_atomics(40u32, 0).unwrap(),
+        },
+    })
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]

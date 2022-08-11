@@ -89,6 +89,8 @@ fn main() {
             utils::owns_mixnode,
             utils::get_env,
             utils::get_old_and_incorrect_hardcoded_fee,
+            utils::try_convert_pubkey_to_mix_id,
+            utils::default_mixnode_cost_params,
             validator_api::status::gateway_core_node_status,
             validator_api::status::mixnode_core_node_status,
             validator_api::status::mixnode_inclusion_probability,

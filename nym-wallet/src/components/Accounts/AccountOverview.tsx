@@ -6,7 +6,7 @@ import { AccountAvatar } from './AccountAvatar';
 export const AccountOverview = ({ account, onClick }: { account: AccountEntry; onClick: () => void }) => (
   <Button
     startIcon={<AccountAvatar name={account.id} small />}
-    sx={{ color: 'text.primary' }}
+    sx={{ color: 'text.primary', fontSize: 14 }}
     color="inherit"
     onClick={onClick}
   >

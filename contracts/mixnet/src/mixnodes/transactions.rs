@@ -264,7 +264,7 @@ pub(crate) fn _try_update_mixnode_cost_params(
 
     // push the interval event
     let interval_event = PendingIntervalEventData::ChangeMixCostParams {
-        mix: existing_bond.id,
+        mix_id: existing_bond.id,
         new_costs,
     };
     push_new_interval_event(deps.storage, &interval_event)?;
@@ -586,7 +586,7 @@ pub mod tests {
         assert_eq!(1, event.0);
         assert_eq!(
             PendingIntervalEventData::ChangeMixCostParams {
-                mix: mix_id,
+                mix_id: mix_id,
                 new_costs: update.clone()
             },
             event.1

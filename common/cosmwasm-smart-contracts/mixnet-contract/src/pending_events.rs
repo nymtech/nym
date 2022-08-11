@@ -54,7 +54,7 @@ pub struct PendingIntervalEvent {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
-        mix: NodeId,
+        mix_id: NodeId,
         new_costs: MixNodeCostParams,
     },
 

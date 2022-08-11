@@ -312,7 +312,7 @@ mod tests {
         // it will return an empty response, but will not fail
         for i in 0..n {
             let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
-                mix: i as NodeId,
+                mix_id: i as NodeId,
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
             storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();
@@ -667,7 +667,7 @@ mod tests {
                 interval_operating_cost: coin(123_000, TEST_COIN_DENOM),
             };
             let cost_change = PendingIntervalEventData::ChangeMixCostParams {
-                mix: legit_mix,
+                mix_id: legit_mix,
                 new_costs: new_costs.clone(),
             };
 

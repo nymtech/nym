@@ -203,16 +203,30 @@ impl NodeRewardParams {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
+)]
 #[derive(
     Clone, Copy, Debug, Default, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema,
 )]
 pub struct IntervalRewardingParamsUpdate {
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub reward_pool: Option<Decimal>,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub staking_supply: Option<Decimal>,
 
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub sybil_resistance_percent: Option<Percent>,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub active_set_work_factor: Option<Decimal>,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub interval_pool_emission: Option<Percent>,
+
     pub rewarded_set_size: Option<u32>,
 }
 

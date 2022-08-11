@@ -428,14 +428,20 @@ pub fn new_settings_update_event(
 
 pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
-        .add_attribute(INTERVAL_KEY, interval.to_string())
+        .add_attribute(
+            INTERVAL_KEY,
+            interval.current_epoch_absolute_id().to_string(),
+        )
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
 pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
-        .add_attribute(INTERVAL_KEY, interval.to_string())
+        .add_attribute(
+            INTERVAL_KEY,
+            interval.current_epoch_absolute_id().to_string(),
+        )
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_PERFORMANCE_VALUE)
 }
@@ -446,7 +452,10 @@ pub fn new_mix_rewarding_event(
     reward_distribution: RewardDistribution,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
-        .add_attribute(INTERVAL_KEY, interval.to_string())
+        .add_attribute(
+            INTERVAL_KEY,
+            interval.current_epoch_absolute_id().to_string(),
+        )
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,

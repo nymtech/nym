@@ -390,7 +390,7 @@ mod tests {
 
         fn push_dummy_interval_action(test: &mut TestSetup) {
             let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
-                mix: test.rng.next_u32(),
+                mix_id: test.rng.next_u32(),
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
             storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();

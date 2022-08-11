@@ -339,9 +339,10 @@ impl ContractExecutableEvent for PendingIntervalEventData {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self {
-            PendingIntervalEventData::ChangeMixCostParams { mix, new_costs } => {
-                change_mix_cost_params(deps, mix, new_costs)
-            }
+            PendingIntervalEventData::ChangeMixCostParams {
+                mix_id: mix,
+                new_costs,
+            } => change_mix_cost_params(deps, mix, new_costs),
             PendingIntervalEventData::UpdateRewardingParams { update } => {
                 update_rewarding_params(deps, update)
             }

@@ -56,7 +56,7 @@ export const BondedGateway = ({
     <NymCard
       borderless
       title={
-        <Stack gap={2}>
+        <Stack gap={3}>
           <Typography variant="h5" fontWeight={600}>
             Gateway
           </Typography>

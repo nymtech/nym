@@ -83,7 +83,7 @@ export const BondMoreModal = ({
       okDisabled={errorAmount || errorSignature}
       onClose={onClose}
     >
-      <Stack gap={2}>
+      <Stack gap={3}>
         <Box display="flex" gap={1}>
           {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
           <CurrencyFormField

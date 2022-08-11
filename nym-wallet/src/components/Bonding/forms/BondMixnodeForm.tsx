@@ -32,7 +32,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
   }, []);
 
   return (
-    <Stack gap={2}>
+    <Stack gap={3}>
       <IdentityKeyFormField
         required
         fullWidth
@@ -55,7 +55,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
         error={Boolean(errors.ownerSignature)}
         helperText={errors.ownerSignature?.message}
       />
-      <Stack direction="row" gap={2}>
+      <Stack direction="row" gap={3}>
         <TextField
           {...register('host')}
           name="host"
@@ -80,7 +80,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
         label="Show advanced options"
       />
       {showAdvancedOptions && (
-        <Stack direction="row" gap={2} sx={{ mb: 2 }}>
+        <Stack direction="row" gap={3} sx={{ mb: 2 }}>
           <TextField
             {...register('mixPort')}
             name="mixPort"
@@ -156,8 +156,8 @@ const AmountFormData = ({
   }, []);
 
   return (
-    <Stack gap={2}>
-      <Box display="flex" gap={2} justifyContent="center" sx={{ mt: 2 }}>
+    <Stack gap={3}>
+      <Box display="flex" gap={3} justifyContent="center" sx={{ mt: 2 }}>
         {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setValue('tokenPool', pool)} />}
         <CurrencyFormField
           required

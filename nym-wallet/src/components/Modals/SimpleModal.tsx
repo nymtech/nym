@@ -64,7 +64,7 @@ export const SimpleModal: React.FC<{
       {children}
 
       {(onOk || onBack) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mt: 3 }}>
           {onBack && <StyledBackButton onBack={onBack} />}
           {onOk && (
             <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>

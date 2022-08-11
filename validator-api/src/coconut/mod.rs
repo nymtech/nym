@@ -192,15 +192,14 @@ impl InternalSignRequest {
     }
 }
 
-fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignature {
-    let params = Parameters::new(request.total_params()).unwrap();
-    coconut_interface::blind_sign(
+fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> Result<BlindedSignature> {
+    let params = Parameters::new(request.total_params())?;
+    Ok(coconut_interface::blind_sign(
         &params,
         &key_pair.secret_key(),
         request.blind_sign_request(),
         request.public_attributes(),
-    )
-    .unwrap()
+    )?)
 }
 
 #[post("/blind-sign", data = "<blind_sign_request_body>")]
@@ -226,7 +225,7 @@ pub async fn post_blind_sign(
         blind_sign_request_body.public_attributes(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
-    let blinded_signature = blind_sign(internal_request, &state.key_pair);
+    let blinded_signature = blind_sign(internal_request, &state.key_pair)?;
 
     let response = state
         .encrypt_and_store(

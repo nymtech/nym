@@ -58,6 +58,7 @@ gateway-client = { path="../common/client-libs/gateway-client" }
 mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymsphinx = { path="../common/nymsphinx" }
+nymcoconut = { path = "../common/nymcoconut", optional = true }
 task = { path = "../common/task" }
 topology = { path="../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }
@@ -71,7 +72,7 @@ console-subscriber = { version = "0.1.1", optional = true}
 cfg-if = "1.0"
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut"]
+coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut", "nymcoconut"]
 no-reward = []
 generate-ts = []
 
@@ -82,6 +83,5 @@ vergen = { version = "5", default-features = false, features = ["build", "git", 
 
 [dev-dependencies]
 attohttpc = {version = "0.18.0", features = ["json"]}
-nymcoconut = { path = "../common/nymcoconut" }
 cw3 = "0.13.2"
 cw-utils = "0.13.2"

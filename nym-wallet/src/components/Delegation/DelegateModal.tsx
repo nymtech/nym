@@ -211,7 +211,7 @@ export const DelegateModal: React.FC<{
           initialValue={identityKey}
           readOnly={Boolean(initialIdentityKey)}
           textFieldProps={{
-            autoFocus: !initialIdentityKey,
+            focused: !initialIdentityKey,
           }}
         />
       </Box>

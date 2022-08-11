@@ -203,26 +203,26 @@ pub async fn mixnode_bond_details(
 pub async fn gateway_bond_details(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<GatewayBond>, BackendError> {
-    todo!()
-    // log::info!(">>> Get gateway bond details");
-    // let guard = state.read().await;
-    // let client = guard.current_client()?;
-    // let bond = client.nymd.owns_gateway(client.nymd.address()).await?;
-    // let res = bond
-    //     .map(|bond| {
-    //         guard
-    //             .registered_coins()
-    //             .map(|reg| GatewayBond::from_mixnet_contract_gateway_bond(bond, reg))
-    //     })
-    //     .transpose()?
-    //     .transpose()?;
-    //
-    // log::info!(
-    //     "<<< identity_key = {:?}",
-    //     res.as_ref().map(|r| r.gateway.identity_key.to_string())
-    // );
-    // log::trace!("<<< {:?}", res);
-    // Ok(res)
+    log::info!(">>> Get gateway bond details");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let bond = client.nymd.get_owned_gateway(client.nymd.address()).await?;
+    let res = bond
+        .gateway
+        .map(|bond| {
+            guard
+                .registered_coins()
+                .map(|reg| GatewayBond::from_mixnet_contract_gateway_bond(bond, reg))
+        })
+        .transpose()?
+        .transpose()?;
+
+    log::info!(
+        "<<< identity_key = {:?}",
+        res.as_ref().map(|r| r.gateway.identity_key.to_string())
+    );
+    log::trace!("<<< {:?}", res);
+    Ok(res)
 }
 
 #[tauri::command]

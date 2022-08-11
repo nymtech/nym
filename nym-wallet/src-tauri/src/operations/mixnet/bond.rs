@@ -7,12 +7,12 @@ use crate::{Gateway, MixNode};
 use mixnet_contract_common::MixNodeConfigUpdate;
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
-use nym_types::mixnode::{MixNodeBond, MixNodeCostParams};
+use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
 use reqwest::Error as ReqwestError;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use validator_client::nymd::traits::MixnetSigningClient;
+use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::{Coin, Fee};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -174,26 +174,29 @@ pub async fn update_mixnode_config(
 #[tauri::command]
 pub async fn mixnode_bond_details(
     state: tauri::State<'_, WalletState>,
-) -> Result<Option<MixNodeBond>, BackendError> {
-    todo!()
-    // log::info!(">>> Get mixnode bond details");
-    // let guard = state.read().await;
-    // let client = guard.current_client()?;
-    // let bond = client.nymd.owns_mixnode(client.nymd.address()).await?;
-    // let res = bond
-    //     .map(|bond| {
-    //         guard
-    //             .registered_coins()
-    //             .map(|reg| MixNodeBond::from_mixnet_contract_mixnode_bond(bond, reg))
-    //     })
-    //     .transpose()?
-    //     .transpose()?;
-    // log::info!(
-    //     "<<< identity_key = {:?}",
-    //     res.as_ref().map(|r| r.mix_node.identity_key.to_string())
-    // );
-    // log::trace!("<<< {:?}", res);
-    // Ok(res)
+) -> Result<Option<MixNodeDetails>, BackendError> {
+    log::info!(">>> Get mixnode bond details");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let res = client.nymd.get_owned_mixnode(client.nymd.address()).await?;
+    let details = res
+        .mixnode_details
+        .map(|details| {
+            guard
+                .registered_coins()
+                .map(|reg| MixNodeDetails::from_mixnet_contract_mixnode_details(details, reg))
+        })
+        .transpose()?
+        .transpose()?;
+    log::info!(
+        "<<< mix_id/identity_key = {:?}",
+        details.as_ref().map(|r| (
+            r.bond_information.id,
+            &r.bond_information.mix_node.identity_key
+        ))
+    );
+    log::trace!("<<< {:?}", details);
+    Ok(details)
 }
 
 #[tauri::command]

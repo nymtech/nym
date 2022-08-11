@@ -17,7 +17,7 @@ use mixnet_contract_common::events::{
     new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
 use mixnet_contract_common::MixNode;
 
 pub fn try_add_mixnode(
@@ -161,7 +161,7 @@ pub(crate) fn _try_remove_mixnode(
     )?;
 
     // push the event to execute it at the end of the epoch
-    let epoch_event = PendingEpochEvent::UnbondMixnode {
+    let epoch_event = PendingEpochEventData::UnbondMixnode {
         mix_id: existing_bond.id,
     };
     interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
@@ -263,7 +263,7 @@ pub(crate) fn _try_update_mixnode_cost_params(
         new_mixnode_pending_cost_params_update_event(existing_bond.id, &owner, &proxy, &new_costs);
 
     // push the interval event
-    let interval_event = PendingIntervalEvent::ChangeMixCostParams {
+    let interval_event = PendingIntervalEventData::ChangeMixCostParams {
         mix: existing_bond.id,
         new_costs,
     };
@@ -449,7 +449,7 @@ pub mod tests {
         assert_eq!(pending_events.len(), 1);
         let event = pending_events.pop().unwrap();
         assert_eq!(1, event.0);
-        assert_eq!(PendingEpochEvent::UnbondMixnode { mix_id }, event.1);
+        assert_eq!(PendingEpochEventData::UnbondMixnode { mix_id }, event.1);
 
         // but fails if repeated (since the node is already in the "unbonding" state)(
         let res = try_remove_mixnode(deps.as_mut(), info);
@@ -585,7 +585,7 @@ pub mod tests {
         let event = pending_events.pop().unwrap();
         assert_eq!(1, event.0);
         assert_eq!(
-            PendingIntervalEvent::ChangeMixCostParams {
+            PendingIntervalEventData::ChangeMixCostParams {
                 mix: mix_id,
                 new_costs: update.clone()
             },

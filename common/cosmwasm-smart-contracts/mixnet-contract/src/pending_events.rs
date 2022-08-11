@@ -3,12 +3,18 @@
 
 use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::IntervalRewardingParamsUpdate;
-use crate::NodeId;
+use crate::{EpochEventId, IntervalEventId, NodeId};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PendingEpochEvent {
+pub struct PendingEpochEvent {
+    pub id: EpochEventId,
+    pub event: PendingEpochEventData,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PendingEpochEventData {
     // can't just pass the `Delegation` struct here as it's impossible to determine
     // `cumulative_reward_ratio` ahead of time
     Delegate {
@@ -30,8 +36,23 @@ pub enum PendingEpochEvent {
     },
 }
 
+impl From<(EpochEventId, PendingEpochEventData)> for PendingEpochEvent {
+    fn from(data: (EpochEventId, PendingEpochEventData)) -> Self {
+        PendingEpochEvent {
+            id: data.0,
+            event: data.1,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PendingIntervalEvent {
+pub struct PendingIntervalEvent {
+    pub id: EpochEventId,
+    pub event: PendingIntervalEventData,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PendingIntervalEventData {
     ChangeMixCostParams {
         mix: NodeId,
         new_costs: MixNodeCostParams,
@@ -44,4 +65,13 @@ pub enum PendingIntervalEvent {
         epochs_in_interval: u32,
         epoch_duration_secs: u64,
     },
+}
+
+impl From<(IntervalEventId, PendingIntervalEventData)> for PendingIntervalEvent {
+    fn from(data: (IntervalEventId, PendingIntervalEventData)) -> Self {
+        PendingIntervalEvent {
+            id: data.0,
+            event: data.1,
+        }
+    }
 }

@@ -47,7 +47,7 @@ pub mod test_helpers {
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
-    use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+    use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{Performance, RewardingParams};
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
@@ -344,14 +344,14 @@ pub mod test_helpers {
             execute_all_pending_events(self.deps_mut(), env)
         }
 
-        pub fn pending_interval_events(&self) -> Vec<PendingIntervalEvent> {
+        pub fn pending_interval_events(&self) -> Vec<PendingIntervalEventData> {
             interval_storage::PENDING_INTERVAL_EVENTS
                 .range(self.deps().storage, None, None, Order::Ascending)
                 .map(|res| res.unwrap().1)
                 .collect::<Vec<_>>()
         }
 
-        pub fn pending_epoch_events(&self) -> Vec<PendingEpochEvent> {
+        pub fn pending_epoch_events(&self) -> Vec<PendingEpochEventData> {
             interval_storage::PENDING_EPOCH_EVENTS
                 .range(self.deps().storage, None, None, Order::Ascending)
                 .map(|res| res.unwrap().1)

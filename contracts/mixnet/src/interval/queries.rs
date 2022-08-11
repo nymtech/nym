@@ -9,6 +9,7 @@ use crate::constants::{
 use crate::interval::storage;
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
+use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
     CurrentIntervalResponse, EpochEventId, IntervalEventId, NodeId, PagedRewardedSetResponse,
     PendingEpochEventsResponse, PendingIntervalEventsResponse,
@@ -64,11 +65,10 @@ pub fn query_pending_epoch_events_paged(
     let events = storage::PENDING_EPOCH_EVENTS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .collect::<StdResult<Vec<_>>>()?;
+        .map(|res| res.map(|row| row.into()))
+        .collect::<StdResult<Vec<PendingEpochEvent>>>()?;
 
-    let start_next_after = events.last().map(|event| event.0);
-    // drop the id from the tuple since we don't care about it here
-    let events = events.into_iter().map(|e| e.1).collect();
+    let start_next_after = events.last().map(|event| event.id);
 
     Ok(PendingEpochEventsResponse {
         seconds_until_executable: interval.secs_until_current_epoch_end(&env),
@@ -94,11 +94,10 @@ pub fn query_pending_interval_events_paged(
     let events = storage::PENDING_INTERVAL_EVENTS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .collect::<StdResult<Vec<_>>>()?;
+        .map(|res| res.map(|row| row.into()))
+        .collect::<StdResult<Vec<PendingIntervalEvent>>>()?;
 
-    let start_next_after = events.last().map(|event| event.0);
-    // drop the id from the tuple since we don't care about it here
-    let events = events.into_iter().map(|e| e.1).collect();
+    let start_next_after = events.last().map(|event| event.id);
 
     Ok(PendingIntervalEventsResponse {
         seconds_until_executable: interval.secs_until_current_interval_end(&env),
@@ -239,7 +238,7 @@ mod tests {
     mod pending_epoch_events {
         use super::*;
         use cosmwasm_std::Addr;
-        use mixnet_contract_common::pending_events::PendingEpochEvent;
+        use mixnet_contract_common::pending_events::PendingEpochEventData;
         use rand_chacha::rand_core::RngCore;
 
         fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
@@ -249,7 +248,7 @@ mod tests {
         }
 
         fn push_dummy_epoch_action(test: &mut TestSetup) {
-            let dummy_action = PendingEpochEvent::Undelegate {
+            let dummy_action = PendingEpochEventData::Undelegate {
                 owner: Addr::unchecked("foomp"),
                 mix_id: test.rng.next_u32(),
                 proxy: None,
@@ -380,7 +379,7 @@ mod tests {
     mod pending_interval_events {
         use super::*;
         use crate::support::tests::fixtures;
-        use mixnet_contract_common::pending_events::PendingIntervalEvent;
+        use mixnet_contract_common::pending_events::PendingIntervalEventData;
         use rand_chacha::rand_core::RngCore;
 
         fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
@@ -390,7 +389,7 @@ mod tests {
         }
 
         fn push_dummy_interval_action(test: &mut TestSetup) {
-            let dummy_action = PendingIntervalEvent::ChangeMixCostParams {
+            let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
                 mix: test.rng.next_u32(),
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };

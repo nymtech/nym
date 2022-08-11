@@ -107,16 +107,15 @@ pub async fn unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    // log::info!(">>> Unbond mixnode, fee = {:?}", fee);
-    // let res = guard.current_client()?.nymd.unbond_mixnode(fee).await?;
-    // log::info!("<<< tx hash = {}", res.transaction_hash);
-    // log::trace!("<<< {:?}", res);
-    // Ok(TransactionExecuteResult::from_execute_result(
-    //     res, fee_amount,
-    // )?)
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(">>> Unbond mixnode, fee = {:?}", fee);
+    let res = guard.current_client()?.nymd.unbond_mixnode(fee).await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
 }
 
 #[tauri::command]

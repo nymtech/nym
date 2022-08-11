@@ -17,7 +17,7 @@ use nym_types::transaction::{
 use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo, VestingPeriod};
 use nym_wallet_types::admin::TauriContractStateParams;
 use nym_wallet_types::app::AppEnv;
-use nym_wallet_types::epoch::Epoch;
+use nym_wallet_types::interval::Epoch;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 use std::path::Path;

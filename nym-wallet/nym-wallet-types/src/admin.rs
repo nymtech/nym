@@ -1,10 +1,10 @@
-use std::convert::TryFrom;
-
-use cosmwasm_std::Uint128;
-use serde::{Deserialize, Serialize};
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use mixnet_contract_common::ContractStateParams;
+use nym_types::currency::{DecCoin, RegisteredCoins};
 use nym_types::error::TypesError;
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -13,35 +13,44 @@ use nym_types::error::TypesError;
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TauriContractStateParams {
-    minimum_mixnode_pledge: String,
-    minimum_gateway_pledge: String,
-    mixnode_rewarded_set_size: u32,
-    mixnode_active_set_size: u32,
-    staking_supply: String,
+    minimum_mixnode_pledge: DecCoin,
+    minimum_gateway_pledge: DecCoin,
+    minimum_mixnode_delegation: Option<DecCoin>,
 }
 
-impl From<ContractStateParams> for TauriContractStateParams {
-    fn from(p: ContractStateParams) -> TauriContractStateParams {
-        TauriContractStateParams {
-            minimum_mixnode_pledge: p.minimum_mixnode_pledge.to_string(),
-            minimum_gateway_pledge: p.minimum_gateway_pledge.to_string(),
-            mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
-            mixnode_active_set_size: p.mixnode_active_set_size,
-            staking_supply: p.staking_supply.to_string(),
-        }
-    }
+pub fn from_mixnet_contract_contract_state_params(
+    state_params: ContractStateParams,
+    reg: &RegisteredCoins,
+) -> Result<TauriContractStateParams, TypesError> {
+    Ok(TauriContractStateParams {
+        minimum_mixnode_pledge: reg
+            .attempt_convert_to_display_dec_coin(state_params.minimum_mixnode_pledge.into())?,
+        minimum_gateway_pledge: reg
+            .attempt_convert_to_display_dec_coin(state_params.minimum_gateway_pledge.into())?,
+        minimum_mixnode_delegation: state_params
+            .minimum_mixnode_delegation
+            .map(|min_del| reg.attempt_convert_to_display_dec_coin(min_del.into()))
+            .transpose()?,
+    })
 }
 
-impl TryFrom<TauriContractStateParams> for ContractStateParams {
-    type Error = TypesError;
-
-    fn try_from(p: TauriContractStateParams) -> Result<ContractStateParams, Self::Error> {
+impl TauriContractStateParams {
+    pub fn try_convert_to_mixnet_contract_params(
+        self,
+        reg: &RegisteredCoins,
+    ) -> Result<ContractStateParams, TypesError> {
         Ok(ContractStateParams {
-            minimum_mixnode_pledge: Uint128::try_from(p.minimum_mixnode_pledge.as_str())?,
-            minimum_gateway_pledge: Uint128::try_from(p.minimum_gateway_pledge.as_str())?,
-            mixnode_rewarded_set_size: p.mixnode_rewarded_set_size,
-            mixnode_active_set_size: p.mixnode_active_set_size,
-            staking_supply: Uint128::try_from(p.staking_supply.as_str())?,
+            minimum_mixnode_delegation: self
+                .minimum_mixnode_delegation
+                .map(|min_del| reg.attempt_convert_to_base_coin(min_del))
+                .transpose()?
+                .map(Into::into),
+            minimum_mixnode_pledge: reg
+                .attempt_convert_to_base_coin(self.minimum_mixnode_pledge)?
+                .into(),
+            minimum_gateway_pledge: reg
+                .attempt_convert_to_base_coin(self.minimum_gateway_pledge)?
+                .into(),
         })
     }
 }

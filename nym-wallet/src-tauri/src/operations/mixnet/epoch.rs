@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::WalletState;
-use nym_wallet_types::epoch::Epoch;
+use nym_wallet_types::interval::Epoch;
 
 #[tauri::command]
 pub async fn get_current_epoch(

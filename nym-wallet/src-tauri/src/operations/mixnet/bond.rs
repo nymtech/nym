@@ -3,7 +3,7 @@
 
 use crate::error::BackendError;
 use crate::state::WalletState;
-use crate::{Gateway, MixNode};
+use crate::{nymd_client, Gateway, MixNode};
 use mixnet_contract_common::MixNodeConfigUpdate;
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
@@ -267,15 +267,11 @@ pub async fn get_number_of_mixnode_delegators(
     identity: String,
     state: tauri::State<'_, WalletState>,
 ) -> Result<usize, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let client = guard.current_client()?;
-    // let paged_delegations = client
-    //     .nymd
-    //     .get_mix_delegations_paged(identity, None, Some(20))
-    //     .await?;
-    //
-    // Ok(paged_delegations.delegations.len())
+    Ok(nymd_client!(state)
+        .deprecated_get_mixnode_details_by_identity(identity)
+        .await?
+        .map(|details| details.rewarding_details.unique_delegations)
+        .unwrap_or_default() as usize)
 }
 
 async fn fetch_mix_node_description(

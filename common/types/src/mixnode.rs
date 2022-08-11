@@ -148,4 +148,16 @@ impl MixNodeCostParams {
                 .attempt_convert_to_display_dec_coin(cost_params.interval_operating_cost.into())?,
         })
     }
+
+    pub fn try_convert_to_mixnet_contract_cost_params(
+        self,
+        reg: &RegisteredCoins,
+    ) -> Result<MixnetContractMixNodeCostParams, TypesError> {
+        Ok(MixnetContractMixNodeCostParams {
+            profit_margin_percent: self.profit_margin_percent,
+            interval_operating_cost: reg
+                .attempt_convert_to_base_coin(self.interval_operating_cost)?
+                .into(),
+        })
+    }
 }

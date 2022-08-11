@@ -6,7 +6,7 @@ use crate::state::WalletState;
 use crate::{Gateway, MixNode};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
-use nym_types::mixnode::MixNodeBond;
+use nym_types::mixnode::{MixNodeBond, MixNodeCostParams};
 use nym_types::transaction::TransactionExecuteResult;
 use reqwest::Error as ReqwestError;
 use serde::{Deserialize, Serialize};
@@ -72,33 +72,34 @@ pub async fn unbond_gateway(
 #[tauri::command]
 pub async fn bond_mixnode(
     mixnode: MixNode,
+    cost_params: MixNodeCostParams,
     owner_signature: String,
     pledge: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
-    // let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    //
-    // log::info!(
-    //     ">>> Bond mixnode: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
-    //     mixnode.identity_key,
-    //     pledge,
-    //     pledge_base,
-    //     fee,
-    // );
-    // let res = guard
-    //     .current_client()?
-    //     .nymd
-    //     .bond_mixnode(mixnode, owner_signature, pledge_base, fee)
-    //     .await?;
-    // log::info!("<<< tx hash = {}", res.transaction_hash);
-    // log::trace!("<<< {:?}", res);
-    // Ok(TransactionExecuteResult::from_execute_result(
-    //     res, fee_amount,
-    // )?)
+    let guard = state.read().await;
+    let reg = guard.registered_coins()?;
+    let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let cost_params = cost_params.try_convert_to_mixnet_contract_cost_params(reg)?;
+    log::info!(
+        ">>> Bond mixnode: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
+        mixnode.identity_key,
+        pledge,
+        pledge_base,
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nymd
+        .bond_mixnode(mixnode, cost_params, owner_signature, pledge_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
 }
 
 #[tauri::command]

@@ -147,12 +147,12 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         Some(&chosen_gateway_id),
         config.get_socks5(),
     )
-    .await;
+    .await?;
     config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_socks5().get_config_file_save_location();
     config.get_socks5().save_to_file(None).tap_err(|_| {
-        log::warn!("Failed to save the config file");
+        log::error!("Failed to save the config file");
     })?;
 
     log::info!("Saved configuration file to {:?}", config_save_location);
@@ -183,7 +183,7 @@ async fn setup_gateway(
     register: bool,
     user_chosen_gateway_id: Option<&str>,
     config: &Socks5Config,
-) -> GatewayEndpoint {
+) -> Result<GatewayEndpoint> {
     if register {
         // Get the gateway details by querying the validator-api. Either pick one at random or use
         // the chosen one if it's among the available ones.
@@ -201,7 +201,7 @@ async fn setup_gateway(
             .await;
         println!("Saved all generated keys");
 
-        gateway.into()
+        Ok(gateway.into())
     } else if user_chosen_gateway_id.is_some() {
         // Just set the config, don't register or create any keys
         // This assumes that the user knows what they are doing, and that the existing keys are
@@ -213,19 +213,20 @@ async fn setup_gateway(
         )
         .await;
         log::debug!("Querying gateway gives: {}", gateway);
-        gateway.into()
+        Ok(gateway.into())
     } else {
         println!("Not registering gateway, will reuse existing config and keys");
         match Socks5Config::load_from_file(Some(id)) {
-            Ok(existing_config) => existing_config.get_base().get_gateway_endpoint().clone(),
+            Ok(existing_config) => Ok(existing_config.get_base().get_gateway_endpoint().clone()),
             Err(err) => {
-                panic!(
+                log::error!(
                     "Unable to configure gateway: {err}. \n
                     Seems like the client was already initialized but it was not possible to read \
                     the existing configuration file. \n
                     CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
                     removing the existing configuration and starting over."
-                )
+                );
+                Err(BackendError::CouldNotLoadExistingGatewayConfiguration(err))
             }
         }
     }

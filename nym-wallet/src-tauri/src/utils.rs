@@ -24,18 +24,20 @@ pub fn get_env() -> AppEnv {
 
 #[tauri::command]
 pub async fn owns_mixnode(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
-    Ok(nymd_client!(state)
-        .owns_mixnode(nymd_client!(state).address())
-        .await?
-        .is_some())
+    todo!()
+    // Ok(nymd_client!(state)
+    //     .owns_mixnode(nymd_client!(state).address())
+    //     .await?
+    //     .is_some())
 }
 
 #[tauri::command]
 pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
-    Ok(nymd_client!(state)
-        .owns_gateway(nymd_client!(state).address())
-        .await?
-        .is_some())
+    todo!()
+    // Ok(nymd_client!(state)
+    //     .owns_gateway(nymd_client!(state).address())
+    //     .await?
+    //     .is_some())
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]

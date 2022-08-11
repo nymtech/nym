@@ -15,9 +15,10 @@ pub async fn mixnode_core_node_status(
     since: Option<i64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeCoreStatusResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_core_status_count(identity, since)
-        .await?)
+    todo!()
+    // Ok(api_client!(state)
+    //     .get_mixnode_core_status_count(identity, since)
+    //     .await?)
 }
 
 #[tauri::command]
@@ -26,9 +27,10 @@ pub async fn gateway_core_node_status(
     since: Option<i64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<GatewayCoreStatusResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_gateway_core_status_count(identity, since)
-        .await?)
+    todo!()
+    // Ok(api_client!(state)
+    //     .get_gateway_core_status_count(identity, since)
+    //     .await?)
 }
 
 #[tauri::command]
@@ -36,7 +38,8 @@ pub async fn mixnode_status(
     identity: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeStatusResponse, BackendError> {
-    Ok(api_client!(state).get_mixnode_status(identity).await?)
+    todo!()
+    // Ok(api_client!(state).get_mixnode_status(identity).await?)
 }
 
 #[tauri::command]
@@ -44,9 +47,10 @@ pub async fn mixnode_reward_estimation(
     identity: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DeprecatedRewardEstimationResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_reward_estimation(identity)
-        .await?)
+    todo!()
+    // Ok(api_client!(state)
+    //     .get_mixnode_reward_estimation(identity)
+    //     .await?)
 }
 
 #[tauri::command]
@@ -54,9 +58,10 @@ pub async fn mixnode_stake_saturation(
     identity: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<StakeSaturationResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_stake_saturation(identity)
-        .await?)
+    todo!()
+    // Ok(api_client!(state)
+    //     .get_mixnode_stake_saturation(identity)
+    //     .await?)
 }
 
 #[tauri::command]
@@ -64,7 +69,8 @@ pub async fn mixnode_inclusion_probability(
     identity: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<InclusionProbabilityResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_inclusion_probability(identity)
-        .await?)
+    todo!()
+    // Ok(api_client!(state)
+    //     .get_mixnode_inclusion_probability(identity)
+    //     .await?)
 }

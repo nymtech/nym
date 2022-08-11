@@ -18,23 +18,23 @@ pub struct TauriContractStateParams {
     minimum_mixnode_delegation: Option<DecCoin>,
 }
 
-pub fn from_mixnet_contract_contract_state_params(
-    state_params: ContractStateParams,
-    reg: &RegisteredCoins,
-) -> Result<TauriContractStateParams, TypesError> {
-    Ok(TauriContractStateParams {
-        minimum_mixnode_pledge: reg
-            .attempt_convert_to_display_dec_coin(state_params.minimum_mixnode_pledge.into())?,
-        minimum_gateway_pledge: reg
-            .attempt_convert_to_display_dec_coin(state_params.minimum_gateway_pledge.into())?,
-        minimum_mixnode_delegation: state_params
-            .minimum_mixnode_delegation
-            .map(|min_del| reg.attempt_convert_to_display_dec_coin(min_del.into()))
-            .transpose()?,
-    })
-}
-
 impl TauriContractStateParams {
+    pub fn from_mixnet_contract_contract_state_params(
+        state_params: ContractStateParams,
+        reg: &RegisteredCoins,
+    ) -> Result<Self, TypesError> {
+        Ok(TauriContractStateParams {
+            minimum_mixnode_pledge: reg
+                .attempt_convert_to_display_dec_coin(state_params.minimum_mixnode_pledge.into())?,
+            minimum_gateway_pledge: reg
+                .attempt_convert_to_display_dec_coin(state_params.minimum_gateway_pledge.into())?,
+            minimum_mixnode_delegation: state_params
+                .minimum_mixnode_delegation
+                .map(|min_del| reg.attempt_convert_to_display_dec_coin(min_del.into()))
+                .transpose()?,
+        })
+    }
+
     pub fn try_convert_to_mixnet_contract_params(
         self,
         reg: &RegisteredCoins,

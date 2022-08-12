@@ -70,7 +70,9 @@ pub fn execute(
         ExecuteMsg::UpdateMixnodeConfig { new_config } => {
             try_update_mixnode_config(new_config, info, deps)
         }
-        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => todo!(),
+        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
+            try_update_mixnode_cost_params(new_costs, info, deps)
+        }
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
@@ -155,6 +157,15 @@ pub fn try_update_mixnode_config(
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_update_mixnode_config(new_config, deps.storage)
+}
+
+pub fn try_update_mixnode_cost_params(
+    new_costs: MixNodeCostParams,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_update_mixnode_cost_params(new_costs, deps.storage)
 }
 
 // Only contract admin, set at init

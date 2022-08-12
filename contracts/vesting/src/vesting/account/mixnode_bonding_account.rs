@@ -1,3 +1,7 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use super::Account;
 use crate::errors::ContractError;
 use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
@@ -9,12 +13,9 @@ use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
     new_vesting_mixnode_bonding_event, new_vesting_mixnode_unbonding_event,
-    new_vesting_update_mixnode_config_event,
+    new_vesting_update_mixnode_config_event, new_vesting_update_mixnode_cost_params_event,
 };
-
 use vesting_contract_common::PledgeData;
-
-use super::Account;
 
 impl MixnodeBondingAccount for Account {
     fn try_claim_operator_reward(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
@@ -26,24 +27,6 @@ impl MixnodeBondingAccount for Account {
             wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
 
         Ok(Response::new().add_message(compound_operator_reward_msg))
-    }
-
-    fn try_update_mixnode_config(
-        &self,
-        new_config: MixNodeConfigUpdate,
-        storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
-        let msg = MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
-            new_config,
-            owner: self.owner_address().into_string(),
-        };
-
-        let update_mixnode_config_msg =
-            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
-
-        Ok(Response::new()
-            .add_message(update_mixnode_config_msg)
-            .add_event(new_vesting_update_mixnode_config_event()))
     }
 
     fn try_bond_mixnode(
@@ -129,5 +112,41 @@ impl MixnodeBondingAccount for Account {
 
         self.remove_mixnode_pledge(storage)?;
         Ok(())
+    }
+
+    fn try_update_mixnode_config(
+        &self,
+        new_config: MixNodeConfigUpdate,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
+            new_config,
+            owner: self.owner_address().into_string(),
+        };
+
+        let update_mixnode_config_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
+        Ok(Response::new()
+            .add_message(update_mixnode_config_msg)
+            .add_event(new_vesting_update_mixnode_config_event()))
+    }
+
+    fn try_update_mixnode_cost_params(
+        &self,
+        new_costs: MixNodeCostParams,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::UpdateMixnodeCostParamsOnBehalf {
+            new_costs,
+            owner: self.owner_address().into_string(),
+        };
+
+        let update_mixnode_costs_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
+        Ok(Response::new()
+            .add_message(update_mixnode_costs_msg)
+            .add_event(new_vesting_update_mixnode_cost_params_event()))
     }
 }

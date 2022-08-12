@@ -12,19 +12,22 @@ pub async fn simulate_update_contract_settings(
     params: TauriContractStateParams,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    todo!()
-    // let guard = state.read().await;
-    // let mixnet_contract_settings_params: ContractStateParams = params.try_into()?;
-    //
-    // let client = guard.current_client()?;
-    // let mixnet_contract = client.nymd.mixnet_contract_address();
-    //
-    // let msg = client.nymd.wrap_contract_execute_message(
-    //     mixnet_contract,
-    //     &ExecuteMsg::UpdateContractStateParams(mixnet_contract_settings_params),
-    //     vec![],
-    // )?;
-    //
-    // let result = client.nymd.simulate(vec![msg]).await?;
-    // guard.create_detailed_fee(result)
+    let guard = state.read().await;
+    let reg = guard.registered_coins()?;
+    let mixnet_contract_settings_params: ContractStateParams =
+        params.try_convert_to_mixnet_contract_params(reg)?;
+
+    let client = guard.current_client()?;
+    let mixnet_contract = client.nymd.mixnet_contract_address();
+
+    let msg = client.nymd.wrap_contract_execute_message(
+        mixnet_contract,
+        &ExecuteMsg::UpdateContractStateParams {
+            updated_parameters: mixnet_contract_settings_params,
+        },
+        vec![],
+    )?;
+
+    let result = client.nymd.simulate(vec![msg]).await?;
+    guard.create_detailed_fee(result)
 }

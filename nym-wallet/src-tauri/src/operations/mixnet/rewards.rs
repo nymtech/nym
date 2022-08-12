@@ -1,6 +1,6 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
-use crate::vesting::rewards::{vesting_claim_delegator_reward, vesting_compound_delegator_reward};
+use crate::vesting::rewards::vesting_claim_delegator_reward;
 use mixnet_contract_common::NodeId;
 use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::traits::MixnetSigningClient;

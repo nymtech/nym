@@ -30,7 +30,7 @@ use multisig_contract_common::msg::ProposalResponse;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
     traits::{CoconutBandwidthQueryClient, MultisigQueryClient, MultisigSigningClient},
-    AccountId,
+    AccountId, Fee,
 };
 
 pub(crate) struct Client<C>(pub(crate) Arc<RwLock<validator_client::Client<C>>>);

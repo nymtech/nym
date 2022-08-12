@@ -47,26 +47,8 @@ macro_rules! do_export {
 }
 
 fn main() {
-    todo!("add new mixnet contract types here");
-
     println!("Starting export of types using ts-rs...");
     println!();
-
-    // added directly in mixnet-common (NOT IN common/types)
-    do_export!(MixNode);
-    do_export!(UnbondedMixnode);
-    do_export!(MixNodeConfigUpdate);
-
-    // new common/types
-    do_export!(MixNodeCostParams);
-    do_export!(MixNodeDetails);
-    do_export!(MixNodeRewarding);
-    do_export!(PendingEpochEvent);
-    do_export!(PendingIntervalEvent);
-    do_export!(PendingEpochEventData);
-    do_export!(PendingIntervalEventData);
-
-    do_export!(DelegationEvent);
 
     //
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling
@@ -77,12 +59,18 @@ fn main() {
     // common/cosmwasm-smart-contracts/vesting-contract/src
     do_export!(Period);
 
+    // common/cosmwasm-smart-contracts/mixnet-contract/src
+    do_export!(MixNode);
+    do_export!(UnbondedMixnode);
+    do_export!(MixNodeConfigUpdate);
+
     // common/types/src
     do_export!(Account);
     do_export!(AccountEntry);
     do_export!(AccountWithMnemonic);
     do_export!(Balance);
     do_export!(Delegation);
+    do_export!(DelegationEvent);
     do_export!(DelegationRecord);
     do_export!(DelegationResult);
     do_export!(DelegationsSummaryResponse);
@@ -100,7 +88,14 @@ fn main() {
     do_export!(CurrencyDenom);
     do_export!(DecCoin);
     do_export!(MixNodeBond);
+    do_export!(MixNodeCostParams);
+    do_export!(MixNodeDetails);
+    do_export!(MixNodeRewarding);
     do_export!(OriginalVestingResponse);
+    do_export!(PendingEpochEvent);
+    do_export!(PendingEpochEventData);
+    do_export!(PendingIntervalEvent);
+    do_export!(PendingIntervalEventData);
     do_export!(PledgeData);
     do_export!(SendTxResult);
     do_export!(TransactionDetails);

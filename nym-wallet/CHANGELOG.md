@@ -1,0 +1,183 @@
+## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
+
+- wallet: dark mode
+- wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
+
+[#1388]: https://github.com/nymtech/nym/pull/1388
+
+
+## [nym-wallet-v1.0.6](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.6) (2022-06-21)
+
+- wallet: undelegating now uses either the mixnet or vesting contract, or both, depending on how delegations were made
+- wallet: redeeming and compounding now uses both the mixnet and vesting contract
+- wallet: the wallet backend learned how to archive wallet files
+- wallet: add ENABLE_QA_MODE environment variable to enable QA mode on built wallet
+
+## [nym-wallet-v1.0.5](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.5) (2022-06-14)
+
+- wallet: add simple CLI tool for decrypting and recovering the wallet file.
+- wallet: added support for multiple accounts ([#1265])
+- wallet: compound and claim reward endpoints for operators and delegators ([#1302])
+- wallet: require password to switch accounts
+- wallet: the wallet backend learned how to keep track of validator name, either hardcoded or by querying the status endpoint.
+- wallet: new delegation and rewards UI
+- wallet: show version in nav bar
+- wallet: contract admin route put back
+- wallet: staking_supply field to StateParams
+- wallet: show transaction hash for redeeming or compounding rewards
+
+[#1265]: https://github.com/nymtech/nym/pull/1265
+[#1302]: https://github.com/nymtech/nym/pull/1302
+
+## [nym-wallet-v1.0.4](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.4) (2022-05-04)
+
+### Changed
+
+- all: the default behaviour of validator client is changed to use `broadcast_sync` and poll for transaction inclusion instead of using `broadcast_commit` to deal with timeouts ([#1246])
+
+## [nym-wallet-v1.0.3](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.3) (2022-04-25)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/nym-binaries-1.0.0-rc.2...nym-wallet-v1.0.3)
+
+**Fixed bugs:**
+
+- \[Issue\] Wallet 1.0.2 cannot send NYM tokens from a DelayedVestingAccount [\#1215](https://github.com/nymtech/nym/issues/1215)
+- Main README not showing properly with GitHub dark mode [\#1211](https://github.com/nymtech/nym/issues/1211)
+
+**Merged pull requests:**
+
+- Bugfix - wallet undelegation for vesting accounts [\#1220](https://github.com/nymtech/nym/pull/1220) ([mmsinclair](https://github.com/mmsinclair))
+- Bugfix/delegation reconcile [\#1219](https://github.com/nymtech/nym/pull/1219) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/query proxied pending delegations [\#1218](https://github.com/nymtech/nym/pull/1218) ([jstuczyn](https://github.com/jstuczyn))
+- Using custom gas multiplier in the wallet [\#1217](https://github.com/nymtech/nym/pull/1217) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/vesting accounts support [\#1216](https://github.com/nymtech/nym/pull/1216) ([jstuczyn](https://github.com/jstuczyn))
+- Release/1.0.0 rc.2 [\#1214](https://github.com/nymtech/nym/pull/1214) ([jstuczyn](https://github.com/jstuczyn))
+- chore: fix dark mode rendering [\#1212](https://github.com/nymtech/nym/pull/1212) ([pwnfoo](https://github.com/pwnfoo))
+- Feature/spend coconut [\#1210](https://github.com/nymtech/nym/pull/1210) ([neacsu](https://github.com/neacsu))
+- Bugfix/unique sphinx key [\#1207](https://github.com/nymtech/nym/pull/1207) ([jstuczyn](https://github.com/jstuczyn))
+- Add cache read and write timeouts [\#1206](https://github.com/nymtech/nym/pull/1206) ([durch](https://github.com/durch))
+- Additional, more informative routes [\#1204](https://github.com/nymtech/nym/pull/1204) ([durch](https://github.com/durch))
+- Feature/aggregated econ dynamics explorer endpoint [\#1203](https://github.com/nymtech/nym/pull/1203) ([jstuczyn](https://github.com/jstuczyn))
+- Debugging validator [\#1198](https://github.com/nymtech/nym/pull/1198) ([durch](https://github.com/durch))
+- wallet: expose additional validator configuration functionality to the frontend [\#1195](https://github.com/nymtech/nym/pull/1195) ([octol](https://github.com/octol))
+- Update rewarding validator address [\#1193](https://github.com/nymtech/nym/pull/1193) ([durch](https://github.com/durch))
+- Crypto part of the Groth's NIDKG [\#1182](https://github.com/nymtech/nym/pull/1182) ([jstuczyn](https://github.com/jstuczyn))
+- fix unbond page [\#1180](https://github.com/nymtech/nym/pull/1180) ([tommyv1987](https://github.com/tommyv1987))
+- Type safe bounds [\#1179](https://github.com/nymtech/nym/pull/1179) ([durch](https://github.com/durch))
+- Fix delegation paging [\#1174](https://github.com/nymtech/nym/pull/1174) ([durch](https://github.com/durch))
+- Update binaries to rc version [\#1172](https://github.com/nymtech/nym/pull/1172) ([tommyv1987](https://github.com/tommyv1987))
+- Bump ansi-regex from 4.1.0 to 4.1.1 in /docker/typescript\_client/upload\_contract [\#1171](https://github.com/nymtech/nym/pull/1171) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [nym-wallet-v1.0.1](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.1) (2022-04-05)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/nym-binaries-1.0.0-rc.1...nym-wallet-v1.0.1)
+
+**Closed issues:**
+
+- Check enabling bbbc simultaneously with open access. Estimate what it would take to make this the default compilation target. [\#1175](https://github.com/nymtech/nym/issues/1175)
+- Get coconut credential for deposited tokens [\#1138](https://github.com/nymtech/nym/issues/1138)
+- Make payments lazy [\#1135](https://github.com/nymtech/nym/issues/1135)
+- Uptime on node selection for sets [\#1049](https://github.com/nymtech/nym/issues/1049)
+
+## [nym-wallet-v1.0.0](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.0) (2022-02-03)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.12.1...nym-wallet-v1.0.0)
+
+**Implemented enhancements:**
+
+- \[Feature Request\] Please enable registration without need for Telegram account [\#1016](https://github.com/nymtech/nym/issues/1016)
+- Fast mixnode launch with a pre-built ISO + VM software [\#1001](https://github.com/nymtech/nym/issues/1001)
+
+**Fixed bugs:**
+
+- \[Issue\] [\#1000](https://github.com/nymtech/nym/issues/1000)
+- \[Issue\] `nym-client` requires multiple attempts to run a server [\#869](https://github.com/nymtech/nym/issues/869)
+- De-'float'-ing `Interval` \(`Display` impl + `serde`\) [\#1065](https://github.com/nymtech/nym/pull/1065) ([jstuczyn](https://github.com/jstuczyn))
+- display client address on wallet creation [\#1058](https://github.com/nymtech/nym/pull/1058) ([fmtabbara](https://github.com/fmtabbara))
+
+**Closed issues:**
+
+- Rewarded set inclusion probability API endpoint [\#1037](https://github.com/nymtech/nym/issues/1037)
+- Update cw-storage-plus to 0.11  [\#1032](https://github.com/nymtech/nym/issues/1032)
+- Change `u128` fields in `RewardEstimationResponse` to `u64` [\#1029](https://github.com/nymtech/nym/issues/1029)
+- Test out the mainnet Gravity Bridge [\#1006](https://github.com/nymtech/nym/issues/1006)
+- Add vesting contract interface to nym-wallet [\#959](https://github.com/nymtech/nym/issues/959)
+- Mixnode crash [\#486](https://github.com/nymtech/nym/issues/486)
+
+**Merged pull requests:**
+
+- create custom urls for mainnet [\#1095](https://github.com/nymtech/nym/pull/1095) ([fmtabbara](https://github.com/fmtabbara))
+- Wallet signing on MacOS [\#1093](https://github.com/nymtech/nym/pull/1093) ([mmsinclair](https://github.com/mmsinclair))
+- Fix rust 2018 idioms warnings [\#1092](https://github.com/nymtech/nym/pull/1092) ([octol](https://github.com/octol))
+- Prevent contract overwriting [\#1090](https://github.com/nymtech/nym/pull/1090) ([durch](https://github.com/durch))
+- Logout operation [\#1087](https://github.com/nymtech/nym/pull/1087) ([jstuczyn](https://github.com/jstuczyn))
+- Update to rust edition 2021 everywhere [\#1086](https://github.com/nymtech/nym/pull/1086) ([octol](https://github.com/octol))
+- Tag contract errors, and print out lines for easier QA [\#1084](https://github.com/nymtech/nym/pull/1084) ([durch](https://github.com/durch))
+- Feature/flexible vesting + utility queries [\#1083](https://github.com/nymtech/nym/pull/1083) ([durch](https://github.com/durch))
+- Bump @openzeppelin/contracts from 4.3.1 to 4.4.2 in /contracts/basic-bandwidth-generation [\#1082](https://github.com/nymtech/nym/pull/1082) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump nth-check from 2.0.0 to 2.0.1 in /clients/native/examples/js-examples/websocket [\#1081](https://github.com/nymtech/nym/pull/1081) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump url-parse from 1.5.1 to 1.5.4 in /clients/native/examples/js-examples/websocket [\#1080](https://github.com/nymtech/nym/pull/1080) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump follow-redirects from 1.14.1 to 1.14.7 in /clients/native/examples/js-examples/websocket [\#1079](https://github.com/nymtech/nym/pull/1079) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump nanoid from 3.1.23 to 3.2.0 in /clients/native/examples/js-examples/websocket [\#1078](https://github.com/nymtech/nym/pull/1078) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Setup basic test for mixnode stats reporting [\#1077](https://github.com/nymtech/nym/pull/1077) ([octol](https://github.com/octol))
+- Make wallet\_address mandatory for mixnode init [\#1076](https://github.com/nymtech/nym/pull/1076) ([octol](https://github.com/octol))
+- Tidy nym-mixnode module visibility [\#1075](https://github.com/nymtech/nym/pull/1075) ([octol](https://github.com/octol))
+- Feature/wallet login with password [\#1074](https://github.com/nymtech/nym/pull/1074) ([fmtabbara](https://github.com/fmtabbara))
+- Add trait to mock client dependency in DelayForwarder [\#1073](https://github.com/nymtech/nym/pull/1073) ([octol](https://github.com/octol))
+- Bump rust-version to latest stable for nym-mixnode [\#1072](https://github.com/nymtech/nym/pull/1072) ([octol](https://github.com/octol))
+- Fixes CI for our wasm build [\#1069](https://github.com/nymtech/nym/pull/1069) ([jstuczyn](https://github.com/jstuczyn))
+- Add @octol as codeowner [\#1068](https://github.com/nymtech/nym/pull/1068) ([octol](https://github.com/octol))
+- set-up inclusion probability [\#1067](https://github.com/nymtech/nym/pull/1067) ([fmtabbara](https://github.com/fmtabbara))
+- Feature/wasm client [\#1066](https://github.com/nymtech/nym/pull/1066) ([neacsu](https://github.com/neacsu))
+- Changed bech32\_prefix from punk to nymt [\#1064](https://github.com/nymtech/nym/pull/1064) ([jstuczyn](https://github.com/jstuczyn))
+- Bump nanoid from 3.1.30 to 3.2.0 in /testnet-faucet [\#1063](https://github.com/nymtech/nym/pull/1063) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump nanoid from 3.1.30 to 3.2.0 in /nym-wallet [\#1062](https://github.com/nymtech/nym/pull/1062) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Rework vesting contract storage [\#1061](https://github.com/nymtech/nym/pull/1061) ([durch](https://github.com/durch))
+- Mixnet Contract constants extraction [\#1060](https://github.com/nymtech/nym/pull/1060) ([jstuczyn](https://github.com/jstuczyn))
+- fix: make explorer footer year dynamic [\#1059](https://github.com/nymtech/nym/pull/1059) ([martinyung](https://github.com/martinyung))
+- Add mnemonic just on creation, to display it [\#1057](https://github.com/nymtech/nym/pull/1057) ([neacsu](https://github.com/neacsu))
+- Network Explorer: updates to API and UI to show the active set [\#1056](https://github.com/nymtech/nym/pull/1056) ([mmsinclair](https://github.com/mmsinclair))
+- Made contract addresses for query NymdClient construction optional [\#1055](https://github.com/nymtech/nym/pull/1055) ([jstuczyn](https://github.com/jstuczyn))
+- Introduced RPC query for total token supply [\#1053](https://github.com/nymtech/nym/pull/1053) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/tokio console [\#1052](https://github.com/nymtech/nym/pull/1052) ([durch](https://github.com/durch))
+- Implemented beta clippy lint recommendations [\#1051](https://github.com/nymtech/nym/pull/1051) ([jstuczyn](https://github.com/jstuczyn))
+- add new function to update profit percentage [\#1050](https://github.com/nymtech/nym/pull/1050) ([fmtabbara](https://github.com/fmtabbara))
+- Upgrade Clap and use declarative argument parsing for nym-mixnode [\#1047](https://github.com/nymtech/nym/pull/1047) ([octol](https://github.com/octol))
+- Feature/additional bond validation [\#1046](https://github.com/nymtech/nym/pull/1046) ([fmtabbara](https://github.com/fmtabbara))
+- Fix clippy on relevant lints [\#1044](https://github.com/nymtech/nym/pull/1044) ([neacsu](https://github.com/neacsu))
+- Bump shelljs from 0.8.4 to 0.8.5 in /contracts/basic-bandwidth-generation [\#1043](https://github.com/nymtech/nym/pull/1043) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Endpoint for rewarded set inclusion probabilities [\#1042](https://github.com/nymtech/nym/pull/1042) ([durch](https://github.com/durch))
+- Bump follow-redirects from 1.14.4 to 1.14.7 in /contracts/basic-bandwidth-generation [\#1041](https://github.com/nymtech/nym/pull/1041) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump follow-redirects from 1.14.5 to 1.14.7 in /testnet-faucet [\#1040](https://github.com/nymtech/nym/pull/1040) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Feature/node settings update [\#1036](https://github.com/nymtech/nym/pull/1036) ([fmtabbara](https://github.com/fmtabbara))
+- Migrate to cw-storage-plus 0.11.1 [\#1035](https://github.com/nymtech/nym/pull/1035) ([durch](https://github.com/durch))
+- Bump @openzeppelin/contracts from 4.4.1 to 4.4.2 in /contracts/basic-bandwidth-generation [\#1034](https://github.com/nymtech/nym/pull/1034) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Feature/configurable wallet [\#1033](https://github.com/nymtech/nym/pull/1033) ([neacsu](https://github.com/neacsu))
+- Feature/downcast reward estimation [\#1031](https://github.com/nymtech/nym/pull/1031) ([durch](https://github.com/durch))
+- Wallet UI updates [\#1028](https://github.com/nymtech/nym/pull/1028) ([fmtabbara](https://github.com/fmtabbara))
+- Remove migration code [\#1027](https://github.com/nymtech/nym/pull/1027) ([neacsu](https://github.com/neacsu))
+- Chore/stricter dependency requirements [\#1025](https://github.com/nymtech/nym/pull/1025) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator api client endpoints [\#1024](https://github.com/nymtech/nym/pull/1024) ([jstuczyn](https://github.com/jstuczyn))
+- Updated cosmrs to 0.4.1 [\#1023](https://github.com/nymtech/nym/pull/1023) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/testnet deploy scripts [\#1022](https://github.com/nymtech/nym/pull/1022) ([mfahampshire](https://github.com/mfahampshire))
+- Changed wallet's client to a full validator client [\#1021](https://github.com/nymtech/nym/pull/1021) ([jstuczyn](https://github.com/jstuczyn))
+- Fix 404 link [\#1020](https://github.com/nymtech/nym/pull/1020) ([RiccardoMasutti](https://github.com/RiccardoMasutti))
+- Feature/additional mixnode endpoints [\#1019](https://github.com/nymtech/nym/pull/1019) ([jstuczyn](https://github.com/jstuczyn))
+- Introduced denom check when trying to withdraw vested coins [\#1018](https://github.com/nymtech/nym/pull/1018) ([jstuczyn](https://github.com/jstuczyn))
+- Add network defaults for qa [\#1017](https://github.com/nymtech/nym/pull/1017) ([neacsu](https://github.com/neacsu))
+- Feature/expanded events [\#1015](https://github.com/nymtech/nym/pull/1015) ([jstuczyn](https://github.com/jstuczyn))
+- update frontend to use new profit update api [\#1014](https://github.com/nymtech/nym/pull/1014) ([fmtabbara](https://github.com/fmtabbara))
+- Feature/node state endpoint [\#1013](https://github.com/nymtech/nym/pull/1013) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/hourly set updates [\#1012](https://github.com/nymtech/nym/pull/1012) ([durch](https://github.com/durch))
+- Feature/remove unused profit margin [\#1011](https://github.com/nymtech/nym/pull/1011) ([neacsu](https://github.com/neacsu))
+- Feature/explorer node status [\#1010](https://github.com/nymtech/nym/pull/1010) ([jstuczyn](https://github.com/jstuczyn))
+- Use serial integer instead of random [\#1009](https://github.com/nymtech/nym/pull/1009) ([durch](https://github.com/durch))
+- Feature/configure profit [\#1008](https://github.com/nymtech/nym/pull/1008) ([neacsu](https://github.com/neacsu))
+- Feature/fix gateway sign [\#1004](https://github.com/nymtech/nym/pull/1004) ([neacsu](https://github.com/neacsu))
+- Fix clippy [\#1003](https://github.com/nymtech/nym/pull/1003) ([neacsu](https://github.com/neacsu))
+- Update wallet version [\#998](https://github.com/nymtech/nym/pull/998) ([tommyv1987](https://github.com/tommyv1987))
+- Fix wallet build instructions [\#997](https://github.com/nymtech/nym/pull/997) ([tommyv1987](https://github.com/tommyv1987))
+- Make the separation between testnet-mode and erc20 bandwidth mode clearer [\#994](https://github.com/nymtech/nym/pull/994) ([neacsu](https://github.com/neacsu))
+- Bump @openzeppelin/contracts from 3.4.0 to 4.4.1 in /contracts/basic-bandwidth-generation [\#983](https://github.com/nymtech/nym/pull/983) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Feature/implicit runtime [\#973](https://github.com/nymtech/nym/pull/973) ([jstuczyn](https://github.com/jstuczyn))
+- Differentiate staking and ownership [\#961](https://github.com/nymtech/nym/pull/961) ([durch](https://github.com/durch))

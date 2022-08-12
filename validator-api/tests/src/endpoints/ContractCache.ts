@@ -10,21 +10,12 @@ export default class ContractCache extends APIClient {
     super("/");
   }
 
-  public async getMixnodes(): Promise<AllMixnodes> {
+  public async getMixnodes(): Promise<AllMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes`,
     });
 
-    return <AllMixnodes>{
-      pledge_amount: response.data.pledge_amount,
-      total_delegation: response.data.total_delegation,
-      owner: response.data.owner,
-      layer: response.data.layer,
-      block_height: response.data.block_height,
-      mix_node: response.data.mix_node,
-      proxy: response.data.proxy,
-      accumulated_rewards: response.data.accumulated_rewards,
-    };
+    return response.data;
   }
 
   public async getMixnodesDetailed(): Promise<MixnodesDetailed> {

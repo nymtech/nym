@@ -8,7 +8,7 @@ use crate::constants::{
 };
 use cosmwasm_std::{Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
 use mixnet_contract_common::{
     EpochEventId, Interval, IntervalEventId, NodeId, RewardedSetNodeStatus,
 };
@@ -30,11 +30,11 @@ pub(crate) const LAST_PROCESSED_INTERVAL_EVENT: Item<IntervalEventId> =
 // (we can't use block height as it's very possible multiple requests might be created in the same block height,
 // and composite keys would be more complex than just using an increasing ID)
 /// Contains operations that should get resolved at the end of the current epoch.
-pub(crate) const PENDING_EPOCH_EVENTS: Map<EpochEventId, PendingEpochEvent> =
+pub(crate) const PENDING_EPOCH_EVENTS: Map<EpochEventId, PendingEpochEventData> =
     Map::new(PENDING_EPOCH_EVENTS_NAMESPACE);
 
 /// Contains operations that should get resolved at the end of the current interval.
-pub(crate) const PENDING_INTERVAL_EVENTS: Map<IntervalEventId, PendingIntervalEvent> =
+pub(crate) const PENDING_INTERVAL_EVENTS: Map<IntervalEventId, PendingIntervalEventData> =
     Map::new(PENDING_INTERVAL_EVENTS_NAMESPACE);
 
 pub(crate) fn current_interval(storage: &dyn Storage) -> StdResult<Interval> {
@@ -64,7 +64,7 @@ pub(crate) fn next_interval_event_id_counter(
 
 pub(crate) fn push_new_epoch_event(
     storage: &mut dyn Storage,
-    event: &PendingEpochEvent,
+    event: &PendingEpochEventData,
 ) -> StdResult<()> {
     let event_id = next_epoch_event_id_counter(storage)?;
     PENDING_EPOCH_EVENTS.save(storage, event_id, event)
@@ -72,7 +72,7 @@ pub(crate) fn push_new_epoch_event(
 
 pub(crate) fn push_new_interval_event(
     storage: &mut dyn Storage,
-    event: &PendingIntervalEvent,
+    event: &PendingIntervalEventData,
 ) -> StdResult<()> {
     let event_id = next_interval_event_id_counter(storage)?;
     PENDING_INTERVAL_EVENTS.save(storage, event_id, event)

@@ -3,7 +3,7 @@ import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyForm
 import { CurrencyDenom, FeeDetails } from '@nymproject/types';
 import { SxProps } from '@mui/material';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateClaimDelgatorReward, simulateVestingClaimDelgatorReward } from 'src/requests';
+import { simulateClaimDelegatorReward, simulateVestingClaimDelegatorReward } from 'src/requests';
 import { ModalFee } from '../Modals/ModalFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { FeeWarning } from '../FeeWarning';
@@ -31,9 +31,9 @@ export const RedeemModal: React.FC<{
 
   useEffect(() => {
     if (usesVestingTokens) {
-      getFee(simulateVestingClaimDelgatorReward, identityKey);
+      getFee(simulateVestingClaimDelegatorReward, identityKey);
     } else {
-      getFee(simulateClaimDelgatorReward, identityKey);
+      getFee(simulateClaimDelegatorReward, identityKey);
     }
   }, []);
 

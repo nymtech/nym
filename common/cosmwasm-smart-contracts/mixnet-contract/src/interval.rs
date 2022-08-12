@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::pending_events::{PendingEpochEvent, PendingIntervalEvent};
@@ -172,6 +172,10 @@ impl Interval {
 
     pub fn change_epoch_length(&mut self, epoch_length: Duration) {
         self.epoch_length = epoch_length
+    }
+
+    pub const fn total_elapsed_epochs(&self) -> u32 {
+        self.total_elapsed_epochs
     }
 
     pub const fn current_epoch_absolute_id(&self) -> u32 {

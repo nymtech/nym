@@ -1,4 +1,4 @@
-## [nym-wallet-v1.0.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8)
+## [nym-wallet-v1.0.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-08-11)
 
 - wallet: new bonding flow
 - wallet: compound and redeem functionalities for operators rewards

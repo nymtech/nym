@@ -37,11 +37,11 @@ export const BondedGateway = ({
   const cells: Cell[] = [
     {
       cell: ip,
-      id: 'stake-saturation-cell',
+      id: 'ip-cell',
     },
     {
       cell: `${bond.amount} ${bond.denom}`,
-      id: 'stake-cell',
+      id: 'bond-cell',
       sx: { pl: 0 },
     },
 

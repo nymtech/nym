@@ -354,7 +354,7 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    async fn undelegate_to_mixnode(
+    async fn undelegate_from_mixnode(
         &self,
         mix_id: NodeId,
         fee: Option<Fee>,

@@ -321,10 +321,9 @@ pub trait MixnetQueryClient {
 
     // DEPRECATED AND ONLY HERE FOR THE BACKWARDS COMPATIBILITY:
 
-    #[deprecated(
-        note = "deprecated since mixnet v2; please query for mixnodes by their NodeId instead. This method will be removed soon."
-    )]
-    async fn get_mixnode_details_by_identity(
+    // it doesn't have deprecated note since this would fail our CI, therefore
+    // the method has explicitly the `deprecated` prefix in its name
+    async fn deprecated_get_mixnode_details_by_identity(
         &self,
         mix_identity: IdentityKey,
     ) -> Result<Option<MixNodeDetails>, NymdError> {

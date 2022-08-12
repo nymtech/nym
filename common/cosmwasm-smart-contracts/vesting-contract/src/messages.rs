@@ -63,6 +63,9 @@ pub enum ExecuteMsg {
     ClaimDelegatorReward {
         mix_id: NodeId,
     },
+    UpdateMixnodeCostParams {
+        new_costs: MixNodeCostParams,
+    },
     UpdateMixnodeConfig {
         new_config: MixNodeConfigUpdate,
     },
@@ -128,6 +131,9 @@ impl ExecuteMsg {
             ExecuteMsg::ClaimOperatorReward { .. } => "VestingExecuteMsg::ClaimOperatorReward",
             ExecuteMsg::ClaimDelegatorReward { .. } => "VestingExecuteMsg::ClaimDelegatorReward",
             ExecuteMsg::UpdateMixnodeConfig { .. } => "VestingExecuteMsg::UpdateMixnodeConfig",
+            ExecuteMsg::UpdateMixnodeCostParams { .. } => {
+                "VestingExecuteMsg::UpdateMixnodeCostParams"
+            }
             ExecuteMsg::UpdateMixnetAddress { .. } => "VestingExecuteMsg::UpdateMixnetAddress",
             ExecuteMsg::DelegateToMixnode { .. } => "VestingExecuteMsg::DelegateToMixnode",
             ExecuteMsg::UndelegateFromMixnode { .. } => "VestingExecuteMsg::UndelegateFromMixnode",

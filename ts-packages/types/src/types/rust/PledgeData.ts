@@ -1,6 +1,3 @@
-import type { DecCoin } from './DecCoin';
+import type { DecCoin } from "./DecCoin";
 
-export interface PledgeData {
-  amount: DecCoin;
-  block_time: bigint;
-}
+export interface PledgeData { amount: DecCoin, block_time: bigint, }

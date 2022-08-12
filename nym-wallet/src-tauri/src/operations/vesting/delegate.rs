@@ -1,5 +1,6 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
+use mixnet_contract_common::NodeId;
 use nym_types::currency::DecCoin;
 use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::{Fee, VestingSigningClient};
@@ -37,7 +38,7 @@ pub async fn vesting_delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn vesting_undelegate_from_mixnode(
-    identity: &str,
+    mix_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {

@@ -109,27 +109,27 @@ pub async fn undelegate_from_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_all_from_mixnode(
-    identity: &str,
+    mix_id: NodeId,
     uses_vesting_contract_tokens: bool,
-    fee: Option<Fee>,
-    fee2: Option<Fee>,
+    fee_liquid: Option<Fee>,
+    fee_vesting: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<TransactionExecuteResult>, BackendError> {
-    todo!()
-    // log::info!(
-    //     ">>> Undelegate all from mixnode: identity_key = {}, uses_vesting_contract_tokens = {}, fee = {:?}",
-    //     identity,
-    //     uses_vesting_contract_tokens,
-    //     fee
-    // );
-    // let mut res: Vec<TransactionExecuteResult> =
-    //     vec![undelegate_from_mixnode(identity, fee, state.clone()).await?];
-    //
-    // if uses_vesting_contract_tokens {
-    //     res.push(vesting_undelegate_from_mixnode(identity, fee2, state.clone()).await?);
-    // }
-    //
-    // Ok(res)
+    log::info!(
+        ">>> Undelegate all from mixnode: mix_id = {}, uses_vesting_contract_tokens = {}, fee_liquid = {:?}, fee_vesting = {:?}",
+        mix_id,
+        uses_vesting_contract_tokens,
+        fee_liquid,
+        fee_vesting,
+    );
+    let mut res: Vec<TransactionExecuteResult> =
+        vec![undelegate_from_mixnode(mix_id, fee_liquid, state.clone()).await?];
+
+    if uses_vesting_contract_tokens {
+        res.push(vesting_undelegate_from_mixnode(mix_id, fee_vesting, state).await?);
+    }
+
+    Ok(res)
 }
 
 struct DelegationWithHistory {

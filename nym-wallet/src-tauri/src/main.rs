@@ -73,10 +73,7 @@ fn main() {
             mixnet::interval::get_pending_interval_events,
             mixnet::rewards::claim_delegator_reward,
             mixnet::rewards::claim_operator_reward,
-            mixnet::rewards::compound_operator_reward,
-            mixnet::rewards::compound_delegator_reward,
             mixnet::rewards::claim_locked_and_unlocked_delegator_reward,
-            mixnet::rewards::compound_locked_and_unlocked_delegator_reward,
             mixnet::send::send,
             network_config::add_validator,
             network_config::get_validator_api_urls,
@@ -101,8 +98,6 @@ fn main() {
             validator_api::status::mixnode_status,
             vesting::rewards::vesting_claim_delegator_reward,
             vesting::rewards::vesting_claim_operator_reward,
-            vesting::rewards::vesting_compound_operator_reward,
-            vesting::rewards::vesting_compound_delegator_reward,
             vesting::bond::vesting_bond_gateway,
             vesting::bond::vesting_bond_mixnode,
             vesting::bond::vesting_unbond_gateway,
@@ -143,12 +138,8 @@ fn main() {
             simulate::vesting::simulate_withdraw_vested_coins,
             simulate::vesting::simulate_vesting_claim_delegator_reward,
             simulate::vesting::simulate_vesting_claim_operator_reward,
-            simulate::vesting::simulate_vesting_compound_operator_reward,
-            simulate::vesting::simulate_vesting_compound_delegator_reward,
             simulate::mixnet::simulate_claim_delegator_reward,
             simulate::mixnet::simulate_claim_operator_reward,
-            simulate::mixnet::simulate_compound_operator_reward,
-            simulate::mixnet::simulate_compound_delegator_reward,
         ])
         .menu(Menu::new().add_default_app_submenu_if_macos())
         .run(tauri::generate_context!())

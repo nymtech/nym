@@ -31,6 +31,12 @@ pub trait MixnodeBondingAccount {
         new_config: MixNodeConfigUpdate,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError>;
+
+    fn try_update_mixnode_cost_params(
+        &self,
+        new_costs: MixNodeCostParams,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
 }
 
 pub trait GatewayBondingAccount {

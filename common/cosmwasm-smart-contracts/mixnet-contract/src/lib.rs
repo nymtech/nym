@@ -27,8 +27,13 @@ pub use interval::{
     CurrentIntervalResponse, Interval, PendingEpochEventsResponse, PendingIntervalEventsResponse,
 };
 pub use mixnode::{
-    Layer, MixNode, MixNodeBond, MixOwnershipResponse, MixnodeDetailsResponse,
-    PagedMixnodeBondsResponse, RewardedSetNodeStatus,
+    Layer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeCostParams, MixNodeDetails,
+    MixNodeRewarding, MixOwnershipResponse, MixnodeDetailsResponse, PagedMixnodeBondsResponse,
+    RewardedSetNodeStatus, UnbondedMixnode,
 };
 pub use msg::*;
+pub use pending_events::{
+    PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
+};
+pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
 pub use types::*;

@@ -20,13 +20,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/report`,
     });
 
-    return <Report>{
-      identity: response.data.identity,
-      owner: response.data.owner,
-      most_recent: response.data.most_recent,
-      last_hour: response.data.last_hour,
-      last_day: response.data.last_day,
-    };
+    return response.data;
   }
 
   public async getGatewayStatusReport(identity_key: string): Promise<Report> {
@@ -34,13 +28,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/report`,
     });
 
-    return <Report>{
-      identity: response.data.identity,
-      owner: response.data.owner,
-      most_recent: response.data.most_recent,
-      last_hour: response.data.last_hour,
-      last_day: response.data.last_day,
-    };
+    return response.data;
   }
 
   public async getGatewayHistory(identity_key: string): Promise<NodeHistory> {
@@ -48,11 +36,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/history`,
     });
 
-    return <NodeHistory>{
-      identity: response.data.identity,
-      owner: response.data.owner,
-      history: response.data.history,
-    };
+    return response.data;
   }
 
   public async getMixnodeHistory(identity_key: string): Promise<NodeHistory> {
@@ -60,11 +44,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/history`,
     });
 
-    return <NodeHistory>{
-      identity: response.data.identity,
-      owner: response.data.owner,
-      history: response.data.history,
-    };
+    return response.data;
   }
 
   public async getMixnodeStakeSaturation(
@@ -74,10 +54,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/stake-saturation`,
     });
 
-    return <StakeSaturation>{
-      as_at: response.data.as_at,
-      saturation: response.data.saturation,
-    };
+    return response.data;
   }
 
   public async getMixnodeCoreCount(identity_key: string): Promise<CoreCount> {
@@ -85,10 +62,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/core-status-count`,
     });
 
-    return <CoreCount>{
-      identity: response.data.identity,
-      count: response.data.count,
-    };
+    return response.data;
   }
 
   public async getGatewayCoreCount(identity_key: string): Promise<CoreCount> {
@@ -96,10 +70,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/core-status-count`,
     });
 
-    return <CoreCount>{
-      identity: response.data.identity,
-      count: response.data.count,
-    };
+    return response.data;
   }
 
   public async getMixnodeRewardComputation(
@@ -109,15 +80,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/reward-estimation`,
     });
 
-    return <EstimatedReward>{
-      estimated_total_node_reward: response.data.estimated_total_node_reward,
-      estimated_operator_reward: response.data.estimated_operator_reward,
-      estimated_delegators_reward: response.data.estimated_delegators_reward,
-      estimated_node_profit: response.data.estimated_node_profit,
-      estimated_operator_cost: response.data.estimated_operator_cost,
-      reward_params: response.data.reward_params,
-      as_at: response.data.as_at,
-    };
+    return response.data;
   }
 
   public async getMixnodeRewardEstimatedComputation(
@@ -127,15 +90,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/compute-reward-estimation`,
     });
 
-    return <EstimatedReward>{
-      estimated_total_node_reward: response.data.estimated_total_node_reward,
-      estimated_operator_reward: response.data.estimated_operator_reward,
-      estimated_delegators_reward: response.data.estimated_delegators_reward,
-      estimated_node_profit: response.data.estimated_node_profit,
-      estimated_operator_cost: response.data.estimated_operator_cost,
-      reward_params: response.data.reward_params,
-      as_at: response.data.as_at,
-    };
+    return response.data;
   }
 
   public async getMixnodeAverageUptime(
@@ -145,10 +100,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/avg_uptime`,
     });
 
-    return <AvgUptime>{
-      identity: response.data.identity,
-      avg_uptime: response.data.avg_uptime,
-    };
+    return response.data;
   }
 
   public async getMixnodeInclusionProbability(
@@ -158,10 +110,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/inclusion-probability`,
     });
 
-    return <InclusionProbability>{
-      in_active: response.data.in_active,
-      in_reserve: response.data.in_reserve,
-    };
+    return response.data;
   }
 
   public async getMixnodeStatus(identity_key: string): Promise<ActiveStatus> {
@@ -169,8 +118,6 @@ export default class Status extends APIClient {
       route: `/mixnode/${identity_key}/status`,
     });
 
-    return <ActiveStatus>{
-      status: response.data.status,
-    };
+    return response.data;
   }
 }

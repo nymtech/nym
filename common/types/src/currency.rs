@@ -71,6 +71,50 @@ impl RegisteredCoins {
         self.0.remove(denom)
     }
 
+    pub fn attempt_create_display_coin_from_base_dec_amount(
+        &self,
+        denom: &Denom,
+        base_amount: Decimal,
+    ) -> Result<DecCoin, TypesError> {
+        for registered_coin in self.0.values() {
+            if let Some(exponent) = registered_coin.get_exponent(denom) {
+                // if this fails it means we haven't registered our display denom which honestly should never be the case
+                // unless somebody is rocking their own custom network
+                let display_exponent = registered_coin
+                    .get_exponent(&registered_coin.display)
+                    .ok_or_else(|| TypesError::UnknownCoinDenom(denom.clone()))?;
+
+                return match exponent.cmp(&display_exponent) {
+                    Ordering::Greater => {
+                        // we need to scale up, unlikely to ever be needed but included for completion sake,
+                        // for example if we decided to created knym with exponent 9 and wanted to convert to nym with exponent 6
+                        Ok(DecCoin {
+                            denom: denom.into(),
+                            amount: try_scale_up_decimal(base_amount, exponent - display_exponent)?,
+                        })
+                    }
+                    // we're already in the display denom
+                    Ordering::Equal => Ok(DecCoin {
+                        denom: denom.into(),
+                        amount: base_amount,
+                    }),
+                    Ordering::Less => {
+                        // we need to scale down, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
+                        Ok(DecCoin {
+                            denom: denom.into(),
+                            amount: try_scale_down_decimal(
+                                base_amount,
+                                display_exponent - exponent,
+                            )?,
+                        })
+                    }
+                };
+            }
+        }
+
+        Err(TypesError::UnknownCoinDenom(denom.clone()))
+    }
+
     pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, TypesError> {
         // check if this is already in the base denom
         if self.0.contains_key(&coin.denom) {

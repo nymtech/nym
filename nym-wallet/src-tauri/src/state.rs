@@ -1,9 +1,10 @@
 use crate::config;
 use crate::error::BackendError;
 use crate::simulate::SimulateResult;
+use cosmwasm_std::Decimal;
 use itertools::Itertools;
 use log::warn;
-use nym_types::currency::{DecCoin, RegisteredCoins};
+use nym_types::currency::{DecCoin, Denom, RegisteredCoins};
 use nym_types::fees::FeeDetails;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
@@ -103,6 +104,20 @@ impl WalletStateInner {
             .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
 
         Ok(registered_coins.attempt_convert_to_display_dec_coin(coin)?)
+    }
+
+    pub(crate) fn display_coin_from_base_decimal(
+        &self,
+        base_denom: &Denom,
+        base_amount: Decimal,
+    ) -> Result<DecCoin, BackendError> {
+        let registered_coins = self
+            .registered_coins
+            .get(&self.current_network)
+            .ok_or_else(|| BackendError::UnknownCoinDenom(base_denom.clone()))?;
+
+        Ok(registered_coins
+            .attempt_create_display_coin_from_base_dec_amount(base_denom, base_amount)?)
     }
 
     pub(crate) fn default_zero_mix_display_coin(&self) -> DecCoin {

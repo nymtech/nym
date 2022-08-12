@@ -32,6 +32,9 @@ const nymPalette: NymPalette = {
     grey: '#5B6174',
   },
   linkHover: '#AF4D36',
+  border: {
+    menu: '#E8E9EB',
+  },
 };
 
 const darkMode: NymPaletteVariant = {
@@ -283,6 +286,15 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           root: {
             fontWeight: 600,
           },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          list: ({ _, theme }) => ({
+            backgroundColor: theme.palette.mode === 'dark' ? darkMode.background.main : undefined,
+            border: `1px solid ${theme.palette.nym.border.menu}`,
+            borderRadius: '8px',
+          }),
         },
       },
     },

@@ -3,6 +3,7 @@
 
 use crate::{validator_api, ValidatorClientError};
 use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::NodeId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 use url::Url;
@@ -15,7 +16,6 @@ use validator_api_requests::models::{
     MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
     StakeSaturationResponse,
 };
-use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use validator_api_requests::Deprecated;
 
 #[cfg(feature = "nymd-client")]

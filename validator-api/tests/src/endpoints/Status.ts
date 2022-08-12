@@ -1,4 +1,3 @@
-import { AxiosResponse } from "axios";
 import {
   ActiveStatus,
   AvgUptime,
@@ -8,7 +7,7 @@ import {
   NodeHistory,
   Report,
   StakeSaturation,
-} from "../../src/interfaces/StatusInterfaces";
+} from "../types/StatusTypes";
 import { APIClient } from "./abstracts/APIClient";
 
 export default class Status extends APIClient {
@@ -138,8 +137,6 @@ export default class Status extends APIClient {
       as_at: response.data.as_at,
     };
   }
-
- 
 
   public async getMixnodeAverageUptime(
     identity_key: string

@@ -1,3 +1,6 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::WalletState;
@@ -13,21 +16,20 @@ pub async fn locked_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    todo!()
-    // log::info!(">>> Query locked coins");
-    // let guard = state.read().await;
-    // let client = guard.current_client()?;
-    //
-    // let res = client
-    //     .nymd
-    //     .locked_coins(
-    //         client.nymd.address().as_ref(),
-    //         block_time.map(Timestamp::from_seconds),
-    //     )
-    //     .await?;
-    // let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    // log::info!("<<< locked coins = {}", display);
-    // Ok(display)
+    log::info!(">>> Query locked coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nymd
+        .locked_coins(
+            client.nymd.address().as_ref(),
+            block_time.map(Timestamp::from_seconds),
+        )
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< locked coins = {}", display);
+    Ok(display)
 }
 
 #[tauri::command]
@@ -35,22 +37,21 @@ pub async fn spendable_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    todo!()
-    // log::info!(">>> Query spendable coins");
-    // let guard = state.read().await;
-    // let client = guard.current_client()?;
-    //
-    // let res = client
-    //     .nymd
-    //     .spendable_coins(
-    //         client.nymd.address().as_ref(),
-    //         block_time.map(Timestamp::from_seconds),
-    //     )
-    //     .await?;
-    //
-    // let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    // log::info!("<<< spendable coins = {}", display);
-    // Ok(display)
+    log::info!(">>> Query spendable coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nymd
+        .spendable_coins(
+            client.nymd.address().as_ref(),
+            block_time.map(Timestamp::from_seconds),
+        )
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable coins = {}", display);
+    Ok(display)
 }
 
 #[tauri::command]
@@ -59,22 +60,21 @@ pub async fn vested_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    todo!()
-    // log::info!(">>> Query vested coins");
-    // let guard = state.read().await;
-    //
-    // let res = guard
-    //     .current_client()?
-    //     .nymd
-    //     .vested_coins(
-    //         vesting_account_address,
-    //         block_time.map(Timestamp::from_seconds),
-    //     )
-    //     .await?;
-    //
-    // let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    // log::info!("<<< vested coins = {}", display);
-    // Ok(display)
+    log::info!(">>> Query vested coins");
+    let guard = state.read().await;
+
+    let res = guard
+        .current_client()?
+        .nymd
+        .vested_coins(
+            vesting_account_address,
+            block_time.map(Timestamp::from_seconds),
+        )
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< vested coins = {}", display);
+    Ok(display)
 }
 
 #[tauri::command]
@@ -83,22 +83,21 @@ pub async fn vesting_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    todo!()
-    // log::info!(">>> Query vesting coins");
-    // let guard = state.read().await;
-    //
-    // let res = guard
-    //     .current_client()?
-    //     .nymd
-    //     .vesting_coins(
-    //         vesting_account_address,
-    //         block_time.map(Timestamp::from_seconds),
-    //     )
-    //     .await?;
-    //
-    // let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    // log::info!("<<< vesting coins = {}", display);
-    // Ok(display)
+    log::info!(">>> Query vesting coins");
+    let guard = state.read().await;
+
+    let res = guard
+        .current_client()?
+        .nymd
+        .vesting_coins(
+            vesting_account_address,
+            block_time.map(Timestamp::from_seconds),
+        )
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< vesting coins = {}", display);
+    Ok(display)
 }
 
 #[tauri::command]

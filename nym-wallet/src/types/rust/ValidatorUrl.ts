@@ -1,4 +1,2 @@
-export interface ValidatorUrl {
-  url: string;
-  name: string | null;
-}
+
+export interface ValidatorUrl { url: string, name: string | null, }

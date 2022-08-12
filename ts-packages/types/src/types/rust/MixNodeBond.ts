@@ -1,13 +1,4 @@
-import type { DecCoin } from './DecCoin';
-import type { MixNode } from './Mixnode';
+import type { DecCoin } from "./DecCoin";
+import type { MixNode } from "./Mixnode";
 
-export interface MixNodeBond {
-  pledge_amount: DecCoin;
-  total_delegation: DecCoin;
-  owner: string;
-  layer: string;
-  block_height: bigint;
-  mix_node: MixNode;
-  proxy: string | null;
-  accumulated_rewards: DecCoin | null;
-}
+export interface MixNodeBond { id: number, owner: string, original_pledge: DecCoin, layer: string, mix_node: MixNode, proxy: string | null, bonding_height: bigint, is_unbonding: boolean, }

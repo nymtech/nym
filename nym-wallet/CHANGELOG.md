@@ -68,6 +68,29 @@
 - Update binaries to rc version [\#1172](https://github.com/nymtech/nym/pull/1172) ([tommyv1987](https://github.com/tommyv1987))
 - Bump ansi-regex from 4.1.0 to 4.1.1 in /docker/typescript\_client/upload\_contract [\#1171](https://github.com/nymtech/nym/pull/1171) ([dependabot[bot]](https://github.com/apps/dependabot))
 
+## [nym-wallet-v1.0.2](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.2) (2022-04-05)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/nym-wallet-v1.0.1...nym-wallet-v1.0.2)
+
+**Merged pull requests:**
+
+- Wallet 1.0.2 visual tweaks [\#1197](https://github.com/nymtech/nym/pull/1197) ([mmsinclair](https://github.com/mmsinclair))
+- Password for wallet with routes [\#1196](https://github.com/nymtech/nym/pull/1196) ([fmtabbara](https://github.com/fmtabbara))
+- Add auto-updater to Nym Wallet [\#1194](https://github.com/nymtech/nym/pull/1194) ([mmsinclair](https://github.com/mmsinclair))
+- Fix clippy warnings for beta toolchain [\#1191](https://github.com/nymtech/nym/pull/1191) ([octol](https://github.com/octol))
+- wallet: expose validator urls to the frontend [\#1190](https://github.com/nymtech/nym/pull/1190) ([octol](https://github.com/octol))
+- wallet: add test for decrypting stored wallet file [\#1189](https://github.com/nymtech/nym/pull/1189) ([octol](https://github.com/octol))
+- Fix clippy warnings [\#1188](https://github.com/nymtech/nym/pull/1188) ([octol](https://github.com/octol))
+- Password for wallet with routes [\#1187](https://github.com/nymtech/nym/pull/1187) ([mmsinclair](https://github.com/mmsinclair))
+- wallet: add validate\_mnemonic [\#1186](https://github.com/nymtech/nym/pull/1186) ([octol](https://github.com/octol))
+- wallet: support removing accounts from the wallet file [\#1185](https://github.com/nymtech/nym/pull/1185) ([octol](https://github.com/octol))
+- Feature/adding discord [\#1184](https://github.com/nymtech/nym/pull/1184) ([gala1234](https://github.com/gala1234))
+- wallet: config backend for validator selection [\#1183](https://github.com/nymtech/nym/pull/1183) ([octol](https://github.com/octol))
+- Add storybook to wallet [\#1178](https://github.com/nymtech/nym/pull/1178) ([mmsinclair](https://github.com/mmsinclair))
+- wallet: connection test nymd and api urls independently [\#1170](https://github.com/nymtech/nym/pull/1170) ([octol](https://github.com/octol))
+- wallet: wire up account storage [\#1153](https://github.com/nymtech/nym/pull/1153) ([octol](https://github.com/octol))
+- Feature/signature on deposit [\#1151](https://github.com/nymtech/nym/pull/1151) ([neacsu](https://github.com/neacsu))
+
 ## [nym-wallet-v1.0.1](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.1) (2022-04-05)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/nym-binaries-1.0.0-rc.1...nym-wallet-v1.0.1)

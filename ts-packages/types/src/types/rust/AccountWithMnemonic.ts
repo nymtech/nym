@@ -1,6 +1,3 @@
-import type { Account } from './Account';
+import type { Account } from "./Account";
 
-export interface AccountWithMnemonic {
-  account: Account;
-  mnemonic: string;
-}
+export interface AccountWithMnemonic { account: Account, mnemonic: string, }

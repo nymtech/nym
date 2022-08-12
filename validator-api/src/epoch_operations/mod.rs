@@ -22,6 +22,7 @@ use mixnet_contract_common::{
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
+use std::process;
 use std::time::Duration;
 use tokio::time::sleep;
 use validator_client::nymd::SigningNymdClient;
@@ -293,16 +294,28 @@ impl RewardedSetUpdater {
 
     async fn wait_until_epoch_end(&mut self) -> Interval {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
+        const MAXIMUM_ATTEMPTS: usize = 5;
+        let mut failed_attempts = 0;
 
         loop {
             let current_interval = match self.current_interval_details().await {
                 Err(err) => {
+                    failed_attempts += 1;
+                    if failed_attempts == MAXIMUM_ATTEMPTS {
+                        error!(
+                            "failed to obtain epoch information {} times in a row. Existing now",
+                            MAXIMUM_ATTEMPTS
+                        );
+                        process::exit(1);
+                    }
                     error!("failed to obtain information about the current interval - {}. Going to retry in {}s", err, POLL_INTERVAL.as_secs());
                     sleep(POLL_INTERVAL).await;
                     continue;
                 }
                 Ok(interval) => interval,
             };
+
+            failed_attempts = 0;
 
             if current_interval.is_current_epoch_over {
                 return current_interval.interval;

@@ -1,4 +1,11 @@
-import { Fee, DecCoin, SendTxResult, TransactionExecuteResult } from '@nymproject/types';
+import {
+  Fee,
+  DecCoin,
+  SendTxResult,
+  TransactionExecuteResult,
+  MixNodeConfigUpdate,
+  MixNodeCostParams,
+} from '@nymproject/types';
 import { EnumNodeType, TBondGatewayArgs, TBondMixNodeArgs } from '../types';
 import { invokeWrapper } from './wrapper';
 
@@ -12,8 +19,11 @@ export const bondMixNode = async (args: TBondMixNodeArgs) =>
 
 export const unbondMixNode = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_mixnode', { fee });
 
-export const updateMixnode = async (profitMarginPercent: number, fee?: Fee) =>
-  invokeWrapper<TransactionExecuteResult>('update_mixnode', { profitMarginPercent, fee });
+export const updateMixnodeCostParams = async (new_costs: MixNodeCostParams, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_mixnode_cost_params', { new_costs, fee });
+
+export const updateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_mixnode_config', { update, fee });
 
 export const send = async (args: { amount: DecCoin; address: string; memo: string; fee?: Fee }) =>
   invokeWrapper<SendTxResult>('send', args);

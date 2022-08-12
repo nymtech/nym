@@ -19,6 +19,12 @@ pub trait VestingSigningClient {
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NymdError>;
 
+    async fn vesting_update_mixnode_cost_params(
+        &self,
+        new_costs: MixNodeCostParams,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
     async fn vesting_update_mixnode_config(
         &self,
         new_config: MixNodeConfigUpdate,
@@ -123,6 +129,19 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 funds,
             )
             .await
+    }
+
+    async fn vesting_update_mixnode_cost_params(
+        &self,
+        new_costs: MixNodeCostParams,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::UpdateMixnodeCostParams { new_costs },
+            vec![],
+        )
+        .await
     }
 
     async fn vesting_update_mixnode_config(
@@ -286,6 +305,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
             )
             .await
     }
+
     async fn withdraw_vested_coins(
         &self,
         amount: Coin,
@@ -325,6 +345,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         )
         .await
     }
+
     async fn vesting_delegate_to_mixnode(
         &self,
         mix_id: NodeId,

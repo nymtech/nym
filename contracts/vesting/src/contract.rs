@@ -70,6 +70,7 @@ pub fn execute(
         ExecuteMsg::UpdateMixnodeConfig { new_config } => {
             try_update_mixnode_config(new_config, info, deps)
         }
+        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => todo!(),
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }

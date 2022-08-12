@@ -1,5 +1,4 @@
 use crate::currency::{DecCoin, RegisteredCoins};
-use crate::deprecated::DelegationEvent;
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
 use cosmwasm_std::Decimal;

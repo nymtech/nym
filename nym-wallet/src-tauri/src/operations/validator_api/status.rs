@@ -4,7 +4,7 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
-use mixnet_contract_common::{IdentityKey, IdentityKeyRef, NodeId};
+use mixnet_contract_common::{IdentityKeyRef, NodeId};
 use validator_client::models::{
     GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
     MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,

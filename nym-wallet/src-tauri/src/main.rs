@@ -70,6 +70,8 @@ fn main() {
             mixnet::delegate::undelegate_from_mixnode,
             mixnet::delegate::undelegate_all_from_mixnode,
             mixnet::interval::get_current_interval,
+            mixnet::interval::get_pending_epoch_events,
+            mixnet::interval::get_pending_interval_events,
             mixnet::rewards::claim_delegator_reward,
             mixnet::rewards::claim_operator_reward,
             mixnet::rewards::compound_operator_reward,

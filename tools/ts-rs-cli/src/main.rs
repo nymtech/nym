@@ -11,6 +11,9 @@ use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
 use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
+use nym_types::pending_events::{
+    PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
+};
 use nym_types::transaction::{
     RpcTransactionResponse, SendTxResult, TransactionDetails, TransactionExecuteResult,
 };
@@ -57,6 +60,10 @@ fn main() {
     do_export!(MixNodeCostParams);
     do_export!(MixNodeDetails);
     do_export!(MixNodeRewarding);
+    do_export!(PendingEpochEvent);
+    do_export!(PendingIntervalEvent);
+    do_export!(PendingEpochEventData);
+    do_export!(PendingIntervalEventData);
 
     //
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling

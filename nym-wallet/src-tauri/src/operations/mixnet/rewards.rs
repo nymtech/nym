@@ -49,7 +49,7 @@ pub async fn claim_delegator_reward(
 }
 
 #[tauri::command]
-pub async fn withdraw_locked_and_unlocked_delegator_reward(
+pub async fn claim_locked_and_unlocked_delegator_reward(
     mix_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,

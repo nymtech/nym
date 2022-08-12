@@ -2,6 +2,10 @@ import {
   MixnodesDetailed,
   AllGateways,
   AllMixnodes,
+  EpochRewardParams,
+  BlacklistedGateways,
+  BlacklistedMixnodes,
+  CurrentEpoch
 } from "../types/ContractCacheTypes";
 import { APIClient } from "./abstracts/APIClient";
 
@@ -14,35 +18,59 @@ export default class ContractCache extends APIClient {
     const response = await this.restClient.sendGet({
       route: `mixnodes`,
     });
-
     return response.data;
   }
 
-  public async getMixnodesDetailed(): Promise<MixnodesDetailed> {
+  public async getMixnodesDetailed(): Promise<MixnodesDetailed[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/detailed`,
     });
 
-    return <MixnodesDetailed>{
-      mixnode_bond: response.data.mixnode_bond,
-      stake_saturation: response.data.stake_saturation,
-      uptime: response.data.uptime,
-      estimated_operator_apy: response.data.estimated_operator_apy,
-      estimated_delegators_apy: response.data.estimated_delegators_apy,
-    };
+    return response.data;
   }
 
-  public async getGateways(): Promise<AllGateways> {
+  public async getGateways(): Promise<AllGateways[]> {
     const response = await this.restClient.sendGet({
       route: `gateways`,
     });
-
-    return <AllGateways>{
-      pledge_amount: response.data.pledge_amount,
-      owner: response.data.owner,
-      block_height: response.data.block_height,
-      gateway: response.data.gateway,
-      proxy: response.data.proxy,
-    };
+    return response.data;
   }
+
+  public async getActiveMixnodes(): Promise<AllMixnodes[]> {
+    const response = await this.restClient.sendGet({
+      route: `mixnodes/active`,
+    });
+    return response.data;
+  }
+
+  public async getBlacklistedMixnodes(): Promise<BlacklistedMixnodes[]> {
+    const response = await this.restClient.sendGet({
+      route: `mixnodes/blacklisted`,
+    });
+    return response.data;
+  }
+
+  public async getBlacklistedGateways(): Promise<BlacklistedGateways[]> {
+    const response = await this.restClient.sendGet({
+      route: `gateways/blacklisted`,
+    });
+    return response.data;
+  }
+
+  public async getEpochRewardParams(): Promise<EpochRewardParams> {
+    const response = await this.restClient.sendGet({
+      route: `epoch/reward_params`
+    });
+        console.log(response.data)
+    return response.data;
+  }
+
+  public async getCurrentEpoch(): Promise<CurrentEpoch> {
+    const response = await this.restClient.sendGet({
+      route: `epoch/current`
+    });
+        console.log(response.data)
+    return response.data;
+  }
+
 }

@@ -55,3 +55,30 @@ export type Gateway = {
   identity_key: string;
   version: string;
 };
+
+export type BlacklistedMixnodes = {
+};
+
+export type BlacklistedGateways = {
+};
+
+export type EpochRewardParams = {
+  epoch_reward_pool: string;
+  rewarded_set_size: string;
+  active_set_size: string;
+  staking_supply: string;
+  sybil_resistance_percent: number;
+  active_set_work_factor: number;
+};
+
+export type CurrentEpoch = {
+  id: number;
+  start: string;
+  length: Length;
+};
+
+export type Length = {
+  secs: number;
+  nanos: number;
+};
+

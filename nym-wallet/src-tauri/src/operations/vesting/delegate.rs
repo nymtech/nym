@@ -5,34 +5,6 @@ use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
-pub async fn get_pending_vesting_delegation_events(
-    state: tauri::State<'_, WalletState>,
-) -> Result<Vec<()>, BackendError> {
-    todo!()
-    // log::info!(">>> Get pending delegations from vesting contract");
-    //
-    // let guard = state.read().await;
-    // let reg = guard.registered_coins()?;
-    // let client = &guard.current_client()?.nymd;
-    // let vesting_contract = client.vesting_contract_address();
-    //
-    // let events = client
-    //     .get_pending_delegation_events(
-    //         client.address().to_string(),
-    //         Some(vesting_contract.to_string()),
-    //     )
-    //     .await?;
-    //
-    // log::info!("<<< {} events", events.len());
-    // log::trace!("<<< {:?}", events);
-    //
-    // Ok(events
-    //     .into_iter()
-    //     .map(|event| DelegationEvent::from_mixnet_contract(event, reg))
-    //     .collect::<Result<_, _>>()?)
-}
-
-#[tauri::command]
 pub async fn vesting_delegate_to_mixnode(
     identity: &str,
     amount: DecCoin,

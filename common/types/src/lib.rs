@@ -4,6 +4,7 @@
 pub mod account;
 pub mod currency;
 pub mod delegation;
+pub mod deprecated;
 pub mod error;
 pub mod fees;
 pub mod gas;

@@ -4,9 +4,10 @@ use mixnet_contract_common::{
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
 use nym_types::delegation::{
-    Delegation, DelegationEvent, DelegationEventKind, DelegationRecord, DelegationResult,
-    DelegationWithEverything, DelegationsSummaryResponse, PendingUndelegate,
+    Delegation, DelegationRecord, DelegationResult, DelegationWithEverything,
+    DelegationsSummaryResponse,
 };
+use nym_types::deprecated::DelegationEvent;
 use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
@@ -20,7 +21,7 @@ use nym_types::transaction::{
 use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo, VestingPeriod};
 use nym_wallet_types::admin::TauriContractStateParams;
 use nym_wallet_types::app::AppEnv;
-use nym_wallet_types::interval::Epoch;
+use nym_wallet_types::interval::Interval;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 use std::path::Path;
@@ -65,6 +66,8 @@ fn main() {
     do_export!(PendingEpochEventData);
     do_export!(PendingIntervalEventData);
 
+    do_export!(DelegationEvent);
+
     //
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling
     //
@@ -80,8 +83,6 @@ fn main() {
     do_export!(AccountWithMnemonic);
     do_export!(Balance);
     do_export!(Delegation);
-    do_export!(DelegationEvent);
-    do_export!(DelegationEventKind);
     do_export!(DelegationRecord);
     do_export!(DelegationResult);
     do_export!(DelegationsSummaryResponse);
@@ -100,7 +101,6 @@ fn main() {
     do_export!(DecCoin);
     do_export!(MixNodeBond);
     do_export!(OriginalVestingResponse);
-    do_export!(PendingUndelegate);
     do_export!(PledgeData);
     do_export!(SendTxResult);
     do_export!(TransactionDetails);
@@ -121,7 +121,7 @@ fn main() {
 
     // nym-wallet
     do_export!(AppEnv);
-    do_export!(Epoch);
+    do_export!(Interval);
     do_export!(Network);
     do_export!(TauriContractStateParams);
     do_export!(Validator);

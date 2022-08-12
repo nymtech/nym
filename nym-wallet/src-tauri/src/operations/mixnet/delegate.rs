@@ -3,41 +3,52 @@
 
 use crate::error::BackendError;
 use crate::state::WalletState;
-use crate::vesting::delegate::{
-    get_pending_vesting_delegation_events, vesting_undelegate_from_mixnode,
-};
+use crate::vesting::delegate::vesting_undelegate_from_mixnode;
 use crate::{api_client, nymd_client};
-use mixnet_contract_common::{IdentityKey, NodeId};
+use mixnet_contract_common::NodeId;
 use nym_types::currency::DecCoin;
 use nym_types::delegation::{
     Delegation, DelegationRecord, DelegationWithEverything, DelegationsSummaryResponse,
 };
+use nym_types::deprecated::{convert_to_delegation_events, DelegationEvent};
+use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use std::collections::HashMap;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nymd::{Coin, Fee};
+use validator_client::nymd::Fee;
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
     state: tauri::State<'_, WalletState>,
-) -> Result<Vec<()>, BackendError> {
-    todo!()
-    // log::info!(">>> Get pending delegation events");
-    // let guard = state.read().await;
-    // let reg = guard.registered_coins()?;
-    // let client = guard.current_client()?;
-    //
-    // let events = client
-    //     .nymd
-    //     .get_pending_delegation_events(client.nymd.address().to_string(), None)
-    //     .await?;
-    // log::info!("<<< {} pending delegation events", events.len());
-    // log::trace!("<<< pending delegation events = {:?}", events);
-    //
-    // Ok(events
-    //     .into_iter()
-    //     .map(|event| DelegationEvent::from_mixnet_contract(event, reg))
-    //     .collect::<Result<_, _>>()?)
+) -> Result<Vec<DelegationEvent>, BackendError> {
+    log::info!(">>> [DEPRECATED] Get all pending delegation events");
+    let guard = state.read().await;
+    let reg = guard.registered_coins()?;
+    let client = guard.current_client()?;
+
+    let events = client.get_all_nymd_pending_epoch_events().await?;
+    let converted = events
+        .into_iter()
+        .map(|e| PendingEpochEvent::try_from_mixnet_contract(e, reg))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let delegation_events = convert_to_delegation_events(converted);
+
+    // we only care about events concerning THIS client
+    let client_specific_events = delegation_events
+        .into_iter()
+        .filter(|e| e.address_matches(client.nymd.address().as_ref()))
+        .collect::<Vec<_>>();
+
+    log::info!(
+        "<<< {} pending delegation events",
+        client_specific_events.len()
+    );
+    log::trace!(
+        "<<< pending delegation events = {:?}",
+        client_specific_events
+    );
+
+    Ok(client_specific_events)
 }
 
 #[tauri::command]
@@ -433,23 +444,4 @@ pub async fn get_delegation_summary(
     //     total_delegations,
     //     total_rewards,
     // })
-}
-
-#[tauri::command]
-pub async fn get_all_pending_delegation_events(
-    state: tauri::State<'_, WalletState>,
-) -> Result<Vec<()>, BackendError> {
-    todo!()
-    // log::info!(">>> Get all pending delegation events");
-    //
-    // // get pending events from mixnet and vesting contract
-    // let mut pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
-    // let pending_vesting_events = get_pending_vesting_delegation_events(state.clone()).await?;
-    //
-    // // combine them
-    // for event in pending_vesting_events {
-    //     pending_events_for_account.push(event);
-    // }
-    //
-    // Ok(pending_events_for_account)
 }

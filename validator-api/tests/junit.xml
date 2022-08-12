@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="9" failures="0" errors="0" time="3.223">
+  <testsuite name="Get mixnode data" errors="0" failures="0" skipped="0" timestamp="2022-08-12T08:12:05" time="3.021" tests="9">
+    <testcase classname="Get mixnode data Get a mixnode stake saturation" name="Get mixnode data Get a mixnode stake saturation" time="0.216">
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode average uptime" name="Get mixnode data Get a mixnode average uptime" time="0.196">
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode history" name="Get mixnode data Get a mixnode history" time="0.386">
+    </testcase>
+    <testcase classname="Get mixnode data Get a gateway history" name="Get mixnode data Get a gateway history" time="0.211">
+    </testcase>
+    <testcase classname="Get mixnode data Get a gateway history" name="Get mixnode data Get a gateway history" time="0.321">
+    </testcase>
+    <testcase classname="Get mixnode data Get a gateway history" name="Get mixnode data Get a gateway history" time="0.269">
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode status" name="Get mixnode data Get a mixnode status" time="0.244">
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode reward estimation" name="Get mixnode data Get a mixnode reward estimation" time="0.185">
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode inclusion probability" name="Get mixnode data Get a mixnode inclusion probability" time="0.179">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -56,6 +56,18 @@ export default class Status extends APIClient {
     };
   }
 
+  public async getMixnodeHistory(identity_key: string): Promise<NodeHistory> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnode/${identity_key}/history`,
+    });
+
+    return <NodeHistory>{
+      identity: response.data.identity,
+      owner: response.data.owner,
+      history: response.data.history,
+    };
+  }
+
   public async getMixnodeStakeSaturation(
     identity_key: string
   ): Promise<StakeSaturation> {
@@ -127,17 +139,7 @@ export default class Status extends APIClient {
     };
   }
 
-  public async getMixnodeHistory(identity_key: string): Promise<NodeHistory> {
-    const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/history`,
-    });
-
-    return <NodeHistory>{
-      identity: response.data.identity,
-      owner: response.data.owner,
-      history: response.data.history,
-    };
-  }
+ 
 
   public async getMixnodeAverageUptime(
     identity_key: string

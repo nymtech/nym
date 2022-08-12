@@ -1,3 +1,10 @@
+## [nym-wallet-v1.0.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8)
+
+- wallet: new bonding flow
+- wallet: compound and redeem functionalities for operators rewards
+- wallet: a few minor touch ups and bug fixes 
+
+
 ## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
 
 - wallet: dark mode

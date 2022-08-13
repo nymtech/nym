@@ -25,7 +25,7 @@ describe("Get mixnode data", (): void => {
         return;
       }
       else {
-        expect(typeof mixnode.proxy).toStrictEqual('string');
+        expect(typeof mixnode.proxy).toStrictEqual('string'); //this is failing as it's returning "object"
       }
 
       //pledge 
@@ -108,7 +108,7 @@ describe("Get mixnode data", (): void => {
         return;
       }
       else {
-        expect(typeof mixnode.mixnode_bond.proxy).toStrictEqual('string');
+        expect(typeof mixnode.mixnode_bond.proxy).toStrictEqual('string'); //this is failing as it's returning "object"
       }
 
       //overview
@@ -119,34 +119,6 @@ describe("Get mixnode data", (): void => {
     });
   });
 
-  it("Get all gateways", async (): Promise<void> => {
-    const response = await contract.getGateways();
-    response.forEach((gateway) => {
-      //overview
-      expect(typeof gateway.owner).toStrictEqual('string');
-      expect(typeof gateway.block_height).toStrictEqual('number');
-
-      if (typeof gateway.proxy === null) {
-        return;
-      }
-      else {
-        expect(typeof gateway.proxy).toStrictEqual('string');
-      }
-
-      //pledge_amount
-      expect(typeof gateway.pledge_amount.denom).toStrictEqual('string');
-      expect(typeof gateway.pledge_amount.amount).toStrictEqual('string');
-
-      //gateway
-      expect(typeof gateway.gateway.host).toStrictEqual('string');
-      expect(typeof gateway.gateway.mix_port).toStrictEqual('number');
-      expect(typeof gateway.gateway.clients_port).toStrictEqual('number');
-      expect(typeof gateway.gateway.location).toStrictEqual('string');
-      expect(typeof gateway.gateway.sphinx_key).toStrictEqual('string');
-      expect(typeof gateway.gateway.identity_key).toStrictEqual('string');
-      expect(typeof gateway.gateway.version).toStrictEqual('string');
-    });
-  });
 
   it("Get active mixnodes", async (): Promise<void> => {
     const response = await contract.getActiveMixnodes();
@@ -164,32 +136,6 @@ describe("Get mixnode data", (): void => {
       expect(typeof value).toStrictEqual('string');
     });
   });
-
-  it("Get blacklisted gateways", async (): Promise<void> => {
-    const response = await contract.getBlacklistedGateways();
-    response.forEach(function (value) {
-      expect(typeof value).toStrictEqual('string');
-    });
-  });
-
-  it("Get epoch reward params", async (): Promise<void> => {
-    const response = await contract.getEpochRewardParams();
-    expect(typeof response.epoch_reward_pool).toStrictEqual('string');
-    expect(typeof response.rewarded_set_size).toStrictEqual('string');
-    expect(typeof response.active_set_size).toStrictEqual('string');
-    expect(typeof response.staking_supply).toStrictEqual('string');
-    expect(typeof response.sybil_resistance_percent).toStrictEqual('number');
-    expect(typeof response.active_set_work_factor).toStrictEqual('number');
-  });
-
-  it("Get current epoch", async (): Promise<void> => {
-    const response = await contract.getCurrentEpoch();
-    expect(typeof response.id).toStrictEqual('number');
-    expect(typeof response.start).toStrictEqual('string');
-    expect(typeof response.length.secs).toStrictEqual('number');
-    expect(typeof response.length.nanos).toStrictEqual('number');
-  });
-
 
 });
 

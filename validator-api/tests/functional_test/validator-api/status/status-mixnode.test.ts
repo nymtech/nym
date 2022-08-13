@@ -4,7 +4,7 @@ import ConfigHandler from "../../../src/config/configHandler";
 let status: Status;
 let config: ConfigHandler;
 
-describe("Get mixnode data", (): void => {
+describe.skip("Get mixnode data", (): void => {
   beforeAll(async (): Promise<void> => {
     status = new Status();
     config = ConfigHandler.getInstance();

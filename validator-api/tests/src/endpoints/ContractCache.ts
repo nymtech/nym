@@ -61,7 +61,6 @@ export default class ContractCache extends APIClient {
     const response = await this.restClient.sendGet({
       route: `epoch/reward_params`
     });
-        console.log(response.data)
     return response.data;
   }
 
@@ -69,7 +68,6 @@ export default class ContractCache extends APIClient {
     const response = await this.restClient.sendGet({
       route: `epoch/current`
     });
-        console.log(response.data)
     return response.data;
   }
 

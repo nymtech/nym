@@ -570,7 +570,7 @@ impl From<Layer> for String {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct UnbondedMixnode {
     pub identity: IdentityKey,
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
@@ -583,7 +583,7 @@ pub struct UnbondedMixnode {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeConfigUpdate {
     pub host: String,
     pub mix_port: u16,
@@ -636,7 +636,7 @@ impl PagedMixnodesDetailsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedUnbondedMixnodesResponse {
     pub nodes: Vec<(NodeId, UnbondedMixnode)>,
     pub per_page: usize,
@@ -675,13 +675,13 @@ pub struct MixnodeRewardingDetailsResponse {
     pub rewarding_details: Option<MixNodeRewarding>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct UnbondedMixnodeResponse {
     pub mix_id: NodeId,
     pub unbonded_info: Option<UnbondedMixnode>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct StakeSaturationResponse {
     pub mix_id: NodeId,
     pub current_saturation: Option<Decimal>,

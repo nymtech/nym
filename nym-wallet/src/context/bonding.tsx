@@ -46,12 +46,16 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
+  operatorCost?: string;
   host: string;
+  estimatedRewards: DecCoin;
+  activeSetProbability: number;
+  standbySetProbability: number;
+  routingScore: number;
   httpApiPort: number;
   mixPort: number;
   verlocPort: number;
   version: string;
-  operatorCost?: string;
 };
 
 export interface TBondedGateway {
@@ -200,6 +204,10 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             status,
             stakeSaturation,
             host: bond_information.mix_node.host.replace(/\s/g, ''),
+            routingScore: 75, // TODO hard code these values for now
+            activeSetProbability: 42,
+            standbySetProbability: 24,
+            estimatedRewards: { denom: 'nym', amount: '2' },
             httpApiPort: bond_information.mix_node.http_api_port,
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,

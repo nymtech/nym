@@ -104,7 +104,7 @@ impl PendingEpochEventData {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/PendingIntervalEvent.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PendingIntervalEvent {
     pub id: IntervalEventId,
     pub event: PendingIntervalEventData,
@@ -127,7 +127,7 @@ impl PendingIntervalEvent {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/PendingIntervalEventData.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
         mix_id: NodeId,

@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
@@ -25,7 +25,7 @@ pub struct InstantiateMsg {
     pub initial_rewarding_params: InitialRewardingParams,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InitialRewardingParams {
     pub initial_reward_pool: Decimal,
@@ -260,7 +260,7 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     // state/sys-params-related

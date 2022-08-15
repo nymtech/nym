@@ -8,12 +8,7 @@ import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import { Console } from 'src/utils/console';
 import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
-import {
-  getCurrentEpoch,
-  getPendingDelegations,
-  getPendingVestingDelegations,
-  getReverseMixDelegations,
-} from '../../requests';
+import { getCurrentInterval, getAllPendingDelegations, getMixNodeDelegationsForCurrentAccount } from '../../requests';
 
 const TerminalSection: React.FC<{
   heading: React.ReactNode;
@@ -59,21 +54,17 @@ const TerminalInner: React.FC = () => {
   const refresh = async () => {
     setError(undefined);
     setIsBusy(true);
-    setStatus('Getting reverse mix delegations...');
+    setStatus('Getting all mixnode delegations for this account...');
     await withErrorCatch(async () => {
-      setMixnodeDelegations(await getReverseMixDelegations());
+      setMixnodeDelegations(await getMixNodeDelegationsForCurrentAccount());
     });
     setStatus('Getting pending delegations...');
     await withErrorCatch(async () => {
-      setPendingEvents(await getPendingDelegations());
-    });
-    setStatus('Getting pending vesting delegations...');
-    await withErrorCatch(async () => {
-      setPendingEvents(await getPendingVestingDelegations());
+      setPendingEvents(await getAllPendingDelegations());
     });
     setStatus('Getting current epoch...');
     await withErrorCatch(async () => {
-      setEpoch(await getCurrentEpoch());
+      setEpoch(await getCurrentInterval());
     });
     setStatus('Fetching balance...');
     await withErrorCatch(async () => {

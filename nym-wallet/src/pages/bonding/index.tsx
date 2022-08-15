@@ -15,10 +15,8 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
-import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { PageLayout } from '../../layouts';
-import { BondingContextProvider, useBondingContext } from '../../context';
 import { Box } from '@mui/material';
+import { BondingContextProvider, useBondingContext } from '../../context';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -32,17 +30,8 @@ const Bonding = () => {
     userBalance: { originalVesting },
   } = useContext(AppContext);
 
-  const {
-    bondedNode,
-    bondMixnode,
-    bondGateway,
-    unbond,
-    updateMixnode,
-    redeemRewards,
-    compoundRewards,
-    isLoading,
-    checkOwnership,
-  } = useBondingContext();
+  const { bondedNode, bondMixnode, bondGateway, unbond, updateMixnode, redeemRewards, isLoading, checkOwnership } =
+    useBondingContext();
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -109,17 +98,6 @@ const Bonding = () => {
     });
   };
 
-  const handleCompoundReward = async (fee?: FeeDetails) => {
-    setShowModal(undefined);
-    const tx = await compoundRewards(fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Rewards compounded successfully',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
-    return undefined;
-  };
-
   const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
     switch (action) {
       case 'bondMore': {
@@ -132,10 +110,6 @@ const Bonding = () => {
       }
       case 'redeem': {
         setShowModal('redeem');
-        break;
-      }
-      case 'compound': {
-        setShowModal('compound');
         break;
       }
       case 'nodeSettings': {
@@ -200,15 +174,6 @@ const Bonding = () => {
           node={bondedNode}
           onClose={() => setShowModal(undefined)}
           onConfirm={handleRedeemReward}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'compound' && bondedNode && isMixnode(bondedNode) && (
-        <CompoundRewardsModal
-          node={bondedNode}
-          onClose={() => setShowModal(undefined)}
-          onConfirm={handleCompoundReward}
           onError={handleError}
         />
       )}

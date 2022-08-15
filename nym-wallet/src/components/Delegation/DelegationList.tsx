@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Chip,
   CircularProgress,
   Table,
   TableBody,
@@ -16,7 +15,7 @@ import {
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { DelegationEvent, DelegationWithEverything } from '@nymproject/types';
+import { decimalToFloatApproximation, DelegationEvent, DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { styled } from '@mui/material/styles';
@@ -59,7 +58,7 @@ const headCells: HeadCell[] = [
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
-  { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'left' },
+  { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -177,15 +176,15 @@ export const DelegationList: React.FC<{
                   />
                 </TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
-                </TableCell>
+                  {!isPendingDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}</TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) && (!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`)}
+                  {!isPendingDelegation(item) && (!item.cost_params?.profit_margin_percent ? '-' : `${item.cost_params.profit_margin_percent}%`)}
                 </TableCell>
                 <TableCell>
                   {!isPendingDelegation(item) &&
-                    (!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`)}
-                </TableCell>
+                      {!item.stake_saturation
+                    ? '-'
+                    : `${Math.round(decimalToFloatApproximation(item.stake_saturation)                </TableCell>
                 <TableCell>
                   {!isPendingDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
                 </TableCell>
@@ -232,38 +231,6 @@ export const DelegationList: React.FC<{
                       {!isPendingDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
                     </span>
                   </Tooltip>
-                </TableCell>
-                <TableCell sx={{ textTransform: 'uppercase' }}>{getRewardValue(item)}</TableCell>
-
-                <TableCell align="right">
-                  {!isPendingDelegation(item) && !item.pending_events.length && (
-                    <DelegationsActionsMenu
-                      isPending={undefined}
-                      onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
-                      disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                    />
-                  )}
-                  {!isPendingDelegation(item) && item.pending_events.length > 0 && (
-                    <Tooltip
-                      title="Your changes will take effect when
-the new epoch starts. There is a new
-epoch every hour."
-                      arrow
-                    >
-                      <Chip label="Pending Events" />
-                    </Tooltip>
-                  )}
-                  {isPendingDelegation(item) && (
-                    <Tooltip
-                      title={`Your delegation of ${item.amount?.amount} ${item.amount?.denom} will take effect 
-                        when the new epoch starts. There is a new
-                        epoch every hour.`}
-                      arrow
-                    >
-                      <Chip label="Pending Events" />
-                    </Tooltip>
-                  )}
                 </TableCell>
               </TableRow>
             ))

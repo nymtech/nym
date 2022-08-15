@@ -42,7 +42,7 @@ export const simulateVestingUnbondGateway = async (args: any) =>
 export const simulateVestingDelegateToMixnode = async (args: { mix_id: number }) =>
   invokeWrapper<FeeDetails>('simulate_vesting_delegate_to_mixnode', args);
 
-export const simulateVestingBondMixnode = async (args: { mixnode: MixNode; pledge: DecCoin; ownerSignature: string }) =>
+export const simulateVestingBondMixnode = async (args: TBondMixNodeArgs) =>
   invokeWrapper<FeeDetails>('simulate_vesting_bond_mixnode', args);
 
 export const simulateVestingUnbondMixnode = async () => invokeWrapper<FeeDetails>('simulate_vesting_unbond_mixnode');
@@ -63,4 +63,3 @@ export const simulateClaimOperatorReward = async () => invokeWrapper<FeeDetails>
 
 export const simulateVestingClaimOperatorReward = async () =>
   invokeWrapper<FeeDetails>('simulate_vesting_claim_operator_reward');
-

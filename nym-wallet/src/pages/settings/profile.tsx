@@ -12,7 +12,7 @@ export const Profile = () => {
       <Box sx={{ p: 3 }}>
         <Stack spacing={3}>
           <Typography sx={{ color: (theme) => theme.palette.text.disabled }}>
-            Node identity: {mixnodeDetails?.mix_node.identity_key || 'n/a'}
+            Node identity: {mixnodeDetails?.bond_information.mix_node.identity_key || 'n/a'}
           </Typography>
           <Divider />
           <TextField label="Mixnode name" disabled />

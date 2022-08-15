@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useSnackbar } from 'notistack';
-import { InclusionProbabilityResponse, MixnodeStatus } from '@nymproject/types';
+import { decimalToPercentage, InclusionProbabilityResponse, MixnodeStatus } from '@nymproject/types';
 import { getInclusionProbability, getMixnodeStakeSaturation, getMixnodeStatus } from '../../requests';
 
 export const useSettingsState = () => {
   const [status, setStatus] = useState<MixnodeStatus>('not_found');
-  const [saturation, setSaturation] = useState<number>(0);
+  const [saturation, setSaturation] = useState<string>('-');
   const [rewardEstimation, setRewardEstimation] = useState<number>(0);
   const [inclusionProbability, setInclusionProbability] = useState<InclusionProbabilityResponse>({
     in_active: 'Low',
@@ -14,21 +14,21 @@ export const useSettingsState = () => {
 
   const { enqueueSnackbar } = useSnackbar();
 
-  const getStatus = async (mixnodeKey: string) => {
-    const newStatus = await getMixnodeStatus(mixnodeKey);
+  const getStatus = async (mixId: number) => {
+    const newStatus = await getMixnodeStatus(mixId);
     setStatus(newStatus.status);
   };
 
-  const getStakeSaturation = async (mixnodeKey: string) => {
-    const newSaturation = await getMixnodeStakeSaturation(mixnodeKey);
+  const getStakeSaturation = async (mixId: number) => {
+    const newSaturation = await getMixnodeStakeSaturation(mixId);
 
     if (newSaturation) {
-      setSaturation(Math.round(newSaturation.saturation * 100));
+      setSaturation(decimalToPercentage(newSaturation.uncapped_saturation));
     }
   };
 
-  const getMixnodeInclusionProbability = async (mixnodeKey: string) => {
-    const probability = await getInclusionProbability(mixnodeKey);
+  const getMixnodeInclusionProbability = async (mixId: number) => {
+    const probability = await getInclusionProbability(mixId);
     if (probability) {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       setInclusionProbability({ in_active: probability.in_active, in_reserve: probability.in_reserve });
@@ -37,16 +37,16 @@ export const useSettingsState = () => {
 
   const reset = () => {
     setStatus('not_found');
-    setSaturation(0);
+    setSaturation('-');
     setRewardEstimation(0);
     setInclusionProbability({ in_active: 'Low', in_reserve: 'Low' });
   };
 
-  const updateAllMixnodeStats = async (mixnodeId: string) => {
+  const updateAllMixnodeStats = async (mixId: number) => {
     try {
-      await getStatus(mixnodeId);
-      await getStakeSaturation(mixnodeId);
-      await getMixnodeInclusionProbability(mixnodeId);
+      await getStatus(mixId);
+      await getStakeSaturation(mixId);
+      await getMixnodeInclusionProbability(mixId);
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error', preventDuplicate: true });
       reset();

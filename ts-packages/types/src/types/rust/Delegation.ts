@@ -1,3 +1,9 @@
-import type { DecCoin } from "./DecCoin";
+import type { DecCoin } from './DecCoin';
 
-export interface Delegation { owner: string, mix_id: number, amount: DecCoin, height: bigint, proxy: string | null, }
+export interface Delegation {
+  owner: string;
+  mix_id: number;
+  amount: DecCoin;
+  height: bigint;
+  proxy: string | null;
+}

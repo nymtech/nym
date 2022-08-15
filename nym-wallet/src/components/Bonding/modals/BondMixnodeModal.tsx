@@ -24,7 +24,7 @@ const defaultMixnodeValues: MixnodeData = {
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
   amount: { amount: '100', denom },
-  profitMargin: 10,
+  profitMargin: '10',
   tokenPool: 'balance',
 });
 
@@ -81,7 +81,6 @@ export const BondMixnodeModal = ({
         verloc_port: mixnodeData.verlocPort,
         sphinx_key: mixnodeData.sphinxKey,
         identity_key: mixnodeData.identityKey,
-        profit_margin_percent: data.profitMargin,
       },
     };
 
@@ -95,6 +94,15 @@ export const BondMixnodeModal = ({
   const handleConfirm = async () => {
     await onBondMixnode(
       {
+        cost_params: {
+          // TODO: get from user
+          interval_operating_cost: {
+            amount: '40',
+            denom: 'nym',
+          },
+          // TODO: get from user
+          profit_margin_percent: '40.0',
+        },
         pledge: amountData.amount,
         ownerSignature: mixnodeData.ownerSignature,
         mixnode: {
@@ -104,7 +112,6 @@ export const BondMixnodeModal = ({
           verloc_port: mixnodeData.verlocPort,
           sphinx_key: mixnodeData.sphinxKey,
           identity_key: mixnodeData.identityKey,
-          profit_margin_percent: amountData.profitMargin,
         },
       },
       amountData.tokenPool as TPoolOption,

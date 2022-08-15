@@ -81,12 +81,12 @@ export const SystemVariables = ({
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails?.mix_node.profit_margin_percent },
+    defaultValues: { profitMarginPercent: mixnodeDetails?.rewarding_details.cost_params.profit_margin_percent },
   });
 
   const onSubmit = async (
-    profitMarginPercent: number | undefined,
-    cb: (profitMarginPercent: number) => Promise<any>,
+    profitMarginPercent: string | undefined,
+    cb: (profitMarginPercent: string) => Promise<any>,
   ) => {
     if (profitMarginPercent) {
       try {

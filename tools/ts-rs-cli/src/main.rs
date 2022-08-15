@@ -1,5 +1,6 @@
 use mixnet_contract_common::{
-    MixNode, MixNodeConfigUpdate, RewardedSetNodeStatus, UnbondedMixnode,
+    IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate,
+    RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
@@ -54,15 +55,17 @@ fn main() {
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling
     //
 
-    // common/cosmwasm-smart-contracts/mixnet-contract/src
-    do_export!(RewardedSetNodeStatus);
     // common/cosmwasm-smart-contracts/vesting-contract/src
     do_export!(Period);
 
     // common/cosmwasm-smart-contracts/mixnet-contract/src
+    do_export!(IntervalRewardParams);
+    do_export!(IntervalRewardingParamsUpdate);
     do_export!(MixNode);
-    do_export!(UnbondedMixnode);
     do_export!(MixNodeConfigUpdate);
+    do_export!(RewardingParams);
+    do_export!(RewardedSetNodeStatus);
+    do_export!(UnbondedMixnode);
 
     // common/types/src
     do_export!(Account);

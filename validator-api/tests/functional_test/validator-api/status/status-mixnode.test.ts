@@ -22,10 +22,10 @@ describe("Get mixnode data", (): void => {
   });
 
   it("Get a mixnode status report", async (): Promise<void> => {
-    const identity_key = config.environmnetConfig.gateway_identity;
+    const identity_key = config.environmnetConfig.mixnode_identity;
     const response = await status.getMixnodeStatusReport(identity_key);
 
-    expect(identity_key).toStrictEqual(response.identity);    // this validation is failing, expected undefined
+    expect(identity_key).toStrictEqual(response.identity);
     expect(typeof response.owner).toBe("string");
     expect(typeof response.most_recent).toBe("number");
     expect(typeof response.last_hour).toBe("number");

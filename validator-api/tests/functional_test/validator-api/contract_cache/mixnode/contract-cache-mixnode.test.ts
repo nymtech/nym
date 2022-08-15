@@ -21,11 +21,11 @@ describe("Get mixnode data", (): void => {
       expect(typeof mixnode.layer).toBe('number');
       expect(typeof mixnode.accumulated_rewards).toBe('string');
 
-      if (typeof mixnode.proxy === null) {
-        return;
+      if (mixnode.proxy === null) {
+        return true;
       }
       else {
-        expect(typeof mixnode.proxy).toBe('string'); //this is failing as it's returning "object"
+        expect(typeof mixnode.proxy).toBe('string');
       }
 
       //pledge 
@@ -104,11 +104,11 @@ describe("Get mixnode data", (): void => {
       expect(typeof mixnode.mixnode_bond.layer).toBe('number');
       expect(typeof mixnode.mixnode_bond.accumulated_rewards).toBe('string');
 
-      if (typeof mixnode.mixnode_bond.proxy === null) {
-        return;
+      if (mixnode.mixnode_bond.proxy === null) {
+        return true;
       }
       else {
-        expect(typeof mixnode.mixnode_bond.proxy).toBe('string'); //this is failing as it's returning "object"
+        expect(typeof mixnode.mixnode_bond.proxy).toBe('string');
       }
 
       //overview

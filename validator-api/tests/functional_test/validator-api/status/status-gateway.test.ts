@@ -4,7 +4,7 @@ import ConfigHandler from "../../../src/config/configHandler";
 let status: Status;
 let config: ConfigHandler;
 
-describe.skip("Get gateway data", (): void => {
+describe("Get gateway data", (): void => {
   beforeAll(async (): Promise<void> => {
     status = new Status();
     config = ConfigHandler.getInstance();

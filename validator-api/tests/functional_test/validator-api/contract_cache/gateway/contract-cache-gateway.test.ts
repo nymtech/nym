@@ -18,11 +18,11 @@ describe("Get gateway data", (): void => {
       expect(typeof gateway.owner).toBe('string');
       expect(typeof gateway.block_height).toBe('number');
 
-      if (typeof gateway.proxy === null) {
-        return;
+      if (gateway.proxy === null) {
+        return true;
       }
       else {
-        expect(typeof gateway.proxy).toBe('string'); //this is failing as it's returning "object"
+        expect(typeof gateway.proxy).toBe('string');
       }
 
       //pledge_amount

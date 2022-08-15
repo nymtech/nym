@@ -14,7 +14,7 @@ pub type Performance = Percent;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct IntervalRewardParams {
     /// Current value of the rewarding pool.
     /// It is expected to be constant throughout the interval.
@@ -73,7 +73,7 @@ impl IntervalRewardParams {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
@@ -205,7 +205,7 @@ impl RewardingParams {
 }
 
 // TODO: possibly refactor this
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct NodeRewardParams {
     pub performance: Percent,
     pub in_active_set: bool,
@@ -226,7 +226,7 @@ impl NodeRewardParams {
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
 )]
 #[derive(
-    Clone, Copy, Debug, Default, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema,
+    Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema,
 )]
 pub struct IntervalRewardingParamsUpdate {
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]

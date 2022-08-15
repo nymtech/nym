@@ -53,7 +53,7 @@ pub struct DelegationRecord {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationWithEverything.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct DelegationWithEverything {
     pub owner: String,
     pub mix_id: NodeId,

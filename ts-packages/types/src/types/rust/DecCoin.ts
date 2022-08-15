@@ -1,3 +1,3 @@
-import type { CurrencyDenom } from "./CurrencyDenom";
+import type { CurrencyDenom } from './CurrencyDenom';
 
-export type DecCoin = { denom: CurrencyDenom, amount: string };
+export type DecCoin = { denom: CurrencyDenom; amount: string };

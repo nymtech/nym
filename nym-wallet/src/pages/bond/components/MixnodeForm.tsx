@@ -98,7 +98,6 @@ export const MixnodeForm = ({
           host: data.host,
           version: data.version,
           mix_port: data.mixPort,
-          profit_margin_percent: data.profitMarginPercent,
           verloc_port: data.verlocPort,
           http_api_port: data.httpApiPort,
         },

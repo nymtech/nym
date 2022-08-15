@@ -12,7 +12,8 @@ import { ModalListItem } from '../Modals/ModalListItem';
 export const RedeemModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, fee?: FeeDetails) => void;
+  onOk?: (mixId: number, identityKey: string, fee?: FeeDetails) => void;
+  mixId: number;
   identityKey: string;
   amount: number;
   denom: CurrencyDenom;
@@ -20,20 +21,20 @@ export const RedeemModal: React.FC<{
   sx?: SxProps;
   backdropProps?: Object;
   usesVestingTokens: boolean;
-}> = ({ open, onClose, onOk, identityKey, amount, denom, message, usesVestingTokens, sx, backdropProps }) => {
+}> = ({ open, onClose, onOk, mixId, identityKey, amount, denom, message, usesVestingTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey, fee);
+      onOk(mixId, identityKey, fee);
     }
   };
 
   useEffect(() => {
     if (usesVestingTokens) {
-      getFee(simulateVestingClaimDelegatorReward, identityKey);
+      getFee(simulateVestingClaimDelegatorReward, mixId);
     } else {
-      getFee(simulateClaimDelegatorReward, identityKey);
+      getFee(simulateClaimDelegatorReward, mixId);
     }
   }, []);
 

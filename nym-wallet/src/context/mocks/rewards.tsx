@@ -9,7 +9,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
   const [error, setError] = useState<string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const { delegations } = useDelegationContext();
-  const delegationsHash = delegations?.map((d) => (d as DelegationWithEverything).accumulated_rewards).join(',');
+  const delegationsHash = delegations?.map((d) => (d as DelegationWithEverything).unclaimed_rewards?.amount.toString()).join(',');
 
   const resetState = () => {
     setIsLoading(true);
@@ -19,7 +19,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
 
   const recalculate = () => {
     const sum: number | undefined = delegations
-      ?.map((d) => ((d as DelegationWithEverything).accumulated_rewards ? Number(10) : Number(0)))
+      ?.map((d) => ((d as DelegationWithEverything).unclaimed_rewards?.amount ? Number(10) : Number(0)))
       .reduce((acc, cur) => acc + cur, Number(0));
 
     setTotalRewards(sum ? `${sum} NYM` : undefined);
@@ -44,49 +44,6 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
   }, []);
 
   const claimRewards = async (mixnodeAddress: string): Promise<TransactionExecuteResult[]> => {
-    if (!delegations) {
-      throw new Error('No delegations');
-    }
-
-    const d = delegations.find((d1) => d1.node_identity === mixnodeAddress);
-
-    if (!d) {
-      throw new Error(`Unable to find delegation for id = ${mixnodeAddress}`);
-    }
-
-    await mockSleep(1000);
-
-    return [
-      {
-        transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-        fee: {
-          amount: '1',
-          denom: 'nym',
-        },
-        data_json: '[]',
-        logs_json: '[]',
-        gas_info: {
-          gas_wanted: { gas_units: BigInt(1) },
-          gas_used: { gas_units: BigInt(1) },
-        },
-      },
-      {
-        transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-        fee: {
-          amount: '1',
-          denom: 'nym',
-        },
-        data_json: '[]',
-        logs_json: '[]',
-        gas_info: {
-          gas_wanted: { gas_units: BigInt(1) },
-          gas_used: { gas_units: BigInt(1) },
-        },
-      },
-    ];
-  };
-
-  const compoundRewards = async (mixnodeAddress: string): Promise<TransactionExecuteResult[]> => {
     if (!delegations) {
       throw new Error('No delegations');
     }
@@ -157,7 +114,6 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
       totalRewards,
       refresh,
       claimRewards,
-      compoundRewards,
       redeemAllRewards,
     }),
     [isLoading, error, totalRewards],

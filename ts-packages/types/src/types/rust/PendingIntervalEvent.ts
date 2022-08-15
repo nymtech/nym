@@ -1,3 +1,6 @@
-import type { PendingIntervalEventData } from "./PendingIntervalEventData";
+import type { PendingIntervalEventData } from './PendingIntervalEventData';
 
-export interface PendingIntervalEvent { id: number, event: PendingIntervalEventData, }
+export interface PendingIntervalEvent {
+  id: number;
+  event: PendingIntervalEventData;
+}

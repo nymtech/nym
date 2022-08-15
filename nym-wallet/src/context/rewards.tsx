@@ -1,15 +1,14 @@
 import React, { createContext, FC, useContext, useEffect, useMemo, useState } from 'react';
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
-import { claimDelegatorRewards, compoundDelegatorRewards } from '../requests';
+import { claimDelegatorRewards } from '../requests';
 
 type TRewardsContext = {
   isLoading: boolean;
   error?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
-  claimRewards: (identity: string, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
-  compoundRewards: (identity: string, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
+  claimRewards: (mixId: number, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
 };
 
 export type TRewardsTransaction = {
@@ -21,9 +20,6 @@ export const RewardsContext = createContext<TRewardsContext>({
   isLoading: true,
   refresh: async () => undefined,
   claimRewards: async () => {
-    throw new Error('Not implemented');
-  },
-  compoundRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -47,7 +43,6 @@ export const RewardsContextProvider: FC<{}> = ({ children }) => {
       totalRewards,
       refresh,
       claimRewards: claimDelegatorRewards,
-      compoundRewards: compoundDelegatorRewards,
       redeemAllRewards: async () => {
         throw new Error('Not implemented');
       },

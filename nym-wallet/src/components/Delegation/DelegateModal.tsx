@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode } from 'src/requests';
@@ -20,7 +20,13 @@ const MIN_AMOUNT_TO_DELEGATE = 10;
 export const DelegateModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onOk?: (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
+  onOk?: (
+    mixId: number,
+    identityKey: string,
+    amount: DecCoin,
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -29,7 +35,7 @@ export const DelegateModal: React.FC<{
   rewardInterval: string;
   accountBalance?: string;
   estimatedReward?: number;
-  profitMarginPercentage?: number | null;
+  profitMarginPercentage?: string | null;
   nodeUptimePercentage?: number | null;
   denom: CurrencyDenom;
   initialAmount?: string;
@@ -56,6 +62,7 @@ export const DelegateModal: React.FC<{
   sx,
   backdropProps,
 }) => {
+  const [mixId, setMixId] = useState<number | undefined>();
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
   const [isValidated, setValidated] = useState<boolean>(false);
@@ -65,11 +72,13 @@ export const DelegateModal: React.FC<{
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
-  const handleCheckStakeSaturation = async (identity: string) => {
+  const handleCheckStakeSaturation = async (newMixId: number) => {
     try {
-      const newSaturation = await getMixnodeStakeSaturation(identity);
-      if (newSaturation && newSaturation.saturation > 1) {
-        const saturationPercentage = Math.round(newSaturation.saturation * 100);
+      const newSaturation = decimalToFloatApproximation(
+        (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
+      );
+      if (newSaturation && newSaturation > 1) {
+        const saturationPercentage = Math.round(newSaturation * 100);
         return { isOverSaturated: true, saturationPercentage };
       }
       return { isOverSaturated: false, saturationPercentage: undefined };
@@ -84,13 +93,16 @@ export const DelegateModal: React.FC<{
     let errorAmountMessage;
     let errorIdentityKeyMessage;
 
+    // TODO: get mixnode id
+    // setMixId(null);
+
     if (!identityKey || !validateKey(identityKey, 32)) {
       newValidatedValue = false;
       errorIdentityKeyMessage = undefined;
     }
 
-    if (identityKey && validateKey(identityKey, 32)) {
-      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(identityKey);
+    if (identityKey && mixId && validateKey(identityKey, 32)) {
+      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(mixId);
       if (isOverSaturated) {
         newValidatedValue = false;
         errorIdentityKeyMessage = `This node is over saturated (${saturationPercentage}%), please select another node`;
@@ -117,12 +129,12 @@ export const DelegateModal: React.FC<{
   };
 
   const handleOk = async () => {
-    if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom }, tokenPool, fee);
+    if (onOk && amount && identityKey && mixId) {
+      onOk(mixId, identityKey, { amount, denom }, tokenPool, fee);
     }
   };
 
-  const handleConfirm = async ({ identity, value }: { identity: string; value: DecCoin }) => {
+  const handleConfirm = async ({ mixId, value }: { mixId: number; value: DecCoin }) => {
     const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
 
     if (!hasEnoughTokens) {
@@ -131,11 +143,11 @@ export const DelegateModal: React.FC<{
     }
 
     if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { identity, amount: value });
+      getFee(simulateDelegateToMixnode, { mix_id: mixId, amount: value });
     }
 
     if (tokenPool === 'locked') {
-      getFee(simulateVestingDelegateToMixnode, { identity, amount: value });
+      getFee(simulateVestingDelegateToMixnode, { mix_id: mixId, amount: value });
     }
   };
 
@@ -192,8 +204,8 @@ export const DelegateModal: React.FC<{
       open={open}
       onClose={onClose}
       onOk={async () => {
-        if (identityKey && amount) {
-          handleConfirm({ identity: identityKey, value: { amount, denom } });
+        if (mixId && amount) {
+          handleConfirm({ mixId, value: { amount, denom } });
         }
       }}
       header={header || 'Delegate'}

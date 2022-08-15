@@ -65,8 +65,8 @@ export const Delegate = () => {
         estimatedReward={50.423}
         accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
-        profitMarginPercentage={11.12334234}
-        rewardInterval="weekly"
+        profitMarginPercentage="11.12334234"
+        rewardInterval="monthlyish"
         hasVestingContract={false}
         {...storybookStyles(theme)}
       />
@@ -87,8 +87,8 @@ export const DelegateBelowMinimum = () => {
         denom="nym"
         estimatedReward={425.2345053}
         nodeUptimePercentage={99.28394}
-        profitMarginPercentage={11.12334234}
-        rewardInterval="weekly"
+        profitMarginPercentage="11.12334234"
+        rewardInterval="monthlyish"
         initialAmount="0.1"
         hasVestingContract={false}
         {...storybookStyles(theme)}
@@ -113,8 +113,8 @@ export const DelegateMore = () => {
         estimatedReward={50.423}
         accountBalance="425.2345053"
         nodeUptimePercentage={99.28394}
-        profitMarginPercentage={11.12334234}
-        rewardInterval="weekly"
+        profitMarginPercentage="11.12334234"
+        rewardInterval="monthlyish"
         hasVestingContract={false}
         {...storybookStyles(theme)}
       />
@@ -134,6 +134,7 @@ export const Undelegate = () => {
         onOk={async () => setOpen(false)}
         currency="nym"
         amount={150}
+        mixId={1234}
         identityKey="AA6RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujyxx"
         usesVestingContractTokens={false}
         {...storybookStyles(theme)}

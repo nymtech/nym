@@ -1,2 +1,4 @@
-
-export interface GatewayCoreStatusResponse { identity: string, count: number, }
+export interface GatewayCoreStatusResponse {
+  identity: string;
+  count: number;
+}

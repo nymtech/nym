@@ -13,20 +13,20 @@ describe("Get epoch info", (): void => {
 
   it("Get epoch reward params", async (): Promise<void> => {
     const response = await contract.getEpochRewardParams();
-    expect(typeof response.epoch_reward_pool).toStrictEqual('string');
-    expect(typeof response.rewarded_set_size).toStrictEqual('string');
-    expect(typeof response.active_set_size).toStrictEqual('string');
-    expect(typeof response.staking_supply).toStrictEqual('string');
-    expect(typeof response.sybil_resistance_percent).toStrictEqual('number');
-    expect(typeof response.active_set_work_factor).toStrictEqual('number');
+    expect(typeof response.epoch_reward_pool).toBe('string');
+    expect(typeof response.rewarded_set_size).toBe('string');
+    expect(typeof response.active_set_size).toBe('string');
+    expect(typeof response.staking_supply).toBe('string');
+    expect(typeof response.sybil_resistance_percent).toBe('number');
+    expect(typeof response.active_set_work_factor).toBe('number');
   });
 
   it("Get current epoch", async (): Promise<void> => {
     const response = await contract.getCurrentEpoch();
-    expect(typeof response.id).toStrictEqual('number');
-    expect(typeof response.start).toStrictEqual('string');
-    expect(typeof response.length.secs).toStrictEqual('number');
-    expect(typeof response.length.nanos).toStrictEqual('number');
+    expect(typeof response.id).toBe('number');
+    expect(typeof response.start).toBe('string');
+    expect(typeof response.length.secs).toBe('number');
+    expect(typeof response.length.nanos).toBe('number');
   });
 
 

@@ -16,29 +16,29 @@ describe("Get mixnode data", (): void => {
 
     response.forEach((mixnode) => {
       //overview
-      expect(typeof mixnode.owner).toStrictEqual('string');
-      expect(typeof mixnode.block_height).toStrictEqual('number');
-      expect(typeof mixnode.layer).toStrictEqual('number');
-      expect(typeof mixnode.accumulated_rewards).toStrictEqual('string');
+      expect(typeof mixnode.owner).toBe('string');
+      expect(typeof mixnode.block_height).toBe('number');
+      expect(typeof mixnode.layer).toBe('number');
+      expect(typeof mixnode.accumulated_rewards).toBe('string');
 
       if (typeof mixnode.proxy === null) {
         return;
       }
       else {
-        expect(typeof mixnode.proxy).toStrictEqual('string'); //this is failing as it's returning "object"
+        expect(typeof mixnode.proxy).toBe('string'); //this is failing as it's returning "object"
       }
 
       //pledge 
-      expect(typeof mixnode.pledge_amount.amount).toStrictEqual('string');
-      expect(mixnode.pledge_amount.denom).toStrictEqual('unym');
+      expect(typeof mixnode.pledge_amount.amount).toBe('string');
+      expect(mixnode.pledge_amount.denom).toBe('unym');
 
       //total_deleglation
-      expect(typeof mixnode.total_delegation.amount).toStrictEqual('string')
-      expect(mixnode.total_delegation.denom).toStrictEqual('unym');
+      expect(typeof mixnode.total_delegation.amount).toBe('string')
+      expect(mixnode.total_delegation.denom).toBe('unym');
 
       //mixnode
-      expect(typeof mixnode.mix_node.host).toStrictEqual('string')
-      expect(typeof mixnode.mix_node.profit_margin_percent).toStrictEqual('number');
+      expect(typeof mixnode.mix_node.host).toBe('string')
+      expect(typeof mixnode.mix_node.profit_margin_percent).toBe('number');
 
       let identitykey = mixnode.mix_node.identity_key
       if (typeof identitykey === 'string') {
@@ -58,7 +58,7 @@ describe("Get mixnode data", (): void => {
       expect(mixnode.mix_node.verloc_port).toStrictEqual(1790);
       expect(mixnode.mix_node.mix_port).toStrictEqual(1789);
       expect(mixnode.mix_node.http_api_port).toStrictEqual(8000);
-      expect(typeof mixnode.mix_node.version).toStrictEqual('string');
+      expect(typeof mixnode.mix_node.version).toBe('string');
     });
   });
 
@@ -66,16 +66,16 @@ describe("Get mixnode data", (): void => {
     const response = await contract.getMixnodesDetailed();
     response.forEach((mixnode) => {
       //mixnode_bond.pledge_amount
-      expect(typeof mixnode.mixnode_bond.pledge_amount.amount).toStrictEqual('string');
-      expect(mixnode.mixnode_bond.pledge_amount.denom).toStrictEqual('unym');
+      expect(typeof mixnode.mixnode_bond.pledge_amount.amount).toBe('string');
+      expect(mixnode.mixnode_bond.pledge_amount.denom).toBe('unym');
 
       //mixnode_bond.total_delegation
-      expect(typeof mixnode.mixnode_bond.total_delegation.amount).toStrictEqual('string')
-      expect(mixnode.mixnode_bond.total_delegation.denom).toStrictEqual('unym');
+      expect(typeof mixnode.mixnode_bond.total_delegation.amount).toBe('string')
+      expect(mixnode.mixnode_bond.total_delegation.denom).toBe('unym');
 
       //mixnode_bond.mix_node
-      expect(typeof mixnode.mixnode_bond.mix_node.host).toStrictEqual('string')
-      expect(typeof mixnode.mixnode_bond.mix_node.profit_margin_percent).toStrictEqual('number');
+      expect(typeof mixnode.mixnode_bond.mix_node.host).toBe('string')
+      expect(typeof mixnode.mixnode_bond.mix_node.profit_margin_percent).toBe('number');
 
       let identitykey = mixnode.mixnode_bond.mix_node.identity_key
       if (typeof identitykey === 'string') {
@@ -96,26 +96,26 @@ describe("Get mixnode data", (): void => {
       expect(mixnode.mixnode_bond.mix_node.verloc_port).toStrictEqual(1790);
       expect(mixnode.mixnode_bond.mix_node.mix_port).toStrictEqual(1789);
       expect(mixnode.mixnode_bond.mix_node.http_api_port).toStrictEqual(8000);
-      expect(typeof mixnode.mixnode_bond.mix_node.version).toStrictEqual('string');
+      expect(typeof mixnode.mixnode_bond.mix_node.version).toBe('string');
 
       //mixnode_bond.overview
-      expect(typeof mixnode.mixnode_bond.owner).toStrictEqual('string');
-      expect(typeof mixnode.mixnode_bond.block_height).toStrictEqual('number');
-      expect(typeof mixnode.mixnode_bond.layer).toStrictEqual('number');
-      expect(typeof mixnode.mixnode_bond.accumulated_rewards).toStrictEqual('string');
+      expect(typeof mixnode.mixnode_bond.owner).toBe('string');
+      expect(typeof mixnode.mixnode_bond.block_height).toBe('number');
+      expect(typeof mixnode.mixnode_bond.layer).toBe('number');
+      expect(typeof mixnode.mixnode_bond.accumulated_rewards).toBe('string');
 
       if (typeof mixnode.mixnode_bond.proxy === null) {
         return;
       }
       else {
-        expect(typeof mixnode.mixnode_bond.proxy).toStrictEqual('string'); //this is failing as it's returning "object"
+        expect(typeof mixnode.mixnode_bond.proxy).toBe('string'); //this is failing as it's returning "object"
       }
 
       //overview
-      expect(typeof mixnode.stake_saturation).toStrictEqual('number');
-      expect(typeof mixnode.uptime).toStrictEqual('number');
-      expect(typeof mixnode.estimated_operator_apy).toStrictEqual('number');
-      expect(typeof mixnode.estimated_delegators_apy).toStrictEqual('number');
+      expect(typeof mixnode.stake_saturation).toBe('number');
+      expect(typeof mixnode.uptime).toBe('number');
+      expect(typeof mixnode.estimated_operator_apy).toBe('number');
+      expect(typeof mixnode.estimated_delegators_apy).toBe('number');
     });
   });
 
@@ -133,7 +133,7 @@ describe("Get mixnode data", (): void => {
   it("Get blacklisted mixnodes", async (): Promise<void> => {
     const response = await contract.getBlacklistedMixnodes();
     response.forEach(function (value) {
-      expect(typeof value).toStrictEqual('string');
+      expect(typeof value).toBe('string');
     });
   });
 

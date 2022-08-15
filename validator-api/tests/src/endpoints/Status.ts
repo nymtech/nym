@@ -88,6 +88,12 @@ export default class Status extends APIClient {
   ): Promise<EstimatedReward> {
     const response = await this.restClient.sendPost({
       route: `/mixnode/${identity_key}/compute-reward-estimation`,
+      data: {
+        "uptime": 0,
+        "is_active": true,
+        "pledge_amount": 0,
+        "total_delegation": 0 // TO-DO grab the values from the mixnode endpoint on explorer-api and use them in this request
+      }
     });
 
     return response.data;
@@ -98,6 +104,16 @@ export default class Status extends APIClient {
   ): Promise<AvgUptime> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${identity_key}/avg_uptime`,
+    });
+
+    return response.data;
+  }
+
+  public async getAllMixnodeAverageUptime(
+    identity_key: string
+  ): Promise<AvgUptime[]> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnodes/avg_uptime`,
     });
 
     return response.data;

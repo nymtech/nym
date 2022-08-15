@@ -1,2 +1,1 @@
-
-export type RewardedSetNodeStatus = "Active" | "Standby";
+export type RewardedSetNodeStatus = 'Active' | 'Standby';

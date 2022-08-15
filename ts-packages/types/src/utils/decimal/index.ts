@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {Decimal} from "@cosmjs/math";
+import { Decimal } from '@cosmjs/math';
 
-export const stringToDecimal(raw: string): Decimal | null => {
-  try {
-    return Decimal.fromUserInput(raw, 0)
-  } catch (err) {
-    console.log(`${raw} is not a valid decimal - ${err}`)
-    return null
-  }
-}
+export const stringToDecimal = (raw: string): Decimal => Decimal.fromUserInput(raw, 0);
+
+export const decimalToPercentage = (raw: string) =>
+  Math.round(Decimal.fromUserInput(raw, 0).toFloatApproximation() * 100).toString();
+
+export const decimalToFloatApproximation = (raw: string): number =>
+  Decimal.fromUserInput(raw, 0).toFloatApproximation();

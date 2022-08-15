@@ -1,2 +1,5 @@
-
-export interface UnbondedMixnode { identity: string, owner: string, unbonding_height: bigint, }
+export interface UnbondedMixnode {
+  identity: string;
+  owner: string;
+  unbonding_height: bigint;
+}

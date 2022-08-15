@@ -9,23 +9,32 @@ use serde::{Deserialize, Serialize};
 pub type Performance = Percent;
 
 /// Parameters required by the mix-mining reward distribution that do not change during an interval.
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts")
+)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct IntervalRewardParams {
     /// Current value of the rewarding pool.
     /// It is expected to be constant throughout the interval.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub reward_pool: Decimal,
 
     /// Current value of the staking supply.
     /// It is expected to be constant throughout the interval.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub staking_supply: Decimal,
 
     // computed values
     /// Current value of the computed reward budget per epoch, per node.
     /// It is expected to be constant throughout the interval.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub epoch_reward_budget: Decimal,
 
     /// Current value of the stake saturation point.
     /// It is expected to be constant throughout the interval.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub stake_saturation_point: Decimal,
 
     // constants(-ish)
@@ -33,12 +42,14 @@ pub struct IntervalRewardParams {
     /// Current value of the sybil resistance percent (`alpha`).
     /// It is not really expected to be changing very often.
     /// As a matter of fact, unless there's a very specific reason, it should remain constant.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub sybil_resistance: Percent,
 
     // default: 10
     /// Current active set work factor.
     /// It is not really expected to be changing very often.
     /// As a matter of fact, unless there's a very specific reason, it should remain constant.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub active_set_work_factor: Decimal,
 
     // default: 2%
@@ -47,6 +58,7 @@ pub struct IntervalRewardParams {
     /// this % of the reward pool would get distributed in rewards to all operators and its delegators.
     /// It is not really expected to be changing very often.
     /// As a matter of fact, unless there's a very specific reason, it should remain constant.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub interval_pool_emission: Percent,
 }
 
@@ -56,6 +68,11 @@ impl IntervalRewardParams {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
+)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize, JsonSchema)]
 pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.

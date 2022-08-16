@@ -10,6 +10,7 @@ import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
+import { attachDefaultOperatingCost } from '../../../utils';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '',
@@ -71,6 +72,10 @@ export const BondMixnodeModal = ({
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
     setAmountData(data);
+
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(data.profitMargin);
+
     const payload = {
       pledge: data.amount,
       ownerSignature: mixnodeData.ownerSignature,
@@ -82,6 +87,7 @@ export const BondMixnodeModal = ({
         sphinx_key: mixnodeData.sphinxKey,
         identity_key: mixnodeData.identityKey,
       },
+      cost_params: defaultCostParams,
     };
 
     if (data.tokenPool === 'balance') {

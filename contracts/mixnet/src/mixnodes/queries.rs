@@ -99,7 +99,7 @@ pub fn query_unbonded_mixnodes_paged(
 
     let start = start_after.map(Bound::exclusive);
 
-    let nodes = storage::UNBONDED_MIXNODES
+    let nodes = storage::unbonded_mixnodes()
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .collect::<StdResult<Vec<_>>>()?;
@@ -170,7 +170,7 @@ pub fn query_unbonded_mixnode(
     deps: Deps<'_>,
     mix_id: NodeId,
 ) -> StdResult<UnbondedMixnodeResponse> {
-    let unbonded_info = storage::UNBONDED_MIXNODES.may_load(deps.storage, mix_id)?;
+    let unbonded_info = storage::unbonded_mixnodes().may_load(deps.storage, mix_id)?;
 
     Ok(UnbondedMixnodeResponse {
         mix_id,
@@ -507,12 +507,12 @@ pub(crate) mod tests {
         #[test]
         fn pagination_works() {
             fn add_unbonded(storage: &mut dyn Storage, id: NodeId) {
-                storage::UNBONDED_MIXNODES
+                storage::unbonded_mixnodes()
                     .save(
                         storage,
                         id,
                         &UnbondedMixnode {
-                            identity: format!("dummy{}", id),
+                            identity_key: format!("dummy{}", id),
                             owner: Addr::unchecked(format!("dummy{}", id)),
                             unbonding_height: 123,
                         },

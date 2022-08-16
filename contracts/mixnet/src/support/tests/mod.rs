@@ -605,18 +605,18 @@ pub mod test_helpers {
     ) -> NodeId {
         let id = loop {
             let candidate = rng.next_u32();
-            if !mixnodes_storage::UNBONDED_MIXNODES.has(deps.storage, candidate) {
+            if !mixnodes_storage::unbonded_mixnodes().has(deps.storage, candidate) {
                 break candidate;
             }
         };
 
         // we don't care about 'correctness' of the identity key here
-        mixnodes_storage::UNBONDED_MIXNODES
+        mixnodes_storage::unbonded_mixnodes()
             .save(
                 deps.storage,
                 id,
                 &UnbondedMixnode {
-                    identity: format!("identity{}", id),
+                    identity_key: format!("identity{}", id),
                     owner: Addr::unchecked(owner),
                     unbonding_height: 12345,
                 },

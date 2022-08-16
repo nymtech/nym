@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
+use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use mixnet_contract_common::NodeId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
+use mixnet_contract_common::{NodeId, UnbondedMixnode};
 use url::Url;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
@@ -264,6 +265,87 @@ impl<C> Client<C> {
             let mut paged_response = self
                 .nymd
                 .get_mixnodes_detailed_paged(self.mixnode_page_limit, start_after.take())
+                .await?;
+            mixnodes.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(mixnodes)
+    }
+
+    pub async fn get_all_nymd_unbonded_mixnodes(
+        &self,
+    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut mixnodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_unbonded_paged(self.mixnode_page_limit, start_after.take())
+                .await?;
+            mixnodes.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(mixnodes)
+    }
+
+    pub async fn get_all_nymd_unbonded_mixnodes_by_owner(
+        &self,
+        owner: &AccountId,
+    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut mixnodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_unbonded_by_owner_paged(owner, self.mixnode_page_limit, start_after.take())
+                .await?;
+            mixnodes.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(mixnodes)
+    }
+
+    pub async fn get_all_nymd_unbonded_mixnodes_by_identity(
+        &self,
+        identity_key: String,
+    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut mixnodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_unbonded_by_identity_paged(
+                    identity_key.clone(),
+                    self.mixnode_page_limit,
+                    start_after.take(),
+                )
                 .await?;
             mixnodes.append(&mut paged_response.nodes);
 

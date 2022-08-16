@@ -288,6 +288,16 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<NodeId>,
     },
+    GetUnbondedMixNodesByOwner {
+        owner: String,
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    },
+    GetUnbondedMixNodesByIdentityKey {
+        identity_key: String,
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    },
     GetOwnedMixnode {
         address: String,
     },

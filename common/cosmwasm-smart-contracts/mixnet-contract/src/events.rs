@@ -452,6 +452,10 @@ pub fn new_mix_rewarding_event(
     reward_distribution: RewardDistribution,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
+        // TODO: to calculate Timmy's (delegator) reward at this time
+        // emit:
+        // - unit delegation BEFORE rewarding (to determine Timmy's state before rewarding happened)
+        // - total delegation BEFORE rewarding
         .add_attribute(
             INTERVAL_KEY,
             interval.current_epoch_absolute_id().to_string(),

@@ -4,7 +4,7 @@
 use crate::currency::DecCoin;
 use crate::error::TypesError;
 use crate::pending_events::{PendingEpochEvent, PendingEpochEventData};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::{IdentityKey, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +31,26 @@ pub struct DelegationEvent {
     pub address: String,
     pub amount: Option<DecCoin>,
     pub proxy: Option<String>,
+}
+
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/WrappedDelegationEvent.ts")
+)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
+pub struct WrappedDelegationEvent {
+    pub event: DelegationEvent,
+    pub node_identity: IdentityKey,
+}
+
+impl WrappedDelegationEvent {
+    pub fn new(event: DelegationEvent, node_identity: IdentityKey) -> Self {
+        Self {
+            event,
+            node_identity,
+        }
+    }
 }
 
 impl DelegationEvent {

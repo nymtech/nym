@@ -19,8 +19,8 @@ import {
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
-  updateMixnode as updateMixnodeRequest,
-  vestingUpdateMixnode as updateMixnodeVestingRequest,
+  updateMixnodeCostParams as updateMixnodeCostParamsRequest,
+  vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptioRequest,
   getGatewayBondDetails,
   getMixnodeBondDetails,
@@ -31,6 +31,7 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
+import { attachDefaultOperatingCost } from '../utils';
 
 // TODO add relevant data
 export type TBondedMixnode = {
@@ -66,7 +67,7 @@ export type TBondingContext = {
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  updateMixnode: (pm: number, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
 };
 
@@ -275,12 +276,21 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return tx;
   };
 
-  const updateMixnode = async (pm: number, fee?: FeeDetails) => {
+  const updateMixnode = async (pm: string, fee?: FeeDetails) => {
     let tx;
     setIsLoading(true);
+
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(pm);
+
     try {
-      if (bondedNode?.proxy) tx = await updateMixnodeVestingRequest(pm, fee?.fee);
-      else tx = await updateMixnodeRequest(pm, fee?.fee);
+      // JS: this check is not entirely valid. you can have proxy field set whilst not using the vesting contract,
+      // you have to check if proxy exists AND if it matches the known vesting contract address!
+      if (bondedNode?.proxy) {
+        tx = await updateMixnodeVestingCostParamsRequest(defaultCostParams, fee?.fee);
+      } else {
+        tx = await updateMixnodeCostParamsRequest(defaultCostParams, fee?.fee);
+      }
     } catch (e: any) {
       Console.warn(e);
       setError(`an error occurred: ${e}`);

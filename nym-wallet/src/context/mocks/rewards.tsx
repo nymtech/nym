@@ -43,15 +43,15 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
     refresh();
   }, []);
 
-  const claimRewards = async (mixnodeAddress: string): Promise<TransactionExecuteResult[]> => {
+  const claimRewards = async (mixId: number): Promise<TransactionExecuteResult[]> => {
     if (!delegations) {
       throw new Error('No delegations');
     }
 
-    const d = delegations.find((d1) => d1.node_identity === mixnodeAddress);
+    const d = delegations.find((d1) => d1.mix_id === mixId);
 
     if (!d) {
-      throw new Error(`Unable to find delegation for id = ${mixnodeAddress}`);
+      throw new Error(`Unable to find delegation for id = ${mixId}`);
     }
 
     await mockSleep(1000);

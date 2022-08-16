@@ -52,3 +52,4 @@ export * from './TransactionExecuteResult';
 export * from './UnbondedMixnode';
 export * from './VestingAccountInfo';
 export * from './VestingPeriod';
+export * from './WrappedDelegationEvent';

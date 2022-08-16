@@ -1,17 +1,18 @@
 import {
   TPagedDelegations,
-  DelegationEvent,
   StakeSaturationResponse,
   MixnodeStatusResponse,
   InclusionProbabilityResponse,
   DecCoin,
   MixNodeDetails,
   GatewayBond,
+  WrappedDelegationEvent,
 } from '@nymproject/types';
 import { Interval, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
-export const getAllPendingDelegations = async () => invokeWrapper<DelegationEvent[]>('get_pending_delegation_events');
+export const getAllPendingDelegations = async () =>
+  invokeWrapper<WrappedDelegationEvent[]>('get_pending_delegation_events');
 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeDetails | null>('mixnode_bond_details');
 export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');

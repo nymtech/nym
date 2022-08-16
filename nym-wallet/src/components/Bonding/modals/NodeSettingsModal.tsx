@@ -21,7 +21,7 @@ export const NodeSettings = ({
 }: {
   currentPm: TBondedMixnode['profitMargin'];
   isVesting: boolean;
-  onConfirm: (profitMargin: number, fee?: FeeDetails) => Promise<void>;
+  onConfirm: (profitMargin: string, fee?: FeeDetails) => Promise<void>;
   onClose: () => void;
   onError: (err: string) => void;
 }) => {
@@ -82,7 +82,7 @@ export const NodeSettings = ({
         fee={fee}
         onPrev={resetFeeState}
         onClose={onClose}
-        onConfirm={() => onConfirm(Number(pm), fee)}
+        onConfirm={() => onConfirm(pm, fee)}
       >
         <ModalListItem label="Current profit margin" value={`${currentPm}%`} divider />
         <ModalListItem label="New profit margin" value={`${pm}%`} divider />

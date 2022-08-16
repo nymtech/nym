@@ -9,7 +9,9 @@ use nym_types::currency::DecCoin;
 use nym_types::delegation::{
     Delegation, DelegationRecord, DelegationWithEverything, DelegationsSummaryResponse,
 };
-use nym_types::deprecated::{convert_to_delegation_events, DelegationEvent};
+use nym_types::deprecated::{
+    convert_to_delegation_events, DelegationEvent, WrappedDelegationEvent,
+};
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
@@ -20,7 +22,7 @@ use validator_client::nymd::Fee;
 #[tauri::command]
 pub async fn get_pending_delegation_events(
     state: tauri::State<'_, WalletState>,
-) -> Result<Vec<DelegationEvent>, BackendError> {
+) -> Result<Vec<WrappedDelegationEvent>, BackendError> {
     log::info!(">>> [DEPRECATED] Get all pending delegation events");
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
@@ -35,10 +37,21 @@ pub async fn get_pending_delegation_events(
     let delegation_events = convert_to_delegation_events(converted);
 
     // we only care about events concerning THIS client
-    let client_specific_events = delegation_events
-        .into_iter()
-        .filter(|e| e.address_matches(client.nymd.address().as_ref()))
-        .collect::<Vec<_>>();
+    let mut client_specific_events = Vec::new();
+    for delegation_event in delegation_events {
+        if delegation_event.address_matches(client.nymd.address().as_ref()) {
+            let node_identity = client
+                .nymd
+                .get_mixnode_details(delegation_event.mix_id)
+                .await?
+                .mixnode_details
+                .map(|d| d.bond_information.mix_node.identity_key)
+                .unwrap_or_default();
+
+            client_specific_events
+                .push(WrappedDelegationEvent::new(delegation_event, node_identity));
+        }
+    }
 
     log::info!(
         "<<< {} pending delegation events",
@@ -173,18 +186,19 @@ pub async fn get_all_mix_delegations(
     for d in delegations {
         if let Some(pending_event) = pending_events_for_account
             .iter()
-            .find(|e| e.mix_id == d.node_id)
+            .find(|e| e.event.mix_id == d.node_id)
         {
             let amount = pending_event
+                .event
                 .amount
                 .clone()
                 .unwrap_or_else(|| DecCoin::zero(&display_mix_denom));
             let delegation = DelegationWithHistory {
                 delegation: Delegation {
                     amount: amount.clone(),
-                    proxy: pending_event.proxy.clone(),
-                    owner: pending_event.address.clone(),
-                    mix_id: pending_event.mix_id,
+                    proxy: pending_event.event.proxy.clone(),
+                    owner: pending_event.event.address.clone(),
+                    mix_id: pending_event.event.mix_id,
                     height: 0,
                 },
                 amount_sum: amount,

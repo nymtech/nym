@@ -8,9 +8,10 @@ import { InclusionProbabilityResponse, SelectionChance } from '@nymproject/types
 import { validationSchema } from './validationSchema';
 import { InfoTooltip } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
-import { updateMixnode, vestingUpdateMixnode } from '../../requests';
+import { updateMixnodeCostParams, vestingUpdateMixnodeCostParams } from '../../requests';
 import { AppContext } from '../../context/main';
 import { Console } from '../../utils/console';
+import { attachDefaultOperatingCost } from '../../utils';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
   <Grid container justifyContent="space-between">
@@ -99,6 +100,18 @@ export const SystemVariables = ({
     }
   };
 
+  const updateMixnodeProfitMargin = async (profitMarginPercent: string) => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(profitMarginPercent);
+    await updateMixnodeCostParams(defaultCostParams);
+  };
+
+  const vestingUpdateMixnodeProfitMargin = async (profitMarginPercent: string) => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(profitMarginPercent);
+    await vestingUpdateMixnodeCostParams(defaultCostParams);
+  };
+
   if (!mixnodeDetails) return null;
 
   return (
@@ -162,7 +175,10 @@ export const SystemVariables = ({
           variant="contained"
           color="primary"
           onClick={handleSubmit((data) =>
-            onSubmit(data.profitMarginPercent, ownership.vestingPledge ? vestingUpdateMixnode : updateMixnode),
+            onSubmit(
+              data.profitMarginPercent,
+              ownership.vestingPledge ? updateMixnodeProfitMargin : vestingUpdateMixnodeProfitMargin,
+            ),
           )}
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}

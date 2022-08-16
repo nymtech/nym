@@ -56,7 +56,6 @@ impl PacketListener {
         while !shutdown_listener.is_shutdown() {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
-            let handler_shutdown_listener = self.shutdown.clone();
 
             tokio::select! {
                 socket = listener.accept() => {
@@ -64,7 +63,7 @@ impl PacketListener {
                         Ok((socket, remote_addr)) => {
                             debug!("New verloc connection from {}", remote_addr);
 
-                            tokio::spawn(connection_handler.handle_connection(socket, remote_addr, handler_shutdown_listener));
+                            tokio::spawn(connection_handler.handle_connection(socket, remote_addr));
                         }
                         Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
                     }
@@ -91,42 +90,35 @@ impl ConnectionHandler {
         self: Arc<Self>,
         conn: TcpStream,
         remote: SocketAddr,
-        mut shutdown_listener: ShutdownListener,
     ) {
         debug!("Starting connection handler for {:?}", remote);
 
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
-        while !shutdown_listener.is_shutdown() {
-            tokio::select! {
-                Some(echo_packet) = framed_conn.next() => {
-                    // handle echo packet
-                    let reply_packet = match echo_packet {
-                        Ok(echo_packet) => self.handle_echo_packet(echo_packet),
-                        Err(err) => {
-                            error!(
-                                "The socket connection got corrupted with error: {}. Closing the socket",
-                                err
-                            );
-                            return;
-                        }
-                    };
-
-                    // write back the reply (note the lack of framing)
-                    if let Err(err) = framed_conn
-                        .get_mut()
-                        .write_all(reply_packet.to_bytes().as_ref())
-                        .await
-                    {
-                        error!(
-                            "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
-                            err
-                        );
-                        return;
-                    }
-                },
-                _ = shutdown_listener.recv() => {
-                    trace!("ConnectionHandler: Shutdown received");
+		//No need (while !suhutdown) here. FIN packet never reach if client close the connection. Socket state will CLOSE_WAIT "forever"
+        while let Some(echo_packet) = framed_conn.next().await {
+            // handle echo packet
+            let reply_packet = match echo_packet {
+                Ok(echo_packet) => self.handle_echo_packet(echo_packet),
+                Err(err) => {
+                    error!(
+                        "The socket connection got corrupted with error: {}. Closing the socket",
+                        err
+                    );
+                    return;
                 }
+            };
+
+            // write back the reply (note the lack of framing)
+            if let Err(err) = framed_conn
+                .get_mut()
+                .write_all(reply_packet.to_bytes().as_ref())
+                .await
+            {
+                error!(
+                    "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
+                    err
+                );
+                return;
             }
         }
     }

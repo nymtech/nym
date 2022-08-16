@@ -1008,13 +1008,13 @@ mod tests {
                 .unwrap()
                 .is_none());
             let expected = UnbondedMixnode {
-                identity: mix_details.identity().to_string(),
+                identity_key: mix_details.identity().to_string(),
                 owner: Addr::unchecked(owner),
                 unbonding_height: env.block.height,
             };
             assert_eq!(
                 expected,
-                mixnodes_storage::UNBONDED_MIXNODES
+                mixnodes_storage::unbonded_mixnodes()
                     .load(test.deps().storage, mix_id)
                     .unwrap()
             );

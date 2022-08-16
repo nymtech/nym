@@ -131,11 +131,11 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
     let identity = current_details.bond_information.identity().to_owned();
     let owner = current_details.bond_information.owner().to_owned();
     // save minimal information about this mixnode
-    storage::UNBONDED_MIXNODES.save(
+    storage::unbonded_mixnodes().save(
         storage,
         node_id,
         &UnbondedMixnode {
-            identity,
+            identity_key: identity,
             owner,
             unbonding_height: env.block.height,
         },
@@ -422,11 +422,11 @@ mod tests {
         assert!(mix_rewarding.is_none());
 
         // unbonded details are inserted
-        let unbonded_details = storage::UNBONDED_MIXNODES
+        let unbonded_details = storage::unbonded_mixnodes()
             .load(test.deps().storage, mix_id)
             .unwrap();
         let expected = UnbondedMixnode {
-            identity: bond1.mix_node.identity_key,
+            identity_key: bond1.mix_node.identity_key,
             owner: bond1.owner,
             unbonding_height: env.block.height,
         };
@@ -455,11 +455,11 @@ mod tests {
         assert_eq!(mix_rewarding.unique_delegations, 1);
 
         // unbonded details are inserted
-        let unbonded_details = storage::UNBONDED_MIXNODES
+        let unbonded_details = storage::unbonded_mixnodes()
             .load(test.deps().storage, mix_id_leftover)
             .unwrap();
         let expected = UnbondedMixnode {
-            identity: bond2.mix_node.identity_key,
+            identity_key: bond2.mix_node.identity_key,
             owner: bond2.owner,
             unbonding_height: env.block.height,
         };

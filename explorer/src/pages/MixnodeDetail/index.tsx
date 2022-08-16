@@ -139,12 +139,7 @@ const PageMixnodeDetailWithState: React.FC = () => {
           {uptimeStory && (
             <ContentCard title="Routing Score">
               {uptimeStory.error && <ComponentError text="There was a problem retrieving routing score." />}
-              <UptimeChart
-                loading={uptimeStory.isLoading}
-                xLabel="date"
-                yLabel="Routing Score"
-                uptimeStory={uptimeStory}
-              />
+              <UptimeChart loading={uptimeStory.isLoading} xLabel="date" uptimeStory={uptimeStory} />
             </ContentCard>
           )}
         </Grid>

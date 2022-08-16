@@ -8,7 +8,7 @@ import { ApiState, UptimeStoryResponse } from '../typeDefs/explorer-api';
 interface ChartProps {
   title?: string;
   xLabel: string;
-  yLabel: string;
+  yLabel?: string;
   uptimeStory: ApiState<UptimeStoryResponse>;
   loading: boolean;
 }

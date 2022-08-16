@@ -573,13 +573,13 @@ impl From<Layer> for String {
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct UnbondedMixnode {
     pub identity_key: IdentityKey,
-    
+
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub owner: Addr,
-    
+
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub proxy: Option<Addr>,
-    
+
     pub unbonding_height: u64,
 }
 

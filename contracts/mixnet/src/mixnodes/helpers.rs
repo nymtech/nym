@@ -130,6 +130,8 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
 
     let identity = current_details.bond_information.identity().to_owned();
     let owner = current_details.bond_information.owner().to_owned();
+    let proxy = current_details.bond_information.proxy.to_owned();
+
     // save minimal information about this mixnode
     storage::unbonded_mixnodes().save(
         storage,
@@ -137,6 +139,7 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
         &UnbondedMixnode {
             identity_key: identity,
             owner,
+            proxy,
             unbonding_height: env.block.height,
         },
     )?;
@@ -428,6 +431,7 @@ mod tests {
         let expected = UnbondedMixnode {
             identity_key: bond1.mix_node.identity_key,
             owner: bond1.owner,
+            proxy: None,
             unbonding_height: env.block.height,
         };
         assert_eq!(unbonded_details, expected);
@@ -461,6 +465,7 @@ mod tests {
         let expected = UnbondedMixnode {
             identity_key: bond2.mix_node.identity_key,
             owner: bond2.owner,
+            proxy: None,
             unbonding_height: env.block.height,
         };
         assert_eq!(unbonded_details, expected);

@@ -101,6 +101,34 @@ pub trait MixnetQueryClient {
             .await
     }
 
+    async fn get_unbonded_by_owner_paged(
+        &self,
+        owner: &AccountId,
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    ) -> Result<PagedUnbondedMixnodesResponse, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByOwner {
+            owner: owner.to_string(),
+            limit,
+            start_after,
+        })
+        .await
+    }
+
+    async fn get_unbonded_by_identity_paged(
+        &self,
+        identity_key: String,
+        limit: Option<u32>,
+        start_after: Option<NodeId>,
+    ) -> Result<PagedUnbondedMixnodesResponse, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
+            identity_key,
+            limit,
+            start_after,
+        })
+        .await
+    }
+
     async fn get_owned_mixnode(
         &self,
         address: &AccountId,

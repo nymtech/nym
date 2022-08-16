@@ -1010,6 +1010,7 @@ mod tests {
             let expected = UnbondedMixnode {
                 identity_key: mix_details.identity().to_string(),
                 owner: Addr::unchecked(owner),
+                proxy: None,
                 unbonding_height: env.block.height,
             };
             assert_eq!(

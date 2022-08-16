@@ -113,6 +113,66 @@ pub fn query_unbonded_mixnodes_paged(
     ))
 }
 
+pub fn query_unbonded_mixnodes_by_owner_paged(
+    deps: Deps<'_>,
+    owner: String,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> StdResult<PagedUnbondedMixnodesResponse> {
+    let owner = deps.api.addr_validate(&owner)?;
+
+    let limit = limit
+        .unwrap_or(UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT)
+        .min(UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::unbonded_mixnodes()
+        .idx
+        .owner
+        .prefix(owner)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = nodes.last().map(|res| res.0);
+
+    Ok(PagedUnbondedMixnodesResponse::new(
+        nodes,
+        limit,
+        start_next_after,
+    ))
+}
+
+pub fn query_unbonded_mixnodes_by_identity_paged(
+    deps: Deps<'_>,
+    identity_key: String,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> StdResult<PagedUnbondedMixnodesResponse> {
+    let limit = limit
+        .unwrap_or(UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT)
+        .min(UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let nodes = storage::unbonded_mixnodes()
+        .idx
+        .identity_key
+        .prefix(identity_key)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = nodes.last().map(|res| res.0);
+
+    Ok(PagedUnbondedMixnodesResponse::new(
+        nodes,
+        limit,
+        start_next_after,
+    ))
+}
+
 pub fn query_owned_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;
     let mixnode_details = get_mixnode_details_by_owner(deps.storage, validated_addr.clone())?;
@@ -514,6 +574,7 @@ pub(crate) mod tests {
                         &UnbondedMixnode {
                             identity_key: format!("dummy{}", id),
                             owner: Addr::unchecked(format!("dummy{}", id)),
+                            proxy: None,
                             unbonding_height: 123,
                         },
                     )
@@ -562,6 +623,519 @@ pub(crate) mod tests {
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.nodes.len());
+        }
+    }
+
+    #[cfg(test)]
+    mod unbonded_mixnodes_by_owner {
+        use super::*;
+        use cosmwasm_std::Addr;
+        use mixnet_contract_common::mixnode::UnbondedMixnode;
+
+        fn add_unbonded_with_owner(storage: &mut dyn Storage, id: NodeId, owner: &str) {
+            storage::unbonded_mixnodes()
+                .save(
+                    storage,
+                    id,
+                    &UnbondedMixnode {
+                        identity_key: format!("dummy{}", id),
+                        owner: Addr::unchecked(owner),
+                        proxy: None,
+                        unbonding_height: 123,
+                    },
+                )
+                .unwrap();
+        }
+
+        #[test]
+        fn obeys_limits() {
+            let mut deps = test_helpers::init_contract();
+            let _env = mock_env();
+            let mut rng = test_helpers::test_rng();
+            let limit = 2;
+            let owner = "owner";
+
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
+                &mut rng,
+                deps.as_mut(),
+                owner,
+                1000,
+            );
+            let page1 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                None,
+                Some(limit),
+            )
+            .unwrap();
+            assert_eq!(limit, page1.nodes.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut deps = test_helpers::init_contract();
+            let _env = mock_env();
+            let mut rng = test_helpers::test_rng();
+            let owner = "owner";
+
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
+                &mut rng,
+                deps.as_mut(),
+                owner,
+                1000,
+            );
+
+            // query without explicitly setting a limit
+            let page1 =
+                query_unbonded_mixnodes_by_owner_paged(deps.as_ref(), owner.into(), None, None)
+                    .unwrap();
+
+            assert_eq!(
+                UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT,
+                page1.nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut deps = test_helpers::init_contract();
+            let _env = mock_env();
+            let mut rng = test_helpers::test_rng();
+            let owner = "owner";
+
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
+                &mut rng,
+                deps.as_mut(),
+                owner,
+                1000,
+            );
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 1000;
+            let page1 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                None,
+                Some(crazy_limit),
+            )
+            .unwrap();
+
+            // we default to a decent sized upper bound instead
+            assert_eq!(
+                UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT,
+                page1.nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn pagination_works() {
+            // as we add mixnodes, we're always inserting them in ascending manner due to monotonically increasing id
+            let mut deps = test_helpers::init_contract();
+            let owner = "owner";
+            add_unbonded_with_owner(deps.as_mut().storage, 1, owner);
+
+            let per_page = 2;
+            let page1 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.nodes.len());
+
+            // save another
+            add_unbonded_with_owner(deps.as_mut().storage, 2, owner);
+
+            // page1 should have 2 results on it
+            let page1 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.nodes.len());
+
+            add_unbonded_with_owner(deps.as_mut().storage, 3, owner);
+
+            // page1 still has the same 2 results
+            let another_page1 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, another_page1.nodes.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.nodes.len());
+
+            // save another one
+            add_unbonded_with_owner(deps.as_mut().storage, 4, owner);
+            let page2 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                owner.into(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.nodes.len());
+        }
+
+        #[test]
+        fn only_retrieves_nodes_with_specific_owner() {
+            let mut deps = test_helpers::init_contract();
+            let owner1 = "owner1";
+            let owner2 = "owner2";
+            let owner3 = "owner3";
+            let owner4 = "owner4";
+
+            add_unbonded_with_owner(deps.as_mut().storage, 1, owner1);
+            add_unbonded_with_owner(deps.as_mut().storage, 2, owner1);
+            add_unbonded_with_owner(deps.as_mut().storage, 3, owner2);
+            add_unbonded_with_owner(deps.as_mut().storage, 4, owner1);
+            add_unbonded_with_owner(deps.as_mut().storage, 5, owner3);
+            add_unbonded_with_owner(deps.as_mut().storage, 6, owner3);
+            add_unbonded_with_owner(deps.as_mut().storage, 7, owner4);
+            add_unbonded_with_owner(deps.as_mut().storage, 8, owner2);
+            add_unbonded_with_owner(deps.as_mut().storage, 9, owner1);
+            add_unbonded_with_owner(deps.as_mut().storage, 10, owner3);
+
+            let expected_ids1 = vec![1, 2, 4, 9];
+            let expected_ids2 = vec![3, 8];
+            let expected_ids3 = vec![5, 6, 10];
+            let expected_ids4 = vec![7];
+
+            let res1 =
+                query_unbonded_mixnodes_by_owner_paged(deps.as_ref(), owner1.into(), None, None)
+                    .unwrap()
+                    .nodes
+                    .into_iter()
+                    .map(|r| r.0)
+                    .collect::<Vec<_>>();
+            assert_eq!(res1, expected_ids1);
+
+            let res2 =
+                query_unbonded_mixnodes_by_owner_paged(deps.as_ref(), owner2.into(), None, None)
+                    .unwrap()
+                    .nodes
+                    .into_iter()
+                    .map(|r| r.0)
+                    .collect::<Vec<_>>();
+            assert_eq!(res2, expected_ids2);
+
+            let res3 =
+                query_unbonded_mixnodes_by_owner_paged(deps.as_ref(), owner3.into(), None, None)
+                    .unwrap()
+                    .nodes
+                    .into_iter()
+                    .map(|r| r.0)
+                    .collect::<Vec<_>>();
+            assert_eq!(res3, expected_ids3);
+
+            let res4 =
+                query_unbonded_mixnodes_by_owner_paged(deps.as_ref(), owner4.into(), None, None)
+                    .unwrap()
+                    .nodes
+                    .into_iter()
+                    .map(|r| r.0)
+                    .collect::<Vec<_>>();
+            assert_eq!(res4, expected_ids4);
+
+            let res5 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                "doesnt-exist".into(),
+                None,
+                None,
+            )
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>();
+            assert!(res5.is_empty());
+        }
+    }
+
+    #[cfg(test)]
+    mod unbonded_mixnodes_by_identity {
+        use super::*;
+        use cosmwasm_std::Addr;
+        use mixnet_contract_common::mixnode::UnbondedMixnode;
+
+        fn add_unbonded_with_identity(storage: &mut dyn Storage, id: NodeId, identity: &str) {
+            storage::unbonded_mixnodes()
+                .save(
+                    storage,
+                    id,
+                    &UnbondedMixnode {
+                        identity_key: identity.to_string(),
+                        owner: Addr::unchecked(format!("dummy{}", id)),
+                        proxy: None,
+                        unbonding_height: 123,
+                    },
+                )
+                .unwrap();
+        }
+
+        #[test]
+        fn obeys_limits() {
+            let mut deps = test_helpers::init_contract();
+            let _env = mock_env();
+            let mut rng = test_helpers::test_rng();
+            let limit = 2;
+            let identity = "foomp123";
+
+            test_helpers::add_dummy_unbonded_mixnodes_with_identity(
+                &mut rng,
+                deps.as_mut(),
+                identity,
+                1000,
+            );
+            let page1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                None,
+                Some(limit),
+            )
+            .unwrap();
+            assert_eq!(limit, page1.nodes.len() as u32);
+        }
+
+        #[test]
+        fn has_default_limit() {
+            let mut deps = test_helpers::init_contract();
+            let _env = mock_env();
+            let mut rng = test_helpers::test_rng();
+            let identity = "foomp123";
+            test_helpers::add_dummy_unbonded_mixnodes_with_identity(
+                &mut rng,
+                deps.as_mut(),
+                identity,
+                1000,
+            );
+
+            // query without explicitly setting a limit
+            let page1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                None,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT,
+                page1.nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn has_max_limit() {
+            let mut deps = test_helpers::init_contract();
+            let _env = mock_env();
+            let mut rng = test_helpers::test_rng();
+            let identity = "foomp123";
+            test_helpers::add_dummy_unbonded_mixnodes_with_identity(
+                &mut rng,
+                deps.as_mut(),
+                identity,
+                1000,
+            );
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 1000;
+            let page1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                None,
+                Some(crazy_limit),
+            )
+            .unwrap();
+
+            // we default to a decent sized upper bound instead
+            assert_eq!(
+                UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT,
+                page1.nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn pagination_works() {
+            // as we add mixnodes, we're always inserting them in ascending manner due to monotonically increasing id
+            let mut deps = test_helpers::init_contract();
+            let identity = "foomp123";
+
+            add_unbonded_with_identity(deps.as_mut().storage, 1, identity);
+
+            let per_page = 2;
+            let page1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.nodes.len());
+
+            // save another
+            add_unbonded_with_identity(deps.as_mut().storage, 2, identity);
+
+            // page1 should have 2 results on it
+            let page1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.nodes.len());
+
+            add_unbonded_with_identity(deps.as_mut().storage, 3, identity);
+
+            // page1 still has the same 2 results
+            let another_page1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                None,
+                Some(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, another_page1.nodes.len());
+            assert_eq!(page1, another_page1);
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.nodes.len());
+
+            // save another one
+            add_unbonded_with_identity(deps.as_mut().storage, 4, identity);
+            let page2 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity.into(),
+                Some(start_after),
+                Some(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.nodes.len());
+        }
+
+        #[test]
+        fn only_retrieves_nodes_with_specific_identity_key() {
+            let mut deps = test_helpers::init_contract();
+            let identity1 = "identity1";
+            let identity2 = "identity2";
+            let identity3 = "identity3";
+            let identity4 = "identity4";
+
+            add_unbonded_with_identity(deps.as_mut().storage, 1, identity1);
+            add_unbonded_with_identity(deps.as_mut().storage, 2, identity1);
+            add_unbonded_with_identity(deps.as_mut().storage, 3, identity2);
+            add_unbonded_with_identity(deps.as_mut().storage, 4, identity1);
+            add_unbonded_with_identity(deps.as_mut().storage, 5, identity3);
+            add_unbonded_with_identity(deps.as_mut().storage, 6, identity3);
+            add_unbonded_with_identity(deps.as_mut().storage, 7, identity4);
+            add_unbonded_with_identity(deps.as_mut().storage, 8, identity2);
+            add_unbonded_with_identity(deps.as_mut().storage, 9, identity1);
+            add_unbonded_with_identity(deps.as_mut().storage, 10, identity3);
+
+            let expected_ids1 = vec![1, 2, 4, 9];
+            let expected_ids2 = vec![3, 8];
+            let expected_ids3 = vec![5, 6, 10];
+            let expected_ids4 = vec![7];
+
+            let res1 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity1.into(),
+                None,
+                None,
+            )
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>();
+            assert_eq!(res1, expected_ids1);
+
+            let res2 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity2.into(),
+                None,
+                None,
+            )
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>();
+            assert_eq!(res2, expected_ids2);
+
+            let res3 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity3.into(),
+                None,
+                None,
+            )
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>();
+            assert_eq!(res3, expected_ids3);
+
+            let res4 = query_unbonded_mixnodes_by_identity_paged(
+                deps.as_ref(),
+                identity4.into(),
+                None,
+                None,
+            )
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>();
+            assert_eq!(res4, expected_ids4);
+
+            let res5 = query_unbonded_mixnodes_by_owner_paged(
+                deps.as_ref(),
+                "doesnt-exist".into(),
+                None,
+                None,
+            )
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>();
+            assert!(res5.is_empty());
         }
     }
 

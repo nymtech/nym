@@ -593,7 +593,34 @@ pub mod test_helpers {
         n: usize,
     ) {
         for i in 0..n {
-            add_unbonded_mixnode(&mut rng, deps.branch(), &format!("owner{}", i));
+            add_unbonded_mixnode(&mut rng, deps.branch(), None, &format!("owner{}", i));
+        }
+    }
+
+    pub fn add_dummy_unbonded_mixnodes_with_owner(
+        mut rng: impl RngCore + CryptoRng,
+        mut deps: DepsMut<'_>,
+        owner: &str,
+        n: usize,
+    ) {
+        for _ in 0..n {
+            add_unbonded_mixnode(&mut rng, deps.branch(), None, owner);
+        }
+    }
+
+    pub fn add_dummy_unbonded_mixnodes_with_identity(
+        mut rng: impl RngCore + CryptoRng,
+        mut deps: DepsMut<'_>,
+        identity: &str,
+        n: usize,
+    ) {
+        for i in 0..n {
+            add_unbonded_mixnode(
+                &mut rng,
+                deps.branch(),
+                Some(identity),
+                &format!("owner{}", i),
+            );
         }
     }
 
@@ -601,6 +628,7 @@ pub mod test_helpers {
     pub fn add_unbonded_mixnode(
         mut rng: impl RngCore + CryptoRng,
         deps: DepsMut<'_>,
+        identity_key: Option<&str>,
         owner: &str,
     ) -> NodeId {
         let id = loop {
@@ -616,8 +644,11 @@ pub mod test_helpers {
                 deps.storage,
                 id,
                 &UnbondedMixnode {
-                    identity_key: format!("identity{}", id),
+                    identity_key: identity_key
+                        .unwrap_or(&*format!("identity{}", id))
+                        .to_string(),
                     owner: Addr::unchecked(owner),
+                    proxy: None,
                     unbonding_height: 12345,
                 },
             )

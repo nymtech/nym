@@ -301,6 +301,30 @@ pub fn query(
         QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_binary(
             &crate::mixnodes::queries::query_unbonded_mixnodes_paged(deps, start_after, limit)?,
         ),
+        QueryMsg::GetUnbondedMixNodesByOwner {
+            owner,
+            limit,
+            start_after,
+        } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_by_owner_paged(
+                deps,
+                owner,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetUnbondedMixNodesByIdentityKey {
+            identity_key,
+            limit,
+            start_after,
+        } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_by_identity_paged(
+                deps,
+                identity_key,
+                start_after,
+                limit,
+            )?,
+        ),
         QueryMsg::GetOwnedMixnode { address } => to_binary(
             &crate::mixnodes::queries::query_owned_mixnode(deps, address)?,
         ),

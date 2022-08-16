@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use mixnet_contract_common::NodeId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
-use mixnet_contract_common::{NodeId, UnbondedMixnode};
 use url::Url;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
@@ -24,7 +22,11 @@ use crate::nymd::traits::MixnetQueryClient;
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
 #[cfg(feature = "nymd-client")]
-use mixnet_contract_common::{mixnode::MixNodeBond, Delegation, RewardedSetNodeStatus};
+use mixnet_contract_common::{
+    mixnode::MixNodeBond,
+    pending_events::{PendingEpochEvent, PendingIntervalEvent},
+    Delegation, RewardedSetNodeStatus, UnbondedMixnode,
+};
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
@@ -305,7 +307,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_unbonded_mixnodes_by_owner(
         &self,
-        owner: &AccountId,
+        owner: &cosmrs::AccountId,
     ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,

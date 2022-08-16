@@ -2,20 +2,14 @@ import React, { useContext, useEffect } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, DecCoin, MixNodeCostParams } from '@nymproject/types';
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { useForm } from 'react-hook-form';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
+import { attachDefaultOperatingCost, checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { TokenPoolSelector } from '../../../components';
 import { AppContext } from '../../../context/main';
-import {
-  bondMixNode,
-  getDefaultMixnodeCostParams,
-  simulateBondMixnode,
-  simulateVestingBondMixnode,
-  vestingBondMixNode,
-} from '../../../requests';
+import { bondMixNode, simulateBondMixnode, simulateVestingBondMixnode, vestingBondMixNode } from '../../../requests';
 import { mixnodeValidationSchema } from '../validationSchema';
 import { ConfirmationModal } from './ConfirmationModal';
 
@@ -85,9 +79,6 @@ export const MixnodeForm = ({
   }, [feeError]);
 
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
-
-  const attachDefaultOperatingCost = async (profitMarginPercent: string): Promise<MixNodeCostParams> =>
-    getDefaultMixnodeCostParams(profitMarginPercent);
 
   const handleValidateAndGetFee = async (data: TBondFormFields) => {
     if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {

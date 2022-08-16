@@ -1,9 +1,9 @@
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import { valid } from 'semver';
-import { isValidRawCoin, DecCoin } from '@nymproject/types';
+import { isValidRawCoin, DecCoin, MixNodeCostParams } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
-import { getLockedCoins, getSpendableCoins, userBalance } from '../requests';
+import { getDefaultMixnodeCostParams, getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
@@ -123,3 +123,6 @@ export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) 
 };
 
 export const isDecimal = (value: number) => value - Math.floor(value) !== 0;
+
+export const attachDefaultOperatingCost = async (profitMarginPercent: string): Promise<MixNodeCostParams> =>
+  getDefaultMixnodeCostParams(profitMarginPercent);

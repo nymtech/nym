@@ -1,8 +1,9 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { DelegationWithEverything, DecCoin, TransactionExecuteResult } from '@nymproject/types';
+import { DelegationWithEverything, DecCoin, TransactionExecuteResult, FeeDetails } from '@nymproject/types';
 import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
+import { TPoolOption } from '../../components';
 
 const SLEEP_MS = 1000;
 
@@ -72,12 +73,11 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     setTotalDelegations(newTotalDelegations);
   };
 
-  const addDelegation = async ({
-    identity,
-  }: {
-    identity: string;
-    amount: DecCoin;
-  }): Promise<TransactionExecuteResult> => {
+  const addDelegation = async (
+    data: { mix_id: number; amount: DecCoin },
+    _tokenPool: TPoolOption,
+    _fee?: FeeDetails,
+  ): Promise<TransactionExecuteResult> => {
     await mockSleep(SLEEP_MS);
     // mockDelegations.push({ ...newDelegation });
     await recalculate();
@@ -85,7 +85,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
 
     setTimeout(async () => {
       mockDelegations = mockDelegations.map((d) => {
-        if (d.node_identity === identity) {
+        if (d.mix_id === data.mix_id) {
           return { ...d, isPending: undefined };
         }
         return d;
@@ -152,10 +152,14 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     };
   };
 
-  const undelegate = async (mixnodeAddress: string): Promise<TransactionExecuteResult[]> => {
+  const undelegate = async (
+    mix_id: number,
+    _usesVestingContractTokens: boolean,
+    _fee?: FeeDetails,
+  ): Promise<TransactionExecuteResult[]> => {
     await mockSleep(SLEEP_MS);
     mockDelegations = mockDelegations.map((d) => {
-      if (d.node_identity === mixnodeAddress) {
+      if (d.mix_id === mix_id) {
         return { ...d, isPending: { blockHeight: 5678, actionType: 'undelegate' } };
       }
       return d;
@@ -164,7 +168,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     triggerStateUpdate();
 
     setTimeout(async () => {
-      mockDelegations = mockDelegations.filter((d) => d.node_identity !== mixnodeAddress);
+      mockDelegations = mockDelegations.filter((d) => d.mix_id !== mix_id);
       await recalculate();
       triggerStateUpdate();
     }, 3000);

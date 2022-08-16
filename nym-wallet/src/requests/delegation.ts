@@ -4,6 +4,7 @@ import {
   TransactionExecuteResult,
   DecCoin,
   FeeDetails,
+  Fee,
 } from '@nymproject/types';
 import { invokeWrapper } from './wrapper';
 
@@ -12,19 +13,21 @@ export const getMixNodeDelegationsForCurrentAccount = async () =>
 
 export const getDelegationSummary = async () => invokeWrapper<DelegationsSummaryResponse>('get_delegation_summary');
 
-export const undelegateFromMixnode = async (identity: string) =>
-  invokeWrapper<TransactionExecuteResult>('undelegate_from_mixnode', { identity });
+export const undelegateFromMixnode = async (mix_id: number, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('undelegate_from_mixnode', { mix_id, fee });
 
 export const undelegateAllFromMixnode = async (
-  identity: string,
+  mix_id: number,
   usesVestingContractTokens: boolean,
-  fee?: FeeDetails,
+  fee_liquid?: FeeDetails,
+  fee_vesting?: FeeDetails,
 ) =>
   invokeWrapper<TransactionExecuteResult[]>('undelegate_all_from_mixnode', {
-    identity,
+    mix_id,
     usesVestingContractTokens,
-    fee: fee?.fee,
+    fee_liquid,
+    fee_vesting,
   });
 
-export const delegateToMixnode = async ({ identity, amount }: { identity: string; amount: DecCoin }) =>
-  invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { identity, amount });
+export const delegateToMixnode = async (mix_id: number, amount: DecCoin, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { mix_id, amount, fee });

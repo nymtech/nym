@@ -1,5 +1,3 @@
-export interface TauriContractStateParams {
-  minimum_mixnode_pledge: string; // TODO: handle string on Rust operation
-  minimum_gateway_pledge: string;
-  minimum_mixnode_delegation: string | null;
-}
+import type { DecCoin } from "../../../../ts-packages/types/src/types/rust/DecCoin";
+
+export interface TauriContractStateParams { minimum_mixnode_pledge: DecCoin, minimum_gateway_pledge: DecCoin, minimum_mixnode_delegation: DecCoin | null, }

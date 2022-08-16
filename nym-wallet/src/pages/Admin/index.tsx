@@ -34,7 +34,7 @@ const AdminForm: React.FC<{
               label="Minumum mixnode bond"
               fullWidth
               error={!!errors.minimum_mixnode_pledge}
-              helperText={errors?.minimum_mixnode_pledge?.message}
+              helperText={`${errors?.minimum_mixnode_pledge?.amount?.message} ${errors?.minimum_mixnode_pledge?.denom?.message}`}
             />
           </Grid>
           <Grid item xs={12}>
@@ -47,7 +47,7 @@ const AdminForm: React.FC<{
               label="Minumum gateway bond"
               fullWidth
               error={!!errors.minimum_gateway_pledge}
-              helperText={errors?.minimum_gateway_pledge?.message}
+              helperText={`${errors?.minimum_gateway_pledge?.amount?.message} ${errors?.minimum_gateway_pledge?.denom?.message}`}
             />
           </Grid>
         </Grid>

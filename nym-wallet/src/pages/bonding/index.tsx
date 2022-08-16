@@ -78,7 +78,7 @@ const Bonding = () => {
     });
   };
 
-  const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
+  const handleUpdateProfitMargin = async (profitMargin: string, fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await updateMixnode(profitMargin, fee);
     setConfirmationDetails({

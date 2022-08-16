@@ -8,7 +8,7 @@ use nym_types::delegation::{
     Delegation, DelegationRecord, DelegationResult, DelegationWithEverything,
     DelegationsSummaryResponse,
 };
-use nym_types::deprecated::DelegationEvent;
+use nym_types::deprecated::{DelegationEvent, DelegationEventKind, WrappedDelegationEvent};
 use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
@@ -74,6 +74,7 @@ fn main() {
     do_export!(Balance);
     do_export!(Delegation);
     do_export!(DelegationEvent);
+    do_export!(DelegationEventKind);
     do_export!(DelegationRecord);
     do_export!(DelegationResult);
     do_export!(DelegationsSummaryResponse);
@@ -107,6 +108,7 @@ fn main() {
     do_export!(RpcTransactionResponse);
     do_export!(VestingAccountInfo);
     do_export!(VestingPeriod);
+    do_export!(WrappedDelegationEvent);
 
     // validator-api-requests
     do_export!(MixnodeCoreStatusResponse);

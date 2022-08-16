@@ -1,11 +1,11 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getDelegationSummary, undelegateAllFromMixnode } from 'src/requests/delegation';
 import {
-  DelegationEvent,
   DelegationWithEverything,
   FeeDetails,
   DecCoin,
   TransactionExecuteResult,
+  WrappedDelegationEvent,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
 import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
@@ -15,7 +15,7 @@ export type TDelegationContext = {
   isLoading: boolean;
   error?: string;
   delegations?: TDelegations;
-  pendingDelegations?: DelegationEvent[];
+  pendingDelegations?: WrappedDelegationEvent[];
   totalDelegations?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
@@ -60,7 +60,7 @@ export const DelegationContextProvider: FC<{
   const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
-  const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
+  const [pendingDelegations, setPendingDelegations] = useState<WrappedDelegationEvent[]>();
 
   const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
     try {

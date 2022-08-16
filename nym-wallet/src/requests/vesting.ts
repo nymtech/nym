@@ -70,15 +70,8 @@ export const vestingUpdateMixnodeCostParams = async (new_costs: MixNodeCostParam
 export const vestingUpdateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_update_mixnode_config', { update, fee });
 
-export const vestingDelegateToMixnode = async ({
-  mix_id,
-  amount,
-  fee,
-}: {
-  mix_id: number;
-  amount: DecCoin;
-  fee?: FeeDetails;
-}) => invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { mix_id, amount, fee: fee?.fee });
+export const vestingDelegateToMixnode = async (mix_id: number, amount: DecCoin, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { mix_id, amount, fee });
 
 export const vestingUndelegateFromMixnode = async (mix_id: number) =>
   invokeWrapper<TransactionExecuteResult>('vesting_undelegate_from_mixnode', { mix_id });

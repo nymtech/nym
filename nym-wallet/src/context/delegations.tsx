@@ -20,12 +20,12 @@ export type TDelegationContext = {
   totalRewards?: string;
   refresh: () => Promise<void>;
   addDelegation: (
-    data: { identity: string; amount: DecCoin },
+    data: { mix_id: number; amount: DecCoin },
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
   undelegate: (
-    identity: string,
+    mix_id: number,
     usesVestingContractTokens: boolean,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult[]>;
@@ -62,16 +62,15 @@ export const DelegationContextProvider: FC<{
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
 
-  const addDelegation = async (
-    data: { identity: string; amount: DecCoin },
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => {
+  const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
     try {
       let tx;
 
-      if (tokenPool === 'locked') tx = await vestingDelegateToMixnode({ ...data, fee });
-      else tx = await delegateToMixnode(data);
+      if (tokenPool === 'locked') {
+        tx = await vestingDelegateToMixnode(data.mix_id, data.amount, fee?.fee);
+      } else {
+        tx = await delegateToMixnode(data.mix_id, data.amount, fee?.fee);
+      }
 
       return tx;
     } catch (e) {

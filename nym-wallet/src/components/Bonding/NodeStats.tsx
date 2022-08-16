@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps } from '@mui/material';
 import { TBondedMixnode } from 'src/context';
-import { Cell, Pie, PieChart, Legend } from 'recharts';
+import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { NymCard } from '../NymCard';
 import { InfoTooltip } from '../InfoToolTip';
 
@@ -60,10 +60,9 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
 
   const renderLegend = () => (
     <Stack
-      position="relative"
-      top="1px"
       alignItems="center"
       maxWidth={200}
+      width={200}
       sx={{
         borderBottom: '1px solid #E8E9EB',
       }}
@@ -84,27 +83,36 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
         </Typography>
       }
     >
-      <Grid container spacing={4} alignItems="center" minWidth="100%">
-        <Grid item xs={3} md={3}>
-          <PieChart width={200} height={110}>
-            <Pie
-              cy={100}
-              data={data}
-              startAngle={180}
-              endAngle={0}
-              innerRadius={58}
-              outerRadius={78}
-              dataKey="value"
-              stroke="none"
-            >
-              {data.map(({ key }, index) => (
-                <Cell key={`cell-${key}`} fill={colors[index]} />
-              ))}
-            </Pie>
-            <Legend verticalAlign="bottom" content={renderLegend} />
-          </PieChart>
+      <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
+        <Grid item xs={12} sm={12} md={6} lg={3}>
+          <ResponsiveContainer width="100%" height={100}>
+            <PieChart width={200} height={100}>
+              <Pie
+                cy={90}
+                data={data}
+                startAngle={180}
+                endAngle={0}
+                innerRadius={58}
+                outerRadius={78}
+                dataKey="value"
+                stroke="none"
+              >
+                {data.map(({ key }, index) => (
+                  <Cell key={`cell-${key}`} fill={colors[index]} />
+                ))}
+              </Pie>
+              <Legend
+                verticalAlign="bottom"
+                content={renderLegend}
+                wrapperStyle={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         </Grid>
-        <Grid item xs={3} md={4}>
+        <Grid item xs={12} sm={12} md={6} lg={4}>
           <StatRow label="Profit margin" tooltipText="TODO" value={`${profitMargin}%`} />
           <StatDivider />
           <StatRow label="Operator Cost" tooltipText="TODO" value={`${operatorCost} USD`} />
@@ -115,7 +123,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
             value={`~${estimatedRewards.amount} ${estimatedRewards.denom.toUpperCase()}`}
           />
         </Grid>
-        <Grid item xs={3} md={4}>
+        <Grid item xs={12} sm={12} md={12} lg={5}>
           <StatRow label="Node stake saturation" tooltipText="TODO" value={stakeSaturation} withProgress />
           <StatDivider />
           <StatRow

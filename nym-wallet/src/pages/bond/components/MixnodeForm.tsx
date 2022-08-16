@@ -2,14 +2,20 @@ import React, { useContext, useEffect } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, Grid, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, DecCoin } from '@nymproject/types';
+import { CurrencyDenom, DecCoin, MixNodeCostParams } from '@nymproject/types';
 import { useForm } from 'react-hook-form';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { TokenPoolSelector } from '../../../components';
 import { AppContext } from '../../../context/main';
-import { bondMixNode, simulateBondMixnode, simulateVestingBondMixnode, vestingBondMixNode } from '../../../requests';
+import {
+  bondMixNode,
+  getDefaultMixnodeCostParams,
+  simulateBondMixnode,
+  simulateVestingBondMixnode,
+  vestingBondMixNode,
+} from '../../../requests';
 import { mixnodeValidationSchema } from '../validationSchema';
 import { ConfirmationModal } from './ConfirmationModal';
 
@@ -19,7 +25,7 @@ type TBondFormFields = {
   ownerSignature: string;
   identityKey: string;
   sphinxKey: string;
-  profitMarginPercent: number;
+  profitMarginPercent: string;
   amount: DecCoin;
   host: string;
   version: string;
@@ -37,7 +43,7 @@ const defaultValues = {
   amount: { amount: '', denom: 'nym' as CurrencyDenom },
   host: '',
   version: '',
-  profitMarginPercent: 10,
+  profitMarginPercent: '10',
   mixPort: 1789,
   verlocPort: 1790,
   httpApiPort: 8000,
@@ -80,6 +86,9 @@ export const MixnodeForm = ({
 
   const watchAdvancedOptions = watch('withAdvancedOptions', defaultValues.withAdvancedOptions);
 
+  const attachDefaultOperatingCost = async (profitMarginPercent: string): Promise<MixNodeCostParams> =>
+    getDefaultMixnodeCostParams(profitMarginPercent);
+
   const handleValidateAndGetFee = async (data: TBondFormFields) => {
     if (data.tokenPool === 'balance' && !(await checkHasEnoughFunds(data.amount.amount || ''))) {
       return setError('amount.amount', { message: 'Not enough funds in wallet' });
@@ -88,6 +97,9 @@ export const MixnodeForm = ({
     if (data.tokenPool === 'locked' && !(await checkHasEnoughLockedTokens(data.amount.amount || ''))) {
       return setError('amount.amount', { message: 'Not enough locked tokens' });
     }
+
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(data.profitMarginPercent);
 
     try {
       await getFee(data.tokenPool === 'locked' ? simulateVestingBondMixnode : simulateBondMixnode, {
@@ -102,6 +114,7 @@ export const MixnodeForm = ({
           http_api_port: data.httpApiPort,
         },
         pledge: data.amount,
+        cost_params: defaultCostParams,
       });
     } catch (e) {
       onError(e as string);
@@ -110,6 +123,9 @@ export const MixnodeForm = ({
   };
 
   const onSubmit = async (data: TBondFormFields) => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(data.profitMarginPercent);
+
     const payload = {
       ownerSignature: data.ownerSignature,
       mixnode: {
@@ -123,6 +139,7 @@ export const MixnodeForm = ({
         http_api_port: data.httpApiPort,
       },
       pledge: data.amount,
+      cost_params: defaultCostParams,
       fee: fee?.fee,
     };
     try {

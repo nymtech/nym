@@ -109,7 +109,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const handleNewDelegation = async (
-    mixId: number,
+    mix_id: number,
     identityKey: string,
     amount: DecCoin,
     tokenPool: TPoolOption,
@@ -124,7 +124,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     try {
       const tx = await addDelegation(
         {
-          identity: identityKey,
+          mix_id,
           amount,
         },
         tokenPool,
@@ -153,7 +153,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const handleDelegateMore = async (
-    mixId: number,
+    mix_id: number,
     identityKey: string,
     amount: DecCoin,
     tokenPool: TPoolOption,
@@ -177,7 +177,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     try {
       const tx = await addDelegation(
         {
-          identity: identityKey,
+          mix_id,
           amount,
         },
         tokenPool,
@@ -217,7 +217,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     setCurrentDelegationListActionItem(undefined);
 
     try {
-      const txs = await undelegate(identityKey, usesVestingContractTokens, fee);
+      const txs = await undelegate(mixId, usesVestingContractTokens, fee);
       const balances = await getAllBalances();
 
       setConfirmationModalProps({

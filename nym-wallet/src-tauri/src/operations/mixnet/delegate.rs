@@ -9,9 +9,7 @@ use nym_types::currency::DecCoin;
 use nym_types::delegation::{
     Delegation, DelegationRecord, DelegationWithEverything, DelegationsSummaryResponse,
 };
-use nym_types::deprecated::{
-    convert_to_delegation_events, DelegationEvent, WrappedDelegationEvent,
-};
+use nym_types::deprecated::{convert_to_delegation_events, WrappedDelegationEvent};
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;

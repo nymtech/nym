@@ -4,10 +4,11 @@
 use crate::constants::{
     LAYER_DISTRIBUTION_KEY, MIXNODES_IDENTITY_IDX_NAMESPACE, MIXNODES_OWNER_IDX_NAMESPACE,
     MIXNODES_PK_NAMESPACE, MIXNODES_SPHINX_IDX_NAMESPACE, NODE_ID_COUNTER_KEY,
+    UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE, UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE,
     UNBONDED_MIXNODES_PK_NAMESPACE,
 };
 use cosmwasm_std::{StdResult, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex, UniqueIndex};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::UnbondedMixnode;
 use mixnet_contract_common::SphinxKey;
@@ -16,11 +17,57 @@ use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNod
 // keeps track of `node_id -> IdentityKey, Owner, unbonding_height` so we'd known a bit more about past mixnodes
 // if we ever decide it's too bloaty, we can deprecate it and start removing all data in
 // subsequent migrations
-pub(crate) const UNBONDED_MIXNODES: Map<NodeId, UnbondedMixnode> =
-    Map::new(UNBONDED_MIXNODES_PK_NAMESPACE);
+
+pub(crate) struct UnbondedMixnodeIndex<'a> {
+    pub(crate) owner: MultiIndex<'a, Addr, UnbondedMixnode, NodeId>,
+
+    pub(crate) identity_key: MultiIndex<'a, IdentityKey, UnbondedMixnode, NodeId>,
+}
+
+impl<'a> IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<UnbondedMixnode>> + '_> {
+        let v: Vec<&dyn Index<UnbondedMixnode>> = vec![&self.owner, &self.identity_key];
+        Box::new(v.into_iter())
+    }
+}
+
+pub(crate) fn unbonded_mixnodes<'a>(
+) -> IndexedMap<'a, NodeId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
+    let indexes = UnbondedMixnodeIndex {
+        owner: MultiIndex::new(
+            |d| d.owner.clone(),
+            UNBONDED_MIXNODES_PK_NAMESPACE,
+            UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE,
+        ),
+        identity_key: MultiIndex::new(
+            |d| d.identity_key.clone(),
+            UNBONDED_MIXNODES_PK_NAMESPACE,
+            UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE,
+        ),
+    };
+    IndexedMap::new(UNBONDED_MIXNODES_PK_NAMESPACE, indexes)
+}
 
 pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
 pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new(NODE_ID_COUNTER_KEY);
+
+pub(crate) struct MixnodeBondIndex<'a> {
+    pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,
+
+    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, MixNodeBond>,
+
+    pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, MixNodeBond>,
+}
+
+// IndexList is just boilerplate code for fetching a struct's indexes
+// note that from my understanding this will be converted into a macro at some point in the future
+impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<MixNodeBond>> + '_> {
+        let v: Vec<&dyn Index<MixNodeBond>> =
+            vec![&self.owner, &self.identity_key, &self.sphinx_key];
+        Box::new(v.into_iter())
+    }
+}
 
 // mixnode_bonds() is the storage access function.
 pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
@@ -66,24 +113,6 @@ pub(crate) fn next_mixnode_id_counter(store: &mut dyn Storage) -> StdResult<Node
     let id: NodeId = MIXNODE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     MIXNODE_ID_COUNTER.save(store, &id)?;
     Ok(id)
-}
-
-pub(crate) struct MixnodeBondIndex<'a> {
-    pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,
-
-    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, MixNodeBond>,
-
-    pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, MixNodeBond>,
-}
-
-// IndexList is just boilerplate code for fetching a struct's indexes
-// note that from my understanding this will be converted into a macro at some point in the future
-impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<MixNodeBond>> + '_> {
-        let v: Vec<&dyn Index<MixNodeBond>> =
-            vec![&self.owner, &self.identity_key, &self.sphinx_key];
-        Box::new(v.into_iter())
-    }
 }
 
 pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> StdResult<()> {

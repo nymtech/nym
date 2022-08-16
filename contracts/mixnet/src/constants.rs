@@ -61,7 +61,10 @@ pub(crate) const MIXNODES_PK_NAMESPACE: &str = "mnn";
 pub(crate) const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 pub(crate) const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
 pub(crate) const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+
 pub(crate) const UNBONDED_MIXNODES_PK_NAMESPACE: &str = "ubm";
+pub(crate) const UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE: &str = "umo";
+pub(crate) const UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "umi";
 
 pub(crate) const REWARDING_PARAMS_KEY: &str = "rparams";
 pub(crate) const PENDING_REWARD_POOL_KEY: &str = "prp";

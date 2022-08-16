@@ -572,7 +572,7 @@ impl From<Layer> for String {
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct UnbondedMixnode {
-    pub identity: IdentityKey,
+    pub identity_key: IdentityKey,
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub owner: Addr,
     pub unbonding_height: u64,

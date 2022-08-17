@@ -1,6 +1,6 @@
 import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { isGateway, isMixnode, Network, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
@@ -28,19 +28,6 @@ import {
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 
-const bonded: TBondedMixnode = {
-  name: 'Monster node',
-  identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
-  bond: { denom: 'nym', amount: '1234' },
-  delegators: 123,
-  operatorRewards: { denom: 'nym', amount: '12' },
-  profitMargin: 10,
-  stake: { denom: 'nym', amount: '99' },
-  stakeSaturation: 99,
-  status: 'active',
-};
-
-// TODO add relevant data
 export type TBondedMixnode = {
   name?: string;
   identityKey: string;
@@ -48,13 +35,12 @@ export type TBondedMixnode = {
   bond: DecCoin;
   stakeSaturation: number;
   profitMargin: number;
-  operatorRewards: DecCoin;
+  operatorRewards?: DecCoin;
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
 };
 
-// TODO add relevant data
 export interface TBondedGateway {
   name: string;
   identityKey: string;
@@ -173,7 +159,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
-        const operatorRewards = await getOperatorRewards(clientDetails?.client_address);
+        let operatorRewards;
+        try {
+          operatorRewards = await getOperatorRewards(clientDetails?.client_address);
+        } catch (e) {
+          console.warn(`get_operator_rewards request failed: ${e}`);
+        }
         if (data) {
           const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
             data.mix_node.identity_key,
@@ -195,6 +186,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           } as TBondedMixnode);
         }
       } catch (e: any) {
+        console.warn(e);
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
     }
@@ -211,7 +203,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             ip: data.gateway.host,
             location: data.gateway.location,
             bond: data.pledge_amount,
-            delegators: bonded.delegators,
             proxy: data.proxy,
           } as TBondedGateway);
         }

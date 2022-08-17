@@ -43,7 +43,9 @@ export const CompoundRewardsModal = ({
     >
       <ModalListItem
         label="Rewards to redeem"
-        value={`${node.operatorRewards.amount} ${node.operatorRewards.denom.toUpperCase()}`}
+        value={
+          node.operatorRewards ? `${node.operatorRewards.amount} ${node.operatorRewards.denom.toUpperCase()}` : '-'
+        }
         divider
       />
       <ModalFee fee={fee} isLoading={isFeeLoading} divider />

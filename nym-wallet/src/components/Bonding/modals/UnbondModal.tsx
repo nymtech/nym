@@ -61,7 +61,9 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
       {isMixnode(node) && (
         <ModalListItem
           label="Operator rewards"
-          value={`${node.operatorRewards.amount} ${node.operatorRewards.denom.toUpperCase()}`}
+          value={
+            node.operatorRewards ? `${node.operatorRewards.amount} ${node.operatorRewards.denom.toUpperCase()}` : '-'
+          }
           divider
         />
       )}

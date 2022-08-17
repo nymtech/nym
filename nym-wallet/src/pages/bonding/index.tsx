@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
@@ -16,9 +17,8 @@ import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/ty
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { PageLayout } from '../../layouts';
 import { BondingContextProvider, useBondingContext } from '../../context';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -43,6 +43,8 @@ const Bonding = () => {
     isLoading,
     checkOwnership,
   } = useBondingContext();
+
+  const navigate = useNavigate();
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -151,6 +153,7 @@ const Bonding = () => {
 
   return (
     <Box sx={{ mt: 4 }}>
+      <Button onClick={() => navigate('/bonding/node-settings')}>Open Settings</Button>
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (
@@ -213,15 +216,15 @@ const Bonding = () => {
         />
       )}
 
-      {/* {showModal === 'node-settings' && bondedNode && isMixnode(bondedNode) && ( */}
-      <NodeSettings
-        // currentPm={bondedNode.profitMargin}
-        // isVesting={Boolean(bondedNode.proxy)}
-        onConfirm={handleUpdateProfitMargin}
-        onClose={() => setShowModal(undefined)}
-        onError={handleError}
-      />
-      {/* )} */}
+      {showModal === 'node-settings' && bondedNode && isMixnode(bondedNode) && (
+        <NodeSettings
+          onConfirm={handleUpdateProfitMargin}
+          onClose={() => setShowModal(undefined)}
+          onError={handleError}
+          currentPm={bondedNode.profitMargin}
+          isVesting={Boolean(bondedNode.proxy)}
+        />
+      )}
 
       {confirmationDetails && confirmationDetails.status === 'success' && (
         <ConfirmationDetailsModal

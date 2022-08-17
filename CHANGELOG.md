@@ -2,6 +2,15 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
+
+[#1541]: https://github.com/nymtech/nym/pull/1541
+
+
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)
 
 ### Added

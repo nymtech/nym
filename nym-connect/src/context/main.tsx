@@ -83,8 +83,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const setServiceProvider = useCallback(async (newServiceProvider: ServiceProvider) => {
     await invoke('set_gateway', { gateway: newServiceProvider.gateway });
     await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
-    console.log('write SP in storage');
-    console.log(newServiceProvider);
     await setSpInStorage(newServiceProvider);
     setRawServiceProvider(newServiceProvider);
   }, []);
@@ -93,14 +91,28 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     try {
       const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
       if (spFromStorage) {
-        console.log('SP loaded from storage');
-        console.log(spFromStorage);
         setRawServiceProvider(spFromStorage);
       }
     } catch (e) {
       console.warn(e);
     }
   };
+
+  useEffect(() => {
+    const validityCheck = async () => {
+      if (services.length > 0 && serviceProvider) {
+        const isValid = services.some(({ items }) => items.some(({ id }) => id === serviceProvider.id));
+        if (!isValid) {
+          console.warn('invalid SP, cleaning local storage');
+          await forage.removeItem({
+            key: 'nym-connect-sp',
+          })();
+          setRawServiceProvider(undefined);
+        }
+      }
+    };
+    validityCheck();
+  }, [services, serviceProvider]);
 
   useEffect(() => {
     getSpFromStorage();

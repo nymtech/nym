@@ -89,8 +89,19 @@ export const ServiceProviderSelector: React.FC<{
         anchorEl={anchorEl}
         open={open}
         onClose={() => handleClose()}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
         MenuListProps={{
           'aria-labelledby': 'service-provider-button',
+          sx: {
+            minWidth: 160,
+          },
         }}
       >
         {servicesWithRandomSp.map(({ id, description, sp }) => (

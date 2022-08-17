@@ -1,8 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
+import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
@@ -36,7 +37,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>(ConnectionStatusKind.disconnected);
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
-  const [services, setServices] = React.useState<Services>();
+  const [services, setServices] = React.useState<Services>([]);
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
 
   useEffect(() => {
@@ -72,33 +73,59 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     await invoke('start_disconnecting');
   }, []);
 
+  const setSpInStorage = async (sp: ServiceProvider) => {
+    await forage.setItem({
+      key: 'nym-connect-sp',
+      value: sp,
+    } as any)();
+  };
+
   const setServiceProvider = useCallback(async (newServiceProvider: ServiceProvider) => {
     await invoke('set_gateway', { gateway: newServiceProvider.gateway });
     await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
+    console.log('write SP in storage');
+    console.log(newServiceProvider);
+    await setSpInStorage(newServiceProvider);
     setRawServiceProvider(newServiceProvider);
   }, []);
 
-  return (
-    <ClientContext.Provider
-      value={{
-        mode,
-        setMode,
-        connectionStatus,
-        setConnectionStatus,
-        connectionStats,
-        setConnectionStats,
-        connectedSince,
-        setConnectedSince,
-        startConnecting,
-        startDisconnecting,
-        services,
-        serviceProvider,
-        setServiceProvider,
-      }}
-    >
-      {children}
-    </ClientContext.Provider>
+  const getSpFromStorage = async () => {
+    try {
+      const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
+      if (spFromStorage) {
+        console.log('SP loaded from storage');
+        console.log(spFromStorage);
+        setRawServiceProvider(spFromStorage);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  useEffect(() => {
+    getSpFromStorage();
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      mode,
+      setMode,
+      connectionStatus,
+      setConnectionStatus,
+      connectionStats,
+      setConnectionStats,
+      connectedSince,
+      setConnectedSince,
+      startConnecting,
+      startDisconnecting,
+      services,
+      serviceProvider,
+      setServiceProvider,
+    }),
+    [mode, connectedSince, connectionStatus, connectionStats, connectedSince, services, serviceProvider],
   );
+
+  return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;
 };
 
 export const useClientContext = () => useContext(ClientContext);

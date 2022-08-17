@@ -101,16 +101,20 @@ pub type StakeSaturation = f32;
 )]
 pub enum SelectionChance {
     VeryHigh,
+    High,
     Moderate,
     Low,
+    VeryLow,
 }
 
 impl From<f64> for SelectionChance {
     fn from(p: f64) -> SelectionChance {
         match p {
-            p if p > 0.15 => SelectionChance::VeryHigh,
-            p if p >= 0.05 => SelectionChance::Moderate,
-            _ => SelectionChance::Low,
+            p if p >= 1. => SelectionChance::VeryHigh,
+            p if p > 0.9 => SelectionChance::High,
+            p if p > 0.7 => SelectionChance::Moderate,
+            p if p > 0.5 => SelectionChance::Low,
+            _ => SelectionChance::VeryLow,
         }
     }
 }
@@ -119,8 +123,10 @@ impl fmt::Display for SelectionChance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SelectionChance::VeryHigh => write!(f, "VeryHigh"),
+            SelectionChance::High => write!(f, "High"),
             SelectionChance::Moderate => write!(f, "Moderate"),
             SelectionChance::Low => write!(f, "Low"),
+            SelectionChance::VeryLow => write!(f, "VeryLow"),
         }
     }
 }

@@ -4,6 +4,8 @@ pub enum Error {
     EmptyListCumulStake,
     #[error("Sample point was unexpectedly out of bounds")]
     SamplePointOutOfBounds,
-    #[error("Norm computation failed on different size arrarys")]
+    #[error("Norm computation failed on different size arrays")]
     NormDifferenceSizeArrays,
+    #[error("Computed probabilities are fewer than input number of nodes")]
+    ResultsShorterThanInput,
 }

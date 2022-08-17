@@ -73,14 +73,14 @@ pub struct Cache<T> {
 }
 
 impl<T: Clone> Cache<T> {
-    fn new(value: T) -> Self {
+    pub(super) fn new(value: T) -> Self {
         Cache {
             value,
             as_at: current_unix_timestamp(),
         }
     }
 
-    fn update(&mut self, value: T) {
+    pub(super) fn update(&mut self, value: T) {
         self.value = value;
         self.as_at = current_unix_timestamp()
     }
@@ -271,7 +271,7 @@ impl<C> ValidatorCacheRefresher<C> {
                     }
                 }
                 _ = shutdown.recv() => {
-                    trace!("UpdateHandler: Received shutdown");
+                    trace!("ValidatorCacheRefresher: Received shutdown");
                 }
             }
         }

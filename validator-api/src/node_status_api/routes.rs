@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract_cache::Cache;
 use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
@@ -21,6 +22,7 @@ use validator_api_requests::models::{
 };
 
 use super::models::Uptime;
+use super::{InclusionProbabilities, NodeStatusCache};
 
 async fn average_mixnode_uptime(
     identity: &str,
@@ -288,6 +290,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
     }
 }
 
+// WIP(JON): replace this with the new one once we're happy with the behaviour
 #[openapi(tag = "status")]
 #[get("/mixnode/<identity>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
@@ -331,6 +334,26 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 }
 
 #[openapi(tag = "status")]
+#[get("/mixnode/<identity>/inclusion-probability2")]
+pub(crate) async fn get_mixnode_inclusion_probability2(
+    node_status_cache: &State<NodeStatusCache>,
+    identity: String,
+) -> Json<Option<InclusionProbabilityResponse>> {
+    node_status_cache
+        .inclusion_probabilities()
+        .await
+        .map(Cache::into_inner)
+        .and_then(|p| p.node(&identity).cloned())
+        .map(|p| {
+            Json(Some(InclusionProbabilityResponse {
+                in_active: p.in_active.into(),
+                in_reserve: p.in_reserve.into(),
+            }))
+        })
+        .unwrap_or(Json(None))
+}
+
+#[openapi(tag = "status")]
 #[get("/mixnode/<identity>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<ValidatorCache>,
@@ -367,4 +390,20 @@ pub(crate) async fn get_mixnode_avg_uptimes(
     }
 
     Ok(Json(response))
+}
+
+// WIP(JON): only during dev
+#[openapi(tag = "status")]
+#[get("/mixnodes/inclusion_probability")]
+pub(crate) async fn get_mixnode_inclusion_probabilities(
+    cache: &State<NodeStatusCache>,
+) -> Result<Json<InclusionProbabilities>, ErrorResponse> {
+    if let Some(prob) = cache.inclusion_probabilities().await {
+        Ok(Json(prob.into_inner()))
+    } else {
+        Err(ErrorResponse::new(
+            "No cached data (yet)".to_string(),
+            Status::NotFound,
+        ))
+    }
 }

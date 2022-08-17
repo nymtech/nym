@@ -1,0 +1,211 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use rocket::fairing::AdHoc;
+use serde::Serialize;
+use tap::TapFallible;
+use tokio::{
+    sync::RwLock,
+    time::{self, Instant},
+};
+
+use std::{sync::Arc, time::Duration};
+
+use mixnet_contract_common::{reward_params::EpochRewardParams, MixNodeBond};
+use task::ShutdownListener;
+
+use crate::contract_cache::{Cache, ValidatorCache};
+
+const CACHE_TIMOUT_MS: u64 = 100;
+
+// A node status cache suitable for caching values computed in one sweep, such as active set
+// inclusion probabilities that are computed for all mixnodes at the same time.
+//
+// The cache can be triggered to update on contract cache changes, and/or periodically on a timer.
+#[derive(Clone)]
+pub struct NodeStatusCache {
+    inner: Arc<RwLock<NodeStatusCacheInner>>,
+}
+
+struct NodeStatusCacheInner {
+    inclusion_probabilities: Cache<InclusionProbabilities>,
+}
+
+#[derive(Clone, Default, Serialize, schemars::JsonSchema)]
+pub struct InclusionProbabilities {
+    pub inclusion_probabilities: Vec<MixNodeInclusionProbability>,
+    pub samples: u64,
+    pub elapsed: Duration,
+}
+
+impl InclusionProbabilities {
+    pub fn node(&self, id: &str) -> Option<&MixNodeInclusionProbability> {
+        self.inclusion_probabilities.iter().find(|x| x.id == id)
+    }
+}
+
+#[derive(Clone, Serialize, schemars::JsonSchema)]
+pub struct MixNodeInclusionProbability {
+    pub id: String,
+    pub in_active: f64,
+    pub in_reserve: f64,
+}
+
+impl NodeStatusCache {
+    fn new() -> Self {
+        NodeStatusCache {
+            inner: Arc::new(RwLock::new(NodeStatusCacheInner::new())),
+        }
+    }
+
+    pub fn stage() -> AdHoc {
+        AdHoc::on_ignite("Node Status Cache", |rocket| async {
+            rocket.manage(Self::new())
+        })
+    }
+
+    async fn update_cache(&self, inclusion_probabilities: InclusionProbabilities) {
+        match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.write()).await {
+            Ok(mut cache) => {
+                cache
+                    .inclusion_probabilities
+                    .update(inclusion_probabilities);
+            }
+            Err(e) => error!("{e}"),
+        }
+    }
+
+    pub async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
+        match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.read()).await {
+            Ok(cache) => Some(cache.inclusion_probabilities.clone()),
+            Err(e) => {
+                error!("{e}");
+                None
+            }
+        }
+    }
+}
+
+impl NodeStatusCacheInner {
+    pub fn new() -> Self {
+        Self {
+            inclusion_probabilities: Default::default(),
+        }
+    }
+}
+
+// Long running task responsible of keeping the cache up-to-date.
+// WIP(JON): trigger on contract cache updates too
+pub struct NodeStatusCacheRefresher {
+    cache: NodeStatusCache,
+    caching_interval: Duration,
+
+    contract_cache: ValidatorCache,
+}
+
+impl NodeStatusCacheRefresher {
+    pub(crate) fn new(
+        cache: NodeStatusCache,
+        caching_interval: Duration,
+        contract_cache: ValidatorCache,
+    ) -> Self {
+        Self {
+            cache,
+            caching_interval,
+            contract_cache,
+        }
+    }
+
+    pub async fn run(&self, mut shutdown: ShutdownListener) {
+        let mut interval = time::interval(self.caching_interval);
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                _ = interval.tick() => {
+                    self.refresh_cache().await;
+                }
+                _ = shutdown.recv() => {
+                    log::trace!("NodeStatusCacheRefresher: Received shutdown");
+                }
+            }
+        }
+        log::info!("NodeStatusCacheRefresher: Exiting");
+    }
+
+    async fn refresh_cache(&self) {
+        log::info!("Updating node status cache");
+        let mixnode_bonds = self.contract_cache.mixnodes().await;
+        let params = self.contract_cache.epoch_reward_params().await.into_inner();
+        let inclusion_probabilities = compute_inclusion_probabilities(&mixnode_bonds, params);
+
+        let inclusion_probabilities = if let Some(p) = inclusion_probabilities {
+            p
+        } else {
+            error!("Failed to simulate selection probabilties for mixnodes, not updating cache");
+            return;
+        };
+
+        self.cache.update_cache(inclusion_probabilities).await;
+    }
+}
+
+fn compute_inclusion_probabilities(
+    mixnode_bonds: &[MixNodeBond],
+    params: EpochRewardParams,
+) -> Option<InclusionProbabilities> {
+    // Max number of samples in the Monte Carlo simulation
+    let max_samples = 5000;
+
+    let active_set_size = params
+        .active_set_size()
+        .try_into()
+        .expect("Active set size unexpectantly large!");
+    let standby_set_size = (params.rewarded_set_size() - params.active_set_size())
+        .try_into()
+        .expect("Active set size larger than rewarded set size, a contradiction!");
+
+    // Unzip list of total bonds into ids and bonds.
+    // We need to go through this zip/unzip procedure to make sure we have matching identities
+    // for the input to the simulator, which assumes the identity is the position in the vec
+    let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnode_bonds);
+
+    // Compute inclusion probabilitites and keep track of how long time it took.
+    let now = Instant::now();
+    let results = inclusion_probability::simulate_selection_probability_mixnodes(
+        &mixnode_total_bonds,
+        active_set_size,
+        standby_set_size,
+        max_samples,
+    );
+    let elapsed = now.elapsed();
+    let results = results.tap_err(|err| error!("{err}")).ok()?;
+
+    Some(InclusionProbabilities {
+        inclusion_probabilities: zip_ids_together_with_results(&ids, &results),
+        samples: results.samples.into(),
+        elapsed,
+    })
+}
+
+fn unzip_into_mixnode_ids_and_total_bonds(
+    mixnode_bonds: &[MixNodeBond],
+) -> (Vec<&String>, Vec<u128>) {
+    mixnode_bonds
+        .iter()
+        .filter_map(|m| m.total_bond().map(|b| (m.identity(), b)))
+        .unzip()
+}
+
+fn zip_ids_together_with_results(
+    ids: &[&String],
+    results: &inclusion_probability::SelectionProbability,
+) -> Vec<MixNodeInclusionProbability> {
+    ids.iter()
+        .zip(results.active_set_probability.iter())
+        .zip(results.reserve_set_probability.iter())
+        .map(|((id, a), r)| MixNodeInclusionProbability {
+            id: (*id).to_string(),
+            in_active: *a,
+            in_reserve: *r,
+        })
+        .collect()
+}

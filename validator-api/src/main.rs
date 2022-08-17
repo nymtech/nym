@@ -19,6 +19,7 @@ use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
 use contract_cache::ValidatorCache;
 use log::{info, warn};
+use node_status_api::NodeStatusCache;
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -470,7 +471,8 @@ async fn setup_rocket(
         .mount("/swagger", make_swagger_ui(&swagger::get_docs()))
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
-        .attach(ValidatorCache::stage());
+        .attach(ValidatorCache::stage())
+        .attach(NodeStatusCache::stage());
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
@@ -579,6 +581,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+    let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();
 
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
@@ -592,7 +595,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
 
-        // spawn the cache refresher
+        // spawn the validator cache refresher
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             signing_nymd_client.clone(),
             config.get_caching_interval(),
@@ -607,18 +610,28 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
         tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
     } else {
+        // Spawn the validator cache refresher.
+        // When the network monitor is not enabled, we spawn the validator cache refresher task
+        // with just a nymd client, in contrast to a signing client.
         let nymd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client,
             config.get_caching_interval(),
-            validator_cache,
+            validator_cache.clone(),
             None,
         );
-
         let shutdown_listener = shutdown.subscribe();
-        // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
     }
+
+    // Spawn the node status cache refresher
+    let validator_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
+        node_status_cache.clone(),
+        config.get_caching_interval(),
+        validator_cache,
+    );
+    let shutdown_listener = shutdown.subscribe();
+    tokio::spawn(async move { validator_api_cache_refresher.run(shutdown_listener).await });
 
     // launch the rocket!
     // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated

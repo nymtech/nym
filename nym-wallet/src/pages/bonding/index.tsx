@@ -213,15 +213,15 @@ const Bonding = () => {
         />
       )}
 
-      {showModal === 'node-settings' && bondedNode && isMixnode(bondedNode) && (
-        <NodeSettings
-          currentPm={bondedNode.profitMargin}
-          isVesting={Boolean(bondedNode.proxy)}
-          onConfirm={handleUpdateProfitMargin}
-          onClose={() => setShowModal(undefined)}
-          onError={handleError}
-        />
-      )}
+      {/* {showModal === 'node-settings' && bondedNode && isMixnode(bondedNode) && ( */}
+      <NodeSettings
+        // currentPm={bondedNode.profitMargin}
+        // isVesting={Boolean(bondedNode.proxy)}
+        onConfirm={handleUpdateProfitMargin}
+        onClose={() => setShowModal(undefined)}
+        onError={handleError}
+      />
+      {/* )} */}
 
       {confirmationDetails && confirmationDetails.status === 'success' && (
         <ConfirmationDetailsModal

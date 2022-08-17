@@ -19,13 +19,13 @@ export const NodeSettings = ({
   onClose,
   onError,
 }: {
-  currentPm: TBondedMixnode['profitMargin'];
-  isVesting: boolean;
+  currentPm?: TBondedMixnode['profitMargin'];
+  isVesting?: boolean;
   onConfirm: (profitMargin: number, fee?: FeeDetails) => Promise<void>;
   onClose: () => void;
   onError: (err: string) => void;
 }) => {
-  const [pm, setPm] = useState(currentPm.toString());
+  const [pm, setPm] = useState(currentPm?.toString());
   const [error, setError] = useState(false);
 
   const { fee, getFee, resetFeeState, isFeeLoading, feeError } = useGetFee();

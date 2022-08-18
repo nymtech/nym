@@ -33,13 +33,12 @@ export const ServiceProviderSelector: React.FC<{
     if (services && serviceProvider) {
       // retrieve the service corresponding to this service provider
       setService(
-        serviceProvider &&
-          services?.find((s) =>
-            s.items.some(
-              ({ id, address, gateway }) =>
-                id === serviceProvider.id && address === serviceProvider.address && gateway === serviceProvider.gateway,
-            ),
+        services.find((s) =>
+          s.items.some(
+            ({ id, address, gateway }) =>
+              id === serviceProvider.id && address === serviceProvider.address && gateway === serviceProvider.gateway,
           ),
+        ),
       );
     }
   }, [serviceProvider, services]);

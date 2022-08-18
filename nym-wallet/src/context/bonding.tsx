@@ -118,7 +118,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       stakeSaturation: 0,
       numberOfDelegators: 0,
     };
-
     try {
       const statusResponse = await getMixnodeStatus(identityKey);
       additionalDetails.status = statusResponse.status;
@@ -163,7 +162,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         try {
           operatorRewards = await getOperatorRewards(clientDetails?.client_address);
         } catch (e) {
-          console.warn(`get_operator_rewards request failed: ${e}`);
+          Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
           const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
@@ -186,7 +185,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           } as TBondedMixnode);
         }
       } catch (e: any) {
-        console.warn(e);
+        Console.warn(e);
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
     }
@@ -207,6 +206,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           } as TBondedGateway);
         }
       } catch (e: any) {
+        Console.warn(e);
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
     }
@@ -235,6 +235,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
       return tx;
     } catch (e: any) {
+      Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
@@ -256,6 +257,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
       return tx;
     } catch (e: any) {
+      Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
@@ -272,6 +274,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       if (bondedNode && isGateway(bondedNode) && bondedNode.proxy) tx = await vestingUnbondGateway(fee?.fee);
       if (bondedNode && isGateway(bondedNode) && !bondedNode.proxy) tx = await unbondGatewayRequest(fee?.fee);
     } catch (e) {
+      Console.warn(e);
       setError(`an error occurred: ${e as string}`);
     } finally {
       setIsLoading(false);
@@ -286,6 +289,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       if (bondedNode?.proxy) tx = await updateMixnodeVestingRequest(pm, fee?.fee);
       else tx = await updateMixnodeRequest(pm, fee?.fee);
     } catch (e: any) {
+      Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);

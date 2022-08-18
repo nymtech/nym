@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
@@ -16,9 +16,8 @@ import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/ty
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { PageLayout } from '../../layouts';
-import { BondingContextProvider, useBondingContext } from '../../context';
 import { Box } from '@mui/material';
+import { BondingContextProvider, useBondingContext } from '../../context';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -42,19 +41,31 @@ const Bonding = () => {
     compoundRewards,
     isLoading,
     checkOwnership,
+    error,
   } = useBondingContext();
+
+  useEffect(() => {
+    if (error) {
+      setShowModal(undefined);
+      setConfirmationDetails({
+        status: 'error',
+        title: 'An error occurred',
+        subtitle: error,
+      });
+    }
+  }, [error]);
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
     await checkOwnership();
   };
 
-  const handleError = (error: string) => {
+  const handleError = (e: string) => {
     setShowModal(undefined);
     setConfirmationDetails({
       status: 'error',
       title: 'An error occurred',
-      subtitle: error,
+      subtitle: e,
     });
   };
 

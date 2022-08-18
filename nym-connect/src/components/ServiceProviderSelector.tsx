@@ -30,8 +30,19 @@ export const ServiceProviderSelector: React.FC<{
   }, [currentSp]);
 
   useEffect(() => {
-    setService(serviceProvider && services?.find((s) => s.items.includes(serviceProvider)));
-  }, [serviceProvider]);
+    if (services && serviceProvider) {
+      // retrieve the service corresponding to this service provider
+      setService(
+        serviceProvider &&
+          services?.find((s) =>
+            s.items.some(
+              ({ id, address, gateway }) =>
+                id === serviceProvider.id && address === serviceProvider.address && gateway === serviceProvider.gateway,
+            ),
+          ),
+      );
+    }
+  }, [serviceProvider, services]);
 
   const handleClick = () => {
     setAnchorEl(textEl.current);

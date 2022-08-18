@@ -3,7 +3,7 @@ use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
     remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
-    save_gateway_pledge, save_withdrawn, DELEGATIONS, KEY,
+    save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
 };
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
@@ -260,5 +260,20 @@ impl Account {
             .range(storage, None, None, Order::Ascending)
             .filter_map(|x| x.ok())
             .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
+    }
+
+    pub fn total_delegations_at_timestamp(
+        &self,
+        storage: &dyn Storage,
+        start_time: BlockTimestampSecs,
+    ) -> Result<Uint128, ContractError> {
+        Ok(DELEGATIONS
+            .sub_prefix(self.storage_key())
+            .range(storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .filter(|((_mix, block_time), _amount)| *block_time <= start_time)
+            .fold(Uint128::zero(), |acc, ((_mix, _block_time), amount)| {
+                acc + amount
+            }))
     }
 }

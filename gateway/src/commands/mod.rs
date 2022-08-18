@@ -6,8 +6,11 @@ use std::{process, str::FromStr};
 use crate::{config::Config, Cli};
 use clap::Subcommand;
 use colored::Colorize;
+use config::parse_validators;
 use crypto::bech32_address_validation;
-use url::Url;
+use network_defaults::var_names::{
+    API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
+};
 
 pub(crate) mod init;
 pub(crate) mod node_details;
@@ -66,17 +69,6 @@ pub(crate) async fn execute(args: Cli) {
     }
 }
 
-fn parse_validators(raw: &str) -> Vec<Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
-}
-
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     let mut was_host_overridden = false;
     if let Some(host) = args.host {
@@ -109,14 +101,28 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
                 .parse()
                 .expect("the provided statistics service url is invalid!"),
         );
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let raw_url = std::env::var(STATISTICS_SERVICE_DOMAIN_ADDRESS)
+            .expect("statistics service url not set");
+        config = config.with_custom_statistics_service_url(
+            raw_url
+                .parse()
+                .expect("the provided statistics service url is invalid"),
+        )
     }
 
     if let Some(raw_validators) = args.validator_apis {
         config = config.with_custom_validator_apis(parse_validators(&raw_validators));
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
+        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
     }
 
     if let Some(raw_validators) = args.validators {
         config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let raw_validators = std::env::var(NYMD_VALIDATOR).expect("nymd validator not set");
+        config = config.with_custom_validator_nymd(parse_validators(&raw_validators))
     }
 
     if let Some(wallet_address) = args.wallet_address {
@@ -166,6 +172,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
 /// Ensures that a given bech32 address is valid, or exits
 pub(crate) fn validate_bech32_address_or_exit(address: &str) {
+    let prefix = std::env::var(BECH32_PREFIX).expect("bech32 prefix not set");
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
         bech32_address_validation::try_bech32_decode(address)
     {
@@ -176,7 +183,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     }
 
     if let Err(bech32_address_validation::Bech32Error::WrongPrefix(err)) =
-        bech32_address_validation::validate_bech32_prefix(address)
+        bech32_address_validation::validate_bech32_prefix(&prefix, address)
     {
         let error_message = format!("Error: wallet address type is wrong, {}", err).red();
         println!("{}", error_message);

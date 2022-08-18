@@ -7,17 +7,16 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   TextField,
   Typography,
 } from '@mui/material';
-import { ArrowBackSharp } from '@mui/icons-material';
 import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic, validateMnemonic } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { AccountsContext } from 'src/context';
 import { ConfirmPassword, Mnemonic } from 'src/components';
 import { MnemonicInput } from 'src/components/textfields';
+import { StyledBackButton } from 'src/components/StyledBackButton';
 
 const createAccountSteps = [
   'Copy and save mnemonic for your new account',
@@ -30,14 +29,15 @@ const importAccountSteps = [
   'Confirm the password used to login to your wallet',
 ];
 
-const MnemonicStep = ({ mnemonic, onNext }: { mnemonic: string; onNext: () => void }) => {
+const MnemonicStep = ({ mnemonic, onNext, onBack }: { mnemonic: string; onNext: () => void; onBack: () => void }) => {
   const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
   return (
     <Box sx={{ mt: 1 }}>
       <DialogContent>
         <Mnemonic mnemonic={mnemonic} handleCopy={copy} copied={copied} />
       </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 0 }}>
+      <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+        <StyledBackButton onBack={onBack} />
         <Button disabled={!copied} fullWidth disableElevation variant="contained" size="large" onClick={onNext}>
           I saved my mnemonic
         </Button>
@@ -50,10 +50,12 @@ const ImportMnemonic = ({
   value,
   onChange,
   onNext,
+  onBack,
 }: {
   value: string;
   onChange: (value: string) => void;
   onNext: () => void;
+  onBack: () => void;
 }) => {
   const [error, setError] = useState<string>();
 
@@ -77,7 +79,8 @@ const ImportMnemonic = ({
           }}
         />
       </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 0 }}>
+      <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+        <StyledBackButton onBack={onBack} />
         <Button
           disabled={value.length === 0}
           fullWidth
@@ -93,7 +96,7 @@ const ImportMnemonic = ({
   );
 };
 
-const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
+const NameAccount = ({ onNext, onBack }: { onNext: (value: string) => void; onBack: () => void }) => {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string>();
 
@@ -121,7 +124,8 @@ const NameAccount = ({ onNext }: { onNext: (value: string) => void }) => {
           fullWidth
         />
       </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 0 }}>
+      <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+        <StyledBackButton onBack={onBack} />
         <Button
           disabled={!value.length}
           fullWidth
@@ -178,9 +182,6 @@ export const AddAccountModal = () => {
         <DialogTitle sx={{ pb: 0 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">{`${dialogToDisplay} new account`}</Typography>
-            <IconButton onClick={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}>
-              <ArrowBackSharp />
-            </IconButton>
           </Box>
           <Typography sx={{ mt: 2 }}>
             {dialogToDisplay === 'Add' ? createAccountSteps[step] : importAccountSteps[step]}
@@ -190,12 +191,17 @@ export const AddAccountModal = () => {
           switch (step) {
             case 0:
               return dialogToDisplay === 'Add' ? (
-                <MnemonicStep mnemonic={data.mnemonic} onNext={() => setStep((s) => s + 1)} />
+                <MnemonicStep
+                  mnemonic={data.mnemonic}
+                  onNext={() => setStep((s) => s + 1)}
+                  onBack={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}
+                />
               ) : (
                 <ImportMnemonic
                   value={data.mnemonic}
                   onChange={(value) => setData((d) => ({ ...d, mnemonic: value }))}
                   onNext={() => setStep((s) => s + 1)}
+                  onBack={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}
                 />
               );
             case 1:
@@ -205,6 +211,7 @@ export const AddAccountModal = () => {
                     setData((d) => ({ ...d, accountName }));
                     setStep((s) => s + 1);
                   }}
+                  onBack={() => setStep((s) => s - 1)}
                 />
               );
             case 2:
@@ -222,6 +229,7 @@ export const AddAccountModal = () => {
                       }
                     }
                   }}
+                  onCancel={() => setStep((s) => s - 1)}
                   isLoading={isLoading}
                   error={error}
                 />

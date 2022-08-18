@@ -31,6 +31,9 @@ pub enum CoconutError {
     #[error("Nymd error - {0}")]
     NymdError(#[from] NymdError),
 
+    #[error("Coconut internal error - {0}")]
+    CoconutInternalError(#[from] nymcoconut::CoconutError),
+
     #[error("Could not find a deposit event in the transaction provided")]
     DepositEventNotFound,
 
@@ -63,22 +66,17 @@ pub enum CoconutError {
     #[error("Error in coconut interface - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 
-    #[error("Could not create proposal for spending credential")]
-    CreateProposalError,
-
     #[error("Storage error - {0}")]
     StorageError(#[from] ValidatorApiStorageError),
 
     #[error("Credentials error - {0}")]
     CredentialsError(#[from] credentials::error::Error),
 
-    #[error(
-        "Incorrect credential proposal description. Expected blinded serial number in base 58"
-    )]
-    IncorrectProposal,
+    #[error("Incorrect credential proposal description: {reason}")]
+    IncorrectProposal { reason: String },
 
-    #[error("Internal error: {0}")]
-    InternalError(String),
+    #[error("Invalid status of credential: {status}")]
+    InvalidCredentialStatus { status: String },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

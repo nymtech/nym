@@ -26,7 +26,7 @@ export const NymCard: React.FC<{
       subheader={subheader}
       data-testid={dataTestid || title}
       subheaderTypographyProps={{ variant: 'subtitle1' }}
-      action={<Box sx={{ mt: 1, mr: 1 }}>{Action}</Box>}
+      action={Action}
     />
     {noPadding ? (
       <CardContentNoPadding>{children}</CardContentNoPadding>

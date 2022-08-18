@@ -64,7 +64,7 @@ pub(crate) enum RequestHandlingError {
     EthContractError(#[from] web3::contract::Error),
 
     #[cfg(feature = "coconut")]
-    #[error("Validator API error")]
+    #[error("Validator API error - {0}")]
     APIError(#[from] validator_client::ValidatorClientError),
 
     #[cfg(feature = "coconut")]
@@ -72,8 +72,8 @@ pub(crate) enum RequestHandlingError {
     NotEnoughValidatorAPIs { received: usize, needed: usize },
 
     #[cfg(feature = "coconut")]
-    #[error("Validator API {url} misbehaved in the bandwidth redemption protocol: {reason}")]
-    MisbehavingAPI { url: String, reason: String },
+    #[error("There was a problem with the proposal id: {reason}")]
+    ProposalIdError { reason: String },
 
     #[cfg(feature = "coconut")]
     #[error("Coconut interface error - {0}")]

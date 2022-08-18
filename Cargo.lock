@@ -684,6 +684,7 @@ name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "multisig-contract-common",
  "schemars",
  "serde",
 ]
@@ -966,7 +967,6 @@ dependencies = [
  "coconut-interface",
  "cosmrs",
  "crypto",
- "network-defaults",
  "rand 0.7.3",
  "thiserror",
  "url",
@@ -1635,6 +1635,7 @@ name = "explorer-api"
 version = "1.0.1"
 dependencies = [
  "chrono",
+ "clap 3.2.8",
  "humantime-serde",
  "isocountry",
  "itertools",
@@ -1650,6 +1651,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "task",
  "thiserror",
  "tokio",
  "validator-client",
@@ -2547,6 +2549,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "inclusion-probability"
+version = "0.1.0"
+dependencies = [
+ "rand 0.8.5",
+ "thiserror",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2916,7 +2926,6 @@ dependencies = [
  "cosmwasm-std",
  "fixed",
  "log",
- "network-defaults",
  "schemars",
  "serde",
  "serde_repr",
@@ -3007,6 +3016,7 @@ name = "network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
+ "dotenv",
  "hex-literal",
  "once_cell",
  "serde",
@@ -3094,7 +3104,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "clap 3.2.15",
  "client-core",
@@ -3104,7 +3114,6 @@ dependencies = [
  "credentials",
  "crypto",
  "dirs",
- "dotenv",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -3129,7 +3138,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3177,7 +3186,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "bs58",
@@ -3217,7 +3226,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "async-trait",
  "clap 2.34.0",
@@ -3245,7 +3254,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "0.1.0"
+version = "1.0.2"
 dependencies = [
  "dirs",
  "log",
@@ -3261,7 +3270,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "clap 3.2.15",
  "client-core",
@@ -3271,7 +3280,6 @@ dependencies = [
  "credentials",
  "crypto",
  "dirs",
- "dotenv",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -3323,7 +3331,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3338,6 +3346,8 @@ dependencies = [
  "credential-storage",
  "credentials",
  "crypto",
+ "cw-utils",
+ "cw3",
  "dirs",
  "dotenv",
  "futures",
@@ -3363,6 +3373,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "task",
  "thiserror",
  "time 0.3.11",
  "tokio",
@@ -5380,7 +5391,6 @@ version = "1.0.1"
 dependencies = [
  "async-trait",
  "log",
- "network-defaults",
  "reqwest",
  "serde",
  "serde_json",
@@ -5649,18 +5659,18 @@ checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
 
 [[package]]
 name = "thiserror"
-version = "1.0.31"
+version = "1.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd829fe32373d27f76265620b5309d0340cb8550f523c1dda251d6298069069a"
+checksum = "f5f6586b7f764adc0231f4c79be7b920e766bb2f3e51b3661cdb263828f19994"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.31"
+version = "1.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0396bc89e626244658bef819e22d0cc459e795a5ebe878e6ec336d1674a8d79a"
+checksum = "12bafc5b54507e0149cdf1b145a5d80ab80a90bcd9275df43d4fff68460f6c21"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6349,7 +6359,6 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.0.1"
 dependencies = [
- "config",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",

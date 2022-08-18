@@ -3,31 +3,30 @@
 
 #[cfg(feature = "coconut")]
 use async_trait::async_trait;
-use serde::Serialize;
 #[cfg(feature = "coconut")]
-use std::str::FromStr;
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
-use config::defaults::{DEFAULT_NETWORK, DEFAULT_VALIDATOR_API_PORT};
+use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::{
     reward_params::EpochRewardParams, ContractStateParams, Delegation, ExecuteMsg, GatewayBond,
     IdentityKey, Interval, MixNodeBond, MixnodeRewardingStatusResponse, RewardedSetNodeStatus,
 };
 #[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
-#[cfg(feature = "coconut")]
-use validator_client::nymd::{
-    cosmwasm_client::logs::find_attribute,
-    traits::{MultisigSigningClient, QueryClient},
-    AccountId,
-};
 use validator_client::nymd::{
     hash::{Hash, SHA256_HASH_SIZE},
     Coin, CosmWasmClient, Fee, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
     TendermintTime,
+};
+#[cfg(feature = "coconut")]
+use validator_client::nymd::{
+    traits::{CoconutBandwidthQueryClient, MultisigQueryClient, MultisigSigningClient},
+    AccountId,
 };
 use validator_client::ValidatorClientError;
 
@@ -52,17 +51,16 @@ impl Client<QueryNymdClient> {
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
-        let network = DEFAULT_NETWORK;
-        let details = network
-            .details()
+
+        let details = NymNetworkDetails::new_from_env()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
             .with_urls(nymd_url, api_url);
 
-        let inner = validator_client::Client::new_query(client_config, network)
-            .expect("Failed to connect to nymd!");
+        let inner =
+            validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
 
         Client(Arc::new(RwLock::new(inner)))
     }
@@ -77,9 +75,7 @@ impl Client<SigningNymdClient> {
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
 
-        let network = DEFAULT_NETWORK;
-        let details = network
-            .details()
+        let details = NymNetworkDetails::new_from_env()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
@@ -91,7 +87,7 @@ impl Client<SigningNymdClient> {
             .parse()
             .expect("the mnemonic is invalid!");
 
-        let inner = validator_client::Client::new_signing(client_config, network, mnemonic)
+        let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nymd!");
 
         Client(Arc::new(RwLock::new(inner)))
@@ -368,15 +364,14 @@ impl<C> Client<C> {
 
         let memo = "Performing epoch operations".to_string();
 
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await?;
+        self.execute_multiple_with_retry(msgs, None, memo).await?;
         Ok(())
     }
 
     async fn execute_multiple_with_retry<M>(
         &self,
         msgs: Vec<(M, Vec<Coin>)>,
-        fee: Fee,
+        fee: Option<Fee>,
         memo: String,
     ) -> Result<(), RewardingError>
     where
@@ -455,32 +450,17 @@ where
         Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
     }
 
-    async fn propose_release_funds(
+    async fn get_spent_credential(
         &self,
-        title: String,
         blinded_serial_number: String,
-        voucher_value: u128,
-        fee: Option<Fee>,
-    ) -> Result<u64, CoconutError> {
-        let res = self
+    ) -> crate::coconut::error::Result<SpendCredentialResponse> {
+        Ok(self
             .0
             .read()
             .await
             .nymd
-            .propose_release_funds(title, blinded_serial_number, voucher_value, fee)
-            .await?;
-        let proposal_id = u64::from_str(
-            &find_attribute(&res.logs, "wasm", "proposal_id")
-                .ok_or_else(|| {
-                    CoconutError::InternalError("No attribute with proposal_id as key".to_string())
-                })?
-                .value,
-        )
-        .map_err(|_| {
-            CoconutError::InternalError("proposal_id could not be parsed to u64".to_string())
-        })?;
-
-        Ok(proposal_id)
+            .get_spent_credential(blinded_serial_number)
+            .await?)
     }
 
     async fn vote_proposal(

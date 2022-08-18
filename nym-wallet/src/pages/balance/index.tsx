@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { AppContext } from '../../context/main';
 
@@ -9,8 +9,24 @@ import { TransferModal } from './components/TransferModal';
 
 export const Balance = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showVestingCard, setShowVestingCard] = useState(false);
 
   const { userBalance } = useContext(AppContext);
+
+  useEffect(() => {
+    const { originalVesting, currentVestingPeriod, tokenAllocation } = userBalance;
+    if (
+      originalVesting &&
+      currentVestingPeriod === 'After' &&
+      tokenAllocation?.locked === '0' &&
+      tokenAllocation?.vesting === '0' &&
+      tokenAllocation?.spendable === '0'
+    ) {
+      setShowVestingCard(false);
+    } else if (originalVesting) {
+      setShowVestingCard(true);
+    }
+  }, [userBalance]);
 
   const handleShowTransferModal = async () => {
     await userBalance.refreshBalances();
@@ -21,7 +37,7 @@ export const Balance = () => {
     <PageLayout>
       <Box display="flex" flexDirection="column" gap={2}>
         <BalanceCard />
-        <VestingCard onTransfer={handleShowTransferModal} />
+        {showVestingCard && <VestingCard onTransfer={handleShowTransferModal} />}
         {showTransferModal && <TransferModal onClose={() => setShowTransferModal(false)} />}
       </Box>
     </PageLayout>

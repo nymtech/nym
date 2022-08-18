@@ -1,10 +1,12 @@
 use crate::contract::INITIAL_MIXNODE_PLEDGE;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::{mixnodes::storage::StoredMixnodeBond, support::tests};
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{coin, Addr, Coin};
 use mixnet_contract_common::reward_params::NodeRewardParams;
 use mixnet_contract_common::{Gateway, GatewayBond, Layer, MixNode};
+
+pub const TEST_COIN_DENOM: &str = "unym";
+pub const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 pub fn mix_node_fixture() -> MixNode {
     MixNode {
@@ -37,7 +39,7 @@ pub fn gateway_bond_fixture(owner: &str) -> GatewayBond {
         ..tests::fixtures::gateway_fixture()
     };
     GatewayBond::new(
-        coin(50, MIX_DENOM.base),
+        coin(50, TEST_COIN_DENOM),
         Addr::unchecked(owner),
         12_345,
         gateway,
@@ -47,7 +49,7 @@ pub fn gateway_bond_fixture(owner: &str) -> GatewayBond {
 
 pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::StoredMixnodeBond {
     StoredMixnodeBond::new(
-        coin(50, MIX_DENOM.base),
+        coin(50, TEST_COIN_DENOM),
         Addr::unchecked(owner),
         Layer::One,
         12_345,
@@ -64,14 +66,14 @@ pub(crate) fn stored_mixnode_bond_fixture(owner: &str) -> mixnodes_storage::Stor
 
 pub fn good_mixnode_pledge() -> Vec<Coin> {
     vec![Coin {
-        denom: MIX_DENOM.base.to_string(),
+        denom: TEST_COIN_DENOM.to_string(),
         amount: INITIAL_MIXNODE_PLEDGE,
     }]
 }
 
 pub fn good_gateway_pledge() -> Vec<Coin> {
     vec![Coin {
-        denom: MIX_DENOM.base.to_string(),
+        denom: TEST_COIN_DENOM.to_string(),
         amount: INITIAL_MIXNODE_PLEDGE,
     }]
 }

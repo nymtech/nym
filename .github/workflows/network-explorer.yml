@@ -1,6 +1,7 @@
 name: CI for Network Explorer
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'explorer/**'
@@ -75,3 +76,14 @@ jobs:
       uses: docker://keybaseio/client:stable-node
       with:
         args: .github/workflows/support-files/notifications/entry_point.sh
+    - name: Deploy
+      if: github.event_name == 'workflow_dispatch'
+      uses: easingthemes/ssh-deploy@main
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.CD_PROD_NE_SSH_PRIVATE_KEY }}
+        ARGS: "-rltgoDzvO --delete"
+        SOURCE: "explorer/dist/"
+        REMOTE_HOST: ${{ secrets.CD_PROD_NE_REMOTE_HOST }}
+        REMOTE_USER: ${{ secrets.CD_PROD_NE_REMOTE_USER }}
+        TARGET: ${{ secrets.CD_PROD_NE_REMOTE_TARGET }}
+        EXCLUDE: "/dist/, /node_modules/"

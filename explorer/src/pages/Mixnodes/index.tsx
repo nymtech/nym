@@ -290,6 +290,7 @@ export const PageMixnodes: React.FC = () => {
               onChangePageSize={handlePageSize}
               pageSize={pageSize}
               searchTerm={searchTerm}
+              withFilters
             />
             <UniversalDataGrid
               pagination

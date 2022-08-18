@@ -14,6 +14,7 @@ use cw_utils::{Duration, Expiration, Threshold};
 pub struct InstantiateMsg {
     // this is the group contract that contains the member list
     pub group_addr: String,
+    pub coconut_bandwidth_contract_address: String,
     pub threshold: Threshold,
     pub max_voting_period: Duration,
 }
@@ -76,4 +77,9 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+}
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {
+    pub coconut_bandwidth_address: String,
 }

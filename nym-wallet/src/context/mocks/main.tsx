@@ -16,15 +16,15 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       isAdminAddress: false,
       isLoading: false,
       clientDetails: {
-        denom: 'NYMT',
+        display_mix_denom: 'nymt',
+        base_mix_denom: 'unymt',
         client_address: '',
-        contract_address: '',
       },
       userBalance: {
         balance: {
           amount: {
             amount: '100',
-            denom: 'NYMT',
+            denom: 'nymt',
           },
           printable_balance: '100 NYMT',
         },
@@ -35,10 +35,12 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
         fetchTokenAllocation: async () => undefined,
         refreshBalances: async () => {},
       },
+      displayDenom: 'NYM',
       showAdmin: false,
       showTerminal: false,
       showSettings: false,
       showSendModal: true,
+      showReceiveModal: false,
       network: 'SANDBOX',
       loginType: 'mnemonic',
       setIsLoading: () => undefined,
@@ -53,6 +55,7 @@ export const MockMainContextProvider: FC<{}> = ({ children }) => {
       onAccountChange: () => undefined,
       handleShowSettings: () => undefined,
       handleShowSendModal: () => undefined,
+      handleShowReceiveModal: () => undefined,
     }),
     [],
   );

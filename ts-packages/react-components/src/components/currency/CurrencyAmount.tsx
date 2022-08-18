@@ -1,6 +1,6 @@
 /* eslint-disable react/no-array-index-key */
 import * as React from 'react';
-import type { MajorCurrencyAmount } from '@nymproject/types';
+import type { DecCoin } from '@nymproject/types';
 import { Stack, SxProps, Typography } from '@mui/material';
 
 export const CURRENCY_AMOUNT_SPACING = 0.35;
@@ -94,7 +94,7 @@ export const CurrencyAmountString: React.FC<{
 };
 
 export const CurrencyAmount: React.FC<{
-  majorAmount?: MajorCurrencyAmount;
+  majorAmount?: DecCoin;
   showSeparators?: boolean;
   sx?: SxProps;
 }> = ({ majorAmount, ...props }) => <CurrencyAmountString majorAmount={majorAmount?.amount} {...props} />;

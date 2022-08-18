@@ -5,7 +5,6 @@ use super::storage;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::support::helpers::{ensure_no_existing_bond, validate_node_identity_signature};
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128,
 };
@@ -26,7 +25,8 @@ pub fn try_add_gateway(
         .load(deps.storage)?
         .params
         .minimum_mixnode_pledge;
-    let pledge = validate_gateway_pledge(info.funds, minimum_pledge)?;
+    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
+    let pledge = validate_gateway_pledge(info.funds, minimum_pledge, mix_denom)?;
 
     _try_add_gateway(
         deps,
@@ -52,7 +52,8 @@ pub fn try_add_gateway_on_behalf(
         .load(deps.storage)?
         .params
         .minimum_mixnode_pledge;
-    let pledge = validate_gateway_pledge(info.funds, minimum_pledge)?;
+    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
+    let pledge = validate_gateway_pledge(info.funds, minimum_pledge, mix_denom)?;
 
     let proxy = info.sender;
     _try_add_gateway(
@@ -138,6 +139,7 @@ pub(crate) fn _try_remove_gateway(
     proxy: Option<Addr>,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(owner)?;
+    let mix_denom = mixnet_params_storage::mix_denom(deps.storage)?;
     // try to find the node of the sender
     let gateway_bond = match storage::gateways()
         .idx
@@ -177,7 +179,7 @@ pub(crate) fn _try_remove_gateway(
             amount: gateway_bond.pledge_amount(),
         };
 
-        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin()])?;
+        let track_unbond_message = wasm_execute(proxy, &msg, vec![one_ucoin(mix_denom)])?;
         response = response.add_message(track_unbond_message);
     }
 
@@ -192,10 +194,11 @@ pub(crate) fn _try_remove_gateway(
 fn validate_gateway_pledge(
     mut pledge: Vec<Coin>,
     minimum_pledge: Uint128,
+    mix_denom: String,
 ) -> Result<Coin, ContractError> {
     // check if anything was put as bond
     if pledge.is_empty() {
-        return Err(ContractError::NoBondFound);
+        return Err(ContractError::NoBondFound { mix_denom });
     }
 
     if pledge.len() > 1 {
@@ -203,8 +206,8 @@ fn validate_gateway_pledge(
     }
 
     // check that the denomination is correct
-    if pledge[0].denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom {});
+    if pledge[0].denom != mix_denom {
+        return Err(ContractError::WrongDenom { mix_denom });
     }
 
     // check that we have at least 100 coins in our pledge
@@ -225,8 +228,8 @@ pub mod tests {
     use crate::error::ContractError;
     use crate::gateways::transactions::validate_gateway_pledge;
     use crate::support::tests;
+    use crate::support::tests::fixtures::TEST_COIN_DENOM;
     use crate::support::tests::test_helpers;
-    use config::defaults::MIX_DENOM;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, BankMsg, Response};
     use cosmwasm_std::{from_binary, Addr, Uint128};
@@ -238,7 +241,7 @@ pub mod tests {
 
         // if we fail validation (by say not sending enough funds
         let insufficient_bond = Into::<u128>::into(INITIAL_GATEWAY_PLEDGE) - 1;
-        let info = mock_info("anyone", &coins(insufficient_bond, MIX_DENOM.base));
+        let info = mock_info("anyone", &coins(insufficient_bond, TEST_COIN_DENOM));
         let (msg, _) = tests::messages::valid_bond_gateway_msg("anyone");
 
         // we are informed that we didn't send enough funds
@@ -544,13 +547,26 @@ pub mod tests {
     #[test]
     fn validating_gateway_bond() {
         // you must send SOME funds
-        let result = validate_gateway_pledge(Vec::new(), INITIAL_GATEWAY_PLEDGE);
-        assert_eq!(result, Err(ContractError::NoBondFound));
+        let result = validate_gateway_pledge(
+            Vec::new(),
+            INITIAL_GATEWAY_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::NoBondFound {
+                mix_denom: TEST_COIN_DENOM.to_string()
+            })
+        );
 
         // you must send at least 100 coins...
         let mut bond = tests::fixtures::good_gateway_pledge();
         bond[0].amount = INITIAL_GATEWAY_PLEDGE.checked_sub(Uint128::new(1)).unwrap();
-        let result = validate_gateway_pledge(bond.clone(), INITIAL_GATEWAY_PLEDGE);
+        let result = validate_gateway_pledge(
+            bond.clone(),
+            INITIAL_GATEWAY_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
         assert_eq!(
             result,
             Err(ContractError::InsufficientGatewayBond {
@@ -562,18 +578,40 @@ pub mod tests {
         // more than that is still fine
         let mut bond = tests::fixtures::good_gateway_pledge();
         bond[0].amount = INITIAL_GATEWAY_PLEDGE + Uint128::new(1);
-        let result = validate_gateway_pledge(bond.clone(), INITIAL_GATEWAY_PLEDGE);
+        let result = validate_gateway_pledge(
+            bond.clone(),
+            INITIAL_GATEWAY_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
         let mut bond = tests::fixtures::good_gateway_pledge();
         bond[0].denom = "baddenom".to_string();
-        let result = validate_gateway_pledge(bond.clone(), INITIAL_GATEWAY_PLEDGE);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
+        let result = validate_gateway_pledge(
+            bond.clone(),
+            INITIAL_GATEWAY_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::WrongDenom {
+                mix_denom: TEST_COIN_DENOM.to_string()
+            })
+        );
 
         let mut bond = tests::fixtures::good_gateway_pledge();
         bond[0].denom = "foomp".to_string();
-        let result = validate_gateway_pledge(bond.clone(), INITIAL_GATEWAY_PLEDGE);
-        assert_eq!(result, Err(ContractError::WrongDenom {}));
+        let result = validate_gateway_pledge(
+            bond.clone(),
+            INITIAL_GATEWAY_PLEDGE,
+            TEST_COIN_DENOM.to_string(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::WrongDenom {
+                mix_denom: TEST_COIN_DENOM.to_string()
+            })
+        );
     }
 }

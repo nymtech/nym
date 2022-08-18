@@ -25,11 +25,11 @@ fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError>
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
-    owner_address: Addr,
-    staking_address: Option<Addr>,
-    start_time: Timestamp,
-    periods: Vec<VestingPeriod>,
-    coin: Coin,
+    pub owner_address: Addr,
+    pub staking_address: Option<Addr>,
+    pub start_time: Timestamp,
+    pub periods: Vec<VestingPeriod>,
+    pub coin: Coin,
     storage_key: u32,
 }
 
@@ -101,10 +101,9 @@ impl Account {
         }
     }
 
+    /// Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
+    /// In case vesting is over it will always return NUM_VESTING_PERIODS.
     pub fn get_current_vesting_period(&self, block_time: Timestamp) -> Period {
-        // Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
-        // In case vesting is over it will always return NUM_VESTING_PERIODS.
-
         if block_time.seconds() < self.periods.first().unwrap().start_time {
             Period::Before
         } else if self.periods.last().unwrap().end_time() < block_time {

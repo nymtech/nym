@@ -14,11 +14,13 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
     clientDetails,
   } = useContext(AppContext);
 
+  const fetchBalances = async () => {
+    await fetchBalance();
+    await fetchTokenAllocation();
+  };
+
   useEffect(() => {
-    (async () => {
-      await fetchBalance();
-      await fetchTokenAllocation();
-    })();
+    fetchBalances();
   }, []);
 
   useEffect(() => {
@@ -48,7 +50,10 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
           {tokenAllocation && (
             <ListItemText
               primary="Locked"
-              secondary={`${+tokenAllocation.locked + +tokenAllocation.spendable} ${clientDetails?.denom}`}
+              secondary={`${
+                +tokenAllocation.locked + +tokenAllocation.spendable
+              } ${clientDetails?.display_mix_denom.toUpperCase()}`}
+              sx={{ textTransform: 'uppercase' }}
             />
           )}
         </MenuItem>

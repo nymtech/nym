@@ -3,8 +3,7 @@
 
 use crate::client::config::Config;
 use clap::{Parser, Subcommand};
-use network_defaults::DEFAULT_NETWORK;
-use url::Url;
+use config::parse_validators;
 
 pub mod init;
 pub(crate) mod run;
@@ -20,7 +19,6 @@ pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
 fn long_version() -> String {
     format!(
         r#"
-{:<20}{}
 {:<20}{}
 {:<20}{}
 {:<20}{}
@@ -46,8 +44,6 @@ fn long_version() -> String {
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
         env!("VERGEN_CARGO_PROFILE"),
-        "Network:",
-        DEFAULT_NETWORK
     )
 }
 
@@ -58,6 +54,10 @@ fn long_version_static() -> &'static str {
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
 pub(crate) struct Cli {
+    /// Path pointing to an env file that configures the client.
+    #[clap(long)]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -96,19 +96,12 @@ pub(crate) async fn execute(args: &Cli) {
     }
 }
 
-fn parse_validators(raw: &str) -> Vec<Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
-}
-
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(raw_validators) = args.validators {
+        config
+            .get_base_mut()
+            .set_custom_validator_apis(parse_validators(&raw_validators));
+    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::API_VALIDATOR) {
         config
             .get_base_mut()
             .set_custom_validator_apis(parse_validators(&raw_validators));

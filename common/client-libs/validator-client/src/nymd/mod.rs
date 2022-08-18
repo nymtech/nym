@@ -389,7 +389,7 @@ impl<C> NymdClient<C> {
     pub async fn get_balance(
         &self,
         address: &AccountId,
-        denom: Denom,
+        denom: String,
     ) -> Result<Option<Coin>, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -893,7 +893,7 @@ impl<C> NymdClient<C> {
         &self,
         contract_address: &AccountId,
         msg: &M,
-        fee: Fee,
+        fee: Option<Fee>,
         memo: impl Into<String> + Send + 'static,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NymdError>
@@ -901,6 +901,7 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .execute(self.address(), contract_address, msg, fee, memo, funds)
             .await
@@ -910,7 +911,7 @@ impl<C> NymdClient<C> {
         &self,
         contract_address: &AccountId,
         msgs: I,
-        fee: Fee,
+        fee: Option<Fee>,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ExecuteResult, NymdError>
     where
@@ -918,6 +919,7 @@ impl<C> NymdClient<C> {
         I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
         M: Serialize,
     {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .execute_multiple(self.address(), contract_address, msgs, fee, memo)
             .await
@@ -1004,6 +1006,29 @@ impl<C> NymdClient<C> {
         self.client
             .migrate(self.address(), contract_address, code_id, fee, msg, memo)
             .await
+    }
+
+    #[execute("mixnet")]
+    fn _compound_reward(
+        &self,
+        operator: Option<String>,
+        delegator: Option<String>,
+        mix_identity: Option<IdentityKey>,
+        proxy: Option<String>,
+        fee: Option<Fee>,
+    ) -> (ExecuteMsg, Option<Fee>)
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        (
+            ExecuteMsg::CompoundReward {
+                operator,
+                delegator,
+                mix_identity,
+                proxy,
+            },
+            fee,
+        )
     }
 
     #[execute("mixnet")]

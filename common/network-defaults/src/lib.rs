@@ -3,6 +3,7 @@
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::{env::var, path::PathBuf};
 use url::Url;
 
 pub mod all;
@@ -10,36 +11,10 @@ pub mod eth_contract;
 pub mod mainnet;
 pub mod qa;
 pub mod sandbox;
+pub mod var_names;
 
-// The set of defaults that are decided at compile time. Ideally we want to reduce these to a
-// minimum.
-// Keep DENOM around mostly for use in contracts. (TODO: consider moving it there, or renaming?)
-cfg_if::cfg_if! {
-    if #[cfg(network = "mainnet")] {
-        pub const DEFAULT_NETWORK: all::Network = all::Network::MAINNET;
-        pub const MIX_DENOM: DenomDetails = mainnet::MIX_DENOM;
-        pub const STAKE_DENOM: DenomDetails = mainnet::STAKE_DENOM;
-
-        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
-        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
-
-    } else if #[cfg(network = "qa")] {
-        pub const DEFAULT_NETWORK: all::Network = all::Network::QA;
-        pub const MIX_DENOM: DenomDetails = qa::MIX_DENOM;
-        pub const STAKE_DENOM: DenomDetails = qa::STAKE_DENOM;
-
-        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_CONTRACT_ADDRESS;
-        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = qa::_ETH_ERC20_CONTRACT_ADDRESS;
-
-    } else if #[cfg(network = "sandbox")] {
-        pub const DEFAULT_NETWORK: all::Network = all::Network::SANDBOX;
-        pub const MIX_DENOM: DenomDetails = sandbox::MIX_DENOM;
-        pub const STAKE_DENOM: DenomDetails = sandbox::STAKE_DENOM;
-
-        pub const ETH_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_CONTRACT_ADDRESS;
-        pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = sandbox::_ETH_ERC20_CONTRACT_ADDRESS;
-    }
-}
+pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
+pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ChainDetails {
@@ -82,21 +57,54 @@ impl NymNetworkDetails {
         NymNetworkDetails::default()
     }
 
-    pub fn new_qa() -> Self {
-        (&*QA_DEFAULTS).into()
-    }
-
-    pub fn new_sandbox() -> Self {
-        (&*SANDBOX_DEFAULTS).into()
+    pub fn new_from_env() -> Self {
+        NymNetworkDetails::new()
+            .with_bech32_account_prefix(
+                var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
+            )
+            .with_mix_denom(DenomDetailsOwned {
+                base: var(var_names::MIX_DENOM).expect("mix denomination base not set"),
+                display: var(var_names::MIX_DENOM_DISPLAY)
+                    .expect("mix denomination display not set"),
+                display_exponent: var(var_names::DENOMS_EXPONENT)
+                    .expect("denomination exponent not set")
+                    .parse()
+                    .expect("denomination exponent is not u32"),
+            })
+            .with_stake_denom(DenomDetailsOwned {
+                base: var(var_names::STAKE_DENOM).expect("stake denomination base not set"),
+                display: var(var_names::STAKE_DENOM_DISPLAY)
+                    .expect("stake denomination display not set"),
+                display_exponent: var(var_names::DENOMS_EXPONENT)
+                    .expect("denomination exponent not set")
+                    .parse()
+                    .expect("denomination exponent is not u32"),
+            })
+            .with_validator_endpoint(ValidatorDetails::new(
+                var(var_names::NYMD_VALIDATOR).expect("nymd validator not set"),
+                Some(var(var_names::API_VALIDATOR).expect("api validator not set")),
+            ))
+            .with_mixnet_contract(Some(
+                var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
+            ))
+            .with_vesting_contract(Some(
+                var(var_names::VESTING_CONTRACT_ADDRESS).expect("vesting contract not set"),
+            ))
+            .with_bandwidth_claim_contract(Some(
+                var(var_names::BANDWIDTH_CLAIM_CONTRACT_ADDRESS)
+                    .expect("bandwidth claim contract not set"),
+            ))
+            .with_coconut_bandwidth_contract(Some(
+                var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
+                    .expect("coconut bandwidth contract not set"),
+            ))
+            .with_multisig_contract(Some(
+                var(var_names::MULTISIG_CONTRACT_ADDRESS).expect("multisig contract not set"),
+            ))
     }
 
     pub fn new_mainnet() -> Self {
         (&*MAINNET_DEFAULTS).into()
-    }
-
-    pub fn current_default() -> Self {
-        // backwards compatibility reasons
-        DEFAULT_NETWORK.details()
     }
 
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
@@ -267,7 +275,7 @@ impl DenomDetails {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
 pub struct DenomDetailsOwned {
     pub base: String,
     pub display: String,
@@ -333,27 +341,21 @@ impl ValidatorDetails {
     }
 }
 
-pub fn default_statistics_service_url() -> Url {
-    DEFAULT_NETWORK
-        .statistics_service_url()
-        .parse()
-        .expect("the provided statistics service url is invalid!")
-}
-
-pub fn default_nymd_endpoints() -> Vec<Url> {
-    DEFAULT_NETWORK
-        .validators()
-        .iter()
-        .map(ValidatorDetails::nymd_url)
-        .collect()
-}
-
-pub fn default_api_endpoints() -> Vec<Url> {
-    DEFAULT_NETWORK
-        .validators()
-        .iter()
-        .filter_map(ValidatorDetails::api_url)
-        .collect()
+pub fn setup_env(config_env_file: Option<PathBuf>) {
+    match std::env::var(var_names::CONFIGURED) {
+        // if the configuration is not already set in the env vars
+        Err(std::env::VarError::NotPresent) => {
+            if let Some(config_env_file) = config_env_file {
+                dotenv::from_path(config_env_file)
+                    .expect("Invalid path to environment configuration file");
+            } else {
+                // if nothing is set, the use mainnet defaults
+                crate::mainnet::export_to_env();
+            }
+        }
+        Err(_) => crate::mainnet::export_to_env(),
+        _ => {}
+    }
 }
 
 // Name of the event triggered by the eth contract. If the event name is changed,

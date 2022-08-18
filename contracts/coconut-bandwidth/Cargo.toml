@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-config = { path = "../../common/config"}
+multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"
@@ -21,6 +21,3 @@ cw-controllers = "0.13.4"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
-
-[dev-dependencies]
-cw-multi-test = { version = "0.13.2" }

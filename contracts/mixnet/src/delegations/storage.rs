@@ -76,8 +76,8 @@ mod tests {
     #[cfg(test)]
     mod reverse_mix_delegations {
         use super::*;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers;
-        use config::defaults::MIX_DENOM;
         use cosmwasm_std::testing::mock_env;
         use cosmwasm_std::{coin, Order};
         use mixnet_contract_common::Delegation;
@@ -87,7 +87,7 @@ mod tests {
             let mut deps = test_helpers::init_contract();
             let node_identity: IdentityKey = "foo".into();
             let delegation_owner = Addr::unchecked("bar");
-            let delegation = coin(12345, MIX_DENOM.base);
+            let delegation = coin(12345, TEST_COIN_DENOM);
 
             let dummy_data = Delegation::new(
                 delegation_owner.clone(),
@@ -125,7 +125,7 @@ mod tests {
             let node_identity2: IdentityKey = "foo2".into();
             let delegation_owner1 = Addr::unchecked("bar");
             let delegation_owner2 = Addr::unchecked("bar2");
-            let delegation = coin(12345, MIX_DENOM.base);
+            let delegation = coin(12345, TEST_COIN_DENOM);
 
             assert!(test_helpers::read_delegation(
                 deps.as_ref().storage,

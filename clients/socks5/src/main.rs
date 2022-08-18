@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_version, Parser};
+use network_defaults::setup_env;
 
 pub mod client;
 mod commands;
@@ -9,11 +10,11 @@ pub mod socks;
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
 
     let args = commands::Cli::parse();
+    setup_env(args.config_env_file.clone());
     commands::execute(&args).await;
 }
 

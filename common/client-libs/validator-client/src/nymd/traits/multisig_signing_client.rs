@@ -12,7 +12,6 @@ use multisig_contract_common::msg::ExecuteMsg;
 use async_trait::async_trait;
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, WasmMsg};
 use cw3::Vote;
-use network_defaults::DEFAULT_NETWORK;
 
 #[async_trait]
 pub trait MultisigSigningClient {
@@ -49,7 +48,10 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
     ) -> Result<ExecuteResult, NymdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
-            funds: Coin::new(voucher_value, DEFAULT_NETWORK.mix_denom().base),
+            funds: Coin::new(
+                voucher_value,
+                self.config.chain_details.mix_denom.base.clone(),
+            ),
         };
         let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.coconut_bandwidth_contract_address().to_string(),

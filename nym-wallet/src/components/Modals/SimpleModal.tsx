@@ -14,7 +14,7 @@ export const SimpleModal: React.FC<{
   onClose?: () => void;
   onOk?: () => Promise<void>;
   onBack?: () => void;
-  header: string;
+  header: string | React.ReactNode;
   subHeader?: string;
   okLabel: string;
   okDisabled?: boolean;
@@ -41,31 +41,38 @@ export const SimpleModal: React.FC<{
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }} data-testid={header}>
-          {header}
-        </Typography>
+        {typeof header === 'string' ? (
+          <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
+            {header}
+          </Typography>
+        ) : (
+          header
+        )}
         {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
       </Stack>
-      {subHeader && (
-        <Typography
-          mt={0.5}
-          mb={3}
-          fontSize={12}
-          color={(theme) => theme.palette.text.secondary}
-          sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
-        >
-          {subHeader}
-        </Typography>
-      )}
+
+      <Typography
+        mt={0.5}
+        mb={3}
+        fontSize={12}
+        color={(theme) => theme.palette.text.secondary}
+        sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
+      >
+        {subHeader}
+      </Typography>
 
       {children}
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-        {onBack && <StyledBackButton onBack={onBack} />}
-        <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} data-testid={okLabel}>
-          {okLabel}
-        </Button>
-      </Box>
+      {(onOk || onBack) && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+          {onBack && <StyledBackButton onBack={onBack} />}
+          {onOk && (
+            <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+              {okLabel}
+            </Button>
+          )}
+        </Box>
+      )}
     </Box>
   </Modal>
 );

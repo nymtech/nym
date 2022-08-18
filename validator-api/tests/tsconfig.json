@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "removeComments": true,
+    "allowJs": true,
+    "preserveConstEnums": true,
+    "module": "commonjs",
+    "target": "ES2019",
+    "declaration": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "lib": ["esnext"],
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "*": ["types/*"]
+    },
+    "baseUrl": "./",
+    "typeRoots": ["node_modules/@types"],
+    "alwaysStrict": true
+  },
+  "include": ["src/**/*", "functional_test/**/*"],
+  "exclude": ["unit_test/**/*"]
+}

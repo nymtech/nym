@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, TextField, Typography } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { Stack, TextField, Typography, SxProps } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { MajorCurrencyAmount } from '@nymproject/types';
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
@@ -12,6 +11,7 @@ export const SendInputModal = ({
   toAddress,
   amount,
   balance,
+  denom,
   error,
   onNext,
   onClose,
@@ -22,19 +22,20 @@ export const SendInputModal = ({
 }: {
   fromAddress?: string;
   toAddress: string;
-  amount?: MajorCurrencyAmount;
+  amount?: DecCoin;
   balance?: string;
+  denom?: CurrencyDenom;
   error?: string;
   onNext: () => void;
   onClose: () => void;
-  onAmountChange: (value: MajorCurrencyAmount) => void;
+  onAmountChange: (value: DecCoin) => void;
   onAddressChange: (value: string) => void;
   sx?: SxProps;
   backdropProps?: object;
 }) => {
   const [isValid, setIsValid] = useState(false);
 
-  const validate = async (value: MajorCurrencyAmount) => {
+  const validate = async (value: DecCoin) => {
     const isValidAmount = await validateAmount(value.amount, '0');
     setIsValid(isValidAmount);
   };
@@ -55,6 +56,7 @@ export const SendInputModal = ({
       backdropProps={backdropProps}
     >
       <Stack gap={2} sx={{ mt: 2 }}>
+        <ModalListItem label="Your address:" value={fromAddress} fontWeight="light" />
         <TextField
           placeholder="Recipient address"
           fullWidth
@@ -72,14 +74,14 @@ export const SendInputModal = ({
             validate(value);
           }}
           initialValue={amount?.amount}
+          denom={denom}
         />
         <Typography fontSize="smaller" sx={{ color: 'error.main' }} >
           {error}
         </Typography>
       </Stack>
-      <Stack gap={0.5} sx={{ mt: 2 }}>
-        <ModalListItem label="Account balance" value={balance} divider strong />
-        <ModalListItem label="Your address" value={fromAddress} divider />
+      <Stack gap={0.5} sx={{ mt: 1 }}>
+        <ModalListItem label="Account balance:" value={balance?.toUpperCase()} divider fontWeight={600} />
         <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
           Est. fee for this transaction will be show on the next page
         </Typography>

@@ -1,11 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+};
 
 use coconut_bandwidth_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 use crate::error::ContractError;
+use crate::queries::{query_all_spent_credentials_paged, query_spent_credential};
 use crate::state::{Config, ADMIN, CONFIG};
 use crate::transactions;
 
@@ -22,12 +25,14 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_addr)?;
+    let mix_denom = msg.mix_denom;
 
     ADMIN.set(deps.branch(), Some(multisig_addr.clone()))?;
 
     let cfg = Config {
         multisig_addr,
         pool_addr,
+        mix_denom,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -44,13 +49,23 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::DepositFunds { data } => transactions::deposit_funds(deps, env, info, data),
+        ExecuteMsg::SpendCredential { data } => {
+            transactions::spend_credential(deps, env, info, data)
+        }
         ExecuteMsg::ReleaseFunds { funds } => transactions::release_funds(deps, env, info, funds),
     }
 }
 
 #[entry_point]
-pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    unimplemented!();
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::GetAllSpentCredentials { limit, start_after } => to_binary(
+            &query_all_spent_credentials_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetSpentCredential {
+            blinded_serial_number,
+        } => to_binary(&query_spent_credential(deps, blinded_serial_number)?),
+    }
 }
 
 #[entry_point]
@@ -61,12 +76,10 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::*;
-    use coconut_bandwidth_contract_common::deposit::DepositData;
-    use config::defaults::MIX_DENOM;
+    use cosmwasm_std::coins;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, Addr};
-    use cw_multi_test::Executor;
 
     #[test]
     fn initialize_contract() {
@@ -75,6 +88,7 @@ mod tests {
         let msg = InstantiateMsg {
             multisig_addr: String::from(MULTISIG_CONTRACT),
             pool_addr: String::from(POOL_CONTRACT),
+            mix_denom: TEST_MIX_DENOM.to_string(),
         };
         let info = mock_info("creator", &[]);
 
@@ -83,80 +97,12 @@ mod tests {
 
         // Contract balance should be 0
         assert_eq!(
-            coins(0, MIX_DENOM.base),
+            coins(0, TEST_MIX_DENOM),
             vec![deps
                 .as_ref()
                 .querier
-                .query_balance(env.contract.address, MIX_DENOM.base)
+                .query_balance(env.contract.address, TEST_MIX_DENOM)
                 .unwrap()]
         );
-    }
-
-    #[test]
-    fn deposit_and_release() {
-        let init_funds = coins(10, MIX_DENOM.base);
-        let deposit_funds = coins(1, MIX_DENOM.base);
-        let release_funds = coins(2, MIX_DENOM.base);
-        let mut app = mock_app(&init_funds);
-        let multisig_addr = String::from(MULTISIG_CONTRACT);
-        let pool_addr = String::from(POOL_CONTRACT);
-
-        let code_id = app.store_code(contract_bandwidth());
-        let msg = InstantiateMsg {
-            multisig_addr: multisig_addr.clone(),
-            pool_addr: pool_addr.clone(),
-        };
-        let contract_addr = app
-            .instantiate_contract(
-                code_id,
-                Addr::unchecked(OWNER),
-                &msg,
-                &[],
-                "bandwidth",
-                None,
-            )
-            .unwrap();
-
-        let msg = ExecuteMsg::DepositFunds {
-            data: DepositData::new(
-                String::from("info"),
-                String::from("id"),
-                String::from("enc"),
-            ),
-        };
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            contract_addr.clone(),
-            &msg,
-            &deposit_funds,
-        )
-        .unwrap();
-
-        // try to release more then it's in the contract
-        let msg = ExecuteMsg::ReleaseFunds {
-            funds: release_funds[0].clone(),
-        };
-        let err = app
-            .execute_contract(
-                Addr::unchecked(multisig_addr.clone()),
-                contract_addr.clone(),
-                &msg,
-                &[],
-            )
-            .unwrap_err();
-        assert_eq!(ContractError::NotEnoughFunds, err.downcast().unwrap());
-
-        let msg = ExecuteMsg::ReleaseFunds {
-            funds: deposit_funds[0].clone(),
-        };
-        app.execute_contract(
-            Addr::unchecked(multisig_addr),
-            contract_addr.clone(),
-            &msg,
-            &[],
-        )
-        .unwrap();
-        let pool_bal = app.wrap().query_balance(pool_addr, MIX_DENOM.base).unwrap();
-        assert_eq!(pool_bal, deposit_funds[0]);
     }
 }

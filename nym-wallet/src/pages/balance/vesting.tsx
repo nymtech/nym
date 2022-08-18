@@ -65,22 +65,46 @@ const VestingSchedule = () => {
             ))}
           </TableRow>
           <TableRow>
-            <TableCell sx={{ borderBottom: 'none' }}>
+            <TableCell
+              sx={{
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                borderBottom: 'none',
+                textTransform: 'uppercase',
+              }}
+            >
               {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {clientDetails?.denom}
+              {clientDetails?.display_mix_denom.toUpperCase()}
             </TableCell>
-            <TableCell align="left" sx={{ borderBottom: 'none' }}>
+            <TableCell
+              align="left"
+              sx={{
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                borderBottom: 'none',
+              }}
+            >
               {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }}>
+            <TableCell
+              sx={{
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                borderBottom: 'none',
+              }}
+            >
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography variant="body2">{`${vestedPercentage}%`}</Typography>
                 <VestingTimeline percentageComplete={vestedPercentage} />
               </Box>
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none' }} align="right">
+            <TableCell
+              sx={{
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                borderBottom: 'none',
+                textTransform: 'uppercase',
+              }}
+              align="right"
+            >
               {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-              {clientDetails?.denom}
+              {clientDetails?.display_mix_denom.toUpperCase()}
             </TableCell>
           </TableRow>
         </TableHead>
@@ -109,8 +133,14 @@ const TokenTransfer = () => {
           Transferable tokens
         </Typography>
 
-        <Typography data-testid="refresh-success" sx={{ color: 'text.primary' }} variant="h5" fontWeight="700">
-          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.denom}
+        <Typography
+          data-testid="refresh-success"
+          sx={{ color: 'text.primary' }}
+          variant="h5"
+          fontWeight="700"
+          textTransform="uppercase"
+        >
+          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.display_mix_denom.toUpperCase()}
         </Typography>
       </Grid>
     </Grid>

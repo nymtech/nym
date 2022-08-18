@@ -1,13 +1,13 @@
 use crate::errors::ContractError;
+use crate::queued_migrations::migrate_config_from_env;
 use crate::storage::{
     account_from_address, locked_pledge_cap, update_locked_pledge_cap, ADMIN,
-    MIXNET_CONTRACT_ADDRESS,
+    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Timestamp, Uint128,
@@ -36,11 +36,13 @@ pub fn instantiate(
     // ADMIN is set to the address that instantiated the contract, TODO: make this updatable
     ADMIN.save(deps.storage, &info.sender.to_string())?;
     MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.mixnet_contract_address)?;
+    MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
     Ok(Response::default())
 }
 
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrate_config_from_env(_deps, _env, _msg)?;
     Ok(Response::default())
 }
 
@@ -167,11 +169,9 @@ pub fn try_withdraw_vested_coins(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    if amount.denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom(
-            amount.denom,
-            MIX_DENOM.base.to_string(),
-        ));
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    if amount.denom != mix_denom {
+        return Err(ContractError::WrongDenom(amount.denom, mix_denom));
     }
 
     let address = info.sender.clone();
@@ -245,7 +245,8 @@ pub fn try_bond_gateway(
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let pledge = validate_funds(&[amount])?;
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    let pledge = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_gateway(gateway, owner_signature, pledge, &env, deps.storage)
 }
@@ -285,7 +286,8 @@ pub fn try_bond_mixnode(
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let pledge = validate_funds(&[amount])?;
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    let pledge = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_bond_mixnode(mix_node, owner_signature, pledge, &env, deps.storage)
 }
@@ -345,7 +347,8 @@ fn try_delegate_to_mixnode(
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let amount = validate_funds(&[amount])?;
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    let amount = validate_funds(&[amount], mix_denom)?;
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_delegate_to_mixnode(mix_identity, amount, &env, deps.storage)
 }
@@ -396,6 +399,7 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
 
     let account_exists = account_from_address(owner_address, deps.storage, deps.api).is_ok();
     if account_exists {
@@ -406,7 +410,7 @@ fn try_create_periodic_vesting_account(
 
     let vesting_spec = vesting_spec.unwrap_or_default();
 
-    let coin = validate_funds(&info.funds)?;
+    let coin = validate_funds(&info.funds, mix_denom)?;
 
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
@@ -573,7 +577,7 @@ pub fn try_get_vested_coins(
     deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    account.get_vested_coins(block_time, &env)
+    account.get_vested_coins(block_time, &env, deps.storage)
 }
 
 pub fn try_get_vesting_coins(
@@ -583,7 +587,7 @@ pub fn try_get_vesting_coins(
     deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    account.get_vesting_coins(block_time, &env)
+    account.get_vesting_coins(block_time, &env, deps.storage)
 }
 
 pub fn try_get_start_time(
@@ -630,7 +634,7 @@ pub fn try_get_delegated_vesting(
     account.get_delegated_vesting(block_time, &env, deps.storage)
 }
 
-fn validate_funds(funds: &[Coin]) -> Result<Coin, ContractError> {
+fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractError> {
     if funds.is_empty() || funds[0].amount.is_zero() {
         return Err(ContractError::EmptyFunds);
     }
@@ -639,11 +643,8 @@ fn validate_funds(funds: &[Coin]) -> Result<Coin, ContractError> {
         return Err(ContractError::MultipleDenoms);
     }
 
-    if funds[0].denom != MIX_DENOM.base {
-        return Err(ContractError::WrongDenom(
-            funds[0].denom.clone(),
-            MIX_DENOM.base.to_string(),
-        ));
+    if funds[0].denom != mix_denom {
+        return Err(ContractError::WrongDenom(funds[0].denom.clone(), mix_denom));
     }
 
     Ok(funds[0].clone())

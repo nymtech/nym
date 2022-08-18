@@ -1,20 +1,22 @@
 use crate::config;
 use crate::error::BackendError;
+use crate::simulate::SimulateResult;
+use itertools::Itertools;
+use log::warn;
+use nym_types::currency::{DecCoin, RegisteredCoins};
+use nym_types::fees::FeeDetails;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
-
-use strum::IntoEnumIterator;
-use validator_client::nymd::{AccountId as CosmosAccountId, SigningNymdClient};
-use validator_client::Client;
-
-use itertools::Itertools;
 use once_cell::sync::Lazy;
-use tokio::sync::RwLock;
-use url::Url;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use strum::IntoEnumIterator;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use url::Url;
+use validator_client::nymd::cosmwasm_client::types::SimulateResponse;
+use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, SigningNymdClient};
+use validator_client::Client;
 
 // Some hardcoded metadata overrides
 static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {
@@ -28,7 +30,7 @@ static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {
 
 #[tauri::command]
 pub async fn load_config_from_files(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     state.write().await.load_config_files();
     Ok(())
@@ -36,13 +38,30 @@ pub async fn load_config_from_files(
 
 #[tauri::command]
 pub async fn save_config_to_files(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     state.read().await.save_config_files()
 }
 
+#[derive(Default, Clone)]
+pub struct WalletState {
+    inner: Arc<RwLock<WalletStateInner>>,
+}
+
+impl WalletState {
+    // not the best API, but those are exposed here for backwards compatibility with the existing
+    // state type assumptions so that we wouldn't need to fix it up everywhere at once
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, WalletStateInner> {
+        self.inner.read().await
+    }
+
+    pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, WalletStateInner> {
+        self.inner.write().await
+    }
+}
+
 #[derive(Default)]
-pub struct State {
+pub struct WalletStateInner {
     config: config::Config,
     signing_clients: HashMap<Network, Client<SigningNymdClient>>,
     current_network: Network,
@@ -56,6 +75,7 @@ pub struct State {
 
     /// We fetch (and cache) some metadata, such as names, when available
     validator_metadata: HashMap<Url, ValidatorMetadata>,
+    registered_coins: HashMap<Network, RegisteredCoins>,
 }
 
 pub(crate) struct WalletAccountIds {
@@ -65,7 +85,70 @@ pub(crate) struct WalletAccountIds {
     pub addresses: HashMap<Network, CosmosAccountId>,
 }
 
-impl State {
+impl WalletStateInner {
+    // note that `Coin` is ALWAYS the base coin
+    pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, BackendError> {
+        let registered_coins = self
+            .registered_coins
+            .get(&self.current_network)
+            .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
+
+        Ok(registered_coins.attempt_convert_to_base_coin(coin)?)
+    }
+
+    pub fn attempt_convert_to_display_dec_coin(&self, coin: Coin) -> Result<DecCoin, BackendError> {
+        let registered_coins = self
+            .registered_coins
+            .get(&self.current_network)
+            .ok_or_else(|| BackendError::UnknownCoinDenom(coin.denom.clone()))?;
+
+        Ok(registered_coins.attempt_convert_to_display_dec_coin(coin)?)
+    }
+
+    pub(crate) fn registered_coins(&self) -> Result<&RegisteredCoins, BackendError> {
+        self.registered_coins
+            .get(&self.current_network)
+            .ok_or(BackendError::NoCoinsRegistered {
+                network: self.current_network,
+            })
+    }
+
+    pub(crate) fn convert_tx_fee(&self, fee: Option<&Fee>) -> Option<DecCoin> {
+        let mut fee_amount = fee?.try_get_manual_amount()?;
+        if fee_amount.len() > 1 {
+            warn!(
+            "our tx fee contained more than a single denomination. using the first one for display"
+        )
+        }
+        if fee_amount.is_empty() {
+            warn!("our tx has had an unknown fee set");
+            None
+        } else {
+            self.attempt_convert_to_display_dec_coin(fee_amount.pop().unwrap())
+                .ok()
+        }
+    }
+
+    // this one is rather gnarly and I'm not 100% sure how to feel about existence of it
+    pub(crate) fn create_detailed_fee(
+        &self,
+        simulate_response: SimulateResponse,
+    ) -> Result<FeeDetails, BackendError> {
+        // this MUST succeed as we just used it before
+        let client = self.current_client()?;
+        let gas_price = client.nymd.gas_price().clone();
+        let gas_adjustment = client.nymd.gas_adjustment();
+
+        let res = SimulateResult::new(simulate_response.gas_info, gas_price, gas_adjustment);
+
+        let amount = res
+            .to_fee_amount()
+            .map(|amount| self.attempt_convert_to_display_dec_coin(amount.into()))
+            .transpose()?;
+
+        Ok(FeeDetails::new(amount, res.to_fee()))
+    }
+
     pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {
         self.signing_clients
             .get(&network)
@@ -110,6 +193,11 @@ impl State {
 
     pub fn add_client(&mut self, network: Network, client: Client<SigningNymdClient>) {
         self.signing_clients.insert(network, client);
+    }
+
+    pub fn register_default_denoms(&mut self, network: Network) {
+        self.registered_coins
+            .insert(network, RegisteredCoins::default_denoms(network.into()));
     }
 
     pub fn set_network(&mut self, network: Network) {
@@ -390,7 +478,7 @@ mod tests {
 
     #[test]
     fn adding_validators_urls_prepends() {
-        let mut state = State::default();
+        let mut state = WalletStateInner::default();
         let _api_urls = state.get_api_urls(Network::MAINNET).collect::<Vec<_>>();
 
         state.add_validator_url(

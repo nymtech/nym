@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
-import { Stack, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { FeeDetails } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails } from '@nymproject/types';
+import { SxProps } from '@mui/material';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateClaimDelgatorReward, simulateVestingClaimDelgatorReward } from 'src/requests';
 import { ModalFee } from '../Modals/ModalFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { FeeWarning } from '../FeeWarning';
+import { ModalListItem } from '../Modals/ModalListItem';
 
 export const RedeemModal: React.FC<{
   open: boolean;
@@ -14,12 +15,12 @@ export const RedeemModal: React.FC<{
   onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  currency: string;
+  denom: CurrencyDenom;
   message: string;
   sx?: SxProps;
   backdropProps?: Object;
   usesVestingTokens: boolean;
-}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens, sx, backdropProps }) => {
+}> = ({ open, onClose, onOk, identityKey, amount, denom, message, usesVestingTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   const handleOk = async () => {
@@ -47,20 +48,13 @@ export const RedeemModal: React.FC<{
       sx={sx}
       backdropProps={backdropProps}
     >
-      {identityKey && <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} />}
-
-      <Stack direction="row" justifyContent="space-between" mb={4} mt={identityKey && 4}>
-        <Typography sx={{ color: 'text.primary' }}>Rewards amount:</Typography>
-        <Typography sx={{ color: 'text.primary' }}>
-          {amount} {currency}
-        </Typography>
-      </Stack>
-
-      <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
-        Rewards will be transferred to account you are logged in with now
-      </Typography>
+      {identityKey && (
+        <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} sx={{ mb: 2 }} />
+      )}
+      <ModalListItem label="Rewards amount" value={` ${amount} ${denom.toUpperCase()}`} divider />
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
+      <ModalListItem label="Rewards will be transferred to account you are logged in with now" value="" divider />
       {fee && <FeeWarning amount={amount} fee={fee} />}
-      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
-import { Stack, Typography } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { FeeDetails } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails } from '@nymproject/types';
 import { simulateCompoundDelgatorReward, simulateVestingCompoundDelgatorReward } from 'src/requests';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalFee } from '../Modals/ModalFee';
 import { FeeWarning } from '../FeeWarning';
+import { ModalListItem } from '../Modals/ModalListItem';
 
 export const CompoundModal: React.FC<{
   open: boolean;
@@ -14,10 +14,10 @@ export const CompoundModal: React.FC<{
   onOk?: (identityKey: string, fee?: FeeDetails) => void;
   identityKey: string;
   amount: number;
-  currency: string;
+  denom: CurrencyDenom;
   message: string;
   usesVestingTokens: boolean;
-}> = ({ open, onClose, onOk, identityKey, amount, currency, message, usesVestingTokens }) => {
+}> = ({ open, onClose, onOk, identityKey, amount, denom, message, usesVestingTokens }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   const handleOk = async () => {
@@ -42,20 +42,13 @@ export const CompoundModal: React.FC<{
       subHeader="Compound rewards from delegations"
       okLabel="Compound rewards"
     >
-      {identityKey && <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} />}
-
-      <Stack direction="row" justifyContent="space-between" mb={4} mt={identityKey && 4}>
-        <Typography>Rewards amount:</Typography>
-        <Typography>
-          {amount} {currency}
-        </Typography>
-      </Stack>
-
-      <Typography mb={5} fontSize="smaller">
-        Rewards will be transferred to account you are logged in with now
-      </Typography>
+      {identityKey && (
+        <IdentityKeyFormField readOnly fullWidth initialValue={identityKey} showTickOnValid={false} sx={{ mb: 2 }} />
+      )}
+      <ModalListItem label="Rewards amount" value={` ${amount} ${denom.toUpperCase()}`} divider />
+      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
+      <ModalListItem label="Rewards will be added to this delegation" value="" divider />
       {fee && <FeeWarning amount={amount} fee={fee} />}
-      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

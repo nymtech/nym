@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{Addr, StdError};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey};
 use thiserror::Error;
@@ -33,14 +32,14 @@ pub enum ContractError {
     #[error("MIXNET ({}): Unauthorized", line!())]
     Unauthorized,
 
-    #[error("MIXNET ({}): Wrong coin denomination, you must send {}", line!(), MIX_DENOM.base)]
-    WrongDenom,
+    #[error("MIXNET ({}): Wrong coin denomination, you must send {mix_denom}", line!())]
+    WrongDenom { mix_denom: String },
 
     #[error("MIXNET ({}): Received multiple coin types during staking", line!())]
     MultipleDenoms,
 
-    #[error("MIXNET ({}): No coin was sent for the bonding, you must send {}", line!(), MIX_DENOM.base)]
-    NoBondFound,
+    #[error("MIXNET ({}): No coin was sent for the bonding, you must send {mix_denom}", line!())]
+    NoBondFound { mix_denom: String },
 
     #[error("MIXNET ({}): Provided active set size is bigger than the rewarded set", line!())]
     InvalidActiveSetSize,
@@ -179,4 +178,11 @@ pub enum ContractError {
         last_update_time: u64,
         current_block_time: u64,
     },
+    #[error("`mix_identity` is required when `delegator` is set")]
+    MissingMixIdentity,
+    #[error("Compounding has been disabled temporarily")]
+    CompoundDisabled,
+
+    #[error("Mixnode {identity} has been blacklisted on the network")]
+    MixnodeBlacklisted { identity: String },
 }

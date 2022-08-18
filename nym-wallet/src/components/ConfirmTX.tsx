@@ -8,7 +8,7 @@ import { ModalDivider } from './Modals/ModalDivider';
 import { backDropStyles, modalStyles } from '../../.storybook/storiesStyles';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
-  !!isStorybook
+  isStorybook
     ? {
         backdropProps: { ...backDropStyles(theme), ...backdropProps },
         sx: modalStyles(theme),

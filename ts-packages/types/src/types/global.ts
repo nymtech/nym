@@ -1,4 +1,4 @@
-import { MixNode, MajorCurrencyAmount } from './rust';
+import { MixNode, DecCoin, CurrencyDenom } from './rust';
 
 export type TNodeType = 'mixnode' | 'gateway';
 
@@ -10,7 +10,7 @@ export type TNodeOwnership = {
 export type TDelegation = {
   owner: string;
   node_identity: string;
-  amount: MajorCurrencyAmount;
+  amount: DecCoin;
   block_height: number;
   proxy: string; // proxy address used to delegate the funds on behalf of anouther address
 };
@@ -21,8 +21,8 @@ export type TPagedDelegations = {
 };
 
 export type TMixnodeBondDetails = {
-  pledge_amount: MajorCurrencyAmount;
-  total_delegation: MajorCurrencyAmount;
+  pledge_amount: DecCoin;
+  total_delegation: DecCoin;
   owner: string;
   layer: string;
   block_height: number;

@@ -207,35 +207,20 @@ mod tests {
             "acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel",
             "step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball"
         ];
-        let prefixes = vec![
-            MAINNET.bech32_prefix(),
-            SANDBOX.bech32_prefix(),
-            QA.bech32_prefix(),
-        ];
+        let prefix = MAINNET.bech32_prefix();
 
-        for prefix in prefixes {
-            let addrs = match prefix.as_ref() {
-                "nymt" => vec![
-                    "nymt1jw6mp7d5xqc7w6xm79lha27glmd0vdt339me94",
-                    "nymt1h5hgn94nsq4kh99rjj794hr5h5q6yfm23rjshv",
-                    "nymt17n9flp6jflljg6fp05dsy07wcprf2uuufgn4d4",
-                ],
-                "n" => vec![
-                    "n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf",
-                    "n1h5hgn94nsq4kh99rjj794hr5h5q6yfm2lr52es",
-                    "n17n9flp6jflljg6fp05dsy07wcprf2uuu8g40rf",
-                ],
-                _ => panic!("Test needs to be updated with new bech32 prefix"),
-            };
-            for (idx, mnemonic) in mnemonics.iter().enumerate() {
-                let wallet =
-                    DirectSecp256k1HdWallet::from_mnemonic(&prefix, mnemonic.parse().unwrap())
-                        .unwrap();
-                assert_eq!(
-                    wallet.try_derive_accounts().unwrap()[0].address,
-                    addrs[idx].parse().unwrap()
-                )
-            }
+        let addrs = vec![
+            "n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf",
+            "n1h5hgn94nsq4kh99rjj794hr5h5q6yfm2lr52es",
+            "n17n9flp6jflljg6fp05dsy07wcprf2uuu8g40rf",
+        ];
+        for (idx, mnemonic) in mnemonics.iter().enumerate() {
+            let wallet =
+                DirectSecp256k1HdWallet::from_mnemonic(&prefix, mnemonic.parse().unwrap()).unwrap();
+            assert_eq!(
+                wallet.try_derive_accounts().unwrap()[0].address,
+                addrs[idx].parse().unwrap()
+            )
         }
     }
 }

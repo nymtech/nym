@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
 import { AppContext } from '../context/main';
-import { Bond, Delegate, Unbond } from '../svg-icons';
+import { Delegate, Bonding } from '../svg-icons';
 
 export const Nav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { isAdminAddress, handleShowSendModal } = useContext(AppContext);
+  const { isAdminAddress, handleShowSendModal, handleShowReceiveModal } = useContext(AppContext);
 
   const [routesSchema] = useState([
     {
@@ -25,21 +25,14 @@ export const Nav = () => {
     },
     {
       label: 'Receive',
-      route: '/receive',
       Icon: ArrowBack,
-      onClick: () => navigate('/receive'),
+      onClick: handleShowReceiveModal,
     },
     {
-      label: 'Bond',
-      route: '/bond',
-      Icon: Bond,
-      onClick: () => navigate('/bond'),
-    },
-    {
-      label: 'Unbond',
-      route: '/unbond',
-      Icon: Unbond,
-      onClick: () => navigate('/unbond'),
+      label: 'Bonding',
+      route: '/bonding',
+      Icon: Bonding,
+      onClick: () => navigate('/bonding'),
     },
     {
       label: 'Delegation',
@@ -69,9 +62,16 @@ export const Nav = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-start',
+        marginLeft: 12,
+        marginRight: 12,
       }}
     >
-      <List disablePadding>
+      <List
+        disablePadding
+        sx={{
+          width: '100%',
+        }}
+      >
         {routesSchema
           .filter(({ mode }) => {
             if (!mode) {
@@ -87,17 +87,35 @@ export const Nav = () => {
             }
           })
           .map(({ Icon, onClick, label, route }) => (
-            <ListItem disableGutters key={label} onClick={onClick} sx={{ cursor: 'pointer' }} data-testid={label}>
+            <ListItem
+              disableGutters
+              key={label}
+              onClick={onClick}
+              sx={{
+                cursor: 'pointer',
+                py: 2,
+                paddingLeft: 3.5,
+                borderRadius: 1,
+                '&:hover': { backgroundColor: (theme) => theme.palette.nym.nymWallet.hover.background },
+              }}
+            >
               <ListItemIcon
                 sx={{
+                  height: '20px',
                   minWidth: 30,
                   color: location.pathname === route ? 'primary.main' : 'text.primary',
                 }}
               >
-                <Icon sx={{ fontSize: 20 }} />
+                <Icon
+                  sx={{
+                    fontSize: 20,
+                  }}
+                />
               </ListItemIcon>
               <ListItemText
                 sx={{
+                  height: '20px',
+                  margin: 0,
                   color: location.pathname === route ? 'primary.main' : 'text.primary',
                   '& .MuiListItemText-primary': {
                     fontSize: 14,

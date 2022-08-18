@@ -1,6 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-use config::defaults::MIX_DENOM;
 use cosmwasm_std::{Coin, Timestamp};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -10,8 +9,8 @@ pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 pub mod events;
 pub mod messages;
 
-pub fn one_ucoin() -> Coin {
-    Coin::new(1, MIX_DENOM.base)
+pub fn one_ucoin(denom: String) -> Coin {
+    Coin::new(1, denom)
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -28,8 +27,8 @@ pub enum Period {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PledgeData {
-    amount: Coin,
-    block_time: Timestamp,
+    pub amount: Coin,
+    pub block_time: Timestamp,
 }
 
 impl PledgeData {
@@ -48,9 +47,9 @@ impl PledgeData {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct OriginalVestingResponse {
-    amount: Coin,
-    number_of_periods: usize,
-    period_duration: u64,
+    pub amount: Coin,
+    pub number_of_periods: usize,
+    pub period_duration: u64,
 }
 
 impl OriginalVestingResponse {

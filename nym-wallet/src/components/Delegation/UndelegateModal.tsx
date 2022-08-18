@@ -40,7 +40,6 @@ export const UndelegateModal: React.FC<{
       onClose={onClose}
       onOk={handleOk}
       header="Undelegate"
-      subHeader="Undelegate from mixnode"
       okLabel="Undelegate stake"
       okDisabled={!fee}
       sx={sx}
@@ -55,14 +54,10 @@ export const UndelegateModal: React.FC<{
       />
 
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Delegation amount" value={`${amount} ${currency}`} divider />
+        <ModalListItem label="Delegation amount" value={`${amount} ${currency.toUpperCase()}`} divider />
+        <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
+        <ModalListItem label=" Tokens will be transferred to account you are logged in with now" value="" divider />
       </Box>
-
-      <Typography mb={5} fontSize="smaller" sx={{ color: 'text.primary' }}>
-        Tokens will be transferred to account you are logged in with now
-      </Typography>
-
-      <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} />
     </SimpleModal>
   );
 };

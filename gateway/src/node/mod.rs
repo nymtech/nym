@@ -9,10 +9,10 @@ use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
-use config::defaults::DEFAULT_NETWORK;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use network_defaults::NymNetworkDetails;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics_common::collector::StatisticsSender;
@@ -249,7 +249,8 @@ where
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
-        let client_config = nymd::Config::try_from_nym_network_details(&DEFAULT_NETWORK.details())
+        let network_details = NymNetworkDetails::new_from_env();
+        let client_config = nymd::Config::try_from_nym_network_details(&network_details)
             .expect("failed to construct valid validator client config with the provided network");
 
         validator_client::nymd::NymdClient::connect_with_mnemonic(
@@ -316,6 +317,7 @@ where
         let coconut_verifier = CoconutVerifier::new(
             self.all_api_clients(),
             nymd_client,
+            std::env::var(network_defaults::var_names::MIX_DENOM).expect("mix denom base not set"),
             validators_verification_key,
         )
         .expect("Could not create coconut verifier");
@@ -334,6 +336,7 @@ where
         if self.config.get_enabled_statistics() {
             let statistics_service_url = self.config.get_statistics_service_url();
             let stats_collector = GatewayStatisticsCollector::new(
+                self.identity_keypair.public_key().to_base58_string(),
                 active_clients_store.clone(),
                 statistics_service_url,
             );

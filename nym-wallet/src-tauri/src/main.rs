@@ -4,9 +4,7 @@
 )]
 
 use mixnet_contract_common::{Gateway, MixNode};
-use std::sync::Arc;
 use tauri::Menu;
-use tokio::sync::RwLock;
 
 mod config;
 mod error;
@@ -24,7 +22,7 @@ use crate::operations::simulate;
 use crate::operations::validator_api;
 use crate::operations::vesting;
 
-use crate::state::State;
+use crate::state::WalletState;
 
 #[allow(clippy::too_many_lines)]
 fn main() {
@@ -32,7 +30,7 @@ fn main() {
     setup_logging();
 
     tauri::Builder::default()
-        .manage(Arc::new(RwLock::new(State::default())))
+        .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
             mixnet::account::add_account_for_password,
             mixnet::account::archive_wallet_file,
@@ -60,6 +58,8 @@ fn main() {
             mixnet::bond::unbond_gateway,
             mixnet::bond::unbond_mixnode,
             mixnet::bond::update_mixnode,
+            mixnet::bond::get_number_of_mixnode_delegators,
+            mixnet::bond::get_mix_node_description,
             mixnet::delegate::delegate_to_mixnode,
             mixnet::delegate::get_delegator_rewards,
             mixnet::delegate::get_pending_delegation_events,

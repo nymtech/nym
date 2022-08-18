@@ -1,8 +1,7 @@
 use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network_config;
-use crate::nymd_client;
-use crate::state::{State, WalletAccountIds};
+use crate::state::{WalletAccountIds, WalletState};
 use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
 use config::defaults::all::Network;
@@ -10,15 +9,11 @@ use config::defaults::COSMOS_DERIVATION_PATH;
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_types::account::{Account, AccountEntry, Balance};
-use nym_types::currency::MajorCurrencyAmount;
 use nym_wallet_types::network::Network as WalletNetwork;
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::str::FromStr;
-use std::sync::Arc;
 use strum::IntoEnumIterator;
-use tokio::sync::RwLock;
 use url::Url;
 use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
 use validator_client::{nymd::SigningNymdClient, Client};
@@ -26,33 +21,30 @@ use validator_client::{nymd::SigningNymdClient, Client};
 #[tauri::command]
 pub async fn connect_with_mnemonic(
     mnemonic: String,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     let mnemonic = Mnemonic::from_str(&mnemonic)?;
     _connect_with_mnemonic(mnemonic, state).await
 }
 
 #[tauri::command]
-pub async fn get_balance(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Balance, BackendError> {
-    let denom = state.read().await.current_network().base_mix_denom();
-    match nymd_client!(state)
-        .get_balance(nymd_client!(state).address(), denom)
-        .await
+pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance, BackendError> {
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let address = client.nymd.address();
+    let network = guard.current_network();
+    let base_mix_denom = network.base_mix_denom();
+
+    match client
+        .nymd
+        .get_balance(address, base_mix_denom.to_string())
+        .await?
     {
-        Ok(Some(coin)) => {
-            let amount = MajorCurrencyAmount::from(coin);
-            let printable_balance = amount.to_string();
-            Ok(Balance {
-                amount,
-                printable_balance,
-            })
+        Some(coin) => {
+            let amount = guard.attempt_convert_to_display_dec_coin(coin)?;
+            Ok(Balance::new(amount))
         }
-        Ok(None) => Err(BackendError::NoBalance(
-            nymd_client!(state).address().to_string(),
-        )),
-        Err(e) => Err(BackendError::from(e)),
+        None => Err(BackendError::NoBalance(address.to_string())),
     }
 }
 
@@ -68,19 +60,15 @@ pub fn validate_mnemonic(mnemonic: &str) -> bool {
 
 #[tauri::command]
 pub async fn switch_network(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
     network: WalletNetwork,
 ) -> Result<Account, BackendError> {
     let account = {
         let r_state = state.read().await;
         let client = r_state.client(network)?;
-        let denom = network.base_mix_denom();
+        let denom = network.mix_denom();
 
-        Account::new(
-            client.nymd.mixnet_contract_address().to_string(),
-            client.nymd.address().to_string(),
-            denom.try_into()?,
-        )
+        Account::new(client.nymd.address().to_string(), denom)
     };
 
     let mut w_state = state.write().await;
@@ -90,7 +78,7 @@ pub async fn switch_network(
 }
 
 #[tauri::command]
-pub async fn logout(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<(), BackendError> {
+pub async fn logout(state: tauri::State<'_, WalletState>) -> Result<(), BackendError> {
     state.write().await.logout();
     Ok(())
 }
@@ -102,7 +90,7 @@ fn random_mnemonic() -> Mnemonic {
 
 async fn _connect_with_mnemonic(
     mnemonic: Mnemonic,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     {
         let mut w_state = state.write().await;
@@ -154,19 +142,16 @@ async fn _connect_with_mnemonic(
     )?;
 
     // Set the default account
-    let default_network: WalletNetwork = config::defaults::DEFAULT_NETWORK.into();
+    let default_network = WalletNetwork::MAINNET;
     let client_for_default_network = clients
         .iter()
-        .find(|client| WalletNetwork::from(client.network.clone()) == default_network);
+        .find(|(network, _)| *network == default_network);
     let account_for_default_network = match client_for_default_network {
-        Some(client) => Ok(Account::new(
-            client.nymd.mixnet_contract_address().to_string(),
+        Some((_, client)) => Ok(Account::new(
             client.nymd.address().to_string(),
-            default_network.base_mix_denom().try_into()?,
+            default_network.mix_denom(),
         )),
-        None => Err(BackendError::NetworkNotSupported(
-            config::defaults::DEFAULT_NETWORK,
-        )),
+        None => Err(BackendError::NetworkNotSupported),
     };
 
     // Register all the clients
@@ -174,10 +159,10 @@ async fn _connect_with_mnemonic(
         let mut w_state = state.write().await;
         w_state.logout();
     }
-    for client in clients {
-        let network: WalletNetwork = client.network.clone().into();
+    for (network, client) in clients {
         let mut w_state = state.write().await;
         w_state.add_client(network, client);
+        w_state.register_default_denoms(network);
     }
 
     account_for_default_network
@@ -218,7 +203,7 @@ fn create_clients(
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<Client<SigningNymdClient>>, BackendError> {
+) -> Result<Vec<(WalletNetwork, Client<SigningNymdClient>)>, BackendError> {
     let mut clients = Vec::new();
     for network in WalletNetwork::iter() {
         let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
@@ -265,10 +250,9 @@ fn create_clients(
         let config = validator_client::Config::try_from_nym_network_details(&network_details)?
             .with_urls(nymd_url, api_url);
 
-        let mut client =
-            validator_client::Client::new_signing(config, network.into(), mnemonic.clone())?;
+        let mut client = validator_client::Client::new_signing(config, mnemonic.clone())?;
         client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
-        clients.push(client);
+        clients.push((network, client));
     }
     Ok(clients)
 }
@@ -328,7 +312,7 @@ pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendEr
 #[tauri::command]
 pub async fn sign_in_with_password(
     password: String,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     log::info!("Signing in with password");
 
@@ -368,7 +352,7 @@ fn extract_first_mnemonic(
 pub async fn sign_in_with_password_and_account_id(
     account_id: &str,
     password: &str,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     log::info!("Signing in with password");
 
@@ -420,7 +404,7 @@ pub async fn add_account_for_password(
     mnemonic: &str,
     password: &str,
     account_id: &str,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<AccountEntry, BackendError> {
     log::info!("Adding account for the current password: {account_id}");
     let mnemonic = Mnemonic::from_str(mnemonic)?;
@@ -462,7 +446,7 @@ pub async fn add_account_for_password(
 async fn set_state_with_all_accounts(
     stored_login: wallet_storage::StoredLogin,
     first_id_when_converting: wallet_storage::AccountId,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::trace!("Set state with accounts:");
     let all_accounts: Vec<_> = stored_login
@@ -503,7 +487,7 @@ async fn set_state_with_all_accounts(
 pub async fn remove_account_for_password(
     password: &str,
     account_id: &str,
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::info!("Removing account: {account_id}");
     // Currently we only support a single, default, id in the wallet
@@ -534,7 +518,7 @@ fn derive_address(
 
 #[tauri::command]
 pub async fn list_accounts(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<AccountEntry>, BackendError> {
     log::trace!("Listing accounts");
     let state = state.read().await;

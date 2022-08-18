@@ -17,7 +17,9 @@ export const SuccessModal = ({ tx, onClose }: { tx?: TTransactionDetails; onClos
     <Stack alignItems="center" spacing={2}>
       {tx && (
         <>
-          <Typography variant="h5">{tx.amount}</Typography>
+          <Typography variant="h5" textTransform="uppercase">
+            {tx.amount}
+          </Typography>
           <Link href={tx.url} target="_blank" sx={{ ml: 1 }} text="View on blockchain" />
         </>
       )}

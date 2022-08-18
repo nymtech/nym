@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-use network_defaults::DEFAULT_NETWORK;
 use nymsphinx::addressing::clients::Recipient;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
@@ -59,6 +58,7 @@ pub struct StatsProviderConfigEntry {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 pub struct OptionalStatsProviderConfig {
     mainnet: Option<StatsProviderConfigEntry>,
     sandbox: Option<StatsProviderConfigEntry>,
@@ -67,15 +67,7 @@ pub struct OptionalStatsProviderConfig {
 
 impl OptionalStatsProviderConfig {
     pub fn stats_client_address(&self) -> Option<String> {
-        let entry_config = match DEFAULT_NETWORK {
-            network_defaults::all::Network::MAINNET => self.mainnet.clone(),
-            network_defaults::all::Network::SANDBOX => self.sandbox.clone(),
-            network_defaults::all::Network::QA => self.qa.clone(),
-            network_defaults::all::Network::CUSTOM { .. } => {
-                panic!("custom network is not supported")
-            }
-        };
-        entry_config.map(|e| e.stats_client_address)
+        self.mainnet.clone().map(|e| e.stats_client_address)
     }
 }
 
@@ -202,17 +194,10 @@ impl StatisticsCollector for ServiceStatisticsCollector {
     }
 
     async fn reset_stats(&mut self) {
-        self.request_stats_data
-            .write()
-            .await
-            .client_processed_bytes
-            .iter_mut()
-            .for_each(|(_, b)| *b = 0);
+        self.request_stats_data.write().await.client_processed_bytes = HashMap::new();
         self.response_stats_data
             .write()
             .await
-            .client_processed_bytes
-            .iter_mut()
-            .for_each(|(_, b)| *b = 0);
+            .client_processed_bytes = HashMap::new();
     }
 }

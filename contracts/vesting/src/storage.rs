@@ -17,6 +17,7 @@ const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
 pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
 pub const ADMIN: Item<'_, String> = Item::new("adm");
 pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
+pub const MIX_DENOM: Item<'_, String> = Item::new("den");
 pub const LOCKED_PLEDGE_CAP: Item<'_, Uint128> = Item::new("lck");
 
 pub fn locked_pledge_cap(storage: &dyn Storage) -> Uint128 {

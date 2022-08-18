@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractState {
     pub owner: Addr, // only the owner account can update state
+    pub mix_denom: String,
     pub rewarding_validator_address: Addr,
     pub params: ContractStateParams,
 }

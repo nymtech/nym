@@ -1,11 +1,10 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { useTheme, Theme } from '@mui/material/styles';
-import { DelegationWithEverything, FeeDetails, MajorCurrencyAmount } from '@nymproject/types';
+import { DelegationWithEverything, FeeDetails, DecCoin } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
-import { PendingEvents } from 'src/components/Delegation/PendingEvents';
 import { TPoolOption } from 'src/components';
 import { Console } from 'src/utils/console';
 import { CompoundModal } from 'src/components/Rewards/CompoundModal';
@@ -22,7 +21,7 @@ import { DelegationModal, DelegationModalProps } from '../../components/Delegati
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
-  !!isStorybook
+  isStorybook
     ? {
         backdropProps: { ...backDropStyles(theme), ...backdropProps },
         sx: modalStyles(theme),
@@ -49,7 +48,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const {
     delegations,
-    pendingDelegations,
     totalDelegations,
     totalRewards,
     isLoading,
@@ -64,7 +62,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const getAllBalances = async () => {
     const resBalance = (await userBalance()).printable_balance;
-    let resVesting: MajorCurrencyAmount | undefined;
+    let resVesting: DecCoin | undefined;
     try {
       resVesting = await getSpendableCoins();
     } catch (e) {
@@ -85,7 +83,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   useEffect(() => {
     refresh();
-  }, [network, clientDetails, confirmationModalProps]);
+  }, [clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     if ((action === 'delegate' || action === 'compound') && item.stake_saturation && item.stake_saturation > 1) {
@@ -113,7 +111,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleNewDelegation = async (
     identityKey: string,
-    amount: MajorCurrencyAmount,
+    amount: DecCoin,
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => {
@@ -138,7 +136,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       setConfirmationModalProps({
         status: 'success',
         action: 'delegate',
-        message: 'Delegations can take up to one hour to process',
+        message: 'This operation can take up to one hour to process',
         ...balances,
         transactions: [
           { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
@@ -154,12 +152,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const handleDelegateMore = async (
-    identityKey: string,
-    amount: MajorCurrencyAmount,
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => {
+  const handleDelegateMore = async (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => {
     if (currentDelegationListActionItem?.node_identity !== identityKey || !clientDetails) {
       setConfirmationModalProps({
         status: 'error',
@@ -245,11 +238,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
     try {
       const txs = await claimRewards(identityKey, fee);
-      const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'redeem',
-        balance: bal?.printable_balance || '-',
         transactions: txs.map((tx) => ({
           url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
           hash: tx.transaction_hash,
@@ -275,11 +266,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
     try {
       const txs = await compoundRewards(identityKey, fee);
-      const bal = await userBalance();
       setConfirmationModalProps({
         status: 'success',
         action: 'compound',
-        balance: bal?.printable_balance || '-',
         transactions: txs.map((tx) => ({
           url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
           hash: tx.transaction_hash,
@@ -297,7 +286,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 4, mt: 4 }}>
+      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
         <Stack spacing={5}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Delegations</Typography>
@@ -311,7 +300,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               noIcon
             />
           </Box>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box display="flex" justifyContent="space-between" alignItems="end">
             <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
             <Button
               variant="contained"
@@ -331,15 +320,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         </Stack>
       </Paper>
 
-      {pendingDelegations && (
-        <Paper elevation={0} sx={{ p: 4, mt: 2 }}>
-          <Stack spacing={5}>
-            <Typography variant="h6">Pending Delegation Events</Typography>
-            <PendingEvents pendingEvents={pendingDelegations} explorerUrl={urls(network).networkExplorer} />
-          </Stack>
-        </Paper>
-      )}
-
       {showNewDelegationModal && (
         <DelegateModal
           open={showNewDelegationModal}
@@ -347,7 +327,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onOk={handleNewDelegation}
           header="Delegate"
           buttonText="Delegate stake"
-          currency={clientDetails!.denom}
+          denom={clientDetails?.display_mix_denom || 'nym'}
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
@@ -363,7 +343,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           header="Delegate more"
           buttonText="Delegate more"
           identityKey={currentDelegationListActionItem.node_identity}
-          currency={clientDetails!.denom}
+          denom={clientDetails?.display_mix_denom || 'nym'}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
           profitMarginPercentage={currentDelegationListActionItem.profit_margin_percent}
@@ -390,7 +370,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onClose={() => setShowRedeemRewardsModal(false)}
           onOk={(identity, fee) => handleRedeem(identity, fee)}
           message="Redeem rewards"
-          currency={clientDetails!.denom}
+          denom={clientDetails?.display_mix_denom || 'nym'}
           identityKey={currentDelegationListActionItem?.node_identity}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
           usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
@@ -403,7 +383,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           onClose={() => setShowCompoundRewardsModal(false)}
           onOk={(identity, fee) => handleCompound(identity, fee)}
           message="Compound rewards"
-          currency={clientDetails!.denom}
+          denom={clientDetails?.display_mix_denom || 'nym'}
           identityKey={currentDelegationListActionItem?.node_identity}
           amount={+currentDelegationListActionItem.accumulated_rewards.amount}
           usesVestingTokens={currentDelegationListActionItem.uses_vesting_contract_tokens}
@@ -436,8 +416,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const { network } = useContext(AppContext);
   return (
-    <DelegationContextProvider network={network}>
-      <RewardsContextProvider network={network}>
+    <DelegationContextProvider>
+      <RewardsContextProvider>
         <Delegation isStorybook={isStorybook} />
       </RewardsContextProvider>
     </DelegationContextProvider>

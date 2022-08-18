@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 chrono = { version = "0.4.19", features = ["serde"] }
+clap = { version = "3.2.8", features = ["cargo", "derive"] }
 humantime-serde = "1.0"
 isocountry = "0.3.2"
 itertools = "0.10.3"
@@ -25,4 +26,5 @@ tokio = {version = "1.19.1", features = ["full"] }
 
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 network-defaults = { path = "../common/network-defaults" }
+task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features=["nymd-client"] }

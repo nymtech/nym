@@ -1,4 +1,5 @@
 use nym_types::error::TypesError;
+use nym_wallet_types::network::Network;
 use serde::{Serialize, Serializer};
 use std::io;
 use std::num::ParseIntError;
@@ -77,7 +78,7 @@ pub enum BackendError {
     #[error("No balance available for address {0}")]
     NoBalance(String),
     #[error("The provided network is not supported (yet)")]
-    NetworkNotSupported(config::defaults::all::Network),
+    NetworkNotSupported,
     #[error("Could not access the local data storage directory")]
     UnknownStorageDirectory,
     #[error("The wallet file already exists")]
@@ -106,6 +107,10 @@ pub enum BackendError {
     FailedToDeriveAddress,
     #[error("{0}")]
     ValueParseError(#[from] ParseIntError),
+    #[error("The provided coin has an unknown denomination - {0}")]
+    UnknownCoinDenom(String),
+    #[error("Network {network} doesn't have any associated registered coin denoms")]
+    NoCoinsRegistered { network: Network },
 }
 
 impl Serialize for BackendError {

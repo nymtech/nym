@@ -9,3 +9,4 @@ edition = "2021"
 cosmwasm-std = "1.0.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+multisig-contract-common = { path = "../multisig-contract" }

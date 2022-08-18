@@ -156,31 +156,3 @@ impl CosmosAddressResponse {
         CosmosAddressResponse { addr }
     }
 }
-
-#[derive(Serialize, Deserialize, Getters, CopyGetters)]
-pub struct ProposeReleaseFundsRequestBody {
-    #[getset(get = "pub")]
-    credential: Credential,
-    #[getset(get = "pub")]
-    gateway_cosmos_addr: AccountId,
-}
-
-impl ProposeReleaseFundsRequestBody {
-    pub fn new(credential: Credential, gateway_cosmos_addr: AccountId) -> Self {
-        ProposeReleaseFundsRequestBody {
-            credential,
-            gateway_cosmos_addr,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProposeReleaseFundsResponse {
-    pub proposal_id: u64,
-}
-
-impl ProposeReleaseFundsResponse {
-    pub fn new(proposal_id: u64) -> Self {
-        ProposeReleaseFundsResponse { proposal_id }
-    }
-}

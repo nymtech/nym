@@ -10,7 +10,10 @@ use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
-use ::config::defaults::DEFAULT_NETWORK;
+use ::config::defaults::setup_env;
+#[cfg(feature = "coconut")]
+use ::config::defaults::var_names::API_VALIDATOR;
+use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
@@ -23,16 +26,19 @@ use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
+use task::ShutdownNotifier;
 use tokio::sync::Notify;
 // use validator_client::nymd::SigningNymdClient;
 // use validator_client::ValidatorClientError;
 
 use crate::rewarded_set_updater::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::InternalSignRequest;
+use coconut::{comm::QueryCommunicationChannel, InternalSignRequest};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
 use validator_client::nymd::SigningNymdClient;
@@ -50,6 +56,7 @@ mod swagger;
 mod coconut;
 
 const ID: &str = "id";
+const CONFIG_ENV_FILE: &str = "config-env-file";
 const MONITORING_ENABLED: &str = "enable-monitor";
 const REWARDING_ENABLED: &str = "enable-rewarding";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
@@ -75,22 +82,9 @@ const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
 const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
 
-#[cfg(feature = "coconut")]
-fn parse_validators(raw: &str) -> Vec<url::Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
-}
-
 fn long_version() -> String {
     format!(
         r#"
-{:<20}{}
 {:<20}{}
 {:<20}{}
 {:<20}{}
@@ -115,9 +109,7 @@ fn long_version() -> String {
         "rustc Channel:",
         env!("VERGEN_RUSTC_CHANNEL"),
         "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE"),
-        "Network:",
-        DEFAULT_NETWORK
+        env!("VERGEN_CARGO_PROFILE")
     )
 }
 
@@ -127,6 +119,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .version(crate_version!())
         .long_version(&*build_details)
         .author("Nymtech")
+        .arg(
+            Arg::with_name(CONFIG_ENV_FILE)
+                .help("Path pointing to an env file that configures the validator API")
+                .long(CONFIG_ENV_FILE)
+                .takes_value(true)
+        )
         .arg(
             Arg::with_name(ID)
                 .help("Id of the validator-api we want to run")
@@ -217,14 +215,44 @@ fn parse_args<'a>() -> ArgMatches<'a> {
     base_app.get_matches()
 }
 
-async fn wait_for_interrupt() {
-    if let Err(e) = tokio::signal::ctrl_c().await {
-        error!(
-            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-            e
-        );
+async fn wait_for_interrupt(mut shutdown: ShutdownNotifier) {
+    wait_for_signal().await;
+
+    log::info!("Sending shutdown");
+    shutdown.signal_shutdown().ok();
+
+    log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+    shutdown.wait_for_shutdown().await;
+
+    log::info!("Stopping nym validator API");
+}
+
+#[cfg(unix)]
+async fn wait_for_signal() {
+    use tokio::signal::unix::{signal, SignalKind};
+    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
+    let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            log::info!("Received SIGINT");
+        },
+        _ = sigterm.recv() => {
+            log::info!("Received SIGTERM");
+        }
+        _ = sigquit.recv() => {
+            log::info!("Received SIGQUIT");
+        }
     }
-    println!("Received SIGINT - the network monitor will terminate now");
+}
+
+#[cfg(not(unix))]
+async fn wait_for_signal() {
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            log::info!("Received SIGINT");
+        },
+    }
 }
 
 fn setup_logging() {
@@ -272,7 +300,10 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
 
     #[cfg(feature = "coconut")]
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
-        config = config.with_custom_validator_apis(parse_validators(raw_validators));
+        config = config.with_custom_validator_apis(::config::parse_validators(raw_validators));
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
+        config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
@@ -287,6 +318,10 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     }
 
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
+        config = config.with_custom_mixnet_contract(mixnet_contract)
+    } else if std::env::var(CONFIGURED).is_ok() {
+        let mixnet_contract =
+            std::env::var(MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set");
         config = config.with_custom_mixnet_contract(mixnet_contract)
     }
 
@@ -413,6 +448,7 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
 
 async fn setup_rocket(
     config: &Config,
+    _mix_denom: String,
     liftoff_notify: Arc<Notify>,
     _nymd_client: Client<SigningNymdClient>,
 ) -> Result<Rocket<Ignite>> {
@@ -452,8 +488,9 @@ async fn setup_rocket(
         let keypair = KeyPair::try_from_bs58(keypair_bs58)?;
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
+            _mix_denom,
             keypair,
-            config.get_all_validator_api_endpoints(),
+            QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
             storage.clone().unwrap(),
         ))
     } else {
@@ -524,14 +561,17 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
     }
+    let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
 
     let signing_nymd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
+    let shutdown = ShutdownNotifier::default();
 
     // let's build our rocket!
     let rocket = setup_rocket(
         &config,
+        mix_denom,
         Arc::clone(&liftoff_notify),
         signing_nymd_client.clone(),
     )
@@ -549,7 +589,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
         let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
-        tokio::spawn(async move { uptime_updater.run().await });
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
 
         // spawn the cache refresher
         let validator_cache_refresher = ValidatorCacheRefresher::new(
@@ -558,7 +599,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             validator_cache.clone(),
             Some(storage.clone()),
         );
-        tokio::spawn(async move { validator_cache_refresher.run().await });
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
 
         // spawn rewarded set updater
         let mut rewarded_set_updater =
@@ -573,11 +615,15 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
             None,
         );
 
+        let shutdown_listener = shutdown.subscribe();
         // spawn our cacher
-        tokio::spawn(async move { validator_cache_refresher.run().await });
+        tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
     }
 
     // launch the rocket!
+    // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
+    // with that of the rest of the tasks.
+    // Currently it's runtime is forcefully terminated once the validator-api exits.
     let shutdown_handle = rocket.shutdown();
     tokio::spawn(rocket.launch());
 
@@ -590,12 +636,12 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 
         // we're ready to go! spawn the network monitor!
         let runnables = monitor_builder.build().await;
-        runnables.spawn_tasks();
+        runnables.spawn_tasks(&shutdown);
     } else {
         info!("Network monitoring is disabled.");
     }
 
-    wait_for_interrupt().await;
+    wait_for_interrupt(shutdown).await;
     shutdown_handle.notify();
 
     Ok(())
@@ -605,8 +651,6 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 async fn main() -> Result<()> {
     println!("Starting validator api...");
 
-    let _ = dotenv::dotenv();
-
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
@@ -614,5 +658,9 @@ async fn main() -> Result<()> {
 
     setup_logging();
     let args = parse_args();
+    let config_env_file = args
+        .value_of(CONFIG_ENV_FILE)
+        .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
+    setup_env(config_env_file);
     run_validator_api(args).await
 }

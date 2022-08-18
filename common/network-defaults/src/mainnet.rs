@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::var_names;
 use crate::{DenomDetails, ValidatorDetails};
 
 pub(crate) const BECH32_PREFIX: &str = "n";
@@ -23,10 +24,49 @@ pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
-pub(crate) const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "http://127.0.0.1:8090";
+pub(crate) const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
+pub const NYMD_VALIDATOR: &str = "https://rpc.nyx.nodes.guru/";
+pub const API_VALIDATOR: &str = "https://validator.nymtech.net/api/";
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
-    vec![ValidatorDetails::new(
-        "https://rpc.nyx.nodes.guru/",
-        Some("https://validator.nymtech.net/api/"),
-    )]
+    vec![ValidatorDetails::new(NYMD_VALIDATOR, Some(API_VALIDATOR))]
+}
+
+pub fn export_to_env() {
+    std::env::set_var(var_names::CONFIGURED, "true");
+    std::env::set_var(var_names::BECH32_PREFIX, BECH32_PREFIX);
+    std::env::set_var(var_names::MIX_DENOM, MIX_DENOM.base);
+    std::env::set_var(var_names::MIX_DENOM_DISPLAY, MIX_DENOM.display);
+    std::env::set_var(var_names::STAKE_DENOM, STAKE_DENOM.base);
+    std::env::set_var(var_names::STAKE_DENOM_DISPLAY, STAKE_DENOM.display);
+    std::env::set_var(
+        var_names::DENOMS_EXPONENT,
+        STAKE_DENOM.display_exponent.to_string(),
+    );
+    std::env::set_var(var_names::MIXNET_CONTRACT_ADDRESS, MIXNET_CONTRACT_ADDRESS);
+    std::env::set_var(
+        var_names::VESTING_CONTRACT_ADDRESS,
+        VESTING_CONTRACT_ADDRESS,
+    );
+    std::env::set_var(
+        var_names::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+        BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+    );
+    std::env::set_var(
+        var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+        COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+    );
+    std::env::set_var(
+        var_names::MULTISIG_CONTRACT_ADDRESS,
+        MULTISIG_CONTRACT_ADDRESS,
+    );
+    std::env::set_var(
+        var_names::REWARDING_VALIDATOR_ADDRESS,
+        REWARDING_VALIDATOR_ADDRESS,
+    );
+    std::env::set_var(
+        var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
+        STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    );
+    std::env::set_var(var_names::NYMD_VALIDATOR, NYMD_VALIDATOR);
+    std::env::set_var(var_names::API_VALIDATOR, API_VALIDATOR);
 }

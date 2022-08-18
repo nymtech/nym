@@ -19,17 +19,18 @@ export const ConfirmPasswordModal = ({
     <Dialog open={Boolean(accountName)} onClose={onClose} fullWidth>
       <Paper>
         <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Switch account</Typography>
-            <IconButton onClick={onClose}>
-              <ArrowBack />
-            </IconButton>
-          </Box>
-          <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
+          <Typography variant="h6">Switch account</Typography>
+          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
             Confirm password
           </Typography>
         </DialogTitle>
-        <ConfirmPassword onConfirm={onConfirm} error={error} isLoading={isLoading} buttonTitle="Switch account" />
+        <ConfirmPassword
+          onConfirm={onConfirm}
+          error={error}
+          isLoading={isLoading}
+          buttonTitle="Switch account"
+          onCancel={onClose}
+        />
       </Paper>
     </Dialog>
   );

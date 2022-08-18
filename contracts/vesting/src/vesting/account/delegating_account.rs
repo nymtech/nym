@@ -2,6 +2,7 @@ use crate::errors::ContractError;
 use crate::storage::locked_pledge_cap;
 use crate::storage::save_delegation;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
+use crate::storage::MIX_DENOM;
 use crate::traits::DelegatingAccount;
 use crate::traits::VestingAccount;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
@@ -28,7 +29,7 @@ impl DelegatingAccount for Account {
         let compound_delegator_reward_msg = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_ucoin()],
+            vec![one_ucoin(MIX_DENOM.load(storage)?)],
         )?;
 
         Ok(Response::new().add_message(compound_delegator_reward_msg))
@@ -46,7 +47,7 @@ impl DelegatingAccount for Account {
         let compound_delegator_reward_msg = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_ucoin()],
+            vec![one_ucoin(MIX_DENOM.load(storage)?)],
         )?;
 
         Ok(Response::new().add_message(compound_delegator_reward_msg))
@@ -118,7 +119,7 @@ impl DelegatingAccount for Account {
         let undelegate_from_mixnode = wasm_execute(
             MIXNET_CONTRACT_ADDRESS.load(storage)?,
             &msg,
-            vec![one_ucoin()],
+            vec![one_ucoin(MIX_DENOM.load(storage)?)],
         )?;
 
         Ok(Response::new()

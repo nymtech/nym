@@ -29,9 +29,6 @@ const transactionForDarkTheme = {
   url: 'https://sandbox-blocks.nymtech.net/transactions/11ED7B9E21534A9421834F52FED5103DC6E982949C06335F5E12EFC71DAF0CFO',
   hash: '11ED7B9E21534A9421834F52FED5103DC6E982949C06335F5E12EFC71DAF0CF0',
 };
-const balance = '104 NYMT';
-const balanceVested = '12 NYMT';
-const recipient = 'nymt1923pujepxfnv8dqyxqrl078s4ysf3xn2p7z2xa';
 
 const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
   children,
@@ -78,8 +75,6 @@ export const DelegateSuccess = () => {
         status="success"
         action="delegate"
         message="You delegated 5 NYM"
-        recipient={recipient}
-        balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
         {...storybookStyles(theme)}
       />
@@ -99,8 +94,6 @@ export const UndelegateSuccess = () => {
         status="success"
         action="undelegate"
         message="You undelegated 5 NYM"
-        recipient={recipient}
-        balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
         {...storybookStyles(theme)}
       />
@@ -120,8 +113,6 @@ export const RedeemSuccess = () => {
         status="success"
         action="redeem"
         message="42 NYM"
-        recipient={recipient}
-        balance={balance}
         transactions={
           theme.palette.mode === 'light'
             ? [transaction, transaction]
@@ -145,9 +136,6 @@ export const RedeemWithVestedSuccess = () => {
         status="success"
         action="redeem"
         message="42 NYM"
-        recipient={recipient}
-        balance={balance}
-        balanceVested={balanceVested}
         transactions={
           theme.palette.mode === 'light'
             ? [transaction, transaction]
@@ -171,8 +159,6 @@ export const RedeemAllSuccess = () => {
         status="success"
         action="redeem-all"
         message="42 NYM"
-        recipient={recipient}
-        balance={balance}
         transactions={
           theme.palette.mode === 'light'
             ? [transaction, transaction]
@@ -196,8 +182,6 @@ export const Error = () => {
         status="error"
         action="redeem-all"
         message="Minim esse veniam Lorem id velit Lorem eu eu est. Excepteur labore sunt do proident proident sint aliquip consequat Lorem sint non nulla ad excepteur."
-        recipient={recipient}
-        balance={balance}
         transactions={theme.palette.mode === 'light' ? [transaction] : [transactionForDarkTheme]}
         {...storybookStyles(theme)}
       />

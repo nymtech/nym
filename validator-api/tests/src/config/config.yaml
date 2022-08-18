@@ -1,0 +1,15 @@
+common:
+  request_headers:
+    Accept: application/json
+    Content-Type: application/json
+qa:
+  api_base_url: https://qa-validator-api.nymtech.net/api/v1
+  mixnode_identity: DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ
+  gateway_identity: CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM
+  log_level: debug
+prod:
+  api_base_url: https://qa-validator-api.nymtech.net/api/v1
+  mixnode_identity: DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ
+  gateway_identity: CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM
+  log_level: debug
+  time_zone: utc

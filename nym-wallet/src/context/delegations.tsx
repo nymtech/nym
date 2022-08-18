@@ -4,7 +4,7 @@ import {
   DelegationEvent,
   DelegationWithEverything,
   FeeDetails,
-  MajorCurrencyAmount,
+  DecCoin,
   TransactionExecuteResult,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
@@ -14,13 +14,13 @@ import { TPoolOption } from 'src/components';
 export type TDelegationContext = {
   isLoading: boolean;
   error?: string;
-  delegations?: DelegationWithEverything[];
+  delegations?: TDelegations;
   pendingDelegations?: DelegationEvent[];
   totalDelegations?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
   addDelegation: (
-    data: { identity: string; amount: MajorCurrencyAmount },
+    data: { identity: string; amount: DecCoin },
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
@@ -34,6 +34,12 @@ export type TDelegationContext = {
 export type TDelegationTransaction = {
   transactionUrl: string;
 };
+
+export type DelegationWithEvent = DelegationWithEverything | DelegationEvent;
+export type TDelegations = DelegationWithEvent[];
+
+export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is DelegationEvent =>
+  'kind' in delegation;
 
 export const DelegationContext = createContext<TDelegationContext>({
   isLoading: true,
@@ -51,13 +57,13 @@ export const DelegationContextProvider: FC<{
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [delegations, setDelegations] = useState<undefined | DelegationWithEverything[]>();
+  const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
 
   const addDelegation = async (
-    data: { identity: string; amount: MajorCurrencyAmount },
+    data: { identity: string; amount: DecCoin },
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => {
@@ -74,7 +80,6 @@ export const DelegationContextProvider: FC<{
   };
 
   const resetState = () => {
-    setIsLoading(true);
     setError(undefined);
     setTotalDelegations(undefined);
     setTotalRewards(undefined);
@@ -82,24 +87,30 @@ export const DelegationContextProvider: FC<{
   };
 
   const refresh = useCallback(async () => {
+    resetState();
+    setIsLoading(true);
     try {
       const data = await getDelegationSummary();
       const pending = await getAllPendingDelegations();
 
+      const pendingOnNewNodes = pending.filter((event) => {
+        const some = data.delegations.some(({ node_identity }) => node_identity === event.node_identity);
+        return !some;
+      });
+
       setPendingDelegations(pending);
-      setDelegations(data.delegations);
+      setDelegations([...data.delegations, ...pendingOnNewNodes]);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
     } catch (e) {
       setError((e as Error).message);
     }
     setIsLoading(false);
-  }, [network]);
+  }, []);
 
   useEffect(() => {
-    resetState();
     refresh();
-  }, [network]);
+  }, []);
 
   const memoizedValue = useMemo(
     () => ({

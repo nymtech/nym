@@ -34,11 +34,13 @@ pub trait VestingAccount {
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
+        storage: &dyn Storage,
     ) -> Result<Coin, ContractError>;
     fn get_vesting_coins(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
+        storage: &dyn Storage,
     ) -> Result<Coin, ContractError>;
 
     fn get_start_time(&self) -> Timestamp;

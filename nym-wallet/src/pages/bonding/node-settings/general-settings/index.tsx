@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Divider, Grid, withStyles } from '@mui/material';
 import { InfoSettings } from './InfoSettings';
+import { ParametersSettings } from './ParametersSettings';
 import { AppContext } from '../../../../context/main';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
@@ -22,6 +23,7 @@ export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => vo
             <Button
               size="small"
               sx={{
+                fontSize: 14,
                 color: settingsCard === item ? 'primary.main' : 'inherit',
                 justifyContent: 'start',
                 ':hover': {
@@ -37,7 +39,7 @@ export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => vo
         </Grid>
         <Divider orientation="vertical" flexItem />
         {settingsCard === nodeGeneralNav[0] && <InfoSettings onSaveChanges={() => console.log('saving...')} />}
-        {settingsCard === nodeGeneralNav[1] && <h1>bye</h1>}
+        {settingsCard === nodeGeneralNav[1] && <ParametersSettings onSaveChanges={() => console.log('saving...')} />}
       </Grid>
     </Box>
   );

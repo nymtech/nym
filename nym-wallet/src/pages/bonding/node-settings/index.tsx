@@ -50,7 +50,24 @@ export const NodeSettingsPage = () => {
             </Box>
             <Toolbar disableGutters sx={{ height: '30px' }}>
               {nodeSettingsNav.map((item) => (
-                <Button size="small" sx={{ p: 0, mr: 2, color: 'inherit' }} onClick={() => setSettingsCard(item)}>
+                <Button
+                  size="small"
+                  sx={{
+                    p: 0,
+                    mr: 4,
+                    fontWeight: 600,
+                    color: settingsCard === item ? 'primary.main' : '#B9B9B9',
+                    textDecoration: settingsCard === item ? 'underline' : 'none',
+                    textDecorationThickness: '4px',
+                    textUnderlineOffset: '4px',
+                    justifyContent: 'start',
+                    ':hover': {
+                      bgcolor: 'transparent',
+                      color: 'primary.main',
+                    },
+                  }}
+                  onClick={() => setSettingsCard(item)}
+                >
                   {item}
                 </Button>
               ))}

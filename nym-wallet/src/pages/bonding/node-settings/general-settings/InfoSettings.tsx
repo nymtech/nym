@@ -1,21 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
 
-const ModifiedTextField = ({ field }: { field: { id: string; title: string; value: string } }) => {
-  return (
-    <Box>
-      <Typography>{field.title}</Typography>
-      <TextField
-        type="input"
-        value={field.value}
-        onChange={(e) => console.log(`Field ${field.id} has change`, e.target.value)}
-        autoFocus
-        fullWidth
-      />
-    </Box>
-  );
-};
-
 export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
   const [valueChanged, setValueChanged] = useState<boolean>(false);
   const [mixPortValue, setMixPortValue] = useState<string>('1789');
@@ -34,20 +19,19 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
   return (
     <Box sx={{ width: 0.78 }}>
       <Grid container direction="column">
-        <Grid
-          item
-          container
-          direction="row"
-          alignItems="left"
-          justifyContent="space-between"
-          flexWrap="nowrap"
-          padding={3}
-        >
+        <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item direction="column">
-            <Typography>Port</Typography>
-            <Typography>Change profit margin of your node</Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 1 }}>Port</Typography>
+            <Typography
+              sx={{
+                fontSize: 14,
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+              }}
+            >
+              Change profit margin of your node
+            </Typography>
           </Grid>
-          <Grid spacing={3} item container alignItems="center" maxWidth="320px">
+          <Grid spacing={3} item container alignItems="center" maxWidth="348px">
             {portSettings.map((item) => (
               <Grid item width={1} spacing={3}>
                 <TextField
@@ -63,33 +47,73 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
           </Grid>
         </Grid>
         <Divider flexItem />
-        <Box display="flex">
-          <Box display="flex" flexDirection="column">
-            <Typography>Host</Typography>
-            <Typography>Lock wallet after certain time</Typography>
-          </Box>
-          <Box>
+        <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
+          <Grid item direction="column">
+            <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 1 }}>Host</Typography>
+            <Typography
+              sx={{
+                fontSize: 14,
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+              }}
+            >
+              Lock wallet after certain time
+            </Typography>
+          </Grid>
+          <Grid spacing={3} item container alignItems="center" maxWidth="348px">
             {hostSettings.map((item) => (
-              <ModifiedTextField field={item} />
+              <Grid item width={1} spacing={3}>
+                <TextField
+                  type="input"
+                  label={item.title}
+                  value={item.value}
+                  onChange={(e) => console.log(`Field ${item.id} has change`, e.target.value)}
+                  autoFocus
+                  fullWidth
+                />
+              </Grid>
             ))}
-          </Box>
-        </Box>
+          </Grid>
+        </Grid>
         <Divider flexItem />
-        <Box display="flex">
-          <Box display="flex" flexDirection="column">
-            <Typography>Version</Typography>
-            <Typography>Lock wallet after certain time</Typography>
-          </Box>
-          <Box>
+        <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
+          <Grid item direction="column">
+            <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 1 }}>Version</Typography>
+            <Typography
+              sx={{
+                fontSize: 14,
+                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+              }}
+            >
+              Lock wallet after certain time
+            </Typography>
+          </Grid>
+          <Grid spacing={3} item container alignItems="center" maxWidth="348px">
             {versionSettings.map((item) => (
-              <ModifiedTextField field={item} />
+              <Grid item width={1} spacing={3}>
+                <TextField
+                  type="input"
+                  label={item.title}
+                  value={item.value}
+                  onChange={(e) => console.log(`Field ${item.id} has change`, e.target.value)}
+                  autoFocus
+                  fullWidth
+                />
+              </Grid>
             ))}
-          </Box>
-        </Box>
+          </Grid>
+        </Grid>
         <Divider flexItem />
-        <Button variant="contained" disabled={!valueChanged} onClick={onSaveChanges}>
-          Save all changes
-        </Button>
+        <Grid container justifyContent="end">
+          <Button
+            size="large"
+            variant="contained"
+            disabled={!valueChanged}
+            onClick={onSaveChanges}
+            sx={{ m: 3, width: '320px' }}
+          >
+            Save all changes
+          </Button>
+        </Grid>
       </Grid>
     </Box>
   );

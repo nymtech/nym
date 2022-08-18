@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Divider, Grid } from '@mui/material';
+import { Box, Button, Divider, Grid, withStyles } from '@mui/material';
 import { InfoSettings } from './InfoSettings';
-import { ParametersSettings } from './ParametersSettings';
 import { AppContext } from '../../../../context/main';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
@@ -22,7 +21,14 @@ export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => vo
           {nodeGeneralNav.map((item) => (
             <Button
               size="small"
-              sx={{ p: 0, mr: 2, color: 'inherit', justifyContent: 'start' }}
+              sx={{
+                color: settingsCard === item ? 'primary.main' : 'inherit',
+                justifyContent: 'start',
+                ':hover': {
+                  bgcolor: 'transparent',
+                  color: 'primary.main',
+                },
+              }}
               onClick={() => setSettingsCard(item)}
             >
               {item}

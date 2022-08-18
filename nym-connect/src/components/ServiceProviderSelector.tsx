@@ -4,7 +4,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ArrowDropDownCircleIcon from '@mui/icons-material/ArrowDropDownCircle';
 import { Box, CircularProgress, Stack, Tooltip, Typography } from '@mui/material';
-import { ServiceProvider, Services } from '../types/directory';
+import { ServiceProvider, Service, Services } from '../types/directory';
 
 type ServiceWithRandomSp = {
   id: string;
@@ -17,6 +17,7 @@ export const ServiceProviderSelector: React.FC<{
   services?: Services;
   currentSp?: ServiceProvider;
 }> = ({ services, currentSp, onChange }) => {
+  const [service, setService] = React.useState<Service>();
   const [serviceProvider, setServiceProvider] = React.useState<ServiceProvider | undefined>(currentSp);
   const textEl = React.useRef<null | HTMLElement>(null);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -27,6 +28,10 @@ export const ServiceProviderSelector: React.FC<{
       setServiceProvider(currentSp);
     }
   }, [currentSp]);
+
+  useEffect(() => {
+    setService(serviceProvider && services?.find((s) => s.items.includes(serviceProvider)));
+  }, [serviceProvider]);
 
   const handleClick = () => {
     setAnchorEl(textEl.current);
@@ -72,7 +77,7 @@ export const ServiceProviderSelector: React.FC<{
           fontWeight={700}
           color={(theme) => (serviceProvider ? undefined : theme.palette.primary.main)}
         >
-          {serviceProvider ? serviceProvider.description : 'Select a service'}
+          {service ? service.description : 'Select a service'}
         </Typography>
         <IconButton
           id="service-provider-button"

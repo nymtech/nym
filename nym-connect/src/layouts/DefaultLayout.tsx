@@ -37,7 +37,7 @@ export const DefaultLayout: React.FC<{
       <ServiceProviderSelector services={services} onChange={handleServiceProviderChange} currentSp={currentSp} />
       <ConnectionButton
         status={status}
-        disabled={serviceProvider === undefined}
+        disabled={serviceProvider === undefined && currentSp === undefined}
         busy={busy}
         isError={isError}
         onClick={onConnectClick}

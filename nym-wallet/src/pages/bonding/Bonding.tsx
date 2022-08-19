@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
@@ -17,8 +16,8 @@ import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/ty
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { BondingContextProvider, useBondingContext } from '../../context';
-import { Box, Button } from '@mui/material';
+import { BondingContextProvider, useBondingContext, TBondedMixnode } from '../../context';
+import { Box } from '@mui/material';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -44,7 +43,17 @@ const Bonding = () => {
     checkOwnership,
   } = useBondingContext();
 
-  const navigate = useNavigate();
+  // const bondedMixnodeMock: TBondedMixnode = {
+  //   name: 'Monster node',
+  //   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
+  //   stake: { denom: 'nym', amount: '1234' },
+  //   bond: { denom: 'nym', amount: '1234' },
+  //   stakeSaturation: 95,
+  //   profitMargin: 15,
+  //   operatorRewards: { denom: 'nym', amount: '1234' },
+  //   delegators: 5423,
+  //   status: 'active',
+  // };
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -153,7 +162,6 @@ const Bonding = () => {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Button onClick={() => navigate('/bonding/node-settings')}>Open Settings</Button>
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (

@@ -1,19 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Divider, Grid, withStyles } from '@mui/material';
+import { Box, Button, Divider, Grid } from '@mui/material';
 import { InfoSettings } from './InfoSettings';
 import { ParametersSettings } from './ParametersSettings';
-import { AppContext } from '../../../../context/main';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
 
 export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeGeneralNav[0]);
-
-  const { userBalance } = useContext(AppContext);
-
-  useEffect(() => {
-    console.log('a');
-  }, [userBalance]);
 
   return (
     <Box sx={{ pl: 3, pt: 3 }}>

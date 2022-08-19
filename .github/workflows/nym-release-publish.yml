@@ -1,6 +1,7 @@
 name: Publish Nym binaries
-workflow_dispatch:
+
 on:
+  workflow_dispatch:
   release:
     types: [created]
     

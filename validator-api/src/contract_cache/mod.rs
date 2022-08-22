@@ -266,7 +266,9 @@ impl<C> ValidatorCacheRefresher<C> {
             )
             .await;
 
-        self.update_notifier.send(CacheNotification::Updated);
+        if let Err(err) = self.update_notifier.send(CacheNotification::Updated) {
+            warn!("Failed to notify validator cache refresh: {}", err);
+        }
 
         Ok(())
     }

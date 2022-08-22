@@ -17,7 +17,7 @@ use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DEN
 use ::config::NymConfig;
 use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
-use contract_cache::{CacheNotification, ValidatorCache};
+use contract_cache::ValidatorCache;
 use log::{info, warn};
 use node_status_api::NodeStatusCache;
 use okapi::openapi3::OpenApi;
@@ -33,7 +33,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
 use task::ShutdownNotifier;
-use tokio::sync::{watch, Notify};
+use tokio::sync::Notify;
 // use validator_client::nymd::SigningNymdClient;
 // use validator_client::ValidatorClientError;
 

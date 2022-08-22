@@ -1,3 +1,6 @@
-import type { DelegationEvent } from "./DelegationEvent";
+import type { DelegationEvent } from './DelegationEvent';
 
-export interface WrappedDelegationEvent { event: DelegationEvent, node_identity: string, }
+export interface WrappedDelegationEvent {
+  event: DelegationEvent;
+  node_identity: string;
+}

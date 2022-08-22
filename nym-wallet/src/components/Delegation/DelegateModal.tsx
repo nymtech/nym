@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode } from 'src/requests';
+import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
+import { debounce } from 'lodash';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
@@ -93,9 +94,6 @@ export const DelegateModal: React.FC<{
     let errorAmountMessage;
     let errorIdentityKeyMessage;
 
-    // TODO: get mixnode id
-    // setMixId(null);
-
     if (!identityKey || !validateKey(identityKey, 32)) {
       newValidatedValue = false;
       errorIdentityKeyMessage = undefined;
@@ -134,7 +132,7 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleConfirm = async ({ mixId, value }: { mixId: number; value: DecCoin }) => {
+  const handleConfirm = async ({ id, value }: { id: number; value: DecCoin }) => {
     const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
 
     if (!hasEnoughTokens) {
@@ -143,11 +141,11 @@ export const DelegateModal: React.FC<{
     }
 
     if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { mix_id: mixId, amount: value });
+      getFee(simulateDelegateToMixnode, { mix_id: id, amount: value });
     }
 
     if (tokenPool === 'locked') {
-      getFee(simulateVestingDelegateToMixnode, { mix_id: mixId, amount: value });
+      getFee(simulateVestingDelegateToMixnode, { mix_id: id, amount: value });
     }
   };
 
@@ -170,6 +168,29 @@ export const DelegateModal: React.FC<{
   React.useEffect(() => {
     validate();
   }, [amount, identityKey]);
+
+  const resolveMixId = useCallback(
+    debounce(async (idKey) => {
+      if (!idKey || !validateKey(idKey, 32)) {
+        return;
+      }
+      let res;
+      try {
+        res = await tryConvertIdentityToMixId(idKey);
+      } catch (e) {
+        Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
+        return;
+      }
+      if (res) {
+        setMixId(res);
+      }
+    }, 500),
+    [],
+  );
+
+  React.useEffect(() => {
+    resolveMixId(identityKey);
+  }, [identityKey]);
 
   if (fee) {
     return (
@@ -205,7 +226,7 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (mixId && amount) {
-          handleConfirm({ mixId, value: { amount, denom } });
+          handleConfirm({ id: mixId, value: { amount, denom } });
         }
       }}
       header={header || 'Delegate'}

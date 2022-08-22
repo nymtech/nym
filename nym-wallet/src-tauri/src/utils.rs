@@ -49,8 +49,8 @@ pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, 
 
 #[tauri::command]
 pub async fn try_convert_pubkey_to_mix_id(
-    state: tauri::State<'_, WalletState>,
     mix_identity: IdentityKey,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<Option<NodeId>, BackendError> {
     let res = nymd_client!(state)
         .deprecated_get_mixnode_details_by_identity(mix_identity)

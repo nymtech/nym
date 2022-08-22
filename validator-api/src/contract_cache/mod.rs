@@ -23,13 +23,20 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
+use tokio::sync::{watch, RwLock};
 use tokio::time;
 use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod reward_estimate;
 pub(crate) mod routes;
+
+// The cache can emit notifications to listeners about the current state
+#[derive(Debug, PartialEq, Eq)]
+pub enum CacheNotification {
+    Start,
+    Updated,
+}
 
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,
@@ -38,6 +45,9 @@ pub struct ValidatorCacheRefresher<C> {
 
     // Readonly: some of the quantities cached depends on values from the storage.
     storage: Option<ValidatorApiStorage>,
+
+    // Notify listeners that the cache has been updated
+    update_notifier: watch::Sender<CacheNotification>,
 }
 
 #[derive(Clone)]
@@ -101,11 +111,13 @@ impl<C> ValidatorCacheRefresher<C> {
         cache: ValidatorCache,
         storage: Option<ValidatorApiStorage>,
     ) -> Self {
+        let (tx, _) = watch::channel(CacheNotification::Start);
         ValidatorCacheRefresher {
             nymd_client,
             cache,
             caching_interval,
             storage,
+            update_notifier: tx,
         }
     }
 
@@ -115,6 +127,10 @@ impl<C> ValidatorCacheRefresher<C> {
             .get_average_mixnode_uptime_in_the_last_24hrs(identity, epoch.end_unix_timestamp())
             .await
             .ok()
+    }
+
+    pub fn subscribe(&self) -> watch::Receiver<CacheNotification> {
+        self.update_notifier.subscribe()
     }
 
     async fn annotate_bond_with_details(
@@ -249,6 +265,8 @@ impl<C> ValidatorCacheRefresher<C> {
                 current_operator_base_cost,
             )
             .await;
+
+        self.update_notifier.send(CacheNotification::Updated);
 
         Ok(())
     }

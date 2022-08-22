@@ -5,7 +5,7 @@ use rocket::fairing::AdHoc;
 use serde::Serialize;
 use tap::TapFallible;
 use tokio::{
-    sync::RwLock,
+    sync::{watch, RwLock},
     time::{self, Instant},
 };
 
@@ -14,7 +14,7 @@ use std::{sync::Arc, time::Duration};
 use mixnet_contract_common::{reward_params::EpochRewardParams, MixNodeBond};
 use task::ShutdownListener;
 
-use crate::contract_cache::{Cache, ValidatorCache};
+use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
 
 const CACHE_TIMOUT_MS: u64 = 100;
 
@@ -95,33 +95,58 @@ impl NodeStatusCacheInner {
 }
 
 // Long running task responsible of keeping the cache up-to-date.
-// WIP(JON): trigger on contract cache updates too
 pub struct NodeStatusCacheRefresher {
     cache: NodeStatusCache,
-    caching_interval: Duration,
-
     contract_cache: ValidatorCache,
+    contract_cache_listener: watch::Receiver<CacheNotification>,
+    fallback_caching_interval: Duration,
 }
 
 impl NodeStatusCacheRefresher {
     pub(crate) fn new(
         cache: NodeStatusCache,
-        caching_interval: Duration,
         contract_cache: ValidatorCache,
+        contract_cache_listener: watch::Receiver<CacheNotification>,
+        fallback_caching_interval: Duration,
     ) -> Self {
         Self {
             cache,
-            caching_interval,
             contract_cache,
+            contract_cache_listener,
+            fallback_caching_interval,
         }
     }
 
-    pub async fn run(&self, mut shutdown: ShutdownListener) {
-        let mut interval = time::interval(self.caching_interval);
+    pub async fn run(&mut self, mut shutdown: ShutdownListener) {
+        let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _ = interval.tick() => {
+                // Update node status cache when the contract cache / validator cache is updated
+                Ok(_) = self.contract_cache_listener.changed() => {
+                    {
+                        let v = &*self.contract_cache_listener.borrow();
+                        log::debug!("Validator cache event detected: {:?}", v);
+                    }
                     self.refresh_cache().await;
+                    fallback_interval.reset();
+                }
+                // ... however, if we don't receive any notifications we fall back to periodic
+                // refreshes
+                _ = fallback_interval.tick() => {
+                    log::debug!("Timed trigger for the node status cache");
+                    let have_contract_cache_data = {
+                        let v = &*self.contract_cache_listener.borrow();
+                        v != &CacheNotification::Start
+                    };
+
+                    if have_contract_cache_data {
+                        self.refresh_cache().await;
+                    } else {
+                        log::trace!(
+                            "Skipping updating node status cache, \
+                            is the contract cache not yet available?"
+                        );
+                    }
                 }
                 _ = shutdown.recv() => {
                     log::trace!("NodeStatusCacheRefresher: Received shutdown");

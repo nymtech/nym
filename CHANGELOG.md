@@ -27,6 +27,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 - validator-api: add `uptime`, `estimated_operator_apy`, `estimated_delegators_apy` to `/mixnodes/detailed` endpoint ([#1393])
+- validator-api: add node info cache storing simulated active set inclusion probabilities
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 - validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).

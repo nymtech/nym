@@ -1,0 +1,31 @@
+{
+  "name": "wallet-ui-tests",
+  "version": "1.0.0",
+  "description": "ui tests for the nym wallet",
+  "scripts": {
+    "test": "wdio run wdio.conf.ts",
+    "test:signup": "wdio run wdio.conf.ts --suite signup",
+    "test:login": "wdio run wdio.conf.ts --suite login",
+    "test:balance": "wdio run wdio.conf.ts --suite balance",
+    "test:nav": "wdio run wdio.conf.ts --suite nav",
+    "test:send": "wdio run wdio.conf.ts --suite send",
+    "test:delegation": "wdio run wdio.conf.ts --suite delegation"
+    
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "-": "^0.0.1",
+    "@wdio/cli": "^7.16.16",
+    "save-dev": "^0.0.1-security",
+    "@zxing/browser": "^0.0.9",
+    "ts-node": "^10.6.0"
+  },
+  "devDependencies": {
+    "@wdio/local-runner": "^7.16.16",
+    "@wdio/mocha-framework": "^7.16.15",
+    "@wdio/spec-reporter": "^7.16.14",
+    "prettier": "2.5.1",
+    "typescript": "^4.6.2"
+  }
+}

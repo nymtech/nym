@@ -19,7 +19,7 @@ const defaultMixnodeValues: GatewayData = {
   host: '',
   version: '',
   mixPort: 1789,
-  clientsPort: 1790,
+  clientsPort: 9000,
 };
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({

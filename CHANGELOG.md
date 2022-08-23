@@ -4,11 +4,17 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## Unreleased
 
+### Added
+
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+
+
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
+[#1558]: https://github.com/nymtech/nym/pull/1558
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

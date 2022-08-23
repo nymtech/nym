@@ -132,7 +132,7 @@ export const DelegateModal: React.FC<{
     }
   };
 
-  const handleConfirm = async ({ id, value }: { id: number; value: DecCoin }) => {
+  const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
     const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
 
     if (!hasEnoughTokens) {
@@ -226,7 +226,7 @@ export const DelegateModal: React.FC<{
       onClose={onClose}
       onOk={async () => {
         if (mixId && amount) {
-          handleConfirm({ id: mixId, value: { amount, denom } });
+          handleConfirm({ mixId, value: { amount, denom } });
         }
       }}
       header={header || 'Delegate'}

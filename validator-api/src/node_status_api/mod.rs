@@ -36,7 +36,6 @@ pub(crate) fn node_status_routes(
             routes::compute_mixnode_reward_estimation,
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
-            routes::get_mixnode_inclusion_probability2,
             routes::get_mixnode_avg_uptime,
             routes::get_mixnode_avg_uptimes,
             routes::get_mixnode_inclusion_probabilities,
@@ -48,7 +47,6 @@ pub(crate) fn node_status_routes(
             routes::get_mixnode_status,
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
-            routes::get_mixnode_inclusion_probability2,
             routes::get_mixnode_inclusion_probabilities,
         ]
     }

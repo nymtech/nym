@@ -290,52 +290,9 @@ pub(crate) async fn get_mixnode_stake_saturation(
     }
 }
 
-// WIP(JON): replace this with the new one once we're happy with the behaviour
 #[openapi(tag = "status")]
 #[get("/mixnode/<identity>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
-    cache: &State<ValidatorCache>,
-    identity: String,
-) -> Json<Option<InclusionProbabilityResponse>> {
-    let mixnodes = cache.mixnodes().await;
-    let rewarding_params = cache.epoch_reward_params().await.into_inner();
-
-    if let Some(target_mixnode) = mixnodes.iter().find(|x| x.identity() == &identity) {
-        let total_bonded_tokens = mixnodes
-            .iter()
-            .fold(0u128, |acc, x| acc + x.total_bond().unwrap_or_default())
-            as f64;
-
-        let rewarded_set_size = rewarding_params.rewarded_set_size() as f64;
-        let active_set_size = rewarding_params.active_set_size() as f64;
-
-        let prob_one_draw =
-            target_mixnode.total_bond().unwrap_or_default() as f64 / total_bonded_tokens;
-        // Chance to be selected in any draw for active set
-        let prob_active_set = if mixnodes.len() <= active_set_size as usize {
-            1.0
-        } else {
-            active_set_size * prob_one_draw
-        };
-        // This is likely slightly too high, as we're not correcting form them not being selected in active, should be chance to be selected, minus the chance for being not selected in reserve
-        let prob_reserve_set = if mixnodes.len() <= rewarded_set_size as usize {
-            1.0
-        } else {
-            (rewarded_set_size - active_set_size) * prob_one_draw
-        };
-
-        Json(Some(InclusionProbabilityResponse {
-            in_active: prob_active_set.into(),
-            in_reserve: prob_reserve_set.into(),
-        }))
-    } else {
-        Json(None)
-    }
-}
-
-#[openapi(tag = "status")]
-#[get("/mixnode/<identity>/inclusion-probability2")]
-pub(crate) async fn get_mixnode_inclusion_probability2(
     node_status_cache: &State<NodeStatusCache>,
     identity: String,
 ) -> Json<Option<InclusionProbabilityResponse>> {

@@ -5,7 +5,7 @@ use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::IdentityKey;
 use vesting_contract_common::PledgeData;
 
-type BlockHeight = u64;
+pub(crate) type BlockTimestampSecs = u64;
 
 pub const KEY: Item<'_, u32> = Item::new("key");
 const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
@@ -14,7 +14,7 @@ const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
 const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");
 const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
-pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockHeight), Uint128> = Map::new("dlg");
+pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> = Map::new("dlg");
 pub const ADMIN: Item<'_, String> = Item::new("adm");
 pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");
@@ -35,7 +35,7 @@ pub fn update_locked_pledge_cap(
 }
 
 pub fn save_delegation(
-    key: (u32, IdentityKey, BlockHeight),
+    key: (u32, IdentityKey, BlockTimestampSecs),
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -44,7 +44,7 @@ pub fn save_delegation(
 }
 
 pub fn remove_delegation(
-    key: (u32, IdentityKey, BlockHeight),
+    key: (u32, IdentityKey, BlockTimestampSecs),
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
     DELEGATIONS.remove(storage, key);

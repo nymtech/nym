@@ -88,7 +88,7 @@ impl DelegatingAccount for Account {
             vec![coin.clone()],
         )?;
         self.track_delegation(
-            env.block.height,
+            env.block.time.seconds(),
             mix_identity,
             current_balance,
             coin,
@@ -129,14 +129,14 @@ impl DelegatingAccount for Account {
 
     fn track_delegation(
         &self,
-        block_height: u64,
+        block_timestamp_secs: u64,
         mix_identity: IdentityKey,
         current_balance: Uint128,
         delegation: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         save_delegation(
-            (self.storage_key(), mix_identity, block_height),
+            (self.storage_key(), mix_identity, block_timestamp_secs),
             delegation.amount,
             storage,
         )?;

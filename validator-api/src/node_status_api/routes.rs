@@ -227,6 +227,12 @@ pub(crate) async fn compute_mixnode_reward_estimation(
         // For these parameters we either use the provided ones, or fall back to the system ones
 
         let uptime = if let Some(uptime) = user_reward_param.uptime {
+            if uptime > 100 {
+                return Err(ErrorResponse::new(
+                    "Provided uptime out of bounds",
+                    Status::UnprocessableEntity,
+                ));
+            }
             uptime
         } else {
             average_mixnode_uptime(&identity, current_epoch, storage)
@@ -245,13 +251,23 @@ pub(crate) async fn compute_mixnode_reward_estimation(
             bond.mixnode_bond.total_delegation.amount = total_delegation.into();
         }
 
+        if bond.mixnode_bond.pledge_amount.amount.u128()
+            + bond.mixnode_bond.total_delegation.amount.u128()
+            > reward_params.staking_supply()
+        {
+            return Err(ErrorResponse::new(
+                "Pledge plus delegation too large",
+                Status::UnprocessableEntity,
+            ));
+        }
+
         let node_reward_params = NodeRewardParams::new(0, u128::from(uptime), is_active);
         let reward_params = RewardParams::new(reward_params, node_reward_params);
 
         estimate_reward(&bond.mixnode_bond, base_operator_cost, reward_params, as_at)
     } else {
         Err(ErrorResponse::new(
-            "mixnode bond not found",
+            "Mixnode bond not found",
             Status::NotFound,
         ))
     }

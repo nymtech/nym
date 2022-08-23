@@ -206,7 +206,7 @@ fn compute_inclusion_probabilities(
 
     Some(InclusionProbabilities {
         inclusion_probabilities: zip_ids_together_with_results(&ids, &results),
-        samples: results.samples.into(),
+        samples: results.samples,
         elapsed,
     })
 }

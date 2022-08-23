@@ -9,7 +9,7 @@ env:
   NETWORK: mainnet
 
 jobs:
-  publish-nym:
+  publish-nym-cli:
     strategy:
       fail-fast: false
       matrix:
@@ -37,9 +37,9 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: my-artifact
+          name: nym-cli-${{ matrix.platform }}
           path: |
-            target/release/nym-cli
+            target/release/nym-cli*
           retention-days: 30
 
       - name: Upload to release based on tag name

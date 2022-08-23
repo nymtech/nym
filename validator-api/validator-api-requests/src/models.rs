@@ -168,4 +168,3 @@ pub struct InclusionProbability {
     pub in_active: f64,
     pub in_reserve: f64,
 }
-

@@ -15,13 +15,13 @@ import {
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { decimalToFloatApproximation, DelegationEvent, DelegationWithEverything } from '@nymproject/types';
+import { decimalToFloatApproximation, DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { styled } from '@mui/material/styles';
 import { tableCellClasses } from '@mui/material/TableCell';
-import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
-import { DelegationWithEvent, isPendingDelegation, TDelegations } from '../../context/delegations';
+import { DelegationListItemActions } from './DelegationActions';
+import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
 
 const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
@@ -38,13 +38,13 @@ const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
 type Order = 'asc' | 'desc';
 
 interface EnhancedTableProps {
-  onRequestSort: (event: React.MouseEvent<unknown>, property: keyof DelegationWithEverything) => void;
+  onRequestSort: (event: React.MouseEvent<unknown>, property: string) => void;
   order: Order;
   orderBy: string;
 }
 
 interface HeadCell {
-  id: keyof DelegationWithEverything;
+  id: string;
   label: string;
   sortable: boolean;
   disablePadding?: boolean;
@@ -61,7 +61,7 @@ const headCells: HeadCell[] = [
   { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
 
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
+function descendingComparator(a: any, b: any, orderBy: string) {
   if (b[orderBy] < a[orderBy]) {
     return -1;
   }
@@ -78,27 +78,22 @@ function sortPendingDelegation(a: DelegationWithEvent, b: DelegationWithEvent) {
   return 2;
 }
 
-function getComparator<Key extends keyof DelegationWithEverything>(
-  order: Order,
-  orderBy: Key,
-): (a: DelegationWithEvent, b: DelegationWithEvent) => number {
+function getComparator(order: Order, orderBy: string): (a: DelegationWithEvent, b: DelegationWithEvent) => number {
   return order === 'desc'
     ? (a, b) => {
         const pendingSort = sortPendingDelegation(a, b);
-        if (pendingSort === 2)
-          return descendingComparator(a as DelegationWithEverything, b as DelegationWithEverything, orderBy);
+        if (pendingSort === 2) return descendingComparator(a, b, orderBy);
         return pendingSort;
       }
     : (a, b) => {
         const pendingSort = -sortPendingDelegation(a, b);
-        if (pendingSort === 2)
-          return -descendingComparator(a as DelegationWithEverything, b as DelegationWithEverything, orderBy);
+        if (pendingSort === 2) return -descendingComparator(a, b, orderBy);
         return pendingSort;
       };
 }
 
 const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
-  const createSortHandler = (property: keyof DelegationWithEverything) => (event: React.MouseEvent<unknown>) => {
+  const createSortHandler = (property: string) => (event: React.MouseEvent<unknown>) => {
     onRequestSort(event, property);
   };
 
@@ -139,23 +134,22 @@ export const DelegationList: React.FC<{
   items?: TDelegations;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
   explorerUrl: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
-  const [orderBy, setOrderBy] = React.useState<keyof DelegationWithEverything>('delegated_on_iso_datetime');
+  const [orderBy, setOrderBy] = React.useState<string>('delegated_on_iso_datetime');
 
-  const handleRequestSort = (event: React.MouseEvent<unknown>, property: keyof DelegationWithEverything) => {
+  const handleRequestSort = (event: React.MouseEvent<unknown>, property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
   };
 
-  const getRewardValue = (item: DelegationWithEvent) => {
-    if (isPendingDelegation(item)) {
-      return '';
+  const getStakeSaturation = (item: DelegationWithEvent) => {
+    if (isDelegation(item)) {
+      return !item.stake_saturation ? '-' : `${Math.round(decimalToFloatApproximation(item.stake_saturation))}`;
     }
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { accumulated_rewards } = item;
-    return !accumulated_rewards ? '-' : `${accumulated_rewards.amount} ${accumulated_rewards.denom}`;
+    return '';
   };
 
   return (
@@ -176,17 +170,15 @@ export const DelegationList: React.FC<{
                   />
                 </TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}</TableCell>
-                <TableCell>
-                  {!isPendingDelegation(item) && (!item.cost_params?.profit_margin_percent ? '-' : `${item.cost_params.profit_margin_percent}%`)}
+                  {isDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
                 </TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) &&
-                      {!item.stake_saturation
-                    ? '-'
-                    : `${Math.round(decimalToFloatApproximation(item.stake_saturation)                </TableCell>
+                  {isDelegation(item) &&
+                    (!item.cost_params?.profit_margin_percent ? '-' : `${item.cost_params.profit_margin_percent}%`)}
+                </TableCell>
+                <TableCell>{getStakeSaturation(item)}</TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
+                  {isDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
                 </TableCell>
                 <TableCell>
                   <Tooltip
@@ -202,7 +194,7 @@ export const DelegationList: React.FC<{
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {!isPendingDelegation(item) &&
+                            {isDelegation(item) &&
                               item.history.map((historyItem) => (
                                 <TableRow key={`${historyItem.block_height}`}>
                                   <StyledTooltipTableCell>
@@ -228,7 +220,7 @@ export const DelegationList: React.FC<{
                     arrow
                   >
                     <span style={{ cursor: 'pointer', textTransform: 'uppercase' }}>
-                      {!isPendingDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
+                      {isDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
                     </span>
                   </Tooltip>
                 </TableCell>

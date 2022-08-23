@@ -35,11 +35,13 @@ export type TDelegationTransaction = {
   transactionUrl: string;
 };
 
-export type DelegationWithEvent = DelegationWithEverything | DelegationEvent;
+export type DelegationWithEvent = DelegationWithEverything | WrappedDelegationEvent;
 export type TDelegations = DelegationWithEvent[];
 
-export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is DelegationEvent =>
-  'kind' in delegation;
+export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is WrappedDelegationEvent =>
+  'event' in delegation;
+export const isDelegation = (delegation: DelegationWithEvent): delegation is DelegationWithEverything =>
+  'owner' in delegation;
 
 export const DelegationContext = createContext<TDelegationContext>({
   isLoading: true,
@@ -54,6 +56,7 @@ export const DelegationContext = createContext<TDelegationContext>({
 
 export const DelegationContextProvider: FC<{
   network?: Network;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();

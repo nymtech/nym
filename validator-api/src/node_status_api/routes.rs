@@ -17,12 +17,12 @@ use rocket_okapi::openapi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, CoreNodeStatusResponse, InclusionProbabilityResponse,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 use super::models::Uptime;
-use super::{InclusionProbabilities, NodeStatusCache};
+use super::NodeStatusCache;
 
 async fn average_mixnode_uptime(
     identity: &str,
@@ -392,18 +392,26 @@ pub(crate) async fn get_mixnode_avg_uptimes(
     Ok(Json(response))
 }
 
-// WIP(JON): only during dev
 #[openapi(tag = "status")]
 #[get("/mixnodes/inclusion_probability")]
 pub(crate) async fn get_mixnode_inclusion_probabilities(
     cache: &State<NodeStatusCache>,
-) -> Result<Json<InclusionProbabilities>, ErrorResponse> {
+) -> Result<Json<AllInclusionProbabilitiesResponse>, ErrorResponse> {
     if let Some(prob) = cache.inclusion_probabilities().await {
-        Ok(Json(prob.into_inner()))
+        let as_at = prob.timestamp();
+        let prob = prob.into_inner();
+        Ok(Json(AllInclusionProbabilitiesResponse {
+            inclusion_probabilities: prob.inclusion_probabilities,
+            samples: prob.samples,
+            elapsed: prob.elapsed,
+            delta_max: prob.delta_max,
+            delta_l2: prob.delta_l2,
+            as_at,
+        }))
     } else {
         Err(ErrorResponse::new(
-            "No cached data (yet)".to_string(),
-            Status::NotFound,
+            "No data available".to_string(),
+            Status::ServiceUnavailable,
         ))
     }
 }

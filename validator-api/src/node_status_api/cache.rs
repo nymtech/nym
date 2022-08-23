@@ -8,6 +8,7 @@ use tokio::{
     sync::{watch, RwLock},
     time::{self, Instant},
 };
+use validator_api_requests::models::InclusionProbability;
 
 use std::{sync::Arc, time::Duration};
 
@@ -32,23 +33,18 @@ struct NodeStatusCacheInner {
 }
 
 #[derive(Clone, Default, Serialize, schemars::JsonSchema)]
-pub struct InclusionProbabilities {
-    pub inclusion_probabilities: Vec<MixNodeInclusionProbability>,
+pub(crate) struct InclusionProbabilities {
+    pub inclusion_probabilities: Vec<InclusionProbability>,
     pub samples: u64,
     pub elapsed: Duration,
+    pub delta_max: f64,
+    pub delta_l2: f64,
 }
 
 impl InclusionProbabilities {
-    pub fn node(&self, id: &str) -> Option<&MixNodeInclusionProbability> {
+    pub fn node(&self, id: &str) -> Option<&InclusionProbability> {
         self.inclusion_probabilities.iter().find(|x| x.id == id)
     }
-}
-
-#[derive(Clone, Serialize, schemars::JsonSchema)]
-pub struct MixNodeInclusionProbability {
-    pub id: String,
-    pub in_active: f64,
-    pub in_reserve: f64,
 }
 
 impl NodeStatusCache {
@@ -75,7 +71,7 @@ impl NodeStatusCache {
         }
     }
 
-    pub async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
+    pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
         match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.read()).await {
             Ok(cache) => Some(cache.inclusion_probabilities.clone()),
             Err(e) => {
@@ -183,10 +179,12 @@ fn compute_inclusion_probabilities(
     let active_set_size = params
         .active_set_size()
         .try_into()
-        .expect("Active set size unexpectantly large!");
+        .tap_err(|e| error!("Active set size unexpectantly large: {e}"))
+        .ok()?;
     let standby_set_size = (params.rewarded_set_size() - params.active_set_size())
         .try_into()
-        .expect("Active set size larger than rewarded set size, a contradiction!");
+        .tap_err(|e| error!("Active set size larger than rewarded set size, a contradiction: {e}"))
+        .ok()?;
 
     // Unzip list of total bonds into ids and bonds.
     // We need to go through this zip/unzip procedure to make sure we have matching identities
@@ -208,6 +206,8 @@ fn compute_inclusion_probabilities(
         inclusion_probabilities: zip_ids_together_with_results(&ids, &results),
         samples: results.samples,
         elapsed,
+        delta_max: results.delta_max,
+        delta_l2: results.delta_l2,
     })
 }
 
@@ -223,11 +223,11 @@ fn unzip_into_mixnode_ids_and_total_bonds(
 fn zip_ids_together_with_results(
     ids: &[&String],
     results: &inclusion_probability::SelectionProbability,
-) -> Vec<MixNodeInclusionProbability> {
+) -> Vec<InclusionProbability> {
     ids.iter()
         .zip(results.active_set_probability.iter())
         .zip(results.reserve_set_probability.iter())
-        .map(|((id, a), r)| MixNodeInclusionProbability {
+        .map(|((id, a), r)| InclusionProbability {
             id: (*id).to_string(),
             in_active: *a,
             in_reserve: *r,

@@ -4,7 +4,7 @@
 use mixnet_contract_common::{reward_params::RewardParams, MixNode, MixNodeBond};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, time::Duration};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -151,3 +151,21 @@ impl fmt::Display for InclusionProbabilityResponse {
         )
     }
 }
+
+#[derive(Clone, Serialize, schemars::JsonSchema)]
+pub struct AllInclusionProbabilitiesResponse {
+    pub inclusion_probabilities: Vec<InclusionProbability>,
+    pub samples: u64,
+    pub elapsed: Duration,
+    pub delta_max: f64,
+    pub delta_l2: f64,
+    pub as_at: i64,
+}
+
+#[derive(Clone, Serialize, schemars::JsonSchema)]
+pub struct InclusionProbability {
+    pub id: String,
+    pub in_active: f64,
+    pub in_reserve: f64,
+}
+

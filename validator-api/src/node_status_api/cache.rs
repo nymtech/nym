@@ -125,30 +125,12 @@ impl NodeStatusCacheRefresher {
             tokio::select! {
                 // Update node status cache when the contract cache / validator cache is updated
                 Ok(_) = self.contract_cache_listener.changed() => {
-                    {
-                        let v = &*self.contract_cache_listener.borrow();
-                        log::debug!("Validator cache event detected: {:?}", v);
-                    }
-                    let _ = self.refresh_cache().await;
-                    fallback_interval.reset();
+                    self.update_on_notify(&mut fallback_interval).await;
                 }
                 // ... however, if we don't receive any notifications we fall back to periodic
                 // refreshes
                 _ = fallback_interval.tick() => {
-                    log::debug!("Timed trigger for the node status cache");
-                    let have_contract_cache_data = {
-                        let v = &*self.contract_cache_listener.borrow();
-                        v != &CacheNotification::Start
-                    };
-
-                    if have_contract_cache_data {
-                        let _ = self.refresh_cache().await;
-                    } else {
-                        log::trace!(
-                            "Skipping updating node status cache, \
-                            is the contract cache not yet available?"
-                        );
-                    }
+                    self.update_on_timer().await;
                 }
                 _ = shutdown.recv() => {
                     log::trace!("NodeStatusCacheRefresher: Received shutdown");
@@ -156,6 +138,29 @@ impl NodeStatusCacheRefresher {
             }
         }
         log::info!("NodeStatusCacheRefresher: Exiting");
+    }
+
+    async fn update_on_notify(&self, fallback_interval: &mut time::Interval) {
+        log::debug!(
+            "Validator cache event detected: {:?}",
+            &*self.contract_cache_listener.borrow(),
+        );
+        let _ = self.refresh_cache().await;
+        fallback_interval.reset();
+    }
+
+    async fn update_on_timer(&self) {
+        log::debug!("Timed trigger for the node status cache");
+        let have_contract_cache_data =
+            *self.contract_cache_listener.borrow() != CacheNotification::Start;
+
+        if have_contract_cache_data {
+            let _ = self.refresh_cache().await;
+        } else {
+            log::trace!(
+                "Skipping updating node status cache, is the contract cache not yet available?"
+            );
+        }
     }
 
     async fn refresh_cache(&self) -> Result<(), NodeStatusCacheError> {

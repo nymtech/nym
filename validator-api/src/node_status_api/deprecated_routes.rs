@@ -8,7 +8,7 @@ use crate::node_status_api::helpers::{
     _mixnode_report, _mixnode_uptime_history,
 };
 use crate::node_status_api::models::{ErrorResponse, MixnodeStatusReport, MixnodeUptimeHistory};
-use crate::{ValidatorApiStorage, ValidatorCache};
+use crate::{NodeStatusCache, ValidatorApiStorage, ValidatorCache};
 use mixnet_contract_common::NodeId;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -140,7 +140,7 @@ pub(crate) async fn get_mixnode_stake_saturation_by_identity(
 #[openapi(tag = "status")]
 #[get("/mixnode/deprecated/<identity>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability_by_identity(
-    cache: &State<ValidatorCache>,
+    cache: &State<NodeStatusCache>,
     storage: &State<ValidatorApiStorage>,
     identity: &str,
 ) -> Result<Json<Deprecated<InclusionProbabilityResponse>>, ErrorResponse> {

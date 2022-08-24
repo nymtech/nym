@@ -215,7 +215,7 @@ pub struct AllInclusionProbabilitiesResponse {
 
 #[derive(Clone, Serialize, schemars::JsonSchema)]
 pub struct InclusionProbability {
-    pub id: String,
+    pub id: NodeId,
     pub in_active: f64,
     pub in_reserve: f64,
 }

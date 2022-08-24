@@ -1,10 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::models::Uptime;
 use super::NodeStatusCache;
-use crate::contract_cache::reward_estimate::compute_reward_estimate;
-use crate::contract_cache::Cache;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _get_mixnode_avg_uptime,
     _get_mixnode_inclusion_probability, _get_mixnode_reward_estimation,
@@ -147,7 +144,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
-    node_status_cache: &State<NodeStatusCache>,
+    cache: &State<NodeStatusCache>,
     mix_id: NodeId,
 ) -> Result<Json<InclusionProbabilityResponse>, ErrorResponse> {
     Ok(Json(

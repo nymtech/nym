@@ -18,7 +18,7 @@ use cosmrs::tx::Msg;
 use cosmwasm_std::Uint128;
 use execute::execute;
 use network_defaults::{ChainDetails, NymNetworkDetails};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;

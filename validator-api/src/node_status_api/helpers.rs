@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::reward_estimate::compute_reward_estimate;
+use crate::contract_cache::Cache;
 use crate::node_status_api::models::{ErrorResponse, MixnodeStatusReport, MixnodeUptimeHistory};
 use crate::storage::ValidatorApiStorage;
-use crate::ValidatorCache;
+use crate::{NodeStatusCache, ValidatorCache};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
@@ -147,6 +148,16 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
                 Decimal::from_ratio(total_delegation, 1u64);
         }
 
+        if mixnode.mixnode_details.rewarding_details.operator
+            + mixnode.mixnode_details.rewarding_details.delegates
+            > reward_params.interval.staking_supply
+        {
+            return Err(ErrorResponse::new(
+                "Pledge plus delegation too large",
+                Status::UnprocessableEntity,
+            ));
+        }
+
         let reward_estimation = compute_reward_estimate(
             &mixnode.mixnode_details,
             performance,
@@ -203,47 +214,19 @@ pub(crate) async fn _get_mixnode_stake_saturation(
 }
 
 pub(crate) async fn _get_mixnode_inclusion_probability(
-    cache: &ValidatorCache,
+    cache: &NodeStatusCache,
     mix_id: NodeId,
 ) -> Result<InclusionProbabilityResponse, ErrorResponse> {
-    let (mixnode, _) = cache.mixnode_details(mix_id).await;
-    if let Some(mixnode) = mixnode {
-        let all_nodes = cache.mixnodes().await;
-        let total_bonded_tokens: Decimal = all_nodes.iter().map(|mix| mix.total_stake()).sum();
-
-        let reward_params = cache.interval_reward_params().await;
-        let rewarding_params = reward_params
-            .into_inner()
-            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
-
-        let rewarded_set_size = rewarding_params.dec_rewarded_set_size();
-        let active_set_size = rewarding_params.dec_active_set_size();
-
-        let prob_one_draw = mixnode.mixnode_details.total_stake() / total_bonded_tokens;
-        // Chance to be selected in any draw for active set
-        let prob_active_set = if all_nodes.len() <= rewarding_params.active_set_size as usize {
-            Decimal::one()
-        } else {
-            // @JS: NOTE: this is way overestimated because for any future draws you're drawing from a smaller set
-            active_set_size * prob_one_draw
-        };
-        // This is likely slightly too high, as we're not correcting form them not being selected in active, should be chance to be selected, minus the chance for being not selected in reserve
-        let prob_reserve_set = if all_nodes.len() <= rewarding_params.rewarded_set_size as usize {
-            Decimal::one()
-        } else {
-            (rewarded_set_size - active_set_size) * prob_one_draw
-        };
-
-        Ok(InclusionProbabilityResponse {
-            in_active: prob_active_set.into(),
-            in_reserve: prob_reserve_set.into(),
+    cache
+        .inclusion_probabilities()
+        .await
+        .map(Cache::into_inner)
+        .and_then(|p| p.node(mix_id).cloned())
+        .map(|p| InclusionProbabilityResponse {
+            in_active: p.in_active.into(),
+            in_reserve: p.in_reserve.into(),
         })
-    } else {
-        Err(ErrorResponse::new(
-            "mixnode bond not found",
-            Status::NotFound,
-        ))
-    }
+        .ok_or_else(|| ErrorResponse::new("mixnode bond not found", Status::NotFound))
 }
 
 pub(crate) async fn _get_mixnode_avg_uptime(

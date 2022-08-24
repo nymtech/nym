@@ -1,26 +1,45 @@
 //! Active set inclusion probability simulator
 
+use std::time::{Duration, Instant};
+
 use error::Error;
 
 mod error;
 
 const TOLERANCE_L2_NORM: f64 = 1e-4;
-const TOLERANCE_MAX_NORM: f64 = 1e-3;
+const TOLERANCE_MAX_NORM: f64 = 1e-4;
 
 pub struct SelectionProbability {
     pub active_set_probability: Vec<f64>,
     pub reserve_set_probability: Vec<f64>,
-    pub samples: u32,
+    pub samples: u64,
+    pub time: Duration,
     pub delta_l2: f64,
     pub delta_max: f64,
 }
 
 pub fn simulate_selection_probability_mixnodes(
-    list_stake_for_mixnodes: &[u64],
+    list_stake_for_mixnodes: &[u128],
     active_set_size: usize,
     reserve_set_size: usize,
-    max_samples: u32,
+    max_samples: u64,
+    max_time: Duration,
 ) -> Result<SelectionProbability, Error> {
+    log::trace!("Simulating mixnode active set selection probability");
+
+    // In case the active set size is larger than the number of bonded mixnodes, they all have 100%
+    // chance we don't have to go through with the simulation
+    if list_stake_for_mixnodes.len() <= active_set_size {
+        return Ok(SelectionProbability {
+            active_set_probability: vec![1.0; list_stake_for_mixnodes.len()],
+            reserve_set_probability: vec![0.0; list_stake_for_mixnodes.len()],
+            samples: 0,
+            time: Duration::ZERO,
+            delta_l2: 0.0,
+            delta_max: 0.0,
+        });
+    }
+
     // Total number of existing (registered) nodes
     let num_mixnodes = list_stake_for_mixnodes.len();
 
@@ -37,6 +56,9 @@ pub fn simulate_selection_probability_mixnodes(
     let mut delta_max;
     let mut rng = rand::thread_rng();
 
+    // Make sure we bound the time we allow it to run
+    let start_time = Instant::now();
+
     loop {
         samples += 1;
         let mut sample_active_mixnodes = Vec::new();
@@ -46,7 +68,9 @@ pub fn simulate_selection_probability_mixnodes(
         let active_set_probability_previous = active_set_probability.clone();
 
         // Select the active nodes for the epoch (hour)
-        while sample_active_mixnodes.len() < active_set_size {
+        while sample_active_mixnodes.len() < active_set_size
+            && sample_active_mixnodes.len() < list_cumul_temp.len()
+        {
             let candidate = sample_candidate(&list_cumul_temp, &mut rng)?;
 
             if !sample_active_mixnodes.contains(&candidate) {
@@ -56,7 +80,9 @@ pub fn simulate_selection_probability_mixnodes(
         }
 
         // Select the reserve nodes for the epoch (hour)
-        while sample_reserve_mixnodes.len() < reserve_set_size {
+        while sample_reserve_mixnodes.len() < reserve_set_size
+            && sample_reserve_mixnodes.len() + sample_active_mixnodes.len() < list_cumul_temp.len()
+        {
             let candidate = sample_candidate(&list_cumul_temp, &mut rng)?;
 
             if !sample_reserve_mixnodes.contains(&candidate)
@@ -78,35 +104,49 @@ pub fn simulate_selection_probability_mixnodes(
         // Convergence critera only on active set.
         // We devide by samples to get the average, that is not really part of the delta
         // computation.
-        delta_l2 = l2_diff(&active_set_probability, &active_set_probability_previous)?
-            / f64::from(samples);
-        delta_max = max_diff(&active_set_probability, &active_set_probability_previous)?
-            / f64::from(samples);
+        delta_l2 =
+            l2_diff(&active_set_probability, &active_set_probability_previous)? / (samples as f64);
+        delta_max =
+            max_diff(&active_set_probability, &active_set_probability_previous)? / (samples as f64);
         if samples > 10 && delta_l2 < TOLERANCE_L2_NORM && delta_max < TOLERANCE_MAX_NORM
             || samples >= max_samples
         {
             break;
         }
+
+        // Stop if we run out of time
+        if start_time.elapsed() > max_time {
+            log::debug!("Simulation ran out of time, stopping");
+            break;
+        }
     }
 
+    // Divide occurrences with the number of samples once we're done to get the probabilities.
     active_set_probability
         .iter_mut()
-        .for_each(|x| *x /= f64::from(samples));
+        .for_each(|x| *x /= samples as f64);
     reserve_set_probability
         .iter_mut()
-        .for_each(|x| *x /= f64::from(samples));
+        .for_each(|x| *x /= samples as f64);
+
+    // Some sanity checks of the output
+    if active_set_probability.len() != num_mixnodes || reserve_set_probability.len() != num_mixnodes
+    {
+        return Err(Error::ResultsShorterThanInput);
+    }
 
     Ok(SelectionProbability {
         active_set_probability,
         reserve_set_probability,
         samples,
+        time: start_time.elapsed(),
         delta_l2,
         delta_max,
     })
 }
 
 // Compute the cumulative sum
-fn cumul_sum<'a>(list: impl IntoIterator<Item = &'a u64>) -> Vec<u64> {
+fn cumul_sum<'a>(list: impl IntoIterator<Item = &'a u128>) -> Vec<u128> {
     let mut list_cumul = Vec::new();
     let mut cumul = 0;
     for entry in list {
@@ -116,7 +156,7 @@ fn cumul_sum<'a>(list: impl IntoIterator<Item = &'a u64>) -> Vec<u64> {
     list_cumul
 }
 
-fn sample_candidate(list_cumul: &[u64], rng: &mut rand::rngs::ThreadRng) -> Result<usize, Error> {
+fn sample_candidate(list_cumul: &[u128], rng: &mut rand::rngs::ThreadRng) -> Result<usize, Error> {
     use rand::distributions::{Distribution, Uniform};
     let uniform = Uniform::from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?);
     let r = uniform.sample(rng);
@@ -132,7 +172,7 @@ fn sample_candidate(list_cumul: &[u64], rng: &mut rand::rngs::ThreadRng) -> Resu
 }
 
 // Update list of cumulative stake to reflect eliminating the picked node
-fn remove_mixnode_from_cumul_stake(candidate: usize, list_cumul_stake: &mut [u64]) {
+fn remove_mixnode_from_cumul_stake(candidate: usize, list_cumul_stake: &mut [u128]) {
     let prob_candidate = if candidate == 0 {
         list_cumul_stake[0]
     } else {
@@ -212,11 +252,13 @@ mod tests {
         ];
 
         let max_samples = 100_000;
+        let max_time = Duration::from_secs(10);
 
         let SelectionProbability {
             active_set_probability,
             reserve_set_probability,
             samples,
+            time: _,
             delta_l2,
             delta_max,
         } = simulate_selection_probability_mixnodes(
@@ -224,6 +266,7 @@ mod tests {
             active_set_size,
             standby_set_size,
             max_samples,
+            max_time,
         )
         .unwrap();
 
@@ -268,6 +311,88 @@ mod tests {
         ];
         assert!(
             max_diff(&reserve_set_probability, &expected_reserve_set_probability).unwrap() < 1e-2
+        );
+
+        // We converge around 20_000, add another 500 for some slack due to random values
+        assert!(samples < 20_500);
+        assert!(delta_l2 < TOLERANCE_L2_NORM);
+        assert!(delta_max < TOLERANCE_MAX_NORM);
+    }
+
+    #[test]
+    fn fewer_nodes_than_active_set_size() {
+        let active_set_size = 10;
+        let standby_set_size = 3;
+        let list_mix = vec![100, 100, 3000];
+        let max_samples = 100_000;
+        let max_time = Duration::from_secs(10);
+
+        let SelectionProbability {
+            active_set_probability,
+            reserve_set_probability,
+            samples,
+            time: _,
+            delta_l2,
+            delta_max,
+        } = simulate_selection_probability_mixnodes(
+            &list_mix,
+            active_set_size,
+            standby_set_size,
+            max_samples,
+            max_time,
+        )
+        .unwrap();
+
+        // These values comes from running the python simulator for a very long time
+        let expected_active_set_probability = vec![1.0, 1.0, 1.0];
+        let expected_reserve_set_probability = vec![0.0, 0.0, 0.0];
+        assert!(
+            max_diff(&active_set_probability, &expected_active_set_probability).unwrap()
+                < 1e1 * f64::EPSILON
+        );
+        assert!(
+            max_diff(&reserve_set_probability, &expected_reserve_set_probability).unwrap()
+                < 1e1 * f64::EPSILON
+        );
+
+        // We converge around 20_000, add another 500 for some slack due to random values
+        assert_eq!(samples, 0);
+        assert!(delta_l2 < f64::EPSILON);
+        assert!(delta_max < f64::EPSILON);
+    }
+
+    #[test]
+    fn fewer_nodes_than_reward_set_size() {
+        let active_set_size = 4;
+        let standby_set_size = 3;
+        let list_mix = vec![100, 100, 3000, 342, 3_498_234];
+        let max_samples = 100_000_000;
+        let max_time = Duration::from_secs(10);
+
+        let SelectionProbability {
+            active_set_probability,
+            reserve_set_probability,
+            samples,
+            time: _,
+            delta_l2,
+            delta_max,
+        } = simulate_selection_probability_mixnodes(
+            &list_mix,
+            active_set_size,
+            standby_set_size,
+            max_samples,
+            max_time,
+        )
+        .unwrap();
+
+        // These values comes from running the python simulator for a very long time
+        let expected_active_set_probability = vec![0.546, 0.538, 0.999, 0.915, 1.0];
+        let expected_reserve_set_probability = vec![0.453, 0.461, 0.0005, 0.084, 0.0];
+        assert!(
+            max_diff(&active_set_probability, &expected_active_set_probability).unwrap() < 1e-2,
+        );
+        assert!(
+            max_diff(&reserve_set_probability, &expected_reserve_set_probability).unwrap() < 1e-2,
         );
 
         // We converge around 20_000, add another 500 for some slack due to random values

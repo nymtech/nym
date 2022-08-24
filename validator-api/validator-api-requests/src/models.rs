@@ -4,7 +4,7 @@
 use mixnet_contract_common::{reward_params::RewardParams, MixNode, MixNodeBond};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, time::Duration};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -101,16 +101,20 @@ pub type StakeSaturation = f32;
 )]
 pub enum SelectionChance {
     VeryHigh,
+    High,
     Moderate,
     Low,
+    VeryLow,
 }
 
 impl From<f64> for SelectionChance {
     fn from(p: f64) -> SelectionChance {
         match p {
-            p if p > 0.15 => SelectionChance::VeryHigh,
-            p if p >= 0.05 => SelectionChance::Moderate,
-            _ => SelectionChance::Low,
+            p if p > 0.98 => SelectionChance::VeryHigh,
+            p if p > 0.9 => SelectionChance::High,
+            p if p > 0.7 => SelectionChance::Moderate,
+            p if p > 0.5 => SelectionChance::Low,
+            _ => SelectionChance::VeryLow,
         }
     }
 }
@@ -119,8 +123,10 @@ impl fmt::Display for SelectionChance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SelectionChance::VeryHigh => write!(f, "VeryHigh"),
+            SelectionChance::High => write!(f, "High"),
             SelectionChance::Moderate => write!(f, "Moderate"),
             SelectionChance::Low => write!(f, "Low"),
+            SelectionChance::VeryLow => write!(f, "VeryLow"),
         }
     }
 }
@@ -144,4 +150,21 @@ impl fmt::Display for InclusionProbabilityResponse {
             self.in_active, self.in_reserve
         )
     }
+}
+
+#[derive(Clone, Serialize, schemars::JsonSchema)]
+pub struct AllInclusionProbabilitiesResponse {
+    pub inclusion_probabilities: Vec<InclusionProbability>,
+    pub samples: u64,
+    pub elapsed: Duration,
+    pub delta_max: f64,
+    pub delta_l2: f64,
+    pub as_at: i64,
+}
+
+#[derive(Clone, Serialize, schemars::JsonSchema)]
+pub struct InclusionProbability {
+    pub id: String,
+    pub in_active: f64,
+    pub in_reserve: f64,
 }

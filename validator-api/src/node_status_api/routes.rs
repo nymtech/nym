@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract_cache::Cache;
 use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
@@ -16,11 +17,12 @@ use rocket_okapi::openapi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, CoreNodeStatusResponse, InclusionProbabilityResponse,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 use super::models::Uptime;
+use super::NodeStatusCache;
 
 async fn average_mixnode_uptime(
     identity: &str,
@@ -307,43 +309,21 @@ pub(crate) async fn get_mixnode_stake_saturation(
 #[openapi(tag = "status")]
 #[get("/mixnode/<identity>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
-    cache: &State<ValidatorCache>,
+    node_status_cache: &State<NodeStatusCache>,
     identity: String,
 ) -> Json<Option<InclusionProbabilityResponse>> {
-    let mixnodes = cache.mixnodes().await;
-    let rewarding_params = cache.epoch_reward_params().await.into_inner();
-
-    if let Some(target_mixnode) = mixnodes.iter().find(|x| x.identity() == &identity) {
-        let total_bonded_tokens = mixnodes
-            .iter()
-            .fold(0u128, |acc, x| acc + x.total_bond().unwrap_or_default())
-            as f64;
-
-        let rewarded_set_size = rewarding_params.rewarded_set_size() as f64;
-        let active_set_size = rewarding_params.active_set_size() as f64;
-
-        let prob_one_draw =
-            target_mixnode.total_bond().unwrap_or_default() as f64 / total_bonded_tokens;
-        // Chance to be selected in any draw for active set
-        let prob_active_set = if mixnodes.len() <= active_set_size as usize {
-            1.0
-        } else {
-            active_set_size * prob_one_draw
-        };
-        // This is likely slightly too high, as we're not correcting form them not being selected in active, should be chance to be selected, minus the chance for being not selected in reserve
-        let prob_reserve_set = if mixnodes.len() <= rewarded_set_size as usize {
-            1.0
-        } else {
-            (rewarded_set_size - active_set_size) * prob_one_draw
-        };
-
-        Json(Some(InclusionProbabilityResponse {
-            in_active: prob_active_set.into(),
-            in_reserve: prob_reserve_set.into(),
-        }))
-    } else {
-        Json(None)
-    }
+    node_status_cache
+        .inclusion_probabilities()
+        .await
+        .map(Cache::into_inner)
+        .and_then(|p| p.node(&identity).cloned())
+        .map(|p| {
+            Json(Some(InclusionProbabilityResponse {
+                in_active: p.in_active.into(),
+                in_reserve: p.in_reserve.into(),
+            }))
+        })
+        .unwrap_or(Json(None))
 }
 
 #[openapi(tag = "status")]
@@ -383,4 +363,28 @@ pub(crate) async fn get_mixnode_avg_uptimes(
     }
 
     Ok(Json(response))
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnodes/inclusion_probability")]
+pub(crate) async fn get_mixnode_inclusion_probabilities(
+    cache: &State<NodeStatusCache>,
+) -> Result<Json<AllInclusionProbabilitiesResponse>, ErrorResponse> {
+    if let Some(prob) = cache.inclusion_probabilities().await {
+        let as_at = prob.timestamp();
+        let prob = prob.into_inner();
+        Ok(Json(AllInclusionProbabilitiesResponse {
+            inclusion_probabilities: prob.inclusion_probabilities,
+            samples: prob.samples,
+            elapsed: prob.elapsed,
+            delta_max: prob.delta_max,
+            delta_l2: prob.delta_l2,
+            as_at,
+        }))
+    } else {
+        Err(ErrorResponse::new(
+            "No data available".to_string(),
+            Status::ServiceUnavailable,
+        ))
+    }
 }

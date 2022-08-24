@@ -200,12 +200,14 @@ fn compute_inclusion_probabilities(
     let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnode_bonds);
 
     // Compute inclusion probabilitites and keep track of how long time it took.
+    let mut rng = rand::thread_rng();
     let results = inclusion_probability::simulate_selection_probability_mixnodes(
         &mixnode_total_bonds,
         active_set_size,
         standby_set_size,
         MAX_SIMULATION_SAMPLES,
         Duration::from_secs(MAX_SIMULATION_TIME_SEC),
+        &mut rng,
     )
     .tap_err(|err| error!("{err}"))
     .ok()?;

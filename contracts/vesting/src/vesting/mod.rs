@@ -819,7 +819,7 @@ mod tests {
 
         // time for some delegations
 
-        let mix_identity = "alice".to_string();
+        let mix_id = 42;
 
         let delegation = Coin {
             amount: Uint128::new(90_000_000_000),
@@ -831,7 +831,7 @@ mod tests {
         env.block.height = account_creation_blockheight;
         env.block.time = Timestamp::from_seconds(account_creation_timestamp);
         let ok = vesting_account.try_delegate_to_mixnode(
-            mix_identity.clone(),
+            mix_id,
             delegation.clone(),
             &env,
             &mut deps.storage,
@@ -886,7 +886,7 @@ mod tests {
             denom: TEST_COIN_DENOM.to_string(),
         };
         let ok = vesting_account.try_delegate_to_mixnode(
-            mix_identity.clone(),
+            mix_id,
             delegation.clone(),
             &env,
             &mut deps.storage,

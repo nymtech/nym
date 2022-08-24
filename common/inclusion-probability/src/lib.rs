@@ -1,5 +1,7 @@
 //! Active set inclusion probability simulator
 
+use std::time::{Duration, Instant};
+
 use error::Error;
 
 mod error;
@@ -11,6 +13,7 @@ pub struct SelectionProbability {
     pub active_set_probability: Vec<f64>,
     pub reserve_set_probability: Vec<f64>,
     pub samples: u64,
+    pub time: Duration,
     pub delta_l2: f64,
     pub delta_max: f64,
 }
@@ -20,6 +23,7 @@ pub fn simulate_selection_probability_mixnodes(
     active_set_size: usize,
     reserve_set_size: usize,
     max_samples: u64,
+    max_time: Duration,
 ) -> Result<SelectionProbability, Error> {
     log::trace!("Simulating mixnode active set selection probability");
 
@@ -30,6 +34,7 @@ pub fn simulate_selection_probability_mixnodes(
             active_set_probability: vec![1.0; list_stake_for_mixnodes.len()],
             reserve_set_probability: vec![0.0; list_stake_for_mixnodes.len()],
             samples: 0,
+            time: Duration::ZERO,
             delta_l2: 0.0,
             delta_max: 0.0,
         });
@@ -50,6 +55,9 @@ pub fn simulate_selection_probability_mixnodes(
     let mut delta_l2;
     let mut delta_max;
     let mut rng = rand::thread_rng();
+
+    // Make sure we bound the time we allow it to run
+    let start_time = Instant::now();
 
     loop {
         samples += 1;
@@ -105,6 +113,12 @@ pub fn simulate_selection_probability_mixnodes(
         {
             break;
         }
+
+        // Stop if we run out of time
+        if start_time.elapsed() > max_time {
+            log::debug!("Simulation ran out of time, stopping");
+            break;
+        }
     }
 
     // Divide occurrences with the number of samples once we're done to get the probabilities.
@@ -125,6 +139,7 @@ pub fn simulate_selection_probability_mixnodes(
         active_set_probability,
         reserve_set_probability,
         samples,
+        time: start_time.elapsed(),
         delta_l2,
         delta_max,
     })
@@ -237,11 +252,13 @@ mod tests {
         ];
 
         let max_samples = 100_000;
+        let max_time = Duration::from_secs(10);
 
         let SelectionProbability {
             active_set_probability,
             reserve_set_probability,
             samples,
+            time: _,
             delta_l2,
             delta_max,
         } = simulate_selection_probability_mixnodes(
@@ -249,6 +266,7 @@ mod tests {
             active_set_size,
             standby_set_size,
             max_samples,
+            max_time,
         )
         .unwrap();
 
@@ -307,11 +325,13 @@ mod tests {
         let standby_set_size = 3;
         let list_mix = vec![100, 100, 3000];
         let max_samples = 100_000;
+        let max_time = Duration::from_secs(10);
 
         let SelectionProbability {
             active_set_probability,
             reserve_set_probability,
             samples,
+            time: _,
             delta_l2,
             delta_max,
         } = simulate_selection_probability_mixnodes(
@@ -319,6 +339,7 @@ mod tests {
             active_set_size,
             standby_set_size,
             max_samples,
+            max_time,
         )
         .unwrap();
 
@@ -346,11 +367,13 @@ mod tests {
         let standby_set_size = 3;
         let list_mix = vec![100, 100, 3000, 342, 3_498_234];
         let max_samples = 100_000_000;
+        let max_time = Duration::from_secs(10);
 
         let SelectionProbability {
             active_set_probability,
             reserve_set_probability,
             samples,
+            time: _,
             delta_l2,
             delta_max,
         } = simulate_selection_probability_mixnodes(
@@ -358,6 +381,7 @@ mod tests {
             active_set_size,
             standby_set_size,
             max_samples,
+            max_time,
         )
         .unwrap();
 

@@ -6,18 +6,20 @@ use serde::Serialize;
 use tap::TapFallible;
 use tokio::{
     sync::{watch, RwLock},
-    time::{self, Instant},
+    time,
 };
-use validator_api_requests::models::InclusionProbability;
 
 use std::{sync::Arc, time::Duration};
 
 use mixnet_contract_common::{reward_params::EpochRewardParams, MixNodeBond};
 use task::ShutdownListener;
+use validator_api_requests::models::InclusionProbability;
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
 
 const CACHE_TIMOUT_MS: u64 = 100;
+const MAX_SIMULATION_SAMPLES: u64 = 5000;
+const MAX_SIMULATION_TIME_SEC: u64 = 15;
 
 enum NodeStatusCacheError {
     SimulationFailed,
@@ -177,9 +179,6 @@ fn compute_inclusion_probabilities(
     mixnode_bonds: &[MixNodeBond],
     params: EpochRewardParams,
 ) -> Option<InclusionProbabilities> {
-    // Max number of samples in the Monte Carlo simulation
-    let max_samples = 5000;
-
     let active_set_size = params
         .active_set_size()
         .try_into()
@@ -196,20 +195,20 @@ fn compute_inclusion_probabilities(
     let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnode_bonds);
 
     // Compute inclusion probabilitites and keep track of how long time it took.
-    let now = Instant::now();
     let results = inclusion_probability::simulate_selection_probability_mixnodes(
         &mixnode_total_bonds,
         active_set_size,
         standby_set_size,
-        max_samples,
-    );
-    let elapsed = now.elapsed();
-    let results = results.tap_err(|err| error!("{err}")).ok()?;
+        MAX_SIMULATION_SAMPLES,
+        Duration::from_secs(MAX_SIMULATION_TIME_SEC),
+    )
+    .tap_err(|err| error!("{err}"))
+    .ok()?;
 
     Some(InclusionProbabilities {
         inclusion_probabilities: zip_ids_together_with_results(&ids, &results),
         samples: results.samples,
-        elapsed,
+        elapsed: results.time,
         delta_max: results.delta_max,
         delta_l2: results.delta_l2,
     })

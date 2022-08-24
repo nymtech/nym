@@ -19,6 +19,10 @@ use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
 
 const CACHE_TIMOUT_MS: u64 = 100;
 
+enum NodeStatusCacheError {
+    SimulationFailed,
+}
+
 // A node status cache suitable for caching values computed in one sweep, such as active set
 // inclusion probabilities that are computed for all mixnodes at the same time.
 //
@@ -123,7 +127,7 @@ impl NodeStatusCacheRefresher {
                         let v = &*self.contract_cache_listener.borrow();
                         log::debug!("Validator cache event detected: {:?}", v);
                     }
-                    self.refresh_cache().await;
+                    let _ = self.refresh_cache().await;
                     fallback_interval.reset();
                 }
                 // ... however, if we don't receive any notifications we fall back to periodic
@@ -136,7 +140,7 @@ impl NodeStatusCacheRefresher {
                     };
 
                     if have_contract_cache_data {
-                        self.refresh_cache().await;
+                        let _ = self.refresh_cache().await;
                     } else {
                         log::trace!(
                             "Skipping updating node status cache, \
@@ -152,20 +156,20 @@ impl NodeStatusCacheRefresher {
         log::info!("NodeStatusCacheRefresher: Exiting");
     }
 
-    async fn refresh_cache(&self) {
+    async fn refresh_cache(&self) -> Result<(), NodeStatusCacheError> {
         log::info!("Updating node status cache");
         let mixnode_bonds = self.contract_cache.mixnodes().await;
         let params = self.contract_cache.epoch_reward_params().await.into_inner();
-        let inclusion_probabilities = compute_inclusion_probabilities(&mixnode_bonds, params);
-
-        let inclusion_probabilities = if let Some(p) = inclusion_probabilities {
-            p
-        } else {
-            error!("Failed to simulate selection probabilties for mixnodes, not updating cache");
-            return;
-        };
+        let inclusion_probabilities = compute_inclusion_probabilities(&mixnode_bonds, params)
+            .ok_or_else(|| {
+                error!(
+                    "Failed to simulate selection probabilties for mixnodes, not updating cache"
+                );
+                NodeStatusCacheError::SimulationFailed
+            })?;
 
         self.cache.update_cache(inclusion_probabilities).await;
+        Ok(())
     }
 }
 

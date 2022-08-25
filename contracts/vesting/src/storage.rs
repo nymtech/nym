@@ -2,7 +2,7 @@ use crate::vesting::Account;
 use crate::{contract::INITIAL_LOCKED_PLEDGE_CAP, errors::ContractError};
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::{IdentityKey, NodeId};
 use vesting_contract_common::PledgeData;
 
 pub(crate) type BlockTimestampSecs = u64;
@@ -14,7 +14,9 @@ const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
 const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");
 const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
-pub const DELEGATIONS: Map<'_, (u32, NodeId, BlockTimestampSecs), Uint128> = Map::new("dlg");
+pub const _OLD_DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> =
+    Map::new("dlg");
+pub const DELEGATIONS: Map<'_, (u32, NodeId, BlockTimestampSecs), Uint128> = Map::new("dlg_v2");
 pub const ADMIN: Item<'_, String> = Item::new("adm");
 pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");

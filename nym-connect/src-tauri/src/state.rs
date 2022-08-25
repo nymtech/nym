@@ -101,7 +101,7 @@ impl State {
 
         // Setup configuration by writing to file
         if let Err(err) = self.init_config().await {
-            log::warn!("Failed to initialize: {}", err);
+            log::error!("Failed to initialize: {}", err);
 
             // Wait a little to give the user some rudimentary feedback that the click actually
             // registered.

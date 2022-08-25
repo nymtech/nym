@@ -33,6 +33,10 @@ impl NymConfig for Config {
             .join("socks5-clients")
     }
 
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("socks5-clients"))
+    }
+
     fn root_directory(&self) -> PathBuf {
         self.base.get_nym_root_directory()
     }

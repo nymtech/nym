@@ -66,6 +66,10 @@ impl NymConfig for Config {
             .join("gateways")
     }
 
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("gateways"))
+    }
+
     fn root_directory(&self) -> PathBuf {
         self.gateway.nym_root_directory.clone()
     }

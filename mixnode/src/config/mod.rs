@@ -96,6 +96,10 @@ impl NymConfig for Config {
             .join("mixnodes")
     }
 
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("mixnodes"))
+    }
+
     fn root_directory(&self) -> PathBuf {
         self.mixnode.nym_root_directory.clone()
     }

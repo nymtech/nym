@@ -43,6 +43,7 @@ fn migrate_operator(
         pledge_amount: bond.pledge_amount,
         owner: bond.owner,
         block_height: bond.block_height,
+        profit_margin_percent: bond.mix_node.profit_margin_percent,
         proxy: bond.proxy,
     };
 
@@ -69,7 +70,7 @@ fn migrate_delegator(
     address: Addr,
     node_identity: String,
     proxy: Option<Addr>,
-    new_mix_id: Option<u64>,
+    new_mix_id: Option<u32>,
     response: &mut Response,
 ) -> Result<(), ContractError> {
     let owner_proxy = generate_storage_key(&address, proxy.as_ref());

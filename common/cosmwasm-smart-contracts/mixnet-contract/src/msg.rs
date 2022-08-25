@@ -296,6 +296,9 @@ pub enum SpecialV2ExecuteMsg {
         block_height: u64,
 
         #[serde(rename = "a11")]
+        profit_margin_percent: u8,
+
+        #[serde(rename = "a12")]
         proxy: Option<Addr>,
     },
     #[serde(rename = "m2")]

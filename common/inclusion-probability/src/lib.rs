@@ -3,6 +3,7 @@
 use std::time::{Duration, Instant};
 
 use error::Error;
+use rand::Rng;
 
 mod error;
 
@@ -18,13 +19,17 @@ pub struct SelectionProbability {
     pub delta_max: f64,
 }
 
-pub fn simulate_selection_probability_mixnodes(
+pub fn simulate_selection_probability_mixnodes<R>(
     list_stake_for_mixnodes: &[u128],
     active_set_size: usize,
     reserve_set_size: usize,
     max_samples: u64,
     max_time: Duration,
-) -> Result<SelectionProbability, Error> {
+    rng: &mut R,
+) -> Result<SelectionProbability, Error>
+where
+    R: Rng + ?Sized,
+{
     log::trace!("Simulating mixnode active set selection probability");
 
     // In case the active set size is larger than the number of bonded mixnodes, they all have 100%
@@ -54,7 +59,6 @@ pub fn simulate_selection_probability_mixnodes(
     let mut samples = 0;
     let mut delta_l2;
     let mut delta_max;
-    let mut rng = rand::thread_rng();
 
     // Make sure we bound the time we allow it to run
     let start_time = Instant::now();
@@ -71,7 +75,7 @@ pub fn simulate_selection_probability_mixnodes(
         while sample_active_mixnodes.len() < active_set_size
             && sample_active_mixnodes.len() < list_cumul_temp.len()
         {
-            let candidate = sample_candidate(&list_cumul_temp, &mut rng)?;
+            let candidate = sample_candidate(&list_cumul_temp, rng)?;
 
             if !sample_active_mixnodes.contains(&candidate) {
                 sample_active_mixnodes.push(candidate);
@@ -83,7 +87,7 @@ pub fn simulate_selection_probability_mixnodes(
         while sample_reserve_mixnodes.len() < reserve_set_size
             && sample_reserve_mixnodes.len() + sample_active_mixnodes.len() < list_cumul_temp.len()
         {
-            let candidate = sample_candidate(&list_cumul_temp, &mut rng)?;
+            let candidate = sample_candidate(&list_cumul_temp, rng)?;
 
             if !sample_reserve_mixnodes.contains(&candidate)
                 && !sample_active_mixnodes.contains(&candidate)
@@ -156,7 +160,10 @@ fn cumul_sum<'a>(list: impl IntoIterator<Item = &'a u128>) -> Vec<u128> {
     list_cumul
 }
 
-fn sample_candidate(list_cumul: &[u128], rng: &mut rand::rngs::ThreadRng) -> Result<usize, Error> {
+fn sample_candidate<R>(list_cumul: &[u128], rng: &mut R) -> Result<usize, Error>
+where
+    R: Rng + ?Sized,
+{
     use rand::distributions::{Distribution, Uniform};
     let uniform = Uniform::from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?);
     let r = uniform.sample(rng);
@@ -211,7 +218,13 @@ fn max_diff(v1: &[f64], v2: &[f64]) -> Result<f64, Error> {
 
 #[cfg(test)]
 mod tests {
+    use rand::{rngs::StdRng, SeedableRng};
+
     use super::*;
+
+    fn test_rng() -> StdRng {
+        StdRng::seed_from_u64(42)
+    }
 
     #[test]
     fn compute_cumul_sum() {
@@ -253,12 +266,13 @@ mod tests {
 
         let max_samples = 100_000;
         let max_time = Duration::from_secs(10);
+        let mut rng = test_rng();
 
         let SelectionProbability {
             active_set_probability,
             reserve_set_probability,
             samples,
-            time: _,
+            time,
             delta_l2,
             delta_max,
         } = simulate_selection_probability_mixnodes(
@@ -267,8 +281,13 @@ mod tests {
             standby_set_size,
             max_samples,
             max_time,
+            &mut rng,
         )
         .unwrap();
+
+        // Check that any possible test failure wasn't because we ran it on 1970s hardware, and the
+        // sampling aborted prematurely due to hitting `max_time`.
+        assert!(time < max_time);
 
         // These values comes from running the python simulator for a very long time
         let expected_active_set_probability = vec![
@@ -314,7 +333,7 @@ mod tests {
         );
 
         // We converge around 20_000, add another 500 for some slack due to random values
-        assert!(samples < 20_500);
+        assert_eq!(samples, 20_001);
         assert!(delta_l2 < TOLERANCE_L2_NORM);
         assert!(delta_max < TOLERANCE_MAX_NORM);
     }
@@ -326,6 +345,7 @@ mod tests {
         let list_mix = vec![100, 100, 3000];
         let max_samples = 100_000;
         let max_time = Duration::from_secs(10);
+        let mut rng = test_rng();
 
         let SelectionProbability {
             active_set_probability,
@@ -340,6 +360,7 @@ mod tests {
             standby_set_size,
             max_samples,
             max_time,
+            &mut rng,
         )
         .unwrap();
 
@@ -368,6 +389,7 @@ mod tests {
         let list_mix = vec![100, 100, 3000, 342, 3_498_234];
         let max_samples = 100_000_000;
         let max_time = Duration::from_secs(10);
+        let mut rng = test_rng();
 
         let SelectionProbability {
             active_set_probability,
@@ -382,6 +404,7 @@ mod tests {
             standby_set_size,
             max_samples,
             max_time,
+            &mut rng,
         )
         .unwrap();
 
@@ -396,7 +419,7 @@ mod tests {
         );
 
         // We converge around 20_000, add another 500 for some slack due to random values
-        assert!(samples < 20_500);
+        assert_eq!(samples, 20_001);
         assert!(delta_l2 < TOLERANCE_L2_NORM);
         assert!(delta_max < TOLERANCE_MAX_NORM);
     }

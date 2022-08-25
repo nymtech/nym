@@ -298,7 +298,7 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
-        self.received_processor.start_receiving();
+        self.received_processor.start_receiving(shutdown.clone());
 
         // wait for validator cache to be ready
         self.packet_preparer
@@ -306,7 +306,7 @@ impl Monitor {
             .await;
 
         self.packet_sender
-            .spawn_gateways_pinger(self.gateway_ping_interval);
+            .spawn_gateways_pinger(self.gateway_ping_interval, shutdown.clone());
 
         let mut run_interval = tokio::time::interval(self.run_interval);
         while !shutdown.is_shutdown() {

@@ -13,6 +13,7 @@ use nymsphinx::receiver::MessageReceiver;
 use std::fmt::{self, Display, Formatter};
 use std::mem;
 use std::sync::Arc;
+use task::ShutdownListener;
 
 pub(crate) type ReceivedProcessorSender = mpsc::UnboundedSender<GatewayMessages>;
 pub(crate) type ReceivedProcessorReceiver = mpsc::UnboundedReceiver<GatewayMessages>;
@@ -132,7 +133,7 @@ impl ReceivedProcessor {
         }
     }
 
-    pub(crate) fn start_receiving(&mut self) {
+    pub(crate) fn start_receiving(&mut self, mut shutdown: ShutdownListener) {
         let inner = Arc::clone(&self.inner);
 
         // TODO: perhaps it should be using 0 size instead?
@@ -140,16 +141,17 @@ impl ReceivedProcessor {
         self.permit_changer = Some(permit_sender);
 
         tokio::spawn(async move {
-            loop {
+            while !shutdown.is_shutdown() {
                 let permit = wait_for_permit(&mut permit_receiver, &*inner).await;
-                receive_or_release_permit(&mut permit_receiver, permit).await;
+                receive_or_release_permit(&mut permit_receiver, permit, &mut shutdown).await;
             }
 
             async fn receive_or_release_permit(
                 permit_receiver: &mut mpsc::Receiver<LockPermit>,
                 mut inner: MutexGuard<'_, ReceivedProcessorInner>,
+                shutdown: &mut ShutdownListener,
             ) {
-                loop {
+                while !shutdown.is_shutdown() {
                     tokio::select! {
                         permit_receiver = permit_receiver.next() => match permit_receiver.unwrap() {
                             LockPermit::Release => return,
@@ -162,6 +164,9 @@ impl ReceivedProcessor {
                                 }
                             }
                         },
+                        _ = shutdown.recv() => {
+                            trace!("ReceiverProcessor: Received shutdown");
+                        }
                     }
                 }
             }

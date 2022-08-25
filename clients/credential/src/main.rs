@@ -11,20 +11,24 @@ cfg_if::cfg_if! {
 
         use commands::{Commands, Execute};
         use error::Result;
+        use network_defaults::setup_env;
 
         use clap::Parser;
         use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 
-        pub const MNEMONIC: &str = "jazz fatigue diagram account outer wrist slide cherry mother grid network pause wolf pig round answer mail junior better hair dismiss toward access end";
-        pub const NYMD_URL: &str = "http://127.0.0.1:26657";
-        pub const CONTRACT_ADDRESS: &str = "nymt1nc5tatafv6eyq7llkr2gv50ff9e22mnfp9pc5s";
-        pub const SIGNER_AUTHORITIES: [&str; 1] = [
-            "http://127.0.0.1:8080",
-        ];
-
         #[derive(Parser)]
         #[clap(author = "Nymtech", version, about)]
         struct Cli {
+            /// Path pointing to an env file that configures the client.
+            #[clap(long)]
+            pub(crate) config_env_file: Option<std::path::PathBuf>,
+
+            /// Path where the sqlite credental database will be located.
+            /// It should point to a $HOME/$CLIENT_ID/data/db.sqlite file of
+            /// the client that is supposed to use the credential.
+            #[clap(long)]
+            pub(crate) credential_db_path: std::path::PathBuf,
+
             #[clap(subcommand)]
             command: Commands,
         }
@@ -32,8 +36,9 @@ cfg_if::cfg_if! {
         #[tokio::main]
         async fn main() -> Result<()> {
             let args = Cli::parse();
+            setup_env(args.config_env_file.clone());
 
-            let shared_storage = credential_storage::initialise_storage(std::path::PathBuf::from("/tmp/credential.db")).await;
+            let shared_storage = credential_storage::initialise_storage(args.credential_db_path.clone()).await;
             let mut db = match PickleDb::load(
                 "credential.db",
                 PickleDbDumpPolicy::AutoDump,

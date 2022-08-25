@@ -6,7 +6,7 @@ use mixnet_contract_common::IdentityKey;
 use vesting_contract_common::PledgeData;
 
 pub(crate) type BlockTimestampSecs = u64;
-pub(crate) type NodeId = u64;
+pub(crate) type NodeId = u32;
 
 pub const KEY: Item<'_, u32> = Item::new("key");
 const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");

@@ -238,7 +238,7 @@ pub enum V2MigrationOperation {
         proxy: Option<Addr>,
 
         #[serde(rename = "a4")]
-        new_mix_id: Option<u64>,
+        new_mix_id: Option<u32>,
     },
 
     #[serde(rename = "m3")]
@@ -304,7 +304,7 @@ pub enum SpecialV2ExecuteMsg {
         owner: Addr,
 
         #[serde(rename = "a2")]
-        mix_id: u64,
+        mix_id: u32,
 
         #[serde(rename = "a3")]
         amount: Coin,

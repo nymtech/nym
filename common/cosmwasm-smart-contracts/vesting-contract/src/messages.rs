@@ -123,7 +123,7 @@ pub enum ExecuteMsg {
     AuthorisedUpdateToV2 {
         owner: String,
         node_identity: IdentityKey,
-        mix_id: u64,
+        mix_id: u32,
     },
 }
 

@@ -70,6 +70,7 @@ export const DelegateModal: React.FC<{
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
+  const [mixIdError, setMixIdError] = useState<string>();
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
@@ -121,7 +122,14 @@ export const DelegateModal: React.FC<{
       newValidatedValue = false;
     }
 
+    if (!mixId) {
+      newValidatedValue = false;
+    }
+
     setErrorIdentityKey(errorIdentityKeyMessage);
+    if (mixIdError && !errorIdentityKeyMessage) {
+      setErrorIdentityKey(mixIdError);
+    }
     setErrorAmount(errorAmountMessage);
     setValidated(newValidatedValue);
   };
@@ -167,7 +175,7 @@ export const DelegateModal: React.FC<{
 
   React.useEffect(() => {
     validate();
-  }, [amount, identityKey]);
+  }, [amount, identityKey, mixIdError]);
 
   const resolveMixId = useCallback(
     debounce(async (idKey) => {
@@ -183,6 +191,9 @@ export const DelegateModal: React.FC<{
       }
       if (res) {
         setMixId(res);
+        setMixIdError(undefined);
+      } else {
+        setMixIdError('No matching mix_id for that address');
       }
     }, 500),
     [],

@@ -894,6 +894,7 @@ dependencies = [
  "cfg-if 0.1.10",
  "clap 3.2.8",
  "coconut-interface",
+ "config",
  "credential-storage",
  "credentials",
  "crypto",

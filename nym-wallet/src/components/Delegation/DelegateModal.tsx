@@ -193,7 +193,7 @@ export const DelegateModal: React.FC<{
         setMixId(res);
         setMixIdError(undefined);
       } else {
-        setMixIdError('No matching mix_id for that address');
+        setMixIdError('Mixnode with this identity does not seem to be currently bonded');
       }
     }, 500),
     [],

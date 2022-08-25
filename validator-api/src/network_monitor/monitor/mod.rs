@@ -298,7 +298,7 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
-        self.received_processor.start_receiving(shutdown.clone());
+        self.received_processor.start_receiving();
 
         // wait for validator cache to be ready
         self.packet_preparer

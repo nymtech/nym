@@ -13,7 +13,6 @@ use nymsphinx::receiver::MessageReceiver;
 use std::fmt::{self, Display, Formatter};
 use std::mem;
 use std::sync::Arc;
-use task::ShutdownListener;
 
 pub(crate) type ReceivedProcessorSender = mpsc::UnboundedSender<GatewayMessages>;
 pub(crate) type ReceivedProcessorReceiver = mpsc::UnboundedReceiver<GatewayMessages>;
@@ -133,7 +132,7 @@ impl ReceivedProcessor {
         }
     }
 
-    pub(crate) fn start_receiving(&mut self, mut shutdown: ShutdownListener) {
+    pub(crate) fn start_receiving(&mut self) {
         let inner = Arc::clone(&self.inner);
 
         // TODO: perhaps it should be using 0 size instead?
@@ -141,32 +140,32 @@ impl ReceivedProcessor {
         self.permit_changer = Some(permit_sender);
 
         tokio::spawn(async move {
-            while !shutdown.is_shutdown() {
+            loop {
                 let permit = wait_for_permit(&mut permit_receiver, &*inner).await;
-                receive_or_release_permit(&mut permit_receiver, permit, &mut shutdown).await;
+                receive_or_release_permit(&mut permit_receiver, permit).await;
             }
 
             async fn receive_or_release_permit(
                 permit_receiver: &mut mpsc::Receiver<LockPermit>,
                 mut inner: MutexGuard<'_, ReceivedProcessorInner>,
-                shutdown: &mut ShutdownListener,
             ) {
-                while !shutdown.is_shutdown() {
+                loop {
                     tokio::select! {
-                        permit_receiver = permit_receiver.next() => match permit_receiver.unwrap() {
-                            LockPermit::Release => return,
-                            LockPermit::Free => error!("somehow we got notification that the lock is free to take while we already hold it!"),
+                        permit_receiver = permit_receiver.next() => match permit_receiver {
+                            Some(LockPermit::Release) => return,
+                            Some(LockPermit::Free) => error!("somehow we got notification that the lock is free to take while we already hold it!"),
+                            None => return,
                         },
-                        messages = inner.packets_receiver.next() => {
-                            for message in messages.expect("packet receiver has died!") {
-                                if let Err(err) = inner.on_message(message) {
-                                    warn!(target: "Monitor", "failed to process received gateway message - {}", err)
+                        messages = inner.packets_receiver.next() => match messages {
+                            Some(messages) => {
+                                for message in messages {
+                                    if let Err(err) = inner.on_message(message) {
+                                        warn!(target: "Monitor", "failed to process received gateway message - {}", err)
+                                    }
                                 }
                             }
+                            None => return,
                         },
-                        _ = shutdown.recv() => {
-                            trace!("ReceiverProcessor: Received shutdown");
-                        }
                     }
                 }
             }

@@ -185,4 +185,7 @@ pub enum ContractError {
 
     #[error("Mixnode {identity} has been blacklisted on the network")]
     MixnodeBlacklisted { identity: String },
+
+    #[error("Contract is currently set to the maintenance mode - all transactions are temporarily disabled")]
+    MaintenanceMode,
 }

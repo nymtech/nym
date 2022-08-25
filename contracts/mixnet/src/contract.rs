@@ -7,6 +7,7 @@ use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::queries::{
     query_mixnode_delegations_paged, query_pending_delegation_events,
 };
+use crate::delegations::storage::delegations;
 use crate::error::ContractError;
 use crate::gateways::queries::query_owns_gateway;
 use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
@@ -24,18 +25,19 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
 use crate::mixnodes::bonding_queries as mixnode_queries;
 use crate::mixnodes::bonding_queries::{
-    query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
+    query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnode_bond,
+    query_mixnodes_paged,
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::transactions::_try_remove_mixnode;
-use crate::queued_migrations::migrate_config_from_env;
+use crate::queued_migrations::v2_migration;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Storage, Uint128,
+    Storage, SubMsg, Uint128,
 };
 use mixnet_contract_common::{
     ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeToRemove, QueryMsg,
@@ -114,6 +116,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        // we must be able to perform universal compound alongside reconcile
         ExecuteMsg::CompoundReward {
             operator,
             delegator,
@@ -127,215 +130,217 @@ pub fn execute(
             mix_identity,
             proxy,
         ),
-        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
-            try_update_rewarding_validator_address(deps, info, address)
-        }
-        ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
-        ExecuteMsg::BondMixnode {
-            mix_node,
-            owner_signature,
-        } => crate::mixnodes::transactions::try_add_mixnode(
-            deps,
-            env,
-            info,
-            mix_node,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::transactions::try_remove_mixnode(&env, deps.storage, deps.api, info)
-        }
-        ExecuteMsg::UpdateMixnodeConfig {
-            profit_margin_percent,
-        } => crate::mixnodes::transactions::try_update_mixnode_config(
-            deps,
-            env,
-            info,
-            profit_margin_percent,
-        ),
-        ExecuteMsg::UpdateMixnodeConfigOnBehalf {
-            profit_margin_percent,
-            owner,
-        } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
-            deps,
-            env,
-            info,
-            profit_margin_percent,
-            owner,
-        ),
-        ExecuteMsg::BondGateway {
-            gateway,
-            owner_signature,
-        } => crate::gateways::transactions::try_add_gateway(
-            deps,
-            env,
-            info,
-            gateway,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondGateway {} => {
-            crate::gateways::transactions::try_remove_gateway(deps, info)
-        }
-        ExecuteMsg::UpdateContractStateParams(params) => {
-            crate::mixnet_contract_settings::transactions::try_update_contract_settings(
-                deps, info, params,
-            )
-        }
-        ExecuteMsg::RewardMixnode { identity, params } => {
-            crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params)
-        }
-        ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
-        }
-        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode(
-                deps,
-                env,
-                info,
-                mix_identity,
-            )
-        }
-        // ExecuteMsg::RewardNextMixDelegators {
-        //     mix_identity,
-        //     interval_id,
-        // } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
-        //     deps,
-        //     info,
-        //     mix_identity,
-        //     interval_id,
-        // ),
-        ExecuteMsg::DelegateToMixnodeOnBehalf {
-            mix_identity,
-            delegate,
-        } => crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_identity,
-            delegate,
-        ),
-        ExecuteMsg::UndelegateFromMixnodeOnBehalf {
-            mix_identity,
-            delegate,
-        } => crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_identity,
-            delegate,
-        ),
-        ExecuteMsg::BondMixnodeOnBehalf {
-            mix_node,
-            owner,
-            owner_signature,
-        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_node,
-            owner,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(
-                &env,
-                deps.storage,
-                deps.api,
-                info,
-                owner,
-            )
-        }
-        ExecuteMsg::BondGatewayOnBehalf {
-            gateway,
-            owner,
-            owner_signature,
-        } => crate::gateways::transactions::try_add_gateway_on_behalf(
-            deps,
-            env,
-            info,
-            gateway,
-            owner,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
-            crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
-        }
-        ExecuteMsg::WriteRewardedSet {
-            rewarded_set,
-            expected_active_set_size,
-        } => crate::interval::transactions::try_write_rewarded_set(
-            deps,
-            env,
-            info,
-            rewarded_set,
-            expected_active_set_size,
-        ),
-        ExecuteMsg::AdvanceCurrentEpoch {} => crate::interval::transactions::try_advance_epoch(
-            env,
-            deps.storage,
-            info.sender.to_string(),
-        ),
-        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
-            crate::rewards::transactions::try_compound_delegator_reward(
-                deps,
-                env,
-                info,
-                mix_identity,
-            )
-        }
-        ExecuteMsg::CompoundOperatorReward {} => {
-            crate::rewards::transactions::try_compound_operator_reward(deps, env, info)
-        }
-        ExecuteMsg::CompoundDelegatorRewardOnBehalf {
-            owner,
-            mix_identity,
-        } => crate::rewards::transactions::try_compound_delegator_reward_on_behalf(
-            deps,
-            env,
-            info,
-            owner,
-            mix_identity,
-        ),
-        ExecuteMsg::CompoundOperatorRewardOnBehalf { owner } => {
-            crate::rewards::transactions::try_compound_operator_reward_on_behalf(
-                deps, env, info, owner,
-            )
-        }
         ExecuteMsg::ReconcileDelegations {} => {
             crate::delegations::transactions::try_reconcile_all_delegation_events(deps)
         }
-        ExecuteMsg::CheckpointMixnodes {} => {
-            crate::mixnodes::transactions::try_checkpoint_mixnodes(
-                deps.storage,
-                env.block.height,
-                info,
-            )
-        }
-        ExecuteMsg::ClaimOperatorReward {} => {
-            crate::rewards::transactions::try_claim_operator_reward(deps, &env, &info)
-        }
-        ExecuteMsg::ClaimOperatorRewardOnBehalf { owner } => {
-            crate::rewards::transactions::try_claim_operator_reward_on_behalf(
-                deps, &env, &info, owner,
-            )
-        }
-        ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
-            crate::rewards::transactions::try_claim_delegator_reward(
-                deps,
-                &env,
-                &info,
-                &mix_identity,
-            )
-        }
-        ExecuteMsg::ClaimDelegatorRewardOnBehalf {
-            mix_identity,
-            owner,
-        } => crate::rewards::transactions::try_claim_delegator_reward_on_behalf(
-            deps,
-            &env,
-            &info,
-            owner,
-            &mix_identity,
-        ),
+        _ => Err(ContractError::MaintenanceMode),
+        // ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+        //     try_update_rewarding_validator_address(deps, info, address)
+        // }
+        // ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
+        // ExecuteMsg::BondMixnode {
+        //     mix_node,
+        //     owner_signature,
+        // } => crate::mixnodes::transactions::try_add_mixnode(
+        //     deps,
+        //     env,
+        //     info,
+        //     mix_node,
+        //     owner_signature,
+        // ),
+        // ExecuteMsg::UnbondMixnode {} => {
+        //     crate::mixnodes::transactions::try_remove_mixnode(&env, deps.storage, deps.api, info)
+        // }
+        // ExecuteMsg::UpdateMixnodeConfig {
+        //     profit_margin_percent,
+        // } => crate::mixnodes::transactions::try_update_mixnode_config(
+        //     deps,
+        //     env,
+        //     info,
+        //     profit_margin_percent,
+        // ),
+        // ExecuteMsg::UpdateMixnodeConfigOnBehalf {
+        //     profit_margin_percent,
+        //     owner,
+        // } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
+        //     deps,
+        //     env,
+        //     info,
+        //     profit_margin_percent,
+        //     owner,
+        // ),
+        // ExecuteMsg::BondGateway {
+        //     gateway,
+        //     owner_signature,
+        // } => crate::gateways::transactions::try_add_gateway(
+        //     deps,
+        //     env,
+        //     info,
+        //     gateway,
+        //     owner_signature,
+        // ),
+        // ExecuteMsg::UnbondGateway {} => {
+        //     crate::gateways::transactions::try_remove_gateway(deps, info)
+        // }
+        // ExecuteMsg::UpdateContractStateParams(params) => {
+        //     crate::mixnet_contract_settings::transactions::try_update_contract_settings(
+        //         deps, info, params,
+        //     )
+        // }
+        // ExecuteMsg::RewardMixnode { identity, params } => {
+        //     crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params)
+        // }
+        // ExecuteMsg::DelegateToMixnode { mix_identity } => {
+        //     crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
+        // }
+        // ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
+        //     crate::delegations::transactions::try_remove_delegation_from_mixnode(
+        //         deps,
+        //         env,
+        //         info,
+        //         mix_identity,
+        //     )
+        // }
+        // // ExecuteMsg::RewardNextMixDelegators {
+        // //     mix_identity,
+        // //     interval_id,
+        // // } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
+        // //     deps,
+        // //     info,
+        // //     mix_identity,
+        // //     interval_id,
+        // // ),
+        // ExecuteMsg::DelegateToMixnodeOnBehalf {
+        //     mix_identity,
+        //     delegate,
+        // } => crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
+        //     deps,
+        //     env,
+        //     info,
+        //     mix_identity,
+        //     delegate,
+        // ),
+        // ExecuteMsg::UndelegateFromMixnodeOnBehalf {
+        //     mix_identity,
+        //     delegate,
+        // } => crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
+        //     deps,
+        //     env,
+        //     info,
+        //     mix_identity,
+        //     delegate,
+        // ),
+        // ExecuteMsg::BondMixnodeOnBehalf {
+        //     mix_node,
+        //     owner,
+        //     owner_signature,
+        // } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
+        //     deps,
+        //     env,
+        //     info,
+        //     mix_node,
+        //     owner,
+        //     owner_signature,
+        // ),
+        // ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
+        //     crate::mixnodes::transactions::try_remove_mixnode_on_behalf(
+        //         &env,
+        //         deps.storage,
+        //         deps.api,
+        //         info,
+        //         owner,
+        //     )
+        // }
+        // ExecuteMsg::BondGatewayOnBehalf {
+        //     gateway,
+        //     owner,
+        //     owner_signature,
+        // } => crate::gateways::transactions::try_add_gateway_on_behalf(
+        //     deps,
+        //     env,
+        //     info,
+        //     gateway,
+        //     owner,
+        //     owner_signature,
+        // ),
+        // ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
+        //     crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
+        // }
+        // ExecuteMsg::WriteRewardedSet {
+        //     rewarded_set,
+        //     expected_active_set_size,
+        // } => crate::interval::transactions::try_write_rewarded_set(
+        //     deps,
+        //     env,
+        //     info,
+        //     rewarded_set,
+        //     expected_active_set_size,
+        // ),
+        // ExecuteMsg::AdvanceCurrentEpoch {} => crate::interval::transactions::try_advance_epoch(
+        //     env,
+        //     deps.storage,
+        //     info.sender.to_string(),
+        // ),
+        // ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
+        //     crate::rewards::transactions::try_compound_delegator_reward(
+        //         deps,
+        //         env,
+        //         info,
+        //         mix_identity,
+        //     )
+        // }
+        // ExecuteMsg::CompoundOperatorReward {} => {
+        //     crate::rewards::transactions::try_compound_operator_reward(deps, env, info)
+        // }
+        // ExecuteMsg::CompoundDelegatorRewardOnBehalf {
+        //     owner,
+        //     mix_identity,
+        // } => crate::rewards::transactions::try_compound_delegator_reward_on_behalf(
+        //     deps,
+        //     env,
+        //     info,
+        //     owner,
+        //     mix_identity,
+        // ),
+        // ExecuteMsg::CompoundOperatorRewardOnBehalf { owner } => {
+        //     crate::rewards::transactions::try_compound_operator_reward_on_behalf(
+        //         deps, env, info, owner,
+        //     )
+        // }
+        //
+        // ExecuteMsg::CheckpointMixnodes {} => {
+        //     crate::mixnodes::transactions::try_checkpoint_mixnodes(
+        //         deps.storage,
+        //         env.block.height,
+        //         info,
+        //     )
+        // }
+        // ExecuteMsg::ClaimOperatorReward {} => {
+        //     crate::rewards::transactions::try_claim_operator_reward(deps, &env, &info)
+        // }
+        // ExecuteMsg::ClaimOperatorRewardOnBehalf { owner } => {
+        //     crate::rewards::transactions::try_claim_operator_reward_on_behalf(
+        //         deps, &env, &info, owner,
+        //     )
+        // }
+        // ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
+        //     crate::rewards::transactions::try_claim_delegator_reward(
+        //         deps,
+        //         &env,
+        //         &info,
+        //         &mix_identity,
+        //     )
+        // }
+        // ExecuteMsg::ClaimDelegatorRewardOnBehalf {
+        //     mix_identity,
+        //     owner,
+        // } => crate::rewards::transactions::try_claim_delegator_reward_on_behalf(
+        //     deps,
+        //     &env,
+        //     &info,
+        //     owner,
+        //     &mix_identity,
+        // ),
     }
 }
 
@@ -509,17 +514,7 @@ fn remove_malicious_node(
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_config_from_env(deps.storage, &msg)?;
-    let mut response = Response::new();
-    for node in msg.nodes_to_remove().iter() {
-        let mut sub_response = remove_malicious_node(deps.storage, deps.api, &env, node)
-            .unwrap_or_else(|_| panic!("Could not remove node: {:?}", node));
-        response.messages.append(&mut sub_response.messages);
-        response.attributes.append(&mut sub_response.attributes);
-        response.events.append(&mut sub_response.events);
-    }
-
-    Ok(response)
+    v2_migration(deps, env, msg)
 }
 
 #[cfg(test)]

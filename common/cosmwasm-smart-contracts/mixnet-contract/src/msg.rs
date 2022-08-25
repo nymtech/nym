@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::reward_params::NodeRewardParams;
-use crate::ContractStateParams;
+use crate::{ContractStateParams, Layer, SphinxKey};
 use crate::{Gateway, IdentityKey, MixNode};
+use cosmwasm_std::{Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -213,17 +214,121 @@ pub enum QueryMsg {
     },
 }
 
+// all of those `serde rename` are here to reduce the rpc response size to bare minimum
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "op")]
+pub enum V2MigrationOperation {
+    #[serde(rename = "m1")]
+    MigrateOperator {
+        #[serde(rename = "a1")]
+        node_identity: String,
+    },
+
+    #[serde(rename = "m2")]
+    MigrateDelegator {
+        #[serde(rename = "a1")]
+        address: Addr,
+
+        #[serde(rename = "a2")]
+        node_identity: String,
+
+        #[serde(rename = "a3")]
+        proxy: Option<Addr>,
+
+        #[serde(rename = "a4")]
+        new_mix_id: Option<u64>,
+    },
+
+    #[serde(rename = "m3")]
+    RemoveOperator {
+        #[serde(rename = "a1")]
+        node_identity: String,
+    },
+
+    #[serde(rename = "m4")]
+    RemoveDelegator {
+        #[serde(rename = "a1")]
+        address: Addr,
+
+        #[serde(rename = "a2")]
+        node_identity: String,
+
+        #[serde(rename = "a3")]
+        proxy: Option<Addr>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum SpecialVestingMigrateExecuteMsg {
+    UpdateDelegation {
+        owner: String,
+        node_identity: String,
+        mix_id: u64,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum SpecialV2ExecuteMsg {
+    ToBeNamedSaveMixnode {
+        #[serde(rename = "a1")]
+        host: String,
+
+        #[serde(rename = "a2")]
+        mix_port: u16,
+
+        #[serde(rename = "a3")]
+        verloc_port: u16,
+
+        #[serde(rename = "a4")]
+        http_api_port: u16,
+
+        #[serde(rename = "a5")]
+        sphinx_key: SphinxKey,
+
+        #[serde(rename = "a6")]
+        identity_key: IdentityKey,
+
+        #[serde(rename = "a7")]
+        version: String,
+
+        #[serde(rename = "a8")]
+        pledge_amount: Coin,
+
+        #[serde(rename = "a9")]
+        owner: Addr,
+
+        #[serde(rename = "a10")]
+        block_height: u64,
+
+        #[serde(rename = "a11")]
+        proxy: Option<Addr>,
+    },
+    ToBeNamedSaveDelegation {
+        #[serde(rename = "a1")]
+        owner: Addr,
+
+        #[serde(rename = "a2")]
+        mix_id: u64,
+
+        #[serde(rename = "a3")]
+        amount: Coin,
+
+        #[serde(rename = "a4")]
+        block_height: u64,
+
+        #[serde(rename = "a5")]
+        proxy: Option<Addr>,
+    },
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {
-    pub mixnet_denom: String,
-    nodes_to_remove: Option<Vec<NodeToRemove>>,
-}
-
-impl MigrateMsg {
-    pub fn nodes_to_remove(&self) -> Vec<NodeToRemove> {
-        self.nodes_to_remove.clone().unwrap_or_default()
-    }
+    pub v2_contract_address: String,
+    pub vesting_contract_address: String,
+    pub operations: Vec<V2MigrationOperation>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

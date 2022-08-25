@@ -119,6 +119,12 @@ pub enum ExecuteMsg {
     UpdateLockedPledgeCap {
         amount: Uint128,
     },
+
+    AuthorisedUpdateToV2 {
+        owner: String,
+        node_identity: IdentityKey,
+        mix_id: u64,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

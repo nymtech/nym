@@ -1,8 +1,8 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_config_from_env;
 use crate::storage::{
-    account_from_address, locked_pledge_cap, update_locked_pledge_cap, BlockTimestampSecs, ADMIN,
-    DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
+    account_from_address, locked_pledge_cap, update_locked_pledge_cap, BlockTimestampSecs, NodeId,
+    ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM, OLD_DELEGATIONS,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -50,85 +50,122 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
     Ok(Response::default())
 }
 
+fn update_delegation_to_v2(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    owner: String,
+    node_identity: String,
+    mix_id: NodeId,
+) -> Result<Response, ContractError> {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
+        return Err(ContractError::NotMixnetContract(info.sender));
+    }
+
+    // this MUST succeed since we know this delegation was created via vesting contract...
+    let account = account_from_address(&owner, deps.storage, deps.api)?;
+    let storage_prefix = (account.storage_key(), node_identity);
+    let old_data = OLD_DELEGATIONS
+        .prefix(storage_prefix.clone())
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    for (timestamp, amount) in old_data {
+        OLD_DELEGATIONS.remove(
+            deps.storage,
+            (storage_prefix.0, storage_prefix.1.clone(), timestamp),
+        );
+        DELEGATIONS.save(deps.storage, (storage_prefix.0, mix_id, timestamp), &amount)?;
+    }
+
+    Ok(Response::new())
+}
+
 #[entry_point]
 pub fn execute(
     deps: DepsMut<'_>,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateLockedPledgeCap { amount } => {
-            try_update_locked_pledge_cap(amount, info, deps)
-        }
-        ExecuteMsg::TrackReward { amount, address } => {
-            try_track_reward(deps, info, amount, &address)
-        }
-        ExecuteMsg::ClaimOperatorReward {} => try_claim_operator_reward(deps, info),
-        ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
-            try_claim_delegator_reward(deps, info, mix_identity)
-        }
-        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
-            try_compound_delegator_reward(mix_identity, info, deps)
-        }
-        ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
-        ExecuteMsg::UpdateMixnodeConfig {
-            profit_margin_percent,
-        } => try_update_mixnode_config(profit_margin_percent, info, deps),
-        ExecuteMsg::UpdateMixnetAddress { address } => {
-            try_update_mixnet_address(address, info, deps)
-        }
-        ExecuteMsg::DelegateToMixnode {
-            mix_identity,
-            amount,
-        } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
-        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            try_undelegate_from_mixnode(mix_identity, info, deps)
-        }
-        ExecuteMsg::CreateAccount {
-            owner_address,
-            staking_address,
-            vesting_spec,
-        } => try_create_periodic_vesting_account(
-            &owner_address,
-            staking_address,
-            vesting_spec,
-            info,
-            env,
-            deps,
-        ),
-        ExecuteMsg::WithdrawVestedCoins { amount } => {
-            try_withdraw_vested_coins(amount, env, info, deps)
-        }
+        ExecuteMsg::AuthorisedUpdateToV2 {
+            owner,
+            node_identity,
+            mix_id,
+        } => update_delegation_to_v2(deps, info, owner, node_identity, mix_id),
         ExecuteMsg::TrackUndelegation {
             owner,
             mix_identity,
             amount,
         } => try_track_undelegation(&owner, mix_identity, amount, info, deps),
-        ExecuteMsg::BondMixnode {
-            mix_node,
-            owner_signature,
-            amount,
-        } => try_bond_mixnode(mix_node, owner_signature, amount, info, env, deps),
-        ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
-        ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
-            try_track_unbond_mixnode(&owner, amount, info, deps)
-        }
-        ExecuteMsg::BondGateway {
-            gateway,
-            owner_signature,
-            amount,
-        } => try_bond_gateway(gateway, owner_signature, amount, info, env, deps),
-        ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
-        ExecuteMsg::TrackUnbondGateway { owner, amount } => {
-            try_track_unbond_gateway(&owner, amount, info, deps)
-        }
-        ExecuteMsg::TransferOwnership { to_address } => {
-            try_transfer_ownership(to_address, info, deps)
-        }
-        ExecuteMsg::UpdateStakingAddress { to_address } => {
-            try_update_staking_address(to_address, info, deps)
-        }
+        _ => Err(ContractError::MaintenanceMode),
+        // ExecuteMsg::UpdateLockedPledgeCap { amount } => {
+        //     try_update_locked_pledge_cap(amount, info, deps)
+        // }
+        // ExecuteMsg::TrackReward { amount, address } => {
+        //     try_track_reward(deps, info, amount, &address)
+        // }
+        // ExecuteMsg::ClaimOperatorReward {} => try_claim_operator_reward(deps, info),
+        // ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
+        //     try_claim_delegator_reward(deps, info, mix_identity)
+        // }
+        // ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
+        //     try_compound_delegator_reward(mix_identity, info, deps)
+        // }
+        // ExecuteMsg::CompoundOperatorReward {} => try_compound_operator_reward(info, deps),
+        // ExecuteMsg::UpdateMixnodeConfig {
+        //     profit_margin_percent,
+        // } => try_update_mixnode_config(profit_margin_percent, info, deps),
+        // ExecuteMsg::UpdateMixnetAddress { address } => {
+        //     try_update_mixnet_address(address, info, deps)
+        // }
+        // ExecuteMsg::DelegateToMixnode {
+        //     mix_identity,
+        //     amount,
+        // } => try_delegate_to_mixnode(mix_identity, amount, info, env, deps),
+        // ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
+        //     try_undelegate_from_mixnode(mix_identity, info, deps)
+        // }
+        // ExecuteMsg::CreateAccount {
+        //     owner_address,
+        //     staking_address,
+        //     vesting_spec,
+        // } => try_create_periodic_vesting_account(
+        //     &owner_address,
+        //     staking_address,
+        //     vesting_spec,
+        //     info,
+        //     env,
+        //     deps,
+        // ),
+        // ExecuteMsg::WithdrawVestedCoins { amount } => {
+        //     try_withdraw_vested_coins(amount, env, info, deps)
+        // }
+        //
+        // ExecuteMsg::BondMixnode {
+        //     mix_node,
+        //     owner_signature,
+        //     amount,
+        // } => try_bond_mixnode(mix_node, owner_signature, amount, info, env, deps),
+        // ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
+        // ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
+        //     try_track_unbond_mixnode(&owner, amount, info, deps)
+        // }
+        // ExecuteMsg::BondGateway {
+        //     gateway,
+        //     owner_signature,
+        //     amount,
+        // } => try_bond_gateway(gateway, owner_signature, amount, info, env, deps),
+        // ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
+        // ExecuteMsg::TrackUnbondGateway { owner, amount } => {
+        //     try_track_unbond_gateway(&owner, amount, info, deps)
+        // }
+        // ExecuteMsg::TransferOwnership { to_address } => {
+        //     try_transfer_ownership(to_address, info, deps)
+        // }
+        // ExecuteMsg::UpdateStakingAddress { to_address } => {
+        //     try_update_staking_address(to_address, info, deps)
+        // }
     }
 }
 

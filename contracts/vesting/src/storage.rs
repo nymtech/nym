@@ -6,6 +6,7 @@ use mixnet_contract_common::IdentityKey;
 use vesting_contract_common::PledgeData;
 
 pub(crate) type BlockTimestampSecs = u64;
+pub(crate) type NodeId = u64;
 
 pub const KEY: Item<'_, u32> = Item::new("key");
 const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
@@ -14,7 +15,9 @@ const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
 const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");
 const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
-pub const DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> = Map::new("dlg");
+pub const OLD_DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> =
+    Map::new("dlg");
+pub const DELEGATIONS: Map<'_, (u32, NodeId, BlockTimestampSecs), Uint128> = Map::new("dlg_v2");
 pub const ADMIN: Item<'_, String> = Item::new("adm");
 pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");
@@ -30,8 +33,9 @@ pub fn update_locked_pledge_cap(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    LOCKED_PLEDGE_CAP.save(storage, &amount)?;
-    Ok(())
+    Err(ContractError::MaintenanceMode)
+    // LOCKED_PLEDGE_CAP.save(storage, &amount)?;
+    // Ok(())
 }
 
 pub fn save_delegation(
@@ -39,16 +43,19 @@ pub fn save_delegation(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    DELEGATIONS.save(storage, key, &amount)?;
-    Ok(())
+    Err(ContractError::MaintenanceMode)
+    // DELEGATIONS.save(storage, key, &amount)?;
+    // Ok(())
 }
 
 pub fn remove_delegation(
     key: (u32, IdentityKey, BlockTimestampSecs),
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    DELEGATIONS.remove(storage, key);
-    Ok(())
+    Err(ContractError::MaintenanceMode)
+    //
+    // DELEGATIONS.remove(storage, key);
+    // Ok(())
 }
 
 pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {

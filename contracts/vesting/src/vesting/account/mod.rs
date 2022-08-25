@@ -198,11 +198,13 @@ impl Account {
     }
 
     pub fn any_delegation_for_mix(&self, mix: &str, storage: &dyn Storage) -> bool {
-        DELEGATIONS
-            .prefix((self.storage_key(), mix.to_string()))
-            .range(storage, None, None, Order::Ascending)
-            .next()
-            .is_some()
+        false
+        //
+        // DELEGATIONS
+        //     .prefix((self.storage_key(), mix.to_string()))
+        //     .range(storage, None, None, Order::Ascending)
+        //     .next()
+        //     .is_some()
     }
 
     pub fn remove_delegations_for_mix(
@@ -210,36 +212,38 @@ impl Account {
         mix: &str,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let limit = 50;
-        let mut start_after = None;
-        let mut block_heights = Vec::new();
-        let mut prev_len = 0;
-        // TODO: Test this
-        loop {
-            block_heights.extend(
-                DELEGATIONS
-                    .prefix((self.storage_key(), mix.to_string()))
-                    .keys(storage, start_after, None, Order::Ascending)
-                    .take(limit)
-                    .filter_map(|key| key.ok()),
-            );
-
-            if prev_len == block_heights.len() {
-                break;
-            }
-
-            prev_len = block_heights.len();
-
-            start_after = block_heights.last().map(|last| Bound::exclusive(*last));
-            if start_after.is_none() {
-                break;
-            }
-        }
-
-        for block_height in block_heights {
-            remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
-        }
-        Ok(())
+        Err(ContractError::MaintenanceMode)
+        //
+        // let limit = 50;
+        // let mut start_after = None;
+        // let mut block_heights = Vec::new();
+        // let mut prev_len = 0;
+        // // TODO: Test this
+        // loop {
+        //     block_heights.extend(
+        //         DELEGATIONS
+        //             .prefix((self.storage_key(), mix.to_string()))
+        //             .keys(storage, start_after, None, Order::Ascending)
+        //             .take(limit)
+        //             .filter_map(|key| key.ok()),
+        //     );
+        //
+        //     if prev_len == block_heights.len() {
+        //         break;
+        //     }
+        //
+        //     prev_len = block_heights.len();
+        //
+        //     start_after = block_heights.last().map(|last| Bound::exclusive(*last));
+        //     if start_after.is_none() {
+        //         break;
+        //     }
+        // }
+        //
+        // for block_height in block_heights {
+        //     remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
+        // }
+        // Ok(())
     }
 
     pub fn total_delegations_for_mix(
@@ -247,19 +251,23 @@ impl Account {
         mix: IdentityKey,
         storage: &dyn Storage,
     ) -> Result<Uint128, ContractError> {
-        Ok(DELEGATIONS
-            .prefix((self.storage_key(), mix))
-            .range(storage, None, None, Order::Ascending)
-            .filter_map(|x| x.ok())
-            .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
+        Err(ContractError::MaintenanceMode)
+
+        // Ok(DELEGATIONS
+        //     .prefix((self.storage_key(), mix))
+        //     .range(storage, None, None, Order::Ascending)
+        //     .filter_map(|x| x.ok())
+        //     .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
     }
 
     pub fn total_delegations(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
-        Ok(DELEGATIONS
-            .sub_prefix(self.storage_key())
-            .range(storage, None, None, Order::Ascending)
-            .filter_map(|x| x.ok())
-            .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
+        Err(ContractError::MaintenanceMode)
+
+        // Ok(DELEGATIONS
+        //     .sub_prefix(self.storage_key())
+        //     .range(storage, None, None, Order::Ascending)
+        //     .filter_map(|x| x.ok())
+        //     .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
     }
 
     pub fn total_delegations_at_timestamp(

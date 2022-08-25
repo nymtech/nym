@@ -37,9 +37,7 @@ pub async fn get_config_file_location(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<String> {
     let id = get_config_id(state).await?;
-    Ok(Config::config_file_location(&id)
-        .to_string_lossy()
-        .to_string())
+    Config::config_file_location(&id).map(|d| d.to_string_lossy().to_string())
 }
 
 #[derive(Debug)]
@@ -94,8 +92,9 @@ impl Config {
         Ok(())
     }
 
-    pub fn config_file_location(id: &str) -> PathBuf {
-        Socks5Config::default_config_file_path(Some(id))
+    pub fn config_file_location(id: &str) -> Result<PathBuf> {
+        Socks5Config::try_default_config_file_path(Some(id))
+            .ok_or(BackendError::CouldNotGetFilename)
     }
 }
 
@@ -107,9 +106,9 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     log::debug!(
         "Attempting to use config file location: {}",
-        Config::config_file_location(&id).to_string_lossy(),
+        Config::config_file_location(&id)?.to_string_lossy(),
     );
-    let already_init = Config::config_file_location(&id).exists();
+    let already_init = Config::config_file_location(&id)?.exists();
     if already_init {
         log::info!(
             "SOCKS5 client \"{}\" was already initialised before! \

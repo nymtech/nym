@@ -52,6 +52,8 @@ pub enum BackendError {
     CouldNotInitWithoutServiceProvider,
     #[error("Could not get file name")]
     CouldNotGetFilename,
+    #[error("Could not get config file location")]
+    CouldNotGetConfigFilename,
     #[error("Could not load existing gateway configuration")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
 }

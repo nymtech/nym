@@ -27,11 +27,14 @@ impl NymConfig for Config {
     }
 
     fn default_root_directory() -> PathBuf {
-        // WIP(JON): consider removing this expect? At least try triggering it
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
             .join("socks5-clients")
+    }
+
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("socks5-clients"))
     }
 
     fn root_directory(&self) -> PathBuf {

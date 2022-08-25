@@ -261,17 +261,10 @@ pub enum V2MigrationOperation {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub enum SpecialVestingMigrateExecuteMsg {
-    UpdateDelegation {
-        owner: String,
-        node_identity: String,
-        mix_id: u64,
-    },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SpecialV2ExecuteMsg {
-    ToBeNamedSaveMixnode {
+    #[serde(rename = "m1")]
+    SaveOperator {
         #[serde(rename = "a1")]
         host: String,
 
@@ -305,7 +298,8 @@ pub enum SpecialV2ExecuteMsg {
         #[serde(rename = "a11")]
         proxy: Option<Addr>,
     },
-    ToBeNamedSaveDelegation {
+    #[serde(rename = "m2")]
+    SaveDelegation {
         #[serde(rename = "a1")]
         owner: Addr,
 

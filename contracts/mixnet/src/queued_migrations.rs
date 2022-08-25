@@ -32,7 +32,7 @@ fn migrate_operator(
         .expect("failed to read mixnode bond");
 
     let pledge = bond.pledge_amount.clone();
-    let v2_message = SpecialV2ExecuteMsg::ToBeNamedSaveMixnode {
+    let v2_message = SpecialV2ExecuteMsg::SaveOperator {
         host: bond.mix_node.host,
         mix_port: bond.mix_node.mix_port,
         verloc_port: bond.mix_node.verloc_port,
@@ -119,7 +119,7 @@ fn migrate_delegator(
         }
 
         let stake = delegation.amount.clone();
-        let v2_message = SpecialV2ExecuteMsg::ToBeNamedSaveDelegation {
+        let v2_message = SpecialV2ExecuteMsg::SaveDelegation {
             owner: delegation.owner,
             mix_id: migrated_mix_id,
             amount: delegation.amount,

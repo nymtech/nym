@@ -24,6 +24,7 @@ use rand::rngs::OsRng;
 use std::collections::HashSet;
 use std::ops::Deref;
 use std::time::Duration;
+use task::ShutdownListener;
 use time::OffsetDateTime;
 use tokio::time::sleep;
 use validator_client::nymd::{Coin, SigningNymdClient};
@@ -328,11 +329,14 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
-    pub(crate) async fn run(&mut self) -> Result<(), RewardingError> {
+    pub(crate) async fn run(
+        &mut self,
+        mut shutdown: ShutdownListener,
+    ) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
         let mut epoch = self.epoch().await?;
 
-        loop {
+        while !shutdown.is_shutdown() {
             // wait until the cache refresher determined its time to update the rewarded/active sets
             let time = OffsetDateTime::now_utc().unix_timestamp();
             epoch.update_to_latest(self).await?;
@@ -351,7 +355,16 @@ impl RewardedSetUpdater {
                 );
                 // Sleep at most 300 before checking again, to keep logs busy
                 let s = time_to_epoch_change.min(300).max(0) as u64;
-                sleep(Duration::from_secs(s)).await;
+                tokio::select! {
+                    _ = sleep(Duration::from_secs(s)) => {
+                        trace!("Checking again for updating rewarded/active sets");
+                    }
+                    _ = shutdown.recv() => {
+                        info!("RewardedSetUpdater: Received shutdown");
+                        // This break should not be necessary, but there's a following sleep after this
+                        break;
+                    }
+                }
             }
             // allow some blocks to pass
             sleep(Duration::from_secs(10)).await;

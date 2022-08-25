@@ -2,17 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
+use crate::delegations;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
+use crate::mixnodes::storage::{assign_layer, next_mixnode_id_counter};
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    coin, entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response,
 };
+use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractState, ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, Interval,
+    MigrateMsg, MixNode, MixNodeBond, MixNodeCostParams, MixNodeRewarding, Percent, QueryMsg,
 };
+
+// To be removed once entire contract is unlocked
+const V1_MIXNET_CONTRACT: Item<'_, String> = Item::new("v1_mixnet_contract");
 
 fn default_initial_state(
     owner: Addr,
@@ -70,6 +78,8 @@ pub fn instantiate(
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
 
+    V1_MIXNET_CONTRACT.save(deps.storage, &msg.v1_mixnet_contract_address)?;
+
     Ok(Response::default())
 }
 
@@ -81,194 +91,89 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
+    // only the old mixnet contract is allowed to request migration-specific commands here
+    if info.sender != V1_MIXNET_CONTRACT.load(deps.storage)? {
+        return Err(MixnetContractError::Unauthorized);
+    }
+
     match msg {
-        // state/sys-params-related
-        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
-            crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(
-                deps, info, address,
-            )
-        }
-        ExecuteMsg::UpdateContractStateParams { updated_parameters } => {
-            crate::mixnet_contract_settings::transactions::try_update_contract_settings(
-                deps,
-                info,
-                updated_parameters,
-            )
-        }
-        ExecuteMsg::UpdateActiveSetSize {
-            active_set_size,
-            force_immediately,
-        } => crate::rewards::transactions::try_update_active_set_size(
-            deps,
-            env,
-            info,
-            active_set_size,
-            force_immediately,
-        ),
-        ExecuteMsg::UpdateRewardingParams {
-            updated_params,
-            force_immediately,
-        } => crate::rewards::transactions::try_update_rewarding_params(
-            deps,
-            env,
-            info,
-            updated_params,
-            force_immediately,
-        ),
-        ExecuteMsg::UpdateIntervalConfig {
-            epochs_in_interval,
-            epoch_duration_secs,
-            force_immediately,
-        } => crate::interval::transactions::try_update_interval_config(
-            deps,
-            env,
-            info,
-            epochs_in_interval,
-            epoch_duration_secs,
-            force_immediately,
-        ),
-        ExecuteMsg::AdvanceCurrentEpoch {
-            new_rewarded_set,
-            expected_active_set_size,
-        } => crate::interval::transactions::try_advance_epoch(
-            deps,
-            env,
-            info,
-            new_rewarded_set,
-            expected_active_set_size,
-        ),
-        ExecuteMsg::ReconcileEpochEvents { limit } => {
-            crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
-        }
-
-        // mixnode-related:
-        ExecuteMsg::BondMixnode {
-            mix_node,
-            cost_params,
-            owner_signature,
-        } => crate::mixnodes::transactions::try_add_mixnode(
-            deps,
-            env,
-            info,
-            mix_node,
-            cost_params,
-            owner_signature,
-        ),
-        ExecuteMsg::BondMixnodeOnBehalf {
-            mix_node,
-            cost_params,
+        ExecuteMsg::SaveOperator {
+            host,
+            mix_port,
+            verloc_port,
+            http_api_port,
+            sphinx_key,
+            identity_key,
+            version,
+            pledge_amount,
             owner,
-            owner_signature,
-        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_node,
-            cost_params,
-            owner,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
-        }
-        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, env, info, owner)
-        }
-        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
-            crate::mixnodes::transactions::try_update_mixnode_cost_params(
-                deps, env, info, new_costs,
-            )
-        }
-        ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { new_costs, owner } => {
-            crate::mixnodes::transactions::try_update_mixnode_cost_params_on_behalf(
-                deps, env, info, new_costs, owner,
-            )
-        }
-        ExecuteMsg::UpdateMixnodeConfig { new_config } => {
-            crate::mixnodes::transactions::try_update_mixnode_config(deps, info, new_config)
-        }
-        ExecuteMsg::UpdateMixnodeConfigOnBehalf { new_config, owner } => {
-            crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
-                deps, info, new_config, owner,
-            )
-        }
+            block_height,
+            profit_margin_percent,
+            proxy,
+        } => {
+            let mixnode = MixNode {
+                host,
+                mix_port,
+                verloc_port,
+                http_api_port,
+                sphinx_key,
+                identity_key,
+                version,
+            };
+            let layer = assign_layer(deps.storage)?;
 
-        // gateway-related:
-        ExecuteMsg::BondGateway {
-            gateway,
-            owner_signature,
-        } => crate::gateways::transactions::try_add_gateway(
-            deps,
-            env,
-            info,
-            gateway,
-            owner_signature,
-        ),
-        ExecuteMsg::BondGatewayOnBehalf {
-            gateway,
-            owner,
-            owner_signature,
-        } => crate::gateways::transactions::try_add_gateway_on_behalf(
-            deps,
-            env,
-            info,
-            gateway,
-            owner,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondGateway {} => {
-            crate::gateways::transactions::try_remove_gateway(deps, info)
-        }
-        ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
-            crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
-        }
+            let cost_params = MixNodeCostParams {
+                // this value must be valid since we got it from the v1 contract which we trust
+                profit_margin_percent: Percent::from_percentage_value(profit_margin_percent as u64)
+                    .unwrap(),
+                interval_operating_cost: coin(40_000_000, &pledge_amount.denom),
+            };
+            let node_id = next_mixnode_id_counter(deps.storage)?;
+            let current_epoch =
+                interval_storage::current_interval(deps.storage)?.current_epoch_absolute_id();
+            let mixnode_rewarding =
+                MixNodeRewarding::initialise_new(cost_params, &pledge_amount, current_epoch);
+            let mixnode_bond = MixNodeBond::new(
+                node_id,
+                owner,
+                pledge_amount,
+                layer,
+                mixnode,
+                proxy,
+                block_height,
+            );
 
-        // delegation-related:
-        ExecuteMsg::DelegateToMixnode { mix_id } => {
-            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_id)
-        }
-        ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, delegate } => {
-            crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
-                deps, env, info, mix_id, delegate,
-            )
-        }
-        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode(
-                deps, env, info, mix_id,
-            )
-        }
-        ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, delegate } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
-                deps, env, info, mix_id, delegate,
-            )
-        }
+            mixnode_storage::mixnode_bonds().save(deps.storage, node_id, &mixnode_bond)?;
+            rewards_storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mixnode_rewarding)?;
 
-        // reward-related
-        ExecuteMsg::RewardMixnode {
+            Ok(Response::new())
+        }
+        ExecuteMsg::SaveDelegation {
+            owner,
             mix_id,
-            performance,
-        } => crate::rewards::transactions::try_reward_mixnode(deps, env, info, mix_id, performance),
+            amount,
+            block_height,
+            proxy,
+        } => {
+            let mut mix_rewarding =
+                rewards_storage::MIXNODE_REWARDING.load(deps.storage, mix_id)?;
+            mix_rewarding.add_base_delegation(amount.amount);
+            rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
 
-        ExecuteMsg::WithdrawOperatorReward {} => {
-            crate::rewards::transactions::try_withdraw_operator_reward(deps, info)
-        }
-        ExecuteMsg::WithdrawOperatorRewardOnBehalf { owner } => {
-            crate::rewards::transactions::try_withdraw_operator_reward_on_behalf(deps, info, owner)
-        }
-        ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
-            crate::rewards::transactions::try_withdraw_delegator_reward(deps, info, mix_id)
-        }
-        ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, owner } => {
-            crate::rewards::transactions::try_withdraw_delegator_reward_on_behalf(
-                deps, info, mix_id, owner,
-            )
-        }
+            let delegation = Delegation::new(
+                owner,
+                mix_id,
+                mix_rewarding.total_unit_reward,
+                amount,
+                block_height,
+                proxy,
+            );
 
-        // testing-only
-        #[cfg(feature = "contract-testing")]
-        ExecuteMsg::TestingResolveAllPendingEvents { limit } => {
-            crate::testing::transactions::try_resolve_all_pending_events(deps, env, limit)
+            let storage_key = delegation.storage_key();
+            delegations::storage::delegations().save(deps.storage, storage_key, &delegation)?;
+            Ok(Response::new())
         }
+        _ => Err(MixnetContractError::MigrationInProgress),
     }
 }
 
@@ -491,6 +396,7 @@ mod tests {
         let init_msg = InstantiateMsg {
             rewarding_validator_address: "foomp123".to_string(),
             vesting_contract_address: "bar456".to_string(),
+            v1_mixnet_contract_address: "whatever".to_string(),
             rewarding_denom: "uatom".to_string(),
             epochs_in_interval: 1234,
             epoch_duration: Duration::from_secs(4321),

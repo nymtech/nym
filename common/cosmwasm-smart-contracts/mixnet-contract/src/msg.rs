@@ -8,7 +8,7 @@ use crate::reward_params::{
 };
 use crate::{delegation, ContractStateParams, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Addr, Coin, Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -18,6 +18,7 @@ use std::time::Duration;
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
     pub vesting_contract_address: String,
+    pub v1_mixnet_contract_address: String,
 
     pub rewarding_denom: String,
     pub epochs_in_interval: u32,
@@ -66,6 +67,63 @@ impl InitialRewardingParams {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    // special, first-time migration:
+    #[serde(rename = "m1")]
+    SaveOperator {
+        #[serde(rename = "a1")]
+        host: String,
+
+        #[serde(rename = "a2")]
+        mix_port: u16,
+
+        #[serde(rename = "a3")]
+        verloc_port: u16,
+
+        #[serde(rename = "a4")]
+        http_api_port: u16,
+
+        #[serde(rename = "a5")]
+        sphinx_key: String,
+
+        #[serde(rename = "a6")]
+        identity_key: IdentityKey,
+
+        #[serde(rename = "a7")]
+        version: String,
+
+        #[serde(rename = "a8")]
+        pledge_amount: Coin,
+
+        #[serde(rename = "a9")]
+        owner: Addr,
+
+        #[serde(rename = "a10")]
+        block_height: u64,
+
+        #[serde(rename = "a11")]
+        profit_margin_percent: u8,
+
+        #[serde(rename = "a12")]
+        proxy: Option<Addr>,
+    },
+    #[serde(rename = "m2")]
+    SaveDelegation {
+        #[serde(rename = "a1")]
+        owner: Addr,
+
+        #[serde(rename = "a2")]
+        mix_id: u32,
+
+        #[serde(rename = "a3")]
+        amount: Coin,
+
+        #[serde(rename = "a4")]
+        block_height: u64,
+
+        #[serde(rename = "a5")]
+        proxy: Option<Addr>,
+    },
+
     // state/sys-params-related
     UpdateRewardingValidatorAddress {
         address: String,
@@ -266,6 +324,7 @@ impl ExecuteMsg {
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()
             }
+            _ => unimplemented!("migration-specific messages are not supported by this"),
         }
     }
 }

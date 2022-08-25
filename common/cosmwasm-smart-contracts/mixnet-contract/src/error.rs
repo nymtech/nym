@@ -136,4 +136,7 @@ pub enum MixnetContractError {
 
     #[error("Mixnode {mix_id} appears multiple times in the provided rewarded set update!")]
     DuplicateRewardedSetNode { mix_id: MixId },
+
+    #[error("Migration from the old contract is currently in progress. The transaction is temporarily disabled until that is finished")]
+    MigrationInProgress,
 }

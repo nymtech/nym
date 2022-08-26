@@ -96,6 +96,7 @@ impl VestingDelegation {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct DelegationTimesResponse {
     pub owner: Addr,
+    pub account_id: u32,
     pub mix_identity: IdentityKey,
     pub delegation_timestamps: Vec<u64>,
 }

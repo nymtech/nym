@@ -660,6 +660,7 @@ pub fn try_get_delegation_times(
 
     Ok(DelegationTimesResponse {
         owner,
+        account_id: account.storage_key(),
         mix_identity,
         delegation_timestamps,
     })

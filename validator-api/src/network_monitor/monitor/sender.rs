@@ -216,9 +216,8 @@ impl PacketSender {
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
         );
 
-        if fresh_gateway_client_data.disabled_credentials_mode {
-            gateway_client.set_disabled_credentials_mode(true)
-        }
+        gateway_client
+            .set_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode);
 
         (
             GatewayClientHandle::new(gateway_client),

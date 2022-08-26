@@ -199,9 +199,9 @@ impl NymClient {
             Some(bandwidth_controller),
         );
 
-        if self.config.get_base().get_disabled_credentials_mode() {
-            gateway_client.set_disabled_credentials_mode(true)
-        }
+        gateway_client
+            .set_disabled_credentials_mode(self.config.get_base().get_disabled_credentials_mode());
+
         gateway_client
             .authenticate_and_start()
             .await

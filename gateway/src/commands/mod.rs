@@ -52,7 +52,7 @@ pub(crate) struct OverrideConfig {
     validators: Option<String>,
     mnemonic: Option<String>,
 
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[cfg(any(feature = "eth", feature = "coconut"))]
     enabled_credentials_mode: Option<bool>,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -118,8 +118,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_custom_validator_apis(parse_validators(&raw_validators))
     }
 
-    if let Some(raw_validators) = args.validators {
-        config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
+    if let Some(ref raw_validators) = args.validators {
+        config = config.with_custom_validator_nymd(parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         let raw_validators = std::env::var(NYMD_VALIDATOR).expect("nymd validator not set");
         config = config.with_custom_validator_nymd(parse_validators(&raw_validators))
@@ -146,18 +146,15 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
     }
 
-    // We set the disabled credentials mode flag if we either compile without 'eth', or if there is a flag we
-    // can read from, which is when we build with 'eth' (and without 'coconut').
-    if cfg!(not(feature = "eth")) {
-        config = config.with_disabled_credentials_mode(true);
+    #[cfg(any(feature = "eth", feature = "coconut"))]
+    {
+        if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
+            config = config.with_disabled_credentials_mode(!enabled_credentials_mode);
+        }
     }
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
     {
-        if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
-            config = config.with_disabled_credentials_mode(enabled_credentials_mode);
-        }
-
         if let Some(raw_validators) = args.validators {
             config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
         }

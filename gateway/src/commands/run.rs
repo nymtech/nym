@@ -52,7 +52,7 @@ pub struct Run {
     mnemonic: Option<String>,
 
     /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[cfg(any(feature = "eth", feature = "coconut"))]
     #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 
@@ -83,7 +83,7 @@ impl From<Run> for OverrideConfig {
             validators: run_config.validators,
             mnemonic: run_config.mnemonic,
 
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            #[cfg(any(feature = "eth", feature = "coconut"))]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]

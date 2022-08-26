@@ -1,10 +1,15 @@
 ## Unreleased
 
+### Added
+
+- vesting-contract: added queries for delegation timestamps and paged query for all vesting delegations in the contract ([#1569])
+
 ### Fixed
 
 - vesting-contract: the contract now correctly stores delegations with their timestamp as opposed to using block height ([#1544])
 
 [#1544]: https://github.com/nymtech/nym/pull/1544
+[#1569]: https://github.com/nymtech/nym/pull/1569
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

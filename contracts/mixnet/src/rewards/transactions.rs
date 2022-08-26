@@ -8,7 +8,6 @@ use super::storage::{
 use crate::constants;
 use crate::contract::debug_with_visibility;
 use crate::delegations::storage as delegations_storage;
-use crate::delegations::transactions::_try_delegate_to_mixnode;
 use crate::error::ContractError;
 use crate::mixnet_contract_settings::storage::mix_denom;
 use crate::mixnodes::storage::mixnodes;
@@ -18,7 +17,7 @@ use crate::rewards::helpers;
 use crate::support::helpers::{is_authorized, operator_cost_at_epoch};
 use cosmwasm_std::{
     coins, wasm_execute, Addr, Api, BankMsg, Coin, DepsMut, Env, MessageInfo, Order, Response,
-    Storage, Uint128,
+    StdResult, Storage, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::events::{
@@ -450,18 +449,15 @@ pub fn try_compound_delegator_reward(
 
 pub fn _try_compound_delegator_reward(
     block_height: u64,
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     owner_address: &str,
     mix_identity: &str,
     proxy: Option<Addr>,
 ) -> Result<Uint128, ContractError> {
     let delegation_map = crate::delegations::storage::delegations();
     let mix_denom = mix_denom(deps.storage)?;
-
-    let key = mixnet_contract_common::delegation::generate_storage_key(
-        &deps.api.addr_validate(owner_address)?,
-        proxy.as_ref(),
-    );
+    let owner = deps.api.addr_validate(owner_address)?;
+    let key = mixnet_contract_common::delegation::generate_storage_key(&owner, proxy.as_ref());
     let reward = calculate_delegator_reward(deps.storage, deps.api, key.clone(), mix_identity)?;
     let mut total_delegation_delegate = Uint128::zero();
 
@@ -469,8 +465,7 @@ pub fn _try_compound_delegator_reward(
     let delegation_heights = delegation_map
         .prefix((mix_identity.to_string(), key.clone()))
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|v| v.ok())
-        .collect::<Vec<u64>>();
+        .collect::<StdResult<Vec<_>>>()?;
 
     for h in delegation_heights {
         let delegation =
@@ -494,30 +489,36 @@ pub fn _try_compound_delegator_reward(
                 // since we know that the target node exists and because the total_delegation bucket
                 // entry is created whenever the node itself is added, the unwrap here is fine
                 // as the entry MUST exist
-                Ok(total_delegation
-                    .unwrap()
-                    .saturating_sub(total_delegation_delegate))
+                Ok(total_delegation.unwrap() + reward)
             },
         )?;
 
-        _try_delegate_to_mixnode(
-            deps.branch(),
-            block_height,
-            mix_identity,
-            owner_address,
+        // let's simplify the entire procedure. Rather than creating a fresh delegation on the mixnode
+        // via `_try_delegate_to_mixnode` and then waiting for reconcile to happen,
+        // just save it directly to the storage right now.
+        // my reasoning for that is simple: `_try_delegate_to_mixnode` could fail if the node the
+        // delegator has delegated to no longer exists.
+        let delegation = Delegation::new(
+            owner,
+            mix_identity.into(),
             Coin {
                 amount: compounded_delegation,
                 denom: mix_denom,
             },
+            block_height,
             proxy,
+        );
+
+        delegation_map.save(
+            deps.storage,
+            (mix_identity.into(), key.clone(), block_height),
+            &delegation,
         )?;
     }
 
-    {
-        if let Some(mut bond) = mixnodes().may_load(deps.storage, mix_identity)? {
-            bond.accumulated_rewards = Some(bond.accumulated_rewards().saturating_sub(reward));
-            mixnodes().save(deps.storage, mix_identity, &bond, block_height)?;
-        }
+    if let Some(mut bond) = mixnodes().may_load(deps.storage, mix_identity)? {
+        bond.accumulated_rewards = Some(bond.accumulated_rewards().saturating_sub(reward));
+        mixnodes().save(deps.storage, mix_identity, &bond, block_height)?;
     }
 
     DELEGATOR_REWARD_CLAIMED_HEIGHT.save(

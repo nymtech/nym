@@ -1,17 +1,18 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_config_from_env;
 use crate::storage::{
-    account_from_address, locked_pledge_cap, update_locked_pledge_cap, ADMIN,
-    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
+    account_from_address, locked_pledge_cap, update_locked_pledge_cap, BlockTimestampSecs, ADMIN,
+    DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Timestamp, Uint128,
+    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
+    QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
+use cw_storage_plus::Bound;
 use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
@@ -22,7 +23,10 @@ use vesting_contract_common::events::{
 use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
-use vesting_contract_common::{OriginalVestingResponse, Period, PledgeData};
+use vesting_contract_common::{
+    AllDelegationsResponse, DelegationTimesResponse, OriginalVestingResponse, Period, PledgeData,
+    VestingDelegation,
+};
 
 pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
 
@@ -518,6 +522,13 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetCurrentVestingPeriod { address } => {
             to_binary(&try_get_current_vesting_period(&address, deps, env)?)
         }
+        QueryMsg::GetDelegationTimes {
+            address,
+            mix_identity,
+        } => to_binary(&try_get_delegation_times(deps, &address, mix_identity)?),
+        QueryMsg::GetAllDelegations { start_after, limit } => {
+            to_binary(&try_get_all_delegations(deps, start_after, limit)?)
+        }
     };
 
     Ok(query_res?)
@@ -632,6 +643,62 @@ pub fn try_get_delegated_vesting(
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_delegated_vesting(block_time, &env, deps.storage)
+}
+
+pub fn try_get_delegation_times(
+    deps: Deps<'_>,
+    vesting_account_address: &str,
+    mix_identity: String,
+) -> Result<DelegationTimesResponse, ContractError> {
+    let owner = deps.api.addr_validate(vesting_account_address)?;
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+
+    let delegation_timestamps = DELEGATIONS
+        .prefix((account.storage_key(), mix_identity.clone()))
+        .keys(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    Ok(DelegationTimesResponse {
+        owner,
+        mix_identity,
+        delegation_timestamps,
+    })
+}
+
+pub fn try_get_all_delegations(
+    deps: Deps<'_>,
+    start_after: Option<(u32, IdentityKey, BlockTimestampSecs)>,
+    limit: Option<u32>,
+) -> Result<AllDelegationsResponse, ContractError> {
+    let limit = limit.unwrap_or(100).min(200) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+    let delegations = DELEGATIONS
+        .range(deps.storage, start, None, Order::Ascending)
+        .map(|kv| {
+            kv.map(
+                |((account_id, mix_identity, timestamp), amount)| VestingDelegation {
+                    account_id,
+                    mix_identity,
+                    block_timestamp: Timestamp::from_seconds(timestamp),
+                    amount,
+                },
+            )
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = if delegations.len() < limit {
+        None
+    } else {
+        delegations
+            .last()
+            .map(|delegation| delegation.storage_key())
+    };
+
+    Ok(AllDelegationsResponse {
+        delegations,
+        start_next_after,
+    })
 }
 
 fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractError> {

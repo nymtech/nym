@@ -678,10 +678,10 @@ pub fn try_get_all_delegations(
         .range(deps.storage, start, None, Order::Ascending)
         .map(|kv| {
             kv.map(
-                |((account_id, mix_identity, timestamp), amount)| VestingDelegation {
+                |((account_id, mix_identity, block_timestamp), amount)| VestingDelegation {
                     account_id,
                     mix_identity,
-                    block_timestamp: Timestamp::from_seconds(timestamp),
+                    block_timestamp,
                     amount,
                 },
             )

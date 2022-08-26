@@ -79,7 +79,7 @@ impl OriginalVestingResponse {
 pub struct VestingDelegation {
     pub account_id: u32,
     pub mix_identity: IdentityKey,
-    pub block_timestamp: Timestamp,
+    pub block_timestamp: u64,
     pub amount: Uint128,
 }
 
@@ -88,7 +88,7 @@ impl VestingDelegation {
         (
             self.account_id,
             self.mix_identity.clone(),
-            self.block_timestamp.seconds(),
+            self.block_timestamp,
         )
     }
 }

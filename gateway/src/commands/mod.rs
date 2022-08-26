@@ -149,7 +149,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     #[cfg(any(feature = "eth", feature = "coconut"))]
     {
         if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
-            config = config.with_disabled_credentials_mode(enabled_credentials_mode);
+            config = config.with_disabled_credentials_mode(!enabled_credentials_mode);
         }
     }
 

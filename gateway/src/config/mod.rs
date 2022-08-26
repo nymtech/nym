@@ -127,6 +127,7 @@ impl Config {
         self
     }
 
+    #[cfg(any(feature = "eth", feature = "coconut"))]
     pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
         self.gateway.disabled_credentials_mode = disabled_credentials_mode;
         self

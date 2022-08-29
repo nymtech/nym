@@ -568,7 +568,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let signing_nymd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
-    let shutdown = ShutdownNotifier::default();
+    // We need a bigger timeout
+    let shutdown = ShutdownNotifier::new(60);
 
     // let's build our rocket!
     let rocket = setup_rocket(

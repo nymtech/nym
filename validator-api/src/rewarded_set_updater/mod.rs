@@ -360,7 +360,7 @@ impl RewardedSetUpdater {
                         trace!("Checking again for updating rewarded/active sets");
                     }
                     _ = shutdown.recv() => {
-                        info!("RewardedSetUpdater: Received shutdown");
+                        trace!("RewardedSetUpdater: Received shutdown");
                         // This break should not be necessary, but there's a following sleep after this
                         break;
                     }

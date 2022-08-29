@@ -311,7 +311,14 @@ impl Monitor {
         let mut run_interval = tokio::time::interval(self.run_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _  = run_interval.tick() => self.test_run().await,
+                _  = run_interval.tick() => {
+                    tokio::select! {
+                        _ = self.test_run() => (),
+                        _ = shutdown.recv() => {
+                            trace!("UpdateHandler: Received shutdown");
+                        }
+                    }
+                }
                 _ = shutdown.recv() => {
                     trace!("UpdateHandler: Received shutdown");
                 }

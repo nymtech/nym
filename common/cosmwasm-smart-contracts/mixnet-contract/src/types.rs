@@ -30,6 +30,9 @@ pub type IntervalEventId = u32;
 )]
 pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 
+#[derive(Debug)]
+pub struct InvalidPercent;
+
 impl Percent {
     pub fn new(value: Decimal) -> Result<Self, MixnetContractError> {
         if value > Decimal::one() {
@@ -45,6 +48,24 @@ impl Percent {
 
     pub fn from_percentage_value(value: u64) -> Result<Self, MixnetContractError> {
         Percent::new(Decimal::percent(value))
+    }
+
+    pub fn try_from_f32_percentage_value(value: f32) -> Result<Self, InvalidPercent> {
+        if !(0.0..=100.0).contains(&value) {
+            return Err(InvalidPercent);
+        }
+
+        // hehe, this conversion is so disgusting
+        let stringified_f32 = format!("{:.1$}", value, Decimal::zero().decimal_places() as usize);
+        let inner: Decimal = stringified_f32.parse().map_err(|_| InvalidPercent)?;
+
+        let hundred = Decimal::from_ratio(100u32, 1u32);
+
+        // sanity check
+        if inner > hundred {
+            return Err(InvalidPercent);
+        }
+        Ok(Percent(inner / hundred))
     }
 
     pub fn value(&self) -> Decimal {
@@ -248,5 +269,37 @@ mod tests {
 
         let p = serde_json::from_str::<'_, Percent>("\"1.00\"").unwrap();
         assert_eq!(p.round_to_integer(), 100);
+    }
+
+    fn compare_decimals(a: Decimal, b: Decimal) {
+        let epsilon = Decimal::from_ratio(1u128, 100_000_000u128);
+        if a > b {
+            assert!(a - b < epsilon, "{} != {}", a, b)
+        } else {
+            assert!(b - a < epsilon, "{} != {}", a, b)
+        }
+    }
+
+    #[test]
+    fn f32_to_decimal() {
+        let hundred = Decimal::from_ratio(100u32, 1u32);
+        let values = [
+            "0.0015078125654",
+            "0.123",
+            "100.0",
+            "99.9999",
+            "0.0000001",
+            "10",
+            "10.5",
+            "12.345678",
+        ];
+        for value in values {
+            let float: f32 = value.parse().unwrap();
+            let parsed_decimal: Decimal = value.parse().unwrap();
+            let expected = Percent(parsed_decimal / hundred);
+
+            let converted = Percent::try_from_f32_percentage_value(float).unwrap();
+            compare_decimals(expected.0, converted.0);
+        }
     }
 }

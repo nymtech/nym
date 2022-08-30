@@ -111,6 +111,8 @@ pub enum BackendError {
     UnknownCoinDenom(String),
     #[error("Network {network} doesn't have any associated registered coin denoms")]
     NoCoinsRegistered { network: Network },
+    #[error("The provided percent value was outside the 0-100 range")]
+    InvalidPercentValue,
 }
 
 impl Serialize for BackendError {

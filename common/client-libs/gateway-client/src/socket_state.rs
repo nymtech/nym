@@ -162,12 +162,10 @@ impl PartiallyDelegated {
             .expect("stream sender was somehow dropped without sending anything!");
 
         if let Some(res) = receive_res {
-            if let Err(err) = res {
-                // the receiver got an error. most likely a network one.
-                return Err(err);
-            } else {
-                panic!("This should have NEVER happened - returned a stream before receiving notification")
-            }
+            let _res = res?;
+            panic!(
+                "This should have NEVER happened - returned a stream before receiving notification"
+            )
         }
 
         // this call failing is incredibly unlikely, but not impossible.

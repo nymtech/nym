@@ -14,7 +14,7 @@ import { TPoolOption } from 'src/components';
 export type TDelegationContext = {
   isLoading: boolean;
   error?: string;
-  delegations?: DelegationWithEverything[];
+  delegations?: TDelegations;
   pendingDelegations?: DelegationEvent[];
   totalDelegations?: string;
   totalRewards?: string;
@@ -35,6 +35,12 @@ export type TDelegationTransaction = {
   transactionUrl: string;
 };
 
+export type DelegationWithEvent = DelegationWithEverything | DelegationEvent;
+export type TDelegations = DelegationWithEvent[];
+
+export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is DelegationEvent =>
+  'kind' in delegation;
+
 export const DelegationContext = createContext<TDelegationContext>({
   isLoading: true,
   refresh: async () => undefined,
@@ -51,7 +57,7 @@ export const DelegationContextProvider: FC<{
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [delegations, setDelegations] = useState<undefined | DelegationWithEverything[]>();
+  const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
@@ -87,8 +93,13 @@ export const DelegationContextProvider: FC<{
       const data = await getDelegationSummary();
       const pending = await getAllPendingDelegations();
 
+      const pendingOnNewNodes = pending.filter((event) => {
+        const some = data.delegations.some(({ node_identity }) => node_identity === event.node_identity);
+        return !some;
+      });
+
       setPendingDelegations(pending);
-      setDelegations(data.delegations);
+      setDelegations([...data.delegations, ...pendingOnNewNodes]);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
     } catch (e) {

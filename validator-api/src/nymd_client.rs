@@ -364,15 +364,14 @@ impl<C> Client<C> {
 
         let memo = "Performing epoch operations".to_string();
 
-        self.execute_multiple_with_retry(msgs, Default::default(), memo)
-            .await?;
+        self.execute_multiple_with_retry(msgs, None, memo).await?;
         Ok(())
     }
 
     async fn execute_multiple_with_retry<M>(
         &self,
         msgs: Vec<(M, Vec<Coin>)>,
-        fee: Fee,
+        fee: Option<Fee>,
         memo: String,
     ) -> Result<(), RewardingError>
     where

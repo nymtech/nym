@@ -170,4 +170,12 @@ pub enum QueryMsg {
         address: String,
     },
     GetLockedPledgeCap {},
+    GetDelegationTimes {
+        address: String,
+        mix_identity: IdentityKey,
+    },
+    GetAllDelegations {
+        start_after: Option<(u32, IdentityKey, u64)>,
+        limit: Option<u32>,
+    },
 }

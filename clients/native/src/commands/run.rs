@@ -35,10 +35,9 @@ pub(crate) struct Run {
     port: Option<u16>,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
-    /// with bandwidth credential requirement. If this value is set, --eth-endpoint and
-    /// --eth-private-key don't need to be set.
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long, conflicts_with_all = &["eth-endpoint", "eth-private-key"])]
+    /// with bandwidth credential requirement.
+    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[clap(long)]
     enabled_credentials_mode: bool,
 
     /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20
@@ -62,7 +61,7 @@ impl From<Run> for OverrideConfig {
             port: run_config.port,
             fastmode: false,
 
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            #[cfg(any(feature = "eth", feature = "coconut"))]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
 
             #[cfg(all(feature = "eth", not(feature = "coconut")))]

@@ -1,9 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography, TypographyProps } from '@mui/material';
 import { ModalDivider } from './ModalDivider';
-import { fontWeight } from '@mui/system';
-
-type TFontWeight = 'strong' | 'light';
 
 export const ModalListItem: React.FC<{
   label: string;

@@ -2,6 +2,21 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+
+
+### Changed
+
+- validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
+
+[#1541]: https://github.com/nymtech/nym/pull/1541
+[#1558]: https://github.com/nymtech/nym/pull/1558
+
+
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)
 
 ### Added
@@ -18,6 +33,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: add Swagger to document the REST API ([#1249]).
 - validator-api: Added new endpoints for coconut spending flow and communications with coconut & multisig contracts ([#1261])
 - validator-api: add `uptime`, `estimated_operator_apy`, `estimated_delegators_apy` to `/mixnodes/detailed` endpoint ([#1393])
+- validator-api: add node info cache storing simulated active set inclusion probabilities
 - network-statistics: a new mixnet service that aggregates and exposes anonymized data about mixnet services ([#1328])
 - mixnode: Added basic mixnode hardware reporting to the HTTP API ([#1308]).
 - validator-api: endpoint, in coconut mode, for returning the validator-api cosmos address ([#1404]).

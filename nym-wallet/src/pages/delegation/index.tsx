@@ -286,10 +286,12 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
+      <Paper elevation={0} sx={{ p: 3, mt: 2 }}>
         <Stack spacing={5}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Delegations</Typography>
+            <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
+              Delegations
+            </Typography>
             <Link
               href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
               target="_blank"

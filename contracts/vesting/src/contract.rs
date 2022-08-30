@@ -687,20 +687,21 @@ pub fn try_get_delegation_times(
     vesting_account_address: &str,
     mix_identity: String,
 ) -> Result<DelegationTimesResponse, ContractError> {
-    let owner = deps.api.addr_validate(vesting_account_address)?;
-    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-
-    let delegation_timestamps = DELEGATIONS
-        .prefix((account.storage_key(), mix_identity.clone()))
-        .keys(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>()?;
-
-    Ok(DelegationTimesResponse {
-        owner,
-        account_id: account.storage_key(),
-        mix_identity,
-        delegation_timestamps,
-    })
+    Err(ContractError::MaintenanceMode)
+    // let owner = deps.api.addr_validate(vesting_account_address)?;
+    // let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    //
+    // let delegation_timestamps = DELEGATIONS
+    //     .prefix((account.storage_key(), mix_identity.clone()))
+    //     .keys(deps.storage, None, None, Order::Ascending)
+    //     .collect::<StdResult<Vec<_>>>()?;
+    //
+    // Ok(DelegationTimesResponse {
+    //     owner,
+    //     account_id: account.storage_key(),
+    //     mix_identity,
+    //     delegation_timestamps,
+    // })
 }
 
 pub fn try_get_all_delegations(
@@ -708,35 +709,36 @@ pub fn try_get_all_delegations(
     start_after: Option<(u32, IdentityKey, BlockTimestampSecs)>,
     limit: Option<u32>,
 ) -> Result<AllDelegationsResponse, ContractError> {
-    let limit = limit.unwrap_or(100).min(200) as usize;
-
-    let start = start_after.map(Bound::exclusive);
-    let delegations = DELEGATIONS
-        .range(deps.storage, start, None, Order::Ascending)
-        .map(|kv| {
-            kv.map(
-                |((account_id, mix_identity, block_timestamp), amount)| VestingDelegation {
-                    account_id,
-                    mix_identity,
-                    block_timestamp,
-                    amount,
-                },
-            )
-        })
-        .collect::<StdResult<Vec<_>>>()?;
-
-    let start_next_after = if delegations.len() < limit {
-        None
-    } else {
-        delegations
-            .last()
-            .map(|delegation| delegation.storage_key())
-    };
-
-    Ok(AllDelegationsResponse {
-        delegations,
-        start_next_after,
-    })
+    Err(ContractError::MaintenanceMode)
+    // let limit = limit.unwrap_or(100).min(200) as usize;
+    //
+    // let start = start_after.map(Bound::exclusive);
+    // let delegations = DELEGATIONS
+    //     .range(deps.storage, start, None, Order::Ascending)
+    //     .map(|kv| {
+    //         kv.map(
+    //             |((account_id, mix_identity, block_timestamp), amount)| VestingDelegation {
+    //                 account_id,
+    //                 mix_identity,
+    //                 block_timestamp,
+    //                 amount,
+    //             },
+    //         )
+    //     })
+    //     .collect::<StdResult<Vec<_>>>()?;
+    //
+    // let start_next_after = if delegations.len() < limit {
+    //     None
+    // } else {
+    //     delegations
+    //         .last()
+    //         .map(|delegation| delegation.storage_key())
+    // };
+    //
+    // Ok(AllDelegationsResponse {
+    //     delegations,
+    //     start_next_after,
+    // })
 }
 
 fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractError> {

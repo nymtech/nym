@@ -123,17 +123,28 @@ impl NodeStatusCacheRefresher {
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("NodeStatusCacheRefresher: Received shutdown");
+                }
                 // Update node status cache when the contract cache / validator cache is updated
                 Ok(_) = self.contract_cache_listener.changed() => {
-                    self.update_on_notify(&mut fallback_interval).await;
+                    tokio::select! {
+                        _ = self.update_on_notify(&mut fallback_interval) => (),
+                        _ = shutdown.recv() => {
+                            log::trace!("NodeStatusCacheRefresher: Received shutdown");
+                        }
+                    }
                 }
                 // ... however, if we don't receive any notifications we fall back to periodic
                 // refreshes
                 _ = fallback_interval.tick() => {
-                    self.update_on_timer().await;
-                }
-                _ = shutdown.recv() => {
-                    log::trace!("NodeStatusCacheRefresher: Received shutdown");
+                    tokio::select! {
+                        _ = self.update_on_timer() => (),
+                        _ = shutdown.recv() => {
+                            log::trace!("NodeStatusCacheRefresher: Received shutdown");
+                        }
+                    }
                 }
             }
         }

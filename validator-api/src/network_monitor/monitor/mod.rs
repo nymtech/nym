@@ -124,8 +124,7 @@ impl Monitor {
         for route in routes {
             packets.push(
                 self.packet_preparer
-                    .prepare_test_route_viability_packets(route, self.route_test_packets)
-                    .await,
+                    .prepare_test_route_viability_packets(route, self.route_test_packets),
             );
         }
 

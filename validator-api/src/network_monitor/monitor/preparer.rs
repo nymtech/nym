@@ -151,7 +151,7 @@ impl PacketPreparer {
         }
     }
 
-    async fn wrap_test_packet(
+    fn wrap_test_packet(
         &mut self,
         packet: &TestPacket,
         topology: &NymTopology,
@@ -162,12 +162,11 @@ impl PacketPreparer {
         if self.chunker.is_none() {
             self.chunker = Some(Chunker::new(packet_recipient));
         }
-        let mut mix_packets = self
-            .chunker
-            .as_mut()
-            .unwrap()
-            .prepare_packets_from(packet.to_bytes(), topology, packet_recipient)
-            .await;
+        let mut mix_packets = self.chunker.as_mut().unwrap().prepare_packets_from(
+            packet.to_bytes(),
+            topology,
+            packet_recipient,
+        );
         assert_eq!(
             mix_packets.len(),
             1,
@@ -351,7 +350,7 @@ impl PacketPreparer {
         )
     }
 
-    pub(crate) async fn prepare_test_route_viability_packets(
+    pub(crate) fn prepare_test_route_viability_packets(
         &mut self,
         route: &TestRoute,
         num: usize,
@@ -360,9 +359,7 @@ impl PacketPreparer {
         let test_packet = route.self_test_packet();
         let recipient = self.create_packet_sender(route.gateway());
         for _ in 0..num {
-            let mix_packet = self
-                .wrap_test_packet(&test_packet, route.topology(), recipient)
-                .await;
+            let mix_packet = self.wrap_test_packet(&test_packet, route.topology(), recipient);
             mix_packets.push(mix_packet)
         }
 
@@ -451,9 +448,7 @@ impl PacketPreparer {
                 let topology = test_route.substitute_mix(mixnode);
                 // produce n mix packets
                 for _ in 0..self.per_node_test_packets {
-                    let mix_packet = self
-                        .wrap_test_packet(&test_packet, &topology, recipient)
-                        .await;
+                    let mix_packet = self.wrap_test_packet(&test_packet, &topology, recipient);
                     mix_packets.push(mix_packet);
                 }
             }
@@ -476,9 +471,7 @@ impl PacketPreparer {
                 let topology = test_route.substitute_gateway(gateway);
                 // produce n mix packets
                 for _ in 0..self.per_node_test_packets {
-                    let mix_packet = self
-                        .wrap_test_packet(&test_packet, &topology, recipient)
-                        .await;
+                    let mix_packet = self.wrap_test_packet(&test_packet, &topology, recipient);
                     gateway_mix_packets.push(mix_packet);
                 }
 

@@ -15,6 +15,7 @@ import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
 
 const nodeSettingsNav = ['General', 'Unbond'];
 
+// TODO: remove commented code to emulate a bonded mixnode
 // const bondedMixnodeMock: TBondedMixnode = {
 //   name: 'Monster node',
 //   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',

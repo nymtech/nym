@@ -71,10 +71,11 @@ export const BondMixnodeModal = ({
   };
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
-    setAmountData(data);
+    const pm = toPercentFloatString(data.profitMargin);
+    setAmountData({ ...data, profitMargin: pm });
 
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(data.profitMargin));
+    const defaultCostParams = await attachDefaultOperatingCost(pm);
 
     const payload = {
       pledge: data.amount,
@@ -98,17 +99,12 @@ export const BondMixnodeModal = ({
   };
 
   const handleConfirm = async () => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(amountData.profitMargin);
+
     await onBondMixnode(
       {
-        costParams: {
-          // TODO: get from user
-          interval_operating_cost: {
-            amount: '40',
-            denom: 'nym',
-          },
-          // TODO: get from user
-          profit_margin_percent: '40.0',
-        },
+        costParams: defaultCostParams,
         pledge: amountData.amount,
         ownerSignature: mixnodeData.ownerSignature,
         mixnode: {

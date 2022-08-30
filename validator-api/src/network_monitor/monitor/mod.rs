@@ -122,10 +122,15 @@ impl Monitor {
 
         let mut packets = Vec::with_capacity(routes.len());
         for route in routes {
-            packets.push(
-                self.packet_preparer
-                    .prepare_test_route_viability_packets(route, self.route_test_packets),
-            );
+            let mut packet_preparer = self.packet_preparer.clone();
+            let route = route.clone();
+            let route_test_packets = self.route_test_packets;
+            let gateway_packets = tokio::spawn(async move {
+                packet_preparer.prepare_test_route_viability_packets(&route, route_test_packets)
+            })
+            .await
+            .unwrap();
+            packets.push(gateway_packets);
         }
 
         self.received_processor.set_route_test_nonce().await;

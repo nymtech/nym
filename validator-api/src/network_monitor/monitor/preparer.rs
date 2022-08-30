@@ -117,6 +117,7 @@ pub(crate) struct PreparedPackets {
     pub(super) invalid_gateways: Vec<InvalidNode>,
 }
 
+#[derive(Clone)]
 pub(crate) struct PacketPreparer {
     system_version: String,
     chunker: Option<Chunker>,

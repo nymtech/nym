@@ -12,6 +12,7 @@ use topology::NymTopology;
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
+#[derive(Clone)]
 pub(crate) struct Chunker {
     rng: OsRng,
     message_preparer: MessagePreparer<OsRng>,

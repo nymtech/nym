@@ -16,17 +16,17 @@ import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
 const nodeSettingsNav = ['General', 'Unbond'];
 
 // TODO: remove commented code to emulate a bonded mixnode
-// const bondedMixnodeMock: TBondedMixnode = {
-//   name: 'Monster node',
-//   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
-//   stake: { denom: 'nym', amount: '1234' },
-//   bond: { denom: 'nym', amount: '1234' },
-//   stakeSaturation: 95,
-//   profitMargin: 15,
-//   operatorRewards: { denom: 'nym', amount: '1234' },
-//   delegators: 5423,
-//   status: 'active',
-// };
+const bondedMixnodeMock: TBondedMixnode = {
+  name: 'Monster node',
+  identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
+  stake: { denom: 'nym', amount: '1234' },
+  bond: { denom: 'nym', amount: '1234' },
+  stakeSaturation: 95,
+  profitMargin: 15,
+  operatorRewards: { denom: 'nym', amount: '1234' },
+  delegators: 5423,
+  status: 'active',
+};
 
 export const NodeSettingsPage = () => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeSettingsNav[0]);
@@ -81,7 +81,7 @@ export const NodeSettingsPage = () => {
                 </Typography>
               </Box>
             </Box>
-            <Toolbar disableGutters sx={{ height: '30px' }}>
+            <Toolbar disableGutters sx={{ minHeight: 'fit-content' }}>
               {nodeSettingsNav.map((item) => (
                 <Button
                   size="small"
@@ -122,9 +122,9 @@ export const NodeSettingsPage = () => {
         {settingsCard === nodeSettingsNav[0] && (
           <NodeGeneralSettings onSaveChanges={() => console.log('save changes')} />
         )}
-        {settingsCard === nodeSettingsNav[1] && bondedNode && (
+        {settingsCard === nodeSettingsNav[1] && bondedMixnodeMock && (
           <UnbondModal
-            node={bondedNode}
+            node={bondedMixnodeMock}
             onClose={() => setSettingsCard(nodeSettingsNav[0])}
             onConfirm={handleUnbond}
             onError={handleError}

@@ -1,26 +1,61 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
 
-export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
-  const [valueChanged, setValueChanged] = useState<boolean>(false);
-  const [mixPortValue, setMixPortValue] = useState<string>('1789');
+type TSettingItem = {
+  id: string;
+  title: string;
+  value: string;
+};
 
-  useEffect(() => {
-    console.log(Object.entries(portSettings));
-  }, []);
-  const portSettings = [
+type TDefaultSettings = {
+  portSettings: TSettingItem[];
+  hostSettings: TSettingItem[];
+  versionSettings: TSettingItem[];
+};
+
+const defaultSettings: TDefaultSettings = {
+  portSettings: [
     { id: 'mixPort', title: 'Mix port', value: '1789' },
     { id: 'verlocPort', title: 'Verloc Port', value: '1790' },
     { id: 'httpPort', title: 'HTTP Port', value: '8000' },
-  ];
+  ],
+  hostSettings: [{ id: 'host', title: 'Host', value: '95.216.92.229' }],
+  versionSettings: [{ id: 'version', title: 'Version', value: '95.216.92.229' }],
+};
 
-  const hostSettings = [{ id: 'host', title: 'Host', value: '95.216.92.229' }];
-  const versionSettings = [{ id: 'version', title: 'Version', value: '95.216.92.229' }];
+export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
+  const [valueChanged, setValueChanged] = useState<boolean>(false);
+  const [settingsValue, setSettingsValue] = useState<TDefaultSettings>(defaultSettings);
+
+  const handleValueChanged = (value: string, id: string) => {
+    settingsValue?.portSettings?.map((item) => {
+      console.log(item.id === id, defaultSettings);
+      if (item.id === id) {
+        const newItem = {
+          id: item.id,
+          title: item.title,
+          value: value,
+        };
+        const updatedObject = {
+          portSettings: newItem,
+        };
+        console.log('settingsValue', settingsValue, item);
+
+        setSettingsValue((settingsValue) => ({
+          ...settingsValue,
+          ...updatedObject,
+        }));
+        // item.value = value;
+      }
+    });
+    setValueChanged(true);
+    console.log(value, id);
+  };
   return (
     <Box sx={{ width: 0.78 }}>
-      <Grid container direction="column">
+      <Grid container>
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
-          <Grid item direction="column">
+          <Grid item>
             <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 1 }}>Port</Typography>
             <Typography
               sx={{
@@ -32,14 +67,13 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            {portSettings.map((item) => (
-              <Grid item width={1} spacing={3}>
+            {settingsValue.portSettings.map((item) => (
+              <Grid item width={1} spacing={3} key={item.id}>
                 <TextField
                   type="input"
                   label={item.title}
                   value={item.value}
-                  onChange={(e) => console.log(`Field ${item.id} has change`, e.target.value)}
-                  autoFocus
+                  onChange={(e) => handleValueChanged(e.target.value, item.id)}
                   fullWidth
                 />
               </Grid>
@@ -48,7 +82,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
         </Grid>
         <Divider flexItem />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
-          <Grid item direction="column">
+          <Grid item>
             <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 1 }}>Host</Typography>
             <Typography
               sx={{
@@ -60,14 +94,13 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            {hostSettings.map((item) => (
-              <Grid item width={1} spacing={3}>
+            {settingsValue.hostSettings.map((item) => (
+              <Grid item width={1} spacing={3} key={item.id}>
                 <TextField
                   type="input"
                   label={item.title}
                   value={item.value}
-                  onChange={(e) => console.log(`Field ${item.id} has change`, e.target.value)}
-                  autoFocus
+                  onChange={(e) => handleValueChanged(e.target.value, item.id)}
                   fullWidth
                 />
               </Grid>
@@ -76,7 +109,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
         </Grid>
         <Divider flexItem />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
-          <Grid item direction="column">
+          <Grid item>
             <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 1 }}>Version</Typography>
             <Typography
               sx={{
@@ -88,14 +121,13 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            {versionSettings.map((item) => (
-              <Grid item width={1} spacing={3}>
+            {settingsValue.versionSettings.map((item) => (
+              <Grid item width={1} spacing={3} key={item.id}>
                 <TextField
                   type="input"
                   label={item.title}
                   value={item.value}
-                  onChange={(e) => console.log(`Field ${item.id} has change`, e.target.value)}
-                  autoFocus
+                  onChange={(e) => handleValueChanged(e.target.value, item.id)}
                   fullWidth
                 />
               </Grid>

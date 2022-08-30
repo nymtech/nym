@@ -279,6 +279,16 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           },
         },
       },
+      MuiToolbar: {
+        styleOverrides: {
+          root: {
+            minWidth: 0,
+            '@media (min-width: 0px)': {
+              minHeight: 'fit-content',
+            },
+          },
+        },
+      },
     },
     palette,
   };

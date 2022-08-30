@@ -569,7 +569,7 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
 
     let liftoff_notify = Arc::new(Notify::new());
     // We need a bigger timeout
-    let shutdown = ShutdownNotifier::new(60);
+    let shutdown = ShutdownNotifier::new(10);
 
     // let's build our rocket!
     let rocket = setup_rocket(

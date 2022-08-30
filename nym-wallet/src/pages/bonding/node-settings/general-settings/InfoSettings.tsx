@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
 
 type TSettingItem = {
@@ -7,50 +7,43 @@ type TSettingItem = {
   value: string;
 };
 
-type TDefaultSettings = {
-  portSettings: TSettingItem[];
-  hostSettings: TSettingItem[];
-  versionSettings: TSettingItem[];
-};
+const portRegex = /^\d{4}$/;
+const ipRegex =
+  /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+const appVersionRegex = /^\d+(?:\.\d+){2}$/gm;
 
-const defaultSettings: TDefaultSettings = {
-  portSettings: [
-    { id: 'mixPort', title: 'Mix port', value: '1789' },
-    { id: 'verlocPort', title: 'Verloc Port', value: '1790' },
-    { id: 'httpPort', title: 'HTTP Port', value: '8000' },
-  ],
-  hostSettings: [{ id: 'host', title: 'Host', value: '95.216.92.229' }],
-  versionSettings: [{ id: 'version', title: 'Version', value: '95.216.92.229' }],
-};
+const currentMixPort: TSettingItem = { id: 'mixPort', title: 'Mix port', value: '1789' };
+const currentVerlocPort: TSettingItem = { id: 'verlocPort', title: 'Verloc Port', value: '1790' };
+const currentHttpPort: TSettingItem = { id: 'httpPort', title: 'HTTP Port', value: '8000' };
+const currentHost: TSettingItem = { id: 'host', title: 'Host', value: '95.216.92.229' };
+const currentVersion: TSettingItem = { id: 'version', title: 'Version', value: '1.0.8' };
 
 export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
   const [valueChanged, setValueChanged] = useState<boolean>(false);
-  const [settingsValue, setSettingsValue] = useState<TDefaultSettings>(defaultSettings);
+  const [buttonActive, setButtonActive] = useState<boolean>(false);
+  const [mixPort, setMixPort] = useState<TSettingItem>(currentMixPort);
+  const [verloc, setVerloc] = useState<TSettingItem>(currentVerlocPort);
+  const [httpPort, setHttpPort] = useState<TSettingItem>(currentHttpPort);
+  const [host, setHost] = useState<TSettingItem>(currentHost);
+  const [version, setVersion] = useState<TSettingItem>(currentVersion);
 
-  const handleValueChanged = (value: string, id: string) => {
-    settingsValue?.portSettings?.map((item) => {
-      console.log(item.id === id, defaultSettings);
-      if (item.id === id) {
-        const newItem = {
-          id: item.id,
-          title: item.title,
-          value: value,
-        };
-        const updatedObject = {
-          portSettings: newItem,
-        };
-        console.log('settingsValue', settingsValue, item);
-
-        setSettingsValue((settingsValue) => ({
-          ...settingsValue,
-          ...updatedObject,
-        }));
-        // item.value = value;
+  useEffect(() => {
+    console.log('host.value.match(ipRegex)', Boolean(host.value.match(ipRegex)));
+    if (valueChanged) {
+      if (
+        Boolean(mixPort.value.match(portRegex)) &&
+        Boolean(verloc.value.match(portRegex)) &&
+        Boolean(httpPort.value.match(portRegex)) &&
+        Boolean(host.value.match(ipRegex)) &&
+        Boolean(version.value.match(appVersionRegex))
+      ) {
+        setButtonActive(true);
+        return;
       }
-    });
-    setValueChanged(true);
-    console.log(value, id);
-  };
+    }
+    setButtonActive(false);
+  }, [valueChanged, mixPort, verloc, httpPort, host, version]);
+
   return (
     <Box sx={{ width: 0.78 }}>
       <Grid container>
@@ -67,17 +60,42 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            {settingsValue.portSettings.map((item) => (
-              <Grid item width={1} spacing={3} key={item.id}>
-                <TextField
-                  type="input"
-                  label={item.title}
-                  value={item.value}
-                  onChange={(e) => handleValueChanged(e.target.value, item.id)}
-                  fullWidth
-                />
-              </Grid>
-            ))}
+            <Grid item width={1} spacing={3}>
+              <TextField
+                type="input"
+                label={mixPort.title}
+                value={mixPort.value}
+                onChange={(e) => {
+                  setMixPort({ ...mixPort, value: e.target.value });
+                  setValueChanged(true);
+                }}
+                fullWidth
+              />
+            </Grid>
+            <Grid item width={1} spacing={3}>
+              <TextField
+                type="input"
+                label={verloc.title}
+                value={verloc.value}
+                onChange={(e) => {
+                  setVerloc({ ...verloc, value: e.target.value });
+                  setValueChanged(true);
+                }}
+                fullWidth
+              />
+            </Grid>
+            <Grid item width={1} spacing={3}>
+              <TextField
+                type="input"
+                label={httpPort.title}
+                value={httpPort.value}
+                onChange={(e) => {
+                  setHttpPort({ ...httpPort, value: e.target.value });
+                  setValueChanged(true);
+                }}
+                fullWidth
+              />
+            </Grid>
           </Grid>
         </Grid>
         <Divider flexItem />
@@ -94,17 +112,18 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            {settingsValue.hostSettings.map((item) => (
-              <Grid item width={1} spacing={3} key={item.id}>
-                <TextField
-                  type="input"
-                  label={item.title}
-                  value={item.value}
-                  onChange={(e) => handleValueChanged(e.target.value, item.id)}
-                  fullWidth
-                />
-              </Grid>
-            ))}
+            <Grid item width={1} spacing={3}>
+              <TextField
+                type="input"
+                label={host.title}
+                value={host.value}
+                onChange={(e) => {
+                  setHost({ ...host, value: e.target.value });
+                  setValueChanged(true);
+                }}
+                fullWidth
+              />
+            </Grid>
           </Grid>
         </Grid>
         <Divider flexItem />
@@ -121,17 +140,18 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            {settingsValue.versionSettings.map((item) => (
-              <Grid item width={1} spacing={3} key={item.id}>
-                <TextField
-                  type="input"
-                  label={item.title}
-                  value={item.value}
-                  onChange={(e) => handleValueChanged(e.target.value, item.id)}
-                  fullWidth
-                />
-              </Grid>
-            ))}
+            <Grid item width={1} spacing={3}>
+              <TextField
+                type="input"
+                label={version.title}
+                value={version.value}
+                onChange={(e) => {
+                  setVersion({ ...version, value: e.target.value });
+                  setValueChanged(true);
+                }}
+                fullWidth
+              />
+            </Grid>
           </Grid>
         </Grid>
         <Divider flexItem />
@@ -139,7 +159,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
           <Button
             size="large"
             variant="contained"
-            disabled={!valueChanged}
+            disabled={!buttonActive}
             onClick={onSaveChanges}
             sx={{ m: 3, width: '320px' }}
           >

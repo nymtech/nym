@@ -1,6 +1,5 @@
 import {
   TNodeType,
-  FeeDetails,
   Gateway,
   DecCoin,
   MixNode,
@@ -48,15 +47,15 @@ export const vestingUnbondGateway = async (fee?: Fee) =>
 
 export const vestingBondMixNode = async ({
   mixnode,
-  cost_params,
+  costParams,
   pledge,
   ownerSignature,
 }: {
   mixnode: MixNode;
-  cost_params: MixNodeCostParams;
+  costParams: MixNodeCostParams;
   pledge: DecCoin;
   ownerSignature: string;
-}) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, cost_params, ownerSignature, pledge });
+}) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, costParams, ownerSignature, pledge });
 
 export const vestingUnbondMixnode = async (fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode', { fee });

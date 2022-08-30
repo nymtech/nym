@@ -18,17 +18,17 @@ export const simulateUpdateMixnodeCostParams = async (new_costs: MixNodeCostPara
 export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_mixnode_config', { update });
 
-export const simulateDelegateToMixnode = async (args: { mix_id: number; amount: DecCoin }) =>
+export const simulateDelegateToMixnode = async (args: { mixId: number; amount: DecCoin }) =>
   invokeWrapper<FeeDetails>('simulate_delegate_to_mixnode', args);
 
-export const simulateUndelegateFromMixnode = async (mix_id: number) =>
-  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode', { mix_id });
+export const simulateUndelegateFromMixnode = async (mixId: number) =>
+  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode', { mixId });
 
-export const simulateClaimDelegatorReward = async (mix_id: number) =>
-  invokeWrapper<FeeDetails>('simulate_claim_delegator_reward', { mix_id });
+export const simulateClaimDelegatorReward = async (mixId: number) =>
+  invokeWrapper<FeeDetails>('simulate_claim_delegator_reward', { mixId });
 
-export const simulateVestingClaimDelegatorReward = async (mix_id: number) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_claim_delegator_reward', { mix_id });
+export const simulateVestingClaimDelegatorReward = async (mixId: number) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_claim_delegator_reward', { mixId });
 
 export const simulateVestingUndelegateFromMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_undelegate_from_mixnode', args);
@@ -39,7 +39,7 @@ export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledg
 export const simulateVestingUnbondGateway = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_unbond_gateway', args);
 
-export const simulateVestingDelegateToMixnode = async (args: { mix_id: number }) =>
+export const simulateVestingDelegateToMixnode = async (args: { mixId: number }) =>
   invokeWrapper<FeeDetails>('simulate_vesting_delegate_to_mixnode', args);
 
 export const simulateVestingBondMixnode = async (args: TBondMixNodeArgs) =>

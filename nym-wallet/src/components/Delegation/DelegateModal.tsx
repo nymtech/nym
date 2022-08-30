@@ -149,11 +149,11 @@ export const DelegateModal: React.FC<{
     }
 
     if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { mix_id: id, amount: value });
+      getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
     }
 
     if (tokenPool === 'locked') {
-      getFee(simulateVestingDelegateToMixnode, { mix_id: id, amount: value });
+      getFee(simulateVestingDelegateToMixnode, { mixId: id, amount: value });
     }
   };
 

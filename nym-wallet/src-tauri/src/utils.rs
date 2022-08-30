@@ -61,8 +61,11 @@ pub async fn try_convert_pubkey_to_mix_id(
 #[tauri::command]
 pub async fn default_mixnode_cost_params(
     state: tauri::State<'_, WalletState>,
-    profit_margin_percent: Percent,
+    profit_margin_percent: f32,
 ) -> Result<MixNodeCostParams, BackendError> {
+    let profit_margin_percent = Percent::try_from_f32_percentage_value(profit_margin_percent)
+        .map_err(|_| BackendError::InvalidPercentValue)?;
+
     // attaches the old pre-update default operating cost of 40 nym per interval
     let guard = state.read().await;
 

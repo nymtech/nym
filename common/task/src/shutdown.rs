@@ -28,9 +28,10 @@ impl Default for ShutdownNotifier {
 
 impl ShutdownNotifier {
     pub fn new(shutdown_timer_secs: u64) -> Self {
-        let mut shutdown = Self::default();
-        shutdown.shutdown_timer_secs = shutdown_timer_secs;
-        shutdown
+        Self {
+            shutdown_timer_secs,
+            ..Default::default()
+        }
     }
 
     pub fn subscribe(&self) -> ShutdownListener {

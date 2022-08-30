@@ -11,7 +11,7 @@ import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
 import { TBondGatewayArgs } from 'src/types';
 import { BondGatewayForm } from '../forms/BondGatewayForm';
 
-const defaultMixnodeValues: GatewayData = {
+const defaultGatewayValues: GatewayData = {
   identityKey: '',
   sphinxKey: '',
   ownerSignature: '',
@@ -19,7 +19,7 @@ const defaultMixnodeValues: GatewayData = {
   host: '',
   version: '',
   mixPort: 1789,
-  clientsPort: 1790,
+  clientsPort: 9000,
 };
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
@@ -43,7 +43,7 @@ export const BondGatewayModal = ({
   onError: (e: string) => void;
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [gatewayData, setGatewayData] = useState<GatewayData>(defaultMixnodeValues);
+  const [gatewayData, setGatewayData] = useState<GatewayData>(defaultGatewayValues);
   const [amountData, setAmountData] = useState<GatewayAmount>(defaultAmountValues(denom));
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();

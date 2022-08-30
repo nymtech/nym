@@ -24,7 +24,7 @@ use mixnet_contract_common::{
     PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
     RewardedSetUpdateDetails,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
@@ -280,6 +280,30 @@ impl<C> NymdClient<C> {
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.simulated_gas_multiplier = multiplier;
+    }
+
+    pub async fn query_contract_smart<M, T>(
+        &self,
+        contract: &AccountId,
+        query_msg: &M,
+    ) -> Result<T, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+        M: ?Sized + Serialize + Sync,
+        for<'a> T: Deserialize<'a>,
+    {
+        self.client.query_contract_smart(contract, query_msg).await
+    }
+
+    pub async fn query_contract_raw(
+        &self,
+        contract: &AccountId,
+        query_data: Vec<u8>,
+    ) -> Result<Vec<u8>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.query_contract_raw(contract, query_data).await
     }
 
     pub fn wrap_contract_execute_message<M>(
@@ -893,7 +917,7 @@ impl<C> NymdClient<C> {
         &self,
         contract_address: &AccountId,
         msg: &M,
-        fee: Fee,
+        fee: Option<Fee>,
         memo: impl Into<String> + Send + 'static,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NymdError>
@@ -901,6 +925,7 @@ impl<C> NymdClient<C> {
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .execute(self.address(), contract_address, msg, fee, memo, funds)
             .await
@@ -910,7 +935,7 @@ impl<C> NymdClient<C> {
         &self,
         contract_address: &AccountId,
         msgs: I,
-        fee: Fee,
+        fee: Option<Fee>,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ExecuteResult, NymdError>
     where
@@ -918,6 +943,7 @@ impl<C> NymdClient<C> {
         I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
         M: Serialize,
     {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .execute_multiple(self.address(), contract_address, msgs, fee, memo)
             .await

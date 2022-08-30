@@ -72,6 +72,10 @@ impl NymConfig for Config {
             .join("validator-api")
     }
 
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("validator-api"))
+    }
+
     fn root_directory(&self) -> PathBuf {
         Self::default_root_directory()
     }

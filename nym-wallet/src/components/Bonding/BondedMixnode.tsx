@@ -75,7 +75,7 @@ export const BondedMixnode = ({
       id: 'pm-cell',
     },
     {
-      cell: `${operatorRewards.amount} ${operatorRewards.denom}`,
+      cell: operatorRewards ? `${operatorRewards.amount} ${operatorRewards.denom}` : '-',
       id: 'operator-rewards-cell',
     },
     {
@@ -86,7 +86,7 @@ export const BondedMixnode = ({
       cell: (
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
-          disabledRedeemAndCompound={Number(mixnode.operatorRewards.amount) === 0}
+          disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
         />
       ),
       id: 'actions-cell',

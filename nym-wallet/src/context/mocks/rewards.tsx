@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { TransactionExecuteResult } from '@nymproject/types';
+import { DelegationWithEverything, TransactionExecuteResult } from '@nymproject/types';
 import { RewardsContext, TRewardsTransaction } from '../rewards';
 import { useDelegationContext } from '../delegations';
 import { mockSleep } from './utils';
@@ -9,7 +9,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
   const [error, setError] = useState<string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const { delegations } = useDelegationContext();
-  const delegationsHash = delegations?.map((d) => d.accumulated_rewards).join(',');
+  const delegationsHash = delegations?.map((d) => (d as DelegationWithEverything).accumulated_rewards).join(',');
 
   const resetState = () => {
     setIsLoading(true);
@@ -19,7 +19,7 @@ export const MockRewardsContextProvider: FC = ({ children }) => {
 
   const recalculate = () => {
     const sum: number | undefined = delegations
-      ?.map((d) => (d.accumulated_rewards ? Number(10) : Number(0)))
+      ?.map((d) => ((d as DelegationWithEverything).accumulated_rewards ? Number(10) : Number(0)))
       .reduce((acc, cur) => acc + cur, Number(0));
 
     setTotalRewards(sum ? `${sum} NYM` : undefined);

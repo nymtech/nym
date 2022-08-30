@@ -78,7 +78,7 @@ pub(crate) struct OverrideConfig {
     port: Option<u16>,
     fastmode: bool,
 
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[cfg(any(feature = "eth", feature = "coconut"))]
     enabled_credentials_mode: bool,
 
     #[cfg(all(feature = "eth", not(feature = "coconut")))]
@@ -121,11 +121,14 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
             .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY.to_string());
     }
 
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[cfg(any(feature = "eth", feature = "coconut"))]
     {
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)
         }
+    }
+    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    {
         if let Some(eth_endpoint) = args.eth_endpoint {
             config.get_base_mut().with_eth_endpoint(eth_endpoint);
         }

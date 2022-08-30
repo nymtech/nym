@@ -18,7 +18,6 @@ pub fn migrate_config_from_env(
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
     pub struct OldContractState {
         pub owner: Addr,
-        pub mix_denom: String,
         pub rewarding_validator_address: Addr,
         pub params: ContractStateParams,
     }

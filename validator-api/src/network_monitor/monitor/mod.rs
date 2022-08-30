@@ -312,10 +312,11 @@ impl Monitor {
             tokio::select! {
                 _  = run_interval.tick() => {
                     tokio::select! {
-                        _ = self.test_run() => (),
+                        biased;
                         _ = shutdown.recv() => {
                             trace!("UpdateHandler: Received shutdown");
                         }
+                        _ = self.test_run() => (),
                     }
                 }
                 _ = shutdown.recv() => {

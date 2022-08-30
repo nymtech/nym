@@ -148,7 +148,13 @@ impl GatewayPinger {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = sleep(self.pinging_interval) => {
-                    self.ping_and_cleanup_all_gateways().await;
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            trace!("GatewaysPinger: Received shutdown");
+                        }
+                        _ = self.ping_and_cleanup_all_gateways() => (),
+                    }
                 }
                 _ = shutdown.recv() => {
                     trace!("GatewaysPinger: Received shutdown");

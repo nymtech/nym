@@ -9,7 +9,7 @@ pub struct NetworkRequesterResponse {
     pub network_requester_error: String,
 }
 
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum Error {
     #[error("no data provided")]
     NoData,

@@ -10,7 +10,7 @@ import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
-import { attachDefaultOperatingCost } from '../../../utils';
+import { attachDefaultOperatingCost, toPercentFloatString } from '../../../utils';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '',
@@ -71,10 +71,11 @@ export const BondMixnodeModal = ({
   };
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
-    setAmountData(data);
+    const pm = toPercentFloatString(data.profitMargin);
+    setAmountData({ ...data, profitMargin: pm });
 
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(data.profitMargin);
+    const defaultCostParams = await attachDefaultOperatingCost(pm);
 
     const payload = {
       pledge: data.amount,
@@ -87,7 +88,7 @@ export const BondMixnodeModal = ({
         sphinx_key: mixnodeData.sphinxKey,
         identity_key: mixnodeData.identityKey,
       },
-      cost_params: defaultCostParams,
+      costParams: defaultCostParams,
     };
 
     if (data.tokenPool === 'balance') {
@@ -98,17 +99,12 @@ export const BondMixnodeModal = ({
   };
 
   const handleConfirm = async () => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(amountData.profitMargin);
+
     await onBondMixnode(
       {
-        cost_params: {
-          // TODO: get from user
-          interval_operating_cost: {
-            amount: '40',
-            denom: 'nym',
-          },
-          // TODO: get from user
-          profit_margin_percent: '40.0',
-        },
+        costParams: defaultCostParams,
         pledge: amountData.amount,
         ownerSignature: mixnodeData.ownerSignature,
         mixnode: {

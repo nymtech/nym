@@ -9,9 +9,9 @@ import { validationSchema } from './validationSchema';
 import { InfoTooltip } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnodeCostParams, vestingUpdateMixnodeCostParams } from '../../requests';
-import { AppContext } from '../../context/main';
+import { AppContext } from '../../context';
 import { Console } from '../../utils/console';
-import { attachDefaultOperatingCost } from '../../utils';
+import { attachDefaultOperatingCost, toPercentFloatString } from '../../utils';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
   <Grid container justifyContent="space-between">
@@ -102,13 +102,13 @@ export const SystemVariables = ({
 
   const updateMixnodeProfitMargin = async (profitMarginPercent: string) => {
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(profitMarginPercent);
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(profitMarginPercent));
     await updateMixnodeCostParams(defaultCostParams);
   };
 
   const vestingUpdateMixnodeProfitMargin = async (profitMarginPercent: string) => {
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(profitMarginPercent);
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(profitMarginPercent));
     await vestingUpdateMixnodeCostParams(defaultCostParams);
   };
 

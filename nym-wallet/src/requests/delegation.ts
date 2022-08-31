@@ -13,21 +13,21 @@ export const getMixNodeDelegationsForCurrentAccount = async () =>
 
 export const getDelegationSummary = async () => invokeWrapper<DelegationsSummaryResponse>('get_delegation_summary');
 
-export const undelegateFromMixnode = async (mix_id: number, fee?: Fee) =>
-  invokeWrapper<TransactionExecuteResult>('undelegate_from_mixnode', { mix_id, fee });
+export const undelegateFromMixnode = async (mixId: number, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('undelegate_from_mixnode', { mixId, fee });
 
 export const undelegateAllFromMixnode = async (
-  mix_id: number,
+  mixId: number,
   usesVestingContractTokens: boolean,
   fee_liquid?: FeeDetails,
   fee_vesting?: FeeDetails,
 ) =>
   invokeWrapper<TransactionExecuteResult[]>('undelegate_all_from_mixnode', {
-    mix_id,
+    mixId,
     usesVestingContractTokens,
     fee_liquid,
     fee_vesting,
   });
 
-export const delegateToMixnode = async (mix_id: number, amount: DecCoin, fee?: Fee) =>
-  invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { mix_id, amount, fee });
+export const delegateToMixnode = async (mixId: number, amount: DecCoin, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { mixId, amount, fee });

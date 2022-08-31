@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Box, Typography, Stack, Toolbar, Button, Divider } from '@mui/material';
@@ -7,7 +7,7 @@ import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/component
 import { Node as NodeIcon } from 'src/svg-icons/node';
 import { NymCard } from '../../../components';
 import { PageLayout } from '../../../layouts';
-import { useBondingContext, TBondedMixnode } from '../../../context';
+import { useBondingContext, BondingContextProvider } from '../../../context';
 import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './general-settings';
@@ -15,27 +15,11 @@ import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
 
 const nodeSettingsNav = ['General', 'Unbond'];
 
-// TODO: remove commented code to emulate a bonded mixnode
-const bondedMixnodeMock: TBondedMixnode = {
-  name: 'Monster node',
-  identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
-  stake: { denom: 'nym', amount: '1234' },
-  bond: { denom: 'nym', amount: '1234' },
-  stakeSaturation: 95,
-  profitMargin: 15,
-  operatorRewards: { denom: 'nym', amount: '1234' },
-  delegators: 5423,
-  status: 'active',
-};
-
-export const NodeSettingsPage = () => {
+export const NodeSettings = () => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeSettingsNav[0]);
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
 
-  const {
-    network,
-    userBalance: { originalVesting },
-  } = useContext(AppContext);
+  const { network } = useContext(AppContext);
 
   const { bondedNode, unbond } = useBondingContext();
 
@@ -119,10 +103,10 @@ export const NodeSettingsPage = () => {
         }
       >
         <Divider />
-        {settingsCard === nodeSettingsNav[0] && <NodeGeneralSettings />}
-        {settingsCard === nodeSettingsNav[1] && bondedMixnodeMock && (
+        {settingsCard === nodeSettingsNav[0] && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {settingsCard === nodeSettingsNav[1] && bondedNode && (
           <UnbondModal
-            node={bondedMixnodeMock}
+            node={bondedNode}
             onClose={() => setSettingsCard(nodeSettingsNav[0])}
             onConfirm={handleUnbond}
             onError={handleError}
@@ -144,3 +128,9 @@ export const NodeSettingsPage = () => {
     </PageLayout>
   );
 };
+
+export const NodeSettingsPage = () => (
+  <BondingContextProvider>
+    <NodeSettings />
+  </BondingContextProvider>
+);

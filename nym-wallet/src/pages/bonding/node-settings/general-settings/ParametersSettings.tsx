@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, InputAdornment, Grid } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-
+import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 type TSettingItem = {
@@ -13,7 +13,7 @@ type TSettingItem = {
 const currentProfitMargin: TSettingItem = { id: 'profit-margin', title: 'Profit margin', value: 10 };
 const currentOperatorCost: TSettingItem = { id: 'operator-cost', title: 'Operator cost', value: 40 };
 
-export const ParametersSettings = () => {
+export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [profitMargin, setProfitMargin] = useState<TSettingItem>(currentProfitMargin);

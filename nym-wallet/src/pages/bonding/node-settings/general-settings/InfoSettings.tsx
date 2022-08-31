@@ -1,52 +1,40 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-
+import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
-type TSettingItem = {
-  id: string;
-  title: string;
-  value: string;
-};
-
-const portRegex = /^\d{4}$/;
-const ipRegex =
-  /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+// TODO: adding ip regex that works well
+const ipRegex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
 // TODO: only accept valid nym wallet versions
 const appVersionRegex = /^\d+(?:\.\d+){2}$/gm;
 
-const currentMixPort: TSettingItem = { id: 'mixPort', title: 'Mix port', value: '1789' };
-const currentVerlocPort: TSettingItem = { id: 'verlocPort', title: 'Verloc Port', value: '1790' };
-const currentHttpPort: TSettingItem = { id: 'httpPort', title: 'HTTP Port', value: '8000' };
-const currentHost: TSettingItem = { id: 'host', title: 'Host', value: '95.216.92.229' };
-const currentVersion: TSettingItem = { id: 'version', title: 'Version', value: '1.0.8' };
+export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
+  const { mixPort, verlocPort, httpApiPort, host, version } = bondedNode;
 
-export const InfoSettings = () => {
   const [valueChanged, setValueChanged] = useState<boolean>(false);
   const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const [mixPort, setMixPort] = useState<TSettingItem>(currentMixPort);
-  const [verloc, setVerloc] = useState<TSettingItem>(currentVerlocPort);
-  const [httpPort, setHttpPort] = useState<TSettingItem>(currentHttpPort);
-  const [host, setHost] = useState<TSettingItem>(currentHost);
-  const [version, setVersion] = useState<TSettingItem>(currentVersion);
+  const [mixPortUpdated, setMixPortUpdated] = useState<number>(mixPort);
+  const [verlocPortUpdated, setVerlocPortUpdated] = useState<number>(verlocPort);
+  const [httpApiPortUpdated, setHttpApiPortUpdated] = useState<number>(httpApiPort);
+  const [hostUpdated, setHostUpdated] = useState<string>(host);
+  const [versionUpdated, setVersionUpdated] = useState<string>(version);
 
   useEffect(() => {
     if (valueChanged) {
       if (
-        Boolean(mixPort.value.match(portRegex)) &&
-        Boolean(verloc.value.match(portRegex)) &&
-        Boolean(httpPort.value.match(portRegex)) &&
-        Boolean(host.value.match(ipRegex)) &&
-        Boolean(version.value.match(appVersionRegex))
+        Boolean(mixPortUpdated.toString().length === 4) &&
+        Boolean(verlocPortUpdated.toString().length === 4) &&
+        Boolean(httpApiPortUpdated.toString().length === 4) &&
+        Boolean(versionUpdated.match(appVersionRegex))
       ) {
         setButtonActive(true);
         return;
       }
     }
     setButtonActive(false);
-  }, [valueChanged, mixPort, verloc, httpPort, host, version]);
+  }, [valueChanged, mixPortUpdated, verlocPortUpdated, httpApiPortUpdated, hostUpdated, versionUpdated]);
 
   return (
     <Box sx={{ width: '79.88%' }}>
@@ -76,10 +64,10 @@ export const InfoSettings = () => {
             <Grid item width={1}>
               <TextField
                 type="input"
-                label={mixPort.title}
-                value={mixPort.value}
+                label="Mix Port"
+                value={mixPortUpdated}
                 onChange={(e) => {
-                  setMixPort({ ...mixPort, value: e.target.value });
+                  setMixPortUpdated(parseInt(e.target.value));
                   setValueChanged(true);
                 }}
                 fullWidth
@@ -88,10 +76,10 @@ export const InfoSettings = () => {
             <Grid item width={1}>
               <TextField
                 type="input"
-                label={verloc.title}
-                value={verloc.value}
+                label="Verloc Port"
+                value={verlocPortUpdated}
                 onChange={(e) => {
-                  setVerloc({ ...verloc, value: e.target.value });
+                  setVerlocPortUpdated(parseInt(e.target.value));
                   setValueChanged(true);
                 }}
                 fullWidth
@@ -100,10 +88,10 @@ export const InfoSettings = () => {
             <Grid item width={1}>
               <TextField
                 type="input"
-                label={httpPort.title}
-                value={httpPort.value}
+                label="HTTP port"
+                value={httpApiPortUpdated}
                 onChange={(e) => {
-                  setHttpPort({ ...httpPort, value: e.target.value });
+                  setHttpApiPortUpdated(parseInt(e.target.value));
                   setValueChanged(true);
                 }}
                 fullWidth
@@ -128,10 +116,10 @@ export const InfoSettings = () => {
             <Grid item width={1}>
               <TextField
                 type="input"
-                label={host.title}
-                value={host.value}
+                label="host"
+                value={hostUpdated}
                 onChange={(e) => {
-                  setHost({ ...host, value: e.target.value });
+                  setHostUpdated(e.target.value);
                   setValueChanged(true);
                 }}
                 fullWidth
@@ -156,10 +144,10 @@ export const InfoSettings = () => {
             <Grid item width={1}>
               <TextField
                 type="input"
-                label={version.title}
-                value={version.value}
+                label="Version"
+                value={versionUpdated}
                 onChange={(e) => {
-                  setVersion({ ...version, value: e.target.value });
+                  setVersionUpdated(e.target.value);
                   setValueChanged(true);
                 }}
                 fullWidth

@@ -16,22 +16,8 @@ import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/ty
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { PageLayout } from '../../layouts';
-import { BondingContextProvider, useBondingContext, TBondedMixnode } from '../../context';
+import { BondingContextProvider, useBondingContext } from '../../context';
 import { Box } from '@mui/material';
-
-// TODO: remove commented code to emulate a bonded mixnode
-const bondedMixnodeMock: TBondedMixnode = {
-  name: 'Monster node',
-  identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
-  stake: { denom: 'nym', amount: '1234' },
-  bond: { denom: 'nym', amount: '1234' },
-  stakeSaturation: 95,
-  profitMargin: 15,
-  operatorRewards: { denom: 'nym', amount: '1234' },
-  delegators: 5423,
-  status: 'active',
-};
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -164,11 +150,11 @@ const Bonding = () => {
 
   return (
     <Box sx={{ mt: 4 }}>
-      {!bondedMixnodeMock && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
+      {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
-      {bondedMixnodeMock && isMixnode(bondedMixnodeMock) && (
+      {bondedNode && isMixnode(bondedNode) && (
         <BondedMixnode
-          mixnode={bondedMixnodeMock}
+          mixnode={bondedNode}
           network={network}
           onActionSelect={(action) => handleBondedMixnodeAction(action)}
         />

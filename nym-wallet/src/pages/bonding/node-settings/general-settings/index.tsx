@@ -1,13 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
+import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { InfoSettings } from './InfoSettings';
 import { ParametersSettings } from './ParametersSettings';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
 
-export const NodeGeneralSettings = () => {
+export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeGeneralNav[0]);
 
+  console.log('node', bondedNode);
   return (
     <Box sx={{ pl: 3, pt: 3 }}>
       <Grid container direction="row" spacing={3}>
@@ -32,8 +34,8 @@ export const NodeGeneralSettings = () => {
           ))}
         </Grid>
         <Divider orientation="vertical" flexItem />
-        {settingsCard === nodeGeneralNav[0] && <InfoSettings />}
-        {settingsCard === nodeGeneralNav[1] && <ParametersSettings />}
+        {settingsCard === nodeGeneralNav[0] && <InfoSettings bondedNode={bondedNode} />}
+        {settingsCard === nodeGeneralNav[1] && <ParametersSettings bondedNode={bondedNode} />}
       </Grid>
     </Box>
   );

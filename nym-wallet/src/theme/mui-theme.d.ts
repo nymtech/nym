@@ -31,6 +31,7 @@ declare module '@mui/material/styles' {
     highlight: string;
     success: string;
     info: string;
+    infoDark: string;
     fee: string;
     background: { light: string; dark: string };
     text: {
@@ -85,7 +86,7 @@ declare module '@mui/material/styles' {
   /**
    * Add anything not palette related to the theme here
    */
-  interface NymTheme {}
+  interface NymTheme { }
 
   /**
    * This augments the definitions of the MUI Theme with the Nym theme, as well as
@@ -93,8 +94,8 @@ declare module '@mui/material/styles' {
    *
    * IMPORTANT: only add extensions to the interfaces above, do not modify the lines below
    */
-  interface Theme extends NymTheme {}
-  interface ThemeOptions extends Partial<NymTheme> {}
-  interface Palette extends NymPaletteAndNymWalletPalette {}
-  interface PaletteOptions extends NymPaletteAndNymWalletPaletteOptions {}
+  interface Theme extends NymTheme { }
+  interface ThemeOptions extends Partial<NymTheme> { }
+  interface Palette extends NymPaletteAndNymWalletPalette { }
+  interface PaletteOptions extends NymPaletteAndNymWalletPaletteOptions { }
 }

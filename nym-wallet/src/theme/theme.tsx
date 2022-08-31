@@ -23,6 +23,7 @@ const nymPalette: NymPalette = {
   highlight: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
+  infoDark: '#514EFB',
   fee: '#967FF0',
   background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
@@ -122,6 +123,7 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   },
   info: {
     main: nymPalette.info,
+    dark: nymPalette.infoDark,
   },
   background: {
     default: variant.background.main,

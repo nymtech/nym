@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, InputAdornment, Grid } from '@mui/material';
 
+import { SimpleModal } from '../../../../components/Modals/SimpleModal';
+
 type TSettingItem = {
   id: string;
   title: string;
@@ -10,8 +12,9 @@ type TSettingItem = {
 const currentProfitMargin: TSettingItem = { id: 'profit-margin', title: 'Profit margin', value: 10 };
 const currentOperatorCost: TSettingItem = { id: 'operator-cost', title: 'Operator cost', value: 40 };
 
-export const ParametersSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
+export const ParametersSettings = () => {
   const [buttonActive, setButtonActive] = useState<boolean>(false);
+  const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [profitMargin, setProfitMargin] = useState<TSettingItem>(currentProfitMargin);
   const [operatorCost, setOperatorCost] = useState<TSettingItem>(currentOperatorCost);
 
@@ -101,13 +104,43 @@ export const ParametersSettings = ({ onSaveChanges }: { onSaveChanges: () => voi
             size="large"
             variant="contained"
             disabled={!buttonActive}
-            onClick={onSaveChanges}
+            onClick={() => setOpenConfirmationModal(true)}
             sx={{ m: 3, width: '320px' }}
           >
             Save all changes
           </Button>
         </Grid>
       </Grid>
+      <SimpleModal
+        open={openConfirmationModal}
+        header="Your changes will take place 
+        in the next interval"
+        okLabel="close"
+        hideCloseIcon
+        displayInfoIcon
+        onOk={async () => {
+          await setOpenConfirmationModal(false);
+        }}
+        buttonFullWidth
+        sx={{
+          width: '320px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        headerStyles={{
+          width: '100%',
+          mb: 1,
+          textAlign: 'center',
+          color: 'info.dark',
+          fontSize: 16,
+          textTransform: 'capitalize',
+        }}
+        subHeaderStyles={{
+          m: 0,
+        }}
+      />
     </Box>
   );
 };

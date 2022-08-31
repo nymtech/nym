@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
 
+import { SimpleModal } from '../../../../components/Modals/SimpleModal';
+
 type TSettingItem = {
   id: string;
   title: string;
@@ -19,9 +21,10 @@ const currentHttpPort: TSettingItem = { id: 'httpPort', title: 'HTTP Port', valu
 const currentHost: TSettingItem = { id: 'host', title: 'Host', value: '95.216.92.229' };
 const currentVersion: TSettingItem = { id: 'version', title: 'Version', value: '1.0.8' };
 
-export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
+export const InfoSettings = () => {
   const [valueChanged, setValueChanged] = useState<boolean>(false);
   const [buttonActive, setButtonActive] = useState<boolean>(false);
+  const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [mixPort, setMixPort] = useState<TSettingItem>(currentMixPort);
   const [verloc, setVerloc] = useState<TSettingItem>(currentVerlocPort);
   const [httpPort, setHttpPort] = useState<TSettingItem>(currentHttpPort);
@@ -160,13 +163,49 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             size="large"
             variant="contained"
             disabled={!buttonActive}
-            onClick={onSaveChanges}
+            onClick={() => setOpenConfirmationModal(true)}
             sx={{ m: 3, width: '320px' }}
           >
             Save all changes
           </Button>
         </Grid>
       </Grid>
+      <SimpleModal
+        open={openConfirmationModal}
+        header="Your changes were ONLY saved on the display"
+        subHeader="Remember to change the values 
+        on your node’s config file too."
+        okLabel="close"
+        hideCloseIcon
+        displayInfoIcon
+        onOk={async () => {
+          await setOpenConfirmationModal(false);
+        }}
+        buttonFullWidth
+        sx={{
+          width: '450px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        headerStyles={{
+          width: '100%',
+          mb: 1,
+          textAlign: 'center',
+          color: 'info.dark',
+          fontSize: 16,
+          textTransform: 'capitalize',
+        }}
+        subHeaderStyles={{
+          width: '100%',
+          mb: 1,
+          textAlign: 'center',
+          color: 'main',
+          fontSize: 14,
+          textTransform: 'capitalize',
+        }}
+      />
     </Box>
   );
 };

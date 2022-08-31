@@ -5,7 +5,7 @@ import { ParametersSettings } from './ParametersSettings';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
 
-export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) => {
+export const NodeGeneralSettings = () => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeGeneralNav[0]);
 
   return (
@@ -32,8 +32,8 @@ export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => vo
           ))}
         </Grid>
         <Divider orientation="vertical" flexItem />
-        {settingsCard === nodeGeneralNav[0] && <InfoSettings onSaveChanges={() => console.log('saving...')} />}
-        {settingsCard === nodeGeneralNav[1] && <ParametersSettings onSaveChanges={() => console.log('saving...')} />}
+        {settingsCard === nodeGeneralNav[0] && <InfoSettings />}
+        {settingsCard === nodeGeneralNav[1] && <ParametersSettings />}
       </Grid>
     </Box>
   );

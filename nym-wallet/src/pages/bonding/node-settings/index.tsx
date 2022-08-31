@@ -119,9 +119,7 @@ export const NodeSettingsPage = () => {
         }
       >
         <Divider />
-        {settingsCard === nodeSettingsNav[0] && (
-          <NodeGeneralSettings onSaveChanges={() => console.log('save changes')} />
-        )}
+        {settingsCard === nodeSettingsNav[0] && <NodeGeneralSettings />}
         {settingsCard === nodeSettingsNav[1] && bondedMixnodeMock && (
           <UnbondModal
             node={bondedMixnodeMock}

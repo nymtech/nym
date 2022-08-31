@@ -160,7 +160,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         threshold_p: 0.7,
         L: 100,
         spend_vv: 1,
-        case_nr_pub_keys: 50,
+        case_nr_pub_keys: 99,
     };
 
     let params = setup(case.L);

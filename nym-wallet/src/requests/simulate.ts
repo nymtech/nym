@@ -1,4 +1,4 @@
-import { FeeDetails, DecCoin, Gateway, MixNode, MixNodeCostParams, MixNodeConfigUpdate } from '@nymproject/types';
+import { FeeDetails, DecCoin, Gateway, MixNodeCostParams, MixNodeConfigUpdate } from '@nymproject/types';
 import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
@@ -12,8 +12,8 @@ export const simulateBondMixnode = async (args: TBondMixNodeArgs) =>
 
 export const simulateUnbondMixnode = async (args: any) => invokeWrapper<FeeDetails>('simulate_unbond_mixnode', args);
 
-export const simulateUpdateMixnodeCostParams = async (new_costs: MixNodeCostParams) =>
-  invokeWrapper<FeeDetails>('simulate_update_mixnode_cost_params', { new_costs });
+export const simulateUpdateMixnodeCostParams = async (newCosts: MixNodeCostParams) =>
+  invokeWrapper<FeeDetails>('simulate_update_mixnode_cost_params', { newCosts });
 
 export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_mixnode_config', { update });
@@ -47,8 +47,8 @@ export const simulateVestingBondMixnode = async (args: TBondMixNodeArgs) =>
 
 export const simulateVestingUnbondMixnode = async () => invokeWrapper<FeeDetails>('simulate_vesting_unbond_mixnode');
 
-export const simulateVestingUpdateMixnodeCostParams = async (new_costs: MixNodeCostParams) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode_cost_params', { new_costs });
+export const simulateVestingUpdateMixnodeCostParams = async (newCosts: MixNodeCostParams) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode_cost_params', { newCosts });
 
 export const simulateVestingUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode_config', { update });

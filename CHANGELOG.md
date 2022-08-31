@@ -70,6 +70,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
 - network explorer: tweak how active set probability is shown ([#1503])
 - validator-api: rewarder set update fails without panicking on possible nymd queries ([#1520])
+- network-requester, socks5 client (nym-connect): send and receive respectively a message error to be displayed about filter check failure ([#1576]) 
 
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -100,6 +101,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1503]: https://github.com/nymtech/nym/pull/1503
 [#1520]: https://github.com/nymtech/nym/pull/1520
 [#1573]: https://github.com/nymtech/nym/pull/1573
+[#1576]: https://github.com/nymtech/nym/pull/1576
 
 ## [v1.0.1](https://github.com/nymtech/nym/tree/v1.0.1) (2022-05-04)
 

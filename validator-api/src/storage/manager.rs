@@ -854,12 +854,11 @@ impl StorageManager {
         sqlx::query!(
             r#"
                 INSERT INTO rewarding_report
-                (absolute_epoch_id, eligible_mixnodes, possibly_unrewarded_mixnodes)
-                VALUES (?, ?, ?);
+                (absolute_epoch_id, eligible_mixnodes)
+                VALUES (?, ?);
             "#,
             report.absolute_epoch_id,
             report.eligible_mixnodes,
-            report.possibly_unrewarded_mixnodes,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -875,8 +874,7 @@ impl StorageManager {
             r#"
                 SELECT 
                     absolute_epoch_id as "absolute_epoch_id: u32",
-                    eligible_mixnodes as "eligible_mixnodes: u32",
-                    possibly_unrewarded_mixnodes as "possibly_unrewarded_mixnodes: u32"
+                    eligible_mixnodes as "eligible_mixnodes: u32"
                 FROM rewarding_report 
                 WHERE absolute_epoch_id = ?
             "#,

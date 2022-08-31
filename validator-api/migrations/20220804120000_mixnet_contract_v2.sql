@@ -22,15 +22,11 @@ ALTER TABLE rewarding_report
     RENAME TO rewarding_report_old;
 
 ALTER TABLE interval_rewarding
-    RENAME TO interval_rewarding_deprecated;
+    RENAME TO interval_rewarding_deprecated_unused;
 
 CREATE TABLE rewarding_report
 (
     absolute_epoch_id        INTEGER NOT NULL,
 
-    eligible_mixnodes            INTEGER NOT NULL,
-
-    possibly_unrewarded_mixnodes INTEGER NOT NULL,
-
-    FOREIGN KEY (absolute_epoch_id) REFERENCES interval_rewarding_deprecated (id)
+    eligible_mixnodes            INTEGER NOT NULL
 );

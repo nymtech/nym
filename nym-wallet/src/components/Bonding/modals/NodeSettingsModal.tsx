@@ -12,6 +12,7 @@ import { simulateUpdateMixnode, simulateVestingUpdateMixnode } from 'src/request
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
 
+//Now we are using the node setting page instead of this modal
 export const NodeSettings = ({
   currentPm,
   isVesting,

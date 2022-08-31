@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Divider, Typography, TextField, InputAdornment, Grid } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { Box, Button, Divider, Typography, TextField, InputAdornment, Grid, Alert } from '@mui/material';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
@@ -21,13 +20,18 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   return (
     <Box sx={{ width: '79.88%', minHeight: '' }}>
       {buttonActive && (
-        <Box sx={{ width: 1, py: 1, px: 2, display: 'flex', alignItems: 'center', bgcolor: 'background.default' }}>
-          <InfoOutlinedIcon sx={{ mr: 1, color: 'info.dark' }} />
-          <Typography sx={{ color: 'info.dark' }} variant="body2">
-            <span style={{ fontWeight: 600 }}>Your changes will be ONLY saved on the display.</span> Remember to change
-            the values on your node’s config file too.
-          </Typography>
-        </Box>
+        <Alert
+          severity="info"
+          sx={{
+            px: 2,
+            borderRadius: 0,
+            bgcolor: 'background.default',
+            color: 'info.dark',
+            '& .MuiAlert-icon': { color: 'info.dark' },
+          }}
+        >
+          <strong>Profit margin can be changed once a month, your changes will be applied in the next interval</strong>
+        </Alert>
       )}
       <Grid container direction="column">
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>

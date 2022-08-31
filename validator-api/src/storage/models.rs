@@ -46,6 +46,4 @@ pub(crate) struct RewardingReport {
     pub(crate) absolute_epoch_id: u32,
 
     pub(crate) eligible_mixnodes: u32,
-
-    pub(crate) possibly_unrewarded_mixnodes: u32,
 }

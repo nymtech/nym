@@ -4,23 +4,16 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
-type TSettingItem = {
-  id: string;
-  title: string;
-  value: number | string;
-};
-
-const currentProfitMargin: TSettingItem = { id: 'profit-margin', title: 'Profit margin', value: 10 };
-const currentOperatorCost: TSettingItem = { id: 'operator-cost', title: 'Operator cost', value: 40 };
-
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
+  const { profitMarginPercent, bond } = bondedNode;
+
   const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const [profitMargin, setProfitMargin] = useState<TSettingItem>(currentProfitMargin);
-  const [operatorCost, setOperatorCost] = useState<TSettingItem>(currentOperatorCost);
+  const [profitMargin, setProfitMargin] = useState<number | ''>(profitMarginPercent);
+  const [operatorCost, setOperatorCost] = useState<string>(bond.amount);
 
   useEffect(() => {
-    if (!profitMargin.value || !operatorCost.value) {
+    if (!profitMargin || !operatorCost || 0 >= profitMargin || 100 < profitMargin) {
       setButtonActive(false);
     }
   }, [profitMargin, operatorCost]);
@@ -53,18 +46,17 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             <Grid item width={1} spacing={3}>
               <TextField
                 type="input"
-                label={profitMargin.title}
-                value={profitMargin.value}
+                label="Profit margin"
+                value={profitMargin}
                 onChange={(e) => {
-                  console.log('parseInt(e.target.value)', { ...profitMargin, value: parseInt(e.target.value) });
-                  setProfitMargin({ ...profitMargin, value: parseInt(e.target.value) || '' });
+                  setProfitMargin(parseInt(e.target.value) || '');
                   setButtonActive(true);
                 }}
                 fullWidth
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <span>NYM</span>
+                      <span>%</span>
                     </InputAdornment>
                   ),
                 }}
@@ -89,18 +81,17 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             <Grid item width={1} spacing={3}>
               <TextField
                 type="input"
-                label={operatorCost.title}
-                value={operatorCost.value}
+                label="Operator cost"
+                value={operatorCost}
                 onChange={(e) => {
-                  console.log('nym', { ...operatorCost, value: parseInt(e.target.value) });
-                  setOperatorCost({ ...operatorCost, value: parseInt(e.target.value) || '' });
+                  setOperatorCost(e.target.value);
                   setButtonActive(true);
                 }}
                 fullWidth
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <span>%</span>
+                      <span>{bond.denom.toUpperCase()}</span>
                     </InputAdornment>
                   ),
                 }}

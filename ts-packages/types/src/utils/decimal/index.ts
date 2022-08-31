@@ -8,7 +8,7 @@ import { Decimal } from '@cosmjs/math';
 export const stringToDecimal = (raw: string): Decimal => Decimal.fromUserInput(raw, 0);
 
 export const decimalToPercentage = (raw: string) =>
-  Math.round(Decimal.fromUserInput(raw, 0).toFloatApproximation() * 100).toString();
+  Math.round(Decimal.fromUserInput(raw, 18).toFloatApproximation() * 100).toString();
 
 export const decimalToFloatApproximation = (raw: string): number =>
   Decimal.fromUserInput(raw, 0).toFloatApproximation();

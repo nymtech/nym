@@ -35,7 +35,7 @@ export type TBondGatewayArgs = {
 
 export type TBondMixNodeArgs = {
   mixnode: MixNode;
-  cost_params: MixNodeCostParams;
+  costParams: MixNodeCostParams;
   pledge: DecCoin;
   ownerSignature: string;
   fee?: Fee;

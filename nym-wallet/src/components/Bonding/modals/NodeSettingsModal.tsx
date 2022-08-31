@@ -5,7 +5,7 @@ import { Node as NodeIcon } from 'src/svg-icons/node';
 import { TBondedMixnode } from 'src/context';
 import { Tabs } from 'src/components/Tabs';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
-import { attachDefaultOperatingCost, isDecimal } from 'src/utils';
+import { attachDefaultOperatingCost, isDecimal, toPercentFloatString } from 'src/utils';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { simulateUpdateMixnodeCostParams, simulateVestingUpdateMixnodeCostParams } from 'src/requests';
@@ -53,7 +53,7 @@ export const NodeSettings = ({
     }
 
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(pm);
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
 
     if (isVesting) {
       await getFee(simulateVestingUpdateMixnodeCostParams, defaultCostParams);

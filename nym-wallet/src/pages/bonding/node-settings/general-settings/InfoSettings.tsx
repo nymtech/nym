@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
@@ -48,7 +49,16 @@ export const InfoSettings = () => {
   }, [valueChanged, mixPort, verloc, httpPort, host, version]);
 
   return (
-    <Box sx={{ width: 0.78 }}>
+    <Box sx={{ width: '79.88%' }}>
+      {buttonActive && (
+        <Box sx={{ width: 1, py: 1, px: 2, display: 'flex', alignItems: 'center', bgcolor: 'background.default' }}>
+          <InfoOutlinedIcon sx={{ mr: 1, color: 'info.dark' }} />
+          <Typography sx={{ color: 'info.dark' }} variant="body2">
+            <span style={{ fontWeight: 600 }}>Your changes will be ONLY saved on the display.</span> Remember to change
+            the values on your node’s config file too.
+          </Typography>
+        </Box>
+      )}
       <Grid container>
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item>

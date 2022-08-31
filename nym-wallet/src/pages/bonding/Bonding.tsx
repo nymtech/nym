@@ -7,7 +7,6 @@ import { TBondedMixnodeActions } from 'src/components/Bonding/BondedMixnodeActio
 import { BondGatewayModal } from 'src/components/Bonding/modals/BondGatewayModal';
 import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
-import { NodeSettings } from 'src/components/Bonding/modals/NodeSettingsModal';
 import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
@@ -21,7 +20,7 @@ import { Box } from '@mui/material';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
-    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'compound' | 'node-settings'
+    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'compound'
   >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
 
@@ -137,10 +136,6 @@ const Bonding = () => {
         setShowModal('compound');
         break;
       }
-      case 'nodeSettings': {
-        setShowModal('node-settings');
-        break;
-      }
       default: {
         return undefined;
       }
@@ -208,16 +203,6 @@ const Bonding = () => {
           node={bondedNode}
           onClose={() => setShowModal(undefined)}
           onConfirm={handleCompoundReward}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'node-settings' && bondedNode && isMixnode(bondedNode) && (
-        <NodeSettings
-          currentPm={bondedNode.profitMargin}
-          isVesting={Boolean(bondedNode.proxy)}
-          onConfirm={handleUpdateProfitMargin}
-          onClose={() => setShowModal(undefined)}
           onError={handleError}
         />
       )}

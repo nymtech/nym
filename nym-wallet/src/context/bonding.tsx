@@ -31,7 +31,7 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import { attachDefaultOperatingCost, toPercentFloatString } from '../utils';
+import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString } from '../utils';
 
 // TODO add relevant data
 export type TBondedMixnode = {
@@ -160,7 +160,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             data.bond_information.mix_node.host,
             data.bond_information.mix_node.http_api_port,
           );
-          const profitMargin = (Number(data.rewarding_details.cost_params.profit_margin_percent) * 100).toString();
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: data.bond_information.mix_node.identity_key,
@@ -170,7 +169,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
               denom: data.bond_information.original_pledge.denom,
             },
             bond: data.bond_information.original_pledge,
-            profitMargin,
+            profitMargin: toPercentIntegerString(data.rewarding_details.cost_params.profit_margin_percent),
             delegators: data.rewarding_details.unique_delegations,
             proxy: data.bond_information.proxy,
             operatorRewards,

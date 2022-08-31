@@ -134,3 +134,11 @@ export const attachDefaultOperatingCost = async (profitMarginPercent: string): P
  * @returns A stringified float
  */
 export const toPercentFloatString = (value: string) => (Number(value) / 100).toString();
+
+/**
+ * Converts a stringified percentage float (0.0-1.0) to a stringified integer (0-100).
+ *
+ * @param value - the percentage to convert
+ * @returns A stringified integer
+ */
+export const toPercentIntegerString = (value: string) => Math.round(Number(value) * 100).toString();

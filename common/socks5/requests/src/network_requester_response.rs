@@ -9,7 +9,7 @@ pub struct NetworkRequesterResponse {
     pub network_requester_error: String,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
     #[error("no data provided")]
     NoData,
@@ -66,5 +66,47 @@ impl NetworkRequesterResponse {
             .cloned()
             .chain(self.network_requester_error.into_bytes().into_iter())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod network_requester_response_serde_tests {
+    use super::*;
+
+    #[test]
+    fn simple_serde() {
+        let conn_id = 42;
+        let network_requester_error = String::from("This is a test msg");
+        let response = NetworkRequesterResponse::new(conn_id, network_requester_error.clone());
+        let bytes = response.into_bytes();
+        let deserialized_response = NetworkRequesterResponse::try_from_bytes(&bytes).unwrap();
+
+        assert_eq!(conn_id, deserialized_response.connection_id);
+        assert_eq!(
+            network_requester_error,
+            deserialized_response.network_requester_error
+        );
+    }
+
+    #[test]
+    fn deserialization_errors() {
+        let err = NetworkRequesterResponse::try_from_bytes(&[]).err().unwrap();
+        assert_eq!(err, Error::NoData);
+
+        let bytes: [u8; 5] = [1, 2, 3, 4, 5];
+        let err = NetworkRequesterResponse::try_from_bytes(&bytes)
+            .err()
+            .unwrap();
+        assert_eq!(err, Error::ConnectionIdTooShort);
+
+        let bytes: Vec<u8> = 42u64
+            .to_be_bytes()
+            .into_iter()
+            .chain([0, 159, 146, 150].into_iter())
+            .collect();
+        let err = NetworkRequesterResponse::try_from_bytes(&bytes)
+            .err()
+            .unwrap();
+        assert!(matches!(err, Error::MalformedErrorMessage(_)));
     }
 }

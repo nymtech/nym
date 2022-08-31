@@ -8,6 +8,9 @@ use mixnet_contract_common::rewarding::RewardEstimate;
 use mixnet_contract_common::{Interval, RewardedSetNodeStatus};
 
 pub fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal) -> Decimal {
+    if pledge_amount.is_zero() {
+        return Decimal::zero();
+    }
     let hundred = Decimal::from_ratio(100u32, 1u32);
 
     epochs_in_year * hundred * reward / pledge_amount

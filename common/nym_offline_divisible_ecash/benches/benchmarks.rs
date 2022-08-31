@@ -165,14 +165,16 @@ fn bench_divisible_ecash(c: &mut Criterion) {
     let params = Parameters::new(grp.clone());
 
     // KEY GENERATION FOR THE AUTHORITIES
-    let authorities_keypairs = ttp_keygen_authorities(&params, 2, 3).unwrap();
+    let threshold = (case.threshold_p * case.num_authorities as f32).round() as u64;
+    let authorities_keypairs = ttp_keygen_authorities(&params, threshold, case.num_authorities).unwrap();
     let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
         .iter()
         .map(|keypair| keypair.verification_key())
         .collect();
 
+    let indices: Vec<u64> = (1..case.num_authorities + 1).collect();
     let verification_key =
-        aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
 
     // KEY GENERATION FOR THE USER
     let sk = grp.random_scalar();

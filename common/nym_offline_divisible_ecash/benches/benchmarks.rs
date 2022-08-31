@@ -157,7 +157,7 @@ fn bench_divisible_ecash(c: &mut Criterion) {
         threshold_p: 0.7,
         L: 100,
         spend_vv: 10,
-        case_nr_pub_keys: 50,
+        case_nr_pub_keys: 99,
     };
 
     // SETUP PHASE

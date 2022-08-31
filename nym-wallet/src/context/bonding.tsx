@@ -31,7 +31,7 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import { attachDefaultOperatingCost } from '../utils';
+import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString } from '../utils';
 
 // TODO add relevant data
 export type TBondedMixnode = {
@@ -135,8 +135,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
 
   const getNodeDescription = async (host: string, port: number) => {
     try {
-      const nodeDescription = await getNodeDescriptioRequest(host, port);
-      return nodeDescription;
+      return await getNodeDescriptioRequest(host, port);
     } catch (e) {
       Console.log(e);
     }
@@ -170,7 +169,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
               denom: data.bond_information.original_pledge.denom,
             },
             bond: data.bond_information.original_pledge,
-            profitMargin: data.rewarding_details.cost_params.profit_margin_percent,
+            profitMargin: toPercentIntegerString(data.rewarding_details.cost_params.profit_margin_percent),
             delegators: data.rewarding_details.unique_delegations,
             proxy: data.bond_information.proxy,
             operatorRewards,
@@ -281,7 +280,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     setIsLoading(true);
 
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(pm);
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
 
     try {
       // JS: this check is not entirely valid. you can have proxy field set whilst not using the vesting contract,

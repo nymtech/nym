@@ -30,8 +30,17 @@ const Bonding = () => {
     userBalance: { originalVesting },
   } = useContext(AppContext);
 
-  const { bondedNode, bondMixnode, bondGateway, unbond, updateMixnode, redeemRewards, isLoading, checkOwnership, error } =
-    useBondingContext();
+  const {
+    bondedNode,
+    bondMixnode,
+    bondGateway,
+    unbond,
+    updateMixnode,
+    redeemRewards,
+    isLoading,
+    checkOwnership,
+    error,
+  } = useBondingContext();
 
   useEffect(() => {
     if (error) {

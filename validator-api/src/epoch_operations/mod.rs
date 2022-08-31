@@ -125,7 +125,9 @@ impl RewardedSetUpdater {
             return Ok(());
         }
 
-        if let Err(err) = self.nymd_client.send_rewarding_messages(&to_reward).await {
+        if to_reward.is_empty() {
+            info!("There are no nodes to reward in this epoch");
+        } else if let Err(err) = self.nymd_client.send_rewarding_messages(&to_reward).await {
             error!(
                 "failed to perform mixnode rewarding for epoch {}! Error encountered: {}",
                 current_interval.current_epoch_absolute_id(),
@@ -338,14 +340,25 @@ impl RewardedSetUpdater {
     pub(crate) async fn run(&mut self) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
+        const MAX_FAILURES: usize = 10;
+        let mut consecutive_failures = 0;
         loop {
+            if consecutive_failures == MAX_FAILURES {
+                error!("We have failed to perform epoch operations {} times in a row. The validator API will shutdown now", MAX_FAILURES);
+                std::process::exit(1);
+            }
+
             let interval_details = self.wait_until_epoch_end().await;
             if let Err(err) = self.update_blacklist(&interval_details).await {
                 error!("failed to update the node blacklist - {}", err);
                 continue;
             }
             if let Err(err) = self.perform_epoch_operations(interval_details).await {
-                error!("failed to perform epoch operations - {}", err)
+                error!("failed to perform epoch operations - {}", err);
+                consecutive_failures += 1;
+                sleep(Duration::from_secs(5)).await;
+            } else {
+                consecutive_failures = 0;
             }
         }
     }

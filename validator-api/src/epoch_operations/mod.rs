@@ -141,7 +141,6 @@ impl RewardedSetUpdater {
         let rewarding_report = RewardingReport {
             absolute_epoch_id: current_interval.current_epoch_absolute_id(),
             eligible_mixnodes: to_reward.len() as u32,
-            possibly_unrewarded_mixnodes: 0,
         };
 
         self.storage
@@ -195,7 +194,20 @@ impl RewardedSetUpdater {
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
     async fn perform_epoch_operations(&self, interval: Interval) -> Result<(), RewardingError> {
-        log::info!("The current epoch has finished. Performing all epoch operations...");
+        log::info!("The current epoch has finished.");
+        log::info!(
+            "Interval id: {}, epoch id: {} (absolute epoch id: {})",
+            interval.current_interval_id(),
+            interval.current_epoch_id(),
+            interval.current_epoch_absolute_id()
+        );
+        log::info!(
+            "The current epoch has lasted from {} until {}",
+            interval.current_epoch_start(),
+            interval.current_epoch_end()
+        );
+
+        log::info!("Performing all epoch operations...");
 
         let epoch_end = interval.current_epoch_end();
 
@@ -214,6 +226,11 @@ impl RewardedSetUpdater {
             log::error!("FAILED to reward rewarded set - {}", err);
             // since we haven't advanced the epoch yet, we will attempt to reward those nodes again
             // next time we enter this function (i.e. within 2min or so)
+            //
+            // TODO: deal with the following edge case:
+            // - the validator api REWARDS all mixnodes
+            // - then crashes before advancing epoch
+            // - upon restart it will attempt (and fail) to re-reward the mixnodes
             return Err(err);
         } else {
             log::info!("Rewarded current rewarded set... SUCCESS");

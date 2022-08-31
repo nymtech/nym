@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Button, Divider, Typography, TextField, Grid } from '@mui/material';
 
 type TSettingItem = {
@@ -10,6 +10,7 @@ type TSettingItem = {
 const portRegex = /^\d{4}$/;
 const ipRegex =
   /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+// TODO: only accept valid nym wallet versions
 const appVersionRegex = /^\d+(?:\.\d+){2}$/gm;
 
 const currentMixPort: TSettingItem = { id: 'mixPort', title: 'Mix port', value: '1789' };
@@ -28,7 +29,6 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
   const [version, setVersion] = useState<TSettingItem>(currentVersion);
 
   useEffect(() => {
-    console.log('host.value.match(ipRegex)', Boolean(host.value.match(ipRegex)));
     if (valueChanged) {
       if (
         Boolean(mixPort.value.match(portRegex)) &&
@@ -60,7 +60,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            <Grid item width={1} spacing={3}>
+            <Grid item width={1}>
               <TextField
                 type="input"
                 label={mixPort.title}
@@ -72,7 +72,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
                 fullWidth
               />
             </Grid>
-            <Grid item width={1} spacing={3}>
+            <Grid item width={1}>
               <TextField
                 type="input"
                 label={verloc.title}
@@ -84,7 +84,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
                 fullWidth
               />
             </Grid>
-            <Grid item width={1} spacing={3}>
+            <Grid item width={1}>
               <TextField
                 type="input"
                 label={httpPort.title}
@@ -112,7 +112,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            <Grid item width={1} spacing={3}>
+            <Grid item width={1}>
               <TextField
                 type="input"
                 label={host.title}
@@ -140,7 +140,7 @@ export const InfoSettings = ({ onSaveChanges }: { onSaveChanges: () => void }) =
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" maxWidth="348px">
-            <Grid item width={1} spacing={3}>
+            <Grid item width={1}>
               <TextField
                 type="input"
                 label={version.title}

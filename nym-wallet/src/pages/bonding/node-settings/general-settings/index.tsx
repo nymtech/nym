@@ -24,6 +24,7 @@ export const NodeGeneralSettings = ({ onSaveChanges }: { onSaveChanges: () => vo
                   color: 'primary.main',
                 },
               }}
+              key={item}
               onClick={() => setSettingsCard(item)}
             >
               {item}

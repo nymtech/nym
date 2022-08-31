@@ -173,7 +173,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         .map(|keypair| keypair.verification_key())
         .collect();
 
-    let indices: Vec<u64> = (0..case.num_authorities).collect();
+    let indices: Vec<u64> = (1..case.num_authorities + 1).collect();
     let verification_key =
         aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
     // ISSUANCE PHASE

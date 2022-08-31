@@ -1,26 +1,24 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
+use thiserror::Error;
 
 use crate::request::{Request, RequestError};
 use crate::response::{Response, ResponseError};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum MessageError {
+    #[error("{0}")]
     Request(RequestError),
-    Response(ResponseError),
-    NoData,
-    UnknownMessageType,
-}
 
-impl std::fmt::Display for MessageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MessageError::Request(r) => write!(f, "{}", r),
-            MessageError::Response(r) => write!(f, "{:?}", r),
-            MessageError::NoData => write!(f, "no data provided"),
-            MessageError::UnknownMessageType => write!(f, "unknown message type received"),
-        }
-    }
+    #[error("{0:?}")]
+    Response(ResponseError),
+
+    #[error("no data")]
+    NoData,
+
+    #[error("unknown message type received")]
+    UnknownMessageType,
 }
 
 pub enum Message {

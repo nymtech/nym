@@ -159,21 +159,23 @@ fn bench_compact_ecash(c: &mut Criterion) {
         num_authorities: 100,
         threshold_p: 0.7,
         L: 100,
-        spend_vv: 10,
+        spend_vv: 1,
         case_nr_pub_keys: 50,
     };
 
     let params = setup(case.L);
     let grp = params.grp();
     let user_keypair = generate_keypair_user(&grp);
-    let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
+    let threshold = (case.threshold_p * case.num_authorities as f32).round() as u64;
+    let authorities_keypairs = ttp_keygen(&grp, threshold, case.num_authorities).unwrap();
     let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
         .iter()
         .map(|keypair| keypair.verification_key())
         .collect();
 
+    let indices: Vec<u64> = (0..case.num_authorities).collect();
     let verification_key =
-        aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
     // ISSUANCE PHASE
 
     let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();

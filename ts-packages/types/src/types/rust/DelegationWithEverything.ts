@@ -1,6 +1,6 @@
-import type { DecCoin } from './DecCoin';
-import type { DelegationRecord } from './DelegationRecord';
-import type { MixNodeCostParams } from './MixNodeCostParams';
+import type { DecCoin } from "./DecCoin";
+import type { DelegationEvent } from "./DelegationEvent";
+import type { MixNodeCostParams } from "./MixNodeCostParams";
 
 export interface DelegationWithEverything {
   owner: string;
@@ -16,5 +16,5 @@ export interface DelegationWithEverything {
   stake_saturation: string | null;
   uses_vesting_contract_tokens: boolean;
   unclaimed_rewards: DecCoin | null;
-  history: Array<DelegationRecord>;
+  pending_events: Array<DelegationEvent>;
 }

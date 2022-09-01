@@ -5,8 +5,7 @@ use mixnet_contract_common::{
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
 use nym_types::delegation::{
-    Delegation, DelegationRecord, DelegationResult, DelegationWithEverything,
-    DelegationsSummaryResponse,
+    Delegation, DelegationResult, DelegationWithEverything, DelegationsSummaryResponse,
 };
 use nym_types::deprecated::{DelegationEvent, DelegationEventKind, WrappedDelegationEvent};
 use nym_types::fees::{self, FeeDetails};
@@ -75,7 +74,6 @@ fn main() {
     do_export!(Delegation);
     do_export!(DelegationEvent);
     do_export!(DelegationEventKind);
-    do_export!(DelegationRecord);
     do_export!(DelegationResult);
     do_export!(DelegationsSummaryResponse);
     do_export!(DelegationWithEverything);

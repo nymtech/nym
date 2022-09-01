@@ -86,7 +86,7 @@ impl TryFrom<PendingEpochEventData> for DelegationEvent {
                 amount,
                 proxy,
             } => Ok(DelegationEvent {
-                kind: DelegationEventKind::Undelegate,
+                kind: DelegationEventKind::Delegate,
                 address: owner,
                 mix_id,
                 proxy,

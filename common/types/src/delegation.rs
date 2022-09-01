@@ -1,4 +1,5 @@
 use crate::currency::{DecCoin, RegisteredCoins};
+use crate::deprecated::DelegationEvent;
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
 use cosmwasm_std::Decimal;
@@ -38,19 +39,6 @@ impl Delegation {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationRecord.ts")
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct DelegationRecord {
-    pub amount: DecCoin,
-    pub block_height: u64,
-    pub delegated_on_iso_datetime: String,
-    pub uses_vesting_contract_tokens: bool,
-}
-
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationWithEverything.ts")
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
@@ -71,7 +59,9 @@ pub struct DelegationWithEverything {
 
     pub uses_vesting_contract_tokens: bool,
     pub unclaimed_rewards: Option<DecCoin>,
-    pub history: Vec<DelegationRecord>,
+
+    // DEPRECATED, IF POSSIBLE TRY TO DISCONTINUE USE OF IT!
+    pub pending_events: Vec<DelegationEvent>,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

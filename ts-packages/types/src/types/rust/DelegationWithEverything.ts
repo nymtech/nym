@@ -1,4 +1,5 @@
 import type { DecCoin } from './DecCoin';
+import type { DelegationEvent } from './DelegationEvent';
 import type { MixNodeCostParams } from './MixNodeCostParams';
 
 export interface DelegationWithEverything {
@@ -15,4 +16,5 @@ export interface DelegationWithEverything {
   stake_saturation: string | null;
   uses_vesting_contract_tokens: boolean;
   unclaimed_rewards: DecCoin | null;
+  pending_events: Array<DelegationEvent>;
 }

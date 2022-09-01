@@ -13,7 +13,6 @@ use nym_types::deprecated::{
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use std::collections::HashMap;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
 

@@ -15,10 +15,10 @@ import {
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { decimalToFloatApproximation, DelegationWithEverything } from '@nymproject/types';
+import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { format } from 'date-fns';
-import { DelegationListItemActions } from './DelegationActions';
+import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
 import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
 import { toPercentIntegerString } from '../../utils';
 
@@ -134,9 +134,18 @@ export const DelegationList: React.FC<{
 
   const getStakeSaturation = (item: DelegationWithEvent) => {
     if (isDelegation(item)) {
-      return !item.stake_saturation ? '-' : `${Math.round(decimalToFloatApproximation(item.stake_saturation))}`;
+      return !item.stake_saturation ? '-' : `${decimalToPercentage(item.stake_saturation)}%`;
     }
     return '';
+  };
+
+  const getRewardValue = (item: DelegationWithEvent) => {
+    if (isPendingDelegation(item)) {
+      return '';
+    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { unclaimed_rewards } = item;
+    return !unclaimed_rewards ? '-' : `${unclaimed_rewards.amount} ${unclaimed_rewards.denom}`;
   };
 
   return (
@@ -174,16 +183,25 @@ export const DelegationList: React.FC<{
                     {isDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
                   </Typography>
                 </TableCell>
-
+                <TableCell sx={{ textTransform: 'uppercase' }}>{getRewardValue(item)}</TableCell>
                 <TableCell align="right">
-                  {/* {!isPendingDelegation(item) && !item.pending_events.length && (
+                  {isDelegation(item) && !item.pending_events.length && (
                     <DelegationsActionsMenu
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
-                      disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
+                      disableRedeemingRewards={!item.unclaimed_rewards || item.unclaimed_rewards.amount === '0'}
                     />
-                  )} */}
+                  )}
+                  {isDelegation(item) && item.pending_events.length > 0 && (
+                    <Tooltip
+                      title="Your changes will take effect when
+the new epoch starts. There is a new
+epoch every hour."
+                      arrow
+                    >
+                      <Chip label="Pending Events" />
+                    </Tooltip>
+                  )}
                   {isPendingDelegation(item) && (
                     <Tooltip
                       title={`Your delegation of ${item.event.amount?.amount} ${item.event.amount?.denom} will take effect 

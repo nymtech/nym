@@ -31,7 +31,6 @@ export const items: DelegationWithEverything[] = [
     block_height: BigInt(100),
     stake_saturation: '0.5',
     avg_uptime_percent: 0.5,
-    history: [],
     uses_vesting_contract_tokens: false,
   },
   {
@@ -53,7 +52,6 @@ export const items: DelegationWithEverything[] = [
     block_height: BigInt(4000),
     stake_saturation: '0.5',
     avg_uptime_percent: 0.1,
-    history: [],
     uses_vesting_contract_tokens: true,
   },
 ];

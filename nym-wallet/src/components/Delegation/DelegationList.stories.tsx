@@ -32,6 +32,7 @@ export const items: DelegationWithEverything[] = [
     stake_saturation: '0.5',
     avg_uptime_percent: 0.5,
     uses_vesting_contract_tokens: false,
+    pending_events: [],
   },
   {
     mix_id: 5678,
@@ -53,6 +54,7 @@ export const items: DelegationWithEverything[] = [
     stake_saturation: '0.5',
     avg_uptime_percent: 0.1,
     uses_vesting_contract_tokens: true,
+    pending_events: [],
   },
 ];
 

@@ -23,6 +23,7 @@ const nymPalette: NymPalette = {
   highlight: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
+  red: '#DA465B',
   fee: '#967FF0',
   background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {

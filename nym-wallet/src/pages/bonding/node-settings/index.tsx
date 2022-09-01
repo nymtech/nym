@@ -26,7 +26,6 @@ export const NodeSettings = () => {
   const navigate = useNavigate();
 
   const handleUnbond = async (fee?: FeeDetails) => {
-    navigate('/bonding');
     const tx = await unbond(fee);
     setConfirmationDetails({
       status: 'success',
@@ -36,7 +35,6 @@ export const NodeSettings = () => {
   };
 
   const handleError = (error: string) => {
-    navigate('/bonding');
     setConfirmationDetails({
       status: 'error',
       title: 'An error occurred',

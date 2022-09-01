@@ -46,7 +46,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             borderRadius: 0,
             bgcolor: 'background.default',
             color: (theme) => theme.palette.nym.nymWallet.text.blue,
-            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue },
+            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue, mr: 1 },
           }}
         >
           <strong>Profit margin can be changed once a month, your changes will be applied in the next interval</strong>

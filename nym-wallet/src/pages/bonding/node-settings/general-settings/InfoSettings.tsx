@@ -79,7 +79,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             borderRadius: 0,
             bgcolor: 'background.default',
             color: (theme) => theme.palette.nym.nymWallet.text.blue,
-            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue },
+            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue, mr: 1 },
           }}
         >
           <strong>Your changes will be ONLY saved on the display.</strong> Remember to change the values on your node’s

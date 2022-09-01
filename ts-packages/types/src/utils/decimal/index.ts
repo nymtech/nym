@@ -11,4 +11,4 @@ export const decimalToPercentage = (raw: string) =>
   Math.round(Decimal.fromUserInput(raw, 18).toFloatApproximation() * 100).toString();
 
 export const decimalToFloatApproximation = (raw: string): number =>
-  Decimal.fromUserInput(raw, 0).toFloatApproximation();
+  Decimal.fromUserInput(raw, 18).toFloatApproximation();

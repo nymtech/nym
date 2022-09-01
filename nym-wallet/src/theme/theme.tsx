@@ -23,7 +23,6 @@ const nymPalette: NymPalette = {
   highlight: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
-  infoDark: '#514EFB',
   fee: '#967FF0',
   background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
@@ -50,6 +49,7 @@ const darkMode: NymPaletteVariant = {
     warn: '#FFE600',
     contrast: '#1D2125',
     grey: '#5B6174',
+    blue: '#60D7EF',
   },
   topNav: {
     background: '#111826',
@@ -77,6 +77,7 @@ const lightMode: NymPaletteVariant = {
     warn: '#FFE600',
     contrast: '#FFFFFF',
     grey: '#3A4053',
+    blue: '#514EFB',
   },
   topNav: {
     background: '#111826',
@@ -123,7 +124,6 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   },
   info: {
     main: nymPalette.info,
-    dark: nymPalette.infoDark,
   },
   background: {
     default: variant.background.main,

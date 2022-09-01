@@ -12,7 +12,7 @@ export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode
   return (
     <Box sx={{ pl: 3, pt: 3 }}>
       <Grid container direction="row" spacing={3}>
-        <Grid item container direction="column" width={0.2}>
+        <Grid item container direction="column" xs={3}>
           {nodeGeneralNav.map((item) => (
             <Button
               size="small"

@@ -31,7 +31,6 @@ declare module '@mui/material/styles' {
     highlight: string;
     success: string;
     info: string;
-    infoDark: string;
     fee: string;
     background: { light: string; dark: string };
     text: {
@@ -58,6 +57,7 @@ declare module '@mui/material/styles' {
       warn: string;
       contrast: string;
       grey: string;
+      blue: string;
     };
     topNav: {
       background: string;

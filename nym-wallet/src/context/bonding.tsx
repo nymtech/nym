@@ -195,7 +195,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
-            host: mix_node.host,
+            host: mix_node.host.replace(/\s/g, ''),
             httpApiPort: mix_node.http_api_port,
             mixPort: mix_node.mix_port,
             profitMarginPercent: mix_node.profit_margin_percent,

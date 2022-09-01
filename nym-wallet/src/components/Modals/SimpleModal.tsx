@@ -45,7 +45,7 @@ export const SimpleModal: React.FC<{
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
     <Box sx={{ ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
-      {displayInfoIcon && <InfoOutlinedIcon sx={{ mb: 2, color: 'info.dark' }} />}
+      {displayInfoIcon && <InfoOutlinedIcon sx={{ mb: 2, color: (theme) => theme.palette.nym.nymWallet.text.blue }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         {typeof header === 'string' ? (
           <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>

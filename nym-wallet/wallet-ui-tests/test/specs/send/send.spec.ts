@@ -53,7 +53,7 @@ describe.skip('Send modal functions correctly', () => {
 
         // calculate the transaction and verify it has been correctly executed
         let sumCost = await Helper.calculateFees(getCurrentBalance, fee, textConstants.amountToSend, true)
-        const getNewBalance = await Balance.nymBalance.getText()
+        const getNewBalance = await (await Balance.nymBalance).getText()
 
         await Helper.navigateAndClick(Send.done)
         // TO-DO the following fails with "TypeError: elem[prop] is not a function"

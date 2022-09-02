@@ -6,7 +6,7 @@ const deleteScript = require("../../../scripts/deletesavedwallet")
 const Helper = require('../../../common/helper');
 
 
-describe('Create a new account and verify it exists', () => {
+describe.skip('Create a new account and verify it exists', () => {
 
     it('generate new mnemonic and verify mnemonic words', async () => {
 

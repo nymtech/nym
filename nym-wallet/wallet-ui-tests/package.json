@@ -10,18 +10,18 @@
     "test:nav": "wdio run wdio.conf.ts --suite nav",
     "test:send": "wdio run wdio.conf.ts --suite send",
     "test:delegation": "wdio run wdio.conf.ts --suite delegation"
-    
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
     "-": "^0.0.1",
-    "@wdio/cli": "^7.16.16",
+    "@types/mocha": "^9.1.1",
     "save-dev": "^0.0.1-security",
-    "@zxing/browser": "^0.0.9",
-    "ts-node": "^10.6.0"
+    "ts-node": "^10.6.0",
+    "wdio": "^6.0.1"
   },
   "devDependencies": {
+    "@wdio/cli": "^7.24.0",
     "@wdio/local-runner": "^7.16.16",
     "@wdio/mocha-framework": "^7.16.15",
     "@wdio/spec-reporter": "^7.16.14",

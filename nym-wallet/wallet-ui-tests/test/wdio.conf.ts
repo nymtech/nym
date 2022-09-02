@@ -14,26 +14,26 @@ exports.config = {
       project: 'tsconfig.json',
     },
   },
-  specs: ['./tests/specs/**/*.ts'],
+  specs: ['./test/specs/**/*.ts'],
 
   suites: {
     signup: [
-      './tests/specs/newaccount/*.ts',
+      './test/specs/newaccount/*.ts',
     ],
     login: [
-      './tests/specs/existingaccount/*.ts',
+      './test/specs/existingaccount/*.ts',
     ],
     balance: [
-      './tests/specs/balance/*.ts',
+      './test/specs/balance/*.ts',
     ],
     nav: [
-      './tests/specs/navbaritems/*.ts',
+      './test/specs/navbaritems/*.ts',
     ],
     send: [
-      './tests/specs/send/*.ts',
+      './test/specs/send/*.ts',
     ],
     delegation: [
-      './tests/specs/delegation/*.ts',
+      './test/specs/delegation/*.ts',
     ],
   },
   // Patterns to exclude.

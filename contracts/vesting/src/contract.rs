@@ -49,10 +49,7 @@ pub fn instantiate(
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     migrate_config_from_env(_deps, _env, _msg)?;
-    todo!("we'd probably need to explicitly undelegate/unbond everyone here to move to the new system");
 
-    // temporary workaround to shut up linter
-    #[allow(unreachable_code)]
     Ok(Response::default())
 }
 

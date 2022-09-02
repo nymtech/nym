@@ -9,7 +9,7 @@ use crate::traits::{
 };
 use crate::vesting::{populate_vesting_periods, Account};
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
+    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, Event, MessageInfo, Order,
     QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
@@ -63,7 +63,7 @@ fn update_delegation_to_v2(
 
     // this MUST succeed since we know this delegation was created via vesting contract...
     let account = account_from_address(&owner, deps.storage, deps.api)?;
-    let storage_prefix = (account.storage_key(), node_identity);
+    let storage_prefix = (account.storage_key(), node_identity.clone());
     let old_data = OLD_DELEGATIONS
         .prefix(storage_prefix.clone())
         .range(deps.storage, None, None, Order::Ascending)

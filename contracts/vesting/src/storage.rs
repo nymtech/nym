@@ -52,10 +52,8 @@ pub fn remove_delegation(
     key: (u32, IdentityKey, BlockTimestampSecs),
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    Err(ContractError::MaintenanceMode)
-    //
-    // DELEGATIONS.remove(storage, key);
-    // Ok(())
+    OLD_DELEGATIONS.remove(storage, key);
+    Ok(())
 }
 
 pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {

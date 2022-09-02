@@ -56,6 +56,8 @@ fn migrate_operator(
 
 fn is_proxy_vesting(proxy: Option<&Addr>, vesting_contract: &str) -> bool {
     if let Some(proxy) = proxy {
+        // bypass for my local network where I just imported contract state to fresh contract
+        // return true;
         if proxy.as_ref() == vesting_contract {
             return true;
         }
@@ -132,30 +134,18 @@ fn migrate_delegator(
             .expect("failed to serialize mixnode migration msg");
         response.messages.push(SubMsg::new(wasm_msg));
     } else {
-        let mut to_address = delegation.owner.to_string();
-        let mut make_bank_msg = true;
         // if the specified proxy matches the vesting contract address -> treat it as "proper" undelegation
         // and send tokens back there
-        if let Some(proxy) = delegation.proxy {
-            to_address = proxy.to_string();
-            if proxy == vesting_contract {
-                make_bank_msg = false;
-                let vesting_track = VestingContractExecuteMsg::TrackUndelegation {
-                    owner: delegation.owner.to_string(),
-                    mix_identity: delegation.node_identity,
-                    amount: delegation.amount.clone(),
-                };
-                let wasm_msg = wasm_execute(
-                    vesting_contract,
-                    &vesting_track,
-                    vec![delegation.amount.clone()],
-                )?;
-                response.messages.push(SubMsg::new(wasm_msg));
-            }
-        }
-
-        // otherwise just send tokens back to the user / different proxy
-        if make_bank_msg {
+        if is_proxy_vesting(delegation.proxy.as_ref(), vesting_contract) {
+            let vesting_track = VestingContractExecuteMsg::TrackUndelegation {
+                owner: delegation.owner.to_string(),
+                mix_identity: delegation.node_identity.clone(),
+                amount: delegation.amount.clone(),
+            };
+            let wasm_msg = wasm_execute(vesting_contract, &vesting_track, vec![delegation.amount])?;
+            response.messages.push(SubMsg::new(wasm_msg));
+        } else {
+            let to_address = delegation.proxy.unwrap_or(delegation.owner).into_string();
             let return_tokens = BankMsg::Send {
                 to_address,
                 amount: vec![delegation.amount],

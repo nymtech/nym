@@ -3,7 +3,7 @@ use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
     remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
-    save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
+    save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY, OLD_DELEGATIONS,
 };
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
@@ -212,38 +212,36 @@ impl Account {
         mix: &str,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        Err(ContractError::MaintenanceMode)
-        //
-        // let limit = 50;
-        // let mut start_after = None;
-        // let mut block_heights = Vec::new();
-        // let mut prev_len = 0;
-        // // TODO: Test this
-        // loop {
-        //     block_heights.extend(
-        //         DELEGATIONS
-        //             .prefix((self.storage_key(), mix.to_string()))
-        //             .keys(storage, start_after, None, Order::Ascending)
-        //             .take(limit)
-        //             .filter_map(|key| key.ok()),
-        //     );
-        //
-        //     if prev_len == block_heights.len() {
-        //         break;
-        //     }
-        //
-        //     prev_len = block_heights.len();
-        //
-        //     start_after = block_heights.last().map(|last| Bound::exclusive(*last));
-        //     if start_after.is_none() {
-        //         break;
-        //     }
-        // }
-        //
-        // for block_height in block_heights {
-        //     remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
-        // }
-        // Ok(())
+        let limit = 50;
+        let mut start_after = None;
+        let mut block_heights = Vec::new();
+        let mut prev_len = 0;
+        // TODO: Test this
+        loop {
+            block_heights.extend(
+                OLD_DELEGATIONS
+                    .prefix((self.storage_key(), mix.to_string()))
+                    .keys(storage, start_after, None, Order::Ascending)
+                    .take(limit)
+                    .filter_map(|key| key.ok()),
+            );
+
+            if prev_len == block_heights.len() {
+                break;
+            }
+
+            prev_len = block_heights.len();
+
+            start_after = block_heights.last().map(|last| Bound::exclusive(*last));
+            if start_after.is_none() {
+                break;
+            }
+        }
+
+        for block_height in block_heights {
+            remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
+        }
+        Ok(())
     }
 
     pub fn total_delegations_for_mix(

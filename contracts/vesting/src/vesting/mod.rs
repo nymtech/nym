@@ -929,30 +929,18 @@ mod tests {
     #[test]
     fn migrate_heights_to_timestamps() {
         let mut deps = init_contract();
-        let env = mock_env();
+        let mut env = mock_env();
 
         let account = vesting_account_new_fixture(&mut deps.storage, &env);
         let mix_identity = String::from("identity");
         let mut curr_block = env.block.clone();
-        let delegation_blocks = std::iter::from_fn(move || {
+        let mut delegation_blocks = std::iter::from_fn(move || {
             curr_block.height += 1;
             curr_block.time = curr_block.time.plus_seconds(5);
             Some(curr_block.clone())
         })
         .take(100)
         .collect::<Vec<_>>();
-
-        // account
-        //     .try_delegate_to_mixnode(
-        //         String::from("identity"),
-        //         Coin {
-        //             amount: Uint128::new(90_000_000_000),
-        //             denom: TEST_COIN_DENOM.to_string(),
-        //         },
-        //         &env,
-        //         &mut deps.storage,
-        //     )
-        //     .unwrap();
 
         for block in delegation_blocks.iter() {
             DELEGATIONS
@@ -995,6 +983,22 @@ mod tests {
             deps.as_mut(),
         )
         .unwrap();
+
+        // Some new delegation appears during migration
+        env.block.height += 200;
+        env.block.time = env.block.time.plus_seconds(1000);
+        delegation_blocks.push(env.block.clone());
+        account
+            .try_delegate_to_mixnode(
+                String::from("identity"),
+                Coin {
+                    amount: Uint128::new(90_000_000_000),
+                    denom: TEST_COIN_DENOM.to_string(),
+                },
+                &env,
+                &mut deps.storage,
+            )
+            .unwrap();
 
         let delegations = try_get_delegation_times(
             deps.as_ref(),

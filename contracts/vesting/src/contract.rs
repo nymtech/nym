@@ -131,11 +131,11 @@ pub fn execute(
             try_update_staking_address(to_address, info, deps)
         }
         ExecuteMsg::MigrateHeightsToTimestamps {
-            delegator,
+            account_id,
             mix_identity,
             height_timestamp_map,
         } => try_migrate_heights_to_timestamps(
-            delegator,
+            account_id,
             mix_identity,
             height_timestamp_map,
             info,
@@ -253,7 +253,7 @@ fn try_update_staking_address(
 }
 
 pub fn try_migrate_heights_to_timestamps(
-    delegator: String,
+    account_id: u32,
     mix_identity: String,
     mut height_timestamp_map: Vec<(u64, u64)>,
     info: MessageInfo,
@@ -262,9 +262,8 @@ pub fn try_migrate_heights_to_timestamps(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-    let account = account_from_address(&delegator, deps.storage, deps.api)?;
     let mut delegation_heights = DELEGATIONS
-        .prefix((account.storage_key(), mix_identity.clone()))
+        .prefix((account_id, mix_identity.clone()))
         .range(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
 
@@ -294,12 +293,9 @@ pub fn try_migrate_heights_to_timestamps(
     for ((old_key, new_key), (_, amount)) in
         height_timestamp_map.iter().zip(delegation_heights.iter())
     {
-        remove_delegation(
-            (account.storage_key(), mix_identity.clone(), *old_key),
-            deps.storage,
-        )?;
+        remove_delegation((account_id, mix_identity.clone(), *old_key), deps.storage)?;
         save_delegation(
-            (account.storage_key(), mix_identity.clone(), *new_key),
+            (account_id, mix_identity.clone(), *new_key),
             *amount,
             deps.storage,
         )?;

@@ -120,7 +120,7 @@ pub enum ExecuteMsg {
         amount: Uint128,
     },
     MigrateHeightsToTimestamps {
-        delegator: String,
+        account_id: u32,
         mix_identity: String,
         height_timestamp_map: Vec<(u64, u64)>,
     },

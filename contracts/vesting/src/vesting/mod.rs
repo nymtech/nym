@@ -976,7 +976,7 @@ mod tests {
             .collect();
         let admin = ADMIN.load(&deps.storage).unwrap();
         try_migrate_heights_to_timestamps(
-            account.owner_address().to_string(),
+            account.storage_key(),
             mix_identity.clone(),
             height_timestamp_map,
             mock_info(&admin, &[]),

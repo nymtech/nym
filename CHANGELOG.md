@@ -12,9 +12,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
+- wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
+[#1585]: https://github.com/nymtech/nym/pull/1585
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

@@ -1,6 +1,6 @@
-import type { DecCoin } from "./DecCoin";
-import type { DelegationEvent } from "./DelegationEvent";
-import type { MixNodeCostParams } from "./MixNodeCostParams";
+import type { DecCoin } from './DecCoin';
+import type { DelegationEvent } from './DelegationEvent';
+import type { MixNodeCostParams } from './MixNodeCostParams';
 
 export interface DelegationWithEverything {
   owner: string;

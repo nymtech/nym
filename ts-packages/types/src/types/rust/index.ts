@@ -10,7 +10,6 @@ export * from './DecCoin';
 export * from './Delegation';
 export * from './DelegationEvent';
 export * from './DelegationEventKind';
-export * from './DelegationRecord';
 export * from './DelegationResult';
 export * from './DelegationSummaryResponse';
 export * from './DelegationWithEverything';

@@ -23,7 +23,7 @@ use {
     },
 };
 
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
 use {
     credentials::token::bandwidth::TokenCredential,
     crypto::asymmetric::identity,
@@ -45,7 +45,7 @@ use {
     },
 };
 
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
 pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {
     Contract::from_json(
         web3.eth(),
@@ -58,7 +58,7 @@ pub fn eth_contract(web3: Web3<Http>) -> Contract<Http> {
     .expect("Invalid json abi")
 }
 
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
 pub fn eth_erc20_contract(web3: Web3<Http>) -> Contract<Http> {
     Contract::from_json(
         web3.eth(),
@@ -76,11 +76,11 @@ pub struct BandwidthController<St: Storage> {
     storage: St,
     #[cfg(feature = "coconut")]
     validator_endpoints: Vec<url::Url>,
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     contract: Contract<Http>,
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     erc20_contract: Contract<Http>,
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     eth_private_key: SecretKey,
 }
 
@@ -96,7 +96,7 @@ where
         }
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     pub fn new(
         storage: St,
         eth_endpoint: String,
@@ -120,7 +120,7 @@ where
         })
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     async fn backup_keypair(&self, keypair: &identity::KeyPair) -> Result<(), GatewayClientError> {
         self.storage
             .insert_erc20_credential(
@@ -132,7 +132,7 @@ where
         Ok(())
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     async fn restore_keypair(&self) -> Result<identity::KeyPair, GatewayClientError> {
         let data = self.storage.get_next_erc20_credential().await?;
         let public_key = identity::PublicKey::from_base58_string(data.public_key).unwrap();
@@ -141,7 +141,7 @@ where
         Ok(identity::KeyPair::from_keys(private_key, public_key))
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     async fn mark_keypair_as_spent(
         &self,
         keypair: &identity::KeyPair,
@@ -180,7 +180,7 @@ where
         )?)
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     pub async fn prepare_token_credential(
         &self,
         gateway_identity: identity::PublicKey,
@@ -219,7 +219,7 @@ where
         ))
     }
 
-    #[cfg(not(feature = "coconut"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
     pub async fn buy_token_credential(
         &self,
         verification_key: identity::PublicKey,
@@ -348,7 +348,7 @@ where
     }
 }
 
-#[cfg(not(feature = "coconut"))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "coconut")))]
 #[cfg(test)]
 mod tests {
     use network_defaults::ETH_EVENT_NAME;

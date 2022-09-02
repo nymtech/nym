@@ -15,8 +15,8 @@ log = "0.4"
 thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-secp256k1 = "0.20.3"
-web3 = { version = "0.17.0", default-features = false }
+secp256k1 = { version = "0.20.3", optional = true }
+web3 = { version = "0.17.0", default-features = false, optional = true }
 async-trait = { version = "0.1.51" }
 
 # internal
@@ -73,5 +73,5 @@ features = ["js"]
 
 [features]
 coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
-wasm = ["web3/wasm", "web3/http", "web3/signing"]
-default = ["web3/default"]
+wasm = []
+default = ["web3/default", "secp256k1"]

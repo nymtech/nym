@@ -8,5 +8,8 @@
             "expect-webdriverio"
         ],
         "target": "es2019"
-    }
+    },
+    "include": [
+        "wallet-ui-tests/*"
+      ]
 }

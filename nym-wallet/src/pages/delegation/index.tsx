@@ -18,6 +18,7 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { toPercentIntegerString } from '../../utils';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -329,7 +330,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           denom={clientDetails?.display_mix_denom || 'nym'}
           accountBalance={balance?.printable_balance}
           nodeUptimePercentage={currentDelegationListActionItem.avg_uptime_percent}
-          profitMarginPercentage={currentDelegationListActionItem.cost_params?.profit_margin_percent}
+          profitMarginPercentage={
+            currentDelegationListActionItem.cost_params?.profit_margin_percent &&
+            toPercentIntegerString(currentDelegationListActionItem.cost_params?.profit_margin_percent)
+          }
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
         />

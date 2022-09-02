@@ -80,30 +80,39 @@ impl ConnectionHandler {
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                Some(framed_sphinx_packet) = framed_conn.next() => {
-                    match framed_sphinx_packet {
-                        Ok(framed_sphinx_packet) => {
-                            // TODO: benchmark spawning tokio task with full processing vs just processing it
-                            // synchronously (without delaying inside of course,
-                            // delay is moved to a global DelayQueue)
-                            // under higher load in single and multi-threaded situation.
+                packet = framed_conn.next() => {
+                    match packet {
+                        Some(framed_sphinx_packet) => {
+                            match framed_sphinx_packet {
+                                Ok(framed_sphinx_packet) => {
+                                    // TODO: benchmark spawning tokio task with full processing vs just processing it
+                                    // synchronously (without delaying inside of course,
+                                    // delay is moved to a global DelayQueue)
+                                    // under higher load in single and multi-threaded situation.
 
-                            // in theory we could process multiple sphinx packet from the same connection in parallel,
-                            // but we already handle multiple concurrent connections so if anything, making
-                            // that change would only slow things down
-                            self.handle_received_packet(framed_sphinx_packet);
+                                    // in theory we could process multiple sphinx packet from the same connection in parallel,
+                                    // but we already handle multiple concurrent connections so if anything, making
+                                    // that change would only slow things down
+                                    self.handle_received_packet(framed_sphinx_packet);
+                                }
+                                Err(err) => {
+                                    error!(
+                                        "The socket connection got corrupted with error: {:?}. Closing the socket",
+                                        err
+                                    );
+                                    return;
+                                }
+                            }
                         }
-                        Err(err) => {
-                            error!(
-                                "The socket connection got corrupted with error: {:?}. Closing the socket",
-                                err
-                            );
-                            return;
+                        //catch no more packet available, since looping changed to while not shutdown. In version 1.0.1 using while Some(framed_sphinx_packet)
+                        None => {
+                            break;
                         }
                     }
                 },
                 _ = shutdown.recv() => {
                     log::trace!("ConnectionHandler: received shutdown");
+                    break;
                 }
             }
         }

@@ -98,34 +98,43 @@ impl ConnectionHandler {
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
         while !shutdown_listener.is_shutdown() {
             tokio::select! {
-                Some(echo_packet) = framed_conn.next() => {
-                    // handle echo packet
-                    let reply_packet = match echo_packet {
-                        Ok(echo_packet) => self.handle_echo_packet(echo_packet),
-                        Err(err) => {
-                            error!(
-                                "The socket connection got corrupted with error: {}. Closing the socket",
-                                err
-                            );
-                            return;
-                        }
-                    };
+                packet = framed_conn.next() => {
+                    match packet {
+                        Some(echo_packet) => {
+                            // handle echo packet
+                            let reply_packet = match echo_packet {
+                                Ok(echo_packet) => self.handle_echo_packet(echo_packet),
+                                Err(err) => {
+                                    error!(
+                                        "The socket connection got corrupted with error: {}. Closing the socket",
+                                        err
+                                    );
+                                    return;
+                                }
+                            };
 
-                    // write back the reply (note the lack of framing)
-                    if let Err(err) = framed_conn
-                        .get_mut()
-                        .write_all(reply_packet.to_bytes().as_ref())
-                        .await
-                    {
-                        error!(
-                            "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
-                            err
-                        );
-                        return;
+                            // write back the reply (note the lack of framing)
+                            if let Err(err) = framed_conn
+                                .get_mut()
+                                .write_all(reply_packet.to_bytes().as_ref())
+                                .await
+                            {
+                                error!(
+                                    "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
+                                    err
+                                );
+                                return;
+                            }
+                        }
+                        //Catch no more packet available, since looping changed to while not shutdown. In version 1.0.1 using while Some(echo_packet)
+                        None => {
+                            break;
+                        }
                     }
                 },
                 _ = shutdown_listener.recv() => {
                     trace!("ConnectionHandler: Shutdown received");
+                    break;
                 }
             }
         }

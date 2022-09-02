@@ -231,17 +231,25 @@ impl UpdateHandler {
         log::trace!("Starting UpdateHandler");
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                Some(packet_data) = self.update_receiver.next() => {
-                    match packet_data {
-                        PacketEvent::Received => self.current_data.increment_received(),
-                        PacketEvent::Sent(destination) => {
-                            self.current_data.increment_sent(destination).await
+                packet = self.update_receiver.next() => {
+                    match packet {
+                        Some(packet_data) => {
+                            match packet_data {
+                                PacketEvent::Received => self.current_data.increment_received(),
+                                PacketEvent::Sent(destination) => {
+                                    self.current_data.increment_sent(destination).await
+                                }
+                                PacketEvent::Dropped(destination) => {
+                                    self.current_data.increment_dropped(destination).await
+                                }
+                            }
                         }
-                        PacketEvent::Dropped(destination) => {
-                            self.current_data.increment_dropped(destination).await
+                        //Catch no more packet available, since looping changed to while not shutdown. In version 1.0.1 using while Some(packet_data)
+                        None => {
+                            break;
                         }
                     }
-                }
+                },
                 _ = self.shutdown.recv() => {
                     log::trace!("UpdateHandler: Received shutdown");
                     break;

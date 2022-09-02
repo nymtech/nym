@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Box,
+  Chip,
   CircularProgress,
   Table,
   TableBody,
@@ -12,28 +13,14 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { decimalToFloatApproximation, DelegationWithEverything } from '@nymproject/types';
+import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
-import { styled } from '@mui/material/styles';
-import { tableCellClasses } from '@mui/material/TableCell';
-import { DelegationListItemActions } from './DelegationActions';
+import { format } from 'date-fns';
+import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
 import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
-
-const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
-  [`&.${tableCellClasses.head}`]: {
-    color: theme.palette.common.white,
-    opacity: 0.5,
-    fontSize: 12,
-  },
-  [`&.${tableCellClasses.body}`]: {
-    color: theme.palette.common.white,
-    fontSize: 12,
-  },
-}));
+import { toPercentIntegerString } from '../../utils';
 
 type Order = 'asc' | 'desc';
 
@@ -147,9 +134,18 @@ export const DelegationList: React.FC<{
 
   const getStakeSaturation = (item: DelegationWithEvent) => {
     if (isDelegation(item)) {
-      return !item.stake_saturation ? '-' : `${Math.round(decimalToFloatApproximation(item.stake_saturation))}`;
+      return !item.stake_saturation ? '-' : `${decimalToPercentage(item.stake_saturation)}%`;
     }
     return '';
+  };
+
+  const getRewardValue = (item: DelegationWithEvent) => {
+    if (isPendingDelegation(item)) {
+      return '';
+    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { unclaimed_rewards } = item;
+    return !unclaimed_rewards ? '-' : `${unclaimed_rewards.amount} ${unclaimed_rewards.denom}`;
   };
 
   return (
@@ -174,55 +170,48 @@ export const DelegationList: React.FC<{
                 </TableCell>
                 <TableCell>
                   {isDelegation(item) &&
-                    (!item.cost_params?.profit_margin_percent ? '-' : `${item.cost_params.profit_margin_percent}%`)}
+                    (!item.cost_params?.profit_margin_percent
+                      ? '-'
+                      : `${toPercentIntegerString(item.cost_params.profit_margin_percent)}%`)}
                 </TableCell>
                 <TableCell>{getStakeSaturation(item)}</TableCell>
                 <TableCell>
                   {isDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
                 </TableCell>
                 <TableCell>
-                  <Tooltip
-                    placement="right"
-                    title={
-                      <TableContainer component={Box} color="white">
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <StyledTooltipTableCell>Date</StyledTooltipTableCell>
-                              <StyledTooltipTableCell>Amount</StyledTooltipTableCell>
-                              <StyledTooltipTableCell>Block Height</StyledTooltipTableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {isDelegation(item) &&
-                              item.history.map((historyItem) => (
-                                <TableRow key={`${historyItem.block_height}`}>
-                                  <StyledTooltipTableCell>
-                                    {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
-                                      addSuffix: true,
-                                    })}
-                                  </StyledTooltipTableCell>
-                                  <StyledTooltipTableCell>
-                                    <Typography fontSize="inherit" noWrap>
-                                      {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
-                                      {historyItem.uses_vesting_contract_tokens && (
-                                        <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
-                                      )}
-                                    </Typography>
-                                  </StyledTooltipTableCell>
-                                  <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
-                                </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    }
-                    arrow
-                  >
-                    <span style={{ cursor: 'pointer', textTransform: 'uppercase' }}>
-                      {isDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
-                    </span>
-                  </Tooltip>
+                  <Typography style={{ textTransform: 'uppercase' }}>
+                    {isDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ textTransform: 'uppercase' }}>{getRewardValue(item)}</TableCell>
+                <TableCell align="right">
+                  {isDelegation(item) && !item.pending_events.length && (
+                    <DelegationsActionsMenu
+                      isPending={undefined}
+                      onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
+                      disableRedeemingRewards={!item.unclaimed_rewards || item.unclaimed_rewards.amount === '0'}
+                    />
+                  )}
+                  {isDelegation(item) && item.pending_events.length > 0 && (
+                    <Tooltip
+                      title="Your changes will take effect when
+the new epoch starts. There is a new
+epoch every hour."
+                      arrow
+                    >
+                      <Chip label="Pending Events" />
+                    </Tooltip>
+                  )}
+                  {isPendingDelegation(item) && (
+                    <Tooltip
+                      title={`Your delegation of ${item.event.amount?.amount} ${item.event.amount?.denom} will take effect 
+                        when the new epoch starts. There is a new
+                        epoch every hour.`}
+                      arrow
+                    >
+                      <Chip label="Pending Events" />
+                    </Tooltip>
+                  )}
                 </TableCell>
               </TableRow>
             ))

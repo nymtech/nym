@@ -568,7 +568,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let signing_nymd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
-    let shutdown = ShutdownNotifier::default();
+    // We need a bigger timeout
+    let shutdown = ShutdownNotifier::new(10);
 
     // let's build our rocket!
     let rocket = setup_rocket(
@@ -609,7 +610,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         // spawn rewarded set updater
         let mut rewarded_set_updater =
             RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
-        tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
 
         validator_cache_listener
     } else {

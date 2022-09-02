@@ -217,7 +217,7 @@ pub enum QueryMsg {
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {
     pub mixnet_denom: String,
-    nodes_to_remove: Option<Vec<NodeToRemove>>,
+    pub nodes_to_remove: Option<Vec<NodeToRemove>>,
 }
 
 impl MigrateMsg {

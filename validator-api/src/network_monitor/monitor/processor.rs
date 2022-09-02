@@ -140,8 +140,7 @@ impl ReceivedProcessor {
         self.permit_changer = Some(permit_sender);
 
         tokio::spawn(async move {
-            loop {
-                let permit = wait_for_permit(&mut permit_receiver, &*inner).await;
+            while let Some(permit) = wait_for_permit(&mut permit_receiver, &*inner).await {
                 receive_or_release_permit(&mut permit_receiver, permit).await;
             }
 
@@ -151,16 +150,20 @@ impl ReceivedProcessor {
             ) {
                 loop {
                     tokio::select! {
-                        permit_receiver = permit_receiver.next() => match permit_receiver.unwrap() {
-                            LockPermit::Release => return,
-                            LockPermit::Free => error!("somehow we got notification that the lock is free to take while we already hold it!"),
+                        permit_receiver = permit_receiver.next() => match permit_receiver {
+                            Some(LockPermit::Release) => return,
+                            Some(LockPermit::Free) => error!("somehow we got notification that the lock is free to take while we already hold it!"),
+                            None => return,
                         },
-                        messages = inner.packets_receiver.next() => {
-                            for message in messages.expect("packet receiver has died!") {
-                                if let Err(err) = inner.on_message(message) {
-                                    warn!(target: "Monitor", "failed to process received gateway message - {}", err)
+                        messages = inner.packets_receiver.next() => match messages {
+                            Some(messages) => {
+                                for message in messages {
+                                    if let Err(err) = inner.on_message(message) {
+                                        warn!(target: "Monitor", "failed to process received gateway message - {}", err)
+                                    }
                                 }
                             }
+                            None => return,
                         },
                     }
                 }
@@ -172,14 +175,15 @@ impl ReceivedProcessor {
             async fn wait_for_permit<'a>(
                 permit_receiver: &mut mpsc::Receiver<LockPermit>,
                 inner: &'a Mutex<ReceivedProcessorInner>,
-            ) -> MutexGuard<'a, ReceivedProcessorInner> {
+            ) -> Option<MutexGuard<'a, ReceivedProcessorInner>> {
                 loop {
-                    match permit_receiver.next().await.unwrap() {
+                    match permit_receiver.next().await {
                         // we should only ever get this on the very first run
-                        LockPermit::Release => debug!(
+                        Some(LockPermit::Release) => debug!(
                             "somehow got request to drop our lock permit while we do not hold it!"
                         ),
-                        LockPermit::Free => return inner.lock().await,
+                        Some(LockPermit::Free) => return Some(inner.lock().await),
+                        None => return None,
                     }
                 }
             }

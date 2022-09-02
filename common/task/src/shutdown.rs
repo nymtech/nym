@@ -5,13 +5,14 @@ use std::time::Duration;
 
 use tokio::sync::watch::{self, error::SendError};
 
-const SHUTDOWN_TIMER_SECS: u64 = 5;
+const DEFAULT_SHUTDOWN_TIMER_SECS: u64 = 5;
 
 /// Used to notify other tasks to gracefully shutdown
 #[derive(Debug)]
 pub struct ShutdownNotifier {
     notify_tx: watch::Sender<()>,
     notify_rx: Option<watch::Receiver<()>>,
+    shutdown_timer_secs: u64,
 }
 
 impl Default for ShutdownNotifier {
@@ -20,11 +21,19 @@ impl Default for ShutdownNotifier {
         Self {
             notify_tx,
             notify_rx: Some(notify_rx),
+            shutdown_timer_secs: DEFAULT_SHUTDOWN_TIMER_SECS,
         }
     }
 }
 
 impl ShutdownNotifier {
+    pub fn new(shutdown_timer_secs: u64) -> Self {
+        Self {
+            shutdown_timer_secs,
+            ..Default::default()
+        }
+    }
+
     pub fn subscribe(&self) -> ShutdownListener {
         ShutdownListener::new(
             self.notify_rx
@@ -50,7 +59,7 @@ impl ShutdownNotifier {
             _ =  tokio::signal::ctrl_c() => {
                 log::info!("Forcing shutdown");
             }
-            _ = tokio::time::sleep(Duration::from_secs(SHUTDOWN_TIMER_SECS)) => {
+            _ = tokio::time::sleep(Duration::from_secs(self.shutdown_timer_secs)) => {
                 log::info!("Timout reached, forcing shutdown");
             },
         }

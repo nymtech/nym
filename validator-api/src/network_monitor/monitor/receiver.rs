@@ -59,6 +59,10 @@ impl PacketReceiver {
     pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
         while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    trace!("UpdateHandler: Received shutdown");
+                }
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state
                 update = self.clients_updater.next() => self.process_gateway_update(update.unwrap()),
@@ -67,9 +71,6 @@ impl PacketReceiver {
                 // to return
                 Some((_gateway_id, message)) = self.gateways_reader.stream_map().next() => {
                         self.process_gateway_messages(message)
-                }
-                _ = shutdown.recv() => {
-                    trace!("UpdateHandler: Received shutdown");
                 }
             }
         }

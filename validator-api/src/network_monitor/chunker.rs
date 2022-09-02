@@ -12,6 +12,7 @@ use topology::NymTopology;
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
+#[derive(Clone)]
 pub(crate) struct Chunker {
     rng: OsRng,
     message_preparer: MessagePreparer<OsRng>,
@@ -30,7 +31,7 @@ impl Chunker {
         }
     }
 
-    pub(crate) async fn prepare_packets_from(
+    pub(crate) fn prepare_packets_from(
         &mut self,
         message: Vec<u8>,
         topology: &NymTopology,
@@ -40,10 +41,10 @@ impl Chunker {
         // but without some significant API changes in the `MessagePreparer` this was the easiest
         // way to being able to have variable sender address.
         self.message_preparer.set_sender_address(packet_sender);
-        self.prepare_packets(message, topology, packet_sender).await
+        self.prepare_packets(message, topology, packet_sender)
     }
 
-    async fn prepare_packets(
+    fn prepare_packets(
         &mut self,
         message: Vec<u8>,
         topology: &NymTopology,
@@ -62,7 +63,6 @@ impl Chunker {
             let prepared_fragment = self
                 .message_preparer
                 .prepare_chunk_for_sending(message_chunk, topology, &ack_key, &packet_sender)
-                .await
                 .unwrap();
 
             mix_packets.push(prepared_fragment.mix_packet);

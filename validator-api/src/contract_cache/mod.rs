@@ -281,13 +281,21 @@ impl<C> ValidatorCacheRefresher<C> {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = interval.tick() => {
-                    if let Err(err) = self.refresh_cache().await {
-                        error!("Failed to refresh validator cache - {}", err);
-                    } else {
-                        // relaxed memory ordering is fine here. worst case scenario network monitor
-                        // will just have to wait for an additional backoff to see the change.
-                        // And so this will not really incur any performance penalties by setting it every loop iteration
-                        self.cache.initialised.store(true, Ordering::Relaxed)
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            trace!("ValidatorCacheRefresher: Received shutdown");
+                        }
+                        ret = self.refresh_cache() => {
+                            if let Err(err) = ret {
+                                error!("Failed to refresh validator cache - {}", err);
+                            } else {
+                                // relaxed memory ordering is fine here. worst case scenario network monitor
+                                // will just have to wait for an additional backoff to see the change.
+                                // And so this will not really incur any performance penalties by setting it every loop iteration
+                                self.cache.initialised.store(true, Ordering::Relaxed)
+                            }
+                        }
                     }
                 }
                 _ = shutdown.recv() => {

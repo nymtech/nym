@@ -13,7 +13,9 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
-use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
+use socks5_requests::{
+    ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
+};
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -192,7 +194,16 @@ impl ServiceProvider {
         return_address: Recipient,
     ) {
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
-            log::info!("Domain {:?} failed filter check", remote_addr);
+            let log_msg = format!("Domain {:?} failed filter check", remote_addr);
+            log::info!("{}", log_msg);
+            mix_input_sender
+                .unbounded_send((
+                    Socks5Message::NetworkRequesterResponse(NetworkRequesterResponse::new(
+                        conn_id, log_msg,
+                    )),
+                    return_address,
+                ))
+                .unwrap();
             return;
         }
 
@@ -275,7 +286,7 @@ impl ServiceProvider {
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
-            Socks5Message::Response(_) => {}
+            Socks5Message::Response(_) | Socks5Message::NetworkRequesterResponse(_) => {}
         }
     }
 

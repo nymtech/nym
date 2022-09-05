@@ -1,9 +1,8 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
-    account_from_address, locked_pledge_cap, remove_delegation, save_delegation,
-    update_locked_pledge_cap, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,
-    MIX_DENOM,
+    account_from_address, locked_pledge_cap, update_locked_pledge_cap, BlockTimestampSecs, ADMIN,
+    DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -665,7 +664,7 @@ pub fn try_get_delegation_times(
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 
     let delegation_timestamps = DELEGATIONS
-        .prefix((account.storage_key(), mix_id.clone()))
+        .prefix((account.storage_key(), mix_id))
         .keys(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
 

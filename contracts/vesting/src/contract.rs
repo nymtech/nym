@@ -255,48 +255,20 @@ fn try_update_staking_address(
 pub fn try_migrate_heights_to_timestamps(
     account_id: u32,
     mix_identity: String,
-    mut height_timestamp_map: Vec<(u64, u64)>,
+    height_timestamp_map: Vec<(u64, u64)>,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-    let mut delegation_heights = DELEGATIONS
-        .prefix((account_id, mix_identity.clone()))
-        .range(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>()?;
 
-    if height_timestamp_map.len() != delegation_heights.len() {
-        return Err(ContractError::MigrateHeightsToTimestamp {
-            reason: format!(
-                "Received {} entries in height_timestamp_map, but {} entries are in storage",
-                height_timestamp_map.len(),
-                delegation_heights.len()
-            ),
-        });
-    }
-
-    height_timestamp_map.sort_by_key(|k| k.0);
-    delegation_heights.sort_by_key(|k| k.0);
-
-    if height_timestamp_map
-        .iter()
-        .zip(delegation_heights.iter())
-        .any(|(mapping, height)| mapping.0 != height.0)
-    {
-        return Err(ContractError::MigrateHeightsToTimestamp {
-            reason: String::from("height_timestamp_map heights mismatch with stored delegations"),
-        });
-    }
-
-    for ((old_key, new_key), (_, amount)) in
-        height_timestamp_map.iter().zip(delegation_heights.iter())
-    {
-        remove_delegation((account_id, mix_identity.clone(), *old_key), deps.storage)?;
+    for (height, timestamp) in height_timestamp_map {
+        let amount = DELEGATIONS.load(deps.storage, (account_id, mix_identity.clone(), height))?;
+        remove_delegation((account_id, mix_identity.clone(), height), deps.storage)?;
         save_delegation(
-            (account_id, mix_identity.clone(), *new_key),
-            *amount,
+            (account_id, mix_identity.clone(), timestamp),
+            amount,
             deps.storage,
         )?;
     }

@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
+use mixnet_contract_common::NodeId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
-use mixnet_contract_common::{IdentityKey, NodeId};
 
 pub mod events;
 pub mod messages;
@@ -74,18 +74,14 @@ impl OriginalVestingResponse {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct VestingDelegation {
     pub account_id: u32,
-    pub mix_identity: IdentityKey,
+    pub mix_id: NodeId,
     pub block_timestamp: u64,
     pub amount: Uint128,
 }
 
 impl VestingDelegation {
-    pub fn storage_key(&self) -> (u32, IdentityKey, u64) {
-        (
-            self.account_id,
-            self.mix_identity.clone(),
-            self.block_timestamp,
-        )
+    pub fn storage_key(&self) -> (u32, NodeId, u64) {
+        (self.account_id, self.mix_id, self.block_timestamp)
     }
 }
 

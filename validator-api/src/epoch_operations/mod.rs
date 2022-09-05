@@ -33,6 +33,7 @@ mod helpers;
 use crate::epoch_operations::helpers::stake_to_f64;
 use error::RewardingError;
 use mixnet_contract_common::mixnode::MixNodeDetails;
+use task::ShutdownListener;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -311,7 +312,7 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
-    async fn wait_until_epoch_end(&mut self) -> Interval {
+    async fn wait_until_epoch_end(&mut self, shutdown: &mut ShutdownListener) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
         const MAXIMUM_ATTEMPTS: usize = 5;
         let mut failed_attempts = 0;
@@ -328,8 +329,15 @@ impl RewardedSetUpdater {
                         process::exit(1);
                     }
                     error!("failed to obtain information about the current interval - {}. Going to retry in {}s", err, POLL_INTERVAL.as_secs());
-                    sleep(POLL_INTERVAL).await;
-                    continue;
+                    tokio::select! {
+                        _ = sleep(POLL_INTERVAL) => {
+                            continue
+                        },
+                        _ = shutdown.recv() => {
+                            trace!("wait_until_epoch_end: Received shutdown");
+                            break None
+                        }
+                    }
                 }
                 Ok(interval) => interval,
             };
@@ -337,35 +345,52 @@ impl RewardedSetUpdater {
             failed_attempts = 0;
 
             if current_interval.is_current_epoch_over {
-                return current_interval.interval;
+                return Some(current_interval.interval);
             } else {
                 let time_left = current_interval.time_until_current_epoch_end();
                 log::info!(
                     "Waiting for epoch change, it should take approximately {}s",
                     time_left.as_secs()
                 );
-                if time_left < POLL_INTERVAL {
+                let wait_time = if time_left < POLL_INTERVAL {
                     // add few seconds to adjust for possible block time drift
-                    sleep(time_left + Duration::from_secs(10)).await
+                    time_left + Duration::from_secs(10)
                 } else {
-                    sleep(POLL_INTERVAL).await;
+                    POLL_INTERVAL
+                };
+
+                tokio::select! {
+                    _ = sleep(wait_time) => {
+
+                    },
+                    _ = shutdown.recv() => {
+                        trace!("wait_until_epoch_end: Received shutdown");
+                        break None
+                    }
                 }
             }
         }
     }
 
-    pub(crate) async fn run(&mut self) -> Result<(), RewardingError> {
+    pub(crate) async fn run(
+        &mut self,
+        mut shutdown: ShutdownListener,
+    ) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
         const MAX_FAILURES: usize = 10;
         let mut consecutive_failures = 0;
-        loop {
+        while !shutdown.is_shutdown() {
             if consecutive_failures == MAX_FAILURES {
                 error!("We have failed to perform epoch operations {} times in a row. The validator API will shutdown now", MAX_FAILURES);
                 std::process::exit(1);
             }
 
-            let interval_details = self.wait_until_epoch_end().await;
+            let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
+                // received a shutdown
+                None => return Ok(()),
+                Some(interval) => interval,
+            };
             if let Err(err) = self.update_blacklist(&interval_details).await {
                 error!("failed to update the node blacklist - {}", err);
                 continue;
@@ -378,5 +403,7 @@ impl RewardedSetUpdater {
                 consecutive_failures = 0;
             }
         }
+
+        Ok(())
     }
 }

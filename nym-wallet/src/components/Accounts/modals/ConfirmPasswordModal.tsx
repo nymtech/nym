@@ -16,7 +16,13 @@ export const ConfirmPasswordModal = ({
   const { isLoading, error } = useContext(AccountsContext);
 
   return (
-    <Dialog open={Boolean(accountName)} onClose={onClose} fullWidth PaperComponent={Paper}>
+    <Dialog
+      open={Boolean(accountName)}
+      onClose={onClose}
+      fullWidth
+      PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
+    >
       <DialogTitle>
         <Typography variant="h6">Switch account</Typography>
         <Typography fontSize="small" sx={{ color: 'grey.600' }}>

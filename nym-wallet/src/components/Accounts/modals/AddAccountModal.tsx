@@ -182,6 +182,7 @@ export const AddAccountModal = () => {
       onClose={handleClose}
       fullWidth
       PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
     >
       <DialogTitle sx={{ pb: 0 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">

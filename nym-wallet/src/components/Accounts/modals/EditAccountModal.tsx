@@ -29,6 +29,7 @@ export const EditAccountModal = () => {
       onClose={() => setDialogToDisplay('Accounts')}
       fullWidth
       PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
     >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">

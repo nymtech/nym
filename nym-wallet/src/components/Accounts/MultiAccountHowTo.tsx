@@ -11,7 +11,7 @@ const passwordCreationSteps = [
 ];
 
 export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handleClose: () => void }) => (
-  <Dialog open={show} onClose={handleClose} fullWidth PaperComponent={Paper}>
+  <Dialog open={show} onClose={handleClose} fullWidth PaperComponent={Paper} PaperProps={{ elevation: 0 }}>
     <DialogTitle>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Typography variant="h6">Multi accounts</Typography>

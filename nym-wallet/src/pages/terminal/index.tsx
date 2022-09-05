@@ -92,7 +92,14 @@ const TerminalInner: React.FC = () => {
   }, [network]);
 
   return (
-    <Dialog open onClose={handleShowTerminal} maxWidth="md" fullWidth PaperComponent={Paper}>
+    <Dialog
+      open
+      onClose={handleShowTerminal}
+      maxWidth="md"
+      fullWidth
+      PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
+    >
       <NymCard
         title={
           <Box width="100%" display="flex" justifyContent="space-between">

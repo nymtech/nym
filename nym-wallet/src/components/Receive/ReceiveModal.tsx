@@ -9,7 +9,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 export const ReceiveModal = ({ onClose }: { onClose: () => void; sx?: SxProps; backdropProps?: object }) => {
   const { clientDetails, mode } = useContext(AppContext);
   return (
-    <Dialog open maxWidth="sm" fullWidth onClose={onClose} PaperComponent={Paper}>
+    <Dialog open maxWidth="sm" fullWidth onClose={onClose} PaperComponent={Paper} PaperProps={{ elevation: 0 }}>
       <DialogTitle>
         <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography fontSize={20} fontWeight={600}>

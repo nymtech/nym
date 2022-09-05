@@ -43,7 +43,13 @@ export const AccountsModal = () => {
     );
 
   return (
-    <Dialog open={dialogToDisplay === 'Accounts'} onClose={handleClose} fullWidth PaperComponent={Paper}>
+    <Dialog
+      open={dialogToDisplay === 'Accounts'}
+      onClose={handleClose}
+      fullWidth
+      PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
+    >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Accounts</Typography>

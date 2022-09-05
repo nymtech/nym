@@ -73,6 +73,7 @@ export const ConfirmationModal = ({
       fullWidth={fullWidth}
       BackdropProps={backdropProps}
       PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
     >
       {Title}
       <DialogContent>{children}</DialogContent>

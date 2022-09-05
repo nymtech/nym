@@ -8,8 +8,8 @@ use crate::context::SigningClientWithValidatorAPI;
 use crate::utils::{pretty_cosmwasm_coin, show_error_passthrough};
 
 use comfy_table::Table;
-use mixnet_contract_common::mixnode::DelegationEvent;
-use mixnet_contract_common::Delegation;
+use cosmwasm_std::Addr;
+use mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventData};
 
 #[derive(Debug, Parser)]
 pub struct Args {}
@@ -26,19 +26,7 @@ pub async fn execute(_args: Args, client: SigningClientWithValidatorAPI) {
         .map_err(show_error_passthrough);
 
     let mixnet_contract_events = client
-        .nymd
-        .get_pending_delegation_events(client.nymd.address().to_string(), None)
-        .await
-        .map_err(show_error_passthrough);
-
-    let vesting_contract = client.nymd.vesting_contract_address();
-
-    let vesting_contract_events = client
-        .nymd
-        .get_pending_delegation_events(
-            client.nymd.address().to_string(),
-            Some(vesting_contract.to_string()),
-        )
+        .get_all_nymd_pending_epoch_events()
         .await
         .map_err(show_error_passthrough);
 
@@ -58,13 +46,6 @@ pub async fn execute(_args: Args, client: SigningClientWithValidatorAPI) {
             print_delegation_events(res, &client).await;
         }
     }
-    if let Ok(res) = vesting_contract_events {
-        if !res.is_empty() {
-            println!();
-            println!("Pending delegations (locked tokens):");
-            print_delegation_events(res, &client).await;
-        }
-    }
 }
 
 async fn to_iso_timestamp(block_height: u32, client: &SigningClientWithValidatorAPI) -> String {
@@ -77,14 +58,17 @@ async fn to_iso_timestamp(block_height: u32, client: &SigningClientWithValidator
 async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientWithValidatorAPI) {
     let mut table = Table::new();
 
-    table.set_header(vec!["Timestamp", "Identity Key", "Delegation", "Proxy"]);
+    table.set_header(vec!["Timestamp", "Mix Id", "Delegation", "Proxy"]);
 
     for delegation in delegations {
         table.add_row(vec![
-            to_iso_timestamp(delegation.block_height as u32, client).await,
-            delegation.node_identity.to_string(),
+            to_iso_timestamp(delegation.height as u32, client).await,
+            delegation.node_id.to_string(),
             pretty_cosmwasm_coin(&delegation.amount),
-            format!("{:?}", delegation.proxy),
+            delegation
+                .proxy
+                .map(Addr::into_string)
+                .unwrap_or_else(|| "-".into()),
         ]);
     }
 
@@ -92,36 +76,53 @@ async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientW
 }
 
 async fn print_delegation_events(
-    events: Vec<DelegationEvent>,
+    events: Vec<PendingEpochEvent>,
     client: &SigningClientWithValidatorAPI,
 ) {
     let mut table = Table::new();
 
     table.set_header(vec![
         "Timestamp",
-        "Identity Key",
+        "Mix id",
         "Delegation",
         "Event Type",
+        "Proxy",
     ]);
 
     for event in events {
-        match event {
-            DelegationEvent::Delegate(delegation) => {
-                table.add_row(vec![
-                    to_iso_timestamp(delegation.block_height as u32, client).await,
-                    delegation.node_identity.to_string(),
-                    pretty_cosmwasm_coin(&delegation.amount),
-                    "Delegate".to_string(),
-                ]);
+        match event.event {
+            PendingEpochEventData::Delegate {
+                owner,
+                mix_id,
+                amount,
+                proxy,
+            } => {
+                if owner.as_str() == client.nymd.address().as_ref() {
+                    table.add_row(vec![
+                        "not-sure-if-applicable".into(),
+                        mix_id.to_string(),
+                        pretty_cosmwasm_coin(&amount),
+                        "Delegate".to_string(),
+                        proxy.map(Addr::into_string).unwrap_or_else(|| "-".into()),
+                    ]);
+                }
             }
-            DelegationEvent::Undelegate(undelegate) => {
-                table.add_row(vec![
-                    to_iso_timestamp(undelegate.block_height() as u32, client).await,
-                    undelegate.mix_identity().to_string(),
-                    "-".to_string(),
-                    "Undelegate".to_string(),
-                ]);
+            PendingEpochEventData::Undelegate {
+                owner,
+                mix_id,
+                proxy,
+            } => {
+                if owner.as_str() == client.nymd.address().as_ref() {
+                    table.add_row(vec![
+                        "not-sure-if-applicable".into(),
+                        mix_id.to_string(),
+                        "-".to_string(),
+                        "Undelegate".to_string(),
+                        proxy.map(Addr::into_string).unwrap_or_else(|| "-".into()),
+                    ]);
+                }
             }
+            _ => {}
         }
     }
 

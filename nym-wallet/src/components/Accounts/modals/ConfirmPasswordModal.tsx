@@ -16,22 +16,20 @@ export const ConfirmPasswordModal = ({
   const { isLoading, error } = useContext(AccountsContext);
 
   return (
-    <Dialog open={Boolean(accountName)} onClose={onClose} fullWidth>
-      <Paper>
-        <DialogTitle>
-          <Typography variant="h6">Switch account</Typography>
-          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
-            Confirm password
-          </Typography>
-        </DialogTitle>
-        <ConfirmPassword
-          onConfirm={onConfirm}
-          error={error}
-          isLoading={isLoading}
-          buttonTitle="Switch account"
-          onCancel={onClose}
-        />
-      </Paper>
+    <Dialog open={Boolean(accountName)} onClose={onClose} fullWidth PaperComponent={Paper}>
+      <DialogTitle>
+        <Typography variant="h6">Switch account</Typography>
+        <Typography fontSize="small" sx={{ color: 'grey.600' }}>
+          Confirm password
+        </Typography>
+      </DialogTitle>
+      <ConfirmPassword
+        onConfirm={onConfirm}
+        error={error}
+        isLoading={isLoading}
+        buttonTitle="Switch account"
+        onCancel={onClose}
+      />
     </Dialog>
   );
 };

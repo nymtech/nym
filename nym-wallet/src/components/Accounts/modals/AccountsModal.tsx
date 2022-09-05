@@ -43,48 +43,46 @@ export const AccountsModal = () => {
     );
 
   return (
-    <Dialog open={dialogToDisplay === 'Accounts'} onClose={handleClose} fullWidth>
-      <Paper>
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Accounts</Typography>
-            <IconButton onClick={handleClose}>
-              <Close />
-            </IconButton>
-          </Box>
-          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
-            Switch between accounts
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ padding: 0 }}>
-          {accounts?.map(({ id, address }) => (
-            <AccountItem
-              name={id}
-              address={address}
-              key={address}
-              onSelectAccount={() => {
-                if (selectedAccount?.id !== id) {
-                  setAccountToSwitchTo(id);
-                }
-              }}
-            />
-          ))}
-        </DialogContent>
-        <Divider variant="middle" sx={{ mt: 3 }} />
-        <DialogActions sx={{ p: 3 }}>
-          <Button startIcon={<ArrowDownwardSharp />} onClick={() => setDialogToDisplay('Import')}>
-            Import account
-          </Button>
-          <Button
-            disableElevation
-            variant="contained"
-            startIcon={<Add fontSize="small" />}
-            onClick={() => setDialogToDisplay('Add')}
-          >
-            Add new account
-          </Button>
-        </DialogActions>
-      </Paper>
+    <Dialog open={dialogToDisplay === 'Accounts'} onClose={handleClose} fullWidth PaperComponent={Paper}>
+      <DialogTitle>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">Accounts</Typography>
+          <IconButton onClick={handleClose}>
+            <Close />
+          </IconButton>
+        </Box>
+        <Typography fontSize="small" sx={{ color: 'grey.600' }}>
+          Switch between accounts
+        </Typography>
+      </DialogTitle>
+      <DialogContent sx={{ padding: 0 }}>
+        {accounts?.map(({ id, address }) => (
+          <AccountItem
+            name={id}
+            address={address}
+            key={address}
+            onSelectAccount={() => {
+              if (selectedAccount?.id !== id) {
+                setAccountToSwitchTo(id);
+              }
+            }}
+          />
+        ))}
+      </DialogContent>
+      <Divider variant="middle" sx={{ mt: 3 }} />
+      <DialogActions sx={{ p: 3 }}>
+        <Button startIcon={<ArrowDownwardSharp />} onClick={() => setDialogToDisplay('Import')}>
+          Import account
+        </Button>
+        <Button
+          disableElevation
+          variant="contained"
+          startIcon={<Add fontSize="small" />}
+          onClick={() => setDialogToDisplay('Add')}
+        >
+          Add new account
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

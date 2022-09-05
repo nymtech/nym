@@ -1,0 +1,9 @@
+[package]
+name = "example-verify-signature"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+nym-cli-commands = { git = "https://github.com/nymtech/nym", branch = "develop" }

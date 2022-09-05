@@ -1,17 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{DepsMut, Env, Response};
+use crate::errors::ContractError;
+use crate::storage::MIXNET_CONTRACT_ADDRESS;
+use cosmwasm_std::{DepsMut, Response};
 use vesting_contract_common::MigrateMsg;
 
-use crate::{errors::ContractError, storage::MIX_DENOM};
-
-pub fn migrate_config_from_env(
+pub fn migrate_to_v2_mixnet_contract(
     deps: DepsMut<'_>,
-    _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, ContractError> {
-    MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
-
-    Ok(Default::default())
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.v2_mixnet_contract_address)?;
+    Ok(Response::new())
 }

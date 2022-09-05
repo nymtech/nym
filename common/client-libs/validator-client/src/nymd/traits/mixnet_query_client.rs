@@ -347,15 +347,11 @@ pub trait MixnetQueryClient {
             .await
     }
 
-    // DEPRECATED AND ONLY HERE FOR THE BACKWARDS COMPATIBILITY:
-
-    // it doesn't have deprecated note since this would fail our CI, therefore
-    // the method has explicitly the `deprecated` prefix in its name
-    async fn deprecated_get_mixnode_details_by_identity(
+    async fn get_mixnode_details_by_identity(
         &self,
         mix_identity: IdentityKey,
     ) -> Result<Option<MixNodeDetails>, NymdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::DeprecatedGetMixnodeDetailsByIdentity {
+        self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
             mix_identity,
         })
         .await

@@ -340,6 +340,9 @@ pub fn query(
         QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
             &crate::mixnodes::queries::query_unbonded_mixnode(deps, mix_id)?,
         ),
+        QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
+        ),
         QueryMsg::GetLayerDistribution {} => {
             to_binary(&crate::mixnodes::queries::query_layer_distribution(deps)?)
         }
@@ -446,10 +449,6 @@ pub fn query(
                 start_after,
                 limit,
             )?,
-        ),
-
-        QueryMsg::DeprecatedGetMixnodeDetailsByIdentity { mix_identity } => to_binary(
-            &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
         ),
     };
 

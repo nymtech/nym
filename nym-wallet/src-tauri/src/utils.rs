@@ -53,7 +53,7 @@ pub async fn try_convert_pubkey_to_mix_id(
     mix_identity: IdentityKey,
 ) -> Result<Option<NodeId>, BackendError> {
     let res = nymd_client!(state)
-        .deprecated_get_mixnode_details_by_identity(mix_identity)
+        .get_mixnode_details_by_identity(mix_identity)
         .await?;
     Ok(res.map(|mixnode_details| mixnode_details.mix_id()))
 }

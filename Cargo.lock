@@ -586,13 +586,9 @@ version = "2.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0610544180c38b88101fecf2dd634b174a62eef6946f84dfc6a7127512b381c"
 dependencies = [
- "ansi_term",
- "atty",
  "bitflags",
- "strsim 0.8.0",
  "textwrap 0.11.0",
  "unicode-width",
- "vec_map",
 ]
 
 [[package]]
@@ -607,7 +603,7 @@ dependencies = [
  "clap_lex",
  "indexmap",
  "once_cell",
- "strsim 0.10.0",
+ "strsim",
  "termcolor",
  "textwrap 0.15.0",
 ]
@@ -618,7 +614,7 @@ version = "3.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4179da71abd56c26b54dd0c248cc081c1f43b0a1a7e8448e28e57a29baa993d"
 dependencies = [
- "clap 3.2.8",
+ "clap 3.2.20",
 ]
 
 [[package]]
@@ -627,7 +623,7 @@ version = "3.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed37b4c0c1214673eba6ad8ea31666626bf72be98ffb323067d973c48b4964b9"
 dependencies = [
- "clap 3.2.8",
+ "clap 3.2.20",
  "clap_complete",
 ]
 
@@ -721,9 +717,9 @@ dependencies = [
 
 [[package]]
 name = "comfy-table"
-version = "6.0.0"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "121d8a5b0346092c18a4b2fd6f620d7a06f0eb7ac0a45860939a0884bc579c56"
+checksum = "85914173c2f558d61613bfbbf1911f14e630895087a7ed2fafc0f5319e1536e7"
 dependencies = [
  "crossterm",
  "strum 0.24.1",
@@ -887,9 +883,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b36e527620a2a3e00e46b6e731ab6c9b68d11069c986f7d7be8eba79ef081a4"
+checksum = "9053ebe2ad85831e9f9e2124fa2b22807528a78b25cc447483ce2a4aadfba394"
 dependencies = [
  "syn",
 ]
@@ -1103,15 +1099,15 @@ dependencies = [
 
 [[package]]
 name = "crossterm"
-version = "0.23.2"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2102ea4f781910f8a5b98dd061f4c2023f479ce7bb1236330099ceb5a93cf17"
+checksum = "e64e6c0fbe2c17357405f7c758c1ef960fce08bdfb2c03d88d2a18d7e09c4b67"
 dependencies = [
  "bitflags",
  "crossterm_winapi",
  "libc",
  "mio",
- "parking_lot 0.12.0",
+ "parking_lot 0.12.1",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -1339,7 +1335,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim 0.10.0",
+ "strsim",
  "syn",
 ]
 
@@ -1768,9 +1764,9 @@ dependencies = [
 
 [[package]]
 name = "figment"
-version = "0.10.6"
+version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "790b4292c72618abbab50f787a477014fe15634f96291de45672ce46afe122df"
+checksum = "6e3bd154d9ae2f1bb0ada5b7eebd56529513efa5de7d2fc8c6adf33bc43260cf"
 dependencies = [
  "atomic",
  "pear",
@@ -2058,8 +2054,8 @@ dependencies = [
  "secp256k1",
  "thiserror",
  "tokio",
- "tokio-tungstenite",
- "tungstenite",
+ "tokio-tungstenite 0.14.0",
+ "tungstenite 0.13.0",
  "url",
  "validator-client",
  "wasm-bindgen",
@@ -2084,7 +2080,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "tungstenite",
+ "tungstenite 0.13.0",
 ]
 
 [[package]]
@@ -2703,9 +2699,9 @@ checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 
 [[package]]
 name = "ipnetwork"
-version = "0.17.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02c3eaab3ac0ede60ffa41add21970a7df7d91772c03383aac6c2c3d53cc716b"
+checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
 dependencies = [
  "serde",
 ]
@@ -3190,7 +3186,7 @@ dependencies = [
  "base64",
  "bip39",
  "bs58",
- "clap 3.2.8",
+ "clap 3.2.20",
  "clap_complete",
  "clap_complete_fig",
  "dotenv",
@@ -3212,7 +3208,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if 1.0.0",
- "clap 3.2.8",
+ "clap 3.2.20",
  "comfy-table",
  "cosmrs",
  "cosmwasm-std",
@@ -3226,7 +3222,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "time 0.3.9",
+ "time 0.3.14",
  "toml",
  "url",
  "validator-client",
@@ -3258,7 +3254,7 @@ dependencies = [
  "serde_json",
  "sled",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.14.0",
  "topology",
  "url",
  "validator-client",
@@ -3305,7 +3301,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.14.0",
  "tokio-util 0.7.3",
  "url",
  "validator-api-requests",
@@ -3360,7 +3356,7 @@ name = "nym-network-requester"
 version = "1.0.2"
 dependencies = [
  "async-trait",
- "clap 2.34.0",
+ "clap 3.2.20",
  "dirs",
  "futures",
  "ipnetwork",
@@ -3375,11 +3371,11 @@ dependencies = [
  "reqwest",
  "serde",
  "socks5-requests",
- "sqlx 0.5.13",
+ "sqlx 0.6.1",
  "statistics-common",
  "thiserror",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.17.2",
  "websocket-requests",
 ]
 
@@ -3396,7 +3392,7 @@ dependencies = [
  "statistics-common",
  "thiserror",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.14.0",
 ]
 
 [[package]]
@@ -5573,6 +5569,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc 3.0.0",
  "crossbeam-queue",
  "dotenvy",
@@ -5715,12 +5712,6 @@ dependencies = [
  "unicode-bidi",
  "unicode-normalization",
 ]
-
-[[package]]
-name = "strsim"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 
 [[package]]
 name = "strsim"
@@ -6170,7 +6161,19 @@ dependencies = [
  "log",
  "pin-project",
  "tokio",
- "tungstenite",
+ "tungstenite 0.13.0",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f714dd15bead90401d77e04243611caec13726c2408afd5b31901dfcdcb3b181"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite 0.17.3",
 ]
 
 [[package]]
@@ -6447,6 +6450,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "tungstenite"
+version = "0.17.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e27992fd6a8c29ee7eef28fc78349aa244134e10ad447ce3b9f0ac0ed0fa4ce0"
+dependencies = [
+ "base64",
+ "byteorder",
+ "bytes",
+ "http",
+ "httparse",
+ "log",
+ "rand 0.8.5",
+ "sha-1 0.10.0",
+ "thiserror",
+ "url",
+ "utf-8",
+]
+
+[[package]]
 name = "typenum"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6657,12 +6679,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
-name = "vec_map"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
-
-[[package]]
 name = "vergen"
 version = "5.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6831,7 +6847,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "js-sys",
- "tungstenite",
+ "tungstenite 0.13.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

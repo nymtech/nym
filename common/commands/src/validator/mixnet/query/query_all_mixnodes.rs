@@ -49,8 +49,8 @@ pub async fn query(args: Args, client: &QueryClientWithValidatorAPI) {
                         node.bond_information.mix_node.identity_key.clone(),
                         node.bond_information.owner.clone().into_string(),
                         node.bond_information.mix_node.host.clone(),
-                        pretty_decimal_with_denom(node.rewarding_details.operator, &denom),
-                        pretty_decimal_with_denom(node.rewarding_details.delegates, &denom),
+                        pretty_decimal_with_denom(node.rewarding_details.operator, denom),
+                        pretty_decimal_with_denom(node.rewarding_details.delegates, denom),
                         node.bond_information.mix_node.version,
                     ]);
                 }

@@ -1,5 +1,5 @@
 use crate::errors::ContractError;
-use crate::queued_migrations::migrate_config_from_env;
+use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
     account_from_address, locked_pledge_cap, remove_delegation, save_delegation,
     update_locked_pledge_cap, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,
@@ -47,10 +47,8 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_config_from_env(_deps, _env, _msg)?;
-
-    Ok(Response::default())
+pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrate_to_v2_mixnet_contract(deps, msg)
 }
 
 #[entry_point]

@@ -108,7 +108,7 @@ export const NodeSettings = ({
           Set profit margin
         </Typography>
         <Box sx={{ mb: 3 }}>
-          <TextField placeholder="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
+          <TextField label="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
           {error && (
             <FormHelperText sx={{ color: 'error.main' }}>
               Profit margin should be a whole number between 0 and 100

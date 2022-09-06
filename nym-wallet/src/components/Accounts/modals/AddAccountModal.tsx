@@ -115,7 +115,7 @@ const NameAccount = ({ onNext, onBack }: { onNext: (value: string) => void; onBa
           {error}
         </Typography>
         <TextField
-          placeholder="Account name"
+          label="Account name"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);

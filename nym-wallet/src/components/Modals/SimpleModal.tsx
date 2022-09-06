@@ -52,7 +52,7 @@ export const SimpleModal: React.FC<{
       </Stack>
 
       <Typography
-        mt={0.5}
+        mt={subHeader ? 0.5 : 0}
         mb={3}
         fontSize={12}
         color={(theme) => theme.palette.text.secondary}
@@ -64,10 +64,10 @@ export const SimpleModal: React.FC<{
       {children}
 
       {(onOk || onBack) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
           {onBack && <StyledBackButton onBack={onBack} />}
           {onOk && (
-            <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+            <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} sx={{ mt: 3 }}>
               {okLabel}
             </Button>
           )}

@@ -55,7 +55,7 @@ export const SendInputModal = ({
       sx={sx}
       backdropProps={backdropProps}
     >
-      <Stack gap={2} sx={{ mt: 2 }}>
+      <Stack gap={3}>
         <ModalListItem label="Your address" value={fromAddress} fontWeight="light" />
         <TextField
           label="Recipient address"

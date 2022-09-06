@@ -202,7 +202,7 @@ export const DelegateModal: React.FC<{
       sx={sx}
       backdropProps={backdropProps}
     >
-      <Box sx={{ mt: 2 }}>
+      <Box sx={{ mt: 3 }}>
         <IdentityKeyFormField
           required
           fullWidth
@@ -223,7 +223,7 @@ export const DelegateModal: React.FC<{
       >
         {errorIdentityKey}
       </Typography>
-      <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2 }}>
+      <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField
           required

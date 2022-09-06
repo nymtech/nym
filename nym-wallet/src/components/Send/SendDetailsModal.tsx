@@ -38,7 +38,7 @@ export const SendDetailsModal = ({
     sx={sx}
     backdropProps={backdropProps}
   >
-    <Stack gap={0.5} sx={{ mt: 4 }}>
+    <Stack gap={0.5} sx={{ mt: 3 }}>
       <ModalListItem label="From" value={fromAddress} divider />
       <ModalListItem label="To" value={toAddress} divider />
       <ModalListItem label="Amount" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />

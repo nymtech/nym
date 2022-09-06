@@ -170,16 +170,23 @@ impl Controller {
     }
 
     pub async fn run(&mut self) {
-        while let Some(command) = self.receiver.next().await {
-            match command {
-                ControllerCommand::Send(conn_id, data, is_closed) => {
-                    self.send_to_connection(conn_id, data, is_closed)
+        loop {
+            tokio::select! {
+                command = self.receiver.next() => match command {
+                    Some(ControllerCommand::Send(conn_id, data, is_closed)) => {
+                        self.send_to_connection(conn_id, data, is_closed)
+                    }
+                    Some(ControllerCommand::Insert(conn_id, sender)) => {
+                        self.insert_connection(conn_id, sender)
+                    }
+                    Some(ControllerCommand::Remove(conn_id)) => self.remove_connection(conn_id),
+                    None => {
+                        log::trace!("SOCKS5 Controller: Stopping since channel closed");
+                        break;
+                    }
                 }
-                ControllerCommand::Insert(conn_id, sender) => {
-                    self.insert_connection(conn_id, sender)
-                }
-                ControllerCommand::Remove(conn_id) => self.remove_connection(conn_id),
             }
         }
+        log::debug!("SOCKS5 Controller: Exiting");
     }
 }

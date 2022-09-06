@@ -20,13 +20,14 @@ web3 = { version = "0.17.0", default-features = false }
 async-trait = { version = "0.1.51" }
 
 # internal
+coconut-interface = { path = "../../coconut-interface", optional = true }
 credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
+network-defaults = { path = "../../network-defaults" }
 nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
-coconut-interface = { path = "../../coconut-interface", optional = true }
-network-defaults = { path = "../../network-defaults" }
+task = { path = "../../task" }
 validator-client = { path = "../validator-client", optional = true }
 
 [dependencies.tungstenite]
@@ -37,6 +38,10 @@ default-features = false
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 version = "1.19.1"
 features = ["macros", "rt", "net", "sync", "time"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
+version = "0.1.9"
+features = ["net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.14"

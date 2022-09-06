@@ -30,6 +30,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,6 +66,10 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
+
+    /// Listen to shutdown messages. This is an option since we don't require it when for example
+    /// when doing initial authentication.
+    shutdown: Option<ShutdownListener>,
 }
 
 impl GatewayClient {
@@ -80,6 +85,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
+        shutdown: Option<ShutdownListener>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -97,6 +103,7 @@ impl GatewayClient {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            shutdown,
         }
     }
 
@@ -148,6 +155,7 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            shutdown: None,
         }
     }
 
@@ -298,7 +306,7 @@ impl GatewayClient {
                         }
                         _ => (),
                     }
-               }
+                }
             }
         }
     }
@@ -723,6 +731,7 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
+                        self.shutdown.clone(),
                     )
                 }
                 _ => unreachable!(),

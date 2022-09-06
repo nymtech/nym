@@ -11,6 +11,7 @@ use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::BinaryResponse;
 use log::*;
 use std::sync::Arc;
+use task::ShutdownListener;
 use tungstenite::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -86,6 +87,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
+        shutdown: Option<ShutdownListener>,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -98,9 +100,15 @@ impl PartiallyDelegated {
             let mut fused_receiver = notify_receiver.fuse();
             let mut fused_stream = (&mut stream).fuse();
 
+            // Bit of an ugly workaround for selecting on an `Option`. The unwrap is lazy so we use
+            // this bool inside the `select` to guard against unwrapping in the `None` case.
+            let shutdown_is_some = shutdown.is_some();
+            let shutdown_recv_lazy = async { shutdown.unwrap().recv().await };
+            tokio::pin!(shutdown_recv_lazy);
+
             let ret_err = loop {
-                futures::select! {
-                    _ = fused_receiver => {
+                tokio::select! {
+                    _ = &mut fused_receiver => {
                         break Ok(());
                     }
                     msg = fused_stream.next() => {
@@ -109,6 +117,11 @@ impl PartiallyDelegated {
                             Ok(msg) => msg
                         };
                         Self::route_socket_message(ws_msg, &packet_router, shared_key.as_ref());
+                    }
+                    _ = &mut shutdown_recv_lazy, if shutdown_is_some => {
+                        log::trace!("GatewayClient listener: Received shutdown");
+                        log::debug!("GatewayClient listener: Exiting");
+                        return;
                     }
                 };
             };

@@ -11,6 +11,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
+use task::ShutdownListener;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
@@ -19,6 +20,7 @@ pub struct SphinxSocksServer {
     listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
+    shutdown: ShutdownListener,
 }
 
 impl SphinxSocksServer {
@@ -28,6 +30,7 @@ impl SphinxSocksServer {
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
+        shutdown: ShutdownListener,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
         // just modify the config
@@ -38,6 +41,7 @@ impl SphinxSocksServer {
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
             self_address,
+            shutdown,
         }
     }
 
@@ -58,56 +62,66 @@ impl SphinxSocksServer {
         });
 
         // listener for mix messages
-        let mut mixnet_response_listener =
-            MixnetResponseListener::new(buffer_requester, controller_sender.clone());
-
+        let mut mixnet_response_listener = MixnetResponseListener::new(
+            buffer_requester,
+            controller_sender.clone(),
+            self.shutdown.clone(),
+        );
         tokio::spawn(async move {
             mixnet_response_listener.run().await;
         });
 
         loop {
-            if let Ok((stream, _remote)) = listener.accept().await {
-                // TODO Optimize this
-                let mut client = SocksClient::new(
-                    stream,
-                    self.authenticator.clone(),
-                    input_sender.clone(),
-                    self.service_provider,
-                    controller_sender.clone(),
-                    self.self_address,
-                );
+            tokio::select! {
+                Ok((stream, _remote)) = listener.accept() => {
+                    // TODO Optimize this
+                    let mut client = SocksClient::new(
+                        stream,
+                        self.authenticator.clone(),
+                        input_sender.clone(),
+                        self.service_provider,
+                        controller_sender.clone(),
+                        self.self_address,
+                        self.shutdown.clone(),
+                    );
 
-                tokio::spawn(async move {
-                    {
-                        match client.run().await {
-                            Ok(_) => {}
-                            Err(error) => {
-                                error!("Error! {}", error);
-                                let error_text = format!("{}", error);
+                    tokio::spawn(async move {
+                        {
+                            match client.run().await {
+                                Ok(_) => {}
+                                Err(error) => {
+                                    error!("Error! {}", error);
+                                    let error_text = format!("{}", error);
 
-                                let response: ResponseCode;
+                                    let response: ResponseCode;
 
-                                if error_text.contains("Host") {
-                                    response = ResponseCode::HostUnreachable;
-                                } else if error_text.contains("Network") {
-                                    response = ResponseCode::NetworkUnreachable;
-                                } else if error_text.contains("ttl") {
-                                    response = ResponseCode::TtlExpired
-                                } else {
-                                    response = ResponseCode::Failure
+                                    if error_text.contains("Host") {
+                                        response = ResponseCode::HostUnreachable;
+                                    } else if error_text.contains("Network") {
+                                        response = ResponseCode::NetworkUnreachable;
+                                    } else if error_text.contains("ttl") {
+                                        response = ResponseCode::TtlExpired
+                                    } else {
+                                        response = ResponseCode::Failure
+                                    }
+
+                                    if client.error(response).await.is_err() {
+                                        warn!("Failed to send error code");
+                                    };
+                                    if client.shutdown().await.is_err() {
+                                        warn!("Failed to shutdown TcpStream");
+                                    };
                                 }
-
-                                if client.error(response).await.is_err() {
-                                    warn!("Failed to send error code");
-                                };
-                                if client.shutdown().await.is_err() {
-                                    warn!("Failed to shutdown TcpStream");
-                                };
-                            }
-                        };
-                        // client gets dropped here
-                    }
-                });
+                            };
+                            // client gets dropped here
+                        }
+                    });
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("SphinxSocksServer: Received shutdown");
+                    log::debug!("SphinxSocksServer: Exiting");
+                    return Ok(());
+                }
             }
         }
     }

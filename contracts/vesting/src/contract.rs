@@ -47,7 +47,6 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_config_from_env(_deps, _env, _msg)?;
     Ok(Response::default())
 }
 

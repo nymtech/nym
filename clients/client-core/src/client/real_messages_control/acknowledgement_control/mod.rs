@@ -153,6 +153,7 @@ impl<R> AcknowledgementController<R>
 where
     R: 'static + CryptoRng + Rng + Clone + Send,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         config: Config,
         rng: R,
@@ -212,11 +213,8 @@ where
 
         // will listen for events indicating the packet was sent through the network so that
         // the retransmission timer should be started.
-        let sent_notification_listener = SentNotificationListener::new(
-            connectors.sent_notifier,
-            action_sender,
-            shutdown.clone(),
-        );
+        let sent_notification_listener =
+            SentNotificationListener::new(connectors.sent_notifier, action_sender, shutdown);
 
         AcknowledgementController {
             acknowledgement_listener: Some(acknowledgement_listener),

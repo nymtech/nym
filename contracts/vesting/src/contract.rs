@@ -1,5 +1,4 @@
 use crate::errors::ContractError;
-use crate::queued_migrations::migrate_config_from_env;
 use crate::storage::{
     account_from_address, locked_pledge_cap, remove_delegation, save_delegation,
     update_locked_pledge_cap, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,

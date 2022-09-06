@@ -28,7 +28,6 @@ use crate::mixnodes::bonding_queries::{
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::transactions::_try_remove_mixnode;
-use crate::queued_migrations::migrate_config_from_env;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };

@@ -54,6 +54,13 @@ impl MixnetResponseListener {
                 return;
             }
             Ok(Message::Response(data)) => data,
+            Ok(Message::NetworkRequesterResponse(r)) => {
+                error!(
+                    "Network requester failed on connection id {} with error: {}",
+                    r.connection_id, r.network_requester_error
+                );
+                return;
+            }
         };
 
         self.controller_sender

@@ -27,6 +27,7 @@ members = [
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/coconut-interface",
+    "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/contracts-common",
@@ -69,6 +70,7 @@ members = [
     "service-providers/network-statistics",
     "validator-api",
     "validator-api/validator-api-requests",
+    "tools/nym-cli",
     "tools/ts-rs-cli"
 ]
 

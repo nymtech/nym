@@ -17,7 +17,7 @@ const WS_PORT: &str = "websocket-port";
 const ENABLE_STATISTICS: &str = "enable-statistics";
 const STATISTICS_RECIPIENT: &str = "statistics-recipient";
 
-fn parse_args<'a>() -> ArgMatches<'a> {
+fn parse_args() -> ArgMatches {
     App::new("Nym Network Requester")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
@@ -25,13 +25,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(OPEN_PROXY_ARG)
                 .help("specifies whether this network requester should run in 'open-proxy' mode")
                 .long(OPEN_PROXY_ARG)
-                .short("o"),
+                .short('o'),
         )
         .arg(
             Arg::with_name(WS_PORT)
                 .help("websocket port to bind to")
                 .long(WS_PORT)
-                .short("p")
+                .short('p')
                 .takes_value(true),
         )
         .arg(

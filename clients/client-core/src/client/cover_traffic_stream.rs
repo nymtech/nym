@@ -88,6 +88,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
         average_ack_delay: time::Duration,

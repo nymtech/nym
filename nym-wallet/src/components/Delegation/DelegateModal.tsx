@@ -169,8 +169,8 @@ export const DelegateModal: React.FC<{
         onPrev={resetFeeState}
         onConfirm={handleOk}
       >
-        <ModalListItem label="Node identity key:" value={identityKey} divider />
-        <ModalListItem label="Amount:" value={`${amount} ${denom.toUpperCase()}`} divider />
+        <ModalListItem label="Node identity key" value={identityKey} divider />
+        <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
     );
   }

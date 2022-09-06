@@ -39,9 +39,9 @@ export const SendDetailsModal = ({
     backdropProps={backdropProps}
   >
     <Stack gap={0.5} sx={{ mt: 4 }}>
-      <ModalListItem label="From:" value={fromAddress} divider />
-      <ModalListItem label="To:" value={toAddress} divider />
-      <ModalListItem label="Amount:" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />
+      <ModalListItem label="From" value={fromAddress} divider />
+      <ModalListItem label="To" value={toAddress} divider />
+      <ModalListItem label="Amount" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />
       <ModalFee fee={fee} divider isLoading={false} />
     </Stack>
   </SimpleModal>

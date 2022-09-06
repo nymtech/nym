@@ -20,7 +20,7 @@ export const ReceiveModal = ({ onClose }: { onClose: () => void; sx?: SxProps; b
       </DialogTitle>
       <DialogContent sx={{ p: 0 }}>
         <Box sx={{ px: 3 }}>
-          <ModalListItem label="Your address:" value={<ClientAddress withCopy showEntireAddress />} />
+          <ModalListItem label="Your address" value={<ClientAddress withCopy showEntireAddress />} />
         </Box>
         <Stack alignItems="center" sx={{ px: 0, py: 3, mt: 3, bgcolor: 'rgba(251, 110, 78, 5%)' }}>
           <Box sx={{ border: (t) => `1px solid ${t.palette.nym.highlight}`, bgcolor: 'white', borderRadius: 2, p: 3 }}>

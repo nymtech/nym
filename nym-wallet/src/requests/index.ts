@@ -8,3 +8,4 @@ export * from './utils';
 export * from './delegation';
 export * from './rewards';
 export * from './simulate';
+export * from './signature';

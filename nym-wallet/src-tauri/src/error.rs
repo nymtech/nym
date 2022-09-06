@@ -111,6 +111,8 @@ pub enum BackendError {
     UnknownCoinDenom(String),
     #[error("Network {network} doesn't have any associated registered coin denoms")]
     NoCoinsRegistered { network: Network },
+    #[error("Signature error {0}")]
+    SignatureError(String),
 }
 
 impl Serialize for BackendError {

@@ -1,23 +1,30 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
-import { Box, Typography, Stack, Toolbar, Button, Divider } from '@mui/material';
+import { Box, Typography, Stack, Button, Divider } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
 import { Node as NodeIcon } from 'src/svg-icons/node';
 import { NymCard } from '../../../components';
 import { PageLayout } from '../../../layouts';
+import { Tabs } from 'src/components/Tabs';
 import { useBondingContext, BondingContextProvider } from '../../../context';
 import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './general-settings';
 import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
-
-const nodeSettingsNav = ['General', 'Unbond'];
+import { nodeSettingsNav } from './node-settings.constant';
 
 export const NodeSettings = () => {
-  const [settingsCard, setSettingsCard] = useState<string>(nodeSettingsNav[0]);
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
+  const [value, setValue] = React.useState(0);
+
+  const theme = useTheme();
+
+  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    setValue(newValue);
+  };
 
   const { network } = useContext(AppContext);
 
@@ -63,30 +70,29 @@ export const NodeSettings = () => {
                 </Typography>
               </Box>
             </Box>
-            <Toolbar disableGutters sx={{ minHeight: 'fit-content' }}>
-              {nodeSettingsNav.map((item) => (
-                <Button
-                  size="small"
-                  sx={{
+            <Box sx={{ width: '100%' }}>
+              <Tabs
+                tabs={nodeSettingsNav}
+                selectedTab={value}
+                onChange={handleChange}
+                tabSx={{
+                  bgcolor: 'transparent',
+                  borderBottom: 'none',
+                  borderTop: 'none',
+                  '& button': {
                     p: 0,
                     mr: 4,
-                    fontWeight: 600,
-                    color: settingsCard === item ? 'primary.main' : '#B9B9B9',
-                    textDecoration: settingsCard === item ? 'underline' : 'none',
-                    textDecorationThickness: '4px',
-                    textUnderlineOffset: '4px',
-                    justifyContent: 'start',
-                    ':hover': {
-                      bgcolor: 'transparent',
-                      color: 'primary.main',
-                    },
-                  }}
-                  onClick={() => setSettingsCard(item)}
-                >
-                  {item}
-                </Button>
-              ))}
-            </Toolbar>
+                    minWidth: 'none',
+                    fontSize: 16,
+                  },
+                  '& button:hover': {
+                    color: theme.palette.nym.highlight,
+                    opacity: 1,
+                  },
+                }}
+                tabIndicatorStyles={{ height: 4, bottom: '6px', borderRadius: '2px' }}
+              />
+            </Box>
           </Stack>
         }
         Action={
@@ -101,14 +107,9 @@ export const NodeSettings = () => {
         }
       >
         <Divider />
-        {settingsCard === nodeSettingsNav[0] && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
-        {settingsCard === nodeSettingsNav[1] && bondedNode && (
-          <UnbondModal
-            node={bondedNode}
-            onClose={() => setSettingsCard(nodeSettingsNav[0])}
-            onConfirm={handleUnbond}
-            onError={handleError}
-          />
+        {value === 0 && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {value === 1 && bondedNode && (
+          <UnbondModal node={bondedNode} onClose={() => setValue(0)} onConfirm={handleUnbond} onError={handleError} />
         )}
         {confirmationDetails && confirmationDetails.status === 'success' && (
           <ConfirmationDetailsModal

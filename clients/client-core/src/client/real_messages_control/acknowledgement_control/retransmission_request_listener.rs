@@ -35,6 +35,7 @@ impl<R> RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,

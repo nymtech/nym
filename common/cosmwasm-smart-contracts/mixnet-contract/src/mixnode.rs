@@ -166,7 +166,6 @@ pub mod fixed_U128_as_string {
     use super::U128;
     use serde::de::Error;
     use serde::Deserialize;
-    use std::str::FromStr;
 
     pub fn serialize<S>(val: &U128, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -12,6 +12,7 @@ import {
   Divider,
 } from '@mui/material';
 import { Add, ArrowDownwardSharp, Close } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { AccountsContext } from 'src/context';
 import { AccountItem } from '../AccountItem';
 import { ConfirmPasswordModal } from './ConfirmPasswordModal';
@@ -20,6 +21,8 @@ export const AccountsModal = () => {
   const { accounts, dialogToDisplay, setDialogToDisplay, setError, handleSelectAccount, selectedAccount } =
     useContext(AccountsContext);
   const [accountToSwitchTo, setAccountToSwitchTo] = useState<string>();
+
+  const theme = useTheme();
 
   const handleClose = () => {
     setDialogToDisplay(undefined);
@@ -43,7 +46,14 @@ export const AccountsModal = () => {
     );
 
   return (
-    <Dialog open={dialogToDisplay === 'Accounts'} onClose={handleClose} fullWidth>
+    <Dialog
+      open={dialogToDisplay === 'Accounts'}
+      onClose={handleClose}
+      fullWidth
+      PaperProps={{
+        style: { border: `1px solid ${theme.palette.nym.nymWallet.modal.border}` },
+      }}
+    >
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

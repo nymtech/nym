@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { AccountsContext } from 'src/context';
 
 export const EditAccountModal = () => {
@@ -19,12 +20,21 @@ export const EditAccountModal = () => {
 
   const { accountToEdit, dialogToDisplay, setDialogToDisplay, handleEditAccount } = useContext(AccountsContext);
 
+  const theme = useTheme();
+
   useEffect(() => {
     setAccountName(accountToEdit ? accountToEdit?.id : '');
   }, [accountToEdit]);
 
   return (
-    <Dialog open={dialogToDisplay === 'Edit'} onClose={() => setDialogToDisplay('Accounts')} fullWidth>
+    <Dialog
+      open={dialogToDisplay === 'Edit'}
+      onClose={() => setDialogToDisplay('Accounts')}
+      fullWidth
+      PaperProps={{
+        style: { border: `1px solid ${theme.palette.nym.nymWallet.modal.border}` },
+      }}
+    >
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">

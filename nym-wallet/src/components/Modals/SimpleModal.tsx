@@ -38,7 +38,7 @@ export const SimpleModal: React.FC<{
   backdropProps,
 }) => (
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-    <Box sx={{ ...modalStyle, ...sx }}>
+    <Box sx={{ border: (t) => `1px solid ${t.palette.nym.nymWallet.modal.border}`, ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         {typeof header === 'string' ? (

@@ -13,6 +13,7 @@ use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 use tokio::time;
 
@@ -48,6 +49,9 @@ where
 
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
+
+    /// Listen to shutdown signals.
+    shutdown: ShutdownListener,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -92,6 +96,7 @@ impl LoopCoverTrafficStream<OsRng> {
         mix_tx: BatchMixMessageSender,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
+        shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
 
@@ -105,6 +110,7 @@ impl LoopCoverTrafficStream<OsRng> {
             our_full_destination,
             rng,
             topology_access,
+            shutdown,
         }
     }
 
@@ -159,9 +165,21 @@ impl LoopCoverTrafficStream<OsRng> {
             self.average_cover_message_sending_delay,
         )));
 
-        while self.next().await.is_some() {
-            self.on_new_message().await;
+        let mut shutdown = self.shutdown.clone();
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("LoopCoverTrafficStream: Received shutdown");
+                }
+                next = self.next() => {
+                    if next.is_some() {
+                        self.on_new_message().await;
+                    }
+                }
+            }
         }
+        log::debug!("LoopCoverTrafficStream: Exiting");
     }
 
     pub fn start(mut self) -> JoinHandle<()> {

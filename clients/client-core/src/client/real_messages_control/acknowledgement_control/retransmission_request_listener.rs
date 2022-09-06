@@ -14,6 +14,7 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
+use task::ShutdownListener;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R>
@@ -27,6 +28,7 @@ where
     real_message_sender: BatchRealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
     topology_access: TopologyAccessor,
+    shutdown: ShutdownListener,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -41,6 +43,7 @@ where
         real_message_sender: BatchRealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
         topology_access: TopologyAccessor,
+        shutdown: ShutdownListener,
     ) -> Self {
         RetransmissionRequestListener {
             ack_key,
@@ -50,6 +53,7 @@ where
             real_message_sender,
             request_receiver,
             topology_access,
+            shutdown,
         }
     }
 
@@ -121,9 +125,17 @@ where
 
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener");
-        while let Some(timed_out_ack) = self.request_receiver.next().await {
-            self.on_retransmission_request(timed_out_ack).await;
+
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                Some(timed_out_ack) = self.request_receiver.next() => {
+                    self.on_retransmission_request(timed_out_ack).await;
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("RetransmissionRequestListener: Received shutdown");
+                }
+            }
         }
-        error!("TODO: error msg. Or maybe panic?")
+        log::debug!("RetransmissionRequestListener: Exiting");
     }
 }

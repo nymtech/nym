@@ -6,6 +6,7 @@ use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
+use task::ShutdownListener;
 
 /// Module responsible for starting up retransmission timers.
 /// It is required because when we send our packet to the `real traffic stream` controlled
@@ -14,16 +15,19 @@ use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
     action_sender: ActionSender,
+    shutdown: ShutdownListener,
 }
 
 impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
         action_sender: ActionSender,
+        shutdown: ShutdownListener,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,
             action_sender,
+            shutdown,
         }
     }
 
@@ -44,9 +48,16 @@ impl SentNotificationListener {
 
     pub(super) async fn run(&mut self) {
         debug!("Started SentNotificationListener");
-        while let Some(frag_id) = self.sent_notifier.next().await {
-            self.on_sent_message(frag_id).await;
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                Some(frag_id) = self.sent_notifier.next() => {
+                    self.on_sent_message(frag_id).await;
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("SentNotificationListener: Received shutdown");
+                }
+            }
         }
-        error!("TODO: error msg. Or maybe panic?")
+        log::debug!("SentNotificationListener: Exiting");
     }
 }

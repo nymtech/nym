@@ -6,6 +6,7 @@ use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 
 pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
@@ -18,6 +19,7 @@ pub struct MixTrafficController {
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient,
     mix_rx: BatchMixMessageReceiver,
+    shutdown: ShutdownListener,
 
     // TODO: this is temporary work-around.
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
@@ -28,10 +30,12 @@ impl MixTrafficController {
     pub fn new(
         mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
+        shutdown: ShutdownListener,
     ) -> MixTrafficController {
         MixTrafficController {
             gateway_client,
             mix_rx,
+            shutdown,
             consecutive_gateway_failure_count: 0,
         }
     }
@@ -66,9 +70,23 @@ impl MixTrafficController {
     }
 
     pub async fn run(&mut self) {
-        while let Some(mix_packets) = self.mix_rx.next().await {
-            self.on_messages(mix_packets).await;
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                mix_packets = self.mix_rx.next() => match mix_packets {
+                    Some(mix_packets) => {
+                        self.on_messages(mix_packets).await;
+                    },
+                    None => {
+                        log::trace!("MixTrafficController: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("MixTrafficController: Received shutdown");
+                }
+            }
         }
+        log::debug!("MixTrafficController: Exiting");
     }
 
     pub fn start(mut self) -> JoinHandle<()> {

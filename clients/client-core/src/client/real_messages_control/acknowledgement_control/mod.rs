@@ -25,6 +25,7 @@ use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 
 mod acknowledgement_listener;
@@ -160,13 +161,14 @@ where
         ack_recipient: Recipient,
         reply_key_storage: ReplyKeyStorage,
         connectors: AcknowledgementControllerConnectors,
+        shutdown: ShutdownListener,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
         let action_config =
             action_controller::Config::new(config.ack_wait_addition, config.ack_wait_multiplier);
         let (action_controller, action_sender) =
-            ActionController::new(action_config, retransmission_tx);
+            ActionController::new(action_config, retransmission_tx, shutdown.clone());
 
         let message_preparer = MessagePreparer::new(
             rng,
@@ -180,6 +182,7 @@ where
             Arc::clone(&ack_key),
             connectors.ack_receiver,
             action_sender.clone(),
+            shutdown.clone(),
         );
 
         // will listen for any new messages from the client
@@ -192,6 +195,7 @@ where
             connectors.real_message_sender.clone(),
             topology_access.clone(),
             reply_key_storage,
+            shutdown.clone(),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -203,12 +207,16 @@ where
             connectors.real_message_sender,
             retransmission_rx,
             topology_access,
+            shutdown.clone(),
         );
 
         // will listen for events indicating the packet was sent through the network so that
         // the retransmission timer should be started.
-        let sent_notification_listener =
-            SentNotificationListener::new(connectors.sent_notifier, action_sender);
+        let sent_notification_listener = SentNotificationListener::new(
+            connectors.sent_notifier,
+            action_sender,
+            shutdown.clone(),
+        );
 
         AcknowledgementController {
             acknowledgement_listener: Some(acknowledgement_listener),
@@ -232,27 +240,27 @@ where
         // graceful shutdowns.
         let ack_listener_fut = tokio::spawn(async move {
             acknowledgement_listener.run().await;
-            error!("The acknowledgement listener has finished execution!");
+            debug!("The acknowledgement listener has finished execution!");
             acknowledgement_listener
         });
         let input_listener_fut = tokio::spawn(async move {
             input_message_listener.run().await;
-            error!("The input listener has finished execution!");
+            debug!("The input listener has finished execution!");
             input_message_listener
         });
         let retransmission_req_fut = tokio::spawn(async move {
             retransmission_request_listener.run().await;
-            error!("The retransmission request listener has finished execution!");
+            debug!("The retransmission request listener has finished execution!");
             retransmission_request_listener
         });
         let sent_notification_fut = tokio::spawn(async move {
             sent_notification_listener.run().await;
-            error!("The sent notification listener has finished execution!");
+            debug!("The sent notification listener has finished execution!");
             sent_notification_listener
         });
         let action_controller_fut = tokio::spawn(async move {
             action_controller.run().await;
-            error!("The controller has finished execution!");
+            debug!("The controller has finished execution!");
             action_controller
         });
 

@@ -6,11 +6,13 @@ use log::*;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use socks5_requests::Message;
+use task::ShutdownListener;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
     controller_sender: ControllerSender,
+    shutdown: ShutdownListener,
 }
 
 impl Drop for MixnetResponseListener {
@@ -25,6 +27,7 @@ impl MixnetResponseListener {
     pub(crate) fn new(
         buffer_requester: ReceivedBufferRequestSender,
         controller_sender: ControllerSender,
+        shutdown: ShutdownListener,
     ) -> Self {
         let (mix_response_sender, mix_response_receiver) = mpsc::unbounded();
         buffer_requester
@@ -35,6 +38,7 @@ impl MixnetResponseListener {
             buffer_requester,
             mix_response_receiver,
             controller_sender,
+            shutdown,
         }
     }
 
@@ -73,11 +77,18 @@ impl MixnetResponseListener {
     }
 
     pub(crate) async fn run(&mut self) {
-        while let Some(received_responses) = self.mix_response_receiver.next().await {
-            for reconstructed_message in received_responses {
-                self.on_message(reconstructed_message).await;
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                Some(received_responses) = self.mix_response_receiver.next() => {
+                    for reconstructed_message in received_responses {
+                        self.on_message(reconstructed_message).await;
+                    }
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("MixnetResponseListener: Received shutdown");
+                }
             }
         }
-        error!("We should never see this message");
+        log::debug!("MixnetResponseListener: Exiting");
     }
 }

@@ -19,6 +19,7 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tokio::time;
 
 /// Configurable parameters of the `OutQueueControl`
@@ -83,6 +84,9 @@ where
 
     /// Buffer containing all real messages received. It is first exhausted before more are pulled.
     received_buffer: VecDeque<RealMessage>,
+
+    /// Listens for shutdown signals
+    shutdown: ShutdownListener,
 }
 
 pub(crate) struct RealMessage {
@@ -174,6 +178,7 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
+        shutdown: ShutdownListener,
     ) -> Self {
         OutQueueControl {
             config,
@@ -186,6 +191,7 @@ where
             rng,
             topology_access,
             received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
+            shutdown,
         }
     }
 
@@ -239,7 +245,15 @@ where
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        self.mix_tx.unbounded_send(vec![next_message]).unwrap();
+        if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
+            if self.shutdown.is_shutdown_poll() {
+                log::info!("Failed to send (shutdown detected)");
+            } else {
+                // We don't try to limp along, panic to avoid continuing in a potentially
+                // inconsistent state
+                panic!("{err}");
+            }
+        }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
@@ -257,9 +271,19 @@ where
             self.config.average_message_sending_delay,
         )));
 
-        while let Some(next_message) = self.next().await {
-            self.on_message(next_message).await;
+        let mut shutdown = self.shutdown.clone();
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("OutQueueControl: Received shutdown");
+                }
+                Some(next_message) = self.next() => {
+                    self.on_message(next_message).await;
+                },
+            }
         }
+        log::debug!("OutQueueControl: Exiting");
     }
 
     pub(crate) async fn run_out_queue_control(&mut self) {

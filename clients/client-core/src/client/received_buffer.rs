@@ -15,6 +15,7 @@ use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorith
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
@@ -292,16 +293,26 @@ impl RequestReceiver {
 
     fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move {
-            while let Some(request) = self.query_receiver.next().await {
-                match request {
-                    ReceivedBufferMessage::ReceiverAnnounce(sender) => {
-                        self.received_buffer.connect_sender(sender).await;
-                    }
-                    ReceivedBufferMessage::ReceiverDisconnect => {
-                        self.received_buffer.disconnect_sender().await
-                    }
-                }
+            loop {
+                tokio::select! {
+                    request = self.query_receiver.next() => {
+                        match request {
+                            Some(ReceivedBufferMessage::ReceiverAnnounce(sender)) => {
+                                self.received_buffer.connect_sender(sender).await;
+                            }
+                            Some(ReceivedBufferMessage::ReceiverDisconnect) => {
+                                self.received_buffer.disconnect_sender().await
+                            }
+                            None => {
+                                log::trace!("RequestReceiver: Stopping since channel closed");
+                                break;
+                            },
+                        }
+                    },
+                };
             }
+
+            log::debug!("RequestReceiver: Exiting");
         })
     }
 }
@@ -309,23 +320,40 @@ impl RequestReceiver {
 struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
     mixnet_packet_receiver: MixnetMessageReceiver,
+    shutdown: ShutdownListener,
 }
 
 impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
         mixnet_packet_receiver: MixnetMessageReceiver,
+        shutdown: ShutdownListener,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
+            shutdown,
         }
     }
     fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move {
-            while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
-                self.received_buffer.handle_new_received(new_messages).await;
+            while !self.shutdown.is_shutdown() {
+                tokio::select! {
+                    new_messages = self.mixnet_packet_receiver.next() => match new_messages {
+                        Some(new_messages) => {
+                            self.received_buffer.handle_new_received(new_messages).await;
+                        }
+                        None => {
+                            log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+                            break;
+                        }
+                    },
+                    _ = self.shutdown.recv() => {
+                        log::trace!("FragmentedMessageReceiver: Received shutdown");
+                    }
+                }
             }
+            log::debug!("FragmentedMessageReceiver: Exiting");
         })
     }
 }
@@ -341,6 +369,7 @@ impl ReceivedMessagesBufferController {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: ReplyKeyStorage,
+        shutdown: ShutdownListener,
     ) -> Self {
         let received_buffer =
             ReceivedMessagesBuffer::new(local_encryption_keypair, reply_key_storage);
@@ -349,6 +378,7 @@ impl ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
+                shutdown,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }

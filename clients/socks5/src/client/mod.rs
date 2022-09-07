@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::atomic::AtomicBool;
+
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -38,6 +40,8 @@ use crate::socks::{
 };
 
 pub mod config;
+
+pub static SHUTDOWN_IS_SIGNALLED: AtomicBool = AtomicBool::new(false);
 
 // Channels used to control the main task from outside
 pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage>;
@@ -290,6 +294,8 @@ impl NymClient {
         wait_for_signal().await;
 
         log::info!("Sending shutdown");
+        SHUTDOWN_IS_SIGNALLED.store(true, std::sync::atomic::Ordering::Relaxed);
+        client_core::client::SHUTDOWN_IS_SIGNALLED.store(true, std::sync::atomic::Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");

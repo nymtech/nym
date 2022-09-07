@@ -316,6 +316,8 @@ impl TopologyRefresher {
                     },
                 }
             }
+            let a = SHUTDOWN_IS_SIGNALED;
+            let a = crate::client::SHUTDOWN_IS_SIGNALLED.load(std::sync::atomic::Ordering::Relaxed);
             log::debug!("TopologyRefresher: Exiting");
         })
     }

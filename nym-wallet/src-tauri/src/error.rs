@@ -69,6 +69,11 @@ pub enum BackendError {
         #[from]
         source: reqwest::Error,
     },
+    #[error("{source}")]
+    K256Error {
+        #[from]
+        source: k256::ecdsa::Error,
+    },
     #[error("failed to encrypt the given data with the provided password")]
     EncryptionError,
     #[error("failed to decrypt the given data with the provided password")]

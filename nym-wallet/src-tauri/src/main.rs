@@ -148,6 +148,7 @@ fn main() {
             simulate::mixnet::simulate_compound_operator_reward,
             simulate::mixnet::simulate_compound_delegator_reward,
             signatures::sign::sign,
+            signatures::sign::verify,
         ])
         .menu(Menu::new().add_default_app_submenu_if_macos())
         .run(tauri::generate_context!())

@@ -7,6 +7,7 @@ use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer};
 use socks5_requests::ConnectionId;
 use std::collections::{HashMap, HashSet};
+use task::ShutdownListener;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
 /// actually read alongside boolean indicating whether the connection got closed so that
@@ -74,10 +75,12 @@ pub struct Controller {
     // buffer for messages received before connection was established due to mixnet being able to
     // un-order messages. Note we don't ever expect to have more than 1-2 messages per connection here
     pending_messages: HashMap<ConnectionId, Vec<(Vec<u8>, bool)>>,
+
+    shutdown: ShutdownListener,
 }
 
 impl Controller {
-    pub fn new() -> (Self, ControllerSender) {
+    pub fn new(shutdown: ShutdownListener) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
             Controller {
@@ -85,6 +88,7 @@ impl Controller {
                 receiver,
                 recently_closed: HashSet::new(),
                 pending_messages: HashMap::new(),
+                shutdown,
             },
             sender,
         )
@@ -187,6 +191,7 @@ impl Controller {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("SOCKS5 Controller: Exiting");
     }
 }

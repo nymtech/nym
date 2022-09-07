@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::SHUTDOWN_HAS_BEEN_SIGNALLED;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crypto::asymmetric::encryption;
 use crypto::symmetric::stream_cipher;
@@ -15,6 +16,7 @@ use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorith
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use task::ShutdownListener;
 use tokio::task::JoinHandle;
 
@@ -312,6 +314,7 @@ impl RequestReceiver {
                 };
             }
 
+            assert!(SHUTDOWN_HAS_BEEN_SIGNALLED.load(Ordering::Relaxed));
             log::debug!("RequestReceiver: Exiting");
         })
     }
@@ -353,6 +356,7 @@ impl FragmentedMessageReceiver {
                     }
                 }
             }
+            assert!(self.shutdown.is_shutdown_poll());
             log::debug!("FragmentedMessageReceiver: Exiting");
         })
     }

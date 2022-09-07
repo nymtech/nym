@@ -86,6 +86,7 @@ impl MixTrafficController {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("MixTrafficController: Exiting");
     }
 

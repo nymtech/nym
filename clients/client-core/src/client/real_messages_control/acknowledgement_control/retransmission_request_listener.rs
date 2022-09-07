@@ -137,6 +137,7 @@ where
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("RetransmissionRequestListener: Exiting");
     }
 }

@@ -313,7 +313,8 @@ impl ServiceProvider {
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
         let shutdown = task::ShutdownNotifier::default();
-        let (mut active_connections_controller, mut controller_sender) = Controller::new();
+        let (mut active_connections_controller, mut controller_sender) =
+            Controller::new(shutdown.subscribe());
         tokio::spawn(async move {
             active_connections_controller.run().await;
         });

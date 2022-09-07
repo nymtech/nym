@@ -264,6 +264,7 @@ impl ActionController {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("ActionController: Exiting");
     }
 }

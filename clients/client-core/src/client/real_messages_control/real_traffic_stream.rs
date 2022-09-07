@@ -283,6 +283,7 @@ where
                 },
             }
         }
+        assert!(shutdown.is_shutdown_poll());
         log::debug!("OutQueueControl: Exiting");
     }
 

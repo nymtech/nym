@@ -82,6 +82,7 @@ impl AcknowledgementListener {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("AcknowledgementListener: Exiting");
     }
 }

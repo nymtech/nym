@@ -180,6 +180,7 @@ impl LoopCoverTrafficStream<OsRng> {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("LoopCoverTrafficStream: Exiting");
     }
 

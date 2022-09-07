@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -290,6 +292,7 @@ impl NymClient {
         wait_for_signal().await;
 
         log::info!("Sending shutdown");
+        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");

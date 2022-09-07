@@ -1,8 +1,9 @@
-use client_core::client::received_buffer::ReconstructedMessagesReceiver;
-use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+
+use client_core::client::received_buffer::ReconstructedMessagesReceiver;
+use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use socks5_requests::Message;
@@ -89,6 +90,7 @@ impl MixnetResponseListener {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

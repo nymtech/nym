@@ -56,7 +56,8 @@ impl SphinxSocksServer {
         info!("Serving Connections...");
 
         // controller for managing all active connections
-        let (mut active_streams_controller, controller_sender) = Controller::new();
+        let (mut active_streams_controller, controller_sender) =
+            Controller::new(self.shutdown.clone());
         tokio::spawn(async move {
             active_streams_controller.run().await;
         });

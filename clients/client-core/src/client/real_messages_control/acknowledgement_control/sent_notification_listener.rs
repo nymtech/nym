@@ -58,6 +58,7 @@ impl SentNotificationListener {
                 }
             }
         }
+        assert!(self.shutdown.is_shutdown_poll());
         log::debug!("SentNotificationListener: Exiting");
     }
 }

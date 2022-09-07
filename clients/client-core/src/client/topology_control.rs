@@ -316,6 +316,7 @@ impl TopologyRefresher {
                     },
                 }
             }
+            assert!(shutdown.is_shutdown_poll());
             log::debug!("TopologyRefresher: Exiting");
         })
     }

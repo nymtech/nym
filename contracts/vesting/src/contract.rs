@@ -144,7 +144,7 @@ pub fn execute(
 }
 
 /// Update locked_pledge_cap, the hard cap for staking/bonding with unvested tokens.
-/// 
+///
 /// Callable by ADMIN only, see [instantiate].
 pub fn try_update_locked_pledge_cap(
     amount: Uint128,
@@ -169,7 +169,7 @@ pub fn try_update_mixnode_config(
 }
 
 /// Updates mixnet contract address, for cases when a new mixnet contract is deployed.
-/// 
+///
 /// Callable by ADMIN only, see [instantiate].
 pub fn try_update_mixnet_address(
     address: String,
@@ -449,7 +449,7 @@ fn try_undelegate_from_mixnode(
 }
 
 /// Creates a new periodic vesting account, and deposits funds to vest into the contract.
-/// 
+///
 /// Callable by ADMIN only, see [instantiate].
 fn try_create_periodic_vesting_account(
     owner_address: &str,

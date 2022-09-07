@@ -6,8 +6,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- nym-cli: added CLI tool for interacting with the Nyx blockchain and Nym mixnet smart contracts ([#1577])
 - validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
-
 
 ### Changed
 
@@ -15,6 +15,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
+[#1577]: https://github.com/nymtech/nym/pull/1577
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

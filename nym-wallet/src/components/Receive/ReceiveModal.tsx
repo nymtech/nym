@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
-import { Box, Stack, Typography, SxProps, Dialog, DialogTitle, DialogContent } from '@mui/material';
+import { Box, Stack, SxProps } from '@mui/material';
 import QRCode from 'qrcode.react';
 import { ClientAddress } from '../ClientAddress';
 import { ModalListItem } from '../Modals/ModalListItem';

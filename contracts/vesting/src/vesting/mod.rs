@@ -36,8 +36,8 @@ pub fn populate_vesting_periods(
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::execute;
-    use crate::storage::load_account;
+    use crate::contract::*;
+    use crate::storage::*;
     use crate::support::tests::helpers::{
         init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };
@@ -924,5 +924,98 @@ mod tests {
 
         // the 50M delegation wasn't a thing here for VESTING tokens either
         assert_eq!(delegated_vesting.amount, Uint128::zero());
+    }
+
+    #[test]
+    fn migrate_heights_to_timestamps() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let mix_identity = String::from("identity");
+        let mut curr_block = env.block.clone();
+        let mut delegation_blocks = std::iter::from_fn(move || {
+            curr_block.height += 1;
+            curr_block.time = curr_block.time.plus_seconds(5);
+            Some(curr_block.clone())
+        })
+        .take(100)
+        .collect::<Vec<_>>();
+
+        for block in delegation_blocks.iter() {
+            DELEGATIONS
+                .save(
+                    &mut deps.storage,
+                    (account.storage_key(), mix_identity.clone(), block.height),
+                    &Uint128::new(90_000_000_000),
+                )
+                .unwrap();
+        }
+
+        let delegations = try_get_delegation_times(
+            deps.as_ref(),
+            account.owner_address().as_str(),
+            mix_identity.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            delegations.delegation_timestamps.len(),
+            delegation_blocks.len()
+        );
+        for (heights, delegation_block) in delegations
+            .delegation_timestamps
+            .iter()
+            .zip(delegation_blocks.iter())
+        {
+            assert_eq!(*heights, delegation_block.height);
+        }
+
+        let height_timestamp_map = delegation_blocks
+            .iter()
+            .map(|block| (block.height, block.time.seconds()))
+            .collect();
+        let admin = ADMIN.load(&deps.storage).unwrap();
+        try_migrate_heights_to_timestamps(
+            account.storage_key(),
+            mix_identity.clone(),
+            height_timestamp_map,
+            mock_info(&admin, &[]),
+            deps.as_mut(),
+        )
+        .unwrap();
+
+        // Some new delegation appears during migration
+        env.block.height += 200;
+        env.block.time = env.block.time.plus_seconds(1000);
+        delegation_blocks.push(env.block.clone());
+        account
+            .try_delegate_to_mixnode(
+                String::from("identity"),
+                Coin {
+                    amount: Uint128::new(90_000_000_000),
+                    denom: TEST_COIN_DENOM.to_string(),
+                },
+                &env,
+                &mut deps.storage,
+            )
+            .unwrap();
+
+        let delegations = try_get_delegation_times(
+            deps.as_ref(),
+            account.owner_address().as_str(),
+            mix_identity.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            delegations.delegation_timestamps.len(),
+            delegation_blocks.len()
+        );
+        for (timestamp, delegation_block) in delegations
+            .delegation_timestamps
+            .iter()
+            .zip(delegation_blocks.iter())
+        {
+            assert_eq!(*timestamp, delegation_block.time.seconds());
+        }
     }
 }

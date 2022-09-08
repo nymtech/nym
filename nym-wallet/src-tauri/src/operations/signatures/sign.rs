@@ -4,6 +4,7 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use cosmrs::crypto::secp256k1::{Signature, VerifyingKey};
 use cosmrs::crypto::PublicKey;
+use cosmrs::AccountId;
 use k256::ecdsa::signature::Verifier;
 use serde::Serialize;
 use serde_json::json;
@@ -46,14 +47,93 @@ pub async fn sign(
     }
 }
 
+async fn get_pubkey_from_account_address(
+    address: &AccountId,
+    state: &tauri::State<'_, WalletState>,
+) -> Result<PublicKey, BackendError> {
+    log::info!("Getting public key for address {} from chain...", address);
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    match client.nymd.get_account_details(address).await? {
+        Some(account) => {
+            let base_account = account.try_get_base_account()?;
+            if let Some(k) = base_account.pubkey {
+                log::info!("public key found {}", k.to_json());
+                Ok(k)
+            } else {
+                log::error!("No account associated with address {}", address);
+                Err(BackendError::SignatureError(format!(
+                    "No account associated with address {}",
+                    address
+                )))
+            }
+        }
+        None => {
+            log::error!("No account associated with address {}", address);
+            Err(BackendError::SignatureError(format!(
+                "No account associated with address {}",
+                address
+            )))
+        }
+    }
+}
+
+enum VerifyInputKind {
+    PublicKeyJSON(PublicKey),
+    AccountAddress(String),
+    CurrentAccountAddress,
+}
+
+impl TryFrom<Option<String>> for VerifyInputKind {
+    type Error = BackendError;
+
+    fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
+        if value.is_none() {
+            return Ok(VerifyInputKind::CurrentAccountAddress);
+        }
+        let key = value.unwrap();
+        if key.trim().is_empty() {
+            return Err(BackendError::SignatureError(
+                "Please ensure the public key or address is not empty or whitespace".to_string(),
+            ));
+        }
+        let account_id = AccountId::from_str(&key);
+        let key_from_json = PublicKey::from_json(&key);
+        if account_id.is_err() && key_from_json.is_err() {
+            return Err(BackendError::SignatureError(
+                "Please ensure the public key or address is valid".to_string(),
+            ));
+        }
+        if let Ok(k) = key_from_json {
+            Ok(VerifyInputKind::PublicKeyJSON(k))
+        } else {
+            Ok(VerifyInputKind::AccountAddress(key))
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn verify(
-    public_key_as_json: String,
+    public_key_as_json_or_account_address: Option<String>,
     signature_as_hex: String,
     message: String,
-    _state: tauri::State<'_, WalletState>,
+    state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
-    let public_key = PublicKey::from_json(&public_key_as_json)?;
+    let public_key = match VerifyInputKind::try_from(public_key_as_json_or_account_address)? {
+        VerifyInputKind::PublicKeyJSON(key) => key,
+        VerifyInputKind::AccountAddress(address) => {
+            // get public key from the given account address
+            get_pubkey_from_account_address(&AccountId::from_str(&address)?, &state).await?
+        }
+        VerifyInputKind::CurrentAccountAddress => {
+            // get public key from current account address
+            let guard = state.read().await;
+            let client = guard.current_client()?;
+            let address = client.nymd.address();
+            get_pubkey_from_account_address(address, &state).await?
+        }
+    };
+
     if public_key.type_url() != PublicKey::SECP256K1_TYPE_URL {
         return Err(BackendError::SignatureError(
             "Sorry, we only support secp256k1 public keys at the moment".to_string(),

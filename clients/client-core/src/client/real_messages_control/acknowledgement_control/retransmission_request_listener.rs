@@ -129,8 +129,12 @@ where
 
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                Some(timed_out_ack) = self.request_receiver.next() => {
-                    self.on_retransmission_request(timed_out_ack).await;
+                timed_out_ack = self.request_receiver.next() => match timed_out_ack {
+                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
+                    None => {
+                        log::trace!("RetransmissionRequestListener: Stopping since channel closed");
+                        break;
+                    }
                 },
                 _ = self.shutdown.recv() => {
                     log::trace!("RetransmissionRequestListener: Received shutdown");

@@ -80,9 +80,15 @@ impl MixnetResponseListener {
     pub(crate) async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                Some(received_responses) = self.mix_response_receiver.next() => {
-                    for reconstructed_message in received_responses {
-                        self.on_message(reconstructed_message).await;
+                received_responses = self.mix_response_receiver.next() => match received_responses {
+                    Some(received_responses) => {
+                        for reconstructed_message in received_responses {
+                            self.on_message(reconstructed_message).await;
+                        }
+                    },
+                    None => {
+                        log::trace!("MixnetResponseListener: Stopping since channel closed");
+                        break;
                     }
                 },
                 _ = self.shutdown.recv() => {

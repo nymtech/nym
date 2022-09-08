@@ -50,8 +50,14 @@ impl SentNotificationListener {
         debug!("Started SentNotificationListener");
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                Some(frag_id) = self.sent_notifier.next() => {
-                    self.on_sent_message(frag_id).await;
+                frag_id = self.sent_notifier.next() => match frag_id {
+                    Some(frag_id) => {
+                        self.on_sent_message(frag_id).await;
+                    }
+                    None => {
+                        log::trace!("SentNotificationListener: Stopping since channel closed");
+                        break;
+                    }
                 },
                 _ = self.shutdown.recv() => {
                     log::trace!("SentNotificationListener: Received shutdown");

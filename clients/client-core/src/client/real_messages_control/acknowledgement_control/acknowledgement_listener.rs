@@ -71,10 +71,16 @@ impl AcknowledgementListener {
         debug!("Started AcknowledgementListener");
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                Some(acks) = self.ack_receiver.next() => {
-                    // realistically we would only be getting one ack at the time
-                    for ack in acks {
-                        self.on_ack(ack).await;
+                acks = self.ack_receiver.next() => match acks {
+                    Some(acks) => {
+                        // realistically we would only be getting one ack at the time
+                        for ack in acks {
+                            self.on_ack(ack).await;
+                        }
+                    },
+                    None => {
+                        log::trace!("AcknowledgementListener: Stopping since channel closed");
+                        break;
                     }
                 },
                 _ = self.shutdown.recv() => {

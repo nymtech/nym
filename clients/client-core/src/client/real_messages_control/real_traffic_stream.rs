@@ -278,9 +278,15 @@ where
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
-                Some(next_message) = self.next() => {
-                    self.on_message(next_message).await;
-                },
+                next_message = self.next() => match next_message {
+                    Some(next_message) => {
+                        self.on_message(next_message).await;
+                    },
+                    None => {
+                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        break;
+                    }
+                }
             }
         }
         assert!(shutdown.is_shutdown_poll());

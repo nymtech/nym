@@ -176,6 +176,9 @@ impl LoopCoverTrafficStream<OsRng> {
                 next = self.next() => {
                     if next.is_some() {
                         self.on_new_message().await;
+                    } else {
+                        log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
+                        break;
                     }
                 }
             }

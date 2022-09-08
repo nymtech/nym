@@ -188,8 +188,14 @@ where
         debug!("Started InputMessageListener");
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                Some(input_msg) = self.input_receiver.next() => {
-                    self.on_input_message(input_msg).await;
+                input_msg = self.input_receiver.next() => match input_msg {
+                    Some(input_msg) => {
+                        self.on_input_message(input_msg).await;
+                    },
+                    None => {
+                        log::trace!("InputMessageListener: Stopping since channel closed");
+                        break;
+                    }
                 },
                 _ = self.shutdown.recv() => {
                     log::trace!("InputMessageListener: Received shutdown");

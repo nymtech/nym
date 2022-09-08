@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
@@ -311,7 +311,9 @@ impl NymClient {
                     Some(Socks5ControlMessage::Stop) => {
                         log::info!("Received stop message");
                     }
-                    None => log::debug!("None"),
+                    None => {
+                        log::info!("Channel closed, stopping");
+                    }
                 }
             }
             _ = tokio::signal::ctrl_c() => {

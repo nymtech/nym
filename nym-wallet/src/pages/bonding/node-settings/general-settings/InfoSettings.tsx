@@ -208,7 +208,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             onClick={() => setOpenConfirmationModal(true)}
             sx={{ m: 3, width: '320px' }}
           >
-            Save all changes
+            Save all display changes
           </Button>
         </Grid>
       </Grid>

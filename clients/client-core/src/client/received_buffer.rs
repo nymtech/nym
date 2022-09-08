@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::SHUTDOWN_HAS_BEEN_SIGNALLED;
 use crate::client::reply_key_storage::ReplyKeyStorage;
+use crate::client::SHUTDOWN_HAS_BEEN_SIGNALLED;
 use crypto::asymmetric::encryption;
 use crypto::symmetric::stream_cipher;
 use crypto::Digest;
@@ -15,8 +15,8 @@ use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncr
 use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use task::ShutdownListener;
 use tokio::task::JoinHandle;
 

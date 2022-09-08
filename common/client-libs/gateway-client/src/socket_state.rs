@@ -45,9 +45,9 @@ pub(crate) struct PartiallyDelegated {
 impl PartiallyDelegated {
     fn route_socket_message(
         ws_msg: Message,
-        packet_router: &PacketRouter,
+        packet_router: &mut PacketRouter,
         shared_key: &SharedKeys,
-    ) {
+    ) -> Result<(), GatewayClientError> {
         match ws_msg {
             Message::Binary(bin_msg) => {
                 // this function decrypts the request and checks the MAC
@@ -61,7 +61,7 @@ impl PartiallyDelegated {
                                 "message received from the gateway was malformed! - {:?}",
                                 err
                             );
-                            return;
+                            return Ok(());
                         }
                     };
 
@@ -75,12 +75,15 @@ impl PartiallyDelegated {
             // This would also require NOT discarding any text responses here.
 
             // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
-            Message::Text(text) => trace!(
-                "received a text message - probably a response to some previous query! - {}",
-                text
-            ),
-            _ => (),
-        };
+            Message::Text(text) => {
+                trace!(
+                    "received a text message - probably a response to some previous query! - {}",
+                    text
+                );
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     pub(crate) fn split_and_listen_for_mixnet_messages(
@@ -99,6 +102,7 @@ impl PartiallyDelegated {
         let mixnet_receiver_future = async move {
             let mut fused_receiver = notify_receiver.fuse();
             let mut fused_stream = (&mut stream).fuse();
+            let mut packet_router = packet_router;
 
             // Bit of an ugly workaround for selecting on an `Option`. The unwrap is lazy so we use
             // this bool inside the `select` to guard against unwrapping in the `None` case.
@@ -108,6 +112,12 @@ impl PartiallyDelegated {
 
             let ret_err = loop {
                 tokio::select! {
+                    biased;
+                    _ = &mut shutdown_recv_lazy, if shutdown_is_some => {
+                        log::trace!("GatewayClient listener: Received shutdown");
+                        log::debug!("GatewayClient listener: Exiting");
+                        return;
+                    }
                     _ = &mut fused_receiver => {
                         break Ok(());
                     }
@@ -116,12 +126,9 @@ impl PartiallyDelegated {
                             Err(err) => break Err(err),
                             Ok(msg) => msg
                         };
-                        Self::route_socket_message(ws_msg, &packet_router, shared_key.as_ref());
-                    }
-                    _ = &mut shutdown_recv_lazy, if shutdown_is_some => {
-                        log::trace!("GatewayClient listener: Received shutdown");
-                        log::debug!("GatewayClient listener: Exiting");
-                        return;
+                        if let Err(err) = Self::route_socket_message(ws_msg, &mut packet_router, shared_key.as_ref()) {
+                            log::warn!("Route socket message failed: {:?}", err);
+                        }
                     }
                 };
             };

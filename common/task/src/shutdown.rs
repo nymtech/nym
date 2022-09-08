@@ -74,7 +74,7 @@ pub struct ShutdownListener {
 }
 
 impl ShutdownListener {
-    pub fn new(notify: watch::Receiver<()>) -> ShutdownListener {
+    fn new(notify: watch::Receiver<()>) -> ShutdownListener {
         ShutdownListener {
             shutdown: false,
             notify,

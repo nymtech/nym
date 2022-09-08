@@ -67,8 +67,7 @@ pub struct GatewayClient {
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
 
-    /// Listen to shutdown messages. This is an option since we don't require it when for example
-    /// when doing initial authentication.
+    /// Listen to shutdown messages.
     shutdown: Option<ShutdownListener>,
 }
 
@@ -97,7 +96,7 @@ impl GatewayClient {
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
-            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
             response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: true,
@@ -130,6 +129,7 @@ impl GatewayClient {
         gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
+        shutdown: Option<ShutdownListener>,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -137,7 +137,7 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let packet_router = PacketRouter::new(ack_tx, mix_tx);
+        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
         GatewayClient {
             authenticated: false,
@@ -155,7 +155,7 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            shutdown: None,
+            shutdown,
         }
     }
 
@@ -287,8 +287,20 @@ impl GatewayClient {
         let mut fused_timeout = timeout.fuse();
         let mut fused_stream = conn.fuse();
 
+        // Bit of an ugly workaround for selecting on an `Option`. The unwrap is lazy so we use
+        // this bool inside the `select` to guard against unwrapping in the `None` case.
+        let shutdown_is_some = self.shutdown.is_some();
+        let shutdown_recv_lazy = async { self.shutdown.clone().unwrap().recv().await };
+        tokio::pin!(shutdown_recv_lazy);
+
         loop {
-            futures::select! {
+            tokio::select! {
+                biased;
+                _ = &mut shutdown_recv_lazy, if shutdown_is_some => {
+                    log::trace!("GatewayClient control response: Received shutdown");
+                    log::debug!("GatewayClient control response: Exiting");
+                    break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
+                }
                 _ = &mut fused_timeout => {
                     break Err(GatewayClientError::Timeout);
                 }
@@ -299,7 +311,9 @@ impl GatewayClient {
                     };
                     match ws_msg {
                         Message::Binary(bin_msg) => {
-                            self.packet_router.route_received(vec![bin_msg]);
+                            if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                                log::warn!("Route received failed: {:?}", err);
+                            }
                         }
                         Message::Text(txt_msg) => {
                             break ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse);

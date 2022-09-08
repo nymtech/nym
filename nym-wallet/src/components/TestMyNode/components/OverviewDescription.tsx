@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
-export const DescriptionItem = ({ title, description }: { title: string; description: string }) => (
+export const OverviewDescription = ({ title, description }: { title: string; description: string }) => (
   <Box>
     <Typography fontWeight="bold" sx={{ mb: 1 }}>
       {title}

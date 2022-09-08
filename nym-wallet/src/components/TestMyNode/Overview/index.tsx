@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Grid, Stack } from '@mui/material';
 import testNode from 'src/assets/test-node-illustration.jpg';
-import { DescriptionItem } from '../components/overview';
+import { OverviewDescription } from '../components/OverviewDescription';
 
 const content = [
   {
@@ -22,16 +22,16 @@ const content = [
 ];
 
 export const Overview = ({ onStartTest }: { onStartTest: () => void }) => (
-  <Grid container spacing={2}>
-    <Grid item lg={12} xl={6}>
+  <Grid container spacing={2} justifyContent="center">
+    <Grid item xs={12} md={6}>
       <img src={testNode} style={{ borderRadius: 8 }} />
     </Grid>
-    <Grid item container direction="column" lg={12} xl={6}>
+    <Grid item container direction="column" xs={12} xl={6}>
       <Grid item>
-        <Stack>{content.map(DescriptionItem)}</Stack>
+        <Stack>{content.map(OverviewDescription)}</Stack>
       </Grid>
       <Grid item>
-        <Button fullWidth variant="contained" disableElevation onClick={onStartTest}>
+        <Button variant="contained" fullWidth disableElevation onClick={onStartTest}>
           Start test
         </Button>
       </Grid>

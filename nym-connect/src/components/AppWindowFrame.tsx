@@ -5,7 +5,7 @@ import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 export const AppWindowFrame: React.FC = ({ children }) => (
   <Box
     sx={{
-      background: '#121726',
+      background: '#1D2125',
       borderRadius: '12px',
       padding: '12px 16px',
       display: 'grid',

@@ -22,8 +22,8 @@ export const NodeSettings = () => {
 
   const theme = useTheme();
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
+  const handleChange = (event: React.SyntheticEvent, tab: number) => {
+    setValue(tab);
   };
 
   const { network } = useContext(AppContext);
@@ -31,6 +31,16 @@ export const NodeSettings = () => {
   const { bondedNode, unbond } = useBondingContext();
 
   const navigate = useNavigate();
+
+  const handleCloseUnboundModal = () => {
+    if (nodeSettingsNav.length === 1) {
+      navigate('/bonding');
+    } else if (nodeSettingsNav[0] === 'Unbond') {
+      setValue(1);
+    } else {
+      setValue(0);
+    }
+  };
 
   const handleUnbond = async (fee?: FeeDetails) => {
     const tx = await unbond(fee);
@@ -48,7 +58,6 @@ export const NodeSettings = () => {
       subtitle: error,
     });
   };
-
   return (
     <PageLayout>
       <NymCard
@@ -107,9 +116,14 @@ export const NodeSettings = () => {
         }
       >
         <Divider />
-        {value === 0 && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
-        {value === 1 && bondedNode && (
-          <UnbondModal node={bondedNode} onClose={() => setValue(0)} onConfirm={handleUnbond} onError={handleError} />
+        {nodeSettingsNav[value] === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {nodeSettingsNav[value] === 'Unbond' && bondedNode && (
+          <UnbondModal
+            node={bondedNode}
+            onClose={handleCloseUnboundModal}
+            onConfirm={handleUnbond}
+            onError={handleError}
+          />
         )}
         {confirmationDetails && confirmationDetails.status === 'success' && (
           <ConfirmationDetailsModal

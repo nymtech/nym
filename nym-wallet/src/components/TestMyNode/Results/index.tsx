@@ -4,10 +4,16 @@ import { Box, Button, Card, Chip, CircularProgress, Divider, Grid, Stack, Typogr
 import format from 'date-fns/format';
 import { ResultsCard } from '../components/ResultsCard';
 import { ResultsCardDetail } from '../components/ResultsCardDetail';
-import { PathChip } from '../components/PathChip';
 import { NodePath } from 'src/svg-icons/node-path';
 
-const NodeSpeed = ({ Mbps, performance }: { Mbps: number; performance: 'poor' | 'fair' | 'good' }) => (
+export type Layer = '1' | '2' | '3' | 'gateway';
+
+const getLayerDescription = (layer: Layer) => {
+  if (layer === 'gateway') return 'Your node was in the Gateway layer';
+  return `Your node was in layer ${layer}`;
+};
+
+export const NodeSpeed = ({ Mbps, performance }: { Mbps: number; performance: 'poor' | 'fair' | 'good' }) => (
   <ResultsCard
     label="Node speed"
     detail={`${performance === 'good' ? 'Fast' : performance === 'poor' ? 'Slow' : 'Fair'} node`}
@@ -42,24 +48,35 @@ const NodeSpeed = ({ Mbps, performance }: { Mbps: number; performance: 'poor' | 
   </ResultsCard>
 );
 
-const Packets = ({ sent, received }: { sent: string; received: string }) => (
-  <ResultsCard label="Packets" detail="98% packets" isOk>
-    <Divider sx={{ my: 2 }} />
-    <ResultsCardDetail label="Packets sent" detail={sent} />
-    <Divider sx={{ my: 2 }} />
-    <ResultsCardDetail label="Packets received" detail={received} />
-  </ResultsCard>
-);
+export const Packets = ({ sent, received }: { sent: string; received: string }) => {
+  const percentage = Math.round((+received / +sent) * 100);
+  return (
+    <ResultsCard label="Packets" detail={`${percentage}% packets`} isOk={percentage > 75}>
+      <Divider sx={{ my: 2 }} />
+      <ResultsCardDetail label="Packets sent" detail={sent} />
+      <Divider sx={{ my: 2 }} />
+      <ResultsCardDetail label="Packets received" detail={received} />
+    </ResultsCard>
+  );
+};
 
-const Path = ({ layer }: { layer: '1' | '2' | '3' | 'gateway' }) => (
-  <ResultsCard label="Path" detail="Your node was in layer 2" isOk>
-    <Box sx={{ mt: 2 }}>
+export const Path = ({ layer }: { layer: Layer }) => (
+  <ResultsCard label="Path" detail={getLayerDescription(layer)} isOk>
+    <Box sx={{ mt: 3 }}>
       <NodePath layer={layer} />
     </Box>
   </ResultsCard>
 );
 
-export const Results = () => (
+export const Results = ({
+  packetsSent,
+  packetsReceived,
+  layer,
+}: {
+  packetsSent: string;
+  packetsReceived: string;
+  layer: '1' | '2' | '3' | 'gateway';
+}) => (
   <>
     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
       <Box display="flex" gap={1}>
@@ -76,8 +93,8 @@ export const Results = () => (
       </Grid>
       <Grid item container direction="column" md={7}>
         <Stack spacing={2}>
-          <Packets sent="5000" received="1000" />
-          <Path layer="gateway" />
+          <Packets sent={packetsSent} received={packetsReceived} />
+          <Path layer={layer} />
         </Stack>
       </Grid>
     </Grid>

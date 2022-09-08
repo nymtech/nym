@@ -30,7 +30,7 @@ export const TestNode = () => {
     <NymCard title="Test Node">
       {view === 'overview' && <Overview onStartTest={startTest} />}
       {view === 'start-test' && <TestProgress totalPackets={totalPackets} packetsSent={packetsSent} />}
-      {view === 'results' && <Results />}
+      {view === 'results' && <Results layer="1" packetsSent="5000" packetsReceived="1000" />}
     </NymCard>
   );
 };

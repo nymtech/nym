@@ -5,6 +5,7 @@ import format from 'date-fns/format';
 import { ResultsCard } from '../components/ResultsCard';
 import { ResultsCardDetail } from '../components/ResultsCardDetail';
 import { PathChip } from '../components/PathChip';
+import { NodePath } from 'src/svg-icons/node-path';
 
 const NodeSpeed = ({ Mbps, performance }: { Mbps: number; performance: 'poor' | 'fair' | 'good' }) => (
   <ResultsCard
@@ -50,17 +51,11 @@ const Packets = ({ sent, received }: { sent: string; received: string }) => (
   </ResultsCard>
 );
 
-const Path = ({ layer }: { layer: number }) => (
+const Path = ({ layer }: { layer: '1' | '2' | '3' | 'gateway' }) => (
   <ResultsCard label="Path" detail="Your node was in layer 2" isOk>
-    <Stack direction="row" alignItems="center" gap={1} sx={{ mt: 2 }}>
-      <PathChip label="Gateway" highlight={false} />
-      <ArrowForward sx={{ color: 'grey.500' }} />
-      <PathChip label="Node - Layer 1" highlight={layer === 1} />
-      <ArrowForward sx={{ color: 'grey.500' }} />
-      <PathChip label="Node - Layer 2" highlight={layer === 2} />
-      <ArrowForward sx={{ color: 'grey.500' }} />
-      <PathChip label="Node - Layer 3" highlight={layer === 3} />
-    </Stack>
+    <Box sx={{ mt: 2 }}>
+      <NodePath layer={layer} />
+    </Box>
   </ResultsCard>
 );
 
@@ -82,7 +77,7 @@ export const Results = () => (
       <Grid item container direction="column" md={7}>
         <Stack spacing={2}>
           <Packets sent="5000" received="1000" />
-          <Path layer={2} />
+          <Path layer="gateway" />
         </Stack>
       </Grid>
     </Grid>

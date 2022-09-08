@@ -22,11 +22,11 @@ const content = [
 ];
 
 export const Overview = ({ onStartTest }: { onStartTest: () => void }) => (
-  <Grid container spacing={3}>
-    <Grid item md={12} lg={6}>
-      <img src={testNode} />
+  <Grid container spacing={2}>
+    <Grid item lg={12} xl={6}>
+      <img src={testNode} style={{ borderRadius: 8 }} />
     </Grid>
-    <Grid item container direction="column" md={12} lg={6}>
+    <Grid item container direction="column" lg={12} xl={6}>
       <Grid item>
         <Stack>{content.map(DescriptionItem)}</Stack>
       </Grid>

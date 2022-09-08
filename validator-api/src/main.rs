@@ -114,7 +114,7 @@ fn long_version() -> String {
     )
 }
 
-fn parse_args<'a>() -> ArgMatches<'a> {
+fn parse_args() -> ArgMatches {
     let build_details = long_version();
     let base_app = App::new("Nym Validator API")
         .version(crate_version!())
@@ -136,13 +136,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
-                .short("m")
+                .short('m')
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
-                .short("r")
+                .short('r')
                 .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
         )
         .arg(
@@ -165,7 +165,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(WRITE_CONFIG_ARG)
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
-                .short("w")
+                .short('w')
         )
         .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
@@ -277,7 +277,7 @@ fn setup_logging() {
         .init();
 }
 
-fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
+fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(id) = matches.value_of(ID) {
         fs::create_dir_all(Config::default_config_directory(Some(id)))
             .expect("Could not create config directory");
@@ -538,7 +538,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
     }]
 }
 
-async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
+async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values

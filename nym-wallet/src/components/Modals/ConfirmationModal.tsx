@@ -72,12 +72,12 @@ export const ConfirmationModal = ({
       sx={{ textAlign: 'center', ...sx }}
       fullWidth={fullWidth}
       BackdropProps={backdropProps}
+      PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
     >
-      <Paper>
-        {Title}
-        <DialogContent>{children}</DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
-      </Paper>
+      {Title}
+      <DialogContent>{children}</DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3 }}>{ConfirmButton}</DialogActions>
     </Dialog>
   );
 };

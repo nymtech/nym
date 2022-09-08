@@ -79,7 +79,7 @@ async fn get_pubkey_from_account_address(
 }
 
 enum VerifyInputKind {
-    PublicKeyJSON(PublicKey),
+    PublicKey(PublicKey),
     AccountAddress(String),
     CurrentAccountAddress,
 }
@@ -105,7 +105,7 @@ impl TryFrom<Option<String>> for VerifyInputKind {
             ));
         }
         if let Ok(k) = key_from_json {
-            Ok(VerifyInputKind::PublicKeyJSON(k))
+            Ok(VerifyInputKind::PublicKey(k))
         } else {
             Ok(VerifyInputKind::AccountAddress(key))
         }
@@ -120,7 +120,7 @@ pub async fn verify(
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     let public_key = match VerifyInputKind::try_from(public_key_as_json_or_account_address)? {
-        VerifyInputKind::PublicKeyJSON(key) => key,
+        VerifyInputKind::PublicKey(key) => key,
         VerifyInputKind::AccountAddress(address) => {
             // get public key from the given account address
             get_pubkey_from_account_address(&AccountId::from_str(&address)?, &state).await?

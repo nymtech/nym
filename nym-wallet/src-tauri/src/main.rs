@@ -3,8 +3,23 @@
     windows_subsystem = "windows"
 )]
 
+use std::thread;
+
+use serde::Serialize;
+use tauri::{Manager, Menu};
+
 use mixnet_contract_common::{Gateway, MixNode};
-use tauri::Menu;
+
+use crate::menu::AddDefaultSubmenus;
+use crate::operations::help;
+use crate::operations::mixnet;
+use crate::operations::signatures;
+use crate::operations::simulate;
+use crate::operations::validator_api;
+use crate::operations::vesting;
+use crate::state::WalletState;
+
+// use tauri_plugin_log::{LogTarget, LoggerBuilder};
 
 mod config;
 mod error;
@@ -16,19 +31,12 @@ mod state;
 mod utils;
 mod wallet_storage;
 
-use crate::menu::AddDefaultSubmenus;
-use crate::operations::mixnet;
-use crate::operations::signatures;
-use crate::operations::simulate;
-use crate::operations::validator_api;
-use crate::operations::vesting;
-
-use crate::state::WalletState;
-
 #[allow(clippy::too_many_lines)]
 fn main() {
     dotenv::dotenv().ok();
     setup_logging();
+
+    let context = tauri::generate_context!();
 
     tauri::Builder::default()
         .manage(WalletState::default())
@@ -149,11 +157,84 @@ fn main() {
             simulate::mixnet::simulate_compound_delegator_reward,
             signatures::sign::sign,
             signatures::sign::verify,
+            help::log::help_log_toggle_window,
         ])
-        .menu(Menu::new().add_default_app_submenu_if_macos())
-        .run(tauri::generate_context!())
+        // .plugin(
+        //     LoggerBuilder::default()
+        //         // .setup_logging()
+        //         .targets([LogTarget::Stdout, LogTarget::Webview])
+        //         .build(),
+        // )
+        .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
+        .on_menu_event(|event| {
+            if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
+                help::log::help_log_toggle_window(event.window().app_handle());
+            }
+        })
+        .setup(|app| {
+            let app_handle = app.app_handle();
+
+            std::thread::spawn(move || {
+                let delay = std::time::Duration::from_millis(1000);
+
+                loop {
+                    thread::sleep(delay);
+
+                    app_handle.emit_all(
+                        "log://log",
+                        RecordPayload {
+                            level: 3,
+                            message: format!(
+                                "This is a fake log message at {:#}",
+                                chrono::offset::Local::now()
+                            ),
+                        },
+                    );
+                }
+            });
+            Ok(())
+        })
+        .run(context)
         .expect("error while running tauri application");
 }
+
+#[derive(Debug, Serialize, Clone)]
+struct RecordPayload {
+    message: String,
+    level: u16,
+}
+
+// trait CustomLoggerBuilder {
+//     fn setup_logging(self) -> Self;
+// }
+//
+// impl CustomLoggerBuilder for LoggerBuilder {
+//     fn setup_logging(self) -> Self {
+//         if let Ok(s) = ::std::env::var("RUST_LOG") {
+//             self.parse_filters(&s);
+//         } else {
+//             // default to 'Info'
+//             self.filter(None, log::LevelFilter::Info);
+//         }
+//
+//         if ::std::env::var("RUST_TRACE_OPERATIONS").is_ok() {
+//             self.filter_module("nym_wallet::operations", log::LevelFilter::Trace);
+//         }
+//
+//         self.filter_module("hyper", log::LevelFilter::Warn)
+//             .filter_module("tokio_reactor", log::LevelFilter::Warn)
+//             .filter_module("reqwest", log::LevelFilter::Warn)
+//             .filter_module("mio", log::LevelFilter::Warn)
+//             .filter_module("want", log::LevelFilter::Warn)
+//             .filter_module("sled", log::LevelFilter::Warn)
+//             .filter_module("tungstenite", log::LevelFilter::Warn)
+//             .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+//             .filter_module("rustls", log::LevelFilter::Warn)
+//             .filter_module("tokio_util", log::LevelFilter::Warn);
+//
+//         self
+//     }
+// }
 
 fn setup_logging() {
     let mut log_builder = pretty_env_logger::formatted_timed_builder();

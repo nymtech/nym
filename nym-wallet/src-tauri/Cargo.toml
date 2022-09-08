@@ -64,6 +64,10 @@ vesting-contract = { path = "../../contracts/vesting" }
 nym-types = { path = "../../common/types" }
 nym-wallet-types = { path = "../nym-wallet-types" }
 
+[dependencies.tauri-plugin-log]
+git = "https://github.com/tauri-apps/tauri-plugin-log"
+branch = "dev"
+
 [dev-dependencies]
 tempfile = "3.3.0"
 ts-rs = "6.1.2"

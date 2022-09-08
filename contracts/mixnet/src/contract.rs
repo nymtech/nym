@@ -27,16 +27,17 @@ use crate::mixnodes::bonding_queries::{
     query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
+use crate::mixnodes::transactions::_try_remove_mixnode;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Uint128,
+    Storage, Uint128,
 };
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeToRemove, QueryMsg,
 };
 use time::OffsetDateTime;
 
@@ -468,6 +469,43 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     };
 
     Ok(query_res?)
+}
+
+#[allow(unused)]
+fn blacklist_malicious_node(storage: &mut dyn Storage, owner: &Addr) -> Result<(), ContractError> {
+    let mixnode_bond = match crate::mixnodes::storage::mixnodes()
+        .idx
+        .owner
+        .item(storage, owner.clone())?
+    {
+        Some(record) => record.1,
+        None => {
+            return Err(ContractError::NoAssociatedMixNodeBond {
+                owner: owner.to_owned(),
+            })
+        }
+    };
+
+    crate::mixnodes::storage::MIXNODES_BOND_BLACKLIST.save(storage, mixnode_bond.identity(), &0)?;
+
+    Ok(())
+}
+
+// Removes nodes we've deemed malicious, returns the pledge to the owners, but does not send any rewards
+#[allow(unused)]
+fn remove_malicious_node(
+    storage: &mut dyn Storage,
+    api: &dyn Api,
+    env: &Env,
+    node: &NodeToRemove,
+) -> Result<Response, ContractError> {
+    let proxy = node.proxy().map(|p| {
+        api.addr_validate(p)
+            .unwrap_or_else(|_| panic!("Invalid address: {}", p))
+    });
+    let owner_addr = api.addr_validate(node.owner())?;
+    blacklist_malicious_node(storage, &owner_addr)?;
+    _try_remove_mixnode(env, storage, api, node.owner(), proxy, false)
 }
 
 #[entry_point]

@@ -12,10 +12,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
+- socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
 [#1577]: https://github.com/nymtech/nym/pull/1577
+[#1591]: https://github.com/nymtech/nym/pull/1591
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

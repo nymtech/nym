@@ -30,6 +30,8 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,6 +67,10 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Listen to shutdown messages.
+    shutdown: Option<ShutdownListener>,
 }
 
 impl GatewayClient {
@@ -80,6 +86,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -91,12 +98,19 @@ impl GatewayClient {
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
-            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
+            packet_router: PacketRouter::new(
+                ack_sender,
+                mixnet_message_sender,
+                #[cfg(not(target_arch = "wasm32"))]
+                shutdown.clone(),
+            ),
             response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown,
         }
     }
 
@@ -123,6 +137,7 @@ impl GatewayClient {
         gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -130,7 +145,12 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let packet_router = PacketRouter::new(ack_tx, mix_tx);
+        let packet_router = PacketRouter::new(
+            ack_tx,
+            mix_tx,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown.clone(),
+        );
 
         GatewayClient {
             authenticated: false,
@@ -148,6 +168,8 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown,
         }
     }
 
@@ -279,8 +301,31 @@ impl GatewayClient {
         let mut fused_timeout = timeout.fuse();
         let mut fused_stream = conn.fuse();
 
+        // Bit of an ugly workaround for selecting on an `Option` without having access to
+        // `tokio::select`
+        #[cfg(not(target_arch = "wasm32"))]
+        let shutdown = {
+            let m_shutdown = self.shutdown.clone();
+            async {
+                if let Some(mut s) = m_shutdown {
+                    s.recv().await
+                }
+            }
+            .fuse()
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::pin!(shutdown);
+
+        #[cfg(target_arch = "wasm32")]
+        let mut shutdown = Box::pin(async {}.fuse());
+
         loop {
             futures::select! {
+                _ = shutdown => {
+                    log::trace!("GatewayClient control response: Received shutdown");
+                    log::debug!("GatewayClient control response: Exiting");
+                    break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
+                }
                 _ = &mut fused_timeout => {
                     break Err(GatewayClientError::Timeout);
                 }
@@ -291,14 +336,16 @@ impl GatewayClient {
                     };
                     match ws_msg {
                         Message::Binary(bin_msg) => {
-                            self.packet_router.route_received(vec![bin_msg]);
+                            if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                                log::warn!("Route received failed: {:?}", err);
+                            }
                         }
                         Message::Text(txt_msg) => {
                             break ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse);
                         }
                         _ => (),
                     }
-               }
+                }
             }
         }
     }
@@ -723,6 +770,8 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
+                        #[cfg(not(target_arch = "wasm32"))]
+                        self.shutdown.clone(),
                     )
                 }
                 _ => unreachable!(),

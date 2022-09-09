@@ -22,6 +22,7 @@ use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 
 mod acknowledgement_control;
@@ -91,6 +92,7 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
+        shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
 
@@ -119,6 +121,7 @@ impl RealMessagesController<OsRng> {
             config.self_recipient,
             reply_key_storage,
             ack_controller_connectors,
+            shutdown.clone(),
         );
 
         let out_queue_config = real_traffic_stream::Config::new(
@@ -136,6 +139,7 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
+            shutdown,
         );
 
         RealMessagesController {
@@ -153,12 +157,12 @@ impl RealMessagesController<OsRng> {
         // graceful shutdowns.
         let out_queue_control_fut = tokio::spawn(async move {
             out_queue_control.run_out_queue_control().await;
-            error!("The out queue controller has finished execution!");
+            debug!("The out queue controller has finished execution!");
             out_queue_control
         });
         let ack_control_fut = tokio::spawn(async move {
             ack_control.run().await;
-            error!("The acknowledgement controller has finished execution!");
+            debug!("The acknowledgement controller has finished execution!");
             ack_control
         });
 

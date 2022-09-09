@@ -20,13 +20,13 @@ web3 = { version = "0.17.0", default-features = false }
 async-trait = { version = "0.1.51" }
 
 # internal
+coconut-interface = { path = "../../coconut-interface", optional = true }
 credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
+network-defaults = { path = "../../network-defaults" }
 nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
-coconut-interface = { path = "../../coconut-interface", optional = true }
-network-defaults = { path = "../../network-defaults" }
 validator-client = { path = "../validator-client", optional = true }
 
 [dependencies.tungstenite]
@@ -38,11 +38,18 @@ default-features = false
 version = "1.19.1"
 features = ["macros", "rt", "net", "sync", "time"]
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
+version = "0.1.9"
+features = ["net", "sync", "time"]
+
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.14"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.credential-storage]
 path = "../../credential-storage"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
+path = "../../task"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bip32 = "0.3.0"
+k256 = "0.10.4"
 ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
 thiserror = "1"

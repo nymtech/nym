@@ -5,6 +5,7 @@ use thiserror::Error;
 
 pub(crate) type Result<T> = std::result::Result<T, LedgerError>;
 
+/// Ledger specific errors.
 #[derive(Debug, Error)]
 pub enum LedgerError {
     #[error("HID API - {0}")]
@@ -21,4 +22,10 @@ pub enum LedgerError {
 
     #[error("Not enough bytes in answer. Expected at least {expected}, received {received}")]
     InvalidAnswerLength { expected: usize, received: usize },
+
+    #[error("Not enough components in derivation path. Expected {expected}, received {received}")]
+    InvalidDerivationPath { expected: usize, received: usize },
+
+    #[error("Bip32 - {0}")]
+    Bip32(#[from] bip32::Error),
 }

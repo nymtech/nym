@@ -11,6 +11,7 @@ use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::BinaryResponse;
 use log::*;
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
 use tungstenite::Message;
 
@@ -90,7 +91,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        shutdown: Option<ShutdownListener>,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -104,16 +105,27 @@ impl PartiallyDelegated {
             let mut fused_stream = (&mut stream).fuse();
             let mut packet_router = packet_router;
 
-            // Bit of an ugly workaround for selecting on an `Option`. The unwrap is lazy so we use
-            // this bool inside the `select` to guard against unwrapping in the `None` case.
-            let shutdown_is_some = shutdown.is_some();
-            let shutdown_recv_lazy = async { shutdown.unwrap().recv().await };
-            tokio::pin!(shutdown_recv_lazy);
+            // Bit of an ugly workaround for selecting on an `Option` without having access to
+            // `tokio::select`
+            #[cfg(not(target_arch = "wasm32"))]
+            let shutdown = {
+                let m_shutdown = shutdown.clone();
+                async {
+                    if let Some(mut s) = m_shutdown {
+                        s.recv().await
+                    }
+                }
+                .fuse()
+            };
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::pin!(shutdown);
+
+            #[cfg(target_arch = "wasm32")]
+            let mut shutdown = Box::pin(async {}.fuse());
 
             let ret_err = loop {
-                tokio::select! {
-                    biased;
-                    _ = &mut shutdown_recv_lazy, if shutdown_is_some => {
+                futures::select! {
+                    _ = shutdown => {
                         log::trace!("GatewayClient listener: Received shutdown");
                         log::debug!("GatewayClient listener: Exiting");
                         return;

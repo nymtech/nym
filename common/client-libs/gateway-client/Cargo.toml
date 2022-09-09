@@ -27,7 +27,6 @@ gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../network-defaults" }
 nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
-task = { path = "../../task" }
 validator-client = { path = "../validator-client", optional = true }
 
 [dependencies.tungstenite]
@@ -48,6 +47,9 @@ version = "0.14"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.credential-storage]
 path = "../../credential-storage"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
+path = "../../task"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

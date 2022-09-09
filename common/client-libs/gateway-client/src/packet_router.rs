@@ -8,6 +8,7 @@ use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx::params::packet_sizes::PacketSize;
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
 
 use crate::error::GatewayClientError;
@@ -22,6 +23,7 @@ pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 pub struct PacketRouter {
     ack_sender: AcknowledgementSender,
     mixnet_message_sender: MixnetMessageSender,
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: Option<ShutdownListener>,
 }
 
@@ -29,11 +31,12 @@ impl PacketRouter {
     pub fn new(
         ack_sender: AcknowledgementSender,
         mixnet_message_sender: MixnetMessageSender,
-        shutdown: Option<ShutdownListener>,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         PacketRouter {
             ack_sender,
             mixnet_message_sender,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -72,6 +75,7 @@ impl PacketRouter {
         if !received_messages.is_empty() {
             trace!("routing 'real'");
             if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
+                #[cfg(not(target_arch = "wasm32"))]
                 if let Some(shutdown) = &mut self.shutdown {
                     if shutdown.is_shutdown_poll() {
                         // This should ideally not happen, but it's ok

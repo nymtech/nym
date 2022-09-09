@@ -39,6 +39,12 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
+  host: string;
+  httpApiPort: number;
+  mixPort: number;
+  profitMarginPercent: number;
+  verlocPort: number;
+  version: string;
 };
 
 export interface TBondedGateway {
@@ -48,6 +54,12 @@ export interface TBondedGateway {
   bond: DecCoin;
   location?: string; // TODO not yet available, only available in Network Explorer API
   proxy?: string;
+  host: string;
+  httpApiPort: number;
+  mixPort: number;
+  profitMarginPercent: number;
+  verlocPort: number;
+  version: string;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -165,6 +177,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
+          const { mix_node } = data;
           const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
             data.mix_node.identity_key,
           );
@@ -182,6 +195,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
+            host: mix_node.host.replace(/\s/g, ''),
+            httpApiPort: mix_node.http_api_port,
+            mixPort: mix_node.mix_port,
+            profitMarginPercent: mix_node.profit_margin_percent,
+            verlocPort: mix_node.verloc_port,
+            version: mix_node.version,
           } as TBondedMixnode);
         }
       } catch (e: any) {

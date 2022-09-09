@@ -23,6 +23,7 @@ const nymPalette: NymPalette = {
   highlight: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
+  red: '#DA465B',
   fee: '#967FF0',
   background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
@@ -49,6 +50,7 @@ const darkMode: NymPaletteVariant = {
     warn: '#FFE600',
     contrast: '#1D2125',
     grey: '#5B6174',
+    blue: '#60D7EF',
   },
   topNav: {
     background: '#111826',
@@ -76,6 +78,7 @@ const lightMode: NymPaletteVariant = {
     warn: '#FFE600',
     contrast: '#FFFFFF',
     grey: '#3A4053',
+    blue: '#514EFB',
   },
   topNav: {
     background: '#111826',
@@ -276,6 +279,16 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
         styleOverrides: {
           root: {
             fontWeight: 600,
+          },
+        },
+      },
+      MuiToolbar: {
+        styleOverrides: {
+          root: {
+            minWidth: 0,
+            '@media (min-width: 0px)': {
+              minHeight: 'fit-content',
+            },
           },
         },
       },

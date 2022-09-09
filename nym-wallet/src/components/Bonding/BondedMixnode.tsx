@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TBondedMixnode, urls } from 'src/context';
@@ -55,8 +56,11 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
+  const navigate = useNavigate();
+
   const { name, stake, bond, stakeSaturation, profitMargin, operatorRewards, delegators, status, identityKey } =
     mixnode;
+
   const cells: Cell[] = [
     {
       cell: `${stake.amount} ${stake.denom}`,
@@ -117,7 +121,7 @@ export const BondedMixnode = ({
         <Button
           variant="text"
           color="secondary"
-          onClick={() => onActionSelect('nodeSettings')}
+          onClick={() => navigate('/bonding/node-settings')}
           startIcon={<NodeIcon />}
         >
           Settings

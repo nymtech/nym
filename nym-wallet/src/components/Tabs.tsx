@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tab, Tabs as MuiTabs } from '@mui/material';
+import { Tab, Tabs as MuiTabs, SxProps } from '@mui/material';
 
 export const Tabs: React.FC<{
   tabs: string[];
@@ -7,7 +7,9 @@ export const Tabs: React.FC<{
   disabled?: boolean;
   onChange?: (event: React.SyntheticEvent, tab: number) => void;
   disableActiveTabHighlight?: boolean;
-}> = ({ tabs, selectedTab, disabled, disableActiveTabHighlight, onChange }) => (
+  tabSx?: SxProps;
+  tabIndicatorStyles?: {};
+}> = ({ tabs, selectedTab, disabled, disableActiveTabHighlight, onChange, tabSx, tabIndicatorStyles }) => (
   <MuiTabs
     value={selectedTab}
     onChange={onChange}
@@ -16,17 +18,15 @@ export const Tabs: React.FC<{
       borderTop: '1px solid',
       borderBottom: '1px solid',
       borderColor: (theme) => theme.palette.nym.nymWallet.background.greyStroke,
+      ...tabSx,
     }}
     textColor="inherit"
-    TabIndicatorProps={
-      disableActiveTabHighlight
-        ? {
-            style: {
-              opacity: 0,
-            },
-          }
-        : {}
-    }
+    TabIndicatorProps={{
+      style: {
+        opacity: disableActiveTabHighlight ? 0 : 1,
+        ...tabIndicatorStyles,
+      },
+    }}
   >
     {tabs.map((tabName) => (
       <Tab key={tabName} label={tabName} sx={{ textTransform: 'capitalize' }} disabled={disabled} />

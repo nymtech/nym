@@ -1,10 +1,18 @@
-import React from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { Send } from 'src/components/Send';
 import { ApplicationLayout } from 'src/layouts';
 import { Terminal } from 'src/pages/terminal';
-import { Send } from 'src/components/Send';
 import { Receive } from '../components/Receive';
-import { Balance, InternalDocs, Unbond, DelegationPage, Admin, BondingPage, TestNode } from '../pages';
+import {
+  Admin,
+  Balance,
+  BondingPage,
+  DelegationPage,
+  InternalDocs,
+  NodeSettingsPage,
+  TestNode,
+  Unbond,
+} from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>
@@ -14,6 +22,7 @@ export const AppRoutes = () => (
     <Routes>
       <Route path="/balance" element={<Balance />} />
       <Route path="/bonding" element={<BondingPage />} />
+      <Route path="/bonding/node-settings" element={<NodeSettingsPage />} />
       <Route path="/unbond" element={<Unbond />} />
       <Route path="/delegation" element={<DelegationPage />} />
       <Route path="/test-my-node" element={<TestNode />} />

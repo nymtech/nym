@@ -12,6 +12,7 @@ import { simulateUpdateMixnode, simulateVestingUpdateMixnode } from 'src/request
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
 
+//Now we are using the node setting page instead of this modal
 export const NodeSettings = ({
   currentPm,
   isVesting,
@@ -19,13 +20,13 @@ export const NodeSettings = ({
   onClose,
   onError,
 }: {
-  currentPm: TBondedMixnode['profitMargin'];
-  isVesting: boolean;
+  currentPm?: TBondedMixnode['profitMargin'];
+  isVesting?: boolean;
   onConfirm: (profitMargin: number, fee?: FeeDetails) => Promise<void>;
   onClose: () => void;
   onError: (err: string) => void;
 }) => {
-  const [pm, setPm] = useState(currentPm.toString());
+  const [pm, setPm] = useState(currentPm?.toString());
   const [error, setError] = useState(false);
 
   const { fee, getFee, resetFeeState, isFeeLoading, feeError } = useGetFee();

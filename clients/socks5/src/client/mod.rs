@@ -322,6 +322,7 @@ impl NymClient {
         }
 
         log::info!("Sending shutdown");
+        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");

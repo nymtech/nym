@@ -25,7 +25,6 @@ export const AppRoutes = () => (
       <Route path="/bonding/node-settings" element={<NodeSettingsPage />} />
       <Route path="/unbond" element={<Unbond />} />
       <Route path="/delegation" element={<DelegationPage />} />
-      <Route path="/test-my-node" element={<TestNode />} />
       <Route path="/docs" element={<InternalDocs />} />
       <Route path="/admin" element={<Admin />} />
     </Routes>

@@ -41,12 +41,6 @@ export const Nav = () => {
       onClick: () => navigate('/delegation'),
     },
     {
-      label: 'Test my node',
-      route: '/test-my-node',
-      Icon: Delegate,
-      onClick: () => navigate('/test-my-node'),
-    },
-    {
       label: 'Docs',
       route: '/admin',
       Icon: Description,

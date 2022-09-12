@@ -42,6 +42,7 @@ thiserror = "1.0"
 tokio = { version = "1.10", features = ["full"] }
 toml = "0.5.8"
 url = "2.2"
+k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
 
 aes-gcm = "0.9.4"
 argon2 = { version = "0.3.2", features = ["std"] }

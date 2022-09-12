@@ -18,6 +18,7 @@ mod wallet_storage;
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::mixnet;
+use crate::operations::signatures;
 use crate::operations::simulate;
 use crate::operations::validator_api;
 use crate::operations::vesting;
@@ -146,6 +147,8 @@ fn main() {
             simulate::mixnet::simulate_claim_operator_reward,
             simulate::mixnet::simulate_compound_operator_reward,
             simulate::mixnet::simulate_compound_delegator_reward,
+            signatures::sign::sign,
+            signatures::sign::verify,
         ])
         .menu(Menu::new().add_default_app_submenu_if_macos())
         .run(tauri::generate_context!())

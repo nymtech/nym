@@ -1,8 +1,7 @@
 use crate::errors::ContractError;
 use crate::storage::{
-    account_from_address, locked_pledge_cap, remove_delegation, save_delegation,
-    update_locked_pledge_cap, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,
-    MIX_DENOM,
+    account_from_address, locked_pledge_cap, update_locked_pledge_cap, BlockTimestampSecs, ADMIN,
+    DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -129,17 +128,6 @@ pub fn execute(
         ExecuteMsg::UpdateStakingAddress { to_address } => {
             try_update_staking_address(to_address, info, deps)
         }
-        ExecuteMsg::MigrateHeightsToTimestamps {
-            account_id,
-            mix_identity,
-            height_timestamp_map,
-        } => try_migrate_heights_to_timestamps(
-            account_id,
-            mix_identity,
-            height_timestamp_map,
-            info,
-            deps,
-        ),
     }
 }
 
@@ -257,30 +245,6 @@ fn try_update_staking_address(
     } else {
         Err(ContractError::NotOwner(account.owner_address().to_string()))
     }
-}
-
-pub fn try_migrate_heights_to_timestamps(
-    account_id: u32,
-    mix_identity: String,
-    height_timestamp_map: Vec<(u64, u64)>,
-    info: MessageInfo,
-    deps: DepsMut<'_>,
-) -> Result<Response, ContractError> {
-    if info.sender != ADMIN.load(deps.storage)? {
-        return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
-    }
-
-    for (height, timestamp) in height_timestamp_map {
-        let amount = DELEGATIONS.load(deps.storage, (account_id, mix_identity.clone(), height))?;
-        remove_delegation((account_id, mix_identity.clone(), height), deps.storage)?;
-        save_delegation(
-            (account_id, mix_identity.clone(), timestamp),
-            amount,
-            deps.storage,
-        )?;
-    }
-
-    Ok(Response::default())
 }
 
 /// Bond a gateway, sends [mixnet_contract_common::ExecuteMsg::BondGatewayOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].

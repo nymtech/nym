@@ -1,3 +1,7 @@
+## [nym-wallet-v1.0.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-09-08)
+
+- wallet: change default `nymd` URL to https://rpc.nymtech.net
+
 ## [nym-wallet-v1.0.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-08-11)
 
 - wallet: new bonding flow and screen for bonded node

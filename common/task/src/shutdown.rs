@@ -74,7 +74,7 @@ pub struct ShutdownListener {
 }
 
 impl ShutdownListener {
-    pub fn new(notify: watch::Receiver<()>) -> ShutdownListener {
+    fn new(notify: watch::Receiver<()>) -> ShutdownListener {
         ShutdownListener {
             shutdown: false,
             notify,
@@ -91,6 +91,25 @@ impl ShutdownListener {
         }
         let _ = self.notify.changed().await;
         self.shutdown = true;
+    }
+
+    pub fn is_shutdown_poll(&mut self) -> bool {
+        if self.shutdown {
+            return true;
+        }
+        match self.notify.has_changed() {
+            Ok(has_changed) => {
+                if has_changed {
+                    self.shutdown = true;
+                }
+                has_changed
+            }
+            Err(err) => {
+                log::debug!("Polling shutdown failed: {err}");
+                log::debug!("Assuming this means we should shutdown...");
+                true
+            }
+        }
     }
 }
 

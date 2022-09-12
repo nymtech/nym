@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ArrowForward, CheckCircleOutline, Description, Download } from '@mui/icons-material';
 import { Box, Button, Card, Chip, CircularProgress, Divider, Grid, Stack, Typography } from '@mui/material';
 import format from 'date-fns/format';
 import { ResultsCard } from '../components/ResultsCard';
 import { ResultsCardDetail } from '../components/ResultsCardDetail';
 import { NodePath } from 'src/svg-icons/node-path';
+import { useReactToPrint } from 'react-to-print';
 
 export type Layer = '1' | '2' | '3' | 'gateway';
 
@@ -76,27 +77,33 @@ export const Results = ({
   packetsSent: string;
   packetsReceived: string;
   layer: '1' | '2' | '3' | 'gateway';
-}) => (
-  <>
-    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-      <Box display="flex" gap={1}>
-        <Typography fontWeight="bold" component="span">
-          Test date
-        </Typography>
-        <Typography>{format(new Date(), 'dd/MM/yyyy HH:mm')}</Typography>
-      </Box>
-      <Button startIcon={<Download />}>Save to PDF</Button>
-    </Stack>
-    <Grid container spacing={2}>
-      <Grid item md={5}>
-        <NodeSpeed Mbps={150.01} performance="good" />
+}) => {
+  const ref = useRef(null);
+  const handleSaveToPdf = useReactToPrint({ documentTitle: 'Test results', content: () => ref.current });
+  return (
+    <>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+        <Box display="flex" gap={1}>
+          <Typography fontWeight="bold" component="span">
+            Test date
+          </Typography>
+          <Typography>{format(new Date(), 'dd/MM/yyyy HH:mm')}</Typography>
+        </Box>
+        <Button onClick={handleSaveToPdf} startIcon={<Download />}>
+          Save to PDF
+        </Button>
+      </Stack>
+      <Grid container spacing={2} ref={ref}>
+        <Grid item md={5}>
+          <NodeSpeed Mbps={150.01} performance="good" />
+        </Grid>
+        <Grid item container direction="column" md={7}>
+          <Stack spacing={2}>
+            <Packets sent={packetsSent} received={packetsReceived} />
+            <Path layer={layer} />
+          </Stack>
+        </Grid>
       </Grid>
-      <Grid item container direction="column" md={7}>
-        <Stack spacing={2}>
-          <Packets sent={packetsSent} received={packetsReceived} />
-          <Path layer={layer} />
-        </Stack>
-      </Grid>
-    </Grid>
-  </>
-);
+    </>
+  );
+};

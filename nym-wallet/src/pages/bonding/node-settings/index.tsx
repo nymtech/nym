@@ -14,7 +14,7 @@ import { AppContext, urls } from 'src/context/main';
 import { NodeGeneralSettings } from './general-settings';
 import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
 import { nodeSettingsNav } from './node-settings.constant';
-import { TestNode } from 'src/pages/test-my-node';
+import { TestNode } from 'src/pages/bonding/node-settings/test-my-node';
 
 export const NodeSettings = () => {
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();

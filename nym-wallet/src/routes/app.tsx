@@ -3,16 +3,7 @@ import { Send } from 'src/components/Send';
 import { ApplicationLayout } from 'src/layouts';
 import { Terminal } from 'src/pages/terminal';
 import { Receive } from '../components/Receive';
-import {
-  Admin,
-  Balance,
-  BondingPage,
-  DelegationPage,
-  InternalDocs,
-  NodeSettingsPage,
-  TestNode,
-  Unbond,
-} from '../pages';
+import { Admin, Balance, BondingPage, DelegationPage, InternalDocs, NodeSettingsPage, Unbond } from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>

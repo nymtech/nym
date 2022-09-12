@@ -10,6 +10,7 @@ import { MultiAccountHowTo } from './MultiAccountHowTo';
 
 export const Accounts = () => {
   const { accounts, selectedAccount, setDialogToDisplay } = useContext(AccountsContext);
+
   return accounts && selectedAccount ? (
     <>
       <AccountOverview account={selectedAccount} onClick={() => setDialogToDisplay('Accounts')} />

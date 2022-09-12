@@ -549,7 +549,7 @@ pub fn calculate_delegator_reward(
 
     let mut delegations = delegations_storage::delegations()
         .prefix((mix_identity.to_string(), key))
-        .range(storage, None, None, Order::Descending)
+        .range(storage, None, None, Order::Ascending)
         .filter_map(|record| record.ok())
         .map(|(_, delegation)| delegation)
         .collect::<Vec<Delegation>>();

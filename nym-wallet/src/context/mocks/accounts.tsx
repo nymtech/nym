@@ -53,7 +53,6 @@ export const MockAccountsProvider: React.FC = ({ children }) => {
       setIsLoading(false);
     }
   };
-
   return (
     <AccountsContext.Provider
       value={useMemo(

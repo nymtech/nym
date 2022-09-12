@@ -1,6 +1,6 @@
 import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from '@nymproject/types';
-import { addAccount as addAccountRequest, showMnemonicForAccount, isPasswordCreated } from 'src/requests';
+import { addAccount as addAccountRequest, showMnemonicForAccount } from 'src/requests';
 import { useSnackbar } from 'notistack';
 import { AppContext } from './main';
 
@@ -39,7 +39,6 @@ export const AccountsProvider: React.FC = ({ children }) => {
   });
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
-
   const { onAccountChange, storedAccounts } = useContext(AppContext);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -100,14 +99,7 @@ export const AccountsProvider: React.FC = ({ children }) => {
     }
   };
 
-  // const checkForPassword = async () => {
-  //   const hasPassword = await isPasswordCreated();
-  //   console.log('hasPassword', hasPassword);
-  //   setPasswordExists(hasPassword);
-  // };
-
   useEffect(() => {
-    // checkForPassword();
     if (storedAccounts) {
       setAccounts(storedAccounts);
     }

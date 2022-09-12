@@ -182,7 +182,7 @@ pub mod fixed_U128_as_string {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        U128::from_str_binary(&s).map_err(|err| {
+        U128::from_str(&s).map_err(|err| {
             D::Error::custom(format!(
                 "failed to deserialize U128 with its string representation - {}",
                 err

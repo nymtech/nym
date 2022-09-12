@@ -88,10 +88,10 @@ impl TryFrom<Option<String>> for VerifyInputKind {
     type Error = BackendError;
 
     fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
-        if value.is_none() {
-            return Ok(VerifyInputKind::CurrentAccountAddress);
-        }
-        let key = value.unwrap();
+        let key = match value {
+            Some(key) => key,
+            None => return Ok(VerifyInputKind::CurrentAccountAddress),
+        };
         if key.trim().is_empty() {
             return Err(BackendError::SignatureError(
                 "Please ensure the public key or address is not empty or whitespace".to_string(),

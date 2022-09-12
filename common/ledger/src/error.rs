@@ -28,4 +28,10 @@ pub enum LedgerError {
 
     #[error("Bip32 - {0}")]
     Bip32(#[from] bip32::Error),
+
+    #[error("Signature error - {0}")]
+    Signature(#[from] k256::ecdsa::Error),
+
+    #[error("No message found for signing transaction")]
+    NoMessageFound,
 }

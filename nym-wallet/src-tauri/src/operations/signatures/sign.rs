@@ -25,26 +25,21 @@ pub async fn sign(
     let client = guard.current_client()?;
     let wallet = client.nymd.signer();
     let derived_accounts = wallet.try_derive_accounts()?;
-    match derived_accounts.first() {
-        Some(account) => {
-            log::info!("<<< Signing message");
-            let signature = wallet.sign_raw_with_account(account, message.as_bytes())?;
-            let signature_as_hex_string = signature.to_string();
-            let output = SignatureOutputJson {
-                account_id: account.address().to_string(),
-                public_key: account.public_key(),
-                signature: signature_as_hex_string.to_string(),
-            };
-            log::info!(">>> Signing data {}", json!(output),);
-            Ok(signature_as_hex_string)
-        }
-        None => {
-            log::error!(">>> Unable to derive account");
-            Err(BackendError::SignatureError(
-                "unable to derive account".to_string(),
-            ))
-        }
-    }
+    let account = derived_accounts.first().ok_or_else(|| {
+        log::error!(">>> Unable to derive account");
+        BackendError::SignatureError("unable to derive account".to_string())
+    })?;
+
+    log::info!("<<< Signing message");
+    let signature = wallet.sign_raw_with_account(account, message.as_bytes())?;
+    let signature_as_hex_string = signature.to_string();
+    let output = SignatureOutputJson {
+        account_id: account.address().to_string(),
+        public_key: account.public_key(),
+        signature: signature_as_hex_string.to_string(),
+    };
+    log::info!(">>> Signing data {}", json!(output),);
+    Ok(signature_as_hex_string)
 }
 
 async fn get_pubkey_from_account_address(
@@ -54,28 +49,20 @@ async fn get_pubkey_from_account_address(
     log::info!("Getting public key for address {} from chain...", address);
     let guard = state.read().await;
     let client = guard.current_client()?;
-    match client.nymd.get_account_details(address).await? {
-        Some(account) => {
-            let base_account = account.try_get_base_account()?;
-            if let Some(k) = base_account.pubkey {
-                log::info!("public key found {}", k.to_json());
-                Ok(k)
-            } else {
-                log::error!("No account associated with address {}", address);
-                Err(BackendError::SignatureError(format!(
-                    "No account associated with address {}",
-                    address
-                )))
-            }
-        }
-        None => {
+    let account = client
+        .nymd
+        .get_account_details(address)
+        .await?
+        .ok_or_else(|| {
             log::error!("No account associated with address {}", address);
-            Err(BackendError::SignatureError(format!(
-                "No account associated with address {}",
-                address
-            )))
-        }
-    }
+            BackendError::SignatureError(format!("No account associated with address {}", address))
+        })?;
+    let base_account = account.try_get_base_account()?;
+
+    base_account.pubkey.ok_or_else(|| {
+        log::error!("No pubkey found for address {}", address);
+        BackendError::SignatureError(format!("No pubkey found for address {}", address))
+    })
 }
 
 enum VerifyInputKind {

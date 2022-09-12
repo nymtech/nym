@@ -52,14 +52,9 @@ pub struct Init {
     mnemonic: Option<String>,
 
     /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: Option<bool>,
-
-    /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    eth_endpoint: String,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
@@ -83,11 +78,8 @@ impl From<Init> for OverrideConfig {
             validators: init_config.validators,
             mnemonic: init_config.mnemonic,
 
-            #[cfg(any(feature = "eth", feature = "coconut"))]
+            #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            eth_endpoint: Some(init_config.eth_endpoint),
 
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
@@ -177,10 +169,8 @@ mod tests {
             mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,
-            #[cfg(any(feature = "eth", feature = "coconut"))]
+            #[cfg(feature = "coconut")]
             enabled_credentials_mode: None,
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            eth_endpoint: "".to_string(),
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

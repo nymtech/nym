@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Button, Divider, Typography, TextField, InputAdornment, Grid, Alert } from '@mui/material';
+import { Button, Divider, Typography, TextField, InputAdornment, Grid, Alert, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import CloseIcon from '@mui/icons-material/Close';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
@@ -8,6 +9,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const { profitMarginPercent, bond } = bondedNode;
 
   const [buttonActive, setButtonActive] = useState<boolean>(false);
+  const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [profitMargin, setProfitMargin] = useState<number>(profitMarginPercent);
   const [operatorCost, setOperatorCost] = useState<number>(parseInt(bond.amount));
@@ -37,9 +39,21 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   return (
     <Grid container xs>
-      {buttonActive && (
+      {open && (
         <Alert
           severity="info"
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          }
           sx={{
             width: 1,
             px: 2,

@@ -21,6 +21,7 @@ jobs:
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
           KEYBASE_NYM_CHANNEL: "ci-nightly"
+          WORKFLOW_CONCLUSION: "failure"
         uses: docker://keybaseio/client:stable-node
         with:
           args: .github/workflows/support-files/notifications/entry_point.sh

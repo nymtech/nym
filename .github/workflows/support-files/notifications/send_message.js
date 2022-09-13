@@ -38,11 +38,6 @@ function validateContext() {
       'Paperkey is not defined. Please set env var KEYBASE_NYMBOT_PAPERKEY',
     );
   }
-  if (!context.env.KEYBASE_NYMBOT_TEAM) {
-    throw new Error(
-      'Team is not defined. Please set env var KEYBASE_NYMBOT_TEAM',
-    );
-  }
 }
 
 /**
@@ -94,7 +89,7 @@ async function sendKeybaseMessage(messageBody) {
     });
 
     const channel = {
-      name: context.env.KEYBASE_NYMBOT_TEAM,
+      name: context.env.KEYBASE_NYMBOT_TEAM || 'nymtech_bot',
       membersType: 'team',
       topicName: context.keybase.channel,
       topic_type: 'CHAT',

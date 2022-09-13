@@ -117,11 +117,6 @@ pub enum ExecuteMsg {
     UpdateLockedPledgeCap {
         amount: Uint128,
     },
-    MigrateHeightsToTimestamps {
-        account_id: u32,
-        mix_identity: String,
-        height_timestamp_map: Vec<(u64, u64)>,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

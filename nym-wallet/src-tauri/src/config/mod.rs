@@ -552,7 +552,7 @@ api_url = 'https://baz/api'
             .next()
             .map(|v| v.nymd_url)
             .unwrap();
-        assert_eq!(nymd_url.as_ref(), "https://rpc.nyx.nodes.guru/");
+        assert_eq!(nymd_url.as_ref(), "https://rpc.nymtech.net/");
 
         let api_url = config
             .get_base_validators(WalletNetwork::MAINNET)

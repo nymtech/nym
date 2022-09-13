@@ -44,6 +44,12 @@ jobs:
           command: build
           args: --workspace
 
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:

@@ -32,15 +32,15 @@ enum DecryptedAccount {
 struct Args {
     /// Password used to attempt to decrypt the logins found in the file. The option can be
     /// provided multiple times for files that require multiple passwords.
-    #[clap(short, long, min_values(1), required = true)]
+    #[clap(short, long, value_parser, required = true)]
     password: Vec<String>,
 
     /// Path to the wallet file that will be decrypted.
-    #[clap(short, long)]
+    #[clap(short, long, value_parser)]
     file: String,
 
     /// Raw mode. Skips trying to parse the decrypted content.
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     raw: bool,
 }
 

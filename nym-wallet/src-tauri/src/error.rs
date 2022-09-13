@@ -69,6 +69,11 @@ pub enum BackendError {
         #[from]
         source: reqwest::Error,
     },
+    #[error("{source}")]
+    K256Error {
+        #[from]
+        source: k256::ecdsa::Error,
+    },
     #[error("failed to encrypt the given data with the provided password")]
     EncryptionError,
     #[error("failed to decrypt the given data with the provided password")]
@@ -111,6 +116,8 @@ pub enum BackendError {
     UnknownCoinDenom(String),
     #[error("Network {network} doesn't have any associated registered coin denoms")]
     NoCoinsRegistered { network: Network },
+    #[error("Signature error {0}")]
+    SignatureError(String),
 }
 
 impl Serialize for BackendError {

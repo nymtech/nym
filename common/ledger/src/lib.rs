@@ -17,6 +17,9 @@ use error::Result;
 use ledger_transport::APDUCommand;
 use ledger_transport_hid::hidapi::HidApi;
 use ledger_transport_hid::TransportNativeHID;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::sync::Arc;
 
 const CLA: u8 = 0x55;
 const INS_GET_VERSION: u8 = 0x00;
@@ -30,15 +33,22 @@ const CHUNK_SIZE: usize = 250;
 
 /// Manage hardware Ledger device with Cosmos specific operations, as described in the
 /// specification: https://github.com/cosmos/ledger-cosmos/blob/main/docs/APDUSPEC.md
+#[derive(Clone)]
 pub struct CosmosLedger {
-    transport: TransportNativeHID,
+    transport: Arc<TransportNativeHID>,
+}
+
+impl Debug for CosmosLedger {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "()")
+    }
 }
 
 impl CosmosLedger {
     /// Create the connection to the first Ledger device that we can find.
     pub fn new() -> Result<Self> {
         let api = HidApi::new()?;
-        let transport = TransportNativeHID::new(&api)?;
+        let transport = Arc::new(TransportNativeHID::new(&api)?);
 
         Ok(CosmosLedger { transport })
     }

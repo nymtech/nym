@@ -1,4 +1,4 @@
-## Unreleased
+## [nym-contracts-v1.0.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.2) (2022-09-13)
 
 ### Added
 

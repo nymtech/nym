@@ -103,12 +103,12 @@ async fn _connect_with_mnemonic(
         let state = state.read().await;
 
         // Take the oppertunity to list all the known validators while we have the state.
-        for network in WalletNetwork::iter() {
-            log::debug!(
-                "List of validators for {network}: [\n{}\n]",
-                state.get_config_validator_entries(network).format(",\n")
-            );
-        }
+        //for network in WalletNetwork::iter() {
+        //    log::debug!(
+        //        "List of validators for {network}: [\n{}\n]",
+        //        state.get_config_validator_entries(network).format(",\n")
+        //    );
+        //}
 
         state.config().clone()
     };

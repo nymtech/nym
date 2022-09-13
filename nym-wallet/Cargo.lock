@@ -626,6 +626,17 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "colored"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4ffc801dacf156c5854b9df4f425a626539c3a6ef7893cc0c5084a23f0b6c59"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi",
+]
+
+[[package]]
+name = "colored"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3616f750b84d8f0de8a58bda93e08e2a81ad3f523089b05f1dffecab48c6cbd"
@@ -1309,6 +1320,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bdd7b0849075e79ee9a1836df22c717d1eba30451796fdc631b04565dd11e2a"
 dependencies = [
+ "colored 1.9.3",
  "log",
 ]
 
@@ -2432,6 +2444,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
 dependencies = [
  "cfg-if",
+ "serde",
 ]
 
 [[package]]
@@ -2829,13 +2842,14 @@ dependencies = [
  "cfg-if",
  "chrono",
  "coconut-interface",
- "colored",
+ "colored 2.0.0",
  "config",
  "cosmrs",
  "cosmwasm-std",
  "dirs",
  "dotenv",
  "eyre",
+ "fern",
  "futures",
  "itertools",
  "k256",
@@ -2849,6 +2863,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_repr",
  "strum",
  "tauri",
  "tauri-build",
@@ -5291,7 +5306,7 @@ dependencies = [
  "bip39",
  "coconut-bandwidth-contract-common",
  "coconut-interface",
- "colored",
+ "colored 2.0.0",
  "config",
  "cosmrs",
  "cosmwasm-std",

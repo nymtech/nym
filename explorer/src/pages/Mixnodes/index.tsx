@@ -217,7 +217,7 @@ export const PageMixnodes: React.FC = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
         >
-          {currencyToString(params.value.amount, params.value.denom)}
+          {currencyToString(params.value)}
         </MuiLink>
       ),
     },

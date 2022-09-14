@@ -35,10 +35,7 @@ function formatCellValues(val: string | number, field: string) {
     );
   }
   if (field === 'bond') {
-    if (typeof val === 'string') {
-      return currencyToString(val);
-    }
-    return currencyToString(val?.toString());
+    return currencyToString(val.toString());
   }
   return val;
 }

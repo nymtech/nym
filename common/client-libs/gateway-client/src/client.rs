@@ -309,6 +309,8 @@ impl GatewayClient {
             async {
                 if let Some(mut s) = m_shutdown {
                     s.recv().await
+                } else {
+                    std::future::pending::<()>().await
                 }
             }
             .fuse()
@@ -317,7 +319,7 @@ impl GatewayClient {
         tokio::pin!(shutdown);
 
         #[cfg(target_arch = "wasm32")]
-        let mut shutdown = Box::pin(async {}.fuse());
+        let mut shutdown = std::future::pending::<()>().fuse();
 
         loop {
             futures::select! {

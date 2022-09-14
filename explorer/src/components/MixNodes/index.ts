@@ -9,6 +9,10 @@ export type MixnodeRowType = {
   identity_key: string;
   bond: number;
   self_percentage: string;
+  pledge_amount: {
+    amount: string;
+    denom: string;
+  };
   host: string;
   layer: string;
   profit_percentage: string;
@@ -22,6 +26,7 @@ export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowT
 
 export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): MixnodeRowType {
   const pledge = Number(item.pledge_amount.amount) || 0;
+  const { denom } = item.pledge_amount;
   const delegations = Number(item.total_delegation.amount) || 0;
   const totalBond = pledge + delegations;
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
@@ -35,6 +40,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     bond: totalBond || 0,
     location: item?.location?.country_name || '',
     self_percentage: selfPercentage,
+    pledge_amount: { amount: pledge.toString(), denom },
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,

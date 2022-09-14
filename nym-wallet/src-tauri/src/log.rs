@@ -7,7 +7,12 @@ use tauri::Manager;
 
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
     let colors = ColoredLevelConfig::new();
-    let dispatch = fern::Dispatch::new()
+    let base_config = fern::Dispatch::new()
+        .level(global_level())
+        .filter_lowlevel_external_components()
+        .show_operations();
+
+    let stdout_config = fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",
@@ -17,34 +22,57 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 message,
             ))
         })
-        .level(global_level())
-        .level_for("hyper", log::LevelFilter::Warn)
-        .level_for("tokio_reactor", log::LevelFilter::Warn)
-        .level_for("reqwest", log::LevelFilter::Warn)
-        .level_for("mio", log::LevelFilter::Warn)
-        .level_for("want", log::LevelFilter::Warn)
-        .level_for("sled", log::LevelFilter::Warn)
-        .level_for("tungstenite", log::LevelFilter::Warn)
-        .level_for("tokio_tungstenite", log::LevelFilter::Warn)
-        .level_for("rustls", log::LevelFilter::Warn)
-        .level_for("tokio_util", log::LevelFilter::Warn);
+        .chain(std::io::stdout());
 
-    let dispatch = if ::std::env::var("RUST_TRACE_OPERATIONS").is_ok() {
-        dispatch.level_for("nym_wallet::operations", log::LevelFilter::Trace)
-    } else {
-        dispatch
-    };
-
-    dispatch
-        .chain(std::io::stdout())
+    let tauri_event_config = fern::Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "{}[{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                message,
+            ))
+        })
         .chain(fern::Output::call(move |record| {
             let msg = LogMessage {
                 message: record.args().to_string(),
                 level: record.level().into(),
             };
             app_handle.emit_all("log://log", msg).unwrap();
-        }))
+        }));
+
+    base_config
+        .chain(stdout_config)
+        .chain(tauri_event_config)
         .apply()
+}
+
+trait FernExt {
+    fn show_operations(self) -> Self;
+    fn filter_lowlevel_external_components(self) -> Self;
+}
+
+impl FernExt for fern::Dispatch {
+    fn show_operations(self) -> Self {
+        if ::std::env::var("RUST_TRACE_OPERATIONS").is_ok() {
+            self.level_for("nym_wallet::operations", log::LevelFilter::Trace)
+        } else {
+            self
+        }
+    }
+
+    fn filter_lowlevel_external_components(self) -> Self {
+        self.level_for("hyper", log::LevelFilter::Warn)
+            .level_for("tokio_reactor", log::LevelFilter::Warn)
+            .level_for("reqwest", log::LevelFilter::Warn)
+            .level_for("mio", log::LevelFilter::Warn)
+            .level_for("want", log::LevelFilter::Warn)
+            .level_for("sled", log::LevelFilter::Warn)
+            .level_for("tungstenite", log::LevelFilter::Warn)
+            .level_for("tokio_tungstenite", log::LevelFilter::Warn)
+            .level_for("rustls", log::LevelFilter::Warn)
+            .level_for("tokio_util", log::LevelFilter::Warn)
+    }
 }
 
 fn global_level() -> log::LevelFilter {

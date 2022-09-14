@@ -3,7 +3,7 @@ const { mergeWithRules } = require('webpack-merge');
 const { webpackCommon } = require('@nymproject/webpack');
 
 const entry = {
-  index: path.resolve(__dirname, 'src/index.tsx'),
+  app: path.resolve(__dirname, 'src/index.tsx'),
   log: path.resolve(__dirname, 'src/log.tsx'),
 };
 
@@ -16,13 +16,15 @@ module.exports = mergeWithRules({
   },
 })(
   webpackCommon(__dirname, [
-    { filename: 'index.html', chunks: ['index'], template: 'public/index.html' },
-    { filename: 'log.html', chunks: ['log'], template: 'public/log.html' },
+    { filename: 'index.html', chunks: ['app'], template: path.resolve(__dirname, 'public/index.html') },
+    { filename: 'log.html', chunks: ['log'], template: path.resolve(__dirname, 'public/log.html') },
   ]),
   {
     entry,
     output: {
+      clean: true,
       path: path.resolve(__dirname, 'dist'),
+      filename: '[name].bundle.js',
       publicPath: '/',
     },
   },

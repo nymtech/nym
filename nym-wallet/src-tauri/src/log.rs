@@ -1,17 +1,19 @@
 use std::str::FromStr;
 
+use fern::colors::ColoredLevelConfig;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::Manager;
 
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
+    let colors = ColoredLevelConfig::new();
     let dispatch = fern::Dispatch::new()
-        .format(|out, message, record| {
+        .format(move |out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",
                 chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
                 record.target(),
-                record.level(),
+                colors.color(record.level()),
                 message,
             ))
         })

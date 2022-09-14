@@ -1,5 +1,5 @@
 use tauri::Menu;
-use tauri::{CustomMenuItem, Submenu};
+use tauri::{CustomMenuItem, MenuItem, Submenu};
 
 pub const SHOW_LOG_WINDOW: &str = "show_log_window";
 

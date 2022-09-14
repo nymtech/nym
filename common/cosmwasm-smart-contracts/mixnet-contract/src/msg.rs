@@ -216,8 +216,7 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {
-    pub mixnet_denom: String,
-    nodes_to_remove: Option<Vec<NodeToRemove>>,
+    pub nodes_to_remove: Option<Vec<NodeToRemove>>,
 }
 
 impl MigrateMsg {

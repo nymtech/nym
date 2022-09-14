@@ -10,6 +10,8 @@ use crate::nymd::error::NymdError;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::cosmwasm;
+use cosmrs::rpc::endpoint::block::Response as BlockResponse;
+use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
@@ -212,6 +214,10 @@ impl<C> NymdClient<C> {
         &self.config
     }
 
+    pub fn current_chain_details(&self) -> &ChainDetails {
+        &self.config.chain_details
+    }
+
     pub fn set_mixnet_contract_address(&mut self, address: AccountId) {
         self.config.mixnet_contract_address = Some(address);
     }
@@ -332,6 +338,13 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
+    pub fn signer(&self) -> &DirectSecp256k1HdWallet
+    where
+        C: SigningCosmWasmClient,
+    {
+        self.client.signer()
+    }
+
     pub fn gas_price(&self) -> &GasPrice
     where
         C: SigningCosmWasmClient,
@@ -355,9 +368,24 @@ impl<C> NymdClient<C> {
         address: &AccountId,
     ) -> Result<Option<Account>, NymdError>
     where
-        C: SigningCosmWasmClient + Sync,
+        C: CosmWasmClient + Sync,
     {
         self.client.get_account(address).await
+    }
+
+    pub async fn get_account_public_key(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<cosmrs::crypto::PublicKey>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        if let Some(account) = self.client.get_account(address).await? {
+            let base_account = account.try_get_base_account()?;
+            return Ok(base_account.pubkey);
+        }
+
+        Ok(None)
     }
 
     pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
@@ -375,6 +403,13 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         Ok(self.client.get_block(height).await?.block.header.time)
+    }
+
+    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_block(height).await
     }
 
     pub async fn get_current_block_height(&self) -> Result<Height, NymdError>
@@ -421,11 +456,25 @@ impl<C> NymdClient<C> {
         self.client.get_balance(address, denom).await
     }
 
+    pub async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.get_all_balances(address).await
+    }
+
     pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_tx(id).await
+    }
+
+    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.search_tx(query).await
     }
 
     pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>

@@ -6,15 +6,19 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- nym-cli: added CLI tool for interacting with the Nyx blockchain and Nym mixnet smart contracts ([#1577])
 - validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
-
+- network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611](https://github.com/nymtech/nym/pull/1611))
 
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
+- socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
+[#1577]: https://github.com/nymtech/nym/pull/1577
+[#1591]: https://github.com/nymtech/nym/pull/1591
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)
@@ -53,7 +57,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator: fixed local docker-compose setup to work on Apple M1 ([#1329])
 - explorer-api: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service ([#1482]).
 - network-requester: fix filter for suffix-only domains ([#1487])
-- validator-api: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service ([#1496]).
+- validator-api: listen out for SIGTERM and SIGQUIT too, making it play nicely as a system service; cleaner shutdown, without panics ([#1496], [#1573]).
 
 ### Changed
 
@@ -70,6 +74,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
 - network explorer: tweak how active set probability is shown ([#1503])
 - validator-api: rewarder set update fails without panicking on possible nymd queries ([#1520])
+- network-requester, socks5 client (nym-connect): send and receive respectively a message error to be displayed about filter check failure ([#1576]) 
 
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -99,6 +104,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1496]: https://github.com/nymtech/nym/pull/1496
 [#1503]: https://github.com/nymtech/nym/pull/1503
 [#1520]: https://github.com/nymtech/nym/pull/1520
+[#1573]: https://github.com/nymtech/nym/pull/1573
+[#1576]: https://github.com/nymtech/nym/pull/1576
 
 ## [v1.0.1](https://github.com/nymtech/nym/tree/v1.0.1) (2022-05-04)
 

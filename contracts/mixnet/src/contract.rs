@@ -28,7 +28,6 @@ use crate::mixnodes::bonding_queries::{
 };
 use crate::mixnodes::layer_queries::query_layer_distribution;
 use crate::mixnodes::transactions::_try_remove_mixnode;
-use crate::queued_migrations::migrate_config_from_env;
 use crate::rewards::queries::{
     query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
 };
@@ -472,6 +471,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
+#[allow(unused)]
 fn blacklist_malicious_node(storage: &mut dyn Storage, owner: &Addr) -> Result<(), ContractError> {
     let mixnode_bond = match crate::mixnodes::storage::mixnodes()
         .idx
@@ -492,6 +492,7 @@ fn blacklist_malicious_node(storage: &mut dyn Storage, owner: &Addr) -> Result<(
 }
 
 // Removes nodes we've deemed malicious, returns the pledge to the owners, but does not send any rewards
+#[allow(unused)]
 fn remove_malicious_node(
     storage: &mut dyn Storage,
     api: &dyn Api,
@@ -508,18 +509,8 @@ fn remove_malicious_node(
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_config_from_env(deps.storage, &msg)?;
-    let mut response = Response::new();
-    for node in msg.nodes_to_remove().iter() {
-        let mut sub_response = remove_malicious_node(deps.storage, deps.api, &env, node)
-            .unwrap_or_else(|_| panic!("Could not remove node: {:?}", node));
-        response.messages.append(&mut sub_response.messages);
-        response.attributes.append(&mut sub_response.attributes);
-        response.events.append(&mut sub_response.events);
-    }
-
-    Ok(response)
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    Ok(Response::default())
 }
 
 #[cfg(test)]

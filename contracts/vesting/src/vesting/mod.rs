@@ -36,8 +36,8 @@ pub fn populate_vesting_periods(
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::execute;
-    use crate::storage::load_account;
+    use crate::contract::*;
+    use crate::storage::*;
     use crate::support::tests::helpers::{
         init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };

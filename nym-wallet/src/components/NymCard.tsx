@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Card, CardContent, CardHeader } from '@mui/material';
+import { Card, CardContent, CardHeader } from '@mui/material';
 import { styled, Theme } from '@mui/material/styles';
 import { Title } from './Title';
 
@@ -23,7 +23,7 @@ export const NymCard: React.FC<{
     <CardHeader
       sx={{
         p: 3,
-        color: (theme: Theme) => theme.palette.text.primary,
+        color: 'text.primary',
         '& .MuiCardHeader-title h5': { fontSize: '1.25rem' },
       }}
       title={<Title title={title} Icon={Icon} />}

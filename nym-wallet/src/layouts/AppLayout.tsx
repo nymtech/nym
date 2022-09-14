@@ -39,9 +39,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             <Nav />
           </Box>
           {appVersion && (
-            <Typography sx={{ color: (t) => t.palette.grey[500], fontSize: 14, ml: 5, mt: 8 }}>
-              Version {appVersion}
-            </Typography>
+            <Typography sx={{ color: 'grey.500', fontSize: 14, ml: 5, mt: 8 }}>Version {appVersion}</Typography>
           )}
         </Box>
         <Container maxWidth="xl">

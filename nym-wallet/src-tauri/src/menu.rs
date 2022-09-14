@@ -9,7 +9,7 @@ pub trait AddDefaultSubmenus {
 
 impl AddDefaultSubmenus for Menu {
     fn add_default_app_submenus(self) -> Self {
-        if ::std::env::var("NYM_WALLET_ENABLE_MENUBAR").is_ok() {
+        if ::std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
             let submenu = Submenu::new(
                 "Help",
                 Menu::new().add_item(CustomMenuItem::new(SHOW_LOG_WINDOW, "Show logs")),

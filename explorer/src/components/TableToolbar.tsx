@@ -34,35 +34,36 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
         justifyContent: 'space-between',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'middle' }}>
-        {childrenBefore}
-        <Select
-          labelId="simple-select-label"
-          id="simple-select"
-          value={pageSize}
-          onChange={onChangePageSize}
-          sx={{
-            width: isMobile ? 100 : 200,
-          }}
-        >
-          <MenuItem value={10} data-testid="ten">
-            10
-          </MenuItem>
-          <MenuItem value={30} data-testid="thirty">
-            30
-          </MenuItem>
-          <MenuItem value={50} data-testid="fifty">
-            50
-          </MenuItem>
-          <MenuItem value={100} data-testid="hundred">
-            100
-          </MenuItem>
-        </Select>
-      </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', alignItems: 'middle' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          {childrenBefore}
+          <Select
+            labelId="simple-select-label"
+            id="simple-select"
+            value={pageSize}
+            onChange={onChangePageSize}
+            sx={{
+              width: isMobile ? 'auto' : 200,
+              marginRight: isMobile ? 0 : 2,
+            }}
+          >
+            <MenuItem value={10} data-testid="ten">
+              10
+            </MenuItem>
+            <MenuItem value={30} data-testid="thirty">
+              30
+            </MenuItem>
+            <MenuItem value={50} data-testid="fifty">
+              50
+            </MenuItem>
+            <MenuItem value={100} data-testid="hundred">
+              100
+            </MenuItem>
+          </Select>
+        </Box>
         <TextField
           sx={{
-            width: isMobile ? '100%' : 350,
+            width: isMobile ? 'auto' : 200,
             marginBottom: isMobile ? 2 : 0,
           }}
           value={searchTerm}
@@ -70,6 +71,16 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           placeholder="search"
           onChange={(event) => onChangeSearch(event.target.value)}
         />
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'end',
+          gap: 1,
+          marginBottom: isMobile ? 2 : 0,
+        }}
+      >
         {withFilters && <Filters />}
         {childrenAfter}
       </Box>

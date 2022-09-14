@@ -1,3 +1,4 @@
+use client_core::error::ClientCoreError;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
 
@@ -28,6 +29,11 @@ pub enum BackendError {
     SerdeJsonError {
         #[from]
         source: serde_json::Error,
+    },
+    #[error("{source}")]
+    ClientCoreError {
+        #[from]
+        source: ClientCoreError,
     },
 
     #[error("State error")]

@@ -32,7 +32,7 @@ fn main() {
     dotenv::dotenv().ok();
 
     let context = tauri::generate_context!();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
             mixnet::account::add_account_for_password,
@@ -152,15 +152,24 @@ fn main() {
             signatures::sign::sign,
             signatures::sign::verify,
             help::log::help_log_toggle_window,
-        ])
-        .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
-        .on_menu_event(|event| {
-            if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
-                let _r = help::log::help_log_toggle_window(event.window().app_handle());
-            }
-        })
+        ]);
+
+    let builder = if ::std::env::var("NYM_WALLET_ENABLE_MENUBAR").is_ok() {
+        builder
+            .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
+            .on_menu_event(|event| {
+                if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
+                    let _r = help::log::help_log_toggle_window(event.window().app_handle());
+                }
+            })
+    } else {
+        // This is the old behaviour.
+        // Remove this branch once we're happy with the menubar behaviour.
+        builder.menu(Menu::new().add_default_app_submenus())
+    };
+
+    builder
         .setup(|app| Ok(log::setup_logging(app.app_handle())?))
         .run(context)
         .expect("error while running tauri application");
 }
-

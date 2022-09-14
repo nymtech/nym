@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useRef, useState } from 'react';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
-import { Box, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow } from '@mui/material';
+import { Box, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
 // see https://github.com/tauri-apps/tauri-plugin-log/blob/dev/webview-src/index.ts#L4
 enum LogLevel {
@@ -58,27 +58,40 @@ export const LogViewer: FC = () => {
   }, []);
 
   return (
-    <Stack direction="column" p={2}>
-      <Box>{messageCount} logs</Box>
-      <Box>
-        <hr />
-      </Box>
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableBody>
-            {messages.current.map((m) => (
-              <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                <TableCell sx={{ padding: 0 }}>
-                  <strong>{getLogLevelName(m.level)}</strong>
-                </TableCell>
-                <TableCell sx={{ padding: 0 }}>
-                  <pre>{m.message}</pre>
-                </TableCell>
+    <Box sx={{ height: '100vh', width: '100vw', display: 'grid', gridTemplateRows: '1fr auto' }}>
+      <Box sx={{ overflowY: 'hidden', p: 2 }}>
+        <TableContainer component={Paper} sx={{ maxHeight: '100%' }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>Severity</TableCell>
+                <TableCell>Log message</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Stack>
+            </TableHead>
+            <TableBody>
+              {messages.current.map((m) => (
+                <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableCell sx={{ padding: 1 }}>
+                    <Chip label={getLogLevelName(m.level)} variant="outlined" size="small" />
+                  </TableCell>
+                  <TableCell sx={{ padding: 1, fontFamily: 'Monospace' }}>{m.message}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+      <Box
+        sx={{
+          p: 1,
+          textAlign: 'right',
+          fontSize: 'small',
+          borderTop: '2px solid',
+          borderTopColor: (theme) => theme.palette.divider,
+        }}
+      >
+        {messageCount} log entries since opening this window
+      </Box>
+    </Box>
   );
 };

@@ -5,8 +5,6 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import { Error } from './Error';
 
-const searchRegExp = /\s/g;
-
 export const MnemonicInput: React.FC<{
   mnemonic: string;
   error?: string;
@@ -17,10 +15,10 @@ export const MnemonicInput: React.FC<{
     <Stack spacing={2}>
       <TextField
         label="Mnemonic"
-        type={'input'}
-        value={showPassword ? mnemonic : mnemonic.replace(searchRegExp, '*')}
+        type="input"
+        value={showPassword ? mnemonic : mnemonic.replaceAll(/./g, '*')}
         onChange={(e) => onUpdateMnemonic(e.target.value)}
-        multiline={!!showPassword}
+        multiline
         autoFocus
         fullWidth
         inputProps={{

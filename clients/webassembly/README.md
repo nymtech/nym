@@ -40,4 +40,4 @@ If you're a Nym platform developer who's made changes to the Rust (or JS) files 
 
 1. bump version numbers as necessary for SemVer
 2. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
-3. `wasm-pack publish --access=public` will publish your changed package to NPM
+3. `cd pkg && npm publish --access=public` will publish your changed package to NPM

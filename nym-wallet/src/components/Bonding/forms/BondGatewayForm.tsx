@@ -169,6 +169,16 @@ const AmountFormData = ({
           denom={denom}
           initialValue={amountData.amount.amount}
         />
+        <CurrencyFormField
+          required
+          fullWidth
+          label="Operator cost"
+          autoFocus
+          onChanged={(newValue) => setValue('operatorCost', newValue, { shouldValidate: true })}
+          validationError={errors.operatorCost?.amount?.message}
+          denom={denom}
+          initialValue={amountData.operatorCost.amount}
+        />
       </Box>
     </Stack>
   );

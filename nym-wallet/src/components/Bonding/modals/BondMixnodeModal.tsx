@@ -24,6 +24,7 @@ const defaultMixnodeValues: MixnodeData = {
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
   amount: { amount: '100', denom },
+  operatorCost: { amount: '0', denom },
   profitMargin: 10,
   tokenPool: 'balance',
 });

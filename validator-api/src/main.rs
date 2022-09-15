@@ -169,6 +169,18 @@ fn parse_args() -> ArgMatches {
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
         )
         .arg(
+            Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
+                .long(MIN_MIXNODE_RELIABILITY_ARG)
+                .help("Mixnodes with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
+                .long(MIN_GATEWAY_RELIABILITY_ARG)
+                .help("Gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .help("Set this validator api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")

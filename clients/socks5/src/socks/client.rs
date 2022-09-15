@@ -20,6 +20,7 @@ use socks5_requests::{ConnectionId, Message, RemoteAddress, Request};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use task::ShutdownListener;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
 
@@ -140,6 +141,7 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
     self_address: Recipient,
     started_proxy: bool,
+    shutdown_listener: ShutdownListener,
 }
 
 impl Drop for SocksClient {
@@ -163,6 +165,7 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
+        shutdown_listener: ShutdownListener,
     ) -> Self {
         let connection_id = Self::generate_random();
         SocksClient {
@@ -176,6 +179,7 @@ impl SocksClient {
             service_provider,
             self_address,
             started_proxy: false,
+            shutdown_listener,
         }
     }
 
@@ -250,6 +254,7 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
+            self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);

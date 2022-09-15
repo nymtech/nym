@@ -547,16 +547,9 @@ pub fn calculate_delegator_reward(
         .load(storage, (key.clone(), mix_identity.to_string()))
         .unwrap_or(0);
 
-    // Get delegations newer then last_claimed_height, it would be nice to also fold this into the iteration bellow but it should be ok for now, as
-    // I doubt folks refresh their delegations often
     let mut delegations = delegations_storage::delegations()
         .prefix((mix_identity.to_string(), key))
-        .range(
-            storage,
-            Some(Bound::inclusive(last_claimed_height)),
-            None,
-            Order::Descending,
-        )
+        .range(storage, None, None, Order::Ascending)
         .filter_map(|record| record.ok())
         .map(|(_, delegation)| delegation)
         .collect::<Vec<Delegation>>();

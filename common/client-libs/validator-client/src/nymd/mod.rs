@@ -338,6 +338,13 @@ impl<C> NymdClient<C> {
         &self.client_address.as_ref().unwrap()[0]
     }
 
+    pub fn signer(&self) -> &DirectSecp256k1HdWallet
+    where
+        C: SigningCosmWasmClient,
+    {
+        self.client.signer()
+    }
+
     pub fn gas_price(&self) -> &GasPrice
     where
         C: SigningCosmWasmClient,

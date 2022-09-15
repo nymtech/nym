@@ -11,6 +11,7 @@ use log::*;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
 use std::{io, sync::Arc};
+use task::ShutdownListener;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
@@ -74,6 +75,7 @@ where
     is_finished
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn run_inbound<F, S>(
     mut reader: OwnedReadHalf,
     local_destination_address: String, // addresses are provided for better logging
@@ -82,6 +84,7 @@ pub(super) async fn run_inbound<F, S>(
     mix_sender: MixProxySender<S>,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
+    mut shutdown_listener: ShutdownListener,
 ) -> OwnedReadHalf
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
@@ -104,6 +107,10 @@ where
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
                 send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn);
+                break;
+            }
+            _ = shutdown_listener.recv() => {
+                log::trace!("ProxyRunner inbound: Received shutdown");
                 break;
             }
         }

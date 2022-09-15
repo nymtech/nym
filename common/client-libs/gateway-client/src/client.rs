@@ -15,8 +15,6 @@ use crate::wasm_storage::PersistentStorage;
 use coconut_interface::Credential;
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
-#[cfg(not(feature = "coconut"))]
-use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -554,30 +552,6 @@ impl GatewayClient {
         Ok(())
     }
 
-    #[cfg(not(feature = "coconut"))]
-    async fn claim_token_bandwidth(
-        &mut self,
-        credential: TokenCredential,
-    ) -> Result<(), GatewayClientError> {
-        let mut rng = OsRng;
-
-        let iv = IV::new_random(&mut rng);
-
-        let msg = ClientControlRequest::new_enc_token_bandwidth_credential(
-            &credential,
-            self.shared_key.as_ref().unwrap(),
-            iv,
-        )
-        .into();
-        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
-            ServerResponse::Bandwidth { available_total } => Ok(available_total),
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::UnexpectedResponse),
-        }?;
-
-        Ok(())
-    }
-
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
         self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
@@ -616,17 +590,10 @@ impl GatewayClient {
             .prepare_coconut_credential()
             .await?;
         #[cfg(not(feature = "coconut"))]
-        let credential = self
-            .bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .prepare_token_credential(self.gateway_identity, _gateway_owner)
-            .await?;
+        return self.try_claim_testnet_bandwidth().await;
 
         #[cfg(feature = "coconut")]
         return self.claim_coconut_bandwidth(credential).await;
-        #[cfg(not(feature = "coconut"))]
-        return self.claim_token_bandwidth(credential).await;
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {

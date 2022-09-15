@@ -51,18 +51,6 @@ pub(crate) enum RequestHandlingError {
     #[error("Nymd Error - {0}")]
     NymdError(#[from] validator_client::nymd::error::NymdError),
 
-    #[cfg(not(feature = "coconut"))]
-    #[error("Ethereum web3 error")]
-    Web3Error(#[from] web3::Error),
-
-    #[cfg(not(feature = "coconut"))]
-    #[error("Ethereum ABI error")]
-    EthAbiError(#[from] web3::ethabi::Error),
-
-    #[cfg(not(feature = "coconut"))]
-    #[error("Ethereum contract error")]
-    EthContractError(#[from] web3::contract::Error),
-
     #[cfg(feature = "coconut")]
     #[error("Validator API error - {0}")]
     APIError(#[from] validator_client::ValidatorClientError),
@@ -287,18 +275,6 @@ where
                 String::from("gateway"),
             ));
         }
-        debug!("Verifying Ethereum for token burn...");
-        let gateway_owner = self
-            .inner
-            .erc20_bridge
-            .verify_eth_events(credential.verification_key())
-            .await?;
-        self.inner
-            .erc20_bridge
-            .verify_gateway_owner(gateway_owner, &credential.gateway_identity())
-            .await?;
-        debug!("Claim the token on Cosmos, to make sure it's not spent twice...");
-        self.inner.erc20_bridge.claim_token(&credential).await?;
 
         let bandwidth = Bandwidth::from(credential);
         let bandwidth_value = bandwidth.value();

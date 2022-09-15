@@ -16,10 +16,6 @@ use crate::{
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
-const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-const DEFAULT_ETH_PRIVATE_KEY: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
-
 pub fn socks5_config_id_appended_with(gateway_id: &str) -> Result<String> {
     use std::fmt::Write as _;
     let mut id = SOCKS5_CONFIG_ID.to_string();
@@ -124,15 +120,6 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     log::trace!("Creating config for id: {}", id);
     let mut config = Config::new(id.as_str(), &provider_address);
-
-    // As far as I'm aware, these two are not used, they are only set because the socks5 init code
-    // requires them for initialising the bandwidth controller.
-    config
-        .get_base_mut()
-        .with_eth_endpoint(DEFAULT_ETH_ENDPOINT);
-    config
-        .get_base_mut()
-        .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
 
     if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::API_VALIDATOR) {
         config

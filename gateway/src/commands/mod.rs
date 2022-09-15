@@ -136,11 +136,6 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         );
     }
 
-    #[cfg(not(feature = "coconut"))]
-    {
-        config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
-    }
-
     #[cfg(feature = "coconut")]
     {
         if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {

@@ -9,13 +9,6 @@ pub mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
-#[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
-    "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
-
 fn long_version() -> String {
     format!(
         r#"
@@ -103,16 +96,6 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     if let Some(port) = args.port {
         config = config.with_port(port);
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    {
-        config
-            .get_base_mut()
-            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT.to_string());
-        config
-            .get_base_mut()
-            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY.to_string());
     }
 
     #[cfg(feature = "coconut")]

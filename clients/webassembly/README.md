@@ -37,6 +37,6 @@ To be clear, this is not something that most JS developers need to worry about, 
 
 If you're a Nym platform developer who's made changes to the Rust (or JS) files and wants to re-publish the package to NPM, here's how you do it: 
 
-1. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
-2. bump version numbers as necessary for SemVer
+1. bump version numbers as necessary for SemVer
+2. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
 3. `wasm-pack publish --access=public` will publish your changed package to NPM

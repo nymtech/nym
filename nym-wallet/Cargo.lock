@@ -769,7 +769,6 @@ version = "0.1.0"
 dependencies = [
  "cfg-if",
  "handlebars",
- "humantime-serde",
  "log",
  "network-defaults",
  "serde",
@@ -1482,7 +1481,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
 dependencies = [
  "atty",
- "humantime 1.3.0",
+ "humantime",
  "log",
  "regex",
  "termcolor",
@@ -2317,22 +2316,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humantime"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
-
-[[package]]
-name = "humantime-serde"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac34a56cfd4acddb469cc7fff187ed5ac36f498ba085caf8bbc725e3ff474058"
-dependencies = [
- "humantime 2.1.0",
- "serde",
-]
-
-[[package]]
 name = "hyper"
 version = "0.14.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2796,7 +2779,6 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.7",
- "ts-rs",
 ]
 
 [[package]]
@@ -5550,7 +5532,6 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
- "ts-rs",
 ]
 
 [[package]]
@@ -5620,7 +5601,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -5635,13 +5616,10 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
- "config",
  "cosmwasm-std",
- "cw-storage-plus",
  "mixnet-contract-common",
  "schemars",
  "serde",
- "ts-rs",
 ]
 
 [[package]]

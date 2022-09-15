@@ -121,16 +121,6 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn with_eth_private_key<S: Into<String>>(&mut self, eth_private_key: S) {
-        self.client.eth_private_key = eth_private_key.into();
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn with_eth_endpoint<S: Into<String>>(&mut self, eth_endpoint: S) {
-        self.client.eth_endpoint = eth_endpoint.into();
-    }
-
     pub fn set_custom_validator_apis(&mut self, validator_api_urls: Vec<Url>) {
         self.client.validator_api_urls = validator_api_urls;
     }
@@ -207,16 +197,6 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_database_path(&self) -> PathBuf {
         self.client.database_path.clone()
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_eth_endpoint(&self) -> String {
-        self.client.eth_endpoint.clone()
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_eth_private_key(&self) -> String {
-        self.client.eth_private_key.clone()
     }
 
     // Debug getters
@@ -342,14 +322,6 @@ pub struct Client<T> {
     /// Path to the database containing bandwidth credentials of this client.
     database_path: PathBuf,
 
-    /// Ethereum private key.
-    #[cfg(not(feature = "coconut"))]
-    eth_private_key: String,
-
-    /// Address to an Ethereum full node.
-    #[cfg(not(feature = "coconut"))]
-    eth_endpoint: String,
-
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -375,10 +347,6 @@ impl<T: NymConfig> Default for Client<T> {
             reply_encryption_key_store_path: Default::default(),
             gateway_endpoint: Default::default(),
             database_path: Default::default(),
-            #[cfg(not(feature = "coconut"))]
-            eth_private_key: "".to_string(),
-            #[cfg(not(feature = "coconut"))]
-            eth_endpoint: "".to_string(),
             nym_root_directory: T::default_root_directory(),
             super_struct: Default::default(),
         }

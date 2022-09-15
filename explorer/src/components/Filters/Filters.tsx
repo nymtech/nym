@@ -144,7 +144,7 @@ export const Filters = () => {
         variant="contained"
         endIcon={<Tune />}
         onClick={handleToggleShowFilters}
-        sx={{ textTransform: 'none' }}
+        sx={{ textTransform: 'none', width: isMobile ? '100%' : 'inherit' }}
       >
         Advanced filters
       </Button>

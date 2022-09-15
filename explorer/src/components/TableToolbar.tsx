@@ -30,7 +30,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
         width: '100%',
         marginBottom: 2,
         display: 'flex',
-        flexDirection: isMobile ? 'column-reverse' : 'row',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
       }}
     >
@@ -43,7 +43,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
             value={pageSize}
             onChange={onChangePageSize}
             sx={{
-              width: isMobile ? 'auto' : 200,
+              width: isMobile ? '50%' : 200,
               marginRight: isMobile ? 0 : 2,
             }}
           >
@@ -63,7 +63,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
         </Box>
         <TextField
           sx={{
-            width: isMobile ? 'auto' : 200,
+            width: isMobile ? '100%' : 200,
             marginBottom: isMobile ? 2 : 0,
           }}
           value={searchTerm}
@@ -78,7 +78,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           alignItems: 'center',
           justifyContent: 'end',
           gap: 1,
-          marginBottom: isMobile ? 2 : 0,
+          marginTop: isMobile ? 2 : 0,
         }}
       >
         {withFilters && <Filters />}

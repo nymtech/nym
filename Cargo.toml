@@ -22,7 +22,6 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "clients/webassembly",
     "common/bandwidth-claim-contract",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
@@ -86,4 +85,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly", "nym-wallet", "nym-connect"]
+exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect"]

@@ -167,7 +167,7 @@ jobs:
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMTECH_TEAM }}"
-          KEYBASE_NYM_CHANNEL: "${{ secrets.KEYBASE_CHANNEL_DEV_CORE _ID }}"
+          KEYBASE_NYM_CHANNEL: "${{ secrets.KEYBASE_CHANNEL_DEV_CORE_ID }}"
           IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
         uses: docker://keybaseio/client:stable-node
         with:

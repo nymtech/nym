@@ -9,10 +9,11 @@ use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
-    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RequestError,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
+    GatewayUptimeHistoryResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+    MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse, StakeSaturationResponse,
+    UptimeResponse,
 };
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
@@ -357,6 +358,25 @@ impl Client {
                 routes::REWARD_ESTIMATION,
             ],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn compute_mixnode_reward_estimation(
+        &self,
+        identity: IdentityKeyRef<'_>,
+        request_body: &ComputeRewardEstParam,
+    ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODE,
+                identity,
+                routes::COMPUTE_REWARD_ESTIMATION,
+            ],
+            NO_PARAMS,
+            request_body,
         )
         .await
     }

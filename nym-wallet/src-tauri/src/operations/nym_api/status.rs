@@ -8,7 +8,7 @@ use mixnet_contract_common::{IdentityKeyRef, MixId};
 use validator_client::models::{
     GatewayCoreStatusResponse, GatewayStatusReportResponse, InclusionProbabilityResponse,
     MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    StakeSaturationResponse, ComputeRewardEstParam
 };
 
 #[tauri::command]
@@ -56,6 +56,26 @@ pub async fn mixnode_reward_estimation(
 ) -> Result<RewardEstimationResponse, BackendError> {
     Ok(api_client!(state)
         .get_mixnode_reward_estimation(mix_id)
+        .await?)
+}
+
+#[tauri::command]
+pub async fn compute_mixnode_reward_estimation(
+    identity: &str,
+    uptime: Option<u8>,
+    is_active: Option<bool>,
+    pledge_amount: Option<u64>,
+    total_delegation: Option<u64>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<RewardEstimationResponse, BackendError> {
+    let request_body = ComputeRewardEstParam {
+        uptime,
+        is_active,
+        pledge_amount,
+        total_delegation,
+    };
+    Ok(api_client!(state)
+        .compute_mixnode_reward_estimation(identity, &request_body)
         .await?)
 }
 

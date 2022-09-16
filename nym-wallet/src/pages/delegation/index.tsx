@@ -1,5 +1,5 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography, CircularProgress } from '@mui/material';
 import { useTheme, Theme } from '@mui/material/styles';
 import { DelegationWithEverything, FeeDetails, DecCoin } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
@@ -290,33 +290,71 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         <Stack spacing={5}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Delegations</Typography>
-            <Link
-              href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
-              target="_blank"
-              rel="noreferrer"
-              text="Network Explorer"
-              fontSize={14}
-              fontWeight={theme.palette.mode === 'light' ? 400 : 600}
-              noIcon
+            {!!delegations?.length && (
+              <Link
+                href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                target="_blank"
+                rel="noreferrer"
+                text="Network Explorer"
+                fontSize={14}
+                fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+                noIcon
+              />
+            )}
+          </Box>
+
+          {!!delegations?.length && (
+            <Box display="flex" justifyContent="space-between" alignItems="end">
+              <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
+
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={() => setShowNewDelegationModal(true)}
+                sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+              >
+                Delegate
+              </Button>
+            </Box>
+          )}
+
+          {delegations?.length ? (
+            <DelegationList
+              explorerUrl={urls(network).networkExplorer}
+              isLoading={isLoading}
+              items={delegations}
+              onItemActionClick={handleDelegationItemActionClick}
             />
-          </Box>
-          <Box display="flex" justifyContent="space-between" alignItems="end">
-            <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
-            <Button
-              variant="contained"
-              disableElevation
-              onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
-            >
-              Delegate
-            </Button>
-          </Box>
-          <DelegationList
-            explorerUrl={urls(network).networkExplorer}
-            isLoading={isLoading}
-            items={delegations}
-            onItemActionClick={handleDelegationItemActionClick}
-          />
+          ) : isLoading ? (
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Typography variant="body1">
+                Checkout the{' '}
+                <Link
+                  href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                  target="_blank"
+                  rel="noreferrer"
+                  text="list of mixnodes"
+                  // fontSize={14}
+                  fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+                  noIcon
+                />{' '}
+                for performance and other parameters to help make delegation decisions. Hint: In Nym explorer use
+                advanced filters to precisely define what node you are looking for.
+              </Typography>
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={() => setShowNewDelegationModal(true)}
+                sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+              >
+                Delegate
+              </Button>
+            </Box>
+          )}
         </Stack>
       </Paper>
 

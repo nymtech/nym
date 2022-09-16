@@ -61,10 +61,17 @@ module.exports = (baseDir, htmlPath) => ({
   plugins: [
     // new CleanWebpackPlugin(),
 
-    new HtmlWebpackPlugin({
-      filename: 'index.html',
-      template: path.resolve(baseDir, htmlPath || 'src/index.html'),
-    }),
+    ... Array.isArray(htmlPath)
+      ? htmlPath.map(
+          (item) =>
+            new HtmlWebpackPlugin(item),
+        )
+      : [
+        new HtmlWebpackPlugin({
+          filename: 'index.html',
+          template: path.resolve(baseDir, htmlPath || 'src/index.html'),
+        })
+      ],
 
     new ForkTsCheckerWebpackPlugin({
       typescript: {

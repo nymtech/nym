@@ -1,27 +1,21 @@
 use tauri::Menu;
-#[cfg(target_os = "macos")]
-use tauri::{MenuItem, Submenu};
+use tauri::{CustomMenuItem, Submenu};
+
+pub const SHOW_LOG_WINDOW: &str = "show_log_window";
 
 pub trait AddDefaultSubmenus {
-    fn add_default_app_submenu_if_macos(self) -> Self;
+    fn add_default_app_submenus(self) -> Self;
 }
 
 impl AddDefaultSubmenus for Menu {
-    fn add_default_app_submenu_if_macos(self) -> Menu {
-        #[cfg(target_os = "macos")]
-        return self.add_submenu(Submenu::new(
-            "Menu",
-            Menu::new()
-                .add_native_item(MenuItem::Copy)
-                .add_native_item(MenuItem::Cut)
-                .add_native_item(MenuItem::Paste)
-                .add_native_item(MenuItem::Hide)
-                .add_native_item(MenuItem::HideOthers)
-                .add_native_item(MenuItem::SelectAll)
-                .add_native_item(MenuItem::ShowAll)
-                .add_native_item(MenuItem::Quit),
-        ));
-        #[cfg(not(target_os = "macos"))]
-        return self;
+    fn add_default_app_submenus(self) -> Self {
+        if ::std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
+            let submenu = Submenu::new(
+                "Help",
+                Menu::new().add_item(CustomMenuItem::new(SHOW_LOG_WINDOW, "Show logs")),
+            );
+            return self.add_submenu(submenu);
+        }
+        self
     }
 }

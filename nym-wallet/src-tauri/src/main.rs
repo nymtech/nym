@@ -3,11 +3,22 @@
     windows_subsystem = "windows"
 )]
 
+use tauri::{Manager, Menu};
+
 use mixnet_contract_common::{Gateway, MixNode};
-use tauri::Menu;
+
+use crate::menu::AddDefaultSubmenus;
+use crate::operations::help;
+use crate::operations::mixnet;
+use crate::operations::signatures;
+use crate::operations::simulate;
+use crate::operations::validator_api;
+use crate::operations::vesting;
+use crate::state::WalletState;
 
 mod config;
 mod error;
+mod log;
 mod menu;
 mod network_config;
 mod operations;
@@ -16,20 +27,11 @@ mod state;
 mod utils;
 mod wallet_storage;
 
-use crate::menu::AddDefaultSubmenus;
-use crate::operations::mixnet;
-use crate::operations::signatures;
-use crate::operations::simulate;
-use crate::operations::validator_api;
-use crate::operations::vesting;
-
-use crate::state::WalletState;
-
 #[allow(clippy::too_many_lines)]
 fn main() {
     dotenv::dotenv().ok();
-    setup_logging();
 
+    let context = tauri::generate_context!();
     tauri::Builder::default()
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
@@ -149,35 +151,15 @@ fn main() {
             simulate::mixnet::simulate_compound_delegator_reward,
             signatures::sign::sign,
             signatures::sign::verify,
+            help::log::help_log_toggle_window,
         ])
-        .menu(Menu::new().add_default_app_submenu_if_macos())
-        .run(tauri::generate_context!())
+        .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
+        .on_menu_event(|event| {
+            if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
+                let _r = help::log::help_log_toggle_window(event.window().app_handle());
+            }
+        })
+        .setup(|app| Ok(log::setup_logging(app.app_handle())?))
+        .run(context)
         .expect("error while running tauri application");
-}
-
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    if ::std::env::var("RUST_TRACE_OPERATIONS").is_ok() {
-        log_builder.filter_module("nym_wallet::operations", log::LevelFilter::Trace);
-    }
-
-    log_builder
-        .filter_module("hyper", log::LevelFilter::Warn)
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
-        .filter_module("mio", log::LevelFilter::Warn)
-        .filter_module("want", log::LevelFilter::Warn)
-        .filter_module("sled", log::LevelFilter::Warn)
-        .filter_module("tungstenite", log::LevelFilter::Warn)
-        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .filter_module("rustls", log::LevelFilter::Warn)
-        .filter_module("tokio_util", log::LevelFilter::Warn)
-        .init();
 }

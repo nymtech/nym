@@ -15,6 +15,7 @@ import { NodeGeneralSettings } from './general-settings';
 import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
 import { nodeSettingsNav } from './node-settings.constant';
 import { TestNode } from 'src/pages/bonding/node-settings/test-my-node';
+import { ApyPlayground } from './apy-playground';
 
 export const NodeSettings = () => {
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
@@ -103,12 +104,13 @@ export const NodeSettings = () => {
       >
         <Divider />
         {value === 0 && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
-        {value === 1 && bondedNode && (
+        {value === 1 && <ApyPlayground />}
+        {value === 2 && bondedNode && (
           <Box sx={{ p: 2 }}>
             <TestNode />
           </Box>
         )}
-        {value === 2 && bondedNode && (
+        {value === 3 && bondedNode && (
           <UnbondModal node={bondedNode} onClose={() => setValue(0)} onConfirm={handleUnbond} onError={handleError} />
         )}
         {confirmationDetails && confirmationDetails.status === 'success' && (

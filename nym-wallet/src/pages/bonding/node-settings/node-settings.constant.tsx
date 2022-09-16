@@ -1,1 +1,1 @@
-export const nodeSettingsNav = ['General', 'Test Node', 'Unbond'];
+export const nodeSettingsNav = ['General', 'Playground', 'Test Node', 'Unbond'];

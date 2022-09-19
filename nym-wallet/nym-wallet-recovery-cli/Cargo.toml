@@ -1,5 +1,5 @@
 [package]
-name = "wallet-recovery-cli"
+name = "nym-wallet-recovery-cli"
 version = "0.1.0"
 edition = "2021"
 

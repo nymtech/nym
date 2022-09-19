@@ -27,6 +27,9 @@ mod ping;
 mod state;
 mod tasks;
 mod validators;
+mod buy_terms;
+mod geo_ip;
+mod guards;
 
 const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 

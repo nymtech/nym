@@ -7,7 +7,28 @@ use mixnet_contract_common::reward_params::{EpochRewardParams, NodeRewardParams,
 use mixnet_contract_common::MixNodeBond;
 
 pub fn compute_apy(epochs_per_hour: f64, reward: f64, pledge_amount: f64) -> f64 {
-    epochs_per_hour * 24.0 * 365.0 * 100.0 * reward / pledge_amount
+    if epochs_per_hour < 0.0 {
+        log::warn!("epochs_per_hour is negative");
+    }
+    if reward < 0.0 {
+        log::warn!("reward is negative");
+    }
+    if pledge_amount < 0.0 {
+        log::warn!("pledge_amount is negative");
+    }
+    if pledge_amount == 0.0 {
+        return 0.0;
+    }
+
+    let apy = epochs_per_hour * 24.0 * 365.0 * 100.0 * reward / pledge_amount;
+
+    // Guard against unexpected results
+    if apy.is_finite() {
+        apy
+    } else {
+        log::warn!("computed apy is not finite!");
+        0.0
+    }
 }
 
 pub fn compute_reward_estimate(

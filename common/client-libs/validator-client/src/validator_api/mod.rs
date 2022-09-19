@@ -57,6 +57,7 @@ impl Client {
         V: AsRef<str>,
     {
         let url = create_api_url(&self.url, path, params);
+        log::trace!("url: {:?}", url.as_str());
         Ok(self.reqwest_client.get(url).send().await?.json().await?)
     }
 

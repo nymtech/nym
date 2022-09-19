@@ -1,3 +1,4 @@
+pub mod help;
 pub mod mixnet;
 pub mod signatures;
 pub mod simulate;

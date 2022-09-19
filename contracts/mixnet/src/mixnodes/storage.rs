@@ -70,6 +70,7 @@ pub(crate) fn mixnodes<'a>(
     )
 }
 
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct StoredMixnodeBond {
     pub pledge_amount: Coin,

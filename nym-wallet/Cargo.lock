@@ -2787,6 +2787,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-wallet-recovery-cli"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "argon2 0.4.0",
+ "base64",
+ "bip39",
+ "clap",
+ "log",
+ "pretty_env_logger",
+ "serde_json",
+]
+
+[[package]]
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
@@ -5370,21 +5385,6 @@ dependencies = [
  "same-file",
  "winapi",
  "winapi-util",
-]
-
-[[package]]
-name = "wallet-recovery-cli"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "argon2 0.4.0",
- "base64",
- "bip39",
- "clap",
- "log",
- "pretty_env_logger",
- "serde_json",
 ]
 
 [[package]]

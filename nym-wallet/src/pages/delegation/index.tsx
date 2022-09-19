@@ -11,7 +11,7 @@ import { CompoundModal } from 'src/components/Rewards/CompoundModal';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
-import { useDelegationContext, DelegationContextProvider } from '../../context/delegations';
+import { useDelegationContext, DelegationContextProvider, TDelegations } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
@@ -284,6 +284,51 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
+  const delegationsComponent = (delegations: TDelegations | undefined) => {
+    if (isLoading) {
+      return (
+        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      );
+    } else if (Boolean(delegations?.length)) {
+      return (
+        <DelegationList
+          explorerUrl={urls(network).networkExplorer}
+          isLoading={isLoading}
+          items={delegations}
+          onItemActionClick={handleDelegationItemActionClick}
+        />
+      );
+    }
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Typography variant="body1">
+          Checkout the{' '}
+          <Link
+            href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+            target="_blank"
+            rel="noreferrer"
+            text="list of mixnodes"
+            fontSize={14}
+            fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+            noIcon
+          />{' '}
+          for performance and other parameters to help make delegation decisions. Hint: In Nym explorer use advanced
+          filters to precisely define what node you are looking for.
+        </Typography>
+        <Button
+          variant="contained"
+          disableElevation
+          onClick={() => setShowNewDelegationModal(true)}
+          sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+        >
+          Delegate
+        </Button>
+      </Box>
+    );
+  };
+
   return (
     <>
       <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
@@ -317,44 +362,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               </Button>
             </Box>
           )}
-
-          {delegations?.length ? (
-            <DelegationList
-              explorerUrl={urls(network).networkExplorer}
-              isLoading={isLoading}
-              items={delegations}
-              onItemActionClick={handleDelegationItemActionClick}
-            />
-          ) : isLoading ? (
-            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <Typography variant="body1">
-                Checkout the{' '}
-                <Link
-                  href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
-                  target="_blank"
-                  rel="noreferrer"
-                  text="list of mixnodes"
-                  // fontSize={14}
-                  fontWeight={theme.palette.mode === 'light' ? 400 : 600}
-                  noIcon
-                />{' '}
-                for performance and other parameters to help make delegation decisions. Hint: In Nym explorer use
-                advanced filters to precisely define what node you are looking for.
-              </Typography>
-              <Button
-                variant="contained"
-                disableElevation
-                onClick={() => setShowNewDelegationModal(true)}
-                sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
-              >
-                Delegate
-              </Button>
-            </Box>
-          )}
+          {delegationsComponent(delegations)}
         </Stack>
       </Paper>
 

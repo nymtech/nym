@@ -682,6 +682,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "completions"
+version = "0.1.0"
+dependencies = [
+ "clap 3.2.21",
+ "clap_complete",
+ "clap_complete_fig",
+]
+
+[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [
@@ -3317,6 +3326,7 @@ dependencies = [
  "bs58",
  "clap 3.2.8",
  "colored",
+ "completions",
  "config",
  "crypto",
  "cupid",

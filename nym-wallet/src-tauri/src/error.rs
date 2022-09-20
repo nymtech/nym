@@ -118,6 +118,8 @@ pub enum BackendError {
     NoCoinsRegistered { network: Network },
     #[error("Signature error {0}")]
     SignatureError(String),
+    #[error("Unable to open a new window")]
+    NewWindowError,
 }
 
 impl Serialize for BackendError {

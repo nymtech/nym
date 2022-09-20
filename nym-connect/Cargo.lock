@@ -732,7 +732,6 @@ version = "0.1.0"
 dependencies = [
  "cfg-if",
  "handlebars",
- "humantime-serde",
  "log",
  "network-defaults",
  "serde",
@@ -916,7 +915,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "log",
- "nymcoconut",
  "sqlx",
  "thiserror",
  "tokio",
@@ -993,7 +991,6 @@ dependencies = [
  "blake3",
  "bs58",
  "cipher 0.4.3",
- "config",
  "ctr 0.9.1",
  "digest 0.10.3",
  "ed25519-dalek",
@@ -1915,7 +1912,6 @@ dependencies = [
  "futures",
  "gateway-requests",
  "getrandom 0.2.7",
- "json",
  "log",
  "network-defaults",
  "nymsphinx",
@@ -2874,12 +2870,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "json"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
-
-[[package]]
 name = "json-patch"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3209,7 +3199,6 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.11",
- "ts-rs",
 ]
 
 [[package]]
@@ -5233,7 +5222,6 @@ name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
  "nymsphinx-addressing",
- "ordered-buffer",
  "thiserror",
 ]
 
@@ -5637,7 +5625,6 @@ version = "0.1.0"
 dependencies = [
  "log",
  "tokio",
- "tokio-util 0.7.3",
 ]
 
 [[package]]
@@ -6404,7 +6391,6 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
- "ts-rs",
 ]
 
 [[package]]
@@ -6498,7 +6484,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -6513,13 +6499,10 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
- "config",
  "cosmwasm-std",
- "cw-storage-plus",
  "mixnet-contract-common",
  "schemars",
  "serde",
- "ts-rs",
 ]
 
 [[package]]

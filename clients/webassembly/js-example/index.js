@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import {
-   NymClient,
-   set_panic_hook
+    NymClient,
+    set_panic_hook
 } from "@nymproject/nym-client-wasm"
 
 // current limitation of rust-wasm for async stuff : (
@@ -25,7 +25,7 @@ async function main() {
     set_panic_hook();
 
     // validator server we will use to get topology from
-    const validator = "https://sandbox-validator.nymtech.net/api"; //"http://localhost:8081";
+    const validator = "https://validator.nymtech.net/api"; //"http://localhost:8081";
 
     client = new NymClient(validator);
 

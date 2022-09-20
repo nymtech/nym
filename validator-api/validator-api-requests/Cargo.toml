@@ -11,7 +11,7 @@ cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegr
 getset = "0.1.1"
 schemars = { version = "0.8", features = ["preserve_order"] }
 serde = "1.0"
-ts-rs = "6.1.2"
+ts-rs = {version = "6.1.2", optional = true}
 
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
@@ -19,4 +19,4 @@ mixnet-contract-common = { path= ".../../../../common/cosmwasm-smart-contracts/m
 [features]
 default = []
 coconut = ["coconut-interface"]
-generate-ts = []
+generate-ts = ["ts-rs"]

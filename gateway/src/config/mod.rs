@@ -127,7 +127,7 @@ impl Config {
         self
     }
 
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
         self.gateway.disabled_credentials_mode = disabled_credentials_mode;
         self
@@ -155,12 +155,6 @@ impl Config {
 
     pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: bip39::Mnemonic) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
-        self
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
-        self.gateway.eth_endpoint = eth_endpoint;
         self
     }
 
@@ -237,11 +231,6 @@ impl Config {
         self.gateway.public_sphinx_key_file.clone()
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_eth_endpoint(&self) -> String {
-        self.gateway.eth_endpoint.clone()
-    }
-
     pub fn get_enabled_statistics(&self) -> bool {
         self.gateway.enabled_statistics
     }
@@ -254,10 +243,12 @@ impl Config {
         self.gateway.validator_api_urls.clone()
     }
 
+    #[cfg(feature = "coconut")]
     pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_nymd_urls.clone()
     }
 
+    #[cfg(feature = "coconut")]
     pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
     }
@@ -357,10 +348,6 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Address to an Ethereum full node.
-    #[cfg(not(feature = "coconut"))]
-    eth_endpoint: String,
-
     /// Wheather gateway collects and sends anonymized statistics
     enabled_statistics: bool,
 
@@ -424,8 +411,6 @@ impl Default for Gateway {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            #[cfg(not(feature = "coconut"))]
-            eth_endpoint: "".to_string(),
             enabled_statistics: false,
             statistics_service_url: Url::from_str("http://127.0.0.1").unwrap(),
             validator_api_urls: vec![],

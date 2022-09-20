@@ -8,5 +8,4 @@ edition = "2021"
 
 [dependencies]
 nymsphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
-ordered-buffer = {path = "../ordered-buffer"}
 thiserror = "1"

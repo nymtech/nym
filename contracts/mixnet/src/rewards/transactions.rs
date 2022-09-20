@@ -554,6 +554,13 @@ pub fn calculate_delegator_reward(
         .map(|(_, delegation)| delegation)
         .collect::<Vec<Delegation>>();
 
+    // If last_claimed_height is 0 iterate from earlest_delegation, try avoiding gas query limit
+    let iter_from = if last_claimed_height == 0 {
+        delegations.iter().fold(0, |acc, x| acc.min(x.block_height))
+    } else {
+        last_claimed_height
+    };
+
     // Accumulate outside of the loop to gain some speed, on a log of checkpoints
     let mut delegation_at_height = Uint128::zero();
 
@@ -563,7 +570,7 @@ pub fn calculate_delegator_reward(
         .prefix(mix_identity)
         .keys(
             storage,
-            Some(Bound::inclusive(last_claimed_height)),
+            Some(Bound::inclusive(iter_from)),
             None,
             Order::Ascending,
         )

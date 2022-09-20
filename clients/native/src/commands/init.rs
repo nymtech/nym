@@ -10,9 +10,6 @@ use crate::{
     commands::{override_config, OverrideConfig},
 };
 
-#[cfg(all(feature = "eth", not(feature = "coconut")))]
-use crate::commands::{DEFAULT_ETH_ENDPOINT, DEFAULT_ETH_PRIVATE_KEY};
-
 #[derive(Args, Clone)]
 pub(crate) struct Init {
     /// Id of the nym-mixnet-client we want to create config for.
@@ -47,27 +44,9 @@ pub(crate) struct Init {
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: bool,
-
-    /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20
-    /// tokens. If you don't want to set this value, use --enabled-credentials-mode instead
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(
-        long,
-        default_value_if("enabled-credentials-mode", None, Some(DEFAULT_ETH_ENDPOINT))
-    )]
-    eth_endpoint: String,
-
-    /// Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't
-    /// want to set this value, use --enabled-credentials-mode instead")
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(
-        long,
-        default_value_if("enabled-credentials-mode", None, Some(DEFAULT_ETH_PRIVATE_KEY))
-    )]
-    eth_private_key: String,
 }
 
 impl From<Init> for OverrideConfig {
@@ -78,14 +57,8 @@ impl From<Init> for OverrideConfig {
             port: init_config.port,
             fastmode: init_config.fastmode,
 
-            #[cfg(any(feature = "eth", feature = "coconut"))]
+            #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            eth_private_key: Some(init_config.eth_private_key),
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            eth_endpoint: Some(init_config.eth_endpoint),
         }
     }
 }

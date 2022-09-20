@@ -130,13 +130,13 @@ export const ApyPlayground = () => {
                 />
               </Grid>
             ))}
+            <Grid item xs={12} lg={2}>
+              <Button variant="contained" disableElevation onClick={handleCalculate} size="large" fullWidth>
+                Calculate
+              </Button>
+            </Grid>
           </Grid>
         </CardContent>
-        <CardActions sx={{ p: 1, display: 'flex', justifyContent: 'end' }}>
-          <Button variant="contained" disableElevation onClick={handleCalculate}>
-            Calculate
-          </Button>
-        </CardActions>
       </Card>
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>

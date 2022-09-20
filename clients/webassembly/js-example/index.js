@@ -94,7 +94,7 @@ function displayReceived(message) {
     let receivedDiv = document.createElement("div")
     let paragraph = document.createElement("p")
     paragraph.setAttribute('style', 'color: green')
-    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content)
     paragraph.appendChild(paragraphContent)
     receivedDiv.appendChild(paragraph)
     document.getElementById("output").appendChild(receivedDiv)

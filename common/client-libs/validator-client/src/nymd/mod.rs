@@ -237,7 +237,7 @@ impl NymdClient<WalletNymdClient> {
         })
     }
 
-    pub fn signer(&self) -> CosmosLedger {
+    pub fn ledger_signer(&self) -> CosmosLedger {
         self.client.signer()
     }
 }
@@ -375,7 +375,7 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient,
     {
-        self.client.signer()
+        SigningCosmWasmClient::signer(&self.client)
     }
 
     pub fn gas_price(&self) -> &GasPrice

@@ -204,7 +204,7 @@ impl Client<WalletNymdClient> {
         self.nymd = NymdClient::connect_with_ledger(
             self.nymd.current_config().clone(),
             new_endpoint.as_ref(),
-            self.nymd.signer(),
+            self.nymd.ledger_signer(),
             None,
         )?;
         Ok(())

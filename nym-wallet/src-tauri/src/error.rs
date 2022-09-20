@@ -120,6 +120,8 @@ pub enum BackendError {
     SignatureError(String),
     #[error("Unable to open a new window")]
     NewWindowError,
+    #[error("{0}")]
+    LedgerError(#[from] ledger::error::LedgerError),
 }
 
 impl Serialize for BackendError {
@@ -140,6 +142,7 @@ impl From<ValidatorClientError> for BackendError {
             ValidatorClientError::NoAPIUrlAvailable => {
                 TypesError::NoValidatorApiUrlConfigured.into()
             }
+            ValidatorClientError::LedgerError(e) => e.into(),
         }
     }
 }

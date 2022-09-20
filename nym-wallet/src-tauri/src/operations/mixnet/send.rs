@@ -30,7 +30,7 @@ pub async fn send(
     let raw_res = guard
         .current_client()?
         .nymd
-        .send(&to_address, vec![amount_base], memo, fee)
+        .wallet_send(&to_address, vec![amount_base], memo, fee)
         .await?;
     log::info!("<<< tx hash = {}", raw_res.hash.to_string());
     let res = SendTxResult::new(

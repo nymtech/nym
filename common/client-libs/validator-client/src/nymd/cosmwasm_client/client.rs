@@ -262,6 +262,7 @@ pub trait CosmWasmClient: rpc::Client {
         let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
 
         if broadcasted.code.is_err() {
+            println!("Error {:?}", broadcasted);
             let code_val = broadcasted.code.value();
             return Err(NymdError::BroadcastTxErrorDeliverTx {
                 hash: broadcasted.hash,

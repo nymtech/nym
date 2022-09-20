@@ -19,8 +19,11 @@ use validator_api_requests::models::{MixNodeBondAnnotated, UptimeResponse};
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{
     self, error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
+    WalletNymdClient,
 };
 
+#[cfg(feature = "nymd-client")]
+use ledger::CosmosLedger;
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     mixnode::DelegationEvent, ContractStateParams, Delegation, IdentityKey, Interval,
@@ -28,7 +31,7 @@ use mixnet_contract_common::{
     RewardedSetUpdateDetails,
 };
 #[cfg(feature = "nymd-client")]
-use network_defaults::NymNetworkDetails;
+use network_defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 #[cfg(feature = "nymd-client")]
 use std::collections::{HashMap, HashSet};
 
@@ -157,6 +160,51 @@ impl Client<SigningNymdClient> {
             self.nymd.current_config().clone(),
             new_endpoint.as_ref(),
             self.mnemonic.clone().unwrap(),
+            None,
+        )?;
+        Ok(())
+    }
+
+    pub fn set_nymd_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.nymd.set_simulated_gas_multiplier(multiplier)
+    }
+}
+
+#[cfg(feature = "nymd-client")]
+impl Client<WalletNymdClient> {
+    pub fn new_ledger(config: Config) -> Result<Client<WalletNymdClient>, ValidatorClientError> {
+        let validator_api_client = validator_api::Client::new(config.api_url.clone());
+        let signer = CosmosLedger::new(
+            COSMOS_DERIVATION_PATH.parse().unwrap(),
+            config
+                .nymd_config
+                .chain_details
+                .bech32_account_prefix
+                .clone(),
+        )?;
+        let nymd_client = NymdClient::connect_with_ledger(
+            config.nymd_config.clone(),
+            config.nymd_url.as_str(),
+            signer,
+            None,
+        )?;
+
+        Ok(Client {
+            mnemonic: None,
+            mixnode_page_limit: config.mixnode_page_limit,
+            gateway_page_limit: config.gateway_page_limit,
+            mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
+            rewarded_set_page_limit: config.rewarded_set_page_limit,
+            validator_api: validator_api_client,
+            nymd: nymd_client,
+        })
+    }
+
+    pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
+        self.nymd = NymdClient::connect_with_ledger(
+            self.nymd.current_config().clone(),
+            new_endpoint.as_ref(),
+            self.nymd.signer(),
             None,
         )?;
         Ok(())

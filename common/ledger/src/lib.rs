@@ -35,6 +35,8 @@ const CHUNK_SIZE: usize = 250;
 /// specification: https://github.com/cosmos/ledger-cosmos/blob/main/docs/APDUSPEC.md
 #[derive(Clone)]
 pub struct CosmosLedger {
+    path: DerivationPath,
+    prefix: String,
     transport: Arc<TransportNativeHID>,
 }
 
@@ -46,11 +48,15 @@ impl Debug for CosmosLedger {
 
 impl CosmosLedger {
     /// Create the connection to the first Ledger device that we can find.
-    pub fn new() -> Result<Self> {
+    pub fn new(path: DerivationPath, prefix: String) -> Result<Self> {
         let api = HidApi::new()?;
         let transport = Arc::new(TransportNativeHID::new(&api)?);
 
-        Ok(CosmosLedger { transport })
+        Ok(CosmosLedger {
+            path,
+            prefix,
+            transport,
+        })
     }
 
     /// Get the version of the device.
@@ -67,17 +73,12 @@ impl CosmosLedger {
     }
 
     /// Get the SECP265K1 address of the device.
-    pub fn get_addr_secp265k1(
-        &self,
-        path: DerivationPath,
-        prefix: &str,
-        display: bool,
-    ) -> Result<AddrSecp265k1Response> {
+    pub fn get_addr_secp265k1(&self, display: bool) -> Result<AddrSecp265k1Response> {
         let display = if display { 1 } else { 0 };
-        let components = path_bytes(path)?;
+        let components = path_bytes(self.path.clone())?;
         let data: Vec<u8> = vec![
-            [prefix.len() as u8].as_slice(),
-            prefix.as_bytes(),
+            [self.prefix.len() as u8].as_slice(),
+            self.prefix.as_bytes(),
             components[0].as_slice(),
             components[1].as_slice(),
             components[2].as_slice(),
@@ -100,12 +101,11 @@ impl CosmosLedger {
         AddrSecp265k1Response::try_from(response)
     }
 
-    pub fn sign_secp265k1(
-        &self,
-        path: DerivationPath,
-        message: String,
-    ) -> Result<SignSecp265k1Response> {
-        let serialized_path: Vec<u8> = path_bytes(path)?.into_iter().flatten().collect();
+    pub fn sign_secp265k1(&self, message: String) -> Result<SignSecp265k1Response> {
+        let serialized_path: Vec<u8> = path_bytes(self.path.clone())?
+            .into_iter()
+            .flatten()
+            .collect();
         let mut chunks = vec![serialized_path];
         if message.is_empty() {
             return Err(LedgerError::NoMessageFound);

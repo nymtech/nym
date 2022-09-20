@@ -15,7 +15,7 @@ use strum::IntoEnumIterator;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
 use validator_client::nymd::cosmwasm_client::types::SimulateResponse;
-use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, SigningNymdClient};
+use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, WalletNymdClient};
 use validator_client::Client;
 
 // Some hardcoded metadata overrides
@@ -63,7 +63,7 @@ impl WalletState {
 #[derive(Default)]
 pub struct WalletStateInner {
     config: config::Config,
-    signing_clients: HashMap<Network, Client<SigningNymdClient>>,
+    signing_clients: HashMap<Network, Client<WalletNymdClient>>,
     current_network: Network,
 
     // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
@@ -149,7 +149,7 @@ impl WalletStateInner {
         Ok(FeeDetails::new(amount, res.to_fee()))
     }
 
-    pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {
+    pub fn client(&self, network: Network) -> Result<&Client<WalletNymdClient>, BackendError> {
         self.signing_clients
             .get(&network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -158,20 +158,20 @@ impl WalletStateInner {
     pub fn client_mut(
         &mut self,
         network: Network,
-    ) -> Result<&mut Client<SigningNymdClient>, BackendError> {
+    ) -> Result<&mut Client<WalletNymdClient>, BackendError> {
         self.signing_clients
             .get_mut(&network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
-    pub fn current_client(&self) -> Result<&Client<SigningNymdClient>, BackendError> {
+    pub fn current_client(&self) -> Result<&Client<WalletNymdClient>, BackendError> {
         self.signing_clients
             .get(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
     #[allow(unused)]
-    pub fn current_client_mut(&mut self) -> Result<&mut Client<SigningNymdClient>, BackendError> {
+    pub fn current_client_mut(&mut self) -> Result<&mut Client<WalletNymdClient>, BackendError> {
         self.signing_clients
             .get_mut(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -191,7 +191,7 @@ impl WalletStateInner {
         Ok(self.config.save_to_files()?)
     }
 
-    pub fn add_client(&mut self, network: Network, client: Client<SigningNymdClient>) {
+    pub fn add_client(&mut self, network: Network, client: Client<WalletNymdClient>) {
         self.signing_clients.insert(network, client);
     }
 

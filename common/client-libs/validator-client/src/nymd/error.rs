@@ -133,6 +133,9 @@ pub enum NymdError {
 
     #[error("Account had an unexpected bech32 prefix. Expected: {expected}, got: {got}")]
     UnexpectedBech32Prefix { got: String, expected: String },
+
+    #[error("Ledger error: {0}")]
+    LedgerError(#[from] ledger::error::LedgerError),
 }
 
 impl NymdError {

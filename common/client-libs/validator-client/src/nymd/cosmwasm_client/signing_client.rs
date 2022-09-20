@@ -5,22 +5,23 @@ use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
 use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
+use crate::nymd::cosmwasm_client::{DEFAULT_BROADCAST_POLLING_RATE, DEFAULT_BROADCAST_TIMEOUT};
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::nymd::{Coin, GasAdjustable, GasPrice, TxResponse};
+use crate::nymd::{Coin, GasAdjustable, GasPrice, MinimalSigningCosmWasmClient, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
 use cosmrs::feegrant::{
     AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance,
 };
-use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
 use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
+use ledger::CosmosLedger;
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
@@ -28,72 +29,21 @@ use sha2::Sha256;
 use std::convert::TryInto;
 use std::time::{Duration, SystemTime};
 
-const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
-const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
-
-fn empty_fee() -> tx::Fee {
-    tx::Fee {
-        amount: vec![],
-        gas_limit: Default::default(),
-        payer: None,
-        granter: None,
-    }
-}
-
-fn single_unspecified_signer_auth(
-    public_key: Option<tx::SignerPublicKey>,
-    sequence_number: tx::SequenceNumber,
-) -> tx::AuthInfo {
-    tx::SignerInfo {
-        public_key,
-        mode_info: tx::ModeInfo::Single(tx::mode_info::Single {
-            mode: SignMode::Unspecified,
-        }),
-        sequence: sequence_number,
-    }
-    .auth_info(empty_fee())
-}
-
 #[async_trait]
-pub trait SigningCosmWasmClient: CosmWasmClient {
+pub trait SigningCosmWasmClient: MinimalSigningCosmWasmClient {
     fn signer(&self) -> &DirectSecp256k1HdWallet;
 
     fn gas_price(&self) -> &GasPrice;
 
     fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
-        let signer_accounts = self.signer().try_derive_accounts().ok()?;
+        let signer_accounts = SigningCosmWasmClient::signer(self)
+            .try_derive_accounts()
+            .ok()?;
         let account_from_signer = signer_accounts
             .iter()
             .find(|account| &account.address == signer_address)?;
         let public_key = account_from_signer.public_key;
         Some(public_key.into())
-    }
-
-    async fn simulate(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        memo: impl Into<String> + Send + 'static,
-    ) -> Result<SimulateResponse, NymdError> {
-        let public_key = self.signer_public_key(signer_address);
-        let sequence_response = self.get_sequence(signer_address).await?;
-
-        let partial_tx = Tx {
-            body: tx::Body::new(messages, memo, 0u32),
-            auth_info: single_unspecified_signer_auth(public_key, sequence_response.sequence),
-            signatures: vec![Vec::new()],
-        };
-        self.query_simulate(Some(partial_tx), Vec::new()).await
-
-        // for completion sake, once we're able to transition into using `tx_bytes`,
-        // we might want to use something like this instead:
-        // let tx_raw: tx::Raw = cosmrs::proto::cosmos::tx::v1beta1::TxRaw {
-        //     body_bytes: partial_tx.body.into_bytes().unwrap(),
-        //     auth_info_bytes: partial_tx.auth_info.into_bytes().unwrap(),
-        //     signatures: partial_tx.signatures,
-        // }
-        // .into();
-        // self.query_simulate(None, tx_raw.to_bytes().unwrap()).await
     }
 
     async fn upload(
@@ -541,50 +491,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
-    // in this particular case we cannot generalise the argument to `&str` due to lifetime constraints
-    #[allow(clippy::ptr_arg)]
-    async fn determine_transaction_fee(
-        &self,
-        signer_address: &AccountId,
-        messages: &[Any],
-        fee: Fee,
-        memo: &String,
-    ) -> Result<tx::Fee, NymdError> {
-        let auto_fee = |multiplier: Option<f32>| async move {
-            debug!("Trying to simulate gas costs...");
-            // from what I've seen in manual testing, gas estimation does not exist if transaction
-            // fails to get executed (for example if you send 'BondMixnode" with invalid signature)
-            let gas_estimation = self
-                .simulate(signer_address, messages.to_vec(), memo.clone())
-                .await?
-                .gas_info
-                .ok_or(NymdError::GasEstimationFailure)?
-                .gas_used;
-
-            let multiplier = multiplier.unwrap_or(DEFAULT_SIMULATED_GAS_MULTIPLIER);
-            let gas = gas_estimation.adjust_gas(multiplier);
-
-            debug!("Gas estimation: {}", gas_estimation);
-            debug!("Multiplying the estimation by {}", multiplier);
-            debug!("Final gas limit used: {}", gas);
-
-            let fee = self.gas_price() * gas;
-            Ok::<tx::Fee, NymdError>(tx::Fee::from_amount_and_gas(fee, gas))
-        };
-        let fee = match fee {
-            Fee::Manual(fee) => fee,
-            Fee::Auto(multiplier) => auto_fee(multiplier).await?,
-            Fee::PayerGranterAuto(auto_feegrant) => {
-                let mut fee = auto_fee(auto_feegrant.gas_adjustment).await?;
-                fee.payer = auto_feegrant.payer;
-                fee.granter = auto_feegrant.granter;
-                fee
-            }
-        };
-        debug!("Fee used for the transaction: {:?}", fee);
-        Ok(fee)
-    }
-
     /// Broadcast a transaction, returning immediately.
     async fn sign_and_broadcast_async(
         &self,
@@ -597,7 +503,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let fee = self
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = SigningCosmWasmClient::sign(self, signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
@@ -617,7 +523,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let fee = self
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = SigningCosmWasmClient::sign(self, signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
@@ -638,7 +544,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
 
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = SigningCosmWasmClient::sign(self, signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
@@ -659,7 +565,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
 
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = SigningCosmWasmClient::sign(self, signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
@@ -675,7 +581,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
     ) -> Result<tx::Raw, NymdError> {
-        let signer_accounts = self.signer().try_derive_accounts()?;
+        let signer_accounts = SigningCosmWasmClient::signer(self).try_derive_accounts()?;
         let account_from_signer = signer_accounts
             .iter()
             .find(|account| &account.address == signer_address)
@@ -701,8 +607,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         )
         .map_err(|_| NymdError::SigningFailure)?;
 
-        self.signer()
-            .sign_direct_with_account(account_from_signer, sign_doc)
+        SigningCosmWasmClient::signer(self).sign_direct_with_account(account_from_signer, sign_doc)
     }
 
     async fn sign(
@@ -786,7 +691,16 @@ impl CosmWasmClient for Client {
     }
 }
 
-#[async_trait]
+impl MinimalSigningCosmWasmClient for Client {
+    fn signer(&self) -> CosmosLedger {
+        todo!()
+    }
+
+    fn gas_price(&self) -> &GasPrice {
+        &self.gas_price
+    }
+}
+
 impl SigningCosmWasmClient for Client {
     fn signer(&self) -> &DirectSecp256k1HdWallet {
         &self.signer

@@ -19,6 +19,10 @@ pub enum ValidatorClientError {
     #[error("There was an issue with the Nymd client - {0}")]
     NymdError(#[from] crate::nymd::error::NymdError),
 
+    #[cfg(feature = "nymd-client")]
+    #[error("There was an issue with the Ledger client - {0}")]
+    LedgerError(#[from] ledger::error::LedgerError),
+
     #[error("No validator API url has been provided")]
     NoAPIUrlAvailable,
 }

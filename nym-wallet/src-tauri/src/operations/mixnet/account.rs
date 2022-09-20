@@ -16,7 +16,7 @@ use std::str::FromStr;
 use strum::IntoEnumIterator;
 use url::Url;
 use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
-use validator_client::{nymd::SigningNymdClient, Client};
+use validator_client::{nymd::WalletNymdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(
@@ -205,9 +205,9 @@ fn create_clients(
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<(WalletNetwork, Client<SigningNymdClient>)>, BackendError> {
+) -> Result<Vec<(WalletNetwork, Client<WalletNymdClient>)>, BackendError> {
     let mut clients = Vec::new();
-    for network in WalletNetwork::iter() {
+    for network in [WalletNetwork::MAINNET] {
         let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
             log::debug!("Using selected nymd_url for {network}: {url}");
             url.clone()
@@ -252,7 +252,7 @@ fn create_clients(
         let config = validator_client::Config::try_from_nym_network_details(&network_details)?
             .with_urls(nymd_url, api_url);
 
-        let mut client = validator_client::Client::new_signing(config, mnemonic.clone())?;
+        let mut client = validator_client::Client::new_ledger(config)?;
         client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
         clients.push((network, client));
     }

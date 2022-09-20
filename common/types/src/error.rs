@@ -70,6 +70,11 @@ pub enum TypesError {
     LossyCoinConversion,
     #[error("The provided coin has an unknown denomination - {0}")]
     UnknownCoinDenom(String),
+    #[error("{source}")]
+    LedgerError {
+        #[from]
+        source: ledger::error::LedgerError,
+    },
 }
 
 impl Serialize for TypesError {
@@ -88,6 +93,7 @@ impl From<ValidatorClientError> for TypesError {
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NymdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoValidatorApiUrlConfigured,
+            ValidatorClientError::LedgerError(e) => e.into(),
         }
     }
 }

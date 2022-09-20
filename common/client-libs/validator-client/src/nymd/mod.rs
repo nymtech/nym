@@ -6,6 +6,7 @@ use crate::nymd::cosmwasm_client::types::{
     Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
     InstantiateResult, MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
+use crate::nymd::cosmwasm_client::wallet_client;
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
@@ -28,12 +29,14 @@ use mixnet_contract_common::{
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
+use std::str::FromStr;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
 use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+pub use crate::nymd::cosmwasm_client::wallet_client::MinimalSigningCosmWasmClient;
 pub use crate::nymd::fee::Fee;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
@@ -52,9 +55,11 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-use network_defaults::{ChainDetails, NymNetworkDetails};
+use ledger::CosmosLedger;
+use network_defaults::{ChainDetails, NymNetworkDetails, COSMOS_DERIVATION_PATH};
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
+pub use wallet_client::Client as WalletNymdClient;
 
 pub mod coin;
 pub mod cosmwasm_client;
@@ -209,6 +214,34 @@ impl NymdClient<SigningNymdClient> {
     }
 }
 
+impl NymdClient<WalletNymdClient> {
+    pub fn connect_with_ledger<U: Clone>(
+        config: Config,
+        endpoint: U,
+        signer: CosmosLedger,
+        gas_price: Option<GasPrice>,
+    ) -> Result<NymdClient<WalletNymdClient>, NymdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        let denom = &config.chain_details.mix_denom.base;
+        let client_address =
+            AccountId::from_str(&signer.get_addr_secp265k1(false).unwrap().address).unwrap();
+        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
+
+        Ok(NymdClient {
+            client: WalletNymdClient::connect_with_ledger(endpoint, signer, gas_price)?,
+            config,
+            client_address: Some(vec![client_address]),
+            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
+        })
+    }
+
+    pub fn signer(&self) -> CosmosLedger {
+        self.client.signer()
+    }
+}
+
 impl<C> NymdClient<C> {
     pub fn current_config(&self) -> &Config {
         &self.config
@@ -332,7 +365,7 @@ impl<C> NymdClient<C> {
 
     pub fn address(&self) -> &AccountId
     where
-        C: SigningCosmWasmClient,
+        C: MinimalSigningCosmWasmClient,
     {
         // if this is a signing client (as required by the trait bound), it must have the address set
         &self.client_address.as_ref().unwrap()[0]
@@ -347,9 +380,9 @@ impl<C> NymdClient<C> {
 
     pub fn gas_price(&self) -> &GasPrice
     where
-        C: SigningCosmWasmClient,
+        C: MinimalSigningCosmWasmClient,
     {
-        self.client.gas_price()
+        MinimalSigningCosmWasmClient::gas_price(&self.client)
     }
 
     pub fn gas_adjustment(&self) -> GasAdjustment {
@@ -896,6 +929,29 @@ impl<C> NymdClient<C> {
     ) -> Result<TxResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        SigningCosmWasmClient::send_tokens(
+            &self.client,
+            self.address(),
+            recipient,
+            amount,
+            fee,
+            memo,
+        )
+        .await
+    }
+
+    /// Send funds from one address to another
+    pub async fn wallet_send(
+        &self,
+        recipient: &AccountId,
+        amount: Vec<Coin>,
+        memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
+    ) -> Result<TxResponse, NymdError>
+    where
+        C: MinimalSigningCosmWasmClient + Sync,
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client

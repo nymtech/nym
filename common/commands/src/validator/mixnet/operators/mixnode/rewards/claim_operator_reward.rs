@@ -4,6 +4,7 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
+use validator_client::nymd::traits::MixnetSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {}
@@ -12,7 +13,7 @@ pub async fn claim_operator_reward(_args: Args, client: SigningClient) {
     info!("Claim operator reward");
 
     let res = client
-        .execute_claim_operator_reward(None)
+        .withdraw_operator_reward(None)
         .await
         .expect("failed to claim operator reward");
 

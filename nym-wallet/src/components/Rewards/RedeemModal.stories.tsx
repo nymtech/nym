@@ -62,6 +62,7 @@ export const RedeemAllRewards = () => {
         onOk={async () => setOpen(false)}
         message="Redeem all rewards"
         denom="nym"
+        mixId={1234}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
         {...storybookStyles(theme)}
@@ -83,6 +84,7 @@ export const RedeemRewardForMixnode = () => {
         onOk={async () => setOpen(false)}
         message="Redeem rewards"
         denom="nym"
+        mixId={1234}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={425.65843}
         {...storybookStyles(theme)}
@@ -104,6 +106,7 @@ export const FeeIsMoreThanAllRewards = () => {
         onOk={() => setOpen(false)}
         message="Redeem all rewards"
         denom="nym"
+        mixId={1234}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         amount={0.001}
         {...storybookStyles(theme)}
@@ -123,6 +126,7 @@ export const FeeIsMoreThanMixnodeReward = () => {
         open={open}
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
+        mixId={1234}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
         message="Redeem rewards"
         denom="nym"

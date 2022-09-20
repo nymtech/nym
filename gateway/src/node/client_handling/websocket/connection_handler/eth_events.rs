@@ -8,6 +8,7 @@ use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use std::str::FromStr;
+use validator_client::nymd::traits::MixnetQueryClient;
 use validator_client::nymd::{AccountId, NymdClient, SigningNymdClient};
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};

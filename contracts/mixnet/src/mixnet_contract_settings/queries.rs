@@ -1,27 +1,31 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
 use cosmwasm_std::{Deps, StdResult};
-use mixnet_contract_common::{ContractStateParams, MixnetContractVersion};
+use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
 
-pub fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
+pub(crate) fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
+    storage::CONTRACT_STATE.load(deps.storage)
+}
+
+pub(crate) fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.params)
 }
 
-pub fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<String> {
+pub(crate) fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<String> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.rewarding_validator_address.to_string())
 }
 
-pub(crate) fn query_contract_version() -> MixnetContractVersion {
+pub(crate) fn query_contract_version() -> ContractBuildInformation {
     // as per docs
     // env! macro will expand to the value of the named environment variable at
     // compile time, yielding an expression of type `&'static str`
-    MixnetContractVersion {
+    ContractBuildInformation {
         build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
         build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
         commit_sha: env!("VERGEN_GIT_SHA").to_string(),
@@ -34,10 +38,8 @@ pub(crate) fn query_contract_version() -> MixnetContractVersion {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::mixnet_contract_settings::models::ContractState;
     use crate::support::tests::test_helpers;
-
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{coin, Addr};
 
     #[test]
     fn query_for_contract_settings_works() {
@@ -45,14 +47,13 @@ pub(crate) mod tests {
 
         let dummy_state = ContractState {
             owner: Addr::unchecked("someowner"),
-            mix_denom: String::from("unym"),
             rewarding_validator_address: Addr::unchecked("monitor"),
+            vesting_contract_address: Addr::unchecked("foomp"),
+            rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
-                minimum_mixnode_pledge: 123u128.into(),
-                minimum_gateway_pledge: 456u128.into(),
-                mixnode_rewarded_set_size: 1000,
-                mixnode_active_set_size: 500,
-                staking_supply: 1000000u128.into(),
+                minimum_mixnode_delegation: None,
+                minimum_mixnode_pledge: coin(123u128, "unym"),
+                minimum_gateway_pledge: coin(456u128, "unym"),
             },
         };
 

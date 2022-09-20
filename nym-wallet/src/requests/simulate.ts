@@ -1,4 +1,4 @@
-import { FeeDetails, DecCoin, Gateway, MixNode } from '@nymproject/types';
+import { FeeDetails, DecCoin, Gateway, MixNodeCostParams, MixNodeConfigUpdate } from '@nymproject/types';
 import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
@@ -12,26 +12,23 @@ export const simulateBondMixnode = async (args: TBondMixNodeArgs) =>
 
 export const simulateUnbondMixnode = async (args: any) => invokeWrapper<FeeDetails>('simulate_unbond_mixnode', args);
 
-export const simulateUpdateMixnode = async (args: { profitMarginPercent: number }) =>
-  invokeWrapper<FeeDetails>('simulate_update_mixnode', args);
+export const simulateUpdateMixnodeCostParams = async (newCosts: MixNodeCostParams) =>
+  invokeWrapper<FeeDetails>('simulate_update_mixnode_cost_params', { newCosts });
 
-export const simulateDelegateToMixnode = async (args: { identity: string; amount: DecCoin }) =>
+export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
+  invokeWrapper<FeeDetails>('simulate_update_mixnode_config', { update });
+
+export const simulateDelegateToMixnode = async (args: { mixId: number; amount: DecCoin }) =>
   invokeWrapper<FeeDetails>('simulate_delegate_to_mixnode', args);
 
-export const simulateUndelegateFromMixnode = async (identity: string) =>
-  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode', { identity });
+export const simulateUndelegateFromMixnode = async (mixId: number) =>
+  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode', { mixId });
 
-export const simulateCompoundDelgatorReward = async (identity: string) =>
-  invokeWrapper<FeeDetails>('simulate_compound_delegator_reward', { mixIdentity: identity });
+export const simulateClaimDelegatorReward = async (mixId: number) =>
+  invokeWrapper<FeeDetails>('simulate_claim_delegator_reward', { mixId });
 
-export const simulateClaimDelgatorReward = async (identity: string) =>
-  invokeWrapper<FeeDetails>('simulate_claim_delegator_reward', { mixIdentity: identity });
-
-export const simulateVestingClaimDelgatorReward = async (identity: string) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_claim_delegator_reward', { mixIdentity: identity });
-
-export const simulateVestingCompoundDelgatorReward = async (identity: string) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_compound_delegator_reward', { mixIdentity: identity });
+export const simulateVestingClaimDelegatorReward = async (mixId: number) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_claim_delegator_reward', { mixId });
 
 export const simulateVestingUndelegateFromMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_undelegate_from_mixnode', args);
@@ -42,16 +39,19 @@ export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledg
 export const simulateVestingUnbondGateway = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_unbond_gateway', args);
 
-export const simulateVestingDelegateToMixnode = async (args: { identity: string }) =>
+export const simulateVestingDelegateToMixnode = async (args: { mixId: number }) =>
   invokeWrapper<FeeDetails>('simulate_vesting_delegate_to_mixnode', args);
 
-export const simulateVestingBondMixnode = async (args: { mixnode: MixNode; pledge: DecCoin; ownerSignature: string }) =>
+export const simulateVestingBondMixnode = async (args: TBondMixNodeArgs) =>
   invokeWrapper<FeeDetails>('simulate_vesting_bond_mixnode', args);
 
 export const simulateVestingUnbondMixnode = async () => invokeWrapper<FeeDetails>('simulate_vesting_unbond_mixnode');
 
-export const simulateVestingUpdateMixnode = async (args: { profitMarginPercent: number }) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode', args);
+export const simulateVestingUpdateMixnodeCostParams = async (newCosts: MixNodeCostParams) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode_cost_params', { newCosts });
+
+export const simulateVestingUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode_config', { update });
 
 export const simulateWithdrawVestedCoins = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', args);
@@ -63,9 +63,3 @@ export const simulateClaimOperatorReward = async () => invokeWrapper<FeeDetails>
 
 export const simulateVestingClaimOperatorReward = async () =>
   invokeWrapper<FeeDetails>('simulate_vesting_claim_operator_reward');
-
-export const simulateCompoundOperatorReward = async () =>
-  invokeWrapper<FeeDetails>('simulate_compound_operator_reward');
-
-export const simulateVestingCompoundOperatorReward = async () =>
-  invokeWrapper<FeeDetails>('simulate_vesting_compound_operator_reward');

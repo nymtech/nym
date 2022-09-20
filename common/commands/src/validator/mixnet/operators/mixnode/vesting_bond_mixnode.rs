@@ -3,13 +3,14 @@
 
 use crate::context::SigningClient;
 use clap::Parser;
+use cosmwasm_std::Uint128;
 use log::{info, warn};
-use mixnet_contract_common::Coin;
-use mixnet_contract_common::MixNode;
+use mixnet_contract_common::{Coin, MixNodeCostParams};
+use mixnet_contract_common::{MixNode, Percent};
 use network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use validator_client::nymd::VestingSigningClient;
+use validator_client::nymd::{CosmWasmCoin, VestingSigningClient};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -39,6 +40,12 @@ pub struct Args {
 
     #[clap(long)]
     pub profit_margin_percent: Option<u8>,
+
+    #[clap(
+        long,
+        help = "operating cost in current DENOMINATION (so it would be 'unym', rather than 'nym')"
+    )]
+    pub interval_operating_cost: Option<u128>,
 
     #[clap(
         long,
@@ -72,13 +79,23 @@ pub async fn vesting_bond_mixnode(client: SigningClient, args: Args, denom: &str
         sphinx_key: args.sphinx_key,
         identity_key: args.identity_key,
         version: args.version,
-        profit_margin_percent: args.profit_margin_percent.unwrap_or(10),
     };
 
     let coin = Coin::new(args.amount, denom);
 
+    let cost_params = MixNodeCostParams {
+        profit_margin_percent: Percent::from_percentage_value(
+            args.profit_margin_percent.unwrap_or(10) as u64,
+        )
+        .unwrap(),
+        interval_operating_cost: CosmWasmCoin {
+            denom: denom.into(),
+            amount: Uint128::new(args.interval_operating_cost.unwrap_or(40_000_000)),
+        },
+    };
+
     let res = client
-        .vesting_bond_mixnode(mixnode, &*args.signature, coin.into(), None)
+        .vesting_bond_mixnode(mixnode, cost_params, &*args.signature, coin.into(), None)
         .await
         .expect("failed to bond vesting mixnode!");
 

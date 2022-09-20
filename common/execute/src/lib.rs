@@ -17,6 +17,11 @@ pub fn execute(attr: TokenStream, item: TokenStream) -> TokenStream {
     } else {
         panic!("Only `mixnet` and `vesting` targets are supported!")
     };
+    let exe = if target == "mixnet" {
+        quote!(wallet_execute)
+    } else {
+        quote!(execute)
+    };
     let cl = proc_macro::TokenStream::from(cl);
     let cl = parse_macro_input!(cl as ExprMethodCall);
 
@@ -85,7 +90,7 @@ pub fn execute(attr: TokenStream, item: TokenStream) -> TokenStream {
             let (req, fee) = self.#name(#(#execute_args),*);
             let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
             self.client
-                .execute(
+                .#exe(
                     self.address(),
                     #cl,
                     &req,

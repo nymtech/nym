@@ -1036,6 +1036,23 @@ impl<C> NymdClient<C> {
             .await
     }
 
+    pub async fn wallet_execute(
+        &self,
+        contract_address: &AccountId,
+        msg: &ExecuteMsg,
+        fee: Option<Fee>,
+        memo: impl Into<String> + Send + 'static,
+        funds: Vec<Coin>,
+    ) -> Result<ExecuteResult, NymdError>
+    where
+        C: MinimalSigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        self.client
+            .wallet_execute(self.address(), contract_address, msg, fee, memo, funds)
+            .await
+    }
+
     pub async fn execute_multiple<I, M>(
         &self,
         contract_address: &AccountId,

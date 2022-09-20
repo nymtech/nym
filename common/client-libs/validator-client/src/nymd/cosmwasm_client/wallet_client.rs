@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::client::CosmWasmClient;
+use crate::nymd::cosmwasm_client::helpers::CheckResponse;
+use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::cosmwasm_client::HttpClient;
 use crate::nymd::cosmwasm_client::{DEFAULT_BROADCAST_POLLING_RATE, DEFAULT_BROADCAST_TIMEOUT};
@@ -20,6 +22,7 @@ use cosmrs::tx::{self, Gas, ModeInfo, Msg, MsgProto, SignDoc, SignerInfo};
 use cosmrs::{AccountId, Any};
 use ledger::CosmosLedger;
 use log::{debug, info};
+use mixnet_contract_common::ExecuteMsg;
 use serde::Serialize;
 use std::str::FromStr;
 use std::time::Duration;
@@ -183,13 +186,18 @@ struct SendTransaction {
 }
 
 #[derive(Serialize)]
+struct ExecuteContractValue {
+    contract: String,
+    funds: Vec<Coin>,
+    msg: ExecuteMsg,
+    sender: String,
+}
+
+#[derive(Serialize)]
 struct MsgExecuteContract {
     #[serde(rename = "type")]
     type_url: String,
-    sender: String,
-    contract: String,
-    msg: Vec<u8>,
-    funds: Vec<Coin>,
+    value: ExecuteContractValue,
 }
 
 #[derive(Serialize)]
@@ -303,11 +311,9 @@ pub trait MinimalSigningCosmWasmClient: CosmWasmClient {
             .sign_secp265k1(messages)
             .expect("Could not sign")
             .signature;
-        println!("Signature: {:?}", signature.to_string());
         let response = self.signer().get_addr_secp265k1(false)?;
         let verifying_key: cosmrs::crypto::secp256k1::VerifyingKey = response.public_key.into();
         let cosmrs_public_key: cosmrs::crypto::PublicKey = verifying_key.into();
-        println!("Public key: {}", cosmrs_public_key.to_json());
 
         // TODO: WTF HOW IS TIMEOUT_HEIGHT SUPPOSED TO GET DETERMINED?
         // IT DOESNT EXIST IN COSMJS!!
@@ -331,9 +337,6 @@ pub trait MinimalSigningCosmWasmClient: CosmWasmClient {
             signer_data.account_number,
         )
         .map_err(|_| NymdError::SigningFailure)?;
-
-        println!("Body {:?}", tx_body);
-        println!("Auth {:?}", auth_info);
 
         Ok(cosmrs::proto::cosmos::tx::v1beta1::TxRaw {
             body_bytes: sign_doc.body_bytes,
@@ -394,7 +397,6 @@ pub trait MinimalSigningCosmWasmClient: CosmWasmClient {
             msgs: vec![send_msg],
             sequence: signer_data.sequence.to_string(),
         };
-        println!("What is signed: {:?}", tx);
         let tx_bytes = self
             .sign(
                 serde_json::to_string(&tx).unwrap(),
@@ -409,39 +411,80 @@ pub trait MinimalSigningCosmWasmClient: CosmWasmClient {
         self.broadcast_tx(tx_bytes.into()).await
     }
 
-    // async fn execute<M>(
-    //     &self,
-    //     sender_address: &AccountId,
-    //     contract_address: &AccountId,
-    //     msg: &M,
-    //     fee: Fee,
-    //     memo: impl Into<String> + Send + 'static,
-    //     funds: Vec<Coin>,
-    // ) -> Result<ExecuteResult, NymdError>
-    // where
-    //     M: ?Sized + Serialize + Sync,
-    // {
-    //     let execute_msg = cosmwasm::MsgExecuteContract {
-    //         sender: sender_address.clone(),
-    //         contract: contract_address.clone(),
-    //         msg: serde_json::to_vec(msg)?,
-    //         funds: funds.into_iter().map(Into::into).collect(),
-    //     }
-    //     .to_any()
-    //     .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
-    //
-    //     let tx_res = self
-    //         .sign_and_broadcast(sender_address, vec![execute_msg], fee, memo)
-    //         .await?
-    //         .check_response()?;
-    //
-    //     let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-    //
-    //     Ok(ExecuteResult {
-    //         logs: parse_raw_logs(tx_res.tx_result.log)?,
-    //         data: tx_res.tx_result.data,
-    //         transaction_hash: tx_res.hash,
-    //         gas_info,
-    //     })
-    // }
+    async fn wallet_execute(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        msg: &ExecuteMsg,
+        fee: crate::nymd::fee::Fee,
+        memo: impl Into<String> + Send + 'static,
+        funds: Vec<crate::nymd::Coin>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let cosmrs_msg = cosmrs::cosmwasm::MsgExecuteContract {
+            sender: sender_address.clone(),
+            contract: contract_address.clone(),
+            msg: serde_json::to_vec(msg)?,
+            funds: funds.iter().cloned().map(Into::into).collect(),
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("MsgExecuteContract".to_owned()))?;
+        let memo = memo.into();
+        let fee = self
+            .determine_transaction_fee(sender_address, &vec![cosmrs_msg.clone()], fee, &memo)
+            .await?;
+
+        let response = self.signer().get_addr_secp265k1(false)?;
+        let sequence_response = self
+            .get_sequence(&AccountId::from_str(&response.address).unwrap())
+            .await?;
+        let chain_id = self.get_chain_id().await?;
+
+        let signer_data = SignerData {
+            account_number: sequence_response.account_number,
+            sequence: sequence_response.sequence,
+            chain_id,
+        };
+
+        let execute_contract_msg = MsgExecuteContract {
+            type_url: String::from("wasm/MsgExecuteContract"),
+            value: ExecuteContractValue {
+                contract: contract_address.to_string(),
+                funds: funds.iter().cloned().map(Into::into).collect(),
+                msg: msg.clone(),
+                sender: sender_address.to_string(),
+            },
+        };
+        let tx = ExecuteContractTransaction {
+            account_number: signer_data.account_number.to_string(),
+            chain_id: signer_data.chain_id.to_string(),
+            fee: Fee {
+                amount: fee.amount.iter().cloned().map(Into::into).collect(),
+                gas: fee.gas_limit.to_string(),
+            },
+            memo: memo.clone(),
+            msgs: vec![execute_contract_msg],
+            sequence: signer_data.sequence.to_string(),
+        };
+        let tx_bytes = self
+            .sign(
+                serde_json::to_string(&tx).unwrap(),
+                vec![cosmrs_msg],
+                fee,
+                memo,
+                signer_data,
+            )?
+            .to_bytes()
+            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
+
+        let tx_res = self.broadcast_tx(tx_bytes.into()).await?.check_response()?;
+
+        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
+
+        Ok(ExecuteResult {
+            logs: parse_raw_logs(tx_res.tx_result.log)?,
+            data: tx_res.tx_result.data,
+            transaction_hash: tx_res.hash,
+            gas_info,
+        })
+    }
 }

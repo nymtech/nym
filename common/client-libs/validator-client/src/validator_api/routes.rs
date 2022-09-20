@@ -29,6 +29,7 @@ pub const SINCE_ARG: &str = "since";
 
 pub const STATUS: &str = "status";
 pub const REWARD_ESTIMATION: &str = "reward-estimation";
+pub const COMPUTE_REWARD_ESTIMATION: &str = "compute-reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";

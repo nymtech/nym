@@ -168,3 +168,11 @@ pub struct InclusionProbability {
     pub in_active: f64,
     pub in_reserve: f64,
 }
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ComputeRewardEstParam {
+    pub uptime: Option<u8>,
+    pub is_active: Option<bool>,
+    pub pledge_amount: Option<u64>,
+    pub total_delegation: Option<u64>,
+}

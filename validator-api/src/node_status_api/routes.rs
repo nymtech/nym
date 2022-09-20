@@ -14,11 +14,10 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
-use schemars::JsonSchema;
-use serde::Deserialize;
 use validator_api_requests::models::{
-    AllInclusionProbabilitiesResponse, CoreNodeStatusResponse, InclusionProbabilityResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, CoreNodeStatusResponse,
+    InclusionProbabilityResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 
 use super::models::Uptime;
@@ -195,14 +194,6 @@ pub(crate) async fn get_mixnode_reward_estimation(
             Status::NotFound,
         ))
     }
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub(crate) struct ComputeRewardEstParam {
-    uptime: Option<u8>,
-    is_active: Option<bool>,
-    pledge_amount: Option<u64>,
-    total_delegation: Option<u64>,
 }
 
 #[openapi(tag = "status")]

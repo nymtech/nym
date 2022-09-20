@@ -23,12 +23,6 @@ const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
-#[cfg(not(feature = "coconut"))]
-const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(not(feature = "coconut"))]
-const DEFAULT_ETH_PRIVATE_KEY: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
-
 const DEFAULT_TEST_ROUTES: usize = 3;
 const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
@@ -163,14 +157,6 @@ pub struct NetworkMonitor {
     /// Path to the database containing bandwidth credentials of this client.
     credentials_database_path: PathBuf,
 
-    /// Ethereum private key.
-    #[cfg(not(feature = "coconut"))]
-    eth_private_key: String,
-
-    /// Addess to an Ethereum full node.
-    #[cfg(not(feature = "coconut"))]
-    eth_endpoint: String,
-
     /// Desired number of test routes to be constructed (and working) during a monitor test run.
     test_routes: usize,
 
@@ -209,10 +195,6 @@ impl Default for NetworkMonitor {
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
             credentials_database_path: Self::default_credentials_database_path(),
-            #[cfg(not(feature = "coconut"))]
-            eth_private_key: DEFAULT_ETH_PRIVATE_KEY.to_string(),
-            #[cfg(not(feature = "coconut"))]
-            eth_endpoint: DEFAULT_ETH_ENDPOINT.to_string(),
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
             route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,
@@ -377,18 +359,6 @@ impl Config {
         self
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn with_eth_private_key(mut self, eth_private_key: String) -> Self {
-        self.network_monitor.eth_private_key = eth_private_key;
-        self
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
-        self.network_monitor.eth_endpoint = eth_endpoint;
-        self
-    }
-
     pub fn get_id(&self) -> String {
         self.base.id.clone()
     }
@@ -408,16 +378,6 @@ impl Config {
 
     pub fn get_credentials_database_path(&self) -> PathBuf {
         self.network_monitor.credentials_database_path.clone()
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_network_monitor_eth_private_key(&self) -> String {
-        self.network_monitor.eth_private_key.clone()
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_network_monitor_eth_endpoint(&self) -> String {
-        self.network_monitor.eth_endpoint.clone()
     }
 
     // TODO: Remove if still unused

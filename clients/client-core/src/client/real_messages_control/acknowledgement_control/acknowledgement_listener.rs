@@ -10,6 +10,7 @@ use nymsphinx::{
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
 use std::sync::Arc;
+use task::ShutdownListener;
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
 /// and firing actions to remove them from the 'Pending' state.
@@ -17,6 +18,7 @@ pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: ActionSender,
+    shutdown: ShutdownListener,
 }
 
 impl AcknowledgementListener {
@@ -24,11 +26,13 @@ impl AcknowledgementListener {
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
         action_sender: ActionSender,
+        shutdown: ShutdownListener,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
+            shutdown,
         }
     }
 
@@ -65,12 +69,26 @@ impl AcknowledgementListener {
 
     pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener");
-        while let Some(acks) = self.ack_receiver.next().await {
-            // realistically we would only be getting one ack at the time
-            for ack in acks {
-                self.on_ack(ack).await;
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                acks = self.ack_receiver.next() => match acks {
+                    Some(acks) => {
+                        // realistically we would only be getting one ack at the time
+                        for ack in acks {
+                            self.on_ack(ack).await;
+                        }
+                    },
+                    None => {
+                        log::trace!("AcknowledgementListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("AcknowledgementListener: Received shutdown");
+                }
             }
         }
-        error!("TODO: error msg. Or maybe panic?")
+        assert!(self.shutdown.is_shutdown_poll());
+        log::debug!("AcknowledgementListener: Exiting");
     }
 }

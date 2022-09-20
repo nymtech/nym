@@ -209,6 +209,7 @@ impl PacketSender {
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+
         let mut gateway_client = GatewayClient::new(
             address,
             Arc::clone(&fresh_gateway_client_data.local_identity),
@@ -219,6 +220,7 @@ impl PacketSender {
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+            None,
         );
 
         gateway_client

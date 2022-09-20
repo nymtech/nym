@@ -48,6 +48,4 @@ pub enum ContractError {
     MinVestingFunds { sent: u128, need: u128 },
     #[error("VESTING ({}): Maximum amount of locked coins has already been pledged: {current}, cap is {cap}", line!())]
     LockedPledgeCapReached { current: Uint128, cap: Uint128 },
-    #[error("{reason}")]
-    MigrateHeightsToTimestamp { reason: String },
 }

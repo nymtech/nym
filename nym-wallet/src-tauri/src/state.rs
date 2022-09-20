@@ -535,7 +535,7 @@ mod tests {
                 "http://nymd_url.com/".parse().unwrap(),
                 "http://foo.com".parse().unwrap(),
                 "http://bar.com".parse().unwrap(),
-                "https://rpc.nyx.nodes.guru".parse().unwrap(),
+                "https://rpc.nymtech.net".parse().unwrap(),
             ],
         );
         assert_eq!(
@@ -557,7 +557,7 @@ mod tests {
                 "http://nymd_url.com/".parse().unwrap(),
                 "http://foo.com".parse().unwrap(),
                 "http://bar.com".parse().unwrap(),
-                "https://rpc.nyx.nodes.guru".parse().unwrap(),
+                "https://rpc.nymtech.net".parse().unwrap(),
             ],
         )
     }

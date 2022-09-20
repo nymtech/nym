@@ -71,11 +71,6 @@ const KEYPAIR_ARG: &str = "keypair";
 #[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
 
-#[cfg(not(feature = "coconut"))]
-const ETH_ENDPOINT: &str = "eth_endpoint";
-#[cfg(not(feature = "coconut"))]
-const ETH_PRIVATE_KEY: &str = "eth_private_key";
-
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
 const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
@@ -112,7 +107,7 @@ fn long_version() -> String {
     )
 }
 
-fn parse_args<'a>() -> ArgMatches<'a> {
+fn parse_args() -> ArgMatches {
     let build_details = long_version();
     let base_app = App::new("Nym Validator API")
         .version(crate_version!())
@@ -134,13 +129,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
-                .short("m")
+                .short('m')
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
-                .short("r")
+                .short('r')
                 .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
         )
         .arg(
@@ -163,13 +158,25 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(WRITE_CONFIG_ARG)
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
-                .short("w")
+                .short('w')
         )
         .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
+        )
+        .arg(
+            Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
+                .long(MIN_MIXNODE_RELIABILITY_ARG)
+                .help("Mixnodes with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
+                .long(MIN_GATEWAY_RELIABILITY_ARG)
+                .help("Gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .takes_value(true)
         )
         .arg(
             Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
@@ -197,20 +204,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG, API_VALIDATORS_ARG])
                 .long(COCONUT_ENABLED),
         );
-
-    #[cfg(not(feature = "coconut"))]
-        let base_app = base_app.arg(
-        Arg::with_name(ETH_ENDPOINT)
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
-            .takes_value(true)
-            .long(ETH_ENDPOINT),
-    ).arg(
-        Arg::with_name(ETH_PRIVATE_KEY)
-            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
-            .takes_value(true)
-            .long(ETH_PRIVATE_KEY),
-    );
-
     base_app.get_matches()
 }
 
@@ -275,7 +268,7 @@ fn setup_logging() {
         .init();
 }
 
-fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
+fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(id) = matches.value_of(ID) {
         fs::create_dir_all(Config::default_config_directory(Some(id)))
             .expect("Could not create config directory");
@@ -362,16 +355,6 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     #[cfg(feature = "coconut")]
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         config = config.with_keypair_path(keypair_path.into())
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_private_key) = matches.value_of("eth_private_key") {
-        config = config.with_eth_private_key(String::from(eth_private_key));
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
-        config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 
     if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
@@ -536,7 +519,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
     }]
 }
 
-async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
+async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values

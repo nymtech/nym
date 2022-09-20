@@ -15,8 +15,6 @@ use crate::wasm_storage::PersistentStorage;
 use coconut_interface::Credential;
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
-#[cfg(not(feature = "coconut"))]
-use credentials::token::bandwidth::TokenCredential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -30,6 +28,8 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,6 +65,10 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Listen to shutdown messages.
+    shutdown: Option<ShutdownListener>,
 }
 
 impl GatewayClient {
@@ -80,6 +84,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -91,12 +96,19 @@ impl GatewayClient {
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
-            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
+            packet_router: PacketRouter::new(
+                ack_sender,
+                mixnet_message_sender,
+                #[cfg(not(target_arch = "wasm32"))]
+                shutdown.clone(),
+            ),
             response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown,
         }
     }
 
@@ -123,6 +135,7 @@ impl GatewayClient {
         gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -130,7 +143,12 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let packet_router = PacketRouter::new(ack_tx, mix_tx);
+        let packet_router = PacketRouter::new(
+            ack_tx,
+            mix_tx,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown.clone(),
+        );
 
         GatewayClient {
             authenticated: false,
@@ -148,6 +166,8 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown,
         }
     }
 
@@ -279,8 +299,33 @@ impl GatewayClient {
         let mut fused_timeout = timeout.fuse();
         let mut fused_stream = conn.fuse();
 
+        // Bit of an ugly workaround for selecting on an `Option` without having access to
+        // `tokio::select`
+        #[cfg(not(target_arch = "wasm32"))]
+        let shutdown = {
+            let m_shutdown = self.shutdown.clone();
+            async {
+                if let Some(mut s) = m_shutdown {
+                    s.recv().await
+                } else {
+                    std::future::pending::<()>().await
+                }
+            }
+            .fuse()
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::pin!(shutdown);
+
+        #[cfg(target_arch = "wasm32")]
+        let mut shutdown = std::future::pending::<()>().fuse();
+
         loop {
             futures::select! {
+                _ = shutdown => {
+                    log::trace!("GatewayClient control response: Received shutdown");
+                    log::debug!("GatewayClient control response: Exiting");
+                    break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
+                }
                 _ = &mut fused_timeout => {
                     break Err(GatewayClientError::Timeout);
                 }
@@ -291,14 +336,16 @@ impl GatewayClient {
                     };
                     match ws_msg {
                         Message::Binary(bin_msg) => {
-                            self.packet_router.route_received(vec![bin_msg]);
+                            if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                                log::warn!("Route received failed: {:?}", err);
+                            }
                         }
                         Message::Text(txt_msg) => {
                             break ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse);
                         }
                         _ => (),
                     }
-               }
+                }
             }
         }
     }
@@ -505,30 +552,6 @@ impl GatewayClient {
         Ok(())
     }
 
-    #[cfg(not(feature = "coconut"))]
-    async fn claim_token_bandwidth(
-        &mut self,
-        credential: TokenCredential,
-    ) -> Result<(), GatewayClientError> {
-        let mut rng = OsRng;
-
-        let iv = IV::new_random(&mut rng);
-
-        let msg = ClientControlRequest::new_enc_token_bandwidth_credential(
-            &credential,
-            self.shared_key.as_ref().unwrap(),
-            iv,
-        )
-        .into();
-        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
-            ServerResponse::Bandwidth { available_total } => Ok(available_total),
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::UnexpectedResponse),
-        }?;
-
-        Ok(())
-    }
-
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
         self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
@@ -567,17 +590,10 @@ impl GatewayClient {
             .prepare_coconut_credential()
             .await?;
         #[cfg(not(feature = "coconut"))]
-        let credential = self
-            .bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .prepare_token_credential(self.gateway_identity, _gateway_owner)
-            .await?;
+        return self.try_claim_testnet_bandwidth().await;
 
         #[cfg(feature = "coconut")]
         return self.claim_coconut_bandwidth(credential).await;
-        #[cfg(not(feature = "coconut"))]
-        return self.claim_token_bandwidth(credential).await;
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
@@ -723,6 +739,8 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
+                        #[cfg(not(target_arch = "wasm32"))]
+                        self.shutdown.clone(),
                     )
                 }
                 _ => unreachable!(),

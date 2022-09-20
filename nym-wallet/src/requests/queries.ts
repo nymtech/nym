@@ -51,3 +51,11 @@ export const getPendingIntervalEvents = async () =>
 
 export const getGatewayReport = async (identity: string) =>
   invokeWrapper<TGatewayReport>('gateway_report', { identity });
+
+export const computeMixnodeRewardEstimation = async (args: {
+  identity: string;
+  uptime: number;
+  isActive: boolean;
+  pledgeAmount: number;
+  totalDelegation: number;
+}) => invokeWrapper<any>('compute_mixnode_reward_estimation', args);

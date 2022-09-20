@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Card,
-  CardActions,
   CardContent,
   CardHeader,
   Divider,
@@ -18,6 +17,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { computeMixnodeRewardEstimation } from 'src/requests';
+import { SelectionChance } from '@nymproject/types';
+
+const MAJOR_AMOUNT_FOR_CALCS = 1000;
 
 const tableHeader = [
   { title: 'Estimated rewards', bold: true },
@@ -26,43 +29,89 @@ const tableHeader = [
   { title: 'Per year' },
 ];
 
-const tableRows = [
-  { title: 'Total node reward', perDay: '10 NYM', perMonth: '300 NYM', perYear: '3600 NYM' },
-  { title: 'Operator rewards', perDay: '10 NYM', perMonth: '300 NYM', perYear: '3600 NYM' },
-  { title: 'Delegator rewards', perDay: '10 NYM', perMonth: '300 NYM', perYear: '3600 NYM' },
-];
+const colorMap: { [key in SelectionChance]: string } = {
+  VeryLow: 'error.main',
+  Low: 'error.main',
+  Moderate: 'warning.main',
+  High: 'success.main',
+  VeryHigh: 'success.main',
+};
 
-const ResultsTable = () => (
-  <Card variant="outlined" sx={{ p: 1 }}>
-    <CardContent>
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {tableHeader.map((header) => (
-                <TableCell>
-                  <Typography fontWeight={header.bold ? 'bold' : 'regular'}>{header.title}</Typography>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {tableRows.map((row) => (
-              <TableRow>
-                <TableCell>{row.title}</TableCell>
-                <TableCell>{row.perDay}</TableCell>
-                <TableCell>{row.perMonth}</TableCell>
-                <TableCell>{row.perYear}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </CardContent>
-  </Card>
+const textMap: { [key in SelectionChance]: string } = {
+  VeryLow: 'VeryLow',
+  Low: 'Low',
+  Moderate: 'Moderate',
+  High: 'High',
+  VeryHigh: 'Very high',
+};
+
+type Results = {
+  operator: {
+    daily: string;
+    monthly: string;
+    yearly: string;
+  };
+  delegator: {
+    daily: string;
+    monthly: string;
+    yearly: string;
+  };
+  total: {
+    daily: string;
+    monthly: string;
+    yearly: string;
+  };
+};
+
+const InclusionProbability = ({ probability }: { probability: SelectionChance }) => (
+  <Typography sx={{ color: colorMap[probability] }}>{textMap[probability]}</Typography>
 );
 
-const NodeDetails = ({ saturation, selectionProbability }: { saturation: number; selectionProbability: string }) => (
+const ResultsTable = ({ results }: { results: Results }) => {
+  const tableRows = [
+    { title: 'Total node reward', ...results.total },
+    { title: 'Operator rewards', ...results.operator },
+    { title: 'Delegator rewards', ...results.delegator },
+  ];
+
+  return (
+    <Card variant="outlined" sx={{ p: 1 }}>
+      <CardContent>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                {tableHeader.map((header) => (
+                  <TableCell>
+                    <Typography fontWeight={header.bold ? 'bold' : 'regular'}>{header.title}</Typography>
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {tableRows.map((row) => (
+                <TableRow>
+                  <TableCell>{row.title}</TableCell>
+                  <TableCell>{row.daily}</TableCell>
+                  <TableCell>{row.monthly}</TableCell>
+                  <TableCell>{row.yearly}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+const NodeDetails = ({
+  saturation,
+  selectionProbability,
+}: {
+  saturation: number;
+  selectionProbability: SelectionChance;
+}) => (
   <Card variant="outlined" sx={{ p: 1 }}>
     <CardContent>
       <Stack direction="row" justifyContent="space-between">
@@ -72,7 +121,7 @@ const NodeDetails = ({ saturation, selectionProbability }: { saturation: number;
       <Divider sx={{ my: 1 }} />
       <Stack direction="row" justifyContent="space-between">
         <Typography fontWeight="medium">Selection probability</Typography>
-        <Typography>{selectionProbability}</Typography>
+        <InclusionProbability probability={selectionProbability} />
       </Stack>
     </CardContent>
   </Card>
@@ -80,12 +129,17 @@ const NodeDetails = ({ saturation, selectionProbability }: { saturation: number;
 
 export const ApyPlayground = () => {
   const [inputValues, setInputValues] = useState([
-    { label: 'Profit margin', isPercentage: true, value: '' },
-    { label: 'Operator cost', value: '' },
-    { label: 'Bond', value: '' },
-    { label: 'Delegations', value: '' },
-    { label: 'Uptime', isPercentage: true, value: '' },
+    { label: 'Profit margin', isPercentage: true, value: '0' },
+    { label: 'Operator cost', value: '0' },
+    { label: 'Bond', value: '0' },
+    { label: 'Delegations', value: '0' },
+    { label: 'Uptime', isPercentage: true, value: '0' },
   ]);
+  const [results, setResults] = useState({
+    total: { daily: '-', monthly: '-', yearly: '-' },
+    operator: { daily: '-', monthly: '-', yearly: '-' },
+    delegator: { daily: '-', monthly: '-', yearly: '-' },
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValues((current) => [
@@ -93,7 +147,45 @@ export const ApyPlayground = () => {
     ]);
   };
 
-  const handleCalculate = () => console.log(inputValues);
+  const getInputValue = (inputName: string) => inputValues.find((input) => input.label === inputName);
+
+  const handleCalculate = async () => {
+    try {
+      const res = await computeMixnodeRewardEstimation({
+        identity: 'DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ',
+        uptime: +getInputValue('Uptime')!,
+        isActive: true,
+        pledgeAmount: Math.floor(+getInputValue('Bond')! * 1_000_000),
+        totalDelegation: Math.floor(+getInputValue('Delegations')! * 1_000_000),
+      });
+
+      const operatorReward = (res.estimated_operator_reward / 1_000_000) * 24; // epoch_reward * 1 epoch_per_hour * 24 hours
+      const delegatorsReward = (res.estimated_delegators_reward / 1_000_000) * 24;
+
+      const operatorRewardScaled = MAJOR_AMOUNT_FOR_CALCS * (operatorReward / +getInputValue('Bond')!.value);
+      const delegatorReward = MAJOR_AMOUNT_FOR_CALCS * (delegatorsReward / +getInputValue('Delegations')!.value!);
+
+      setResults({
+        total: {
+          daily: (operatorRewardScaled + delegatorReward).toString(),
+          monthly: ((operatorRewardScaled + delegatorReward) * 30).toString(),
+          yearly: ((operatorRewardScaled + delegatorReward) * 365).toString(),
+        },
+        operator: {
+          daily: operatorRewardScaled.toString(),
+          monthly: (operatorRewardScaled * 30).toString(),
+          yearly: (operatorRewardScaled * 365).toString(),
+        },
+        delegator: {
+          daily: delegatorReward.toString(),
+          monthly: (delegatorReward * 30).toString(),
+          yearly: (delegatorReward * 365).toString(),
+        },
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -140,10 +232,10 @@ export const ApyPlayground = () => {
       </Card>
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
-          <ResultsTable />
+          <ResultsTable results={results} />
         </Grid>
         <Grid item xs={12} md={4}>
-          <NodeDetails saturation={10} selectionProbability="Low" />
+          <NodeDetails saturation={10} selectionProbability="High" />
         </Grid>
       </Grid>
     </Box>

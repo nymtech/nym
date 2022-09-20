@@ -34,9 +34,6 @@ export const getOperatorRewards = async (address: string) =>
 export const getMixnodeStakeSaturation = async (identity: string) =>
   invokeWrapper<StakeSaturationResponse>('mixnode_stake_saturation', { identity });
 
-// export const getMixnodeRewardEstimation = async (identity: string) =>
-//   invokeWrapper<RewardEstimationResponse>('mixnode_reward_estimation', { identity });
-
 export const getMixnodeStatus = async (identity: string) =>
   invokeWrapper<MixnodeStatusResponse>('mixnode_status', { identity });
 
@@ -54,3 +51,11 @@ export const getNumberOfMixnodeDelegators = async (identity: string) =>
 
 export const getNodeDescription = async (host: string, port: number) =>
   invokeWrapper<TNodeDescription>('get_mix_node_description', { host, port });
+
+export const computeMixnodeRewardEstimation = async (args: {
+  identity: string;
+  uptime: number;
+  isActive: boolean;
+  pledgeAmount: number;
+  totalDelegation: number;
+}) => invokeWrapper<any>('compute_mixnode_reward_estimation', args);

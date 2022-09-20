@@ -4,8 +4,10 @@
 use std::{process, str::FromStr};
 
 use crate::{config::Config, Cli};
+use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
+use completions::{fig_generate, ArgShell};
 use config::parse_validators;
 use crypto::bech32_address_validation;
 use network_defaults::var_names::{
@@ -34,6 +36,12 @@ pub(crate) enum Commands {
 
     /// Try to upgrade the gateway
     Upgrade(upgrade::Upgrade),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -55,12 +63,16 @@ pub(crate) struct OverrideConfig {
 }
 
 pub(crate) async fn execute(args: Cli) {
+    let bin_name = "nym-gateway";
+
     match &args.command {
         Commands::Init(m) => init::execute(m).await,
         Commands::NodeDetails(m) => node_details::execute(m).await,
         Commands::Run(m) => run::execute(m).await,
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m).await,
+        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
     }
 }
 

@@ -4,10 +4,10 @@
 use std::process;
 
 use crate::{config::Config, Cli};
+use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
-use clap::CommandFactory;
-use completions::{ArgShell, fig_generate};
+use completions::{fig_generate, ArgShell};
 use config::{
     defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED},
     parse_validators,
@@ -41,11 +41,11 @@ pub(crate) enum Commands {
     /// Show details of this mixnode
     NodeDetails(node_details::NodeDetails),
 
-    /// Generate shell completions 
+    /// Generate shell completions
     Completions(ArgShell),
 
     /// Generate Fig specification
-    GenerateFigSpec
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -71,7 +71,7 @@ pub(crate) async fn execute(args: Cli) {
         Commands::Upgrade(m) => upgrade::execute(m),
         Commands::NodeDetails(m) => node_details::execute(m),
         Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name)
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
     }
 }
 

@@ -685,7 +685,7 @@ dependencies = [
 name = "completions"
 version = "0.1.0"
 dependencies = [
- "clap 3.2.21",
+ "clap 3.2.8",
  "clap_complete",
  "clap_complete_fig",
 ]
@@ -928,6 +928,7 @@ dependencies = [
  "cfg-if 0.1.10",
  "clap 3.2.8",
  "coconut-interface",
+ "completions",
  "config",
  "credential-storage",
  "credentials",
@@ -3245,6 +3246,7 @@ dependencies = [
  "clap 3.2.8",
  "client-core",
  "coconut-interface",
+ "completions",
  "config",
  "credential-storage",
  "credentials",
@@ -3284,6 +3286,7 @@ dependencies = [
  "clap 3.2.8",
  "coconut-interface",
  "colored",
+ "completions",
  "config",
  "credentials",
  "crypto",
@@ -3365,6 +3368,7 @@ version = "1.0.2"
 dependencies = [
  "async-trait",
  "clap 3.2.8",
+ "completions",
  "dirs",
  "futures",
  "ipnetwork",
@@ -3410,6 +3414,7 @@ dependencies = [
  "clap 3.2.8",
  "client-core",
  "coconut-interface",
+ "completions",
  "config",
  "credential-storage",
  "credentials",

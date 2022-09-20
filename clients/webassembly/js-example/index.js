@@ -69,7 +69,7 @@ async function sendMessageTo() {
  * @param {string} message
  */
 function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+    let timestamp = new Date().toISOString().slice(11, 21);
 
     let sendDiv = document.createElement("div")
     let paragraph = document.createElement("p")
@@ -90,7 +90,7 @@ function displayReceived(message) {
     const content = message.message
     const replySurb = message.replySurb
 
-    let timestamp = new Date().toISOString().substr(11, 12);
+    let timestamp = new Date().toISOString().slice(11, 21);
     let receivedDiv = document.createElement("div")
     let paragraph = document.createElement("p")
     paragraph.setAttribute('style', 'color: green')

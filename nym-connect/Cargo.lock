@@ -629,6 +629,9 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "sled",
+ "tap",
+ "task",
+ "thiserror",
  "tokio",
  "topology",
  "url",
@@ -729,7 +732,6 @@ version = "0.1.0"
 dependencies = [
  "cfg-if",
  "handlebars",
- "humantime-serde",
  "log",
  "network-defaults",
  "serde",
@@ -913,7 +915,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "log",
- "nymcoconut",
  "sqlx",
  "thiserror",
  "tokio",
@@ -990,7 +991,6 @@ dependencies = [
  "blake3",
  "bs58",
  "cipher 0.4.3",
- "config",
  "ctr 0.9.1",
  "digest 0.10.3",
  "ed25519-dalek",
@@ -1912,15 +1912,16 @@ dependencies = [
  "futures",
  "gateway-requests",
  "getrandom 0.2.7",
- "json",
  "log",
  "network-defaults",
  "nymsphinx",
  "pemstore",
  "rand 0.7.3",
  "secp256k1",
+ "task",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "tokio-tungstenite",
  "tungstenite",
  "url",
@@ -2869,12 +2870,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "json"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
-
-[[package]]
 name = "json-patch"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3204,7 +3199,6 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.11",
- "ts-rs",
 ]
 
 [[package]]
@@ -3459,6 +3453,7 @@ dependencies = [
  "serde",
  "snafu",
  "socks5-requests",
+ "task",
  "tokio",
  "topology",
  "url",
@@ -4266,6 +4261,7 @@ dependencies = [
  "log",
  "ordered-buffer",
  "socks5-requests",
+ "task",
  "tokio",
  "tokio-util 0.7.3",
 ]
@@ -5226,7 +5222,6 @@ name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
  "nymsphinx-addressing",
- "ordered-buffer",
  "thiserror",
 ]
 
@@ -5625,6 +5620,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "task"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "tokio",
+]
+
+[[package]]
 name = "tauri"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5944,18 +5947,18 @@ checksum = "8eaa81235c7058867fa8c0e7314f33dcce9c215f535d1913822a2b3f5e289f3c"
 
 [[package]]
 name = "thiserror"
-version = "1.0.31"
+version = "1.0.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd829fe32373d27f76265620b5309d0340cb8550f523c1dda251d6298069069a"
+checksum = "8c1b05ca9d106ba7d2e31a9dab4a64e7be2cce415321966ea3132c49a656e252"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.31"
+version = "1.0.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0396bc89e626244658bef819e22d0cc459e795a5ebe878e6ec336d1674a8d79a"
+checksum = "e8f2591983642de85c921015f3f070c665a197ed69e417af436115e3a1407487"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6070,6 +6073,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util 0.7.3",
 ]
 
 [[package]]
@@ -6387,7 +6391,6 @@ dependencies = [
  "mixnet-contract-common",
  "schemars",
  "serde",
- "ts-rs",
 ]
 
 [[package]]
@@ -6481,7 +6484,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -6496,13 +6499,10 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
- "config",
  "cosmwasm-std",
- "cw-storage-plus",
  "mixnet-contract-common",
  "schemars",
  "serde",
- "ts-rs",
 ]
 
 [[package]]

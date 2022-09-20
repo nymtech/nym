@@ -45,12 +45,11 @@ tokio = { version = "1.19", features = [
 tokio-stream = "0.1.9"
 url = "2.2"
 
-ts-rs = "6.1"
+ts-rs = {version = "6.1", optional = true}
 
 anyhow = "1.0"
 getset = "0.1.1"
 
-rocket_sync_db_pools = { version = "0.1.0-rc.2", default-features = false }
 sqlx = { version = "0.6.1", features = [
     "runtime-tokio-rustls",
     "sqlite",
@@ -94,17 +93,17 @@ coconut = [
     "nymcoconut",
 ]
 no-reward = []
-generate-ts = []
+generate-ts = ["ts-rs"]
 
 [build-dependencies]
 tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.5", features = [
+sqlx = { version = "0.6.2", features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
     "migrate",
 ] }
-vergen = { version = "5", default-features = false, features = [
+vergen = { version = "7", default-features = false, features = [
     "build",
     "git",
     "rustc",
@@ -112,6 +111,5 @@ vergen = { version = "5", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-attohttpc = { version = "0.18.0", features = ["json"] }
 cw3 = "0.13.2"
 cw-utils = "0.13.2"

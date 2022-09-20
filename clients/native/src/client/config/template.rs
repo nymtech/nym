@@ -49,12 +49,6 @@ reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
 # Path to the database containing bandwidth credentials
 database_path = '{{ client.database_path }}'
 
-# Ethereum private key.
-eth_private_key = '{{ client.eth_private_key }}'
-
-# Addess to an Ethereum full node.
-eth_endpoint = '{{ client.eth_endpoint }}'
-
 ##### additional client config options #####
 
 # A gateway specific, optional, base58 stringified shared key used for

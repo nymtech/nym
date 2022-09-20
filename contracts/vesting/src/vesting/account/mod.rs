@@ -23,6 +23,7 @@ fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError>
     Ok(key)
 }
 
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Account {
     pub owner_address: Addr,

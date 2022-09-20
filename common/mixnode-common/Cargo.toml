@@ -8,7 +8,6 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.0"
-dashmap = "4.0"
 futures = "0.3"
 humantime-serde = "1.0"
 log = "0.4"
@@ -19,7 +18,6 @@ tokio-util = { version = "0.7.3", features = ["codec"] }
 url = "2.2"
 
 crypto =  { path = "../crypto" }
-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
 nymsphinx-addressing = { path = "../nymsphinx/addressing" }
 nymsphinx-forwarding = { path = "../nymsphinx/forwarding" }

@@ -20,15 +20,9 @@ export const NodeSettings = ({
   onClose,
   onError,
 }: {
-<<<<<<< HEAD
   currentPm?: TBondedMixnode['profitMargin'];
   isVesting?: boolean;
-  onConfirm: (profitMargin: number, fee?: FeeDetails) => Promise<void>;
-=======
-  currentPm: TBondedMixnode['profitMargin'];
-  isVesting: boolean;
   onConfirm: (profitMargin: string, fee?: FeeDetails) => Promise<void>;
->>>>>>> develop
   onClose: () => void;
   onError: (err: string) => void;
 }) => {
@@ -81,7 +75,7 @@ export const NodeSettings = ({
 
   if (isFeeLoading) return <LoadingModal />;
 
-  if (fee)
+  if (fee && pm)
     return (
       <ConfirmTx
         open

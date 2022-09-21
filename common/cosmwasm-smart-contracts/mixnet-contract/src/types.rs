@@ -1,16 +1,111 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnode::DelegatorRewardParams;
+use crate::error::MixnetContractError;
+use crate::rewarding::helpers::truncate_decimal;
 use crate::{Layer, RewardedSetNodeStatus};
 use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Coin, Decimal};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
+use std::ops::{Index, Mul};
+
+// type aliases for better reasoning about available data
+pub type IdentityKey = String;
+pub type IdentityKeyRef<'a> = &'a str;
+pub type SphinxKey = String;
+pub type SphinxKeyRef<'a> = &'a str;
+pub type EpochId = u32;
+pub type IntervalId = u32;
+pub type NodeId = u32;
+pub type EpochEventId = u32;
+pub type IntervalEventId = u32;
+
+/// Percent represents a value between 0 and 100%
+/// (i.e. between 0.0 and 1.0)
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Serialize, Deserialize, JsonSchema,
+)]
+pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
+
+impl Percent {
+    pub fn new(value: Decimal) -> Result<Self, MixnetContractError> {
+        if value > Decimal::one() {
+            Err(MixnetContractError::InvalidPercent)
+        } else {
+            Ok(Percent(value))
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == Decimal::zero()
+    }
+
+    pub fn from_percentage_value(value: u64) -> Result<Self, MixnetContractError> {
+        Percent::new(Decimal::percent(value))
+    }
+
+    pub fn value(&self) -> Decimal {
+        self.0
+    }
+
+    pub fn round_to_integer(&self) -> u8 {
+        let hundred = Decimal::from_ratio(100u32, 1u32);
+        // we know the cast from u128 to u8 is a safe one since the internal value must be within 0 - 1 range
+        truncate_decimal(hundred * self.0).u128() as u8
+    }
+}
+
+impl Display for Percent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let adjusted = Decimal::from_atomics(100u32, 0).unwrap() * self.0;
+        write!(f, "{}%", adjusted)
+    }
+}
+
+impl Mul<Decimal> for Percent {
+    type Output = Decimal;
+
+    fn mul(self, rhs: Decimal) -> Self::Output {
+        self.0 * rhs
+    }
+}
+
+impl Mul<Percent> for Decimal {
+    type Output = Decimal;
+
+    fn mul(self, rhs: Percent) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl Mul<Uint128> for Percent {
+    type Output = Uint128;
+
+    fn mul(self, rhs: Uint128) -> Self::Output {
+        self.0 * rhs
+    }
+}
+
+// implement custom Deserialize because we want to validate Percent has the correct range
+fn de_decimal_percent<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let v = Decimal::deserialize(deserializer)?;
+    if v > Decimal::one() {
+        Err(D::Error::custom(
+            "provided decimal percent is larger than 100%",
+        ))
+    } else {
+        Ok(v)
+    }
+}
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {
-    pub gateways: u64,
     pub layer1: u64,
     pub layer2: u64,
     pub layer3: u64,
@@ -25,121 +120,133 @@ impl LayerDistribution {
         ];
         layers.iter().min_by_key(|x| x.1).unwrap().0
     }
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct ContractStateParams {
-    // so currently interval_length is being unused and validator API performs rewarding
-    // based on its own interval length config value. I guess that's fine for time being
-    // however, in the future, the contract constant should be controlling it instead.
-    // pub interval_length: u32, // length of a rewarding interval/interval, expressed in hours
-    pub minimum_mixnode_pledge: Uint128, // minimum amount a mixnode must pledge to get into the system
-    pub minimum_gateway_pledge: Uint128, // minimum amount a gateway must pledge to get into the system
+    pub fn increment_layer_count(&mut self, layer: Layer) {
+        match layer {
+            Layer::One => self.layer1 += 1,
+            Layer::Two => self.layer2 += 1,
+            Layer::Three => self.layer3 += 1,
+        }
+    }
 
-    // number of mixnode that are going to get rewarded during current rewarding interval (k_m)
-    // based on overall demand for private bandwidth-
-    pub mixnode_rewarded_set_size: u32,
+    pub fn decrement_layer_count(&mut self, layer: Layer) -> Result<(), MixnetContractError> {
+        match layer {
+            Layer::One => {
+                self.layer1 =
+                    self.layer1
+                        .checked_sub(1)
+                        .ok_or(MixnetContractError::OverflowSubtraction {
+                            minuend: self.layer1,
+                            subtrahend: 1,
+                        })?
+            }
+            Layer::Two => {
+                self.layer2 =
+                    self.layer2
+                        .checked_sub(1)
+                        .ok_or(MixnetContractError::OverflowSubtraction {
+                            minuend: self.layer2,
+                            subtrahend: 1,
+                        })?
+            }
+            Layer::Three => {
+                self.layer3 =
+                    self.layer3
+                        .checked_sub(1)
+                        .ok_or(MixnetContractError::OverflowSubtraction {
+                            minuend: self.layer3,
+                            subtrahend: 1,
+                        })?
+            }
+        }
 
-    // subset of rewarded mixnodes that are actively receiving mix traffic
-    // used to handle shorter-term (e.g. hourly) fluctuations of demand
-    pub mixnode_active_set_size: u32,
-    pub staking_supply: Uint128,
-}
-
-impl Display for ContractStateParams {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Contract state parameters: [ ")?;
-        write!(
-            f,
-            "minimum mixnode pledge: {}; ",
-            self.minimum_mixnode_pledge
-        )?;
-        write!(
-            f,
-            "minimum gateway pledge: {}; ",
-            self.minimum_gateway_pledge
-        )?;
-        write!(
-            f,
-            "mixnode rewarded set size: {}",
-            self.mixnode_rewarded_set_size
-        )?;
-        write!(
-            f,
-            "mixnode active set size: {}",
-            self.mixnode_active_set_size
-        )
+        Ok(())
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RewardingResult {
-    pub node_reward: Uint128,
+impl Index<Layer> for LayerDistribution {
+    type Output = u64;
+
+    fn index(&self, index: Layer) -> &Self::Output {
+        match index {
+            Layer::One => &self.layer1,
+            Layer::Two => &self.layer2,
+            Layer::Three => &self.layer3,
+        }
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PendingDelegatorRewarding {
-    // keep track of the running rewarding results so we'd known how much was the operator and its delegators rewarded
-    pub running_results: RewardingResult,
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ContractState {
+    pub owner: Addr, // only the owner account can update state
+    pub rewarding_validator_address: Addr,
 
-    pub next_start: Addr,
-
-    pub rewarding_params: DelegatorRewardParams,
+    /// Address of the vesting contract to which the mixnet contract would be sending all
+    /// track-related messages.
+    pub vesting_contract_address: Addr,
+    pub rewarding_denom: String,
+    pub params: ContractStateParams,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum RewardingStatus {
-    Complete(RewardingResult),
-    PendingNextDelegatorPage(PendingDelegatorRewarding),
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ContractStateParams {
+    /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
+    pub minimum_mixnode_delegation: Option<Coin>,
+
+    /// Minimum amount a mixnode must pledge to get into the system.
+    pub minimum_mixnode_pledge: Coin,
+
+    /// Minimum amount a gateway must pledge to get into the system.
+    pub minimum_gateway_pledge: Coin,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MixnodeRewardingStatusResponse {
-    pub status: Option<RewardingStatus>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MixnetContractVersion {
-    // VERGEN_BUILD_TIMESTAMP
-    pub build_timestamp: String,
-
-    // VERGEN_BUILD_SEMVER
-    pub build_version: String,
-
-    // VERGEN_GIT_SHA
-    pub commit_sha: String,
-
-    // VERGEN_GIT_COMMIT_TIMESTAMP
-    pub commit_timestamp: String,
-
-    // VERGEN_GIT_BRANCH
-    pub commit_branch: String,
-
-    // VERGEN_RUSTC_SEMVER
-    pub rustc_version: String,
-}
-
-// type aliases for better reasoning about available data
-pub type IdentityKey = String;
-pub type IdentityKeyRef<'a> = &'a str;
-pub type SphinxKey = String;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PagedRewardedSetResponse {
-    pub identities: Vec<(IdentityKey, RewardedSetNodeStatus)>,
-    pub start_next_after: Option<IdentityKey>,
-    pub at_height: u64,
+    pub nodes: Vec<(NodeId, RewardedSetNodeStatus)>,
+    pub start_next_after: Option<NodeId>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct RewardedSetUpdateDetails {
-    pub refresh_rate_blocks: u64,
-    pub last_refreshed_block: u64,
-    pub current_height: u64,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct IntervalRewardedSetHeightsResponse {
-    pub interval_id: u32,
-    pub heights: Vec<u64>,
+    #[test]
+    fn percent_serde() {
+        let valid_value = Percent::from_percentage_value(80).unwrap();
+        let serialized = serde_json::to_string(&valid_value).unwrap();
+
+        println!("{}", serialized);
+        let deserialized: Percent = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(valid_value, deserialized);
+
+        let invalid_values = vec!["\"42\"", "\"1.1\"", "\"1.00000001\"", "\"foomp\"", "\"1a\""];
+        for invalid_value in invalid_values {
+            assert!(serde_json::from_str::<'_, Percent>(invalid_value).is_err())
+        }
+        assert_eq!(
+            serde_json::from_str::<'_, Percent>("\"0.95\"").unwrap(),
+            Percent::from_percentage_value(95).unwrap()
+        )
+    }
+
+    #[test]
+    fn percent_to_absolute_integer() {
+        let p = serde_json::from_str::<'_, Percent>("\"0.0001\"").unwrap();
+        assert_eq!(p.round_to_integer(), 0);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.0099\"").unwrap();
+        assert_eq!(p.round_to_integer(), 0);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.0199\"").unwrap();
+        assert_eq!(p.round_to_integer(), 1);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.45123\"").unwrap();
+        assert_eq!(p.round_to_integer(), 45);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.999999999\"").unwrap();
+        assert_eq!(p.round_to_integer(), 99);
+
+        let p = serde_json::from_str::<'_, Percent>("\"1.00\"").unwrap();
+        assert_eq!(p.round_to_integer(), 100);
+    }
 }

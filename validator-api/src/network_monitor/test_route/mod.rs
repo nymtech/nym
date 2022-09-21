@@ -84,7 +84,7 @@ impl TestRoute {
             mix.owner.clone(),
             self.id,
             ROUTE_TESTING_TEST_NONCE,
-            NodeType::Mixnode,
+            NodeType::Mixnode(mix.mix_id),
         )
     }
 

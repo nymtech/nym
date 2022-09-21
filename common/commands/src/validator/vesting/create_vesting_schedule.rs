@@ -51,7 +51,7 @@ pub async fn create(args: Args, client: SigningClient, network_details: &NymNetw
 
     let res = client
         .create_periodic_vesting_account(
-            &*args.address,
+            &args.address,
             args.staking_address,
             Some(vesting),
             coin.into(),
@@ -70,7 +70,7 @@ pub async fn create(args: Args, client: SigningClient, network_details: &NymNetw
 
     let send_coin_response = client
         .send(
-            &AccountId::from_str(&*args.address).unwrap(),
+            &AccountId::from_str(&args.address).unwrap(),
             vec![coin.into()],
             "payment made :)",
             None,

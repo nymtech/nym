@@ -88,6 +88,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
         let location = custom_location
             .unwrap_or_else(|| self.config_directory().join(Self::config_file_name()));
+        log::info!("Configuration file will be saved to {:?}", location);
 
         cfg_if::cfg_if! {
             if #[cfg(unix)] {

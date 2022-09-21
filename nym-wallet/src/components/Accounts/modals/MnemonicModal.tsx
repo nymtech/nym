@@ -15,6 +15,7 @@ import { ArrowBackSharp } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
 import { useClipboard } from 'use-clipboard-copy';
 import { PasswordInput, Mnemonic } from 'src/components';
+import { StyledBackButton } from 'src/components/StyledBackButton';
 
 export const MnemonicModal = () => {
   const [password, setPassword] = useState('');
@@ -50,9 +51,6 @@ export const MnemonicModal = () => {
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Display mnemonic</Typography>
-          <IconButton onClick={handleClose}>
-            <ArrowBackSharp />
-          </IconButton>
         </Box>
         <Typography variant="body1" sx={{ color: (theme) => theme.palette.text.disabled }}>
           {`Display mnemonic for: ${accountMnemonic?.accountName}`}
@@ -80,7 +78,8 @@ export const MnemonicModal = () => {
           )}
         </Box>
       </DialogContent>
-      <DialogActions sx={{ p: 3 }}>
+      <DialogActions sx={{ p: 3, gap: 2 }}>
+        <StyledBackButton onBack={handleClose} />
         {!accountMnemonic.value && (
           <Button
             disableRipple

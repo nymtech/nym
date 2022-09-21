@@ -1,21 +1,19 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
+use mixnet_contract_common::rewarding::helpers::truncate_decimal;
+use mixnet_contract_common::{MixNodeDetails, NodeId, RewardingParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
+use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
+use task::ShutdownListener;
 use tokio::{
     sync::{watch, RwLock},
     time,
 };
-
-use std::{sync::Arc, time::Duration};
-
-use mixnet_contract_common::{reward_params::EpochRewardParams, MixNodeBond};
-use task::ShutdownListener;
 use validator_api_requests::models::InclusionProbability;
-
-use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
 
 const CACHE_TIMOUT_MS: u64 = 100;
 const MAX_SIMULATION_SAMPLES: u64 = 5000;
@@ -48,8 +46,8 @@ pub(crate) struct InclusionProbabilities {
 }
 
 impl InclusionProbabilities {
-    pub fn node(&self, id: &str) -> Option<&InclusionProbability> {
-        self.inclusion_probabilities.iter().find(|x| x.id == id)
+    pub fn node(&self, mix_id: NodeId) -> Option<&InclusionProbability> {
+        self.inclusion_probabilities.iter().find(|x| x.id == mix_id)
     }
 }
 
@@ -177,7 +175,12 @@ impl NodeStatusCacheRefresher {
     async fn refresh_cache(&self) -> Result<(), NodeStatusCacheError> {
         log::info!("Updating node status cache");
         let mixnode_bonds = self.contract_cache.mixnodes().await;
-        let params = self.contract_cache.epoch_reward_params().await.into_inner();
+        let params = self
+            .contract_cache
+            .interval_reward_params()
+            .await
+            .into_inner()
+            .ok_or(NodeStatusCacheError::SimulationFailed)?;
         let inclusion_probabilities = compute_inclusion_probabilities(&mixnode_bonds, params)
             .ok_or_else(|| {
                 error!(
@@ -192,30 +195,23 @@ impl NodeStatusCacheRefresher {
 }
 
 fn compute_inclusion_probabilities(
-    mixnode_bonds: &[MixNodeBond],
-    params: EpochRewardParams,
+    mixnodes: &[MixNodeDetails],
+    params: RewardingParams,
 ) -> Option<InclusionProbabilities> {
-    let active_set_size = params
-        .active_set_size()
-        .try_into()
-        .tap_err(|e| error!("Active set size unexpectantly large: {e}"))
-        .ok()?;
-    let standby_set_size = (params.rewarded_set_size() - params.active_set_size())
-        .try_into()
-        .tap_err(|e| error!("Active set size larger than rewarded set size, a contradiction: {e}"))
-        .ok()?;
+    let active_set_size = params.active_set_size;
+    let standby_set_size = params.rewarded_set_size - active_set_size;
 
     // Unzip list of total bonds into ids and bonds.
     // We need to go through this zip/unzip procedure to make sure we have matching identities
     // for the input to the simulator, which assumes the identity is the position in the vec
-    let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnode_bonds);
+    let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnodes);
 
     // Compute inclusion probabilitites and keep track of how long time it took.
     let mut rng = rand::thread_rng();
     let results = inclusion_probability::simulate_selection_probability_mixnodes(
         &mixnode_total_bonds,
-        active_set_size,
-        standby_set_size,
+        active_set_size as usize,
+        standby_set_size as usize,
         MAX_SIMULATION_SAMPLES,
         Duration::from_secs(MAX_SIMULATION_TIME_SEC),
         &mut rng,
@@ -232,24 +228,22 @@ fn compute_inclusion_probabilities(
     })
 }
 
-fn unzip_into_mixnode_ids_and_total_bonds(
-    mixnode_bonds: &[MixNodeBond],
-) -> (Vec<&String>, Vec<u128>) {
-    mixnode_bonds
+fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<NodeId>, Vec<u128>) {
+    mixnodes
         .iter()
-        .filter_map(|m| m.total_bond().map(|b| (m.identity(), b)))
+        .map(|m| (m.mix_id(), truncate_decimal(m.total_stake()).u128()))
         .unzip()
 }
 
 fn zip_ids_together_with_results(
-    ids: &[&String],
+    ids: &[NodeId],
     results: &inclusion_probability::SelectionProbability,
 ) -> Vec<InclusionProbability> {
     ids.iter()
         .zip(results.active_set_probability.iter())
         .zip(results.reserve_set_probability.iter())
-        .map(|((id, a), r)| InclusionProbability {
-            id: (*id).to_string(),
+        .map(|((&id, a), r)| InclusionProbability {
+            id,
             in_active: *a,
             in_reserve: *r,
         })

@@ -191,8 +191,6 @@ impl NymClient {
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_base().get_database_path())
                 .await,
-            self.config.get_base().get_eth_endpoint(),
-            self.config.get_base().get_eth_private_key(),
         )
         .expect("Could not create bandwidth controller");
 

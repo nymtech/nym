@@ -83,8 +83,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_credentials_database_path())
                 .await,
-            self.config.get_network_monitor_eth_endpoint(),
-            self.config.get_network_monitor_eth_private_key(),
         )
         .expect("Could not create bandwidth controller");
 

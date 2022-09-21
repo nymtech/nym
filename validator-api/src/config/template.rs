@@ -57,12 +57,6 @@ packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 
 credentials_database_path = '{{ network_monitor.credentials_database_path }}'
 
-# Ethereum private key.
-eth_private_key = '{{ network_monitor.eth_private_key }}'
-
-# Addess to an Ethereum full node.
-eth_endpoint = '{{ network_monitor.eth_endpoint }}'
-
 # Desired number of test routes to be constructed (and working) during a monitor test run.
 test_routes = {{ network_monitor.test_routes }}
 

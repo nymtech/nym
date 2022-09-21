@@ -95,7 +95,7 @@ pub async fn vesting_bond_mixnode(client: SigningClient, args: Args, denom: &str
     };
 
     let res = client
-        .vesting_bond_mixnode(mixnode, cost_params, &*args.signature, coin.into(), None)
+        .vesting_bond_mixnode(mixnode, cost_params, &args.signature, coin.into(), None)
         .await
         .expect("failed to bond vesting mixnode!");
 

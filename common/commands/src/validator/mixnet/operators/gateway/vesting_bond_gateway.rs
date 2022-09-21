@@ -68,7 +68,7 @@ pub async fn vesting_bond_gateway(client: SigningClient, args: Args, denom: &str
     let coin = Coin::new(args.amount, denom);
 
     let res = client
-        .vesting_bond_gateway(gateway, &*args.signature, coin.into(), None)
+        .vesting_bond_gateway(gateway, &args.signature, coin.into(), None)
         .await
         .expect("failed to bond gateway!");
 

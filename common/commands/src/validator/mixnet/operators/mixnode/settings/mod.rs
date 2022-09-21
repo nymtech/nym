@@ -3,8 +3,8 @@
 
 use clap::{Args, Subcommand};
 
-pub mod update_profit_percent;
-pub mod vesting_update_profit_percent;
+pub mod update_config;
+pub mod vesting_update_config;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -15,8 +15,12 @@ pub struct MixnetOperatorsMixnodeSettings {
 
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsMixnodeSettingsCommands {
-    /// Update profit percentage
-    UpdateProfitPercentage(update_profit_percent::Args),
-    /// Update profit percentage for a mixnode bonded with locked tokens
-    VestingUpdateProfitPercentage(vesting_update_profit_percent::Args),
+    /// Update mixnode configuration
+    UpdateConfig(update_config::Args),
+    /// Update mixnode configuration for a mixnode bonded with locked tokens
+    VestingUpdateConfig(vesting_update_config::Args),
+    /// Update mixnode cost parameters
+    UpdateCostParameters,
+    /// Update mixnode cost parameters for a mixnode bonded with locked tokens
+    VestingUpdateCostParameters,
 }

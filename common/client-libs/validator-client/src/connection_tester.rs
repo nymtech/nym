@@ -3,6 +3,7 @@ use crate::nymd::{Config as ClientConfig, NymdClient, QueryNymdClient};
 use crate::ApiClient;
 use network_defaults::all::Network;
 
+use crate::nymd::traits::MixnetQueryClient;
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;

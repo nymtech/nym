@@ -4,6 +4,7 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
+use validator_client::nymd::traits::MixnetSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {}

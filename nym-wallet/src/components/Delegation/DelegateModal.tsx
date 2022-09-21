@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, FeeDetails, DecCoin } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode } from 'src/requests';
+import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
+import { debounce } from 'lodash';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
@@ -20,7 +21,13 @@ const MIN_AMOUNT_TO_DELEGATE = 10;
 export const DelegateModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onOk?: (identityKey: string, amount: DecCoin, tokenPool: TPoolOption, fee?: FeeDetails) => Promise<void>;
+  onOk?: (
+    mixId: number,
+    identityKey: string,
+    amount: DecCoin,
+    tokenPool: TPoolOption,
+    fee?: FeeDetails,
+  ) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -29,7 +36,7 @@ export const DelegateModal: React.FC<{
   rewardInterval: string;
   accountBalance?: string;
   estimatedReward?: number;
-  profitMarginPercentage?: number | null;
+  profitMarginPercentage?: string | null;
   nodeUptimePercentage?: number | null;
   denom: CurrencyDenom;
   initialAmount?: string;
@@ -56,20 +63,24 @@ export const DelegateModal: React.FC<{
   sx,
   backdropProps,
 }) => {
+  const [mixId, setMixId] = useState<number | undefined>();
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<string | undefined>(initialAmount);
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
+  const [mixIdError, setMixIdError] = useState<string>();
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
-  const handleCheckStakeSaturation = async (identity: string) => {
+  const handleCheckStakeSaturation = async (newMixId: number) => {
     try {
-      const newSaturation = await getMixnodeStakeSaturation(identity);
-      if (newSaturation && newSaturation.saturation > 1) {
-        const saturationPercentage = Math.round(newSaturation.saturation * 100);
+      const newSaturation = decimalToFloatApproximation(
+        (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
+      );
+      if (newSaturation && newSaturation > 1) {
+        const saturationPercentage = Math.round(newSaturation * 100);
         return { isOverSaturated: true, saturationPercentage };
       }
       return { isOverSaturated: false, saturationPercentage: undefined };
@@ -89,8 +100,8 @@ export const DelegateModal: React.FC<{
       errorIdentityKeyMessage = undefined;
     }
 
-    if (identityKey && validateKey(identityKey, 32)) {
-      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(identityKey);
+    if (identityKey && mixId && validateKey(identityKey, 32)) {
+      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(mixId);
       if (isOverSaturated) {
         newValidatedValue = false;
         errorIdentityKeyMessage = `This node is over saturated (${saturationPercentage}%), please select another node`;
@@ -111,18 +122,25 @@ export const DelegateModal: React.FC<{
       newValidatedValue = false;
     }
 
+    if (!mixId) {
+      newValidatedValue = false;
+    }
+
     setErrorIdentityKey(errorIdentityKeyMessage);
+    if (mixIdError && !errorIdentityKeyMessage) {
+      setErrorIdentityKey(mixIdError);
+    }
     setErrorAmount(errorAmountMessage);
     setValidated(newValidatedValue);
   };
 
   const handleOk = async () => {
-    if (onOk && amount && identityKey) {
-      onOk(identityKey, { amount, denom }, tokenPool, fee);
+    if (onOk && amount && identityKey && mixId) {
+      onOk(mixId, identityKey, { amount, denom }, tokenPool, fee);
     }
   };
 
-  const handleConfirm = async ({ identity, value }: { identity: string; value: DecCoin }) => {
+  const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
     const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
 
     if (!hasEnoughTokens) {
@@ -131,11 +149,11 @@ export const DelegateModal: React.FC<{
     }
 
     if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { identity, amount: value });
+      getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
     }
 
     if (tokenPool === 'locked') {
-      getFee(simulateVestingDelegateToMixnode, { identity, amount: value });
+      getFee(simulateVestingDelegateToMixnode, { mixId: id, amount: value });
     }
   };
 
@@ -157,7 +175,33 @@ export const DelegateModal: React.FC<{
 
   React.useEffect(() => {
     validate();
-  }, [amount, identityKey]);
+  }, [amount, identityKey, mixIdError]);
+
+  const resolveMixId = useCallback(
+    debounce(async (idKey) => {
+      if (!idKey || !validateKey(idKey, 32)) {
+        return;
+      }
+      let res;
+      try {
+        res = await tryConvertIdentityToMixId(idKey);
+      } catch (e) {
+        Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
+        return;
+      }
+      if (res) {
+        setMixId(res);
+        setMixIdError(undefined);
+      } else {
+        setMixIdError('Mixnode with this identity does not seem to be currently bonded');
+      }
+    }, 500),
+    [],
+  );
+
+  React.useEffect(() => {
+    resolveMixId(identityKey);
+  }, [identityKey]);
 
   if (fee) {
     return (
@@ -192,8 +236,8 @@ export const DelegateModal: React.FC<{
       open={open}
       onClose={onClose}
       onOk={async () => {
-        if (identityKey && amount) {
-          handleConfirm({ identity: identityKey, value: { amount, denom } });
+        if (mixId && amount) {
+          handleConfirm({ mixId, value: { amount, denom } });
         }
       }}
       header={header || 'Delegate'}

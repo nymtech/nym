@@ -141,21 +141,17 @@ pub type StakeSaturation = Decimal;
     ts(export_to = "ts-packages/types/src/types/rust/SelectionChance.ts")
 )]
 pub enum SelectionChance {
-    VeryHigh,
     High,
-    Moderate,
+    Good,
     Low,
-    VeryLow,
 }
 
 impl From<f64> for SelectionChance {
     fn from(p: f64) -> SelectionChance {
         match p {
-            p if p > 0.98 => SelectionChance::VeryHigh,
-            p if p > 0.9 => SelectionChance::High,
-            p if p > 0.7 => SelectionChance::Moderate,
-            p if p > 0.5 => SelectionChance::Low,
-            _ => SelectionChance::VeryLow,
+            p if p >= 0.7 => SelectionChance::High,
+            p if p >= 0.3 => SelectionChance::Good,
+            _ => SelectionChance::Low,
         }
     }
 }
@@ -163,8 +159,8 @@ impl From<f64> for SelectionChance {
 impl From<Decimal> for SelectionChance {
     fn from(p: Decimal) -> Self {
         match p {
-            p if p >= Decimal::from_ratio(15u32, 100u32) => SelectionChance::VeryHigh,
-            p if p > Decimal::from_ratio(5u32, 100u32) => SelectionChance::Moderate,
+            p if p >= Decimal::from_ratio(70u32, 100u32) => SelectionChance::High,
+            p if p >= Decimal::from_ratio(30u32, 100u32) => SelectionChance::Good,
             _ => SelectionChance::Low,
         }
     }
@@ -173,11 +169,9 @@ impl From<Decimal> for SelectionChance {
 impl fmt::Display for SelectionChance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SelectionChance::VeryHigh => write!(f, "VeryHigh"),
             SelectionChance::High => write!(f, "High"),
-            SelectionChance::Moderate => write!(f, "Moderate"),
+            SelectionChance::Good => write!(f, "Good"),
             SelectionChance::Low => write!(f, "Low"),
-            SelectionChance::VeryLow => write!(f, "VeryLow"),
         }
     }
 }

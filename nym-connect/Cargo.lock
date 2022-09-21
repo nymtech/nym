@@ -208,12 +208,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "az"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
-
-[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -744,6 +738,7 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "serde",
 ]
 
 [[package]]
@@ -1590,19 +1585,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fixed"
-version = "1.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0371cd413fb63f8ec1b9eb4dff47fa2c88b21abc681771234c84808b9920991"
-dependencies = [
- "az",
- "bytemuck",
- "half",
- "serde",
- "typenum",
-]
-
-[[package]]
 name = "fixed-hash"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2248,15 +2230,6 @@ dependencies = [
  "tokio",
  "tokio-util 0.7.4",
  "tracing",
-]
-
-[[package]]
-name = "half"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad6a9459c9c30b177b925162351f97e7d967c7ea8bab3b8352805327daf45554"
-dependencies = [
- "crunchy",
 ]
 
 [[package]]
@@ -3129,13 +3102,13 @@ dependencies = [
 name = "mixnet-contract-common"
 version = "0.1.0"
 dependencies = [
- "az",
+ "bs58",
  "contracts-common",
  "cosmwasm-std",
- "fixed",
  "log",
  "schemars",
  "serde",
+ "serde_json",
  "serde_repr",
  "thiserror",
  "time 0.3.14",
@@ -6311,6 +6284,7 @@ dependencies = [
  "bs58",
  "coconut-interface",
  "cosmrs",
+ "cosmwasm-std",
  "getset",
  "mixnet-contract-common",
  "schemars",
@@ -6408,7 +6382,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",

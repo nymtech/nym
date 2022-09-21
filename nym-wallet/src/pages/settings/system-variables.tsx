@@ -31,19 +31,15 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
 );
 
 const colorMap: { [key in SelectionChance]: string } = {
-    VeryLow: 'error.main',
-    Low: 'error.main',
-    Moderate: 'warning.main',
-    High: 'success.main',
-    VeryHigh: 'success.main',
+  Low: 'error.main',
+  Good: 'warning.main',
+  High: 'success.main',
 };
 
 const textMap: { [key in SelectionChance]: string } = {
-    VeryLow: 'VeryLow',
-    Low: 'Low',
-    Moderate: 'Moderate',
-    High: 'High',
-    VeryHigh: 'Very high',
+  Low: 'Low',
+  Good: 'Good',
+  High: 'High',
 };
 
 const InclusionProbability = ({ probability }: { probability: SelectionChance }) => (

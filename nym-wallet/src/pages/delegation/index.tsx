@@ -319,7 +319,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   return (
     <>
       <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
-        <Stack spacing={!!delegations?.length ? 5 : 3}>
+        <Stack spacing={3}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
               Delegations

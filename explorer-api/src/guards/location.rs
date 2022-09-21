@@ -8,6 +8,8 @@ use rocket::Request;
 use rocket_okapi::gen::OpenApiGenerator;
 use rocket_okapi::request::{OpenApiFromRequest, RequestHeaderInput};
 
+const IP_HEADER: &str = "X-Real-IP";
+
 #[derive(Debug)]
 pub enum LocationError {
     NoIP,
@@ -18,10 +20,10 @@ pub enum LocationError {
 fn find_location(request: &Request<'_>) -> Result<Location, (Status, LocationError)> {
     let ip = request
         .headers()
-        .get_one("X-Real-IP")
+        .get_one(IP_HEADER)
         .map(|f| f.to_string())
         .ok_or_else(|| {
-            error!("X-Real-IP header not found");
+            error!("Header not found, {}", IP_HEADER);
             (Status::Forbidden, LocationError::NoIP)
         })?;
 

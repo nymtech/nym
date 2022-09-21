@@ -3,7 +3,7 @@ use log::warn;
 use maxminddb::{geoip2::Country, MaxMindDBError, Reader};
 use std::{net::IpAddr, str::FromStr, sync::Arc};
 
-const GEOIP_DB_PATH: &str = "./src/geo_ip/GeoLite2-Country.mmdb";
+const DEFAULT_DATABASE_PATH: &str = "./src/geo_ip/GeoLite2-Country.mmdb";
 
 #[derive(Debug)]
 pub enum GeoIpError {
@@ -34,12 +34,16 @@ pub(crate) struct Location {
 
 impl GeoIp {
     pub fn new() -> Self {
-        let reader = Reader::open_readfile(GEOIP_DB_PATH)
+        let db_path = std::env::var("GEOIP_DATABASE_PATH").unwrap_or_else(|e| {
+            warn!(
+                "Env variable GEOIP_DATABASE_PATH is not set: {} - Fallback to {}",
+                e, DEFAULT_DATABASE_PATH
+            );
+            DEFAULT_DATABASE_PATH.to_string()
+        });
+        let reader = Reader::open_readfile(&db_path)
             .map_err(|e| {
-                error!(
-                    "Fail to open GeoLite2 database file {}: {}",
-                    GEOIP_DB_PATH, e
-                );
+                error!("Fail to open GeoLite2 database file {}: {}", db_path, e);
             })
             .ok();
         GeoIp { db: reader }

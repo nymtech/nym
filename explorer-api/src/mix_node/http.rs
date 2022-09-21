@@ -8,7 +8,6 @@ use crate::mix_node::econ_stats::retrieve_mixnode_econ_stats;
 use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
 };
-use crate::mix_nodes;
 use crate::state::ExplorerApiStateContext;
 use mixnet_contract_common::{Delegation, NodeId};
 use reqwest::Error as ReqwestError;
@@ -27,15 +26,6 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
         get_description,
         get_stats,
         get_economic_dynamics_stats,
-        // =================================================
-        // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-        // =================================================
-        deprecated_get_delegations_by_identity,
-        deprecated_get_delegations_summed_by_identity,
-        deprecated_get_by_identity,
-        deprecated_get_description_by_identity,
-        deprecated_get_stats_by_identity,
-        deprecated_get_economic_dynamics_stats_by_identity,
     ]
 }
 
@@ -203,127 +193,4 @@ pub(crate) async fn get_economic_dynamics_stats(
             Some(Json(econ_stats))
         }
     }
-}
-
-// =================================================
-// TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-// =================================================
-
-#[openapi(tag = "mix_nodes")]
-#[get("/deprecated/<pubkey>")]
-pub(crate) async fn deprecated_get_by_identity(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
-    let mix_id = match mix_nodes::helpers::best_effort_pubkey_to_mix_id(state, pubkey).await {
-        Some(mix_id) => mix_id,
-        None => {
-            warn!(
-                "there doesn't seem to exist a mixnode with identity {}",
-                pubkey
-            );
-            return Err(NotFound("Mixnode not found".into()));
-        }
-    };
-    get_by_id(mix_id, state).await
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/deprecated/<pubkey>/delegations")]
-pub(crate) async fn deprecated_get_delegations_by_identity(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Json<Vec<Delegation>> {
-    let mix_id = match mix_nodes::helpers::best_effort_pubkey_to_mix_id(state, pubkey).await {
-        Some(mix_id) => mix_id,
-        None => {
-            warn!(
-                "there doesn't seem to exist a mixnode with identity {}",
-                pubkey
-            );
-            return Json(Vec::new());
-        }
-    };
-
-    get_delegations(mix_id, state).await
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/deprecated/<pubkey>/delegations/summed")]
-pub(crate) async fn deprecated_get_delegations_summed_by_identity(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Json<Vec<SummedDelegations>> {
-    let mix_id = match mix_nodes::helpers::best_effort_pubkey_to_mix_id(state, pubkey).await {
-        Some(mix_id) => mix_id,
-        None => {
-            warn!(
-                "there doesn't seem to exist a mixnode with identity {}",
-                pubkey
-            );
-            return Json(Vec::new());
-        }
-    };
-
-    get_delegations_summed(mix_id, state).await
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/deprecated/<pubkey>/description")]
-pub(crate) async fn deprecated_get_description_by_identity(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Option<Json<NodeDescription>> {
-    let mix_id = match mix_nodes::helpers::best_effort_pubkey_to_mix_id(state, pubkey).await {
-        Some(mix_id) => mix_id,
-        None => {
-            warn!(
-                "there doesn't seem to exist a mixnode with identity {}",
-                pubkey
-            );
-            return None;
-        }
-    };
-
-    get_description(mix_id, state).await
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/deprecated/<pubkey>/stats")]
-pub(crate) async fn deprecated_get_stats_by_identity(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Option<Json<NodeStats>> {
-    let mix_id = match mix_nodes::helpers::best_effort_pubkey_to_mix_id(state, pubkey).await {
-        Some(mix_id) => mix_id,
-        None => {
-            warn!(
-                "there doesn't seem to exist a mixnode with identity {}",
-                pubkey
-            );
-            return None;
-        }
-    };
-
-    get_stats(mix_id, state).await
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/deprecated/<pubkey>/economic-dynamics-stats")]
-pub(crate) async fn deprecated_get_economic_dynamics_stats_by_identity(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Option<Json<EconomicDynamicsStats>> {
-    let mix_id = match mix_nodes::helpers::best_effort_pubkey_to_mix_id(state, pubkey).await {
-        Some(mix_id) => mix_id,
-        None => {
-            warn!(
-                "there doesn't seem to exist a mixnode with identity {}",
-                pubkey
-            );
-            return None;
-        }
-    };
-
-    get_economic_dynamics_stats(mix_id, state).await
 }

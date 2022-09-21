@@ -18,7 +18,24 @@ export const Mnemonic = ({
         Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the future
       </Typography>
     </Warning>
-    <TextField multiline rows={3} value={mnemonic} fullWidth />
+    <TextField
+      label="Mnemonic"
+      type="input"
+      value={mnemonic}
+      multiline
+      autoFocus={false}
+      fullWidth
+      inputProps={{
+        style: {
+          height: '160px',
+        },
+      }}
+      sx={{
+        'input::-webkit-textfield-decoration-container': {
+          alignItems: 'start',
+        },
+      }}
+    />
 
     <Button
       color="inherit"

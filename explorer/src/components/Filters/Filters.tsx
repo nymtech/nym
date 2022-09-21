@@ -142,11 +142,10 @@ export const Filters = () => {
       </Snackbar>
       <Button
         size="large"
-        variant="text"
-        color="inherit"
+        variant="contained"
         endIcon={<Tune />}
         onClick={handleToggleShowFilters}
-        sx={{ textTransform: 'none' }}
+        sx={{ textTransform: 'none', width: isMobile ? '100%' : 'inherit' }}
       >
         Advanced filters
       </Button>

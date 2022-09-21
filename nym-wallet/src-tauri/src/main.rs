@@ -3,11 +3,22 @@
     windows_subsystem = "windows"
 )]
 
+use tauri::{Manager, Menu};
+
 use mixnet_contract_common::{Gateway, MixNode};
-use tauri::Menu;
+
+use crate::menu::AddDefaultSubmenus;
+use crate::operations::help;
+use crate::operations::mixnet;
+use crate::operations::signatures;
+use crate::operations::simulate;
+use crate::operations::validator_api;
+use crate::operations::vesting;
+use crate::state::WalletState;
 
 mod config;
 mod error;
+mod log;
 mod menu;
 mod network_config;
 mod operations;
@@ -16,20 +27,11 @@ mod state;
 mod utils;
 mod wallet_storage;
 
-use crate::menu::AddDefaultSubmenus;
-use crate::operations::mixnet;
-use crate::operations::signatures;
-use crate::operations::simulate;
-use crate::operations::validator_api;
-use crate::operations::vesting;
-
-use crate::state::WalletState;
-
 #[allow(clippy::too_many_lines)]
 fn main() {
     dotenv::dotenv().ok();
-    setup_logging();
 
+    let context = tauri::generate_context!();
     tauri::Builder::default()
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
@@ -54,28 +56,27 @@ fn main() {
             mixnet::bond::bond_gateway,
             mixnet::bond::bond_mixnode,
             mixnet::bond::gateway_bond_details,
-            mixnet::bond::get_operator_rewards,
+            mixnet::bond::get_pending_operator_rewards,
             mixnet::bond::mixnode_bond_details,
             mixnet::bond::unbond_gateway,
             mixnet::bond::unbond_mixnode,
-            mixnet::bond::update_mixnode,
+            mixnet::bond::update_mixnode_cost_params,
+            mixnet::bond::update_mixnode_config,
             mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::bond::get_mix_node_description,
             mixnet::delegate::delegate_to_mixnode,
-            mixnet::delegate::get_delegator_rewards,
+            mixnet::delegate::get_pending_delegator_rewards,
             mixnet::delegate::get_pending_delegation_events,
             mixnet::delegate::get_delegation_summary,
-            mixnet::delegate::get_all_pending_delegation_events,
             mixnet::delegate::get_all_mix_delegations,
             mixnet::delegate::undelegate_from_mixnode,
             mixnet::delegate::undelegate_all_from_mixnode,
-            mixnet::epoch::get_current_epoch,
+            mixnet::interval::get_current_interval,
+            mixnet::interval::get_pending_epoch_events,
+            mixnet::interval::get_pending_interval_events,
             mixnet::rewards::claim_delegator_reward,
             mixnet::rewards::claim_operator_reward,
-            mixnet::rewards::compound_operator_reward,
-            mixnet::rewards::compound_delegator_reward,
             mixnet::rewards::claim_locked_and_unlocked_delegator_reward,
-            mixnet::rewards::compound_locked_and_unlocked_delegator_reward,
             mixnet::send::send,
             network_config::add_validator,
             network_config::get_validator_api_urls,
@@ -90,7 +91,8 @@ fn main() {
             utils::owns_mixnode,
             utils::get_env,
             utils::get_old_and_incorrect_hardcoded_fee,
-            validator_api::status::compute_mixnode_reward_estimation,
+            utils::try_convert_pubkey_to_mix_id,
+            utils::default_mixnode_cost_params,
             validator_api::status::gateway_core_node_status,
             validator_api::status::mixnode_core_node_status,
             validator_api::status::mixnode_inclusion_probability,
@@ -99,15 +101,13 @@ fn main() {
             validator_api::status::mixnode_status,
             vesting::rewards::vesting_claim_delegator_reward,
             vesting::rewards::vesting_claim_operator_reward,
-            vesting::rewards::vesting_compound_operator_reward,
-            vesting::rewards::vesting_compound_delegator_reward,
             vesting::bond::vesting_bond_gateway,
             vesting::bond::vesting_bond_mixnode,
             vesting::bond::vesting_unbond_gateway,
             vesting::bond::vesting_unbond_mixnode,
-            vesting::bond::vesting_update_mixnode,
+            vesting::bond::vesting_update_mixnode_cost_params,
+            vesting::bond::vesting_update_mixnode_config,
             vesting::bond::withdraw_vested_coins,
-            vesting::delegate::get_pending_vesting_delegation_events,
             vesting::delegate::vesting_delegate_to_mixnode,
             vesting::delegate::vesting_undelegate_from_mixnode,
             vesting::queries::delegated_free,
@@ -129,7 +129,8 @@ fn main() {
             simulate::mixnet::simulate_unbond_gateway,
             simulate::mixnet::simulate_bond_mixnode,
             simulate::mixnet::simulate_unbond_mixnode,
-            simulate::mixnet::simulate_update_mixnode,
+            simulate::mixnet::simulate_update_mixnode_config,
+            simulate::mixnet::simulate_update_mixnode_cost_params,
             simulate::mixnet::simulate_delegate_to_mixnode,
             simulate::mixnet::simulate_undelegate_from_mixnode,
             simulate::vesting::simulate_vesting_delegate_to_mixnode,
@@ -138,47 +139,24 @@ fn main() {
             simulate::vesting::simulate_vesting_unbond_gateway,
             simulate::vesting::simulate_vesting_bond_mixnode,
             simulate::vesting::simulate_vesting_unbond_mixnode,
-            simulate::vesting::simulate_vesting_update_mixnode,
+            simulate::vesting::simulate_vesting_update_mixnode_config,
+            simulate::vesting::simulate_vesting_update_mixnode_cost_params,
             simulate::vesting::simulate_withdraw_vested_coins,
             simulate::vesting::simulate_vesting_claim_delegator_reward,
             simulate::vesting::simulate_vesting_claim_operator_reward,
-            simulate::vesting::simulate_vesting_compound_operator_reward,
-            simulate::vesting::simulate_vesting_compound_delegator_reward,
             simulate::mixnet::simulate_claim_delegator_reward,
             simulate::mixnet::simulate_claim_operator_reward,
-            simulate::mixnet::simulate_compound_operator_reward,
-            simulate::mixnet::simulate_compound_delegator_reward,
             signatures::sign::sign,
             signatures::sign::verify,
+            help::log::help_log_toggle_window,
         ])
-        .menu(Menu::new().add_default_app_submenu_if_macos())
-        .run(tauri::generate_context!())
+        .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
+        .on_menu_event(|event| {
+            if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
+                let _r = help::log::help_log_toggle_window(event.window().app_handle());
+            }
+        })
+        .setup(|app| Ok(log::setup_logging(app.app_handle())?))
+        .run(context)
         .expect("error while running tauri application");
-}
-
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    if ::std::env::var("RUST_TRACE_OPERATIONS").is_ok() {
-        log_builder.filter_module("nym_wallet::operations", log::LevelFilter::Trace);
-    }
-
-    log_builder
-        .filter_module("hyper", log::LevelFilter::Warn)
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
-        .filter_module("mio", log::LevelFilter::Warn)
-        .filter_module("want", log::LevelFilter::Warn)
-        .filter_module("sled", log::LevelFilter::Warn)
-        .filter_module("tungstenite", log::LevelFilter::Warn)
-        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .filter_module("rustls", log::LevelFilter::Warn)
-        .filter_module("tokio_util", log::LevelFilter::Warn)
-        .init();
 }

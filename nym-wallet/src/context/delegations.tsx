@@ -1,11 +1,11 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getDelegationSummary, undelegateAllFromMixnode } from 'src/requests/delegation';
 import {
-  DelegationEvent,
   DelegationWithEverything,
   FeeDetails,
   DecCoin,
   TransactionExecuteResult,
+  WrappedDelegationEvent,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
 import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
@@ -15,17 +15,17 @@ export type TDelegationContext = {
   isLoading: boolean;
   error?: string;
   delegations?: TDelegations;
-  pendingDelegations?: DelegationEvent[];
+  pendingDelegations?: WrappedDelegationEvent[];
   totalDelegations?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
   addDelegation: (
-    data: { identity: string; amount: DecCoin },
+    data: { mix_id: number; amount: DecCoin },
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
   undelegate: (
-    identity: string,
+    mix_id: number,
     usesVestingContractTokens: boolean,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult[]>;
@@ -35,11 +35,13 @@ export type TDelegationTransaction = {
   transactionUrl: string;
 };
 
-export type DelegationWithEvent = DelegationWithEverything | DelegationEvent;
+export type DelegationWithEvent = DelegationWithEverything | WrappedDelegationEvent;
 export type TDelegations = DelegationWithEvent[];
 
-export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is DelegationEvent =>
-  'kind' in delegation;
+export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is WrappedDelegationEvent =>
+  'event' in delegation;
+export const isDelegation = (delegation: DelegationWithEvent): delegation is DelegationWithEverything =>
+  'owner' in delegation;
 
 export const DelegationContext = createContext<TDelegationContext>({
   isLoading: true,
@@ -54,24 +56,24 @@ export const DelegationContext = createContext<TDelegationContext>({
 
 export const DelegationContextProvider: FC<{
   network?: Network;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
-  const [pendingDelegations, setPendingDelegations] = useState<DelegationEvent[]>();
+  const [pendingDelegations, setPendingDelegations] = useState<WrappedDelegationEvent[]>();
 
-  const addDelegation = async (
-    data: { identity: string; amount: DecCoin },
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => {
+  const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
     try {
       let tx;
 
-      if (tokenPool === 'locked') tx = await vestingDelegateToMixnode({ ...data, fee });
-      else tx = await delegateToMixnode(data);
+      if (tokenPool === 'locked') {
+        tx = await vestingDelegateToMixnode(data.mix_id, data.amount, fee?.fee);
+      } else {
+        tx = await delegateToMixnode(data.mix_id, data.amount, fee?.fee);
+      }
 
       return tx;
     } catch (e) {

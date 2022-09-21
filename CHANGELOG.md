@@ -9,16 +9,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - nym-cli: added CLI tool for interacting with the Nyx blockchain and Nym mixnet smart contracts ([#1577])
 - validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611](https://github.com/nymtech/nym/pull/1611))
+- common/ledger: new library for communicating with a Ledger device ([#1640])
 
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
+- wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
 [#1577]: https://github.com/nymtech/nym/pull/1577
+[#1585]: https://github.com/nymtech/nym/pull/1585
 [#1591]: https://github.com/nymtech/nym/pull/1591
+[#1640]: https://github.com/nymtech/nym/pull/1640
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

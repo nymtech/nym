@@ -25,7 +25,7 @@ async function main() {
     set_panic_hook();
 
     // validator server we will use to get topology from
-    const validator = "https://validator.nymtech.net/api"; //"http://localhost:8081";
+    const validator = "https://validator.nymtech.net/api";
 
     client = new NymClient(validator);
 
@@ -69,7 +69,7 @@ async function sendMessageTo() {
  * @param {string} message
  */
 function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+    let timestamp = new Date().toISOString().slice(11, 21);
 
     let sendDiv = document.createElement("div")
     let paragraph = document.createElement("p")
@@ -90,11 +90,11 @@ function displayReceived(message) {
     const content = message.message
     const replySurb = message.replySurb
 
-    let timestamp = new Date().toISOString().substr(11, 12);
+    let timestamp = new Date().toISOString().slice(11, 21);
     let receivedDiv = document.createElement("div")
     let paragraph = document.createElement("p")
     paragraph.setAttribute('style', 'color: green')
-    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content)
     paragraph.appendChild(paragraphContent)
     receivedDiv.appendChild(paragraph)
     document.getElementById("output").appendChild(receivedDiv)

@@ -3,8 +3,8 @@ import type { DecCoin } from './DecCoin';
 
 export interface Delegation {
   owner: string;
-  node_identity: string;
+  mix_id: number;
   amount: DecCoin;
-  block_height: bigint;
+  height: bigint;
   proxy: string | null;
 }

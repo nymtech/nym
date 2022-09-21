@@ -47,7 +47,8 @@ mod tests {
     use crate::vesting::{populate_vesting_periods, Account};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract_common::{Gateway, MixNode};
+    use mixnet_contract_common::mixnode::MixNodeCostParams;
+    use mixnet_contract_common::{Gateway, MixNode, Percent};
     use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
     use vesting_contract_common::Period;
 
@@ -272,19 +273,15 @@ mod tests {
         let withdrawn = account.load_withdrawn(&deps.storage).unwrap();
         assert_eq!(withdrawn, Uint128::zero());
 
-        let mix_identity = "alice".to_string();
+        let mix_id = 1;
 
         let delegation = Coin {
             amount: Uint128::new(90_000_000_000),
             denom: TEST_COIN_DENOM.to_string(),
         };
 
-        let ok = account.try_delegate_to_mixnode(
-            mix_identity.clone(),
-            delegation.clone(),
-            &env,
-            &mut deps.storage,
-        );
+        let ok =
+            account.try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage);
         assert!(ok.is_ok());
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
@@ -312,11 +309,11 @@ mod tests {
             .unwrap();
         assert_eq!(spendable.amount, Uint128::new(160_000_000_000));
 
-        let ok = account.try_undelegate_from_mixnode(mix_identity.clone(), &mut deps.storage);
+        let ok = account.try_undelegate_from_mixnode(mix_id, &mut deps.storage);
         assert!(ok.is_ok());
 
         account
-            .track_undelegation(mix_identity.clone(), delegation.clone(), &mut deps.storage)
+            .track_undelegation(mix_id, delegation.clone(), &mut deps.storage)
             .unwrap();
 
         let delegated_free = account
@@ -362,12 +359,8 @@ mod tests {
             .unwrap();
         assert_eq!(spendable.amount, Uint128::zero());
 
-        let ok = account.try_delegate_to_mixnode(
-            mix_identity.clone(),
-            delegation.clone(),
-            &env,
-            &mut deps.storage,
-        );
+        let ok =
+            account.try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage);
         assert!(ok.is_ok());
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
@@ -405,7 +398,7 @@ mod tests {
 
         // Try delegating too much
         let err = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -416,7 +409,7 @@ mod tests {
         assert!(err.is_err());
 
         let ok = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -428,7 +421,7 @@ mod tests {
 
         // Fails due to delegation locked delegation cap
         let ok = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(20_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -443,7 +436,7 @@ mod tests {
 
         // Try delegating too much again
         let err = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(500_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -453,9 +446,7 @@ mod tests {
         );
         assert!(err.is_err());
 
-        let total_delegations = account
-            .total_delegations_for_mix("alice".to_string(), &deps.storage)
-            .unwrap();
+        let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
         assert_eq!(Uint128::new(90_000_000_000), total_delegations);
 
         // Current period -> block_time: None
@@ -534,11 +525,19 @@ mod tests {
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
-            profit_margin_percent: 10,
+        };
+
+        let cost_params = MixNodeCostParams {
+            profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+            interval_operating_cost: Coin {
+                denom: "NYM".to_string(),
+                amount: Uint128::new(40),
+            },
         };
         // Try delegating too much
         let err = account.try_bond_mixnode(
             mix_node.clone(),
+            cost_params.clone(),
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
@@ -551,6 +550,7 @@ mod tests {
 
         let ok = account.try_bond_mixnode(
             mix_node.clone(),
+            cost_params.clone(),
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
@@ -567,6 +567,7 @@ mod tests {
         // Try delegating too much again
         let err = account.try_bond_mixnode(
             mix_node,
+            cost_params,
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(10_000_000_001),
@@ -818,7 +819,7 @@ mod tests {
 
         // time for some delegations
 
-        let mix_identity = "alice".to_string();
+        let mix_id = 42;
 
         let delegation = Coin {
             amount: Uint128::new(90_000_000_000),
@@ -830,7 +831,7 @@ mod tests {
         env.block.height = account_creation_blockheight;
         env.block.time = Timestamp::from_seconds(account_creation_timestamp);
         let ok = vesting_account.try_delegate_to_mixnode(
-            mix_identity.clone(),
+            mix_id,
             delegation.clone(),
             &env,
             &mut deps.storage,
@@ -885,7 +886,7 @@ mod tests {
             denom: TEST_COIN_DENOM.to_string(),
         };
         let ok = vesting_account.try_delegate_to_mixnode(
-            mix_identity.clone(),
+            mix_id,
             delegation.clone(),
             &env,
             &mut deps.storage,

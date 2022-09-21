@@ -1,8 +1,8 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::mixnodes::storage::{BOND_PAGE_DEFAULT_LIMIT, BOND_PAGE_MAX_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
+use crate::constants::{GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT, GATEWAY_BOND_MAX_RETRIEVAL_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::{
@@ -15,8 +15,8 @@ pub(crate) fn query_gateways_paged(
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayResponse> {
     let limit = limit
-        .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
-        .min(BOND_PAGE_MAX_LIMIT) as usize;
+        .unwrap_or(GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT)
+        .min(GATEWAY_BOND_MAX_RETRIEVAL_LIMIT) as usize;
 
     let start = start_after.as_deref().map(Bound::exclusive);
 
@@ -31,7 +31,7 @@ pub(crate) fn query_gateways_paged(
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
-pub(crate) fn query_owns_gateway(
+pub(crate) fn query_owned_gateway(
     deps: Deps<'_>,
     address: String,
 ) -> StdResult<GatewayOwnershipResponse> {
@@ -74,11 +74,11 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_obeys_limits() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
+        let mut rng = test_helpers::test_rng();
+
         let limit = 2;
-        for n in 0..1000 {
-            let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
-        }
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), env, 1000);
 
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.nodes.len() as u32);
@@ -87,49 +87,54 @@ pub(crate) mod tests {
     #[test]
     fn gateways_paged_retrieval_has_default_limit() {
         let mut deps = test_helpers::init_contract();
-        for n in 0..1000 {
-            let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
-        }
+        let env = mock_env();
+        let mut rng = test_helpers::test_rng();
+
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), env, 1000);
 
         // query without explicitly setting a limit
         let page1 = query_gateways_paged(deps.as_ref(), None, None).unwrap();
 
-        assert_eq!(BOND_PAGE_DEFAULT_LIMIT, page1.nodes.len() as u32);
+        assert_eq!(
+            GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT,
+            page1.nodes.len() as u32
+        );
     }
 
     #[test]
     fn gateways_paged_retrieval_has_max_limit() {
         let mut deps = test_helpers::init_contract();
-        for n in 0..1000 {
-            let key = format!("bond{}", n);
-            test_helpers::add_gateway(&key, tests::fixtures::good_gateway_pledge(), deps.as_mut());
-        }
+        let env = mock_env();
+        let mut rng = test_helpers::test_rng();
+
+        test_helpers::add_dummy_gateways(&mut rng, deps.as_mut(), env, 1000);
 
         // query with a crazily high limit in an attempt to use too many resources
-        let crazy_limit = 1000 * BOND_PAGE_DEFAULT_LIMIT;
+        let crazy_limit = 1000 * GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT;
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = BOND_PAGE_MAX_LIMIT;
+        let expected_limit = GATEWAY_BOND_MAX_RETRIEVAL_LIMIT;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 
     #[test]
     fn gateway_pagination_works() {
+        let mut deps = test_helpers::init_contract();
+        let _env = mock_env();
+        let mut rng = test_helpers::test_rng();
+
         // prepare 4 messages and identities that are sorted by the generated identities
         // (because we query them in an ascended manner)
         let mut exec_data = (0..4)
             .map(|i| {
                 let sender = format!("nym-addr{}", i);
-                let (msg, identity) = tests::messages::valid_bond_gateway_msg(&sender);
+                let (msg, identity) = tests::messages::valid_bond_gateway_msg(&mut rng, &sender);
                 (msg, (sender, identity))
             })
             .collect::<Vec<_>>();
         exec_data.sort_by(|(_, (_, id1)), (_, (_, id2))| id1.cmp(id2));
         let (messages, sender_identities): (Vec<_>, Vec<_>) = exec_data.into_iter().unzip();
-
-        let mut deps = test_helpers::init_contract();
 
         let info = mock_info(
             &sender_identities[0].0.clone(),
@@ -196,32 +201,42 @@ pub(crate) mod tests {
     #[test]
     fn query_for_gateway_owner_works() {
         let mut deps = test_helpers::init_contract();
+        let env = mock_env();
+        let mut rng = test_helpers::test_rng();
 
         // "fred" does not own a mixnode if there are no mixnodes
-        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // mixnode was added to "bob", "fred" still does not own one
-        test_helpers::add_gateway("bob", tests::fixtures::good_gateway_pledge(), deps.as_mut());
+        test_helpers::add_gateway(
+            &mut rng,
+            deps.as_mut(),
+            env.clone(),
+            "bob",
+            tests::fixtures::good_gateway_pledge(),
+        );
 
-        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
         test_helpers::add_gateway(
+            &mut rng,
+            deps.as_mut(),
+            env,
             "fred",
             tests::fixtures::good_gateway_pledge(),
-            deps.as_mut(),
         );
 
-        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_some());
 
         // but after unbonding it, he doesn't own one anymore
         crate::gateways::transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[]))
             .unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(deps.as_ref(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
     }
 }

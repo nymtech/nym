@@ -5,10 +5,10 @@ import { Node as NodeIcon } from 'src/svg-icons/node';
 import { TBondedMixnode } from 'src/context';
 import { Tabs } from 'src/components/Tabs';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
-import { isDecimal } from 'src/utils';
+import { attachDefaultOperatingCost, isDecimal, toPercentFloatString } from 'src/utils';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
-import { simulateUpdateMixnode, simulateVestingUpdateMixnode } from 'src/requests';
+import { simulateUpdateMixnodeCostParams, simulateVestingUpdateMixnodeCostParams } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
 
@@ -20,9 +20,9 @@ export const NodeSettings = ({
   onClose,
   onError,
 }: {
-  currentPm?: TBondedMixnode['profitMargin'];
-  isVesting?: boolean;
-  onConfirm: (profitMargin: number, fee?: FeeDetails) => Promise<void>;
+  currentPm: TBondedMixnode['profitMargin'];
+  isVesting: boolean;
+  onConfirm: (profitMargin: string, fee?: FeeDetails) => Promise<void>;
   onClose: () => void;
   onError: (err: string) => void;
 }) => {
@@ -53,10 +53,13 @@ export const NodeSettings = ({
       return;
     }
 
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
+
     if (isVesting) {
-      await getFee(simulateVestingUpdateMixnode, { profitMarginPercent: pmAsNumber });
+      await getFee(simulateVestingUpdateMixnodeCostParams, defaultCostParams);
     } else {
-      await getFee(simulateUpdateMixnode, { profitMarginPercent: pmAsNumber });
+      await getFee(simulateUpdateMixnodeCostParams, defaultCostParams);
     }
   };
 
@@ -80,7 +83,7 @@ export const NodeSettings = ({
         fee={fee}
         onPrev={resetFeeState}
         onClose={onClose}
-        onConfirm={() => onConfirm(Number(pm), fee)}
+        onConfirm={() => onConfirm(pm, fee)}
       >
         <ModalListItem label="Current profit margin" value={`${currentPm}%`} divider />
         <ModalListItem label="New profit margin" value={`${pm}%`} divider />
@@ -112,10 +115,10 @@ export const NodeSettings = ({
           <TextField placeholder="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
           {error && (
             <FormHelperText sx={{ color: 'error.main' }}>
-              Profit margin should be a whole number between 0 and 100
+              Profit margin should be a number between 0 and 100
             </FormHelperText>
           )}
-          <FormHelperText>Your new profit margin will be applied in the next epoch</FormHelperText>
+          <FormHelperText>Your new profit margin will be applied in the next interval</FormHelperText>
         </Box>
         <Box sx={{ mb: 3 }}>
           <ModalListItem label="Est. fee for this operation will be caculated in the next page" value="" />

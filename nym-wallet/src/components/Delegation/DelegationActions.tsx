@@ -68,8 +68,7 @@ export const DelegationsActionsMenu: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;
   isPending?: DelegationEventKind;
   disableRedeemingRewards?: boolean;
-  disableCompoundRewards?: boolean;
-}> = ({ disableRedeemingRewards, disableCompoundRewards, onActionClick, isPending }) => {
+}> = ({ disableRedeemingRewards, onActionClick, isPending }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpenMenu = () => setIsOpen(true);
@@ -102,13 +101,6 @@ export const DelegationsActionsMenu: React.FC<{
         Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
         onClick={() => handleActionSelect('redeem')}
         disabled={disableRedeemingRewards}
-      />
-      <ActionsMenuItem
-        title="Compound"
-        description="Add your rewards to this delegation"
-        Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
-        onClick={() => handleActionSelect('compound')}
-        disabled={disableCompoundRewards}
       />
     </ActionsMenu>
   );

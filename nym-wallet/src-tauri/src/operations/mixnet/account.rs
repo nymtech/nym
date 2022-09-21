@@ -104,10 +104,12 @@ async fn _connect_with_mnemonic(
 
         // Take the oppertunity to list all the known validators while we have the state.
         for network in WalletNetwork::iter() {
-            log::debug!(
-                "List of validators for {network}: [\n{}\n]",
+            // fern really wants us to not evaluate this inside the debug macro argument
+            let f = format!(
+                "{}",
                 state.get_config_validator_entries(network).format(",\n")
             );
+            log::debug!("List of validators for {network}: [\n{}\n]", f,);
         }
 
         state.config().clone()

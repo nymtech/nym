@@ -47,6 +47,7 @@ const FilterItem = ({
       scale={scale}
       min={min}
       max={max}
+      valueLabelFormat={(val: number) => (val === 100 && id === 'stakeSaturation' ? '>100' : val)}
     />
   </Box>
 );

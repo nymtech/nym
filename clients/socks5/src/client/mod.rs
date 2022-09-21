@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::atomic::Ordering;
+
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -29,6 +31,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 use crate::client::config::Config;
 use crate::socks::{
@@ -84,6 +87,7 @@ impl NymClient {
         &self,
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
+        shutdown: ShutdownListener,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -97,6 +101,7 @@ impl NymClient {
             mix_tx,
             self.as_mix_recipient(),
             topology_accessor,
+            shutdown,
         )
         .start();
     }
@@ -108,6 +113,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        shutdown: ShutdownListener,
     ) {
         let controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -128,6 +134,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
+            shutdown,
         )
         .start();
     }
@@ -139,6 +146,7 @@ impl NymClient {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: ReplyKeyStorage,
+        shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(
@@ -146,6 +154,7 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
+            shutdown,
         )
         .start()
     }
@@ -154,6 +163,7 @@ impl NymClient {
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
+        shutdown: ShutdownListener,
     ) -> GatewayClient {
         let gateway_id = self.config.get_base().get_gateway_id();
         if gateway_id.is_empty() {
@@ -181,8 +191,6 @@ impl NymClient {
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_base().get_database_path())
                 .await,
-            self.config.get_base().get_eth_endpoint(),
-            self.config.get_base().get_eth_private_key(),
         )
         .expect("Could not create bandwidth controller");
 
@@ -196,6 +204,7 @@ impl NymClient {
             ack_sender,
             self.config.get_base().get_gateway_response_timeout(),
             Some(bandwidth_controller),
+            Some(shutdown),
         );
 
         gateway_client
@@ -211,7 +220,11 @@ impl NymClient {
 
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
-    async fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
+    async fn start_topology_refresher(
+        &mut self,
+        topology_accessor: TopologyAccessor,
+        shutdown: ShutdownListener,
+    ) {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
@@ -233,7 +246,7 @@ impl NymClient {
         }
 
         info!("Starting topology refresher...");
-        topology_refresher.start();
+        topology_refresher.start(shutdown);
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -244,15 +257,17 @@ impl NymClient {
         &mut self,
         mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
+        shutdown: ShutdownListener,
     ) {
         info!("Starting mix traffic controller...");
-        MixTrafficController::new(mix_rx, gateway_client).start();
+        MixTrafficController::new(mix_rx, gateway_client, shutdown).start();
     }
 
     fn start_socks5_listener(
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -264,43 +279,57 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
+            shutdown,
         );
         tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(&mut self) {
-        self.start().await;
-        if let Err(e) = tokio::signal::ctrl_c().await {
-            error!(
-                "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-                e
-            );
-        }
+        let mut shutdown = self.start().await;
+        wait_for_signal().await;
 
-        println!(
-            "Received SIGINT - the client will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
-        );
+        log::info!("Sending shutdown");
+        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
+        shutdown.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
+
+        log::info!("Stopping nym-socks5-client");
     }
 
     // Variant of `run_forever` that listends for remote control messages
     pub async fn run_and_listen(&mut self, mut receiver: Socks5ControlMessageReceiver) {
-        self.start().await;
+        let mut shutdown = self.start().await;
         tokio::select! {
             message = receiver.next() => {
                 log::debug!("Received message: {:?}", message);
                 match message {
                     Some(Socks5ControlMessage::Stop) => {
-                        log::info!("Shutting down");
-                        log::info!("Graceful shutdown of tasks not yet implemented, you might see (harmless) panics until then");
+                        log::info!("Received stop message");
                     }
-                    None => log::debug!("None"),
+                    None => {
+                        log::info!("Channel closed, stopping");
+                    }
                 }
             }
+            _ = tokio::signal::ctrl_c() => {
+                log::info!("Received SIGINT");
+            },
         }
+
+        log::info!("Sending shutdown");
+        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
+        shutdown.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
+
+        log::info!("Stopping nym-socks5-client");
     }
 
-    pub async fn start(&mut self) {
+    pub async fn start(&mut self) -> ShutdownNotifier {
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -330,33 +359,52 @@ impl NymClient {
             ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
                 .expect("Failed to load reply key storage!");
 
+        // Shutdown notifier for signalling tasks to stop
+        let shutdown = ShutdownNotifier::default();
+
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        self.start_topology_refresher(shared_topology_accessor.clone())
+        self.start_topology_refresher(shared_topology_accessor.clone(), shutdown.subscribe())
             .await;
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_key_storage.clone(),
+            shutdown.subscribe(),
         );
 
         let gateway_client = self
-            .start_gateway_client(mixnet_messages_sender, ack_sender)
+            .start_gateway_client(mixnet_messages_sender, ack_sender, shutdown.subscribe())
             .await;
 
-        self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
+        self.start_mix_traffic_controller(
+            sphinx_message_receiver,
+            gateway_client,
+            shutdown.subscribe(),
+        );
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            shutdown.subscribe(),
         );
 
-        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
-        self.start_socks5_listener(received_buffer_request_sender, input_sender);
+        self.start_cover_traffic_stream(
+            shared_topology_accessor,
+            sphinx_message_sender,
+            shutdown.subscribe(),
+        );
+        self.start_socks5_listener(
+            received_buffer_request_sender,
+            input_sender,
+            shutdown.subscribe(),
+        );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self.as_mix_recipient());
+
+        shutdown
     }
 }

@@ -122,11 +122,15 @@ impl Monitor {
 
         let mut packets = Vec::with_capacity(routes.len());
         for route in routes {
-            packets.push(
-                self.packet_preparer
-                    .prepare_test_route_viability_packets(route, self.route_test_packets)
-                    .await,
-            );
+            let mut packet_preparer = self.packet_preparer.clone();
+            let route = route.clone();
+            let route_test_packets = self.route_test_packets;
+            let gateway_packets = tokio::spawn(async move {
+                packet_preparer.prepare_test_route_viability_packets(&route, route_test_packets)
+            })
+            .await
+            .unwrap();
+            packets.push(gateway_packets);
         }
 
         self.received_processor.set_route_test_nonce().await;
@@ -306,12 +310,20 @@ impl Monitor {
             .await;
 
         self.packet_sender
-            .spawn_gateways_pinger(self.gateway_ping_interval);
+            .spawn_gateways_pinger(self.gateway_ping_interval, shutdown.clone());
 
         let mut run_interval = tokio::time::interval(self.run_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _  = run_interval.tick() => self.test_run().await,
+                _  = run_interval.tick() => {
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            trace!("UpdateHandler: Received shutdown");
+                        }
+                        _ = self.test_run() => (),
+                    }
+                }
                 _ = shutdown.recv() => {
                     trace!("UpdateHandler: Received shutdown");
                 }

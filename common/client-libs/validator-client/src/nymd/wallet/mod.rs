@@ -4,7 +4,7 @@
 use crate::nymd::error::NymdError;
 use config::defaults;
 use cosmrs::bip32::{DerivationPath, XPrv};
-use cosmrs::crypto::secp256k1::SigningKey;
+use cosmrs::crypto::secp256k1::{Signature, SigningKey};
 use cosmrs::crypto::PublicKey;
 use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};
@@ -72,7 +72,7 @@ impl DirectSecp256k1HdWallet {
     }
 
     fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NymdError> {
-        let extended_private_key = XPrv::derive_from_path(&self.seed, hd_path)?;
+        let extended_private_key = XPrv::derive_from_path(self.seed, hd_path)?;
 
         let private_key: SigningKey = extended_private_key.into();
         let public_key = private_key.public_key();
@@ -103,6 +103,17 @@ impl DirectSecp256k1HdWallet {
 
     pub fn mnemonic(&self) -> String {
         self.secret.to_string()
+    }
+
+    pub fn sign_raw_with_account(
+        &self,
+        signer: &AccountData,
+        message: &[u8],
+    ) -> Result<Signature, NymdError> {
+        signer
+            .private_key
+            .sign(message)
+            .map_err(|_| NymdError::SigningFailure)
     }
 
     pub fn sign_direct_with_account(

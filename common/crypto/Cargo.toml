@@ -26,7 +26,6 @@ subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }
 pemstore = { path = "../../common/pemstore" }
-config = { path="../../common/config" }
 
 [dev-dependencies]
 rand_chacha = "0.2"

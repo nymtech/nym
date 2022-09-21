@@ -89,7 +89,7 @@ async function sendKeybaseMessage(messageBody) {
     });
 
     const channel = {
-      name: 'nymtech_bot',
+      name: context.env.KEYBASE_NYMBOT_TEAM || 'nymtech_bot',
       membersType: 'team',
       topicName: context.keybase.channel,
       topic_type: 'CHAT',

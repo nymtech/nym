@@ -12,6 +12,7 @@ use crate::node::storage::Storage;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+#[cfg(feature = "coconut")]
 use network_defaults::NymNetworkDetails;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -23,10 +24,9 @@ use std::sync::Arc;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
-#[cfg(not(feature = "coconut"))]
-use crate::node::client_handling::websocket::connection_handler::eth_events::ERC20Bridge;
 #[cfg(feature = "coconut")]
 use credentials::obtain_aggregate_verification_key;
+#[cfg(feature = "coconut")]
 use validator_client::nymd;
 
 use self::storage::PersistentStorage;
@@ -181,7 +181,6 @@ where
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
-        #[cfg(not(feature = "coconut"))] erc20_bridge: ERC20Bridge,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -196,8 +195,6 @@ where
             self.config.get_disabled_credentials_mode(),
             #[cfg(feature = "coconut")]
             coconut_verifier,
-            #[cfg(not(feature = "coconut"))]
-            erc20_bridge,
         )
         .start(
             forwarding_channel,
@@ -241,6 +238,7 @@ where
         validator_client::ApiClient::new(validator_api.clone())
     }
 
+    #[cfg(feature = "coconut")]
     fn random_nymd_client(
         &self,
     ) -> validator_client::nymd::NymdClient<validator_client::nymd::SigningNymdClient> {
@@ -311,7 +309,7 @@ where
             obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
-
+        #[cfg(feature = "coconut")]
         let nymd_client = self.random_nymd_client();
         #[cfg(feature = "coconut")]
         let coconut_verifier = CoconutVerifier::new(
@@ -321,9 +319,6 @@ where
             validators_verification_key,
         )
         .expect("Could not create coconut verifier");
-
-        #[cfg(not(feature = "coconut"))]
-        let erc20_bridge = ERC20Bridge::new(self.config.get_eth_endpoint(), nymd_client);
 
         let mix_forwarding_channel = self.start_packet_forwarder();
 
@@ -351,8 +346,6 @@ where
             active_clients_store,
             #[cfg(feature = "coconut")]
             Arc::new(coconut_verifier),
-            #[cfg(not(feature = "coconut"))]
-            erc20_bridge,
         );
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");

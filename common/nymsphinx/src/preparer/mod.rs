@@ -213,7 +213,7 @@ where
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
-    pub async fn prepare_chunk_for_sending(
+    pub fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
@@ -222,8 +222,7 @@ where
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
-            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)
-            .await?
+            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
 
         // TODO:
@@ -294,7 +293,7 @@ where
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    async fn generate_surb_ack(
+    fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
@@ -357,8 +356,7 @@ where
         // gateways could not distinguish reply packets from normal messages due to lack of said acks
         // note: the ack delay is irrelevant since we do not know the delay of actual surb
         let (_, surb_ack_bytes) = self
-            .generate_surb_ack(reply_id, topology, ack_key)
-            .await?
+            .generate_surb_ack(reply_id, topology, ack_key)?
             .prepare_for_sending();
 
         let zero_pad_len = self.packet_size.plaintext_size()

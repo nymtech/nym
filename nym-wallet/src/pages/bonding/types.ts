@@ -41,7 +41,7 @@ export type Amount = {
 export type GatewayAmount = Amount;
 
 export type MixnodeAmount = Amount & {
-  profitMargin: number;
+  profitMargin: string;
 };
 
 export type GatewayData = NodeIdentity & {

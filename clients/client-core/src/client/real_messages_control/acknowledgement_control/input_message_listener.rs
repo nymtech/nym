@@ -16,6 +16,7 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+use task::ShutdownListener;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -32,6 +33,7 @@ where
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
     reply_key_storage: ReplyKeyStorage,
+    shutdown: ShutdownListener,
 }
 
 impl<R> InputMessageListener<R>
@@ -50,6 +52,7 @@ where
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
+        shutdown: ShutdownListener,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -60,6 +63,7 @@ where
             real_message_sender,
             topology_access,
             reply_key_storage,
+            shutdown,
         }
     }
 
@@ -133,7 +137,6 @@ where
             let prepared_fragment = self
                 .message_preparer
                 .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
-                .await
                 .unwrap();
 
             real_messages.push(RealMessage::new(
@@ -183,9 +186,23 @@ where
 
     pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener");
-        while let Some(input_msg) = self.input_receiver.next().await {
-            self.on_input_message(input_msg).await;
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                input_msg = self.input_receiver.next() => match input_msg {
+                    Some(input_msg) => {
+                        self.on_input_message(input_msg).await;
+                    },
+                    None => {
+                        log::trace!("InputMessageListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("InputMessageListener: Received shutdown");
+                }
+            }
         }
-        error!("TODO: error msg. Or maybe panic?")
+        assert!(self.shutdown.is_shutdown_poll());
+        log::debug!("InputMessageListener: Exiting");
     }
 }

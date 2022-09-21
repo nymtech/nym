@@ -7,7 +7,6 @@ use std::{env::var, path::PathBuf};
 use url::Url;
 
 pub mod all;
-pub mod eth_contract;
 pub mod mainnet;
 pub mod qa;
 pub mod sandbox;

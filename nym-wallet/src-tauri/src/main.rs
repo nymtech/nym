@@ -97,6 +97,7 @@ fn main() {
             validator_api::status::mixnode_core_node_status,
             validator_api::status::mixnode_inclusion_probability,
             validator_api::status::mixnode_reward_estimation,
+            validator_api::status::compute_mixnode_reward_estimation,
             validator_api::status::mixnode_stake_saturation,
             validator_api::status::mixnode_status,
             vesting::rewards::vesting_claim_delegator_reward,

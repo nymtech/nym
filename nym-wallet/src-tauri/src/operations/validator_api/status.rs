@@ -4,10 +4,11 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
-use mixnet_contract_common::{IdentityKeyRef, NodeId};
+use mixnet_contract_common::{reward_params::Performance, IdentityKeyRef, NodeId};
 use validator_client::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
+    ComputeRewardEstParam, GatewayCoreStatusResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse,
 };
 
 #[tauri::command]
@@ -53,15 +54,15 @@ pub async fn mixnode_reward_estimation(
 #[tauri::command]
 pub async fn compute_mixnode_reward_estimation(
     identity: &str,
-    uptime: Option<u8>,
-    is_active: Option<bool>,
+    performance: Option<Performance>,
+    active_in_rewarded_set: Option<bool>,
     pledge_amount: Option<u64>,
     total_delegation: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<RewardEstimationResponse, BackendError> {
     let request_body = ComputeRewardEstParam {
-        uptime,
-        is_active,
+        performance,
+        active_in_rewarded_set,
         pledge_amount,
         total_delegation,
     };

@@ -159,8 +159,8 @@ impl From<f64> for SelectionChance {
 impl From<Decimal> for SelectionChance {
     fn from(p: Decimal) -> Self {
         match p {
-            p if p >= Decimal::from_ratio(15u32, 100u32) => SelectionChance::VeryHigh,
-            p if p > Decimal::from_ratio(5u32, 100u32) => SelectionChance::Moderate,
+            p if p >= Decimal::from_ratio(70u32, 100u32) => SelectionChance::High,
+            p if p >= Decimal::from_ratio(30u32, 100u32) => SelectionChance::Good,
             _ => SelectionChance::Low,
         }
     }

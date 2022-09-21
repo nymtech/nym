@@ -32,10 +32,10 @@ const row: EconomicsInfoRowWithIndex = {
   },
 };
 
-const rowModerateProbabilitySelection: EconomicsInfoRowWithIndex = {
+const rowGoodProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
-    value: 'Moderate',
+    value: 'Good',
   },
 };
 
@@ -86,9 +86,9 @@ selectionChanceHigh.args = {
   tableName: 'storybook',
 };
 
-export const selectionChanceModerate = Template.bind({});
-selectionChanceModerate.args = {
-  rows: [rowModerateProbabilitySelection],
+export const selectionChanceGood = Template.bind({});
+selectionChanceGood.args = {
+  rows: [rowGoodProbabilitySelection],
   columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };

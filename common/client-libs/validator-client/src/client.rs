@@ -11,11 +11,9 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    DeprecatedRewardEstimationResponse, DeprecatedUptimeResponse, GatewayCoreStatusResponse,
-    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    RewardEstimationResponse, StakeSaturationResponse,
 };
-use validator_api_requests::Deprecated;
 
 #[cfg(feature = "nymd-client")]
 use crate::nymd::traits::MixnetQueryClient;
@@ -704,71 +702,6 @@ impl ApiClient {
         Ok(self
             .validator_api
             .verify_bandwidth_credential(request_body)
-            .await?)
-    }
-
-    // =================================================
-    // DEPRECATED ROUTES
-    // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-    // =================================================
-
-    pub async fn deprecated_get_mixnode_core_status_count_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-        since: Option<i64>,
-    ) -> Result<Deprecated<MixnodeCoreStatusResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_core_status_count_by_identity(identity, since)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_status_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<MixnodeStatusResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_status_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_reward_estimation_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<DeprecatedRewardEstimationResponse, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_reward_estimation_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_stake_saturation_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<StakeSaturationResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_stake_saturation_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_avg_uptime_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<DeprecatedUptimeResponse, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_avg_uptime_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_avg_uptimes_by_identity(
-        &self,
-    ) -> Result<Vec<DeprecatedUptimeResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_avg_uptimes_by_identity()
             .await?)
     }
 }

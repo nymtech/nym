@@ -71,6 +71,7 @@ impl ValidatorApiStorage {
         })
     }
 
+    #[allow(unused)]
     pub(crate) async fn mix_identity_to_mix_ids(
         &self,
         identity: &str,
@@ -81,6 +82,7 @@ impl ValidatorApiStorage {
             .await?)
     }
 
+    #[allow(unused)]
     pub(crate) async fn mix_identity_to_latest_mix_id(
         &self,
         identity: &str,

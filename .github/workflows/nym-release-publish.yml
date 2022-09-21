@@ -34,7 +34,7 @@ jobs:
             
       - name: Sets env vars for tokio if set in manual dispatch inputs
         run: |
-          echo 'RUSTFLAGS="--cfg tokio_unstable"' >> $GITHUB_ENV
+          echo 'RUSTFLAGS=--cfg tokio_unstable' >> $GITHUB_ENV
         if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
 
       - name: Install Rust stable

@@ -157,7 +157,11 @@ const AmountFormData = ({
 
   return (
     <Stack gap={3}>
+<<<<<<< HEAD
       <Box display="flex" gap={3} justifyContent="center">
+=======
+      <Box display="flex" gap={3} justifyContent="center" sx={{ mt: 2 }}>
+>>>>>>> develop
         {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setValue('tokenPool', pool)} />}
         <CurrencyFormField
           required

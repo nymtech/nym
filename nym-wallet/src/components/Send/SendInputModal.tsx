@@ -58,13 +58,13 @@ export const SendInputModal = ({
       <Stack gap={3} sx={{ mt: 3 }}>
         <ModalListItem label="Your address:" value={fromAddress} fontWeight="light" />
         <TextField
-          placeholder="Recipient address"
+          label="Recipient address"
           fullWidth
           onChange={(e) => onAddressChange(e.target.value)}
           value={toAddress}
         />
         <CurrencyFormField
-          placeholder="Amount"
+          label="Amount"
           fullWidth
           onChanged={(value) => {
             onAmountChange(value);

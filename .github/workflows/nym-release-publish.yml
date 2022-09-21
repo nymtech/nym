@@ -47,6 +47,14 @@ jobs:
         with:
           command: build
           args: --workspace --release
+        if: github.event_name != 'workflow_dispatch' && inputs.add_tokio_unstable == false
+
+      - name: Build all binaries (with tokio console)
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --release --features console-subscriber
+        if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3

@@ -74,7 +74,7 @@ impl CosmosLedger {
 
     /// Get the SECP265K1 address of the device.
     pub fn get_addr_secp265k1(&self, display: bool) -> Result<AddrSecp265k1Response> {
-        let display = if display { 1 } else { 0 };
+        let display = u8::from(display);
         let components = path_bytes(self.path.clone())?;
         let data: Vec<u8> = vec![
             [self.prefix.len() as u8].as_slice(),

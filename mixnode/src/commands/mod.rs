@@ -4,8 +4,10 @@
 use std::process;
 
 use crate::{config::Config, Cli};
+use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
+use completions::{fig_generate, ArgShell};
 use config::{
     defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED},
     parse_validators,
@@ -38,6 +40,12 @@ pub(crate) enum Commands {
 
     /// Show details of this mixnode
     NodeDetails(node_details::NodeDetails),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -53,6 +61,8 @@ struct OverrideConfig {
 }
 
 pub(crate) async fn execute(args: Cli) {
+    let bin_name = "nym-mixnode";
+
     match &args.command {
         Commands::Describe(m) => describe::execute(m),
         Commands::Init(m) => init::execute(m),
@@ -60,6 +70,8 @@ pub(crate) async fn execute(args: Cli) {
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m),
         Commands::NodeDetails(m) => node_details::execute(m),
+        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
     }
 }
 

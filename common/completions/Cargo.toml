@@ -1,17 +1,11 @@
 [package]
-name = "nym-wallet-recovery-cli"
+name = "completions"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-gcm = "0.9"
-anyhow = "1.0"
-argon2 = "0.4"
-base64 = "0.13"
-bip39 = "1.0"
 clap = { version = "3.2", features = ["derive"] }
-log = "0.4"
-pretty_env_logger = "0.4"
-serde_json = "1.0.0"
+clap_complete = "3.2"
+clap_complete_fig = "3.2"

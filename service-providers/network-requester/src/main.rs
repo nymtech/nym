@@ -1,7 +1,10 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{App, Arg, ArgMatches};
+use clap::CommandFactory;
+use clap::Subcommand;
+use clap::{Args, Parser};
+use completions::{fig_generate, ArgShell};
 
 use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nymsphinx::addressing::clients::Recipient;
@@ -12,75 +15,93 @@ mod core;
 mod statistics;
 mod websocket;
 
-const OPEN_PROXY_ARG: &str = "open-proxy";
-const WS_PORT: &str = "websocket-port";
 const ENABLE_STATISTICS: &str = "enable-statistics";
-const STATISTICS_RECIPIENT: &str = "statistics-recipient";
 
-fn parse_args() -> ArgMatches {
-    App::new("Nym Network Requester")
-        .version(env!("CARGO_PKG_VERSION"))
-        .author("Nymtech")
-        .arg(
-            Arg::with_name(OPEN_PROXY_ARG)
-                .help("specifies whether this network requester should run in 'open-proxy' mode")
-                .long(OPEN_PROXY_ARG)
-                .short('o'),
-        )
-        .arg(
-            Arg::with_name(WS_PORT)
-                .help("websocket port to bind to")
-                .long(WS_PORT)
-                .short('p')
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(ENABLE_STATISTICS)
-                .help("enable service anonymized statistics that get sent to a statistics aggregator server")
-                .long(ENABLE_STATISTICS),
-        )
-        .arg(
-            Arg::with_name(STATISTICS_RECIPIENT)
-                .help("mixnet client address where a statistics aggregator is running. The default value is a Nym aggregator client")
-                .long(STATISTICS_RECIPIENT)
-                .requires(ENABLE_STATISTICS)
-                .takes_value(true),
-        )
-        .get_matches()
+#[derive(Args)]
+struct Run {
+    /// Specifies whether this network requester should run in 'open-proxy' mode
+    open_proxy: bool,
+
+    /// Websocket port to bind to
+    websocket_port: Option<String>,
+
+    /// Enable service anonymized statistics that get sent to a statistics aggregator server
+    enable_statistics: bool,
+
+    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym aggregator client
+    statistics_recipient: Option<String>,
+}
+
+impl Run {
+    async fn execute(&self) {
+        if self.open_proxy {
+            println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
+        }
+
+        if self.enable_statistics {
+            println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {} FLAG .\n\n", ENABLE_STATISTICS);
+        }
+
+        let stats_provider_addr = self
+            .statistics_recipient
+            .as_ref()
+            .map(Recipient::try_from_base58_string)
+            .transpose()
+            .unwrap_or(None);
+
+        let uri = format!(
+            "ws://localhost:{}",
+            self.websocket_port
+                .as_ref()
+                .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
+        );
+
+        println!("Starting socks5 service provider:");
+        let mut server = core::ServiceProvider::new(
+            uri,
+            self.open_proxy,
+            self.enable_statistics,
+            stats_provider_addr,
+        );
+        server.run().await;
+    }
+}
+
+#[derive(Subcommand)]
+pub(crate) enum Commands {
+    /// Run network requester
+    Run(Run),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
+}
+
+#[derive(Parser)]
+#[clap(author = "Nymtech", version, about)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Commands,
+}
+
+pub(crate) async fn execute(args: Cli) {
+    let bin_name = "nym-network-requester";
+
+    match &args.command {
+        Commands::Run(r) => r.execute().await,
+        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
+    }
 }
 
 #[tokio::main]
 async fn main() {
     setup_logging();
-    let matches = parse_args();
+    let args = Cli::parse();
 
-    let open_proxy = matches.is_present(OPEN_PROXY_ARG);
-    if open_proxy {
-        println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
-    }
-
-    let enable_statistics = matches.is_present(ENABLE_STATISTICS);
-    if enable_statistics {
-        println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {} FLAG .\n\n", ENABLE_STATISTICS);
-    }
-
-    let stats_provider_addr = matches
-        .value_of(STATISTICS_RECIPIENT)
-        .map(Recipient::try_from_base58_string)
-        .transpose()
-        .unwrap_or(None);
-
-    let uri = format!(
-        "ws://localhost:{}",
-        matches
-            .value_of(WS_PORT)
-            .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
-    );
-
-    println!("Starting socks5 service provider:");
-    let mut server =
-        core::ServiceProvider::new(uri, open_proxy, enable_statistics, stats_provider_addr);
-    server.run().await;
+    execute(args).await;
 }
 
 fn setup_logging() {

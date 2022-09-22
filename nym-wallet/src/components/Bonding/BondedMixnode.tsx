@@ -33,7 +33,7 @@ const headers: Header[] = [
   {
     header: 'Operator cost',
     id: 'operator-cost',
-    tooltipText: 'TODO', // TODO
+    // tooltipText: 'TODO', // TODO
   },
   {
     header: 'Operator rewards',
@@ -90,7 +90,7 @@ export const BondedMixnode = ({
       id: 'pm-cell',
     },
     {
-      cell: `${operatorCost} USD`,
+      cell: operatorCost ? `${operatorCost} USD` : '-',
       id: 'operator-cost-cell',
     },
     {

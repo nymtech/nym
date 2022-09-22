@@ -20,7 +20,6 @@ import {
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
   vestingBondMixNode,
-  vestingClaimOperatorReward,
   vestingUnbondGateway,
   vestingUnbondMixnode,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
@@ -29,6 +28,7 @@ import {
   getMixnodeStatus,
   getPendingOperatorRewards,
   getMixnodeStakeSaturation,
+  vestingClaimOperatorReward,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -46,7 +46,8 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
-  operatorCost: number;
+  operatorCost?: number;
+  host: string;
 };
 
 export interface TBondedGateway {
@@ -119,7 +120,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost: number } = {
+    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost?: number } = {
       status: 'not_found',
       stakeSaturation: '0',
       operatorCost: 0,
@@ -190,6 +191,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             status,
             stakeSaturation,
             operatorCost,
+            host: data.bond_information.mix_node.host,
           } as TBondedMixnode);
         }
       } catch (e: any) {

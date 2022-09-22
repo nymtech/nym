@@ -6,7 +6,7 @@ use crate::reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
 use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
 pub use contracts_common::events::*;
-use cosmwasm_std::{Addr, Coin, Event};
+use cosmwasm_std::{Addr, Coin, Decimal, Event};
 
 pub enum MixnetEventType {
     MixnodeBonding,
@@ -125,6 +125,8 @@ pub const DELEGATES_REWARD_KEY: &str = "delegates_reward";
 pub const APPROXIMATE_TIME_LEFT_SECS_KEY: &str = "approximate_time_left_secs";
 pub const INTERVAL_REWARDING_PARAMS_UPDATE_KEY: &str = "interval_rewarding_params_update";
 pub const UPDATED_INTERVAL_REWARDING_PARAMS_KEY: &str = "updated_interval_rewarding_params";
+pub const PRIOR_DELEGATES_KEY: &str = "prior_delegates";
+pub const PRIOR_UNIT_DELEGATION_KEY: &str = "prior_unit_delegation";
 
 pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
 pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
@@ -450,16 +452,16 @@ pub fn new_mix_rewarding_event(
     interval: Interval,
     node_id: NodeId,
     reward_distribution: RewardDistribution,
+    prior_delegates: Decimal,
+    prior_unit_delegation: Decimal,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
-        // TODO: to calculate Timmy's (delegator) reward at this time
-        // emit:
-        // - unit delegation BEFORE rewarding (to determine Timmy's state before rewarding happened)
-        // - total delegation BEFORE rewarding
         .add_attribute(
             INTERVAL_KEY,
             interval.current_epoch_absolute_id().to_string(),
         )
+        .add_attribute(PRIOR_DELEGATES_KEY, prior_delegates.to_string())
+        .add_attribute(PRIOR_UNIT_DELEGATION_KEY, prior_unit_delegation.to_string())
         .add_attribute(NODE_ID_KEY, node_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,

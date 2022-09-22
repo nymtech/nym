@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { isMixnode } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
@@ -74,6 +74,7 @@ export const BondedMixnode = ({
     delegators,
     status,
     identityKey,
+    host,
   } = mixnode;
   const cells: Cell[] = [
     {
@@ -109,6 +110,7 @@ export const BondedMixnode = ({
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
+          disabledBondMore // TODO for now disable bond more feature until backend is ready
         />
       ),
       id: 'actions-cell',
@@ -128,9 +130,11 @@ export const BondedMixnode = ({
             <NodeStatus status={status} />
           </Box>
           {name && (
-            <Typography fontWeight="regular" variant="h6">
-              {name}
-            </Typography>
+            <Tooltip title={host} arrow>
+              <Typography fontWeight="regular" variant="h6">
+                {name}
+              </Typography>
+            </Tooltip>
           )}
           <IdentityKey identityKey={identityKey} />
         </Stack>

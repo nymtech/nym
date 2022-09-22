@@ -18,7 +18,10 @@ export const LoadingModal: React.FC<{
   backdropProps?: object;
 }> = ({ sx, backdropProps }) => (
   <Modal open BackdropProps={backdropProps}>
-    <Box sx={sx ? { ...modalStyle, ...sx } : { ...modalStyle }} textAlign="center">
+    <Box
+      sx={{ border: (t) => `1px solid ${t.palette.nym.nymWallet.modal.border}`, ...modalStyle, ...sx }}
+      textAlign="center"
+    >
       <Stack spacing={4} direction="row" alignItems="center">
         <CircularProgress />
         <Typography sx={{ color: 'text.primary' }}>Please wait...</Typography>

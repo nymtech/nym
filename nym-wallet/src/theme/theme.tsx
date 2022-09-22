@@ -59,6 +59,9 @@ const darkMode: NymPaletteVariant = {
   hover: {
     background: '#36393E',
   },
+  modal: {
+    border: '#484d53',
+  },
 };
 
 const lightMode: NymPaletteVariant = {
@@ -85,6 +88,9 @@ const lightMode: NymPaletteVariant = {
   },
   hover: {
     background: '#F9F9F9',
+  },
+  modal: {
+    border: 'transparent',
   },
 };
 

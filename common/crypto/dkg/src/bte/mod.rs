@@ -243,7 +243,7 @@ impl Zeroize for Tau {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd)]
 pub struct Epoch(EpochStore);
 
 impl Epoch {
@@ -317,6 +317,30 @@ pub fn setup() -> Params {
 
     Params {
         lambda_t: MAX_EPOCHS_EXP,
+        lambda_h: HASH_SECURITY_PARAM,
+        f0,
+        fs,
+        fh,
+        h,
+        _h_prepared: G2Prepared::from(h.to_affine()),
+    }
+}
+
+pub fn setup_no_fwd_secrecy() -> Params {
+    let f0 = hash_g2(b"f0", SETUP_DOMAIN);
+
+    let fs = (1..=1)
+        .map(|i| hash_g2(format!("f{}", i), SETUP_DOMAIN))
+        .collect();
+
+    let fh = (0..HASH_SECURITY_PARAM)
+        .map(|i| hash_g2(format!("fh{}", i), SETUP_DOMAIN))
+        .collect();
+
+    let h = hash_g2(b"h", SETUP_DOMAIN);
+
+    Params {
+        lambda_t: 1,
         lambda_h: HASH_SECURITY_PARAM,
         f0,
         fs,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bls12_381::{G2Projective, Scalar};
-use dkg::bte::{decrypt_share, keygen, setup, Epoch};
+use dkg::bte::{decrypt_share, keygen, setup, setup_no_fwd_secrecy, Epoch};
 use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use dkg::{combine_shares, try_recover_verification_keys, Dealing};
 use rand_core::SeedableRng;
@@ -264,6 +264,125 @@ fn full_threshold_secret_resharing() {
         let shares = resharing_dealings
             .iter()
             .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, next_epoch, None).unwrap())
+            .collect();
+
+        let recovered_secret =
+            combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap();
+
+        reshared_secrets.push(recovered_secret)
+    }
+
+    let reshared_master = perform_lagrangian_interpolation_at_origin(&[
+        (Scalar::from(node_indices[0]), reshared_secrets[0]),
+        (Scalar::from(node_indices[1]), reshared_secrets[1]),
+    ])
+    .unwrap();
+
+    // the master secret and public values didn't change
+    assert_eq!(original_master, reshared_master);
+    assert_eq!(public_original_master, public_reshared_master);
+
+    // but partials did
+    assert_ne!(derived_secrets, reshared_secrets);
+    assert_ne!(recovered_partials, reshared_partials);
+}
+
+#[test]
+#[ignore] // expensive test
+fn full_threshold_secret_resharing_no_epochs() {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup_no_fwd_secrecy();
+
+    // the simplest possible case
+    let threshold = 2;
+
+    // the indices are going to get assigned externally, so for test sake, use non-consecutive ones
+    let node_indices = vec![15u64, 248, 33521];
+
+    let mut receivers = BTreeMap::new();
+    let mut full_keys = Vec::new();
+    for index in &node_indices {
+        let (dk, pk) = keygen(&params, &mut rng);
+        receivers.insert(*index, *pk.public_key());
+        full_keys.push((dk, pk))
+    }
+
+    // start off in a default epoch (root);
+    let epoch = Epoch::default();
+
+    let first_dealings = node_indices
+        .iter()
+        .map(|&dealer_index| {
+            Dealing::create(
+                &mut rng,
+                &params,
+                dealer_index,
+                threshold,
+                epoch,
+                &receivers,
+                None,
+            )
+            .0
+        })
+        .collect::<Vec<_>>();
+
+    // recover verification keys
+    let (public_original_master, recovered_partials) =
+        try_recover_verification_keys(&first_dealings, threshold, &receivers).unwrap();
+
+    let mut derived_secrets = Vec::new();
+    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+        let shares = first_dealings
+            .iter()
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap())
+            .collect();
+
+        let recovered_secret =
+            combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap();
+
+        derived_secrets.push(recovered_secret)
+    }
+
+    let original_master = perform_lagrangian_interpolation_at_origin(&[
+        (Scalar::from(node_indices[0]), derived_secrets[0]),
+        (Scalar::from(node_indices[1]), derived_secrets[1]),
+    ])
+    .unwrap();
+
+    // attempt to create resharing dealings!
+    let resharing_dealings = node_indices
+        .iter()
+        .zip(derived_secrets.iter())
+        .map(|(&dealer_index, prior_secret)| {
+            Dealing::create(
+                &mut rng,
+                &params,
+                dealer_index,
+                threshold,
+                epoch,
+                &receivers,
+                Some(*prior_secret),
+            )
+            .0
+        })
+        .collect::<Vec<_>>();
+
+    for (reshared_dealing, prior_vk) in resharing_dealings.iter().zip(recovered_partials.iter()) {
+        reshared_dealing
+            .verify(&params, epoch, threshold, &receivers, Some(*prior_vk))
+            .unwrap();
+    }
+
+    // recover verification keys
+    let (public_reshared_master, reshared_partials) =
+        try_recover_verification_keys(&resharing_dealings, threshold, &receivers).unwrap();
+
+    let mut reshared_secrets = Vec::new();
+    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+        let shares = resharing_dealings
+            .iter()
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap())
             .collect();
 
         let recovered_secret =

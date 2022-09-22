@@ -170,7 +170,7 @@ fn get_login_entry(login: &Value) -> Result<(&str, &str, &str)> {
 }
 
 fn base64_decode(ciphertext: &str, iv: &str, salt: &str) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
-    let ciphertext = base64::decode(&ciphertext)
+    let ciphertext = base64::decode(ciphertext)
         .map_err(|err| anyhow!("Unable to base64 decode ciphertext: {}", err))?;
     let iv = base64::decode(iv).map_err(|err| anyhow!("Unable to base64 decode iv: {}", err))?;
     let salt =

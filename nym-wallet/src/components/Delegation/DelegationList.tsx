@@ -13,39 +13,25 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { DelegationEvent, DelegationWithEverything } from '@nymproject/types';
+import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
-import { styled } from '@mui/material/styles';
-import { tableCellClasses } from '@mui/material/TableCell';
+import { format } from 'date-fns';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
-import { DelegationWithEvent, isPendingDelegation, TDelegations } from '../../context/delegations';
-
-const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
-  [`&.${tableCellClasses.head}`]: {
-    color: theme.palette.common.white,
-    opacity: 0.5,
-    fontSize: 12,
-  },
-  [`&.${tableCellClasses.body}`]: {
-    color: theme.palette.common.white,
-    fontSize: 12,
-  },
-}));
+import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
+import { toPercentIntegerString } from '../../utils';
 
 type Order = 'asc' | 'desc';
 
 interface EnhancedTableProps {
-  onRequestSort: (event: React.MouseEvent<unknown>, property: keyof DelegationWithEverything) => void;
+  onRequestSort: (event: React.MouseEvent<unknown>, property: string) => void;
   order: Order;
   orderBy: string;
 }
 
 interface HeadCell {
-  id: keyof DelegationWithEverything;
+  id: string;
   label: string;
   sortable: boolean;
   disablePadding?: boolean;
@@ -59,10 +45,10 @@ const headCells: HeadCell[] = [
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
-  { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'left' },
+  { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
 
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
+function descendingComparator(a: any, b: any, orderBy: string) {
   if (b[orderBy] < a[orderBy]) {
     return -1;
   }
@@ -79,27 +65,22 @@ function sortPendingDelegation(a: DelegationWithEvent, b: DelegationWithEvent) {
   return 2;
 }
 
-function getComparator<Key extends keyof DelegationWithEverything>(
-  order: Order,
-  orderBy: Key,
-): (a: DelegationWithEvent, b: DelegationWithEvent) => number {
+function getComparator(order: Order, orderBy: string): (a: DelegationWithEvent, b: DelegationWithEvent) => number {
   return order === 'desc'
     ? (a, b) => {
         const pendingSort = sortPendingDelegation(a, b);
-        if (pendingSort === 2)
-          return descendingComparator(a as DelegationWithEverything, b as DelegationWithEverything, orderBy);
+        if (pendingSort === 2) return descendingComparator(a, b, orderBy);
         return pendingSort;
       }
     : (a, b) => {
         const pendingSort = -sortPendingDelegation(a, b);
-        if (pendingSort === 2)
-          return -descendingComparator(a as DelegationWithEverything, b as DelegationWithEverything, orderBy);
+        if (pendingSort === 2) return -descendingComparator(a, b, orderBy);
         return pendingSort;
       };
 }
 
 const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
-  const createSortHandler = (property: keyof DelegationWithEverything) => (event: React.MouseEvent<unknown>) => {
+  const createSortHandler = (property: string) => (event: React.MouseEvent<unknown>) => {
     onRequestSort(event, property);
   };
 
@@ -140,14 +121,22 @@ export const DelegationList: React.FC<{
   items?: TDelegations;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
   explorerUrl: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
-  const [orderBy, setOrderBy] = React.useState<keyof DelegationWithEverything>('delegated_on_iso_datetime');
+  const [orderBy, setOrderBy] = React.useState<string>('delegated_on_iso_datetime');
 
-  const handleRequestSort = (event: React.MouseEvent<unknown>, property: keyof DelegationWithEverything) => {
+  const handleRequestSort = (event: React.MouseEvent<unknown>, property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
+  };
+
+  const getStakeSaturation = (item: DelegationWithEvent) => {
+    if (isDelegation(item)) {
+      return !item.stake_saturation ? '-' : `${decimalToPercentage(item.stake_saturation)}%`;
+    }
+    return '';
   };
 
   const getRewardValue = (item: DelegationWithEvent) => {
@@ -155,8 +144,8 @@ export const DelegationList: React.FC<{
       return '';
     }
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { accumulated_rewards } = item;
-    return !accumulated_rewards ? '-' : `${accumulated_rewards.amount} ${accumulated_rewards.denom}`;
+    const { unclaimed_rewards } = item;
+    return !unclaimed_rewards ? '-' : `${unclaimed_rewards.amount} ${unclaimed_rewards.denom}`;
   };
 
   return (
@@ -177,74 +166,33 @@ export const DelegationList: React.FC<{
                   />
                 </TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
+                  {isDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
                 </TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) && (!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`)}
+                  {isDelegation(item) &&
+                    (!item.cost_params?.profit_margin_percent
+                      ? '-'
+                      : `${toPercentIntegerString(item.cost_params.profit_margin_percent)}%`)}
+                </TableCell>
+                <TableCell>{getStakeSaturation(item)}</TableCell>
+                <TableCell>
+                  {isDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
                 </TableCell>
                 <TableCell>
-                  {!isPendingDelegation(item) &&
-                    (!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`)}
-                </TableCell>
-                <TableCell>
-                  {!isPendingDelegation(item) && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
-                </TableCell>
-                <TableCell>
-                  <Tooltip
-                    placement="right"
-                    title={
-                      <TableContainer component={Box} color="white">
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <StyledTooltipTableCell>Date</StyledTooltipTableCell>
-                              <StyledTooltipTableCell>Amount</StyledTooltipTableCell>
-                              <StyledTooltipTableCell>Block Height</StyledTooltipTableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {!isPendingDelegation(item) &&
-                              item.history.map((historyItem) => (
-                                <TableRow key={`${historyItem.block_height}`}>
-                                  <StyledTooltipTableCell>
-                                    {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
-                                      addSuffix: true,
-                                    })}
-                                  </StyledTooltipTableCell>
-                                  <StyledTooltipTableCell>
-                                    <Typography fontSize="inherit" noWrap>
-                                      {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
-                                      {historyItem.uses_vesting_contract_tokens && (
-                                        <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
-                                      )}
-                                    </Typography>
-                                  </StyledTooltipTableCell>
-                                  <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
-                                </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    }
-                    arrow
-                  >
-                    <span style={{ cursor: 'pointer', textTransform: 'uppercase' }}>
-                      {!isPendingDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
-                    </span>
-                  </Tooltip>
+                  <Typography style={{ textTransform: 'uppercase' }}>
+                    {isDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
+                  </Typography>
                 </TableCell>
                 <TableCell sx={{ textTransform: 'uppercase' }}>{getRewardValue(item)}</TableCell>
-
                 <TableCell align="right">
-                  {!isPendingDelegation(item) && !item.pending_events.length && (
+                  {isDelegation(item) && !item.pending_events.length && (
                     <DelegationsActionsMenu
                       isPending={undefined}
                       onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
-                      disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
+                      disableRedeemingRewards={!item.unclaimed_rewards || item.unclaimed_rewards.amount === '0'}
                     />
                   )}
-                  {!isPendingDelegation(item) && item.pending_events.length > 0 && (
+                  {isDelegation(item) && item.pending_events.length > 0 && (
                     <Tooltip
                       title="Your changes will take effect when
 the new epoch starts. There is a new
@@ -256,7 +204,7 @@ epoch every hour."
                   )}
                   {isPendingDelegation(item) && (
                     <Tooltip
-                      title={`Your delegation of ${item.amount?.amount} ${item.amount?.denom} will take effect 
+                      title={`Your delegation of ${item.event.amount?.amount} ${item.event.amount?.denom} will take effect 
                         when the new epoch starts. There is a new
                         epoch every hour.`}
                       arrow

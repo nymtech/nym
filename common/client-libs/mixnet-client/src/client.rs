@@ -186,7 +186,7 @@ impl Client {
                 address.into(),
                 receiver,
                 initial_connection_timeout,
-                &*current_reconnection_attempt,
+                &current_reconnection_attempt,
             )
             .await
         });

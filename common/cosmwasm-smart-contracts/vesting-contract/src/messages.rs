@@ -1,5 +1,8 @@
 use cosmwasm_std::{Coin, Timestamp, Uint128};
-use mixnet_contract_common::{Gateway, IdentityKey, MixNode};
+use mixnet_contract_common::{
+    mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
+    Gateway, MixNode, NodeId,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +15,9 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    pub v2_mixnet_contract_address: String,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, Default)]
 pub struct VestingSpecification {
@@ -56,24 +61,23 @@ pub enum ExecuteMsg {
     },
     ClaimOperatorReward {},
     ClaimDelegatorReward {
-        mix_identity: String,
+        mix_id: NodeId,
     },
-    CompoundDelegatorReward {
-        mix_identity: String,
+    UpdateMixnodeCostParams {
+        new_costs: MixNodeCostParams,
     },
-    CompoundOperatorReward {},
     UpdateMixnodeConfig {
-        profit_margin_percent: u8,
+        new_config: MixNodeConfigUpdate,
     },
     UpdateMixnetAddress {
         address: String,
     },
     DelegateToMixnode {
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
         amount: Coin,
     },
     UndelegateFromMixnode {
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
     },
     CreateAccount {
         owner_address: String,
@@ -85,11 +89,12 @@ pub enum ExecuteMsg {
     },
     TrackUndelegation {
         owner: String,
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
         amount: Coin,
     },
     BondMixnode {
         mix_node: MixNode,
+        cost_params: MixNodeCostParams,
         owner_signature: String,
         amount: Coin,
     },
@@ -117,6 +122,35 @@ pub enum ExecuteMsg {
     UpdateLockedPledgeCap {
         amount: Uint128,
     },
+}
+
+impl ExecuteMsg {
+    pub fn name(&self) -> &str {
+        match self {
+            ExecuteMsg::TrackReward { .. } => "VestingExecuteMsg::TrackReward",
+            ExecuteMsg::ClaimOperatorReward { .. } => "VestingExecuteMsg::ClaimOperatorReward",
+            ExecuteMsg::ClaimDelegatorReward { .. } => "VestingExecuteMsg::ClaimDelegatorReward",
+            ExecuteMsg::UpdateMixnodeConfig { .. } => "VestingExecuteMsg::UpdateMixnodeConfig",
+            ExecuteMsg::UpdateMixnodeCostParams { .. } => {
+                "VestingExecuteMsg::UpdateMixnodeCostParams"
+            }
+            ExecuteMsg::UpdateMixnetAddress { .. } => "VestingExecuteMsg::UpdateMixnetAddress",
+            ExecuteMsg::DelegateToMixnode { .. } => "VestingExecuteMsg::DelegateToMixnode",
+            ExecuteMsg::UndelegateFromMixnode { .. } => "VestingExecuteMsg::UndelegateFromMixnode",
+            ExecuteMsg::CreateAccount { .. } => "VestingExecuteMsg::CreateAccount",
+            ExecuteMsg::WithdrawVestedCoins { .. } => "VestingExecuteMsg::WithdrawVestedCoins",
+            ExecuteMsg::TrackUndelegation { .. } => "VestingExecuteMsg::TrackUndelegation",
+            ExecuteMsg::BondMixnode { .. } => "VestingExecuteMsg::BondMixnode",
+            ExecuteMsg::UnbondMixnode { .. } => "VestingExecuteMsg::UnbondMixnode",
+            ExecuteMsg::TrackUnbondMixnode { .. } => "VestingExecuteMsg::TrackUnbondMixnode",
+            ExecuteMsg::BondGateway { .. } => "VestingExecuteMsg::BondGateway",
+            ExecuteMsg::UnbondGateway { .. } => "VestingExecuteMsg::UnbondGateway",
+            ExecuteMsg::TrackUnbondGateway { .. } => "VestingExecuteMsg::TrackUnbondGateway",
+            ExecuteMsg::TransferOwnership { .. } => "VestingExecuteMsg::TransferOwnership",
+            ExecuteMsg::UpdateStakingAddress { .. } => "VestingExecuteMsg::UpdateStakingAddress",
+            ExecuteMsg::UpdateLockedPledgeCap { .. } => "VestingExecuteMsg::UpdateLockedPledgeCap",
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -170,10 +204,10 @@ pub enum QueryMsg {
     GetLockedPledgeCap {},
     GetDelegationTimes {
         address: String,
-        mix_identity: IdentityKey,
+        mix_id: NodeId,
     },
     GetAllDelegations {
-        start_after: Option<(u32, IdentityKey, u64)>,
+        start_after: Option<(u32, NodeId, u64)>,
         limit: Option<u32>,
     },
 }

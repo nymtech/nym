@@ -6,6 +6,7 @@ use clap::Parser;
 use log::{info, warn};
 use mixnet_contract_common::Coin;
 use network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
+use validator_client::nymd::traits::MixnetSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

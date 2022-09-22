@@ -2,6 +2,12 @@ name: Publish Nym binaries
 
 on:
   workflow_dispatch:
+    inputs:  
+      add_tokio_unstable:
+        description: 'True to add RUSTFLAGS="--cfg tokio_unstable"'
+        required: true
+        default: false
+        type: boolean 
   release:
     types: [created]
     
@@ -25,6 +31,11 @@ jobs:
         with:
           script: |
             core.setFailed('Release tag did not start with nym-binaries-...')
+            
+      - name: Sets env vars for tokio if set in manual dispatch inputs
+        run: |
+          echo 'RUSTFLAGS="--cfg tokio_unstable"' >> $GITHUB_ENV
+        if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

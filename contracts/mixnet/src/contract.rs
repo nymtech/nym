@@ -1,82 +1,40 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{ACTIVE_SET_WORK_FACTOR, INTERVAL_REWARD_PERCENT, SYBIL_RESISTANCE_PERCENT};
-use crate::delegations::queries::query_delegator_delegations_paged;
-use crate::delegations::queries::query_mixnode_delegation;
-use crate::delegations::queries::{
-    query_mixnode_delegations_paged, query_pending_delegation_events,
-};
-use crate::error::ContractError;
-use crate::gateways::queries::query_owns_gateway;
-use crate::gateways::queries::{query_gateway_bond, query_gateways_paged};
-use crate::interval::queries::query_current_epoch;
-use crate::interval::queries::{
-    query_current_rewarded_set_height, query_rewarded_set,
-    query_rewarded_set_refresh_minimum_blocks, query_rewarded_set_update_details,
-};
-use crate::interval::transactions::{init_epoch, try_init_epoch};
-use crate::mixnet_contract_settings::models::ContractState;
-use crate::mixnet_contract_settings::queries::{
-    query_contract_settings_params, query_contract_version, query_rewarding_validator_address,
-};
+use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
+use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address;
-use crate::mixnodes::bonding_queries as mixnode_queries;
-use crate::mixnodes::bonding_queries::{
-    query_checkpoints_for_mixnode, query_mixnode_at_height, query_mixnodes_paged,
-};
-use crate::mixnodes::layer_queries::query_layer_distribution;
-use crate::mixnodes::transactions::_try_remove_mixnode;
-use crate::rewards::queries::{
-    query_circulating_supply, query_reward_pool, query_rewarding_status, query_staking_supply,
-};
+use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Api, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Storage, Uint128,
+    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
+use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeToRemove, QueryMsg,
+    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
-use time::OffsetDateTime;
-
-/// Constant specifying minimum of coin required to bond a gateway
-pub const INITIAL_GATEWAY_PLEDGE: Uint128 = Uint128::new(100_000_000);
-
-/// Constant specifying minimum of coin required to bond a mixnode
-pub const INITIAL_MIXNODE_PLEDGE: Uint128 = Uint128::new(100_000_000);
-
-pub const INITIAL_MIXNODE_REWARDED_SET_SIZE: u32 = 200;
-pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
-
-pub const INITIAL_REWARD_POOL: u128 = 250_000_000_000_000;
-pub const INITIAL_ACTIVE_SET_WORK_FACTOR: u8 = 10;
-
-pub const DEFAULT_FIRST_INTERVAL_START: OffsetDateTime =
-    time::macros::datetime!(2022-01-01 12:00 UTC);
-
-pub const INITIAL_STAKING_SUPPLY: Uint128 = Uint128::new(100_000_000_000_000);
-
-pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
-    api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
-}
 
 fn default_initial_state(
     owner: Addr,
-    mix_denom: String,
     rewarding_validator_address: Addr,
+    rewarding_denom: String,
+    vesting_contract_address: Addr,
 ) -> ContractState {
     ContractState {
         owner,
-        mix_denom,
         rewarding_validator_address,
+        vesting_contract_address,
+        rewarding_denom: rewarding_denom.clone(),
         params: ContractStateParams {
-            minimum_mixnode_pledge: INITIAL_MIXNODE_PLEDGE,
-            minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
-            mixnode_rewarded_set_size: INITIAL_MIXNODE_REWARDED_SET_SIZE,
-            mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-            staking_supply: INITIAL_STAKING_SUPPLY,
+            minimum_mixnode_delegation: None,
+            minimum_mixnode_pledge: Coin {
+                denom: rewarding_denom.clone(),
+                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+            },
+            minimum_gateway_pledge: Coin {
+                denom: rewarding_denom,
+                amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
+            },
         },
     }
 }
@@ -92,14 +50,25 @@ pub fn instantiate(
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
-    let state = default_initial_state(info.sender, msg.mixnet_denom, rewarding_validator_address);
-    init_epoch(deps.storage, env)?;
+    let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
+    let state = default_initial_state(
+        info.sender,
+        rewarding_validator_address,
+        msg.rewarding_denom,
+        vesting_contract_address,
+    );
+    let starting_interval =
+        Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
+    let reward_params = msg
+        .initial_rewarding_params
+        .into_rewarding_params(msg.epochs_in_interval);
 
-    mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
-    mixnet_params_storage::LAYERS.save(deps.storage, &Default::default())?;
-    rewards_storage::REWARD_POOL.save(deps.storage, &Uint128::new(INITIAL_REWARD_POOL))?;
+    interval_storage::initialise_storage(deps.storage, starting_interval)?;
+    mixnet_params_storage::initialise_storage(deps.storage, state)?;
+    mixnode_storage::initialise_storage(deps.storage)?;
+    rewards_storage::initialise_storage(deps.storage, reward_params)?;
 
     Ok(Response::default())
 }
@@ -111,56 +80,118 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     match msg {
-        ExecuteMsg::CompoundReward {
-            operator,
-            delegator,
-            mix_identity,
-            proxy,
-        } => crate::rewards::transactions::try_compound_reward(
+        // state/sys-params-related
+        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
+            crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(
+                deps, info, address,
+            )
+        }
+        ExecuteMsg::UpdateContractStateParams { updated_parameters } => {
+            crate::mixnet_contract_settings::transactions::try_update_contract_settings(
+                deps,
+                info,
+                updated_parameters,
+            )
+        }
+        ExecuteMsg::UpdateActiveSetSize {
+            active_set_size,
+            force_immediately,
+        } => crate::rewards::transactions::try_update_active_set_size(
             deps,
             env,
-            operator,
-            delegator,
-            mix_identity,
-            proxy,
+            info,
+            active_set_size,
+            force_immediately,
         ),
-        ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
-            try_update_rewarding_validator_address(deps, info, address)
+        ExecuteMsg::UpdateRewardingParams {
+            updated_params,
+            force_immediately,
+        } => crate::rewards::transactions::try_update_rewarding_params(
+            deps,
+            env,
+            info,
+            updated_params,
+            force_immediately,
+        ),
+        ExecuteMsg::UpdateIntervalConfig {
+            epochs_in_interval,
+            epoch_duration_secs,
+            force_immediately,
+        } => crate::interval::transactions::try_update_interval_config(
+            deps,
+            env,
+            info,
+            epochs_in_interval,
+            epoch_duration_secs,
+            force_immediately,
+        ),
+        ExecuteMsg::AdvanceCurrentEpoch {
+            new_rewarded_set,
+            expected_active_set_size,
+        } => crate::interval::transactions::try_advance_epoch(
+            deps,
+            env,
+            info,
+            new_rewarded_set,
+            expected_active_set_size,
+        ),
+        ExecuteMsg::ReconcileEpochEvents { limit } => {
+            crate::interval::transactions::try_reconcile_epoch_events(deps, env, limit)
         }
-        ExecuteMsg::InitEpoch {} => try_init_epoch(info, deps.storage, env),
+
+        // mixnode-related:
         ExecuteMsg::BondMixnode {
             mix_node,
+            cost_params,
             owner_signature,
         } => crate::mixnodes::transactions::try_add_mixnode(
             deps,
             env,
             info,
             mix_node,
+            cost_params,
+            owner_signature,
+        ),
+        ExecuteMsg::BondMixnodeOnBehalf {
+            mix_node,
+            cost_params,
+            owner,
+            owner_signature,
+        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
+            deps,
+            env,
+            info,
+            mix_node,
+            cost_params,
+            owner,
             owner_signature,
         ),
         ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::transactions::try_remove_mixnode(&env, deps.storage, deps.api, info)
+            crate::mixnodes::transactions::try_remove_mixnode(deps, info)
         }
-        ExecuteMsg::UpdateMixnodeConfig {
-            profit_margin_percent,
-        } => crate::mixnodes::transactions::try_update_mixnode_config(
-            deps,
-            env,
-            info,
-            profit_margin_percent,
-        ),
-        ExecuteMsg::UpdateMixnodeConfigOnBehalf {
-            profit_margin_percent,
-            owner,
-        } => crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
-            deps,
-            env,
-            info,
-            profit_margin_percent,
-            owner,
-        ),
+        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+        }
+        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
+            crate::mixnodes::transactions::try_update_mixnode_cost_params(deps, info, new_costs)
+        }
+        ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { new_costs, owner } => {
+            crate::mixnodes::transactions::try_update_mixnode_cost_params_on_behalf(
+                deps, info, new_costs, owner,
+            )
+        }
+        ExecuteMsg::UpdateMixnodeConfig { new_config } => {
+            crate::mixnodes::transactions::try_update_mixnode_config(deps, info, new_config)
+        }
+        ExecuteMsg::UpdateMixnodeConfigOnBehalf { new_config, owner } => {
+            crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
+                deps, info, new_config, owner,
+            )
+        }
+
+        // gateway-related:
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,
@@ -171,78 +202,6 @@ pub fn execute(
             gateway,
             owner_signature,
         ),
-        ExecuteMsg::UnbondGateway {} => {
-            crate::gateways::transactions::try_remove_gateway(deps, info)
-        }
-        ExecuteMsg::UpdateContractStateParams(params) => {
-            crate::mixnet_contract_settings::transactions::try_update_contract_settings(
-                deps, info, params,
-            )
-        }
-        ExecuteMsg::RewardMixnode { identity, params } => {
-            crate::rewards::transactions::try_reward_mixnode(deps, env, info, identity, params)
-        }
-        ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
-        }
-        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode(
-                deps,
-                env,
-                info,
-                mix_identity,
-            )
-        }
-        // ExecuteMsg::RewardNextMixDelegators {
-        //     mix_identity,
-        //     interval_id,
-        // } => crate::rewards::transactions::try_reward_next_mixnode_delegators(
-        //     deps,
-        //     info,
-        //     mix_identity,
-        //     interval_id,
-        // ),
-        ExecuteMsg::DelegateToMixnodeOnBehalf {
-            mix_identity,
-            delegate,
-        } => crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_identity,
-            delegate,
-        ),
-        ExecuteMsg::UndelegateFromMixnodeOnBehalf {
-            mix_identity,
-            delegate,
-        } => crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_identity,
-            delegate,
-        ),
-        ExecuteMsg::BondMixnodeOnBehalf {
-            mix_node,
-            owner,
-            owner_signature,
-        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_node,
-            owner,
-            owner_signature,
-        ),
-        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(
-                &env,
-                deps.storage,
-                deps.api,
-                info,
-                owner,
-            )
-        }
         ExecuteMsg::BondGatewayOnBehalf {
             gateway,
             owner,
@@ -255,303 +214,341 @@ pub fn execute(
             owner,
             owner_signature,
         ),
+        ExecuteMsg::UnbondGateway {} => {
+            crate::gateways::transactions::try_remove_gateway(deps, info)
+        }
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
-        ExecuteMsg::WriteRewardedSet {
-            rewarded_set,
-            expected_active_set_size,
-        } => crate::interval::transactions::try_write_rewarded_set(
-            deps,
-            env,
-            info,
-            rewarded_set,
-            expected_active_set_size,
-        ),
-        ExecuteMsg::AdvanceCurrentEpoch {} => crate::interval::transactions::try_advance_epoch(
-            env,
-            deps.storage,
-            info.sender.to_string(),
-        ),
-        ExecuteMsg::CompoundDelegatorReward { mix_identity } => {
-            crate::rewards::transactions::try_compound_delegator_reward(
-                deps,
-                env,
-                info,
-                mix_identity,
+
+        // delegation-related:
+        ExecuteMsg::DelegateToMixnode { mix_id } => {
+            crate::delegations::transactions::try_delegate_to_mixnode(deps, info, mix_id)
+        }
+        ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, delegate } => {
+            crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
+                deps, info, mix_id, delegate,
             )
         }
-        ExecuteMsg::CompoundOperatorReward {} => {
-            crate::rewards::transactions::try_compound_operator_reward(deps, env, info)
+        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
+            crate::delegations::transactions::try_remove_delegation_from_mixnode(deps, info, mix_id)
         }
-        ExecuteMsg::CompoundDelegatorRewardOnBehalf {
-            owner,
-            mix_identity,
-        } => crate::rewards::transactions::try_compound_delegator_reward_on_behalf(
-            deps,
-            env,
-            info,
-            owner,
-            mix_identity,
-        ),
-        ExecuteMsg::CompoundOperatorRewardOnBehalf { owner } => {
-            crate::rewards::transactions::try_compound_operator_reward_on_behalf(
-                deps, env, info, owner,
+        ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, delegate } => {
+            crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
+                deps, info, mix_id, delegate,
             )
         }
-        ExecuteMsg::ReconcileDelegations {} => {
-            crate::delegations::transactions::try_reconcile_all_delegation_events(deps)
+
+        // reward-related
+        ExecuteMsg::RewardMixnode {
+            mix_id,
+            performance,
+        } => crate::rewards::transactions::try_reward_mixnode(deps, env, info, mix_id, performance),
+
+        ExecuteMsg::WithdrawOperatorReward {} => {
+            crate::rewards::transactions::try_withdraw_operator_reward(deps, info)
         }
-        ExecuteMsg::CheckpointMixnodes {} => {
-            crate::mixnodes::transactions::try_checkpoint_mixnodes(
-                deps.storage,
-                env.block.height,
-                info,
+        ExecuteMsg::WithdrawOperatorRewardOnBehalf { owner } => {
+            crate::rewards::transactions::try_withdraw_operator_reward_on_behalf(deps, info, owner)
+        }
+        ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
+            crate::rewards::transactions::try_withdraw_delegator_reward(deps, info, mix_id)
+        }
+        ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, owner } => {
+            crate::rewards::transactions::try_withdraw_delegator_reward_on_behalf(
+                deps, info, mix_id, owner,
             )
         }
-        ExecuteMsg::ClaimOperatorReward {} => {
-            crate::rewards::transactions::try_claim_operator_reward(deps, &env, &info)
-        }
-        ExecuteMsg::ClaimOperatorRewardOnBehalf { owner } => {
-            crate::rewards::transactions::try_claim_operator_reward_on_behalf(
-                deps, &env, &info, owner,
-            )
-        }
-        ExecuteMsg::ClaimDelegatorReward { mix_identity } => {
-            crate::rewards::transactions::try_claim_delegator_reward(
-                deps,
-                &env,
-                &info,
-                &mix_identity,
-            )
-        }
-        ExecuteMsg::ClaimDelegatorRewardOnBehalf {
-            mix_identity,
-            owner,
-        } => crate::rewards::transactions::try_claim_delegator_reward_on_behalf(
-            deps,
-            &env,
-            &info,
-            owner,
-            &mix_identity,
-        ),
     }
 }
 
 #[entry_point]
-pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(
+    deps: Deps<'_>,
+    env: Env,
+    msg: QueryMsg,
+) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
-        QueryMsg::GetBlacklistedNodes {} => to_binary(
-            &crate::mixnodes::bonding_queries::get_blacklisted_nodes(deps),
+        QueryMsg::GetContractVersion {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
+        }
+        QueryMsg::GetStateParams {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
         ),
-        QueryMsg::GetRewardingValidatorAddress {} => {
-            to_binary(&query_rewarding_validator_address(deps)?)
+        QueryMsg::GetRewardingValidatorAddress {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_rewarding_validator_address(deps)?,
+        ),
+        QueryMsg::GetState {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
         }
-        QueryMsg::GetContractVersion {} => to_binary(&query_contract_version()),
-        QueryMsg::GetMixNodes { start_after, limit } => {
-            to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
+        QueryMsg::GetRewardingParams {} => {
+            to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
         }
-        QueryMsg::GetGateways { limit, start_after } => {
-            to_binary(&query_gateways_paged(deps, start_after, limit)?)
+        QueryMsg::GetCurrentIntervalDetails {} => to_binary(
+            &crate::interval::queries::query_current_interval_details(deps, env)?,
+        ),
+        QueryMsg::GetRewardedSet { limit, start_after } => to_binary(
+            &crate::interval::queries::query_rewarded_set_paged(deps, start_after, limit)?,
+        ),
+
+        // mixnode-related:
+        QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetMixNodesDetailed { start_after, limit } => to_binary(
+            &crate::mixnodes::queries::query_mixnodes_details_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetUnbondedMixNodesByOwner {
+            owner,
+            limit,
+            start_after,
+        } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_by_owner_paged(
+                deps,
+                owner,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetUnbondedMixNodesByIdentityKey {
+            identity_key,
+            limit,
+            start_after,
+        } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_by_identity_paged(
+                deps,
+                identity_key,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetOwnedMixnode { address } => to_binary(
+            &crate::mixnodes::queries::query_owned_mixnode(deps, address)?,
+        ),
+        QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_details(deps, mix_id)?,
+        ),
+        QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_rewarding_details(deps, mix_id)?,
+        ),
+        QueryMsg::GetStakeSaturation { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_stake_saturation(deps, mix_id)?,
+        ),
+        QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnode(deps, mix_id)?,
+        ),
+        QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
+        ),
+        QueryMsg::GetLayerDistribution {} => {
+            to_binary(&crate::mixnodes::queries::query_layer_distribution(deps)?)
         }
-        QueryMsg::OwnsMixnode { address } => {
-            to_binary(&mixnode_queries::query_owns_mixnode(deps, address)?)
-        }
-        QueryMsg::GetMixnodeBond { identity } => {
-            to_binary(&mixnode_queries::query_mixnode_bond(deps, identity)?)
-        }
-        QueryMsg::GetGatewayBond { identity } => to_binary(&query_gateway_bond(deps, identity)?),
-        QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-        QueryMsg::StateParams {} => to_binary(&query_contract_settings_params(deps)?),
-        QueryMsg::LayerDistribution {} => to_binary(&query_layer_distribution(deps)?),
+
+        // gateway-related:
+        QueryMsg::GetGateways { limit, start_after } => to_binary(
+            &crate::gateways::queries::query_gateways_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetGatewayBond { identity } => to_binary(
+            &crate::gateways::queries::query_gateway_bond(deps, identity)?,
+        ),
+        QueryMsg::GetOwnedGateway { address } => to_binary(
+            &crate::gateways::queries::query_owned_gateway(deps, address)?,
+        ),
+
+        // delegation-related:
         QueryMsg::GetMixnodeDelegations {
-            mix_identity,
+            mix_id,
             start_after,
             limit,
-        } => to_binary(&query_mixnode_delegations_paged(
-            deps,
-            mix_identity,
-            start_after,
-            limit,
-        )?),
+        } => to_binary(
+            &crate::delegations::queries::query_mixnode_delegations_paged(
+                deps,
+                mix_id,
+                start_after,
+                limit,
+            )?,
+        ),
         QueryMsg::GetDelegatorDelegations {
-            delegator: delegation_owner,
+            delegator,
             start_after,
             limit,
-        } => to_binary(&query_delegator_delegations_paged(
-            deps,
-            delegation_owner,
-            start_after,
-            limit,
-        )?),
+        } => to_binary(
+            &crate::delegations::queries::query_delegator_delegations_paged(
+                deps,
+                delegator,
+                start_after,
+                limit,
+            )?,
+        ),
         QueryMsg::GetDelegationDetails {
-            mix_identity,
+            mix_id,
             delegator,
             proxy,
-        } => to_binary(&query_mixnode_delegation(
-            deps.storage,
-            deps.api,
-            mix_identity,
-            delegator,
-            proxy,
+        } => to_binary(&crate::delegations::queries::query_mixnode_delegation(
+            deps, mix_id, delegator, proxy,
         )?),
-        QueryMsg::GetRewardPool {} => to_binary(&query_reward_pool(deps)?),
-        QueryMsg::GetCirculatingSupply {} => to_binary(&query_circulating_supply(deps)?),
-        QueryMsg::GetStakingSupply {} => to_binary(&query_staking_supply(deps)?),
-        QueryMsg::GetIntervalRewardPercent {} => to_binary(&INTERVAL_REWARD_PERCENT),
-        QueryMsg::GetSybilResistancePercent {} => to_binary(&SYBIL_RESISTANCE_PERCENT),
-        QueryMsg::GetActiveSetWorkFactor {} => to_binary(&ACTIVE_SET_WORK_FACTOR),
-        QueryMsg::GetRewardingStatus {
-            mix_identity,
-            interval_id,
-        } => to_binary(&query_rewarding_status(deps, mix_identity, interval_id)?),
-        QueryMsg::GetRewardedSet {
-            height,
-            start_after,
-            limit,
-        } => to_binary(&query_rewarded_set(
-            deps.storage,
-            height,
-            start_after,
-            limit,
-        )?),
-        QueryMsg::GetRewardedSetUpdateDetails {} => {
-            to_binary(&query_rewarded_set_update_details(env, deps.storage)?)
-        }
-        QueryMsg::GetCurrentRewardedSetHeight {} => {
-            to_binary(&query_current_rewarded_set_height(deps.storage)?)
-        }
-        // QueryMsg::GetCurrentInterval {} => to_binary(&query_current_interval(deps.storage)?),
-        QueryMsg::GetRewardedSetRefreshBlocks {} => {
-            to_binary(&query_rewarded_set_refresh_minimum_blocks())
-        }
-        QueryMsg::GetEpochsInInterval {} => {
-            to_binary(&crate::support::helpers::epochs_in_interval(deps.storage)?)
-        }
-        QueryMsg::GetCurrentOperatorCost {} => to_binary(
-            &crate::support::helpers::current_operator_epoch_cost(deps.storage)?,
+        QueryMsg::GetAllDelegations { start_after, limit } => to_binary(
+            &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetCurrentEpoch {} => to_binary(&query_current_epoch(deps.storage)?),
-        QueryMsg::QueryOperatorReward { address } => to_binary(
-            &crate::rewards::queries::query_operator_reward(deps, address)?,
+
+        // rewards related
+        QueryMsg::GetPendingOperatorReward { address } => to_binary(
+            &crate::rewards::queries::query_pending_operator_reward(deps, address)?,
         ),
-        QueryMsg::QueryDelegatorReward {
+        QueryMsg::GetPendingMixNodeOperatorReward { mix_id } => to_binary(
+            &crate::rewards::queries::query_pending_mixnode_operator_reward(deps, mix_id)?,
+        ),
+        QueryMsg::GetPendingDelegatorReward {
             address,
-            mix_identity,
+            mix_id,
             proxy,
-        } => to_binary(&crate::rewards::queries::query_delegator_reward(
-            deps,
+        } => to_binary(&crate::rewards::queries::query_pending_delegator_reward(
+            deps, address, mix_id, proxy,
+        )?),
+        QueryMsg::GetEstimatedCurrentEpochOperatorReward {
+            mix_id,
+            estimated_performance,
+        } => to_binary(
+            &crate::rewards::queries::query_estimated_current_epoch_operator_reward(
+                deps,
+                mix_id,
+                estimated_performance,
+            )?,
+        ),
+        QueryMsg::GetEstimatedCurrentEpochDelegatorReward {
             address,
-            mix_identity,
+            mix_id,
             proxy,
-        )?),
-        QueryMsg::GetPendingDelegationEvents {
-            owner_address,
-            proxy_address,
-        } => to_binary(&query_pending_delegation_events(
-            deps,
-            owner_address,
-            proxy_address,
-        )?),
-        QueryMsg::GetAllDelegationKeys {} => to_binary(
-            &crate::delegations::queries::query_all_delegation_keys(deps.storage)?,
+            estimated_performance,
+        } => to_binary(
+            &crate::rewards::queries::query_estimated_current_epoch_delegator_reward(
+                deps,
+                address,
+                mix_id,
+                proxy,
+                estimated_performance,
+            )?,
         ),
-        QueryMsg::DebugGetAllDelegationValues {} => to_binary(
-            &crate::delegations::queries::debug_query_all_delegation_values(deps.storage)?,
-        ),
-        QueryMsg::GetCheckpointsForMixnode { mix_identity } => {
-            to_binary(&query_checkpoints_for_mixnode(deps, mix_identity)?)
+
+        // interval-related
+        QueryMsg::GetPendingEpochEvents { limit, start_after } => {
+            to_binary(&crate::interval::queries::query_pending_epoch_events_paged(
+                deps,
+                env,
+                start_after,
+                limit,
+            )?)
         }
-        QueryMsg::GetMixnodeAtHeight {
-            mix_identity,
-            height,
-        } => to_binary(&query_mixnode_at_height(deps, mix_identity, height)?),
+        QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_binary(
+            &crate::interval::queries::query_pending_interval_events_paged(
+                deps,
+                env,
+                start_after,
+                limit,
+            )?,
+        ),
     };
 
     Ok(query_res?)
 }
 
-#[allow(unused)]
-fn blacklist_malicious_node(storage: &mut dyn Storage, owner: &Addr) -> Result<(), ContractError> {
-    let mixnode_bond = match crate::mixnodes::storage::mixnodes()
-        .idx
-        .owner
-        .item(storage, owner.clone())?
-    {
-        Some(record) => record.1,
-        None => {
-            return Err(ContractError::NoAssociatedMixNodeBond {
-                owner: owner.to_owned(),
-            })
-        }
-    };
-
-    crate::mixnodes::storage::MIXNODES_BOND_BLACKLIST.save(storage, mixnode_bond.identity(), &0)?;
-
-    Ok(())
-}
-
-// Removes nodes we've deemed malicious, returns the pledge to the owners, but does not send any rewards
-#[allow(unused)]
-fn remove_malicious_node(
-    storage: &mut dyn Storage,
-    api: &dyn Api,
-    env: &Env,
-    node: &NodeToRemove,
-) -> Result<Response, ContractError> {
-    let proxy = node.proxy().map(|p| {
-        api.addr_validate(p)
-            .unwrap_or_else(|_| panic!("Invalid address: {}", p))
-    });
-    let owner_addr = api.addr_validate(node.owner())?;
-    blacklist_malicious_node(storage, &owner_addr)?;
-    _try_remove_mixnode(env, storage, api, node.owner(), proxy, false)
-}
-
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    Ok(Response::default())
+pub fn migrate(
+    _deps: DepsMut<'_>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, MixnetContractError> {
+    Ok(Default::default())
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
-    use crate::support::tests;
-    use crate::support::tests::fixtures::{TEST_COIN_DENOM, TEST_REWARDING_VALIDATOR_ADDRESS};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract_common::PagedMixnodeResponse;
+    use cosmwasm_std::Decimal;
+    use mixnet_contract_common::reward_params::{IntervalRewardParams, RewardingParams};
+    use mixnet_contract_common::{InitialRewardingParams, Percent};
+    use std::time::Duration;
 
     #[test]
     fn initialize_contract() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let msg = InstantiateMsg {
-            rewarding_validator_address: TEST_REWARDING_VALIDATOR_ADDRESS.to_string(),
-            mixnet_denom: TEST_COIN_DENOM.to_string(),
-        };
-        let info = mock_info("creator", &[]);
 
-        let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // mix_node_bonds should be empty after initialization
-        let res = query(
-            deps.as_ref(),
-            env.clone(),
-            QueryMsg::GetMixNodes {
-                start_after: None,
-                limit: Option::from(2),
+        let init_msg = InstantiateMsg {
+            rewarding_validator_address: "foomp123".to_string(),
+            vesting_contract_address: "bar456".to_string(),
+            rewarding_denom: "uatom".to_string(),
+            epochs_in_interval: 1234,
+            epoch_duration: Duration::from_secs(4321),
+            initial_rewarding_params: InitialRewardingParams {
+                initial_reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
+                initial_staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                sybil_resistance: Percent::from_percentage_value(23).unwrap(),
+                active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
+                interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
+                rewarded_set_size: 543,
+                active_set_size: 123,
             },
-        )
-        .unwrap();
-        let page: PagedMixnodeResponse = from_binary(&res).unwrap();
-        assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
+        };
 
-        // Contract balance should match what we initialized it as
-        assert_eq!(
-            coins(0, TEST_COIN_DENOM),
-            tests::queries::query_contract_balance(env.contract.address, deps)
-        );
+        let sender = mock_info("sender", &[]);
+        let res = instantiate(deps.as_mut(), env, sender, init_msg);
+        assert!(res.is_ok());
+
+        let expected_state = ContractState {
+            owner: Addr::unchecked("sender"),
+            rewarding_validator_address: Addr::unchecked("foomp123"),
+            vesting_contract_address: Addr::unchecked("bar456"),
+            rewarding_denom: "uatom".into(),
+            params: ContractStateParams {
+                minimum_mixnode_delegation: None,
+                minimum_mixnode_pledge: Coin {
+                    denom: "uatom".into(),
+                    amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+                },
+                minimum_gateway_pledge: Coin {
+                    denom: "uatom".into(),
+                    amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
+                },
+            },
+        };
+
+        let expected_epoch_reward_budget =
+            Decimal::from_ratio(100_000_000_000_000u128, 1234u32) * Decimal::percent(1);
+        let expected_stake_saturation_point = Decimal::from_ratio(123_456_000_000_000u128, 543u32);
+
+        let expected_rewarding_params = RewardingParams {
+            interval: IntervalRewardParams {
+                reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
+                staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                epoch_reward_budget: expected_epoch_reward_budget,
+                stake_saturation_point: expected_stake_saturation_point,
+                sybil_resistance: Percent::from_percentage_value(23).unwrap(),
+                active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
+                interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
+            },
+            rewarded_set_size: 543,
+            active_set_size: 123,
+        };
+
+        let state = mixnet_params_storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap();
+        assert_eq!(state, expected_state);
+
+        let rewarding_params = rewards_storage::REWARDING_PARAMS
+            .load(deps.as_ref().storage)
+            .unwrap();
+        assert_eq!(rewarding_params, expected_rewarding_params);
+
+        let interval = interval_storage::current_interval(deps.as_ref().storage).unwrap();
+        assert_eq!(interval.epochs_in_interval(), 1234);
+        assert_eq!(interval.epoch_length(), Duration::from_secs(4321));
+        assert_eq!(interval.current_interval_id(), 0);
+        assert_eq!(interval.current_epoch_id(), 0);
     }
 }

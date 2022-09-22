@@ -1,15 +1,11 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::{env::var, path::PathBuf};
+use std::{env::var, ops::Not, path::PathBuf};
 use url::Url;
 
-pub mod all;
 pub mod mainnet;
-pub mod qa;
-pub mod sandbox;
 pub mod var_names;
 
 pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
@@ -103,158 +99,98 @@ impl NymNetworkDetails {
     }
 
     pub fn new_mainnet() -> Self {
-        (&*MAINNET_DEFAULTS).into()
+        fn parse_optional_str(raw: &str) -> Option<String> {
+            raw.is_empty().not().then(|| raw.into())
+        }
+
+        // Consider caching this process (lazy static)
+        NymNetworkDetails {
+            chain_details: ChainDetails {
+                bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
+                mix_denom: mainnet::MIX_DENOM.into(),
+                stake_denom: mainnet::STAKE_DENOM.into(),
+            },
+            endpoints: mainnet::validators(),
+            contracts: NymContracts {
+                mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),
+                vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
+                bandwidth_claim_contract_address: parse_optional_str(
+                    mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
+                ),
+                coconut_bandwidth_contract_address: parse_optional_str(
+                    mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
+                ),
+                multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
+            },
+        }
     }
 
+    #[must_use]
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
         self.chain_details.bech32_account_prefix = prefix.into();
         self
     }
 
+    #[must_use]
     pub fn with_mix_denom(mut self, mix_denom: DenomDetailsOwned) -> Self {
         self.chain_details.mix_denom = mix_denom;
         self
     }
 
+    #[must_use]
     pub fn with_stake_denom(mut self, stake_denom: DenomDetailsOwned) -> Self {
         self.chain_details.stake_denom = stake_denom;
         self
     }
 
+    #[must_use]
     pub fn with_base_mix_denom<S: Into<String>>(mut self, base_mix_denom: S) -> Self {
         self.chain_details.mix_denom = DenomDetailsOwned::base_only(base_mix_denom.into());
         self
     }
 
+    #[must_use]
     pub fn with_base_stake_denom<S: Into<String>>(mut self, base_stake_denom: S) -> Self {
         self.chain_details.stake_denom = DenomDetailsOwned::base_only(base_stake_denom.into());
         self
     }
 
+    #[must_use]
     pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
         self.endpoints.push(endpoint);
         self
     }
 
+    #[must_use]
     pub fn with_mixnet_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.mixnet_contract_address = contract.map(Into::into);
         self
     }
 
+    #[must_use]
     pub fn with_vesting_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.vesting_contract_address = contract.map(Into::into);
         self
     }
 
+    #[must_use]
     pub fn with_bandwidth_claim_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.bandwidth_claim_contract_address = contract.map(Into::into);
         self
     }
 
+    #[must_use]
     pub fn with_coconut_bandwidth_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_bandwidth_contract_address = contract.map(Into::into);
         self
     }
 
+    #[must_use]
     pub fn with_multisig_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.multisig_contract_address = contract.map(Into::into);
         self
     }
 }
-
-// This conversion only exists for convenience reasons until
-// we can completely phase out `DefaultNetworkDetails`
-impl<'a> From<&'a DefaultNetworkDetails> for NymNetworkDetails {
-    fn from(details: &'a DefaultNetworkDetails) -> Self {
-        fn parse_optional_str(raw: &str) -> Option<String> {
-            if raw.is_empty() {
-                None
-            } else {
-                Some(raw.into())
-            }
-        }
-
-        NymNetworkDetails {
-            chain_details: ChainDetails {
-                bech32_account_prefix: details.bech32_prefix.into(),
-                mix_denom: details.mix_denom.into(),
-                stake_denom: details.stake_denom.into(),
-            },
-            endpoints: details.validators.clone(),
-            contracts: NymContracts {
-                mixnet_contract_address: parse_optional_str(details.mixnet_contract_address),
-                vesting_contract_address: parse_optional_str(details.vesting_contract_address),
-                bandwidth_claim_contract_address: parse_optional_str(
-                    details.bandwidth_claim_contract_address,
-                ),
-                coconut_bandwidth_contract_address: parse_optional_str(
-                    details.coconut_bandwidth_contract_address,
-                ),
-                multisig_contract_address: parse_optional_str(details.multisig_contract_address),
-            },
-        }
-    }
-}
-
-// Since these are lazily constructed, we can afford to switch some of them to stronger types in the
-// future. If we do this, and also get rid of the references we could potentially unify with
-// `NetworkDetails`.
-pub struct DefaultNetworkDetails {
-    bech32_prefix: &'static str,
-    mix_denom: DenomDetails,
-    stake_denom: DenomDetails,
-    mixnet_contract_address: &'static str,
-    vesting_contract_address: &'static str,
-    bandwidth_claim_contract_address: &'static str,
-    coconut_bandwidth_contract_address: &'static str,
-    multisig_contract_address: &'static str,
-    #[allow(dead_code)]
-    rewarding_validator_address: &'static str,
-    statistics_service_url: &'static str,
-    validators: Vec<ValidatorDetails>,
-}
-
-static MAINNET_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
-    bech32_prefix: mainnet::BECH32_PREFIX,
-    mix_denom: mainnet::MIX_DENOM,
-    stake_denom: mainnet::STAKE_DENOM,
-    mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS,
-    vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS,
-    bandwidth_claim_contract_address: mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-    coconut_bandwidth_contract_address: mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-    multisig_contract_address: mainnet::MULTISIG_CONTRACT_ADDRESS,
-    rewarding_validator_address: mainnet::REWARDING_VALIDATOR_ADDRESS,
-    statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    validators: mainnet::validators(),
-});
-
-static SANDBOX_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
-    bech32_prefix: sandbox::BECH32_PREFIX,
-    mix_denom: sandbox::MIX_DENOM,
-    stake_denom: sandbox::STAKE_DENOM,
-    mixnet_contract_address: sandbox::MIXNET_CONTRACT_ADDRESS,
-    vesting_contract_address: sandbox::VESTING_CONTRACT_ADDRESS,
-    bandwidth_claim_contract_address: sandbox::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-    coconut_bandwidth_contract_address: sandbox::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-    multisig_contract_address: sandbox::MULTISIG_CONTRACT_ADDRESS,
-    rewarding_validator_address: sandbox::REWARDING_VALIDATOR_ADDRESS,
-    statistics_service_url: sandbox::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    validators: sandbox::validators(),
-});
-
-static QA_DEFAULTS: Lazy<DefaultNetworkDetails> = Lazy::new(|| DefaultNetworkDetails {
-    bech32_prefix: qa::BECH32_PREFIX,
-    mix_denom: qa::MIX_DENOM,
-    stake_denom: qa::STAKE_DENOM,
-    mixnet_contract_address: qa::MIXNET_CONTRACT_ADDRESS,
-    vesting_contract_address: qa::VESTING_CONTRACT_ADDRESS,
-    bandwidth_claim_contract_address: qa::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-    coconut_bandwidth_contract_address: qa::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-    multisig_contract_address: qa::MULTISIG_CONTRACT_ADDRESS,
-    rewarding_validator_address: qa::REWARDING_VALIDATOR_ADDRESS,
-    statistics_service_url: qa::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    validators: qa::validators(),
-});
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DenomDetails {

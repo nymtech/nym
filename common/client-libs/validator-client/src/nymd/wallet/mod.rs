@@ -207,8 +207,9 @@ impl DirectSecp256k1HdWalletBuilder {
 
 #[cfg(test)]
 mod tests {
+    use network_defaults::NymNetworkDetails;
+
     use super::*;
-    use network_defaults::all::Network::*;
 
     #[test]
     fn generating_account_addresses() {
@@ -218,7 +219,9 @@ mod tests {
             "acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel",
             "step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball"
         ];
-        let prefix = MAINNET.bech32_prefix();
+        let prefix = NymNetworkDetails::new_mainnet()
+            .chain_details
+            .bech32_account_prefix;
 
         let addrs = vec![
             "n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf",

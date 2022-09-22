@@ -149,7 +149,7 @@ impl NymdClient<SigningNymdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U: Clone>(
         config: Config,
-        network: config::defaults::all::Network,
+        network: config::defaults::NymNetworkDetails,
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,
@@ -157,7 +157,7 @@ impl NymdClient<SigningNymdClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let denom = network.base_mix_denom();
+        let denom = network.chain_details.mix_denom.base;
         let client_address = signer
             .try_derive_accounts()?
             .into_iter()

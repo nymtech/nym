@@ -53,13 +53,15 @@ export const NodeSettings = ({
       return;
     }
 
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
+    if (pm) {
+      // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+      const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
 
-    if (isVesting) {
-      await getFee(simulateVestingUpdateMixnodeCostParams, defaultCostParams);
-    } else {
-      await getFee(simulateUpdateMixnodeCostParams, defaultCostParams);
+      if (isVesting) {
+        await getFee(simulateVestingUpdateMixnodeCostParams, defaultCostParams);
+      } else {
+        await getFee(simulateUpdateMixnodeCostParams, defaultCostParams);
+      }
     }
   };
 
@@ -112,7 +114,7 @@ export const NodeSettings = ({
           Set profit margin
         </Typography>
         <Box sx={{ mb: 3 }}>
-          <TextField placeholder="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
+          <TextField label="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
           {error && (
             <FormHelperText sx={{ color: 'error.main' }}>
               Profit margin should be a number between 0 and 100

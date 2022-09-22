@@ -14,7 +14,7 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
-import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
+// import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
 import { Box } from '@mui/material';
 
@@ -37,7 +37,7 @@ const Bonding = () => {
     unbond,
     updateMixnode,
     redeemRewards,
-    compoundRewards,
+    // compoundRewards,
     isLoading,
     checkOwnership,
   } = useBondingContext();
@@ -87,15 +87,15 @@ const Bonding = () => {
     });
   };
 
-  const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
-    setShowModal(undefined);
-    const tx = await updateMixnode(profitMargin, fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Profit margin update successful',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
-  };
+  // const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
+  //   setShowModal(undefined);
+  //   const tx = await updateMixnode(profitMargin, fee);
+  //   setConfirmationDetails({
+  //     status: 'success',
+  //     title: 'Profit margin update successful',
+  //     txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+  //   });
+  // };
 
   const handleRedeemReward = async (fee?: FeeDetails) => {
     setShowModal(undefined);
@@ -107,16 +107,16 @@ const Bonding = () => {
     });
   };
 
-  const handleCompoundReward = async (fee?: FeeDetails) => {
-    setShowModal(undefined);
-    const tx = await compoundRewards(fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Rewards compounded successfully',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
-    return undefined;
-  };
+  // const handleCompoundReward = async (fee?: FeeDetails) => {
+  //   setShowModal(undefined);
+  //   const tx = await compoundRewards(fee);
+  //   setConfirmationDetails({
+  //     status: 'success',
+  //     title: 'Rewards compounded successfully',
+  //     txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+  //   });
+  //   return undefined;
+  // };
 
   const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
     switch (action) {
@@ -198,14 +198,14 @@ const Bonding = () => {
         />
       )}
 
-      {showModal === 'compound' && bondedNode && isMixnode(bondedNode) && (
+      {/* {showModal === 'compound' && bondedNode && isMixnode(bondedNode) && (
         <CompoundRewardsModal
           node={bondedNode}
           onClose={() => setShowModal(undefined)}
           onConfirm={handleCompoundReward}
           onError={handleError}
         />
-      )}
+      )} */}
 
       {confirmationDetails && confirmationDetails.status === 'success' && (
         <ConfirmationDetailsModal

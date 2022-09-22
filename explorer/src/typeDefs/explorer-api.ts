@@ -215,7 +215,8 @@ export type UptimeStoryResponse = {
 
 export type MixNodeEconomicDynamicsStatsResponse = {
   stake_saturation: number;
-  active_set_inclusion_probability: 'High' | 'Good' | 'Low';
+  // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
+  active_set_inclusion_probability: 'High' | 'Good' | 'Low' | 'VeryLow' | 'Moderate' | 'VeryHigh';
   reserve_set_inclusion_probability: 'High' | 'Good' | 'Low';
   estimated_total_node_reward: number;
   estimated_operator_reward: number;

@@ -157,7 +157,7 @@ const AmountFormData = ({
 
   return (
     <Stack gap={3}>
-      <Box display="flex" gap={3} justifyContent="center" sx={{ mt: 2 }}>
+      <Box display="flex" gap={3} justifyContent="center">
         {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setValue('tokenPool', pool)} />}
         <CurrencyFormField
           required
@@ -205,7 +205,7 @@ export const BondMixnodeForm = ({
   <>
     {step === 1 && (
       <>
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <NodeTypeSelector disabled={false} setNodeType={onSelectNodeType} nodeType="mixnode" />
         </Box>
         <NodeFormData onNext={onValidateMixnodeData} mixnodeData={mixnodeData} />

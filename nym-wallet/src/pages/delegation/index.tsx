@@ -1,6 +1,6 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, Typography } from '@mui/material';
-import { Theme, useTheme } from '@mui/material/styles';
+import { Box, Button, Paper, Stack, Typography, CircularProgress } from '@mui/material';
+import { useTheme, Theme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
@@ -10,7 +10,7 @@ import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
-import { DelegationContextProvider, useDelegationContext } from '../../context/delegations';
+import { DelegationContextProvider, useDelegationContext, TDelegations } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
@@ -268,41 +268,90 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  return (
-    <>
-      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
-        <Stack spacing={5}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
-              Delegations
-            </Typography>
+  const delegationsComponent = (delegations: TDelegations | undefined) => {
+    if (isLoading) {
+      return (
+        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      );
+    } else if (Boolean(delegations?.length)) {
+      return (
+        <DelegationList
+          explorerUrl={urls(network).networkExplorer}
+          isLoading={isLoading}
+          items={delegations}
+          onItemActionClick={handleDelegationItemActionClick}
+        />
+      );
+    }
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
+        <Box marginRight={3} width={1}>
+          <Typography variant="body2">
+            Checkout the{' '}
             <Link
               href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
               target="_blank"
               rel="noreferrer"
-              text="Network Explorer"
-              fontSize={14}
+              text="list of mixnodes"
               fontWeight={theme.palette.mode === 'light' ? 400 : 600}
               noIcon
-            />
+            />{' '}
+            for performance and other parameters to help make delegation decisions.
+          </Typography>
+          <Typography variant="body2">
+            Hint: In Nym explorer use <b>advanced filters</b> to precisely define what node you are looking for.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          disableElevation
+          onClick={() => setShowNewDelegationModal(true)}
+          sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+        >
+          Delegate
+        </Button>
+      </Box>
+    );
+  };
+
+  return (
+    <>
+      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
+        <Stack spacing={3}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
+              Delegations
+            </Typography>
+            {!!delegations?.length && (
+              <Link
+                href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                target="_blank"
+                rel="noreferrer"
+                text="Network Explorer"
+                fontSize={14}
+                fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+                noIcon
+              />
+            )}
           </Box>
-          <Box display="flex" justifyContent="space-between" alignItems="end">
-            <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
-            <Button
-              variant="contained"
-              disableElevation
-              onClick={() => setShowNewDelegationModal(true)}
-              sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
-            >
-              Delegate
-            </Button>
-          </Box>
-          <DelegationList
-            explorerUrl={urls(network).networkExplorer}
-            isLoading={isLoading}
-            items={delegations}
-            onItemActionClick={handleDelegationItemActionClick}
-          />
+
+          {!!delegations?.length && (
+            <Box display="flex" justifyContent="space-between" alignItems="end">
+              <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
+
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={() => setShowNewDelegationModal(true)}
+                sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+              >
+                Delegate
+              </Button>
+            </Box>
+          )}
+          {delegationsComponent(delegations)}
         </Stack>
       </Paper>
 

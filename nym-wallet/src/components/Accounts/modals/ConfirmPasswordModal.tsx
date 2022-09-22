@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
-import { Box, Paper, Dialog, DialogTitle, IconButton, Typography } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { Paper, Dialog, DialogTitle, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ConfirmPassword } from 'src/components/ConfirmPassword';
 import { AccountsContext } from 'src/context';
 
@@ -14,28 +14,32 @@ export const ConfirmPasswordModal = ({
   onConfirm: (password: string) => Promise<void>;
 }) => {
   const { isLoading, error } = useContext(AccountsContext);
+  const theme = useTheme();
 
   return (
     <Dialog
       open={Boolean(accountName)}
       onClose={onClose}
       fullWidth
-      PaperComponent={Paper}
-      PaperProps={{ elevation: 0 }}
+      PaperProps={{
+        style: { border: `1px solid ${theme.palette.nym.nymWallet.modal.border}` },
+      }}
     >
-      <DialogTitle>
-        <Typography variant="h6">Switch account</Typography>
-        <Typography fontSize="small" sx={{ color: 'grey.600' }}>
-          Confirm password
-        </Typography>
-      </DialogTitle>
-      <ConfirmPassword
-        onConfirm={onConfirm}
-        error={error}
-        isLoading={isLoading}
-        buttonTitle="Switch account"
-        onCancel={onClose}
-      />
+      <Paper>
+        <DialogTitle>
+          <Typography variant="h6">Switch account</Typography>
+          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
+            Confirm password
+          </Typography>
+        </DialogTitle>
+        <ConfirmPassword
+          onConfirm={onConfirm}
+          error={error}
+          isLoading={isLoading}
+          buttonTitle="Switch account"
+          onCancel={onClose}
+        />
+      </Paper>
     </Dialog>
   );
 };

@@ -167,16 +167,15 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
-<<<<<<< HEAD
-          const { mix_node } = data;
-          const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
-            data.mix_node.identity_key,
-=======
+          // const { mix_node } = data;
+          // const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
+          //   data.mix_node.identity_key,
+          // );
+          console.log('data', data);
           const { status, stakeSaturation } = await getAdditionalMixnodeDetails(data.bond_information.id);
           const nodeDescription = await getNodeDescription(
             data.bond_information.mix_node.host,
             data.bond_information.mix_node.http_api_port,
->>>>>>> develop
           );
           setBondedNode({
             name: nodeDescription?.name,
@@ -193,13 +192,20 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
-            host: mix_node.host.replace(/\s/g, ''),
-            httpApiPort: mix_node.http_api_port,
-            mixPort: mix_node.mix_port,
-            profitMarginPercent: mix_node.profit_margin_percent,
-            verlocPort: mix_node.verloc_port,
-            version: mix_node.version,
+            host: '1.2.34.5',
+            httpApiPort: 8000,
+            mixPort: 1789,
+            profitMarginPercent: 10,
+            verlocPort: 1790,
+            version: '1.0.2',
           } as TBondedMixnode);
+
+          // host: mix_node.host.replace(/\s/g, ''),
+          // httpApiPort: mix_node.http_api_port,
+          // mixPort: mix_node.mix_port,
+          // profitMarginPercent: mix_node.profit_margin_percent,
+          // verlocPort: mix_node.verloc_port,
+          // version: mix_node.version,
         }
       } catch (e: any) {
         Console.warn(e);

@@ -43,7 +43,7 @@ export const SimpleModal: React.FC<{
   backdropProps,
 }) => (
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-    <Box sx={{ ...modalStyle, ...sx }}>
+    <Box sx={{ border: (t) => `1px solid ${t.palette.nym.nymWallet.modal.border}`, ...modalStyle, ...sx }}>
       {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
       {displayInfoIcon && <InfoOutlinedIcon sx={{ mb: 2, color: (theme) => theme.palette.nym.nymWallet.text.blue }} />}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -58,7 +58,7 @@ export const SimpleModal: React.FC<{
       </Stack>
 
       <Typography
-        mt={0.5}
+        mt={subHeader ? 0.5 : 0}
         mb={3}
         fontSize={12}
         color={(theme) => theme.palette.text.secondary}
@@ -73,7 +73,7 @@ export const SimpleModal: React.FC<{
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2, width: buttonFullWidth ? '100%' : null }}>
           {onBack && <StyledBackButton onBack={onBack} />}
           {onOk && (
-            <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+            <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled} sx={{ mt: 3 }}>
               {okLabel}
             </Button>
           )}

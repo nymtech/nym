@@ -69,6 +69,9 @@ declare module '@mui/material/styles' {
     hover: {
       background: string;
     };
+    modal: {
+      border: string;
+    };
   }
 
   /**

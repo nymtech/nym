@@ -22,7 +22,6 @@ use mixnet_contract_common::{
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
-use std::process;
 use std::time::Duration;
 use tokio::time::sleep;
 use validator_client::nymd::SigningNymdClient;
@@ -314,20 +313,10 @@ impl RewardedSetUpdater {
 
     async fn wait_until_epoch_end(&mut self, shutdown: &mut ShutdownListener) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
-        const MAXIMUM_ATTEMPTS: usize = 5;
-        let mut failed_attempts = 0;
 
         loop {
             let current_interval = match self.current_interval_details().await {
                 Err(err) => {
-                    failed_attempts += 1;
-                    if failed_attempts == MAXIMUM_ATTEMPTS {
-                        error!(
-                            "failed to obtain epoch information {} times in a row. Existing now",
-                            MAXIMUM_ATTEMPTS
-                        );
-                        process::exit(1);
-                    }
                     error!("failed to obtain information about the current interval - {}. Going to retry in {}s", err, POLL_INTERVAL.as_secs());
                     tokio::select! {
                         _ = sleep(POLL_INTERVAL) => {
@@ -341,8 +330,6 @@ impl RewardedSetUpdater {
                 }
                 Ok(interval) => interval,
             };
-
-            failed_attempts = 0;
 
             if current_interval.is_current_epoch_over {
                 return Some(current_interval.interval);
@@ -378,14 +365,7 @@ impl RewardedSetUpdater {
     ) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
-        const MAX_FAILURES: usize = 10;
-        let mut consecutive_failures = 0;
         while !shutdown.is_shutdown() {
-            if consecutive_failures == MAX_FAILURES {
-                error!("We have failed to perform epoch operations {} times in a row. The validator API will shutdown now", MAX_FAILURES);
-                std::process::exit(1);
-            }
-
             let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
                 // received a shutdown
                 None => return Ok(()),
@@ -397,10 +377,7 @@ impl RewardedSetUpdater {
             }
             if let Err(err) = self.perform_epoch_operations(interval_details).await {
                 error!("failed to perform epoch operations - {}", err);
-                consecutive_failures += 1;
-                sleep(Duration::from_secs(5)).await;
-            } else {
-                consecutive_failures = 0;
+                sleep(Duration::from_secs(30)).await;
             }
         }
 

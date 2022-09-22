@@ -176,7 +176,6 @@ const AmountFormData = ({
         required
         fullWidth
         label="Operator cost"
-        autoFocus
         onChanged={(newValue) => {
           setValue('operatorCost', newValue, { shouldValidate: true });
         }}

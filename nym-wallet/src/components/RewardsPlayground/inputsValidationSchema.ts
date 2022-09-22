@@ -6,7 +6,6 @@ export const inputValidationSchema = Yup.object().shape({
     .required()
     .test('Profit margin must be a number between 0 and 100', (value) => {
       const stringValueToNumber = Math.round(Number(value));
-      console.log(isLessThan(stringValueToNumber, 101));
       if (stringValueToNumber && isGreaterThan(stringValueToNumber, -1) && isLessThan(stringValueToNumber, 101))
         return true;
       return false;

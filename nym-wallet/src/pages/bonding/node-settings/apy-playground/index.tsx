@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
-import { Box, Button, Card, CardContent, CardHeader, Grid, TextField, Typography } from '@mui/material';
+import { Box, Card, CardContent, CardHeader, Grid, Typography } from '@mui/material';
 import { ResultsTable } from 'src/components/RewardsPlayground/ResultsTable';
 import { computeMixnodeRewardEstimation } from 'src/requests';
 import { NodeDetails } from 'src/components/RewardsPlayground/NodeDetail';
-import { Inputs, InputValues } from 'src/components/RewardsPlayground/Inputs';
+import { Inputs, calculateArgs } from 'src/components/RewardsPlayground/Inputs';
+import { useBondingContext } from 'src/context';
+import { useDelegationContext } from 'src/context/delegations';
 
 const MAJOR_AMOUNT_FOR_CALCS = 1000;
 
 export const ApyPlayground = () => {
-  const [inputValues, setInputValues] = useState<InputValues>([
-    { label: 'Profit margin', name: 'profitMargin', isPercentage: true },
-    { label: 'Operator cost', name: 'operatorCost' },
-    { label: 'Bond', name: 'bond' },
-    { label: 'Delegations', name: 'delegations' },
-    { label: 'Uptime', name: 'uptime', isPercentage: true },
-  ]);
+  const { bondedNode } = useBondingContext();
+  const { totalDelegations } = useDelegationContext();
+
+  console.log(totalDelegations);
 
   const [results, setResults] = useState({
     total: { daily: '-', monthly: '-', yearly: '-' },
@@ -22,16 +21,14 @@ export const ApyPlayground = () => {
     delegator: { daily: '-', monthly: '-', yearly: '-' },
   });
 
-  const getInputValue = (inputName: string) => inputValues.find((input) => input.name === inputName);
-
-  const handleCalculate = async () => {
+  const handleCalculate = async ({ bond, delegations }: calculateArgs) => {
     try {
       const res = await computeMixnodeRewardEstimation({
-        identity: 'DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ',
-        uptime: 0,
+        identity: 'HsnGQDiTL9hfY4ZkCBWoVFDdVDQWXKaK9ojXSkmUT44z',
+        uptime: 10,
         isActive: true,
-        pledgeAmount: Math.floor(0 * 1_000_000),
-        totalDelegation: Math.floor(0 * 1_000_000),
+        pledgeAmount: Math.floor(+bond * 1_000_000),
+        totalDelegation: Math.floor(+delegations * 1_000_000),
       });
 
       const operatorReward = (res.estimated_operator_reward / 1_000_000) * 24; // epoch_reward * 1 epoch_per_hour * 24 hours
@@ -80,7 +77,7 @@ export const ApyPlayground = () => {
           }
         />
         <CardContent>
-          <Inputs inputValues={inputValues} onCalculate={handleCalculate} />
+          <Inputs onCalculate={handleCalculate} />
         </CardContent>
       </Card>
       <Grid container spacing={3}>

@@ -262,6 +262,18 @@ pub enum V2MigrationOperation {
         #[serde(rename = "a3")]
         proxy: Option<Addr>,
     },
+
+    #[serde(rename = "m5")]
+    MigrateGateway {
+        #[serde(rename = "a1")]
+        node_identity: String,
+    },
+
+    #[serde(rename = "m6")]
+    RemoveGateway {
+        #[serde(rename = "a1")]
+        node_identity: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -318,6 +330,23 @@ pub enum SpecialV2ExecuteMsg {
 
         #[serde(rename = "a4")]
         block_height: u64,
+
+        #[serde(rename = "a5")]
+        proxy: Option<Addr>,
+    },
+    #[serde(rename = "m3")]
+    SaveGateway {
+        #[serde(rename = "a1")]
+        pledge_amount: Coin,
+
+        #[serde(rename = "a2")]
+        owner: Addr,
+
+        #[serde(rename = "a3")]
+        block_height: u64,
+
+        #[serde(rename = "a4")]
+        gateway: Gateway,
 
         #[serde(rename = "a5")]
         proxy: Option<Addr>,

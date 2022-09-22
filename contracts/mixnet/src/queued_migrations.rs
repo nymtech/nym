@@ -4,6 +4,7 @@
 use crate::delegations::queries::query_mixnode_delegation;
 use crate::delegations::storage::delegations;
 use crate::error::ContractError;
+use crate::gateways::storage::gateways;
 use crate::mixnodes::storage::mixnodes;
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, DepsMut, Env, Response, SubMsg};
 use cw_storage_plus::Map;
@@ -12,6 +13,7 @@ use mixnet_contract_common::{IdentityKey, MigrateMsg, SpecialV2ExecuteMsg, V2Mig
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 const MIGRATED_MIXNODES: Map<IdentityKey, u8> = Map::new("migrated-mixnodes");
+const MIGRATED_GATEWAYS: Map<IdentityKey, u8> = Map::new("migrated-gateways");
 type OwnerXorProxy = Vec<u8>;
 const MIGRATED_DELEGATES: Map<(IdentityKey, OwnerXorProxy), u8> = Map::new("migrated-delegates");
 
@@ -50,6 +52,38 @@ fn migrate_operator(
     // TODO: do we need separate BankMsg here, or can we just use 'funds' here directly?
     let wasm_msg = wasm_execute(v2_mixnet_contract, &v2_message, vec![pledge])
         .expect("failed to serialize mixnode migration msg");
+    response.messages.push(SubMsg::new(wasm_msg));
+    Ok(())
+}
+
+fn migrate_gateway(
+    deps: &mut DepsMut,
+    v2_mixnet_contract: &str,
+    node_identity: String,
+    response: &mut Response,
+) -> Result<(), ContractError> {
+    if MIGRATED_GATEWAYS.has(deps.storage, node_identity.clone()) {
+        // again, panic here because this should never occur and it's incredible dangerous to let it happen
+        panic!("gateway {} has already been migrated!", node_identity);
+    }
+    MIGRATED_GATEWAYS.save(deps.storage, node_identity.clone(), &1u8)?;
+
+    let bond = gateways()
+        .load(deps.storage, &node_identity)
+        .expect("failed to read gateway bond");
+
+    let pledge = bond.pledge_amount.clone();
+    let v2_message = SpecialV2ExecuteMsg::SaveGateway {
+        pledge_amount: bond.pledge_amount,
+        owner: bond.owner,
+        block_height: bond.block_height,
+        gateway: bond.gateway,
+        proxy: bond.proxy,
+    };
+
+    // TODO: do we need separate BankMsg here, or can we just use 'funds' here directly?
+    let wasm_msg = wasm_execute(v2_mixnet_contract, &v2_message, vec![pledge])
+        .expect("failed to serialize gateway migration msg");
     response.messages.push(SubMsg::new(wasm_msg));
     Ok(())
 }
@@ -172,6 +206,18 @@ fn remove_operator(
     Ok(())
 }
 
+fn remove_gateway(deps: &mut DepsMut, node_identity: String) -> Result<(), ContractError> {
+    if !MIGRATED_GATEWAYS.has(deps.storage, node_identity.clone()) {
+        // again, panic here because this should never occur and it's incredible dangerous to let it happen
+        panic!(
+            "attempted to remove gateway {} without prior migration!",
+            node_identity
+        );
+    }
+    gateways().remove(deps.storage, &node_identity)?;
+    Ok(())
+}
+
 fn remove_delegator(
     deps: &mut DepsMut,
     address: Addr,
@@ -217,6 +263,14 @@ pub fn v2_migration(
                     &mut response,
                 )?;
             }
+            V2MigrationOperation::MigrateGateway { node_identity } => {
+                migrate_gateway(
+                    &mut deps,
+                    &msg.v2_contract_address,
+                    node_identity,
+                    &mut response,
+                )?;
+            }
             V2MigrationOperation::MigrateDelegator {
                 address,
                 node_identity,
@@ -240,6 +294,9 @@ pub fn v2_migration(
                 node_identity,
                 proxy,
             } => remove_delegator(&mut deps, address, node_identity, proxy)?,
+            V2MigrationOperation::RemoveGateway { node_identity } => {
+                remove_gateway(&mut deps, node_identity)?
+            }
         }
     }
 

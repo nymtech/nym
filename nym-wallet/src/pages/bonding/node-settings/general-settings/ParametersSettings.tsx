@@ -37,6 +37,17 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     }
   };
 
+  // Something could be useful to update the profitMargin
+  // const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
+  //   setShowModal(undefined);
+  //   const tx = await updateMixnode(profitMargin, fee);
+  //   setConfirmationDetails({
+  //     status: 'success',
+  //     title: 'Profit margin update successful',
+  //     txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+  //   });
+  // };
+
   return (
     <Grid container xs>
       {open && (

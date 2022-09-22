@@ -14,14 +14,11 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
-// import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { BondingContextProvider, useBondingContext } from '../../context';
+import { BondingContextProvider, useBondingContext, TBondedMixnode } from '../../context';
 import { Box } from '@mui/material';
 
 const Bonding = () => {
-  const [showModal, setShowModal] = useState<
-    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'compound'
-  >();
+  const [showModal, setShowModal] = useState<'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem'>();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
 
   const {
@@ -87,16 +84,6 @@ const Bonding = () => {
     });
   };
 
-  // const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
-  //   setShowModal(undefined);
-  //   const tx = await updateMixnode(profitMargin, fee);
-  //   setConfirmationDetails({
-  //     status: 'success',
-  //     title: 'Profit margin update successful',
-  //     txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-  //   });
-  // };
-
   const handleRedeemReward = async (fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await redeemRewards(fee);
@@ -106,17 +93,6 @@ const Bonding = () => {
       txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
     });
   };
-
-  // const handleCompoundReward = async (fee?: FeeDetails) => {
-  //   setShowModal(undefined);
-  //   const tx = await compoundRewards(fee);
-  //   setConfirmationDetails({
-  //     status: 'success',
-  //     title: 'Rewards compounded successfully',
-  //     txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-  //   });
-  //   return undefined;
-  // };
 
   const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
     switch (action) {
@@ -130,10 +106,6 @@ const Bonding = () => {
       }
       case 'redeem': {
         setShowModal('redeem');
-        break;
-      }
-      case 'compound': {
-        setShowModal('compound');
         break;
       }
       default: {
@@ -197,15 +169,6 @@ const Bonding = () => {
           onError={handleError}
         />
       )}
-
-      {/* {showModal === 'compound' && bondedNode && isMixnode(bondedNode) && (
-        <CompoundRewardsModal
-          node={bondedNode}
-          onClose={() => setShowModal(undefined)}
-          onConfirm={handleCompoundReward}
-          onError={handleError}
-        />
-      )} */}
 
       {confirmationDetails && confirmationDetails.status === 'success' && (
         <ConfirmationDetailsModal

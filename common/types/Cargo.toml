@@ -19,7 +19,7 @@ thiserror = "1.0"
 url = "2.2"
 ts-rs = "6.1.2"
 
-cosmwasm-std = "1.0.0-beta8"
+cosmwasm-std = "1.0.0"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
@@ -37,4 +37,4 @@ tempfile = "3.3.0"
 
 [features]
 default = []
-generate-ts = []
+generate-ts = ["mixnet-contract-common/generate-ts"]

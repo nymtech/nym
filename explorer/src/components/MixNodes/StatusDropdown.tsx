@@ -46,7 +46,7 @@ export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({ st
         }
       }}
       sx={{
-        width: isMobile ? 'auto' : 200,
+        width: isMobile ? '50%' : 200,
         ...sx,
       }}
     >

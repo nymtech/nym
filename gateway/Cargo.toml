@@ -4,7 +4,10 @@
 [package]
 name = "nym-gateway"
 version = "1.0.2"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+authors = [
+    "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+    "Jędrzej Stuczyński <andrew@nymtech.net>",
+]
 description = "Implementation of the Nym Mixnet Gateway"
 edition = "2021"
 rust-version = "1.56"
@@ -28,24 +31,31 @@ once_cell = "1.7.2"
 pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
+sqlx = { version = "0.5", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.19.1", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
-tokio-stream = { version = "0.1.9", features = [ "fs" ] }
+tokio = { version = "1.19.1", features = [
+    "rt-multi-thread",
+    "net",
+    "signal",
+    "fs",
+] }
+tokio-stream = { version = "0.1.9", features = ["fs"] }
 tokio-tungstenite = "0.14"
-tokio-util = { version = "0.7.3", features = [ "codec" ] }
-url = { version = "2.2", features = [ "serde" ] }
-web3 = "0.17.0"
+tokio-util = { version = "0.7.3", features = ["codec"] }
+url = { version = "2.2", features = ["serde"] }
 
 # internal
-coconut-interface = { path = "../common/coconut-interface" , optional = true}
+coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-bandwidth-claim-contract = { path = "../common/bandwidth-claim-contract" }
 gateway-requests = { path = "gateway-requests" }
-gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 network-defaults = { path = "../common/network-defaults" }
@@ -53,14 +63,30 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
 validator-api-requests = { path = "../validator-api/validator-api-requests" }
-validator-client = { path = "../common/client-libs/validator-client", features = ["nymd-client"] }
+validator-client = { path = "../common/client-libs/validator-client", features = [
+    "nymd-client",
+] }
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut"]
-eth = []
+coconut = [
+    "coconut-interface",
+    "gateway-requests/coconut",
+    "credentials/coconut",
+    "validator-api-requests/coconut",
+]
 
 [build-dependencies]
 tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+sqlx = { version = "0.5", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+vergen = { version = "5", default-features = false, features = [
+    "build",
+    "git",
+    "rustc",
+    "cargo",
+] }

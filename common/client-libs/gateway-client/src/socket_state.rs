@@ -113,6 +113,8 @@ impl PartiallyDelegated {
                 async {
                     if let Some(mut s) = m_shutdown {
                         s.recv().await
+                    } else {
+                        std::future::pending::<()>().await
                     }
                 }
                 .fuse()
@@ -121,7 +123,7 @@ impl PartiallyDelegated {
             tokio::pin!(shutdown);
 
             #[cfg(target_arch = "wasm32")]
-            let mut shutdown = Box::pin(async {}.fuse());
+            let mut shutdown = std::future::pending::<()>().fuse();
 
             let ret_err = loop {
                 futures::select! {

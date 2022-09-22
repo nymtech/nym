@@ -10,8 +10,8 @@ pub(crate) async fn execute(
     network_details: &NymNetworkDetails,
 ) -> anyhow::Result<()> {
     match settings.command {
-        nym_cli_commands::validator::mixnet::operators::mixnode::settings::MixnetOperatorsMixnodeSettingsCommands::UpdateProfitPercentage(args) => {
-            nym_cli_commands::validator::mixnet::operators::mixnode::settings::update_profit_percent::update_profit_percent(args, create_signing_client(global_args, network_details)?).await
+        nym_cli_commands::validator::mixnet::operators::mixnode::settings::MixnetOperatorsMixnodeSettingsCommands::UpdateConfig(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::settings::update_config::update_config(args, create_signing_client(global_args, network_details)?).await
         }
         _ => unreachable!(),
     }

@@ -18,8 +18,6 @@ pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;
 
-#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Initialise the gateway
@@ -52,11 +50,8 @@ pub(crate) struct OverrideConfig {
     validators: Option<String>,
     mnemonic: Option<String>,
 
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     enabled_credentials_mode: Option<bool>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    eth_endpoint: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -141,26 +136,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         );
     }
 
-    #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-    {
-        config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
-    }
-
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     {
         if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
             config = config.with_disabled_credentials_mode(!enabled_credentials_mode);
-        }
-    }
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    {
-        if let Some(raw_validators) = args.validators {
-            config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
-        }
-
-        if let Some(eth_endpoint) = args.eth_endpoint {
-            config = config.with_eth_endpoint(eth_endpoint);
         }
     }
 

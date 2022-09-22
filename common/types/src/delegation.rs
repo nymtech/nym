@@ -1,8 +1,9 @@
 use crate::currency::{DecCoin, RegisteredCoins};
+use crate::deprecated::DelegationEvent;
 use crate::error::TypesError;
-use mixnet_contract_common::mixnode::DelegationEvent as ContractDelegationEvent;
-use mixnet_contract_common::mixnode::PendingUndelegate as ContractPendingUndelegate;
-use mixnet_contract_common::Delegation as MixnetContractDelegation;
+use crate::mixnode::MixNodeCostParams;
+use cosmwasm_std::Decimal;
+use mixnet_contract_common::{Delegation as MixnetContractDelegation, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -14,9 +15,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct Delegation {
     pub owner: String,
-    pub node_identity: String,
+    pub mix_id: NodeId,
     pub amount: DecCoin,
-    pub block_height: u64,
+    pub height: u64,
     pub proxy: Option<String>, // proxy address used to delegate the funds on behalf of another address
 }
 
@@ -27,9 +28,9 @@ impl Delegation {
     ) -> Result<Self, TypesError> {
         Ok(Delegation {
             owner: delegation.owner.to_string(),
-            node_identity: delegation.node_identity,
+            mix_id: delegation.node_id,
             amount: reg.attempt_convert_to_display_dec_coin(delegation.amount.into())?,
-            block_height: delegation.block_height,
+            height: delegation.height,
             proxy: delegation.proxy.map(|d| d.to_string()),
         })
     }
@@ -38,37 +39,29 @@ impl Delegation {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationRecord.ts")
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct DelegationRecord {
-    pub amount: DecCoin,
-    pub block_height: u64,
-    pub delegated_on_iso_datetime: String,
-    pub uses_vesting_contract_tokens: bool,
-}
-
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationWithEverything.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct DelegationWithEverything {
     pub owner: String,
+    pub mix_id: NodeId,
     pub node_identity: String,
     pub amount: DecCoin,
-    pub total_delegation: Option<DecCoin>,
-    pub pledge_amount: Option<DecCoin>,
+    pub accumulated_by_delegates: Option<DecCoin>,
+    pub accumulated_by_operator: Option<DecCoin>,
     pub block_height: u64,
     pub delegated_on_iso_datetime: String,
-    pub profit_margin_percent: Option<u8>,
+    pub cost_params: Option<MixNodeCostParams>,
     pub avg_uptime_percent: Option<u8>,
-    pub stake_saturation: Option<f32>,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    pub stake_saturation: Option<Decimal>,
+
     pub uses_vesting_contract_tokens: bool,
-    pub accumulated_rewards: Option<DecCoin>,
+    pub unclaimed_rewards: Option<DecCoin>,
+
+    // DEPRECATED, IF POSSIBLE TRY TO DISCONTINUE USE OF IT!
     pub pending_events: Vec<DelegationEvent>,
-    pub history: Vec<DelegationRecord>,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -81,82 +74,6 @@ pub struct DelegationResult {
     source_address: String,
     target_address: String,
     amount: Option<DecCoin>,
-}
-
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationEventKind.ts")
-)]
-#[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
-pub enum DelegationEventKind {
-    Delegate,
-    Undelegate,
-}
-
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationEvent.ts")
-)]
-#[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
-pub struct DelegationEvent {
-    pub kind: DelegationEventKind,
-    pub node_identity: String,
-    pub address: String,
-    pub amount: Option<DecCoin>,
-    pub block_height: u64,
-    pub proxy: Option<String>,
-}
-
-impl DelegationEvent {
-    pub fn from_mixnet_contract(
-        event: ContractDelegationEvent,
-        reg: &RegisteredCoins,
-    ) -> Result<Self, TypesError> {
-        Ok(match event {
-            ContractDelegationEvent::Delegate(delegation) => DelegationEvent {
-                kind: DelegationEventKind::Delegate,
-                block_height: delegation.block_height,
-                address: delegation.owner.into_string(),
-                node_identity: delegation.node_identity,
-                amount: Some(reg.attempt_convert_to_display_dec_coin(delegation.amount.into())?),
-                proxy: delegation.proxy.map(|p| p.into_string()),
-            },
-            ContractDelegationEvent::Undelegate(pending_undelegate) => DelegationEvent {
-                kind: DelegationEventKind::Undelegate,
-                block_height: pending_undelegate.block_height(),
-                address: pending_undelegate.delegate().into_string(),
-                node_identity: pending_undelegate.mix_identity(),
-                amount: None,
-                proxy: pending_undelegate.proxy().map(|p| p.into_string()),
-            },
-        })
-    }
-}
-
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingUndelegate.ts")
-)]
-#[derive(Deserialize, Serialize, PartialEq, Eq, JsonSchema, Clone, Debug)]
-pub struct PendingUndelegate {
-    mix_identity: String,
-    delegate: String,
-    proxy: Option<String>,
-    block_height: u64,
-}
-
-impl From<ContractPendingUndelegate> for PendingUndelegate {
-    fn from(pending_undelegate: ContractPendingUndelegate) -> Self {
-        PendingUndelegate {
-            mix_identity: pending_undelegate.mix_identity(),
-            delegate: pending_undelegate.delegate().to_string(),
-            proxy: pending_undelegate.proxy().map(|p| p.to_string()),
-            block_height: pending_undelegate.block_height(),
-        }
-    }
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

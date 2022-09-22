@@ -40,7 +40,7 @@ export const NetworkSelector = () => {
       <Button
         variant="text"
         color="inherit"
-        sx={{ color: 'text.primary' }}
+        sx={{ color: 'text.primary', fontSize: 14 }}
         onClick={handleClick}
         disableElevation
         endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.text.primary}` }} />}

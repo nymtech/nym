@@ -72,7 +72,7 @@ impl DirectSecp256k1HdWallet {
     }
 
     fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NymdError> {
-        let extended_private_key = XPrv::derive_from_path(&self.seed, hd_path)?;
+        let extended_private_key = XPrv::derive_from_path(self.seed, hd_path)?;
 
         let private_key: SigningKey = extended_private_key.into();
         let public_key = private_key.public_key();

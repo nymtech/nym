@@ -34,7 +34,7 @@ const AdminForm: React.FC<{
               label="Minumum mixnode bond"
               fullWidth
               error={!!errors.minimum_mixnode_pledge}
-              helperText={errors?.minimum_mixnode_pledge?.message}
+              helperText={`${errors?.minimum_mixnode_pledge?.amount?.message} ${errors?.minimum_mixnode_pledge?.denom?.message}`}
             />
           </Grid>
           <Grid item xs={12}>
@@ -47,46 +47,7 @@ const AdminForm: React.FC<{
               label="Minumum gateway bond"
               fullWidth
               error={!!errors.minimum_gateway_pledge}
-              helperText={errors?.minimum_gateway_pledge?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('mixnode_active_set_size', { valueAsNumber: true })}
-              required
-              variant="outlined"
-              id="mixnode_active_set_size"
-              name="mixnode_active_set_size"
-              label="Mixnode Active Set Size "
-              fullWidth
-              error={!!errors.mixnode_active_set_size}
-              helperText={errors?.mixnode_active_set_size?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('mixnode_rewarded_set_size', { valueAsNumber: true })}
-              required
-              variant="outlined"
-              id="mixnode_rewarded_set_size"
-              name="mixnode_rewarded_set_size"
-              label="Mixnode Rewarded Set Size"
-              fullWidth
-              error={!!errors.mixnode_rewarded_set_size}
-              helperText={errors?.mixnode_rewarded_set_size?.message}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('staking_supply', { valueAsNumber: true })}
-              required
-              variant="outlined"
-              id="staking_supply"
-              name="staking_supply"
-              label="Staking Supply"
-              fullWidth
-              error={!!errors.mixnode_rewarded_set_size}
-              helperText={errors?.mixnode_rewarded_set_size?.message}
+              helperText={`${errors?.minimum_gateway_pledge?.amount?.message} ${errors?.minimum_gateway_pledge?.denom?.message}`}
             />
           </Grid>
         </Grid>

@@ -7,13 +7,9 @@ const selectionChance = (economicDynamicsStats: ApiState<MixNodeEconomicDynamics
   const inclusionProbability = economicDynamicsStats?.data?.active_set_inclusion_probability;
   switch (inclusionProbability) {
     case 'High':
-    case 'Moderate':
+    case 'Good':
     case 'Low':
       return inclusionProbability;
-    case 'VeryHigh':
-      return 'Very High';
-    case 'VeryLow':
-      return 'Very Low';
     default:
       return '-';
   }

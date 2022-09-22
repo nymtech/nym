@@ -123,6 +123,10 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetAllDelegationValuesPaged {
+        start_after: Option<(IdentityKey, Vec<u8>, u64)>,
+        limit: Option<u32>,
+    },
     GetBlacklistedNodes {},
     GetCurrentOperatorCost {},
     GetRewardingValidatorAddress {},

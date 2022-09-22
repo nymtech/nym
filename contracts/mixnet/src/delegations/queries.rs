@@ -8,10 +8,7 @@ use cosmwasm_std::StdResult;
 use cosmwasm_std::{Api, Deps, Storage};
 use cw_storage_plus::{Bound, PrimaryKey};
 use mixnet_contract_common::mixnode::DelegationEvent;
-use mixnet_contract_common::{
-    delegation, Delegation, IdentityKey, PagedDelegatorDelegationsResponse,
-    PagedMixDelegationsResponse,
-};
+use mixnet_contract_common::{delegation, Delegation, IdentityKey, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedMixDelegationsResponse};
 
 pub(crate) fn query_pending_delegation_events(
     deps: Deps<'_>,
@@ -79,6 +76,31 @@ pub fn query_all_delegation_keys(storage: &dyn Storage) -> Result<Vec<String>, C
 }
 
 use std::collections::HashSet;
+
+pub(crate) fn query_all_delegations_paged(
+    deps: Deps<'_>,
+    start_after: Option<(IdentityKey, Vec<u8>, u64)>,
+    limit: Option<u32>,
+) -> StdResult<PagedAllDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(300)
+        .min(500) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let delegations = storage::delegations()
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = delegations.last().map(|del| del.storage_key());
+
+    Ok(PagedAllDelegationsResponse::new(
+        delegations,
+        start_next_after,
+    ))
+}
 
 // This should only be exposed directly on the contract via nymd binary, not through the nymd clients
 pub fn debug_query_all_delegation_values(

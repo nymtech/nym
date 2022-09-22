@@ -472,6 +472,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             mix_identity,
             height,
         } => to_binary(&query_mixnode_at_height(deps, mix_identity, height)?),
+        QueryMsg::GetAllDelegationValuesPaged { start_after, limit } => to_binary(
+            &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
+        ),
     };
 
     Ok(query_res?)

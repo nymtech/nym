@@ -22,9 +22,9 @@ use mixnet_contract_common::{
     ContractStateParams, Delegation, ExecuteMsg, Gateway, GatewayBond, GatewayBondResponse,
     GatewayOwnershipResponse, IdentityKey, Interval, LayerDistribution, MixNode, MixNodeBond,
     MixOwnershipResponse, MixnetContractVersion, MixnodeBondResponse,
-    MixnodeRewardingStatusResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, PagedRewardedSetResponse, QueryMsg,
-    RewardedSetUpdateDetails,
+    MixnodeRewardingStatusResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedMixnodeResponse,
+    PagedRewardedSetResponse, QueryMsg, RewardedSetUpdateDetails,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -832,6 +832,22 @@ impl<C> NymdClient<C> {
             delegator,
             start_after,
             limit: page_limit,
+        };
+        self.client
+            .query_contract_smart(self.mixnet_contract_address(), &request)
+            .await
+    }
+
+    pub async fn get_all_delegations_paged(
+        &self,
+        start_after: Option<(IdentityKey, Vec<u8>, u64)>,
+    ) -> Result<PagedAllDelegationsResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let request = QueryMsg::GetAllDelegationValuesPaged {
+            start_after,
+            limit: None,
         };
         self.client
             .query_contract_smart(self.mixnet_contract_address(), &request)

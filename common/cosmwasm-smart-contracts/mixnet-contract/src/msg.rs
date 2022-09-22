@@ -123,6 +123,23 @@ pub enum ExecuteMsg {
         #[serde(rename = "a5")]
         proxy: Option<Addr>,
     },
+    #[serde(rename = "m3")]
+    SaveGateway {
+        #[serde(rename = "a1")]
+        pledge_amount: Coin,
+
+        #[serde(rename = "a2")]
+        owner: Addr,
+
+        #[serde(rename = "a3")]
+        block_height: u64,
+
+        #[serde(rename = "a4")]
+        gateway: Gateway,
+
+        #[serde(rename = "a5")]
+        proxy: Option<Addr>,
+    },
 
     // state/sys-params-related
     UpdateRewardingValidatorAddress {

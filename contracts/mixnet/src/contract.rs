@@ -3,6 +3,7 @@
 
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::delegations;
+use crate::gateways::storage as gateways_storage;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
@@ -15,8 +16,9 @@ use cosmwasm_std::{
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractState, ContractStateParams, Delegation, ExecuteMsg, InstantiateMsg, Interval,
-    MigrateMsg, MixNode, MixNodeBond, MixNodeCostParams, MixNodeRewarding, Percent, QueryMsg,
+    ContractState, ContractStateParams, Delegation, ExecuteMsg, GatewayBond, InstantiateMsg,
+    Interval, MigrateMsg, MixNode, MixNodeBond, MixNodeCostParams, MixNodeRewarding, Percent,
+    QueryMsg,
 };
 
 // To be removed once entire contract is unlocked
@@ -173,6 +175,19 @@ pub fn execute(
             delegations::storage::delegations().save(deps.storage, storage_key, &delegation)?;
             Ok(Response::new())
         }
+        ExecuteMsg::SaveGateway {
+            pledge_amount,
+            owner,
+            block_height,
+            gateway,
+            proxy,
+        } => {
+            let bond = GatewayBond::new(pledge_amount, owner, block_height, gateway, proxy);
+
+            gateways_storage::gateways().save(deps.storage, bond.identity(), &bond)?;
+            Ok(Response::new())
+        }
+
         _ => Err(MixnetContractError::MigrationInProgress),
     }
 }

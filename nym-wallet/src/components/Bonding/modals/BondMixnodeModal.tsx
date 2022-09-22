@@ -152,18 +152,16 @@ export const BondMixnodeModal = ({
       subHeader={`Step ${step}/2`}
       okLabel="Next"
     >
-      <Box sx={{ mb: 2 }}>
-        <BondMixnodeForm
-          step={step}
-          denom={denom}
-          mixnodeData={mixnodeData}
-          amountData={amountData}
-          hasVestingTokens={hasVestingTokens}
-          onValidateMixnodeData={handleUpdateMixnodeData}
-          onValidateAmountData={handleUpdateAmountData}
-          onSelectNodeType={onSelectNodeType}
-        />
-      </Box>
+      <BondMixnodeForm
+        step={step}
+        denom={denom}
+        mixnodeData={mixnodeData}
+        amountData={amountData}
+        hasVestingTokens={hasVestingTokens}
+        onValidateMixnodeData={handleUpdateMixnodeData}
+        onValidateAmountData={handleUpdateAmountData}
+        onSelectNodeType={onSelectNodeType}
+      />
     </SimpleModal>
   );
 };

@@ -3,7 +3,7 @@ import { Stack, SxProps } from '@mui/material';
 import { FeeDetails, DecCoin, CurrencyDenom } from '@nymproject/types';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
-import { ModalFee } from '../Modals/ModalFee';
+import { ModalFee, ModalTotalAmount } from '../Modals/ModalFee';
 
 export const SendDetailsModal = ({
   amount,
@@ -38,11 +38,12 @@ export const SendDetailsModal = ({
     sx={sx}
     backdropProps={backdropProps}
   >
-    <Stack gap={0.5} sx={{ mt: 4 }}>
-      <ModalListItem label="From:" value={fromAddress} divider />
-      <ModalListItem label="To:" value={toAddress} divider />
-      <ModalListItem label="Amount:" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />
+    <Stack gap={0.5} sx={{ mt: 3 }}>
+      <ModalListItem label="From" value={fromAddress} divider />
+      <ModalListItem label="To" value={toAddress} divider />
+      <ModalListItem label="Amount" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />
       <ModalFee fee={fee} divider isLoading={false} />
+      <ModalTotalAmount fee={fee} amount={amount?.amount} divider isLoading={false} />
     </Stack>
   </SimpleModal>
 );

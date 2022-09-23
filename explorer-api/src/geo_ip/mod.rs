@@ -1,1 +1,1 @@
-pub(crate) mod geo_ip;
+pub(crate) mod location;

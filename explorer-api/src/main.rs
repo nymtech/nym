@@ -8,11 +8,14 @@ use log::info;
 use network_defaults::setup_env;
 use task::ShutdownNotifier;
 
+mod buy_terms;
 pub(crate) mod cache;
 mod client;
 pub(crate) mod commands;
 mod country_statistics;
 mod gateways;
+mod geo_ip;
+mod guards;
 mod helpers;
 mod http;
 mod mix_node;
@@ -22,9 +25,6 @@ mod ping;
 mod state;
 mod tasks;
 mod validators;
-mod buy_terms;
-mod geo_ip;
-mod guards;
 
 const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 

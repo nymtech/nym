@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::geo_ip::geo_ip::Location;
+use crate::geo_ip::location::Location;
 use crate::state::ExplorerApiStateContext;
 use rocket::response::status;
 use rocket::serde::json::Json;

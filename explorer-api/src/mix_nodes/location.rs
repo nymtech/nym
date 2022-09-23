@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::geo_ip::geo_ip;
+use crate::geo_ip::location;
 use mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -39,7 +39,7 @@ pub(crate) struct Location {
 }
 
 impl Location {
-    pub(crate) fn new(location: geo_ip::Location) -> Self {
+    pub(crate) fn new(location: location::Location) -> Self {
         Location {
             country_name: location.name,
             two_letter_iso_country_code: location.iso_alpha2,

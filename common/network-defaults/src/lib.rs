@@ -285,12 +285,17 @@ pub fn setup_env(config_env_file: Option<PathBuf>) {
                     .expect("Invalid path to environment configuration file");
             } else {
                 // if nothing is set, the use mainnet defaults
+                // if the user has not set `CONFIGURED`, then even if they set any of the env variables,
+                // overwrite them
                 crate::mainnet::export_to_env();
             }
         }
         Err(_) => crate::mainnet::export_to_env(),
         _ => {}
     }
+
+    // if we haven't explicitly defined any of the constants, fallback to defaults
+    crate::mainnet::export_to_env_if_not_set()
 }
 
 // Name of the event triggered by the eth contract. If the event name is changed,

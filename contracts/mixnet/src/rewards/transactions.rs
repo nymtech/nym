@@ -62,6 +62,9 @@ pub(crate) fn try_reward_mixnode(
         }
     };
 
+    let prior_delegates = mix_rewarding.delegates;
+    let prior_unit_delegation = mix_rewarding.unit_delegation;
+
     // check if this node has already been rewarded for the current epoch.
     // unlike the previous check, this one should be a hard error since this cannot be
     // influenced by users actions
@@ -113,6 +116,8 @@ pub(crate) fn try_reward_mixnode(
         interval,
         node_id,
         reward_distribution,
+        prior_delegates,
+        prior_unit_delegation,
     )))
 }
 

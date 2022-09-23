@@ -10,6 +10,7 @@ use colored::Colorize;
 use completions::{fig_generate, ArgShell};
 use config::parse_validators;
 use crypto::bech32_address_validation;
+use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
     API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
@@ -109,27 +110,29 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
                 .expect("the provided statistics service url is invalid!"),
         );
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_url = std::env::var(STATISTICS_SERVICE_DOMAIN_ADDRESS)
-            .expect("statistics service url not set");
-        config = config.with_custom_statistics_service_url(
-            raw_url
-                .parse()
-                .expect("the provided statistics service url is invalid"),
-        )
+        if let Some(raw_url) = read_var_if_not_default(STATISTICS_SERVICE_DOMAIN_ADDRESS) {
+            config = config.with_custom_statistics_service_url(
+                raw_url
+                    .parse()
+                    .expect("the provided statistics service url is invalid"),
+            );
+        }
     }
 
     if let Some(raw_validators) = args.validator_apis {
         config = config.with_custom_validator_apis(parse_validators(&raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
-        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(ref raw_validators) = args.validators {
         config = config.with_custom_validator_nymd(parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(NYMD_VALIDATOR).expect("nymd validator not set");
-        config = config.with_custom_validator_nymd(parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {
+            config = config.with_custom_validator_nymd(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(wallet_address) = args.wallet_address {

@@ -8,6 +8,7 @@ use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
+use config::defaults::mainnet::read_var_if_not_default;
 use config::{
     defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED},
     parse_validators,
@@ -97,8 +98,9 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(ref raw_validators) = args.validators {
         config = config.with_custom_validator_apis(parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
-        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(ref announce_host) = args.announce_host {

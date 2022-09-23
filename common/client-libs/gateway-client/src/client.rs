@@ -30,7 +30,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-use tungstenite::protocol::Message;
+use tungstenite::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
@@ -449,7 +449,7 @@ impl GatewayClient {
             .derive_destination_address();
         let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
-        let msg =
+        let msg: tungstenite::Message =
             ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
 
         match self.send_websocket_message(msg).await? {
@@ -733,6 +733,8 @@ impl GatewayClient {
     }
 
     pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
+        println!("About to establish connection to {}", self.gateway_address);
+
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }

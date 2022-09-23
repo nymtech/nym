@@ -30,8 +30,8 @@ network-defaults = { path = "../../network-defaults" }
 validator-client = { path = "../validator-client", optional = true }
 
 [dependencies.tungstenite]
-version = "0.13"
-default-features = false
+version = "0.17.3"
+features = ["rustls-tls-webpki-roots"]
 
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
@@ -39,7 +39,7 @@ version = "1.19.1"
 features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
-version = "0.14"
+version = "0.17.2"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.credential-storage]
 path = "../../credential-storage"

@@ -33,7 +33,7 @@ subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1"
 tokio = { version = "1.19.1", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
 tokio-stream = { version = "0.1.9", features = [ "fs" ] }
-tokio-tungstenite = "0.14"
+tokio-tungstenite = "0.17"
 tokio-util = { version = "0.7.3", features = [ "codec" ] }
 url = { version = "2.2", features = [ "serde" ] }
 web3 = "0.17.0"

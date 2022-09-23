@@ -9,7 +9,8 @@ pub use self::shared_key::{SharedKeySize, SharedKeys};
 use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
 use rand::{CryptoRng, RngCore};
-use tungstenite::{Error as WsError, Message as WsMessage};
+use tungstenite::error::Error as WsError;
+use tungstenite::protocol::Message as WsMessage;
 
 pub(crate) type WsItem = Result<WsMessage, WsError>;
 

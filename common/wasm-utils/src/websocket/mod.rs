@@ -85,6 +85,11 @@ pub struct JSWebsocket {
 
 impl JSWebsocket {
     pub fn new(url: &str) -> Result<Self, JsValue> {
+        console_log!(
+            "Attempting to establish wasm websocket connection to {}",
+            url
+        );
+
         let ws = WebSocket::new(url)?;
         // we don't want to ever have to deal with blobs
         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);

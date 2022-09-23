@@ -29,6 +29,6 @@ credentials = { path = "../../common/credentials" }
 coconut = ["coconut-interface", "credentials/coconut"]
 
 [dependencies.tungstenite]
-version = "0.13.0"
+version = "0.17.3"
 default-features = false
 

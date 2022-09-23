@@ -117,7 +117,7 @@ pub(crate) fn try_reward_mixnode(
         node_id,
         reward_distribution,
         prior_delegates,
-        prior_unit_delegation
+        prior_unit_delegation,
     )))
 }
 

@@ -8,6 +8,8 @@ use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
 pub use contracts_common::events::*;
 use cosmwasm_std::{Addr, Coin, Decimal, Event};
 
+pub const EVENT_VERSION_PREFIX: &str = "v2_";
+
 pub enum MixnetEventType {
     MixnodeBonding,
     GatewayBonding,
@@ -47,7 +49,7 @@ impl From<MixnetEventType> for String {
 
 impl ToString for MixnetEventType {
     fn to_string(&self) -> String {
-        match self {
+        let event_name = match self {
             MixnetEventType::MixnodeBonding => "mixnode_bonding",
             MixnetEventType::GatewayBonding => "gateway_bonding",
             MixnetEventType::GatewayUnbonding => "gateway_unbonding",
@@ -78,8 +80,9 @@ impl ToString for MixnetEventType {
             MixnetEventType::PendingIntervalConfigUpdate => "pending_interval_config_update",
             MixnetEventType::IntervalConfigUpdate => "interval_config_update",
             MixnetEventType::DelegationOnUnbonding => "delegation_on_unbonding_node",
-        }
-        .into()
+        };
+
+        format!("{}{}", EVENT_VERSION_PREFIX, event_name)
     }
 }
 

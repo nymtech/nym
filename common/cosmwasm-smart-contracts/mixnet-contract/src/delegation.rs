@@ -34,7 +34,8 @@ pub struct Delegation {
     pub owner: Addr,
 
     /// Id of the MixNode that this delegation was performed against.
-    pub node_id: NodeId,
+    #[serde(alias = "node_id")]
+    pub mix_id: NodeId,
 
     // Note to UI/UX devs: there's absolutely no point in displaying this value to the users,
     // it would serve them no purpose. It's only used for calculating rewards
@@ -55,7 +56,7 @@ pub struct Delegation {
 impl Delegation {
     pub fn new(
         owner: Addr,
-        node_id: NodeId,
+        mix_id: NodeId,
         cumulative_reward_ratio: Decimal,
         amount: Coin,
         height: u64,
@@ -63,7 +64,7 @@ impl Delegation {
     ) -> Self {
         Delegation {
             owner,
-            node_id,
+            mix_id,
             cumulative_reward_ratio,
             amount,
             height,
@@ -99,7 +100,7 @@ impl Delegation {
     }
 
     pub fn storage_key(&self) -> StorageKey {
-        Self::generate_storage_key(self.node_id, &self.owner, self.proxy.as_ref())
+        Self::generate_storage_key(self.mix_id, &self.owner, self.proxy.as_ref())
     }
 }
 

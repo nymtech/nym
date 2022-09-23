@@ -15,7 +15,7 @@ pub(crate) fn undelegate(
 ) -> Result<Coin, MixnetContractError> {
     let tokens = mix_rewarding.undelegate(&delegation)?;
 
-    rewards_storage::MIXNODE_REWARDING.save(store, delegation.node_id, &mix_rewarding)?;
+    rewards_storage::MIXNODE_REWARDING.save(store, delegation.mix_id, &mix_rewarding)?;
     storage::delegations().replace(store, delegation.storage_key(), None, Some(&delegation))?;
 
     Ok(tokens)

@@ -28,7 +28,7 @@ impl Delegation {
     ) -> Result<Self, TypesError> {
         Ok(Delegation {
             owner: delegation.owner.to_string(),
-            mix_id: delegation.node_id,
+            mix_id: delegation.mix_id,
             amount: reg.attempt_convert_to_display_dec_coin(delegation.amount.into())?,
             height: delegation.height,
             proxy: delegation.proxy.map(|d| d.to_string()),

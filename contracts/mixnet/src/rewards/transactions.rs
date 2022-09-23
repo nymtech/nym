@@ -33,7 +33,7 @@ pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    node_id: NodeId,
+    mix_id: NodeId,
     node_performance: Performance,
 ) -> Result<Response, MixnetContractError> {
     ensure_is_authorized(info.sender, deps.storage)?;
@@ -50,15 +50,12 @@ pub(crate) fn try_reward_mixnode(
 
     // there's a chance of this failing to load the details if the mixnode unbonded before rewards
     // were distributed and all of its delegators are also gone
-    let mut mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, node_id)? {
+    let mut mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
         Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
         // don't fail if the node has unbonded as we don't want to fail the underlying transaction
         _ => {
-            return Ok(
-                Response::new().add_event(new_not_found_mix_operator_rewarding_event(
-                    interval, node_id,
-                )),
-            );
+            return Ok(Response::new()
+                .add_event(new_not_found_mix_operator_rewarding_event(interval, mix_id)));
         }
     };
 
@@ -71,16 +68,16 @@ pub(crate) fn try_reward_mixnode(
     let absolute_epoch_id = interval.current_epoch_absolute_id();
     if absolute_epoch_id == mix_rewarding.last_rewarded_epoch {
         return Err(MixnetContractError::MixnodeAlreadyRewarded {
-            node_id,
+            mix_id,
             absolute_epoch_id,
         });
     }
 
     // again a hard error since the rewarding validator should have known not to reward this node
     let node_status = interval_storage::REWARDED_SET
-        .load(deps.storage, node_id)
+        .load(deps.storage, mix_id)
         .map_err(|_| MixnetContractError::MixnodeNotInRewardedSet {
-            node_id,
+            mix_id,
             absolute_epoch_id,
         })?;
 
@@ -88,10 +85,10 @@ pub(crate) fn try_reward_mixnode(
     // however, we still need to update last_rewarded_epoch field
     if node_performance.is_zero() {
         mix_rewarding.last_rewarded_epoch = absolute_epoch_id;
-        storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
+        storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
-                interval, node_id,
+                interval, mix_id,
             )),
         );
     }
@@ -109,12 +106,12 @@ pub(crate) fn try_reward_mixnode(
     mix_rewarding.distribute_rewards(reward_distribution, absolute_epoch_id);
 
     // persist changes happened to the storage
-    storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
+    storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
     storage::reward_accounting(deps.storage, node_reward)?;
 
     Ok(Response::new().add_event(new_mix_rewarding_event(
         interval,
-        node_id,
+        mix_id,
         reward_distribution,
         prior_delegates,
         prior_unit_delegation,
@@ -233,9 +230,9 @@ pub(crate) fn _try_withdraw_delegator_reward(
     // (in that case the expected path of getting your tokens back is via undelegation)
     match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
         Some(mix_bond) if mix_bond.is_unbonding => {
-            return Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
+            return Err(MixnetContractError::MixnodeIsUnbonding { mix_id })
         }
-        None => return Err(MixnetContractError::MixnodeHasUnbonded { node_id: mix_id }),
+        None => return Err(MixnetContractError::MixnodeHasUnbonded { mix_id }),
         _ => (),
     };
 
@@ -528,7 +525,7 @@ pub mod tests {
             assert!(res_standby.is_ok());
             assert!(matches!(
                 res_inactive,
-                Err(MixnetContractError::MixnodeNotInRewardedSet { node_id, .. }) if node_id == inactive_mix_id
+                Err(MixnetContractError::MixnodeNotInRewardedSet { mix_id, .. }) if mix_id == inactive_mix_id
             ));
         }
 
@@ -557,7 +554,7 @@ pub mod tests {
             let res = try_reward_mixnode(test.deps_mut(), env, sender.clone(), mix_id, performance);
             assert!(matches!(
                 res,
-                Err(MixnetContractError::MixnodeAlreadyRewarded { node_id, .. }) if node_id == mix_id
+                Err(MixnetContractError::MixnodeAlreadyRewarded { mix_id, .. }) if mix_id == mix_id
             ));
 
             // in the following epoch we're good again
@@ -606,7 +603,7 @@ pub mod tests {
             );
             assert!(matches!(
                 res,
-                Err(MixnetContractError::MixnodeAlreadyRewarded { node_id, .. }) if node_id == mix_id
+                Err(MixnetContractError::MixnodeAlreadyRewarded { mix_id, .. }) if mix_id == mix_id
             ));
 
             // but in the next epoch, as always, we're good again
@@ -917,7 +914,7 @@ pub mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
-                    node_id: mix_id_unbonding
+                    mix_id: mix_id_unbonding
                 })
             );
 
@@ -926,7 +923,7 @@ pub mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeHasUnbonded {
-                    node_id: mix_id_unbonded_leftover
+                    mix_id: mix_id_unbonded_leftover
                 })
             );
         }
@@ -1198,7 +1195,7 @@ pub mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
-                    node_id: mix_id_unbonding
+                    mix_id: mix_id_unbonding
                 })
             );
 

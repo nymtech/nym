@@ -63,7 +63,7 @@ async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientW
     for delegation in delegations {
         table.add_row(vec![
             to_iso_timestamp(delegation.height as u32, client).await,
-            delegation.node_id.to_string(),
+            delegation.mix_id.to_string(),
             pretty_cosmwasm_coin(&delegation.amount),
             delegation
                 .proxy

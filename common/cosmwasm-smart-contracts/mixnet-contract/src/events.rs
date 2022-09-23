@@ -99,7 +99,7 @@ pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
 pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
 
 // bonding/unbonding
-pub const NODE_ID_KEY: &str = "node_id";
+pub const MIX_ID_KEY: &str = "mix_id";
 pub const NODE_IDENTITY_KEY: &str = "identity";
 pub const ASSIGNED_LAYER_KEY: &str = "assigned_layer";
 
@@ -202,7 +202,7 @@ pub fn new_withdraw_operator_reward_event(
         .add_attribute(OWNER_KEY, owner.as_str())
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
-        .add_attribute(NODE_ID_KEY, mix_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
 pub fn new_withdraw_delegator_reward_event(
@@ -269,7 +269,7 @@ pub fn new_undelegation_event(delegator: &Addr, proxy: &Option<Addr>, mix_id: No
     Event::new(MixnetEventType::Undelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
-        .add_attribute(NODE_ID_KEY, mix_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
 pub fn new_pending_undelegation_event(
@@ -280,7 +280,7 @@ pub fn new_pending_undelegation_event(
     Event::new(MixnetEventType::PendingUndelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
-        .add_attribute(NODE_ID_KEY, mix_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
 pub fn new_gateway_bonding_event(
@@ -314,12 +314,12 @@ pub fn new_mixnode_bonding_event(
     proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
-    node_id: NodeId,
+    mix_id: NodeId,
     assigned_layer: Layer,
 ) -> Event {
     // coin implements Display trait and we use that implementation here
     Event::new(MixnetEventType::MixnodeBonding)
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
@@ -327,55 +327,55 @@ pub fn new_mixnode_bonding_event(
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
-pub fn new_mixnode_unbonding_event(node_id: NodeId) -> Event {
-    Event::new(MixnetEventType::MixnodeUnbonding).add_attribute(NODE_ID_KEY, node_id.to_string())
+pub fn new_mixnode_unbonding_event(mix_id: NodeId) -> Event {
+    Event::new(MixnetEventType::MixnodeUnbonding).add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
 pub fn new_pending_mixnode_unbonding_event(
     owner: &Addr,
     proxy: &Option<Addr>,
     identity: IdentityKeyRef<'_>,
-    node_id: NodeId,
+    mix_id: NodeId,
 ) -> Event {
     Event::new(MixnetEventType::PendingMixnodeUnbonding)
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
 }
 
 pub fn new_mixnode_config_update_event(
-    node_id: NodeId,
+    mix_id: NodeId,
     owner: &Addr,
     proxy: &Option<Addr>,
     update: &MixNodeConfigUpdate,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeConfigUpdate)
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_CONFIG_KEY, update.to_inline_json())
 }
 
 pub fn new_mixnode_pending_cost_params_update_event(
-    node_id: NodeId,
+    mix_id: NodeId,
     owner: &Addr,
     proxy: &Option<Addr>,
     new_costs: &MixNodeCostParams,
 ) -> Event {
     Event::new(MixnetEventType::PendingMixnodeCostParamsUpdate)
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 
 pub fn new_mixnode_cost_params_update_event(
-    node_id: NodeId,
+    mix_id: NodeId,
     new_costs: &MixNodeCostParams,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeCostParamsUpdate)
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 
@@ -431,29 +431,29 @@ pub fn new_settings_update_event(
     event
 }
 
-pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
+pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, mix_id: NodeId) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(
             INTERVAL_KEY,
             interval.current_epoch_absolute_id().to_string(),
         )
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
-pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {
+pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, mix_id: NodeId) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(
             INTERVAL_KEY,
             interval.current_epoch_absolute_id().to_string(),
         )
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(NO_REWARD_REASON_KEY, ZERO_PERFORMANCE_VALUE)
 }
 
 pub fn new_mix_rewarding_event(
     interval: Interval,
-    node_id: NodeId,
+    mix_id: NodeId,
     reward_distribution: RewardDistribution,
     prior_delegates: Decimal,
     prior_unit_delegation: Decimal,
@@ -465,7 +465,7 @@ pub fn new_mix_rewarding_event(
         )
         .add_attribute(PRIOR_DELEGATES_KEY, prior_delegates.to_string())
         .add_attribute(PRIOR_UNIT_DELEGATION_KEY, prior_unit_delegation.to_string())
-        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,
             reward_distribution.operator.to_string(),

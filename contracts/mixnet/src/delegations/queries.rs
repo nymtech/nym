@@ -74,7 +74,7 @@ pub(crate) fn query_delegator_delegations_paged(
 
     let start_next_after = delegations
         .last()
-        .map(|del| (del.node_id, del.proxy_storage_key()));
+        .map(|del| (del.mix_id, del.proxy_storage_key()));
 
     Ok(PagedDelegatorDelegationsResponse::new(
         delegations,
@@ -284,19 +284,19 @@ mod tests {
 
             let res1 = query_mixnode_delegations_paged(test.deps(), mix_id1, None, None).unwrap();
             assert_eq!(res1.delegations.len(), 10);
-            assert!(res1.delegations.into_iter().all(|d| d.node_id == mix_id1));
+            assert!(res1.delegations.into_iter().all(|d| d.mix_id == mix_id1));
 
             let res2 = query_mixnode_delegations_paged(test.deps(), mix_id2, None, None).unwrap();
             assert_eq!(res2.delegations.len(), 14);
-            assert!(res2.delegations.into_iter().all(|d| d.node_id == mix_id2));
+            assert!(res2.delegations.into_iter().all(|d| d.mix_id == mix_id2));
 
             let res3 = query_mixnode_delegations_paged(test.deps(), mix_id3, None, None).unwrap();
             assert_eq!(res3.delegations.len(), 10);
-            assert!(res3.delegations.into_iter().all(|d| d.node_id == mix_id3));
+            assert!(res3.delegations.into_iter().all(|d| d.mix_id == mix_id3));
 
             let res4 = query_mixnode_delegations_paged(test.deps(), mix_id4, None, None).unwrap();
             assert_eq!(res4.delegations.len(), 10);
-            assert!(res4.delegations.into_iter().all(|d| d.node_id == mix_id4));
+            assert!(res4.delegations.into_iter().all(|d| d.mix_id == mix_id4));
         }
     }
 
@@ -610,7 +610,7 @@ mod tests {
             assert_eq!(1, page1.delegations.len());
             assert!(
                 page1.delegations[0].owner.as_str() == delegator1
-                    && page1.delegations[0].node_id == mix_id1
+                    && page1.delegations[0].mix_id == mix_id1
             );
 
             test.add_immediate_delegation(delegator1, 1000u32, mix_id2);
@@ -621,11 +621,11 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
             assert!(
                 page1.delegations[0].owner.as_str() == delegator1
-                    && page1.delegations[0].node_id == mix_id1
+                    && page1.delegations[0].mix_id == mix_id1
             );
             assert!(
                 page1.delegations[1].owner.as_str() == delegator1
-                    && page1.delegations[1].node_id == mix_id2
+                    && page1.delegations[1].mix_id == mix_id2
             );
 
             test.add_immediate_delegation(delegator2, 1000u32, mix_id1);
@@ -636,11 +636,11 @@ mod tests {
             assert_eq!(2, another_page1.delegations.len());
             assert!(
                 another_page1.delegations[0].owner.as_str() == delegator1
-                    && another_page1.delegations[0].node_id == mix_id1
+                    && another_page1.delegations[0].mix_id == mix_id1
             );
             assert!(
                 another_page1.delegations[1].owner.as_str() == delegator2
-                    && another_page1.delegations[1].node_id == mix_id1
+                    && another_page1.delegations[1].mix_id == mix_id1
             );
 
             // retrieving the next page should start after the last key on this page
@@ -652,7 +652,7 @@ mod tests {
             assert_eq!(1, page2.delegations.len());
             assert!(
                 page2.delegations[0].owner.as_str() == delegator1
-                    && page2.delegations[0].node_id == mix_id2
+                    && page2.delegations[0].mix_id == mix_id2
             );
 
             // save another one
@@ -665,11 +665,11 @@ mod tests {
             assert_eq!(2, page2.delegations.len());
             assert!(
                 page2.delegations[0].owner.as_str() == delegator1
-                    && page2.delegations[0].node_id == mix_id2
+                    && page2.delegations[0].mix_id == mix_id2
             );
             assert!(
                 page2.delegations[1].owner.as_str() == delegator2
-                    && page2.delegations[1].node_id == mix_id2
+                    && page2.delegations[1].mix_id == mix_id2
             );
         }
     }

@@ -73,20 +73,20 @@ impl Delegation {
     }
 
     pub fn generate_storage_key(
-        node_id: NodeId,
+        mix_id: NodeId,
         owner_address: &Addr,
         proxy: Option<&Addr>,
     ) -> StorageKey {
-        (node_id, generate_owner_storage_subkey(owner_address, proxy))
+        (mix_id, generate_owner_storage_subkey(owner_address, proxy))
     }
 
     // this function might seem a bit redundant, but I'd rather explicitly keep it around in case
     // some types change in the future
     pub fn generate_storage_key_with_subkey(
-        node_id: NodeId,
+        mix_id: NodeId,
         owner_proxy_subkey: OwnerProxySubKey,
     ) -> StorageKey {
-        (node_id, owner_proxy_subkey)
+        (mix_id, owner_proxy_subkey)
     }
 
     pub fn dec_amount(&self) -> Decimal {

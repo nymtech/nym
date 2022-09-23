@@ -180,7 +180,7 @@ fn update_rewarded_set(
     let mut tmp_set = BTreeSet::new();
     for node_id in &new_rewarded_set {
         if !tmp_set.insert(node_id) {
-            return Err(MixnetContractError::DuplicateRewardedSetNode { node_id: *node_id });
+            return Err(MixnetContractError::DuplicateRewardedSetNode { mix_id: *node_id });
         }
     }
 
@@ -1015,7 +1015,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(
             err,
-            MixnetContractError::DuplicateRewardedSetNode { node_id: 1 }
+            MixnetContractError::DuplicateRewardedSetNode { mix_id: 1 }
         );
         let nodes_with_duplicate = vec![1, 2, 3, 5, 4, 5];
         let err = update_rewarded_set(
@@ -1026,7 +1026,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(
             err,
-            MixnetContractError::DuplicateRewardedSetNode { node_id: 5 }
+            MixnetContractError::DuplicateRewardedSetNode { mix_id: 5 }
         );
     }
 

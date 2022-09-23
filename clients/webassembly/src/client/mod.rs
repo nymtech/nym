@@ -211,7 +211,7 @@ impl NymClient {
         self
     }
 
-    pub(crate) fn choose_gateway(&self) -> &gateway::Node {
+    pub(crate) fn choose_gateway(&self) -> gateway::Node {
         let topology = self
             .topology
             .as_ref()
@@ -219,7 +219,21 @@ impl NymClient {
 
         // choose the first one available
         assert!(!topology.gateways().is_empty());
-        topology.gateways().first().unwrap()
+        topology.gateways().first().unwrap();
+
+        console_log!("picking nym gateway");
+
+        gateway::Node {
+            owner: "n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg".to_string(),
+            stake: 100000000,
+            location: "PRIVACY HQ".to_string(),
+            host: "gateway1.nymtech.net".parse().unwrap(),
+            mix_host: "213.219.38.119:1789".parse().unwrap(),
+            clients_port: 443,
+            identity_key: identity::PublicKey::from_base58_string("E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM").unwrap(),
+            sphinx_key: encryption::PublicKey::from_base58_string("CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX").unwrap(),
+            version: "1.0.0-rc.2".to_string()
+        }
     }
 
     // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self

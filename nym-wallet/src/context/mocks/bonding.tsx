@@ -17,6 +17,7 @@ const bondedMixnodeMock: TBondedMixnode = {
   delegators: 5423,
   status: 'active',
   operatorCost: 2,
+  host: '1.2.3.4',
 };
 
 const bondedGatewayMock: TBondedGateway = {

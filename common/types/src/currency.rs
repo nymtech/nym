@@ -1,6 +1,5 @@
 use crate::error::TypesError;
-use config::defaults::all::Network;
-use config::defaults::{DenomDetails, DenomDetailsOwned};
+use config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
 use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
@@ -56,10 +55,16 @@ pub type Denom = String;
 pub struct RegisteredCoins(HashMap<Denom, CoinMetadata>);
 
 impl RegisteredCoins {
-    pub fn default_denoms(network: Network) -> Self {
+    pub fn default_denoms(network: &NymNetworkDetails) -> Self {
         let mut network_coins = HashMap::new();
-        network_coins.insert(network.mix_denom().base, network.mix_denom().into());
-        network_coins.insert(network.stake_denom().base, network.stake_denom().into());
+        network_coins.insert(
+            network.chain_details.mix_denom.base.clone(),
+            network.chain_details.mix_denom.clone().into(),
+        );
+        network_coins.insert(
+            network.chain_details.stake_denom.base.clone(),
+            network.chain_details.stake_denom.clone().into(),
+        );
         RegisteredCoins(network_coins)
     }
 
@@ -513,7 +518,7 @@ mod test {
 
     #[test]
     fn converting_to_display() {
-        let reg = RegisteredCoins::default_denoms(Network::MAINNET);
+        let reg = RegisteredCoins::default_denoms(&NymNetworkDetails::new_mainnet());
         let values = vec![
             (1u128, "0.000001"),
             (10u128, "0.00001"),
@@ -527,16 +532,29 @@ mod test {
         ];
 
         for (raw, expected) in values {
-            let coin = Coin::new(raw, Network::MAINNET.mix_denom().base);
+            let coin = Coin::new(
+                raw,
+                NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .base
+                    .clone(),
+            );
             let display = reg.attempt_convert_to_display_dec_coin(coin).unwrap();
-            assert_eq!(Network::MAINNET.mix_denom().display, display.denom);
+            assert_eq!(
+                NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .display,
+                display.denom
+            );
             assert_eq!(expected, display.amount.to_string());
         }
     }
 
     #[test]
     fn converting_to_base() {
-        let reg = RegisteredCoins::default_denoms(Network::MAINNET);
+        let reg = RegisteredCoins::default_denoms(&NymNetworkDetails::new_mainnet());
         let values = vec![
             (1u128, "0.000001"),
             (10u128, "0.00001"),
@@ -551,11 +569,21 @@ mod test {
 
         for (expected, raw_display) in values {
             let coin = DecCoin {
-                denom: Network::MAINNET.mix_denom().display,
+                denom: NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .display
+                    .clone(),
                 amount: raw_display.parse().unwrap(),
             };
             let base = reg.attempt_convert_to_base_coin(coin).unwrap();
-            assert_eq!(Network::MAINNET.mix_denom().base, base.denom);
+            assert_eq!(
+                NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .base,
+                base.denom
+            );
             assert_eq!(expected, base.amount);
         }
     }

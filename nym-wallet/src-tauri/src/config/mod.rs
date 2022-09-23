@@ -13,8 +13,7 @@ use strum::IntoEnumIterator;
 use url::Url;
 use validator_client::nymd::AccountId as CosmosAccountId;
 
-use config::defaults::all::Network;
-use config::defaults::{all::SupportedNetworks, ValidatorDetails};
+use config::defaults::{DenomDetailsOwned, NymNetworkDetails, ValidatorDetails};
 use nym_wallet_types::network::Network as WalletNetwork;
 use nym_wallet_types::network_config;
 
@@ -138,7 +137,7 @@ impl Config {
 
         // One file per network
         for (network, config) in &self.networks {
-            let network = match Network::from_str(network).map(Into::into) {
+            let network = match WalletNetwork::from_str(network) {
                 Ok(network) => network,
                 Err(err) => {
                     log::warn!("Unexpected name for network configuration, not saving: {err}");
@@ -198,7 +197,7 @@ impl Config {
         &self,
         network: WalletNetwork,
     ) -> impl Iterator<Item = ValidatorConfigEntry> + '_ {
-        self.base.networks.validators(network.into()).map(|v| {
+        self.base.networks.validators(&network).map(|v| {
             v.clone()
                 .try_into()
                 .expect("The hardcoded validators are assumed to be valid urls")
@@ -218,7 +217,7 @@ impl Config {
     pub fn get_mixnet_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
         self.base
             .networks
-            .mixnet_contract_address(network.into())
+            .mixnet_contract_address(&network)
             .expect("No mixnet contract address found in config")
             .parse()
             .expect("Wrong format for mixnet contract address")
@@ -227,7 +226,7 @@ impl Config {
     pub fn get_vesting_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
         self.base
             .networks
-            .vesting_contract_address(network.into())
+            .vesting_contract_address(&network)
             .expect("No vesting contract address found in config")
             .parse()
             .expect("Wrong format for vesting contract address")
@@ -236,7 +235,7 @@ impl Config {
     pub fn get_bandwidth_claim_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
         self.base
             .networks
-            .bandwidth_claim_contract_address(network.into())
+            .bandwidth_claim_contract_address(&network)
             .expect("No bandwidth claim contract address found in config")
             .parse()
             .expect("Wrong format for bandwidth claim contract address")
@@ -418,6 +417,90 @@ impl fmt::Display for OptionalValidators {
             .map(|validators| format!(",\nqa: [\n{}\n]", validators.iter().format("\n")))
             .unwrap_or_default();
         write!(f, "{}{}{}", s1, s2, s3)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+struct SupportedNetworks {
+    networks: HashMap<WalletNetwork, NetworkDetails>,
+}
+
+impl SupportedNetworks {
+    fn new(support: Vec<WalletNetwork>) -> Self {
+        SupportedNetworks {
+            networks: support
+                .into_iter()
+                .map(|n| {
+                    let details = NetworkDetails::from(NymNetworkDetails::from(n));
+                    (n, details)
+                })
+                .collect(),
+        }
+    }
+
+    fn mixnet_contract_address(&self, network: &WalletNetwork) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.mixnet_contract_address.as_str())
+    }
+
+    fn vesting_contract_address(&self, network: &WalletNetwork) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.vesting_contract_address.as_str())
+    }
+
+    fn bandwidth_claim_contract_address(&self, network: &WalletNetwork) -> Option<&str> {
+        self.networks
+            .get(network)
+            .map(|network_details| network_details.bandwidth_claim_contract_address.as_str())
+    }
+
+    fn validators(&self, network: &WalletNetwork) -> impl Iterator<Item = &ValidatorDetails> {
+        self.networks
+            .get(network)
+            .map(|network_details| &network_details.validators)
+            .into_iter()
+            .flatten()
+    }
+}
+
+// Simplified variant of NymNetworkDetails for serialization to config file
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+struct NetworkDetails {
+    bech32_prefix: String,
+    mix_denom: DenomDetailsOwned,
+    stake_denom: DenomDetailsOwned,
+    mixnet_contract_address: String,
+    vesting_contract_address: String,
+    bandwidth_claim_contract_address: String,
+    statistics_service_url: String,
+    validators: Vec<ValidatorDetails>,
+}
+
+// Possibly a bit naff, but WalletNetwork is converted into the more general NymNetworkDetails, which here
+// is converted to the format specific for serialization to config
+impl From<NymNetworkDetails> for NetworkDetails {
+    fn from(details: NymNetworkDetails) -> Self {
+        NetworkDetails {
+            bech32_prefix: details.chain_details.bech32_account_prefix,
+            mix_denom: details.chain_details.mix_denom,
+            stake_denom: details.chain_details.stake_denom,
+            mixnet_contract_address: details
+                .contracts
+                .mixnet_contract_address
+                .unwrap_or_default(),
+            vesting_contract_address: details
+                .contracts
+                .vesting_contract_address
+                .unwrap_or_default(),
+            bandwidth_claim_contract_address: details
+                .contracts
+                .bandwidth_claim_contract_address
+                .unwrap_or_default(),
+            statistics_service_url: "".to_string(),
+            validators: details.endpoints,
+        }
     }
 }
 

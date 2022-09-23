@@ -1,6 +1,6 @@
 import { EnumFilterKey, TFilters } from '../../typeDefs/filters';
 
-export const generateFilterSchema = (upperSaturationValue?: number) => ({
+export const generateFilterSchema = () => ({
   profitMargin: {
     label: 'Profit margin (%)',
     id: EnumFilterKey.profitMargin,
@@ -25,13 +25,12 @@ export const generateFilterSchema = (upperSaturationValue?: number) => ({
   stakeSaturation: {
     label: 'Stake saturation (%)',
     id: EnumFilterKey.stakeSaturation,
-    value: [0, upperSaturationValue || 100],
+    value: [0, 100],
     isSmooth: true,
-    marks: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, upperSaturationValue || 100].map((value) => ({
+    marks: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((value) => ({
       value: value < 100 ? value : 100,
       label: value < 100 ? value : '>100',
     })),
-    max: 100,
     tooltipInfo: "Select nodes with <100% saturation. Any additional stake above 100% saturation won't get rewards",
   },
   routingScore: {

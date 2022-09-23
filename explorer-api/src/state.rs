@@ -7,6 +7,7 @@ use mixnet_contract_common::{IdentityKeyRef, NodeId};
 use serde::{Deserialize, Serialize};
 
 use crate::client::ThreadsafeValidatorClient;
+use crate::geo_ip::location::ThreadsafeGeoIp;
 use validator_client::models::MixNodeBondAnnotated;
 
 use crate::country_statistics::country_nodes_distribution::{
@@ -30,6 +31,7 @@ pub struct ExplorerApiState {
     pub(crate) mixnodes: ThreadsafeMixNodesCache,
     pub(crate) ping: ThreadsafePingCache,
     pub(crate) validators: ThreadsafeValidatorCache,
+    pub(crate) geo_ip: ThreadsafeGeoIp,
 
     // TODO: discuss with @MS whether this is an appropriate spot for it
     pub(crate) validator_client: ThreadsafeValidatorClient,
@@ -87,6 +89,7 @@ impl ExplorerApiStateContext {
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
+                geo_ip: ThreadsafeGeoIp::new(),
             }
         } else {
             warn!(
@@ -102,6 +105,7 @@ impl ExplorerApiStateContext {
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
+                geo_ip: ThreadsafeGeoIp::new(),
             }
         }
     }

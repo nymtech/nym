@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
+use crate::geo_ip::location;
 use mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -36,19 +36,14 @@ pub(crate) struct Location {
     pub(crate) two_letter_iso_country_code: String,
     pub(crate) three_letter_iso_country_code: String,
     pub(crate) country_name: String,
-    pub(crate) lat: f32,
-    pub(crate) lng: f32,
 }
 
 impl Location {
-    pub(crate) fn new(geo_location: GeoLocation) -> Self {
-        let three_letter_iso_country_code = map_2_letter_to_3_letter_country_code(&geo_location);
+    pub(crate) fn new(location: location::Location) -> Self {
         Location {
-            country_name: geo_location.country_name,
-            two_letter_iso_country_code: geo_location.country_code,
-            three_letter_iso_country_code,
-            lat: geo_location.latitude,
-            lng: geo_location.longitude,
+            country_name: location.name,
+            two_letter_iso_country_code: location.iso_alpha2,
+            three_letter_iso_country_code: location.iso_alpha3,
         }
     }
 }

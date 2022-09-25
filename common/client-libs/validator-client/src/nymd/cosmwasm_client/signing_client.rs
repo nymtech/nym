@@ -395,6 +395,26 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()
     }
 
+    async fn send_tokens_skip_poll(
+        &self,
+        sender_address: &AccountId,
+        recipient_address: &AccountId,
+        amount: Vec<Coin>,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<broadcast::tx_sync::Response, NymdError> {
+        let send_msg = MsgSend {
+            from_address: sender_address.clone(),
+            to_address: recipient_address.clone(),
+            amount: amount.into_iter().map(Into::into).collect(),
+        }
+        .to_any()
+        .map_err(|_| NymdError::SerializationError("MsgSend".to_owned()))?;
+
+        self.sign_and_broadcast_skip_poll(sender_address, vec![send_msg], fee, memo)
+            .await
+    }
+
     async fn send_tokens_multiple<I>(
         &self,
         sender_address: &AccountId,
@@ -665,6 +685,26 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
 
         self.broadcast_tx(tx_bytes.into()).await
+    }
+
+    async fn sign_and_broadcast_skip_poll(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<broadcast::tx_sync::Response, NymdError> {
+        let memo = memo.into();
+        let fee = self
+            .determine_transaction_fee(signer_address, &messages, fee, &memo)
+            .await?;
+
+        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_bytes = tx_raw
+            .to_bytes()
+            .map_err(|_| NymdError::SerializationError("Tx".to_owned()))?;
+
+        self.broadcast_tx_skip_poll(tx_bytes.into()).await
     }
 
     fn sign_direct(

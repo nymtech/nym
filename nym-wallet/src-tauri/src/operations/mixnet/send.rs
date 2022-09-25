@@ -27,11 +27,20 @@ pub async fn send(
         to_address,
         fee,
     );
-    let raw_res = guard
+    // broadcast
+    let broadcasted = guard
         .current_client()?
         .nymd
-        .send(&to_address, vec![amount_base], memo, fee)
+        .send_skip_poll(&to_address, vec![amount_base], memo, fee)
         .await?;
+
+    // print tx hash
+    let tx_hash = broadcasted.hash;
+    log::info!("{tx_hash}");
+
+    // wait for completion
+    let raw_res = guard.current_client()?.nymd.poll_tx(tx_hash).await?;
+
     log::info!("<<< tx hash = {}", raw_res.hash.to_string());
     let res = SendTxResult::new(
         raw_res,

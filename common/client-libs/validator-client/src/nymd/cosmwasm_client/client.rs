@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::coin::Coin;
-use crate::nymd::cosmwasm_client::helpers::{create_pagination, next_page_key};
+use crate::nymd::cosmwasm_client::helpers::{create_pagination, next_page_key, CheckResponse};
 use crate::nymd::cosmwasm_client::types::{
     Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
     SequenceResponse, SimulateResponse,
@@ -203,6 +203,29 @@ pub trait CosmWasmClient: rpc::Client {
         Ok(self.tx(id, false).await?)
     }
 
+    async fn poll_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError> {
+        self.poll_tx2(id).await?.check_response()
+    }
+
+    async fn poll_tx2(&self, id: tx::Hash) -> Result<TxResponse, NymdError> {
+        let start = tokio::time::Instant::now();
+        loop {
+            log::debug!("Polling for result of including {id} in a block...");
+            if tokio::time::Instant::now().duration_since(start) >= self.broadcast_timeout() {
+                return Err(NymdError::BroadcastTimeout {
+                    hash: id,
+                    timeout: self.broadcast_timeout(),
+                });
+            }
+
+            if let Ok(poll_res) = self.get_tx(id).await {
+                return Ok(poll_res);
+            }
+
+            tokio::time::sleep(self.broadcast_polling_rate()).await;
+        }
+    }
+
     async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NymdError> {
         // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search
         // the maximum entries per page is 100 and the default is 30
@@ -292,6 +315,25 @@ pub trait CosmWasmClient: rpc::Client {
 
             tokio::time::sleep(self.broadcast_polling_rate()).await;
         }
+    }
+
+    async fn broadcast_tx_skip_poll(
+        &self,
+        tx: Transaction,
+    ) -> Result<broadcast::tx_sync::Response, NymdError> {
+        let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
+
+        if broadcasted.code.is_err() {
+            let code_val = broadcasted.code.value();
+            return Err(NymdError::BroadcastTxErrorDeliverTx {
+                hash: broadcasted.hash,
+                height: None,
+                code: code_val,
+                raw_log: broadcasted.log.to_string(),
+            });
+        }
+
+        Ok(broadcasted)
     }
 
     async fn get_codes(&self) -> Result<Vec<Code>, NymdError> {

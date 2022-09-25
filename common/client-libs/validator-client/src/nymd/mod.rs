@@ -1,16 +1,19 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//use crate::nymd::cosmwasm_client::helpers::CheckResponse;
 use crate::nymd::cosmwasm_client::signing_client;
 use crate::nymd::cosmwasm_client::types::{
     Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
     InstantiateResult, MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
+
 use crate::nymd::error::NymdError;
 use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::cosmwasm;
 use cosmrs::rpc::endpoint::block::Response as BlockResponse;
+use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
@@ -468,6 +471,13 @@ impl<C> NymdClient<C> {
         self.client.get_tx(id).await
     }
 
+    pub async fn poll_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        self.client.poll_tx(id).await
+    }
+
     pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NymdError>
     where
         C: CosmWasmClient + Sync,
@@ -527,6 +537,25 @@ impl<C> NymdClient<C> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         self.client
             .send_tokens(self.address(), recipient, amount, fee, memo)
+            .await
+    }
+
+    /// Send funds from one address to another.
+    /// Same as `send` but immediately returns after broadcasting the transaction, skipping to
+    /// polling step.
+    pub async fn send_skip_poll(
+        &self,
+        recipient: &AccountId,
+        amount: Vec<Coin>,
+        memo: impl Into<String> + Send + 'static,
+        fee: Option<Fee>,
+    ) -> Result<broadcast::tx_sync::Response, NymdError>
+    where
+        C: SigningCosmWasmClient + Sync,
+    {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        self.client
+            .send_tokens_skip_poll(self.address(), recipient, amount, fee, memo)
             .await
     }
 

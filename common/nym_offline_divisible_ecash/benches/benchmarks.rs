@@ -267,7 +267,7 @@ fn bench_divisible_ecash(c: &mut Criterion) {
     );
 
     let pay_info = PayInfo { info: [67u8; 32] };
-    let (payment, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10, false).unwrap();
+    let (payment, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info, case.spend_vv, false).unwrap();
 
     // CLIENT BENCHMARK: spend a single coin from the wallet
     group.bench_function(
@@ -277,7 +277,7 @@ fn bench_divisible_ecash(c: &mut Criterion) {
         ),
         |b| {
             b.iter(|| {
-                wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10, true)
+                wallet.spend(&params, &verification_key, &sk_user, &pay_info, case.spend_vv, true)
                     .unwrap()
             })
         },
@@ -302,7 +302,7 @@ fn bench_divisible_ecash(c: &mut Criterion) {
 
     // let's reverse the spending counter in the wallet to create a double spending payment
     let current_l = wallet.l();
-    wallet.l.set(current_l - 7);
+    wallet.l.set(current_l - 1);
 
     let pay_info2 = PayInfo { info: [52u8; 32] };
     let (payment2, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info2, 10, false).unwrap();

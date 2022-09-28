@@ -167,12 +167,9 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
-          // const { mix_node } = data;
-          // const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
-          //   data.mix_node.identity_key,
-          // );
-          console.log('data', data);
-          const { status, stakeSaturation } = await getAdditionalMixnodeDetails(data.bond_information.id);
+          const { bond_information } = data;
+
+          const { status, stakeSaturation } = await getAdditionalMixnodeDetails(bond_information.id);
           const nodeDescription = await getNodeDescription(
             data.bond_information.mix_node.host,
             data.bond_information.mix_node.http_api_port,
@@ -192,12 +189,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
-            host: '1.2.34.5',
-            httpApiPort: 8000,
-            mixPort: 1789,
+            host: bond_information.mix_node.host,
+            httpApiPort: bond_information.mix_node.http_api_port,
+            mixPort: bond_information.mix_node.mix_port,
             profitMarginPercent: 10,
-            verlocPort: 1790,
-            version: '1.0.2',
+            verlocPort: bond_information.mix_node.verloc_port,
+            version: bond_information.mix_node.version,
           } as TBondedMixnode);
 
           // host: mix_node.host.replace(/\s/g, ''),

@@ -23,7 +23,7 @@ import { Footer } from './Footer';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
-const drawerWidth = 300;
+const drawerWidth = 220;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -108,7 +108,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
 
   const handleClick = () => {
     setToActive(id);
-    if (title === 'Network Components' && nested) {
+    if (title === 'Network Nodes' && nested) {
       openDrawer();
       toggleNestedOptions(!nestedOptions);
     }
@@ -182,7 +182,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
             background: isChild ? palette.nym.networkExplorer.nav.selected.nested : 'none',
           }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon sx={{ minWidth: '39px' }}>{Icon}</ListItemIcon>
           <ListItemText
             primary={title}
             sx={{

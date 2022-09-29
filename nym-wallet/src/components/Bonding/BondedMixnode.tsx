@@ -118,14 +118,16 @@ export const BondedMixnode = ({
         </Stack>
       }
       Action={
-        <Button
-          variant="text"
-          color="secondary"
-          onClick={() => navigate('/bonding/node-settings')}
-          startIcon={<NodeIcon />}
-        >
-          Settings
-        </Button>
+        mixnode.type === 'mixnode' && (
+          <Button
+            variant="text"
+            color="secondary"
+            onClick={() => navigate('/bonding/node-settings')}
+            startIcon={<NodeIcon />}
+          >
+            Settings
+          </Button>
+        )
       }
     >
       <NodeTable headers={headers} cells={cells} />

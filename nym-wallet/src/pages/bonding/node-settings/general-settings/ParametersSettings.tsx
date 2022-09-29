@@ -6,12 +6,14 @@ import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
-  const { profitMarginPercent, bond } = bondedNode;
+  const { bond } = bondedNode;
 
   const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const [profitMargin, setProfitMargin] = useState<number>(profitMarginPercent);
+  const [profitMarginPercent, setProfitMarginPercent] = useState<string>(
+    bondedNode.type === 'mixnode' ? bondedNode.profitMargin : '',
+  );
   const [operatorCost, setOperatorCost] = useState<number>(parseInt(bond.amount));
 
   const theme = useTheme();
@@ -29,7 +31,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     const numNewValue = parseInt(value) || 0;
     switch (id) {
       case 'profitMargin':
-        setProfitMargin(numNewValue);
+        setProfitMarginPercent(value);
         break;
       case 'operatorCost':
         setOperatorCost(numNewValue);

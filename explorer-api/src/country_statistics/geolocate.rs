@@ -1,12 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_nodes::location::{GeoLocation, Location};
+use crate::mix_nodes::location::Location;
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
-use reqwest::Error as ReqwestError;
 use task::ShutdownListener;
-use thiserror::Error;
 
 pub(crate) struct GeoLocateTask {
     state: ExplorerApiStateContext,
@@ -19,13 +17,6 @@ impl GeoLocateTask {
     }
 
     pub(crate) fn start(mut self) {
-        if ::std::env::var("GEO_IP_SERVICE_API_KEY").is_err() {
-            error!(
-                "Env var GEO_IP_SERVICE_API_KEY is not set. Geolocation tasks will not be started."
-            );
-            return;
-        }
-
         info!("Spawning mix node locator task runner...");
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(std::time::Duration::from_millis(50));
@@ -53,6 +44,8 @@ impl GeoLocateTask {
             .await
             .unwrap_or_default();
 
+        let geo_ip = self.state.inner.geo_ip.0.clone();
+
         for (i, cache_item) in mixnode_bonds.values().enumerate() {
             if self
                 .state
@@ -65,99 +58,50 @@ impl GeoLocateTask {
                 continue;
             }
 
-            // the mix node has not been located or is the cache time has expired
-            match locate(&cache_item.mix_node().host).await {
-                Ok(geo_location) => {
-                    let location = Location::new(geo_location);
+            match geo_ip.query(&cache_item.mix_node().host) {
+                Ok(opt) => match opt {
+                    Some(location) => {
+                        let location = Location::new(location);
 
-                    trace!(
-                        "{} mix nodes already located. Ip {} is located in {:#?}",
-                        i,
-                        cache_item.mix_node().host,
-                        location.three_letter_iso_country_code,
-                    );
-
-                    if i > 0 && (i % 100) == 0 {
-                        info!(
-                            "Located {} mixnodes...",
-                            i + 1,
+                        trace!(
+                            "{} mix nodes already located. Ip {} is located in {:#?}",
+                            i,
+                            cache_item.mix_node().host,
+                            location.three_letter_iso_country_code,
                         );
+
+                        if i > 0 && (i % 100) == 0 {
+                            info!("Located {} mixnodes...", i + 1,);
+                        }
+
+                        self.state
+                            .inner
+                            .mixnodes
+                            .set_location(cache_item.mix_id(), Some(location))
+                            .await;
+
+                        // one node has been located, so return out of the loop
+                        return;
                     }
-
-                    self.state
-                        .inner
-                        .mixnodes
-                        .set_location(cache_item.mix_id(), Some(location))
-                        .await;
-
-                    // one node has been located, so return out of the loop
-                    return;
-                }
-                Err(e) => match e {
-                    LocateError::ReqwestError(e) => warn!(
-                        "❌ Oh no! Location for {} failed {}",
-                        cache_item.mix_node().host, e
-                    ),
-                    LocateError::NotFound(e) => {
-                            warn!(
-                            "❌ Location for {} not found. Response body: {}",
-                            cache_item.mix_node().host, e
-                        );
+                    None => {
+                        warn!("❌ Location for {} not found.", cache_item.mix_node().host);
                         self.state
                             .inner
                             .mixnodes
                             .set_location(cache_item.mix_id(), None)
                             .await;
-                    },
-                    LocateError::RateLimited(e) => warn!(
-                        "❌ Oh no, we've been rate limited! Location for {} failed. Response body: {}",
-                        cache_item.mix_node().host, e
-                    ),
+                    }
                 },
-            }
+                Err(e) => {
+                    warn!(
+                        "❌ Oh no! Location for {} failed. Error: {:#?}",
+                        cache_item.mix_node().host,
+                        e
+                    );
+                }
+            };
         }
 
         trace!("All mix nodes located");
-    }
-}
-
-#[derive(Debug, Error)]
-enum LocateError {
-    #[error("Oops, we have made too many requests and are being rate limited. Request body: {0}")]
-    RateLimited(String),
-
-    #[error("Geolocation not found. Request body: {0}")]
-    NotFound(String),
-
-    #[error(transparent)]
-    ReqwestError(#[from] ReqwestError),
-}
-
-async fn locate(ip: &str) -> Result<GeoLocation, LocateError> {
-    let api_key = ::std::env::var("GEO_IP_SERVICE_API_KEY")
-        .expect("Env var GEO_IP_SERVICE_API_KEY is not set");
-    let uri = format!("{}/?apikey={}&ip={}", crate::GEO_IP_SERVICE, api_key, ip);
-    match reqwest::get(uri.clone()).await {
-        Ok(response) => {
-            if response.status() == 429 {
-                return Err(LocateError::RateLimited(
-                    response
-                        .text()
-                        .await
-                        .unwrap_or_else(|_| "(the response body is empty)".to_string()),
-                ));
-            }
-            if response.status() == 404 {
-                return Err(LocateError::NotFound(
-                    response
-                        .text()
-                        .await
-                        .unwrap_or_else(|_| "(the response body is empty)".to_string()),
-                ));
-            }
-            let location = response.json::<GeoLocation>().await?;
-            Ok(location)
-        }
-        Err(e) => Err(LocateError::ReqwestError(e)),
     }
 }

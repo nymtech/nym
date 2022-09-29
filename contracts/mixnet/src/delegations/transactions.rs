@@ -49,9 +49,9 @@ pub(crate) fn _try_delegate_to_mixnode(
 
     // check if the target node actually exists and is still bonded
     match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
-        None => return Err(MixnetContractError::MixNodeBondNotFound { id: mix_id }),
+        None => return Err(MixnetContractError::MixNodeBondNotFound { mix_id }),
         Some(bond) if bond.is_unbonding => {
-            return Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
+            return Err(MixnetContractError::MixnodeIsUnbonding { mix_id })
         }
         _ => (),
     }
@@ -144,7 +144,7 @@ mod tests {
             let res = try_delegate_to_mixnode(test.deps_mut(), sender, 42);
             assert_eq!(
                 res,
-                Err(MixnetContractError::MixNodeBondNotFound { id: 42 })
+                Err(MixnetContractError::MixNodeBondNotFound { mix_id: 42 })
             )
         }
 
@@ -240,7 +240,7 @@ mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
-                    node_id: mix_id_unbonding
+                    mix_id: mix_id_unbonding
                 })
             );
 
@@ -248,7 +248,7 @@ mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixNodeBondNotFound {
-                    id: mix_id_unbonded
+                    mix_id: mix_id_unbonded
                 })
             );
 
@@ -256,7 +256,7 @@ mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixNodeBondNotFound {
-                    id: mix_id_unbonded_leftover
+                    mix_id: mix_id_unbonded_leftover
                 })
             );
         }

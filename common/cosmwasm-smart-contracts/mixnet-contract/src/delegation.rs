@@ -34,12 +34,13 @@ pub struct Delegation {
     pub owner: Addr,
 
     /// Id of the MixNode that this delegation was performed against.
-    pub node_id: NodeId,
+    #[serde(alias = "node_id")]
+    pub mix_id: NodeId,
 
     // Note to UI/UX devs: there's absolutely no point in displaying this value to the users,
     // it would serve them no purpose. It's only used for calculating rewards
     /// Value of the "unit delegation" associated with the mixnode at the time of delegation.
-    #[serde(rename = "crr")]
+    #[serde(alias = "crr")]
     pub cumulative_reward_ratio: Decimal,
 
     /// Original delegation amount. Note that it is never mutated as delegation accumulates rewards.
@@ -55,7 +56,7 @@ pub struct Delegation {
 impl Delegation {
     pub fn new(
         owner: Addr,
-        node_id: NodeId,
+        mix_id: NodeId,
         cumulative_reward_ratio: Decimal,
         amount: Coin,
         height: u64,
@@ -63,7 +64,7 @@ impl Delegation {
     ) -> Self {
         Delegation {
             owner,
-            node_id,
+            mix_id,
             cumulative_reward_ratio,
             amount,
             height,
@@ -72,20 +73,20 @@ impl Delegation {
     }
 
     pub fn generate_storage_key(
-        node_id: NodeId,
+        mix_id: NodeId,
         owner_address: &Addr,
         proxy: Option<&Addr>,
     ) -> StorageKey {
-        (node_id, generate_owner_storage_subkey(owner_address, proxy))
+        (mix_id, generate_owner_storage_subkey(owner_address, proxy))
     }
 
     // this function might seem a bit redundant, but I'd rather explicitly keep it around in case
     // some types change in the future
     pub fn generate_storage_key_with_subkey(
-        node_id: NodeId,
+        mix_id: NodeId,
         owner_proxy_subkey: OwnerProxySubKey,
     ) -> StorageKey {
-        (node_id, owner_proxy_subkey)
+        (mix_id, owner_proxy_subkey)
     }
 
     pub fn dec_amount(&self) -> Decimal {
@@ -99,7 +100,7 @@ impl Delegation {
     }
 
     pub fn storage_key(&self) -> StorageKey {
-        Self::generate_storage_key(self.node_id, &self.owner, self.proxy.as_ref())
+        Self::generate_storage_key(self.mix_id, &self.owner, self.proxy.as_ref())
     }
 }
 

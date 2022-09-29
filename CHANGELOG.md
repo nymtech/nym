@@ -11,6 +11,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611](https://github.com/nymtech/nym/pull/1611))
 - common/ledger: new library for communicating with a Ledger device ([#1640])
 
+### Fixed
+
+- validator-api, mixnode, gateway should now prefer values in config.toml over mainnet defaults ([#1645])
+
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
@@ -23,6 +27,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1585]: https://github.com/nymtech/nym/pull/1585
 [#1591]: https://github.com/nymtech/nym/pull/1591
 [#1640]: https://github.com/nymtech/nym/pull/1640
+[#1645]: https://github.com/nymtech/nym/pull/1645
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

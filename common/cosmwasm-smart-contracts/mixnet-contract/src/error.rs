@@ -31,8 +31,8 @@ pub enum MixnetContractError {
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
     InsufficientDelegation { received: Coin, minimum: Coin },
 
-    #[error("Mixnode ({id}) does not exist")]
-    MixNodeBondNotFound { id: NodeId },
+    #[error("Mixnode ({mix_id}) does not exist")]
+    MixNodeBondNotFound { mix_id: NodeId },
 
     #[error("{owner} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: Addr },
@@ -83,23 +83,23 @@ pub enum MixnetContractError {
         epoch_end: i64,
     },
 
-    #[error("Mixnode {node_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
+    #[error("Mixnode {mix_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
     MixnodeAlreadyRewarded {
-        node_id: NodeId,
+        mix_id: NodeId,
         absolute_epoch_id: u32,
     },
 
-    #[error("Mixnode {node_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
+    #[error("Mixnode {mix_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
     MixnodeNotInRewardedSet {
-        node_id: NodeId,
+        mix_id: NodeId,
         absolute_epoch_id: u32,
     },
 
-    #[error("Mixnode {node_id} is currently in the process of unbonding")]
-    MixnodeIsUnbonding { node_id: NodeId },
+    #[error("Mixnode {mix_id} is currently in the process of unbonding")]
+    MixnodeIsUnbonding { mix_id: NodeId },
 
-    #[error("Mixnode {node_id} has already unbonded")]
-    MixnodeHasUnbonded { node_id: NodeId },
+    #[error("Mixnode {mix_id} has already unbonded")]
+    MixnodeHasUnbonded { mix_id: NodeId },
 
     #[error("The contract has ended up in a state that was deemed impossible: {comment}")]
     InconsistentState { comment: String },
@@ -134,6 +134,6 @@ pub enum MixnetContractError {
     #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
     UnexpectedRewardedSetSize { received: u32, expected: u32 },
 
-    #[error("Mixnode {node_id} appears multiple times in the provided rewarded set update!")]
-    DuplicateRewardedSetNode { node_id: NodeId },
+    #[error("Mixnode {mix_id} appears multiple times in the provided rewarded set update!")]
+    DuplicateRewardedSetNode { mix_id: NodeId },
 }

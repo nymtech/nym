@@ -11,9 +11,15 @@ Features:
   
 ## Running
 
-Supply the environment variable `GEO_IP_SERVICE_API_KEY` with a key from https://app.ipbase.com/.
+Supply the environment variable `GEOIP_DATABASE_PATH` with a path
+that points to a GeoIP2 database file in binary format.
 
 Run as a service and reverse proxy with `nginx` to add `https` with Lets Encrypt.
+
+Setup nginx to inject the request IP to the header `X-Real-IP`.
+
+Use https://github.com/maxmind/geoipupdate to automatically
+provide and update the GeoIP2 database file.
 
 # TODO / Known Issues
 

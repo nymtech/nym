@@ -57,7 +57,7 @@ pub(crate) fn withdraw_delegator_reward(
     delegation: Delegation,
     mut mix_rewarding: MixNodeRewarding,
 ) -> Result<Coin, MixnetContractError> {
-    let mix_id = delegation.node_id;
+    let mix_id = delegation.mix_id;
     let mut updated_delegation = delegation.clone();
     let reward = mix_rewarding.withdraw_delegator_reward(&mut updated_delegation)?;
 

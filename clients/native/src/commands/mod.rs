@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, SocketType};
+use clap::CommandFactory;
 use clap::{Parser, Subcommand};
+use completions::{fig_generate, ArgShell};
 
 pub(crate) mod init;
 pub(crate) mod run;
@@ -62,6 +64,12 @@ pub(crate) enum Commands {
     Run(run::Run),
     /// Try to upgrade the client
     Upgrade(upgrade::Upgrade),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -76,10 +84,14 @@ pub(crate) struct OverrideConfig {
 }
 
 pub(crate) async fn execute(args: &Cli) {
+    let bin_name = "nym-native-client";
+
     match &args.command {
         Commands::Init(m) => init::execute(m).await,
         Commands::Run(m) => run::execute(m).await,
         Commands::Upgrade(m) => upgrade::execute(m),
+        Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut Cli::into_app(), bin_name),
     }
 }
 

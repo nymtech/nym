@@ -19,7 +19,7 @@ pub(crate) struct PrettyValidatorInfo {
 }
 
 pub(crate) struct ValidatorCache {
-    pub(crate) validators: Cache<PrettyValidatorInfo>,
+    pub(crate) validators: Cache<String, PrettyValidatorInfo>,
     pub(crate) summary: ValidatorSummary,
 }
 
@@ -61,7 +61,7 @@ impl ThreadsafeValidatorCache {
         for validator in validator_response.validators {
             let address = validator.address.to_string();
             guard.validators.set(
-                address.clone().as_str(),
+                address.clone(),
                 PrettyValidatorInfo {
                     address,
                     pub_key: validator.pub_key.to_hex(),

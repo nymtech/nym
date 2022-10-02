@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Box, IconButton, Stack, TextField } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import { Error } from './Error';
 
 export const MnemonicInput: React.FC<{
@@ -13,20 +15,26 @@ export const MnemonicInput: React.FC<{
     <Stack spacing={2}>
       <TextField
         label="Mnemonic"
-        type={showPassword ? 'input' : 'password'}
-        value={mnemonic}
+        type="input"
+        value={showPassword ? mnemonic : mnemonic.replaceAll(/./g, '*')}
         onChange={(e) => onUpdateMnemonic(e.target.value)}
-        multiline={!!showPassword}
-        rows={4}
+        multiline
         autoFocus
         fullWidth
-        InputProps={{
-          endAdornment: (
-            <IconButton onClick={() => setShowPassword((show) => !show)}>
-              {showPassword ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          ),
+        inputProps={{
+          style: {
+            height: '160px',
+          },
         }}
+        sx={{
+          'input::-webkit-textfield-decoration-container': {
+            alignItems: 'start',
+          },
+        }}
+      />
+      <FormControlLabel
+        control={<Checkbox checked={Boolean(showPassword)} onChange={() => setShowPassword((show) => !show)} />}
+        label="Reveal my mnemonic"
       />
       {error && <Error message={error} />}
     </Stack>

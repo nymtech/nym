@@ -103,7 +103,7 @@ fn minor_0_12_upgrade(
         Version::new(0, 12, 0)
     };
 
-    print_start_upgrade(&config_version, &to_version);
+    print_start_upgrade(config_version, &to_version);
 
     config
         .get_base_mut()
@@ -111,7 +111,7 @@ fn minor_0_12_upgrade(
 
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&config_version, &to_version);
+        print_failed_upgrade(config_version, &to_version);
         process::exit(1);
     });
 

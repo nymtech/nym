@@ -1,61 +1,89 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::BackendError;
 use crate::state::WalletState;
-use crate::vesting::delegate::{
-    get_pending_vesting_delegation_events, vesting_undelegate_from_mixnode,
-};
-use crate::{api_client, nymd_client};
-use mixnet_contract_common::IdentityKey;
+use crate::vesting::delegate::vesting_undelegate_from_mixnode;
+use mixnet_contract_common::NodeId;
 use nym_types::currency::DecCoin;
-use nym_types::delegation::{
-    Delegation, DelegationEvent, DelegationRecord, DelegationWithEverything,
-    DelegationsSummaryResponse,
+use nym_types::delegation::{Delegation, DelegationWithEverything, DelegationsSummaryResponse};
+use nym_types::deprecated::{
+    convert_to_delegation_events, DelegationEvent, WrappedDelegationEvent,
 };
+use nym_types::mixnode::MixNodeCostParams;
+use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use std::collections::HashMap;
-use validator_client::nymd::{Coin, Fee};
+use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
+use validator_client::nymd::Fee;
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
     state: tauri::State<'_, WalletState>,
-) -> Result<Vec<DelegationEvent>, BackendError> {
-    log::info!(">>> Get pending delegation events");
+) -> Result<Vec<WrappedDelegationEvent>, BackendError> {
+    log::info!(">>> [DEPRECATED] Get all pending delegation events");
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
 
-    let events = client
-        .nymd
-        .get_pending_delegation_events(client.nymd.address().to_string(), None)
-        .await?;
-    log::info!("<<< {} pending delegation events", events.len());
-    log::trace!("<<< pending delegation events = {:?}", events);
-
-    Ok(events
+    let events = client.get_all_nymd_pending_epoch_events().await?;
+    let converted = events
         .into_iter()
-        .map(|event| DelegationEvent::from_mixnet_contract(event, reg))
-        .collect::<Result<_, _>>()?)
+        .map(|e| PendingEpochEvent::try_from_mixnet_contract(e, reg))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let delegation_events = convert_to_delegation_events(converted);
+
+    // we only care about events concerning THIS client
+    let mut client_specific_events = Vec::new();
+    for delegation_event in delegation_events {
+        if delegation_event.address_matches(client.nymd.address().as_ref()) {
+            let node_identity = client
+                .nymd
+                .get_mixnode_details(delegation_event.mix_id)
+                .await?
+                .mixnode_details
+                .map(|d| d.bond_information.mix_node.identity_key)
+                .unwrap_or_default();
+
+            client_specific_events
+                .push(WrappedDelegationEvent::new(delegation_event, node_identity));
+        }
+    }
+
+    log::info!(
+        "<<< {} pending delegation events",
+        client_specific_events.len()
+    );
+    log::trace!(
+        "<<< pending delegation events = {:?}",
+        client_specific_events
+    );
+
+    Ok(client_specific_events)
 }
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
-    identity: &str,
+    mix_id: NodeId,
     amount: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
+    let client = guard.current_client()?;
     let delegation_base = guard.attempt_convert_to_base_coin(amount.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
     log::info!(
-        ">>> Delegate to mixnode: identity_key = {}, display_amount = {}, base_amount = {}, fee = {:?}",
-        identity,
+        ">>> Delegate to mixnode: mix_id = {}, display_amount = {}, base_amount = {}, fee = {:?}",
+        mix_id,
         amount,
         delegation_base,
         fee,
     );
-    let res = nymd_client!(state)
-        .delegate_to_mixnode(identity, delegation_base, fee)
+    let res = client
+        .nymd
+        .delegate_to_mixnode(mix_id, delegation_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -66,7 +94,7 @@ pub async fn delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_from_mixnode(
-    identity: &str,
+    mix_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -74,14 +102,14 @@ pub async fn undelegate_from_mixnode(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
     log::info!(
-        ">>> Undelegate from mixnode: identity_key = {}, fee = {:?}",
-        identity,
+        ">>> Undelegate from mixnode: mix_id = {}, fee = {:?}",
+        mix_id,
         fee
     );
     let res = guard
         .current_client()?
         .nymd
-        .remove_mixnode_delegation(identity, fee)
+        .undelegate_from_mixnode(mix_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -92,33 +120,27 @@ pub async fn undelegate_from_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_all_from_mixnode(
-    identity: &str,
+    mix_id: NodeId,
     uses_vesting_contract_tokens: bool,
-    fee: Option<Fee>,
-    fee2: Option<Fee>,
+    fee_liquid: Option<Fee>,
+    fee_vesting: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<TransactionExecuteResult>, BackendError> {
     log::info!(
-        ">>> Undelegate all from mixnode: identity_key = {}, uses_vesting_contract_tokens = {}, fee = {:?}",
-        identity,
+        ">>> Undelegate all from mixnode: mix_id = {}, uses_vesting_contract_tokens = {}, fee_liquid = {:?}, fee_vesting = {:?}",
+        mix_id,
         uses_vesting_contract_tokens,
-        fee
+        fee_liquid,
+        fee_vesting,
     );
     let mut res: Vec<TransactionExecuteResult> =
-        vec![undelegate_from_mixnode(identity, fee, state.clone()).await?];
+        vec![undelegate_from_mixnode(mix_id, fee_liquid, state.clone()).await?];
 
     if uses_vesting_contract_tokens {
-        res.push(vesting_undelegate_from_mixnode(identity, fee2, state.clone()).await?);
+        res.push(vesting_undelegate_from_mixnode(mix_id, fee_vesting, state).await?);
     }
 
     Ok(res)
-}
-
-struct DelegationWithHistory {
-    pub delegation: Delegation,
-    pub amount_sum: DecCoin,
-    pub history: Vec<DelegationRecord>,
-    pub uses_vesting_contract_tokens: bool,
 }
 
 #[tauri::command]
@@ -131,168 +153,93 @@ pub async fn get_all_mix_delegations(
     let client = guard.current_client()?;
     let reg = guard.registered_coins()?;
 
-    // TODO: add endpoint to validator API to get a single mix node bond
-    let mixnodes = client.validator_api.get_mixnodes().await?;
-
     let address = client.nymd.address();
     let network = guard.current_network();
-    let display_mix_denom = network.display_mix_denom();
-    let base_mix_denom = network.base_mix_denom();
+    let base_mix_denom = network.base_mix_denom().to_string();
+    let vesting_contract = client.nymd.vesting_contract_address();
 
     log::info!("  >>> Get delegations");
     let delegations = client.get_all_delegator_delegations(address).await?;
     log::info!("  <<< {} delegations", delegations.len());
 
-    // first get pending events from the mixnet contract (operations made with unlocked tokens)
-    let mut pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
-
-    // then get pending events from the vesting contract (operations made with locked tokens)
-    let pending_vesting_events = get_pending_vesting_delegation_events(state.clone()).await?;
-    for event in pending_vesting_events {
-        pending_events_for_account.push(event);
-    }
+    let pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
 
     log::info!(
         "  <<< {} pending delegation events for account",
         pending_events_for_account.len()
     );
 
-    let mut map: HashMap<String, DelegationWithHistory> = HashMap::new();
+    let mut with_everything: Vec<DelegationWithEverything> = Vec::with_capacity(delegations.len());
 
-    for pending_event in &pending_events_for_account {
-        if delegations
-            .iter()
-            .any(|d| d.node_identity == pending_event.node_identity)
-        {
-            let amount = pending_event
-                .amount
-                .clone()
-                .unwrap_or_else(|| DecCoin::zero(display_mix_denom));
-            let delegation = DelegationWithHistory {
-                delegation: Delegation {
-                    amount: amount.clone(),
-                    node_identity: pending_event.node_identity.clone(),
-                    proxy: pending_event.proxy.clone(), // TODO: ask @MS about delegations via vesting contract => surely we'd have proxy there?
-                    owner: pending_event.address.clone(),
-                    block_height: pending_event.block_height,
-                },
-                amount_sum: amount,
-                uses_vesting_contract_tokens: false,
-                history: vec![],
-            };
-            map.insert(delegation.delegation.node_identity.clone(), delegation);
-        }
-    }
-
-    for d in delegations {
-        // create record of delegation
-        let delegated_on_iso_datetime = client
-            .nymd
-            .get_block_timestamp(Some(d.block_height as u32))
-            .await?
-            .to_rfc3339();
-        let amount = guard.attempt_convert_to_display_dec_coin(d.amount.clone().into())?;
-
-        let record = DelegationRecord {
-            amount: amount.clone(),
-            block_height: d.block_height,
-            delegated_on_iso_datetime,
-            uses_vesting_contract_tokens: d.proxy.is_some(),
-        };
-
-        let entry = map
-            .entry(d.node_identity.clone())
-            .or_insert(DelegationWithHistory {
-                delegation: Delegation::from_mixnet_contract(d, reg)?,
-                history: vec![],
-                amount_sum: DecCoin::zero(display_mix_denom),
-                uses_vesting_contract_tokens: false,
-            });
-
-        debug_assert_eq!(entry.amount_sum.denom, amount.denom);
-
-        entry.history.push(record);
-        entry.amount_sum.amount += amount.amount;
-        entry.uses_vesting_contract_tokens =
-            entry.uses_vesting_contract_tokens || entry.delegation.proxy.is_some();
-    }
-
-    let mut with_everything: Vec<DelegationWithEverything> = vec![];
-
-    for item in map {
-        let d = item.1.delegation;
-        let history = item.1.history;
-        let Delegation {
-            owner,
-            node_identity,
-            amount,
-            block_height,
-            proxy,
-        } = d;
-        let uses_vesting_contract_tokens = item.1.uses_vesting_contract_tokens;
+    for delegation in delegations {
+        let d = Delegation::from_mixnet_contract(delegation, reg)?;
+        let uses_vesting_contract_tokens = d
+            .proxy
+            .as_ref()
+            .map(|p| p.as_str() == vesting_contract.as_ref())
+            .unwrap_or_default();
 
         log::trace!(
-            "  --- Delegation: node_identity = {}, amount = {}",
-            node_identity,
-            amount
+            "  --- Delegation: mix_id = {}, amount = {}",
+            d.mix_id,
+            d.amount
         );
 
-        let mixnode = mixnodes
-            .iter()
-            .find(|m| m.mix_node.identity_key == node_identity);
+        let mixnode = client.get_mixnode_details(d.mix_id).await?.mixnode_details;
 
-        let pledge_amount = mixnode
-            .map(|m| guard.attempt_convert_to_display_dec_coin(m.pledge_amount.clone().into()))
+        let accumulated_by_operator = mixnode
+            .as_ref()
+            .map(|m| {
+                guard.display_coin_from_base_decimal(&base_mix_denom, m.rewarding_details.operator)
+            })
             .transpose()?;
 
-        let total_delegation = mixnode
-            .map(|m| guard.attempt_convert_to_display_dec_coin(m.total_delegation.clone().into()))
+        let accumulated_by_delegates = mixnode
+            .as_ref()
+            .map(|m| {
+                guard.display_coin_from_base_decimal(&base_mix_denom, m.rewarding_details.delegates)
+            })
             .transpose()?;
 
-        let profit_margin_percent: Option<u8> = mixnode.map(|m| m.mix_node.profit_margin_percent);
+        let cost_params = mixnode
+            .as_ref()
+            .map(|m| {
+                MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
+                    m.rewarding_details.cost_params.clone(),
+                    reg,
+                )
+            })
+            .transpose()?;
 
         log::trace!("  >>> Get accumulated rewards: address = {}", address);
-        let accumulated_rewards = match client
+        let pending_reward = client
             .nymd
-            .get_delegator_rewards(address.to_string(), node_identity.clone(), proxy.clone())
-            .await
-        {
-            Ok(rewards) => {
-                let reward = Coin::new(rewards.u128(), base_mix_denom);
-                let amount = guard.attempt_convert_to_display_dec_coin(reward)?;
-                log::trace!("  <<< rewards = {}, amount = {}", rewards, amount);
+            .get_pending_delegator_reward(address, d.mix_id, d.proxy.clone())
+            .await?;
+
+        let accumulated_rewards = match &pending_reward.amount_earned {
+            Some(reward) => {
+                let amount = guard.attempt_convert_to_display_dec_coin(reward.clone().into())?;
+                log::trace!("  <<< rewards = {:?}, amount = {}", pending_reward, amount);
                 Some(amount)
             }
-            Err(_) => {
+            None => {
                 log::trace!("  <<< no rewards waiting");
                 None
             }
         };
 
-        let pending_events =
-            filter_pending_events(&node_identity, pending_events_for_account.clone());
-        log::trace!(
-            "  --- pending events for mixnode = {}",
-            pending_events.len()
-        );
-
-        log::trace!(
-            "  >>> Get stake saturation: node_identity = {}",
-            node_identity
-        );
-        let stake_saturation = api_client!(state)
-            .get_mixnode_stake_saturation(&node_identity)
-            .await
-            .ok()
-            .map(|r| r.saturation);
+        log::trace!("  >>> Get stake saturation: mix_id = {}", d.mix_id);
+        let stake_saturation = client.nymd.get_mixnode_stake_saturation(d.mix_id).await?;
         log::trace!("  <<< {:?}", stake_saturation);
 
         log::trace!(
-            "  >>> Get average uptime percentage: node_identity = {}",
-            node_identity
+            "  >>> Get average uptime percentage: mix_iid = {}",
+            d.mix_id
         );
-        let avg_uptime_percent = api_client!(state)
-            .get_mixnode_avg_uptime(&node_identity)
+        let avg_uptime_percent = client
+            .validator_api
+            .get_mixnode_avg_uptime(d.mix_id)
             .await
             .ok()
             .map(|r| r.avg_uptime);
@@ -300,10 +247,11 @@ pub async fn get_all_mix_delegations(
 
         log::trace!(
             "  >>> Convert delegated on block height to timestamp: block_height = {}",
-            d.block_height
+            d.height
         );
-        let timestamp = nymd_client!(state)
-            .get_block_timestamp(Some(d.block_height as u32))
+        let timestamp = client
+            .nymd
+            .get_block_timestamp(Some(d.height as u32))
             .await?;
         let delegated_on_iso_datetime = timestamp.to_rfc3339();
         log::trace!(
@@ -312,21 +260,29 @@ pub async fn get_all_mix_delegations(
             delegated_on_iso_datetime
         );
 
+        let pending_events = filter_pending_events(d.mix_id, &pending_events_for_account);
+        log::trace!(
+            "  --- pending events for mixnode = {}",
+            pending_events.len()
+        );
+
         with_everything.push(DelegationWithEverything {
-            owner: owner.to_string(),
-            node_identity: node_identity.to_string(),
-            amount: item.1.amount_sum,
-            block_height,
+            owner: d.owner,
+            mix_id: d.mix_id,
+            node_identity: mixnode
+                .map(|m| m.bond_information.mix_node.identity_key)
+                .unwrap_or_default(),
+            amount: d.amount,
+            block_height: d.height,
             uses_vesting_contract_tokens,
             delegated_on_iso_datetime,
-            stake_saturation,
-            accumulated_rewards,
-            profit_margin_percent,
-            pledge_amount,
+            stake_saturation: stake_saturation.uncapped_saturation,
+            accumulated_by_operator,
             avg_uptime_percent,
-            total_delegation,
+            accumulated_by_delegates,
+            cost_params,
+            unclaimed_rewards: accumulated_rewards,
             pending_events,
-            history,
         })
     }
     log::trace!("<<< {:?}", with_everything);
@@ -335,41 +291,54 @@ pub async fn get_all_mix_delegations(
 }
 
 fn filter_pending_events(
-    node_identity: &str,
-    pending_events: Vec<DelegationEvent>,
+    mix_id: NodeId,
+    pending_events: &[WrappedDelegationEvent],
 ) -> Vec<DelegationEvent> {
     pending_events
         .iter()
-        .filter(|e| e.node_identity == node_identity)
+        .filter(|e| e.event.mix_id == mix_id)
         .cloned()
-        .collect::<Vec<DelegationEvent>>()
+        .map(|e| e.event)
+        .collect()
 }
 
 #[tauri::command]
-pub async fn get_delegator_rewards(
+pub async fn get_pending_delegator_rewards(
     address: String,
-    mix_identity: IdentityKey,
+    mix_id: NodeId,
     proxy: Option<String>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
     log::info!(
-        ">>> Get delegator rewards: mix_identity = {}, proxy = {:?}",
-        mix_identity,
+        ">>> Get pending delegator rewards: mix_id = {}, proxy = {:?}",
+        mix_id,
         proxy
     );
     let guard = state.read().await;
-    let network = guard.current_network();
-    let denom = network.base_mix_denom();
-    let reward_amount = guard
+    let res = guard
         .current_client()?
         .nymd
-        .get_delegator_rewards(address, mix_identity, proxy)
+        .get_pending_delegator_reward(&address.parse()?, mix_id, proxy)
         .await?;
-    let base_coin = Coin::new(reward_amount.u128(), denom);
-    let display_coin: DecCoin = guard.attempt_convert_to_display_dec_coin(base_coin.clone())?;
+
+    // note to @MS: now we're able to obtain more information than just the pending reward
+    // the entire returned struct contains the following:
+    /*
+       pub amount_staked: Option<Coin>,
+       pub amount_earned: Option<Coin>,
+       pub amount_earned_detailed: Option<Decimal>,
+       pub mixnode_still_fully_bonded: bool,
+    */
+
+    let base_coin = res.amount_earned;
+    let display_coin = base_coin
+        .as_ref()
+        .map(|c| guard.attempt_convert_to_display_dec_coin(c.clone().into()))
+        .transpose()?
+        .unwrap_or_else(|| guard.default_zero_mix_display_coin());
 
     log::info!(
-        "<<< rewards_base = {}, rewards_display = {}",
+        "<<< rewards_base = {:?}, rewards_display = {}",
         base_coin,
         display_coin
     );
@@ -393,7 +362,7 @@ pub async fn get_delegation_summary(
     for d in &delegations {
         debug_assert_eq!(d.amount.denom, display_mix_denom);
         total_delegations.amount += d.amount.amount;
-        if let Some(rewards) = &d.accumulated_rewards {
+        if let Some(rewards) = &d.unclaimed_rewards {
             debug_assert_eq!(rewards.denom, display_mix_denom);
             total_rewards.amount += rewards.amount;
         }
@@ -411,22 +380,4 @@ pub async fn get_delegation_summary(
         total_delegations,
         total_rewards,
     })
-}
-
-#[tauri::command]
-pub async fn get_all_pending_delegation_events(
-    state: tauri::State<'_, WalletState>,
-) -> Result<Vec<DelegationEvent>, BackendError> {
-    log::info!(">>> Get all pending delegation events");
-
-    // get pending events from mixnet and vesting contract
-    let mut pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
-    let pending_vesting_events = get_pending_vesting_delegation_events(state.clone()).await?;
-
-    // combine them
-    for event in pending_vesting_events {
-        pending_events_for_account.push(event);
-    }
-
-    Ok(pending_events_for_account)
 }

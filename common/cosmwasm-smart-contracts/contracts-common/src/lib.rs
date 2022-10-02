@@ -2,3 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod events;
+pub mod types;
+
+pub use types::*;

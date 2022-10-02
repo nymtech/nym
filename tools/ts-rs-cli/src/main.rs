@@ -1,32 +1,37 @@
-use std::path::Path;
-use ts_rs::TS;
-use walkdir::WalkDir;
-
-use mixnet_contract_common::mixnode::RewardedSetNodeStatus;
+use mixnet_contract_common::{
+    IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate,
+    RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
+};
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
 use nym_types::delegation::{
-    Delegation, DelegationEvent, DelegationEventKind, DelegationRecord, DelegationResult,
-    DelegationWithEverything, DelegationsSummaryResponse, PendingUndelegate,
+    Delegation, DelegationResult, DelegationWithEverything, DelegationsSummaryResponse,
 };
+use nym_types::deprecated::{DelegationEvent, DelegationEventKind, WrappedDelegationEvent};
 use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
-use nym_types::mixnode::{MixNode, MixNodeBond};
+use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
+use nym_types::pending_events::{
+    PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
+};
 use nym_types::transaction::{
     RpcTransactionResponse, SendTxResult, TransactionDetails, TransactionExecuteResult,
 };
 use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo, VestingPeriod};
 use nym_wallet_types::admin::TauriContractStateParams;
 use nym_wallet_types::app::AppEnv;
-use nym_wallet_types::epoch::Epoch;
+use nym_wallet_types::interval::Interval;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
+use std::path::Path;
+use ts_rs::TS;
 use validator_api_requests::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatus, MixnodeStatusResponse,
-    SelectionChance, StakeSaturationResponse,
+    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, SelectionChance, StakeSaturationResponse,
 };
 use vesting_contract_common::Period;
+use walkdir::WalkDir;
 
 macro_rules! do_export {
     ($a:ty) => {{
@@ -49,10 +54,17 @@ fn main() {
     // macro expands into `println!("Exporting {}...", Type::name()); Type::export();` with some error handling
     //
 
-    // common/cosmwasm-smart-contracts/mixnet-contract/src
-    do_export!(RewardedSetNodeStatus);
     // common/cosmwasm-smart-contracts/vesting-contract/src
     do_export!(Period);
+
+    // common/cosmwasm-smart-contracts/mixnet-contract/src
+    do_export!(IntervalRewardParams);
+    do_export!(IntervalRewardingParamsUpdate);
+    do_export!(MixNode);
+    do_export!(MixNodeConfigUpdate);
+    do_export!(RewardingParams);
+    do_export!(RewardedSetNodeStatus);
+    do_export!(UnbondedMixnode);
 
     // common/types/src
     do_export!(Account);
@@ -62,7 +74,6 @@ fn main() {
     do_export!(Delegation);
     do_export!(DelegationEvent);
     do_export!(DelegationEventKind);
-    do_export!(DelegationRecord);
     do_export!(DelegationResult);
     do_export!(DelegationsSummaryResponse);
     do_export!(DelegationWithEverything);
@@ -78,10 +89,15 @@ fn main() {
     do_export!(GatewayBond);
     do_export!(CurrencyDenom);
     do_export!(DecCoin);
-    do_export!(MixNode);
     do_export!(MixNodeBond);
+    do_export!(MixNodeCostParams);
+    do_export!(MixNodeDetails);
+    do_export!(MixNodeRewarding);
     do_export!(OriginalVestingResponse);
-    do_export!(PendingUndelegate);
+    do_export!(PendingEpochEvent);
+    do_export!(PendingEpochEventData);
+    do_export!(PendingIntervalEvent);
+    do_export!(PendingIntervalEventData);
     do_export!(PledgeData);
     do_export!(SendTxResult);
     do_export!(TransactionDetails);
@@ -90,9 +106,11 @@ fn main() {
     do_export!(RpcTransactionResponse);
     do_export!(VestingAccountInfo);
     do_export!(VestingPeriod);
+    do_export!(WrappedDelegationEvent);
 
     // validator-api-requests
-    do_export!(CoreNodeStatusResponse);
+    do_export!(MixnodeCoreStatusResponse);
+    do_export!(GatewayCoreStatusResponse);
     do_export!(InclusionProbabilityResponse);
     do_export!(MixnodeStatus);
     do_export!(MixnodeStatusResponse);
@@ -101,7 +119,7 @@ fn main() {
 
     // nym-wallet
     do_export!(AppEnv);
-    do_export!(Epoch);
+    do_export!(Interval);
     do_export!(Network);
     do_export!(TauriContractStateParams);
     do_export!(Validator);

@@ -4,10 +4,13 @@
 use std::{process, str::FromStr};
 
 use crate::{config::Config, Cli};
+use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
+use completions::{fig_generate, ArgShell};
 use config::parse_validators;
 use crypto::bech32_address_validation;
+use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
     API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
@@ -18,8 +21,6 @@ pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;
 
-#[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Initialise the gateway
@@ -36,6 +37,12 @@ pub(crate) enum Commands {
 
     /// Try to upgrade the gateway
     Upgrade(upgrade::Upgrade),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -52,20 +59,21 @@ pub(crate) struct OverrideConfig {
     validators: Option<String>,
     mnemonic: Option<String>,
 
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     enabled_credentials_mode: Option<bool>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    eth_endpoint: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {
+    let bin_name = "nym-gateway";
+
     match &args.command {
         Commands::Init(m) => init::execute(m).await,
         Commands::NodeDetails(m) => node_details::execute(m).await,
         Commands::Run(m) => run::execute(m).await,
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m).await,
+        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
     }
 }
 
@@ -102,27 +110,29 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
                 .expect("the provided statistics service url is invalid!"),
         );
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_url = std::env::var(STATISTICS_SERVICE_DOMAIN_ADDRESS)
-            .expect("statistics service url not set");
-        config = config.with_custom_statistics_service_url(
-            raw_url
-                .parse()
-                .expect("the provided statistics service url is invalid"),
-        )
+        if let Some(raw_url) = read_var_if_not_default(STATISTICS_SERVICE_DOMAIN_ADDRESS) {
+            config = config.with_custom_statistics_service_url(
+                raw_url
+                    .parse()
+                    .expect("the provided statistics service url is invalid"),
+            );
+        }
     }
 
     if let Some(raw_validators) = args.validator_apis {
         config = config.with_custom_validator_apis(parse_validators(&raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
-        config = config.with_custom_validator_apis(parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(ref raw_validators) = args.validators {
         config = config.with_custom_validator_nymd(parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(NYMD_VALIDATOR).expect("nymd validator not set");
-        config = config.with_custom_validator_nymd(parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {
+            config = config.with_custom_validator_nymd(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(wallet_address) = args.wallet_address {
@@ -141,26 +151,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         );
     }
 
-    #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-    {
-        config = config.with_eth_endpoint(String::from(DEFAULT_ETH_ENDPOINT));
-    }
-
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     {
         if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
             config = config.with_disabled_credentials_mode(!enabled_credentials_mode);
-        }
-    }
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    {
-        if let Some(raw_validators) = args.validators {
-            config = config.with_custom_validator_nymd(parse_validators(&raw_validators));
-        }
-
-        if let Some(eth_endpoint) = args.eth_endpoint {
-            config = config.with_eth_endpoint(eth_endpoint);
         }
     }
 

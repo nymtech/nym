@@ -1,4 +1,4 @@
-import { Box, Typography, SxProps } from '@mui/material';
+import { Box, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import React, { useEffect } from 'react';
 import { FeeDetails } from '@nymproject/types';
@@ -11,26 +11,27 @@ import { SimpleModal } from '../Modals/SimpleModal';
 export const UndelegateModal: React.FC<{
   open: boolean;
   onClose?: () => void;
-  onOk?: (identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => void;
+  onOk?: (mixId: number, identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => void;
+  mixId: number;
   identityKey: string;
   amount: number;
   currency: string;
   usesVestingContractTokens: boolean;
   sx?: SxProps;
   backdropProps?: object;
-}> = ({ identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, backdropProps }) => {
+}> = ({ mixId, identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
 
   useEffect(() => {
-    if (usesVestingContractTokens) getFee(simulateVestingUndelegateFromMixnode, { identity: identityKey });
+    if (usesVestingContractTokens) getFee(simulateVestingUndelegateFromMixnode, { mixId });
     else {
-      getFee(simulateUndelegateFromMixnode, identityKey);
+      getFee(simulateUndelegateFromMixnode, mixId);
     }
   }, []);
 
   const handleOk = async () => {
     if (onOk) {
-      onOk(identityKey, usesVestingContractTokens, fee);
+      onOk(mixId, identityKey, usesVestingContractTokens, fee);
     }
   };
 

@@ -16,13 +16,14 @@ impl VestingAccount for Account {
             + self.get_pledged_vesting(None, env, storage)?.amount)
     }
 
+    /// See [VestingAccount::locked_coins] for documentation.
+    /// Returns 0 in case of underflow. Which is fine, as the amount of pledged and delegated tokens can be larger then vesting_coins due to rewards and vesting periods expiring
     fn locked_coins(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
-        // Returns 0 in case of underflow. Which is fine, as the amount of pledged and delegated tokens can be larger then vesting_coins due to rewards and vesting periods expiring
         Ok(Coin {
             amount: Uint128::new(
                 self.get_vesting_coins(block_time, env, storage)?

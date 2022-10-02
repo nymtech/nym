@@ -115,7 +115,7 @@ const NameAccount = ({ onNext, onBack }: { onNext: (value: string) => void; onBa
           {error}
         </Typography>
         <TextField
-          placeholder="Account name"
+          label="Account name"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
@@ -177,68 +177,72 @@ export const AddAccountModal = () => {
   }, [step]);
 
   return (
-    <Dialog open={dialogToDisplay === 'Add' || dialogToDisplay === 'Import'} onClose={handleClose} fullWidth>
-      <Paper>
-        <DialogTitle sx={{ pb: 0 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">{`${dialogToDisplay} new account`}</Typography>
-          </Box>
-          <Typography sx={{ mt: 2 }}>
-            {dialogToDisplay === 'Add' ? createAccountSteps[step] : importAccountSteps[step]}
-          </Typography>
-        </DialogTitle>
-        {(() => {
-          switch (step) {
-            case 0:
-              return dialogToDisplay === 'Add' ? (
-                <MnemonicStep
-                  mnemonic={data.mnemonic}
-                  onNext={() => setStep((s) => s + 1)}
-                  onBack={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}
-                />
-              ) : (
-                <ImportMnemonic
-                  value={data.mnemonic}
-                  onChange={(value) => setData((d) => ({ ...d, mnemonic: value }))}
-                  onNext={() => setStep((s) => s + 1)}
-                  onBack={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}
-                />
-              );
-            case 1:
-              return (
-                <NameAccount
-                  onNext={(accountName) => {
-                    setData((d) => ({ ...d, accountName }));
-                    setStep((s) => s + 1);
-                  }}
-                  onBack={() => setStep((s) => s - 1)}
-                />
-              );
-            case 2:
-              return (
-                <ConfirmPassword
-                  buttonTitle="Add account"
-                  onConfirm={async (password) => {
-                    if (data.accountName && data.mnemonic) {
-                      try {
-                        await handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
-                        setStep(0);
-                        setDialogToDisplay('Accounts');
-                      } catch (e) {
-                        Console.error(e as string);
-                      }
+    <Dialog
+      open={dialogToDisplay === 'Add' || dialogToDisplay === 'Import'}
+      onClose={handleClose}
+      fullWidth
+      PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
+    >
+      <DialogTitle sx={{ pb: 0 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">{`${dialogToDisplay} new account`}</Typography>
+        </Box>
+        <Typography sx={{ mt: 2 }}>
+          {dialogToDisplay === 'Add' ? createAccountSteps[step] : importAccountSteps[step]}
+        </Typography>
+      </DialogTitle>
+      {(() => {
+        switch (step) {
+          case 0:
+            return dialogToDisplay === 'Add' ? (
+              <MnemonicStep
+                mnemonic={data.mnemonic}
+                onNext={() => setStep((s) => s + 1)}
+                onBack={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}
+              />
+            ) : (
+              <ImportMnemonic
+                value={data.mnemonic}
+                onChange={(value) => setData((d) => ({ ...d, mnemonic: value }))}
+                onNext={() => setStep((s) => s + 1)}
+                onBack={() => (step === 0 ? handleClose() : setStep((s) => s - 1))}
+              />
+            );
+          case 1:
+            return (
+              <NameAccount
+                onNext={(accountName) => {
+                  setData((d) => ({ ...d, accountName }));
+                  setStep((s) => s + 1);
+                }}
+                onBack={() => setStep((s) => s - 1)}
+              />
+            );
+          case 2:
+            return (
+              <ConfirmPassword
+                buttonTitle="Add account"
+                onConfirm={async (password) => {
+                  if (data.accountName && data.mnemonic) {
+                    try {
+                      await handleAddAccount({ accountName: data.accountName, mnemonic: data.mnemonic, password });
+                      setStep(0);
+                      setDialogToDisplay('Accounts');
+                    } catch (e) {
+                      Console.error(e as string);
                     }
-                  }}
-                  onCancel={() => setStep((s) => s - 1)}
-                  isLoading={isLoading}
-                  error={error}
-                />
-              );
-            default:
-              return null;
-          }
-        })()}
-      </Paper>
+                  }
+                }}
+                onCancel={() => setStep((s) => s - 1)}
+                isLoading={isLoading}
+                error={error}
+              />
+            );
+          default:
+            return null;
+        }
+      })()}
     </Dialog>
   );
 };

@@ -70,6 +70,10 @@ pub enum TypesError {
     LossyCoinConversion,
     #[error("The provided coin has an unknown denomination - {0}")]
     UnknownCoinDenom(String),
+    #[error("Provided event is not a delegation event")]
+    NotADelegationEvent,
+    #[error("Unknown network - {0}")]
+    UnknownNetwork(String),
 }
 
 impl Serialize for TypesError {

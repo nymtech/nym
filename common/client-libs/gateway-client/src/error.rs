@@ -64,6 +64,9 @@ pub enum GatewayClientError {
     #[error("Connection was abruptly closed")]
     ConnectionAbruptlyClosed,
 
+    #[error("Connection was abruptly closed as gateway was stopped")]
+    ConnectionClosedGatewayShutdown,
+
     #[error("Received response was malformed")]
     MalformedResponse,
 
@@ -93,6 +96,9 @@ pub enum GatewayClientError {
 
     #[error("Timed out")]
     Timeout,
+
+    #[error("Failed to send mixnet message")]
+    MixnetMsgSenderFailedToSend,
 }
 
 impl GatewayClientError {

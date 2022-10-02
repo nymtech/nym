@@ -11,27 +11,29 @@ edition = "2021"
 
 [dependencies]
 async-trait = { version = "0.1.51" }
-clap = "2.33.0"
+clap = {version = "3.2", features = ["derive"]}
 dirs = "4.0"
-futures = "0.3"
-ipnetwork = "0.17"
-log = "0.4"
-pretty_env_logger = "0.4"
-publicsuffix = "1.5"
-rand = "0.7"
-reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3.24"
+ipnetwork = "0.20.0"
+log = "0.4.17"
+pretty_env_logger = "0.4.0"
+publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
+rand = "0.7.3"
+reqwest = { version = "0.11.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "chrono"]}
-thiserror = "1"
-tokio = { version = "1.19.1", features = [ "net", "rt-multi-thread", "macros" ] }
-tokio-tungstenite = "0.14"
+sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
+thiserror = "1.0"
+tokio = { version = "1.19", features = [ "net", "rt-multi-thread", "macros" ] }
+tokio-tungstenite = "0.17.2"
 
 
 # internal
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }
+completions = { path = "../../common/completions" }
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 socks5-requests = { path = "../../common/socks5/requests" }
 statistics-common = { path = "../../common/statistics" }
+task = { path = "../../common/task" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

@@ -16,10 +16,6 @@ use crate::{
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
-const DEFAULT_ETH_ENDPOINT: &str = "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-const DEFAULT_ETH_PRIVATE_KEY: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
-
 pub fn socks5_config_id_appended_with(gateway_id: &str) -> Result<String> {
     use std::fmt::Write as _;
     let mut id = SOCKS5_CONFIG_ID.to_string();
@@ -125,15 +121,6 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     log::trace!("Creating config for id: {}", id);
     let mut config = Config::new(id.as_str(), &provider_address);
 
-    // As far as I'm aware, these two are not used, they are only set because the socks5 init code
-    // requires them for initialising the bandwidth controller.
-    config
-        .get_base_mut()
-        .with_eth_endpoint(DEFAULT_ETH_ENDPOINT);
-    config
-        .get_base_mut()
-        .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY);
-
     if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::API_VALIDATOR) {
         config
             .get_base_mut()
@@ -172,7 +159,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     );
     log::info!("Client configuration completed.");
 
-    client_core::init::show_address(config.get_base());
+    client_core::init::show_address(config.get_base())?;
     Ok(())
 }
 
@@ -191,13 +178,13 @@ async fn setup_gateway(
             config.get_base().get_validator_api_endpoints(),
             user_chosen_gateway_id,
         )
-        .await;
+        .await?;
         log::debug!("Querying gateway gives: {}", gateway);
 
         // Registering with gateway by setting up and writing shared keys to disk
         log::trace!("Registering gateway");
         client_core::init::register_with_gateway_and_store_keys(gateway.clone(), config.get_base())
-            .await;
+            .await?;
         println!("Saved all generated keys");
 
         Ok(gateway.into())
@@ -210,23 +197,21 @@ async fn setup_gateway(
             config.get_base().get_validator_api_endpoints(),
             user_chosen_gateway_id,
         )
-        .await;
+        .await?;
         log::debug!("Querying gateway gives: {}", gateway);
         Ok(gateway.into())
     } else {
         println!("Not registering gateway, will reuse existing config and keys");
-        match Socks5Config::load_from_file(Some(id)) {
-            Ok(existing_config) => Ok(existing_config.get_base().get_gateway_endpoint().clone()),
-            Err(err) => {
-                log::error!(
-                    "Unable to configure gateway: {err}. \n
-                    Seems like the client was already initialized but it was not possible to read \
-                    the existing configuration file. \n
-                    CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
-                    removing the existing configuration and starting over."
-                );
-                Err(BackendError::CouldNotLoadExistingGatewayConfiguration(err))
-            }
-        }
+        let existing_config = Socks5Config::load_from_file(Some(id)).map_err(|err| {
+            log::error!(
+                "Unable to configure gateway: {err}. \n
+                Seems like the client was already initialized but it was not possible to read \
+                the existing configuration file. \n
+                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
+                removing the existing configuration and starting over."
+            );
+            BackendError::CouldNotLoadExistingGatewayConfiguration(err)
+        })?;
+        Ok(existing_config.get_base().get_gateway_endpoint().clone())
     }
 }

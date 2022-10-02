@@ -140,7 +140,7 @@ impl ReceivedProcessor {
         self.permit_changer = Some(permit_sender);
 
         tokio::spawn(async move {
-            while let Some(permit) = wait_for_permit(&mut permit_receiver, &*inner).await {
+            while let Some(permit) = wait_for_permit(&mut permit_receiver, &inner).await {
                 receive_or_release_permit(&mut permit_receiver, permit).await;
             }
 
@@ -169,11 +169,11 @@ impl ReceivedProcessor {
                 }
             }
 
-            // this lint really looks like a false positive because when lifetimes are elided,
-            // the compiler can't figure out appropriate lifetime bounds
-            #[allow(clippy::needless_lifetimes)]
-            async fn wait_for_permit<'a>(
-                permit_receiver: &mut mpsc::Receiver<LockPermit>,
+            // // this lint really looks like a false positive because when lifetimes are elided,
+            // // the compiler can't figure out appropriate lifetime bounds
+            // #[allow(clippy::needless_lifetimes)]
+            async fn wait_for_permit<'a: 'b, 'b>(
+                permit_receiver: &'b mut mpsc::Receiver<LockPermit>,
                 inner: &'a Mutex<ReceivedProcessorInner>,
             ) -> Option<MutexGuard<'a, ReceivedProcessorInner>> {
                 loop {

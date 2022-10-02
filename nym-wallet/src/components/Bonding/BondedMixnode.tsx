@@ -98,8 +98,8 @@ export const BondedMixnode = ({
     <NymCard
       borderless
       title={
-        <Stack gap={2}>
-          <Box display="flex" alignItems="center" gap={2}>
+        <Stack gap={3}>
+          <Box display="flex" alignItems="center" gap={3}>
             <Typography variant="h5" fontWeight={600}>
               Mix node
             </Typography>

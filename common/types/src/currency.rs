@@ -1,6 +1,5 @@
 use crate::error::TypesError;
-use config::defaults::all::Network;
-use config::defaults::{DenomDetails, DenomDetailsOwned};
+use config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
 use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
@@ -56,10 +55,16 @@ pub type Denom = String;
 pub struct RegisteredCoins(HashMap<Denom, CoinMetadata>);
 
 impl RegisteredCoins {
-    pub fn default_denoms(network: Network) -> Self {
+    pub fn default_denoms(network: &NymNetworkDetails) -> Self {
         let mut network_coins = HashMap::new();
-        network_coins.insert(network.mix_denom().base, network.mix_denom().into());
-        network_coins.insert(network.stake_denom().base, network.stake_denom().into());
+        network_coins.insert(
+            network.chain_details.mix_denom.base.clone(),
+            network.chain_details.mix_denom.clone().into(),
+        );
+        network_coins.insert(
+            network.chain_details.stake_denom.base.clone(),
+            network.chain_details.stake_denom.clone().into(),
+        );
         RegisteredCoins(network_coins)
     }
 
@@ -69,6 +74,50 @@ impl RegisteredCoins {
 
     pub fn remove(&mut self, denom: &Denom) -> Option<CoinMetadata> {
         self.0.remove(denom)
+    }
+
+    pub fn attempt_create_display_coin_from_base_dec_amount(
+        &self,
+        denom: &Denom,
+        base_amount: Decimal,
+    ) -> Result<DecCoin, TypesError> {
+        for registered_coin in self.0.values() {
+            if let Some(exponent) = registered_coin.get_exponent(denom) {
+                // if this fails it means we haven't registered our display denom which honestly should never be the case
+                // unless somebody is rocking their own custom network
+                let display_exponent = registered_coin
+                    .get_exponent(&registered_coin.display)
+                    .ok_or_else(|| TypesError::UnknownCoinDenom(denom.clone()))?;
+
+                return match exponent.cmp(&display_exponent) {
+                    Ordering::Greater => {
+                        // we need to scale up, unlikely to ever be needed but included for completion sake,
+                        // for example if we decided to created knym with exponent 9 and wanted to convert to nym with exponent 6
+                        Ok(DecCoin {
+                            denom: denom.into(),
+                            amount: try_scale_up_decimal(base_amount, exponent - display_exponent)?,
+                        })
+                    }
+                    // we're already in the display denom
+                    Ordering::Equal => Ok(DecCoin {
+                        denom: denom.into(),
+                        amount: base_amount,
+                    }),
+                    Ordering::Less => {
+                        // we need to scale down, the most common case, for example we're in base unym with exponent 0 and want to convert to nym with exponent 6
+                        Ok(DecCoin {
+                            denom: denom.into(),
+                            amount: try_scale_down_decimal(
+                                base_amount,
+                                display_exponent - exponent,
+                            )?,
+                        })
+                    }
+                };
+            }
+        }
+
+        Err(TypesError::UnknownCoinDenom(denom.clone()))
     }
 
     pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, TypesError> {
@@ -469,7 +518,7 @@ mod test {
 
     #[test]
     fn converting_to_display() {
-        let reg = RegisteredCoins::default_denoms(Network::MAINNET);
+        let reg = RegisteredCoins::default_denoms(&NymNetworkDetails::new_mainnet());
         let values = vec![
             (1u128, "0.000001"),
             (10u128, "0.00001"),
@@ -483,16 +532,29 @@ mod test {
         ];
 
         for (raw, expected) in values {
-            let coin = Coin::new(raw, Network::MAINNET.mix_denom().base);
+            let coin = Coin::new(
+                raw,
+                NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .base
+                    .clone(),
+            );
             let display = reg.attempt_convert_to_display_dec_coin(coin).unwrap();
-            assert_eq!(Network::MAINNET.mix_denom().display, display.denom);
+            assert_eq!(
+                NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .display,
+                display.denom
+            );
             assert_eq!(expected, display.amount.to_string());
         }
     }
 
     #[test]
     fn converting_to_base() {
-        let reg = RegisteredCoins::default_denoms(Network::MAINNET);
+        let reg = RegisteredCoins::default_denoms(&NymNetworkDetails::new_mainnet());
         let values = vec![
             (1u128, "0.000001"),
             (10u128, "0.00001"),
@@ -507,11 +569,21 @@ mod test {
 
         for (expected, raw_display) in values {
             let coin = DecCoin {
-                denom: Network::MAINNET.mix_denom().display,
+                denom: NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .display
+                    .clone(),
                 amount: raw_display.parse().unwrap(),
             };
             let base = reg.attempt_convert_to_base_coin(coin).unwrap();
-            assert_eq!(Network::MAINNET.mix_denom().base, base.denom);
+            assert_eq!(
+                NymNetworkDetails::new_mainnet()
+                    .chain_details
+                    .mix_denom
+                    .base,
+                base.denom
+            );
             assert_eq!(expected, base.amount);
         }
     }

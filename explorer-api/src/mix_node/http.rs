@@ -1,16 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use reqwest::Error as ReqwestError;
-use rocket::response::status::NotFound;
-use rocket::serde::json::Json;
-use rocket::{Route, State};
-use rocket_okapi::okapi::openapi3::OpenApi;
-use rocket_okapi::openapi_get_routes_spec;
-use rocket_okapi::settings::OpenApiSettings;
-
-use mixnet_contract_common::Delegation;
-
 use crate::mix_node::delegations::{
     get_single_mixnode_delegations, get_single_mixnode_delegations_summed,
 };
@@ -19,6 +9,14 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
+use mixnet_contract_common::{Delegation, NodeId};
+use reqwest::Error as ReqwestError;
+use rocket::response::status::NotFound;
+use rocket::serde::json::Json;
+use rocket::{Route, State};
+use rocket_okapi::okapi::openapi3::OpenApi;
+use rocket_okapi::openapi_get_routes_spec;
+use rocket_okapi::settings::OpenApiSettings;
 
 pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
@@ -29,163 +27,6 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
         get_stats,
         get_economic_dynamics_stats,
     ]
-}
-
-#[openapi(tag = "mix_nodes")]
-#[get("/<pubkey>")]
-pub(crate) async fn get_by_id(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
-    match state
-        .inner
-        .mixnodes
-        .get_detailed_mixnode_by_id(pubkey)
-        .await
-    {
-        Some(mixnode) => Ok(Json(mixnode)),
-        None => Err(NotFound("Mixnode not found".to_string())),
-    }
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/<pubkey>/delegations")]
-pub(crate) async fn get_delegations(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Json<Vec<Delegation>> {
-    Json(get_single_mixnode_delegations(&state.inner.validator_client, pubkey).await)
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/<pubkey>/delegations/summed")]
-pub(crate) async fn get_delegations_summed(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Json<Vec<SummedDelegations>> {
-    Json(get_single_mixnode_delegations_summed(&state.inner.validator_client, pubkey).await)
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/<pubkey>/description")]
-pub(crate) async fn get_description(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Option<Json<NodeDescription>> {
-    match state.inner.mixnode.clone().get_description(pubkey).await {
-        Some(cache_value) => {
-            trace!("Returning cached value for {}", pubkey);
-            Some(Json(cache_value))
-        }
-        None => {
-            trace!("No valid cache value for {}", pubkey);
-            match state.inner.get_mix_node(pubkey).await {
-                Some(bond) => {
-                    match get_mix_node_description(
-                        &bond.mix_node().host,
-                        bond.mix_node().http_api_port,
-                    )
-                    .await
-                    {
-                        Ok(response) => {
-                            // cache the response and return as the HTTP response
-                            state
-                                .inner
-                                .mixnode
-                                .set_description(pubkey, response.clone())
-                                .await;
-                            Some(Json(response))
-                        }
-                        Err(e) => {
-                            error!(
-                                "Unable to get description for {} on {}:{} -> {}",
-                                pubkey,
-                                bond.mix_node().host,
-                                bond.mix_node().http_api_port,
-                                e
-                            );
-                            Option::None
-                        }
-                    }
-                }
-                None => Option::None,
-            }
-        }
-    }
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/<pubkey>/stats")]
-pub(crate) async fn get_stats(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Option<Json<NodeStats>> {
-    match state.inner.mixnode.get_node_stats(pubkey).await {
-        Some(cache_value) => {
-            trace!("Returning cached value for {}", pubkey);
-            Some(Json(cache_value))
-        }
-        None => {
-            trace!("No valid cache value for {}", pubkey);
-            match state.inner.get_mix_node(pubkey).await {
-                Some(bond) => {
-                    match get_mix_node_stats(&bond.mix_node().host, bond.mix_node().http_api_port)
-                        .await
-                    {
-                        Ok(response) => {
-                            // cache the response and return as the HTTP response
-                            state
-                                .inner
-                                .mixnode
-                                .set_node_stats(pubkey, response.clone())
-                                .await;
-                            Some(Json(response))
-                        }
-                        Err(e) => {
-                            error!(
-                                "Unable to get description for {} on {}:{} -> {}",
-                                pubkey,
-                                bond.mix_node().host,
-                                bond.mix_node().http_api_port,
-                                e
-                            );
-                            Option::None
-                        }
-                    }
-                }
-                None => Option::None,
-            }
-        }
-    }
-}
-
-#[openapi(tag = "mix_node")]
-#[get("/<pubkey>/economic-dynamics-stats")]
-pub(crate) async fn get_economic_dynamics_stats(
-    pubkey: &str,
-    state: &State<ExplorerApiStateContext>,
-) -> Option<Json<EconomicDynamicsStats>> {
-    match state.inner.mixnode.get_econ_stats(pubkey).await {
-        Some(cache_value) => {
-            trace!("Returning cached value for {}", pubkey);
-            Some(Json(cache_value))
-        }
-        None => {
-            trace!("No valid cache value for {}", pubkey);
-
-            // get fresh value from the validator API
-            let econ_stats =
-                retrieve_mixnode_econ_stats(&state.inner.validator_client, pubkey).await?;
-
-            // update cache
-            state
-                .inner
-                .mixnode
-                .set_econ_stats(pubkey, econ_stats.clone())
-                .await;
-            Some(Json(econ_stats))
-        }
-    }
 }
 
 async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription, ReqwestError> {
@@ -200,4 +41,156 @@ async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestE
         .await?
         .json::<NodeStats>()
         .await
+}
+
+#[openapi(tag = "mix_nodes")]
+#[get("/<mix_id>")]
+pub(crate) async fn get_by_id(
+    mix_id: NodeId,
+    state: &State<ExplorerApiStateContext>,
+) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
+    match state.inner.mixnodes.get_detailed_mixnode(mix_id).await {
+        Some(mixnode) => Ok(Json(mixnode)),
+        None => Err(NotFound("Mixnode not found".to_string())),
+    }
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<mix_id>/delegations")]
+pub(crate) async fn get_delegations(
+    mix_id: NodeId,
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<Delegation>> {
+    Json(get_single_mixnode_delegations(&state.inner.validator_client, mix_id).await)
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<mix_id>/delegations/summed")]
+pub(crate) async fn get_delegations_summed(
+    mix_id: NodeId,
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<SummedDelegations>> {
+    Json(get_single_mixnode_delegations_summed(&state.inner.validator_client, mix_id).await)
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<mix_id>/description")]
+pub(crate) async fn get_description(
+    mix_id: NodeId,
+    state: &State<ExplorerApiStateContext>,
+) -> Option<Json<NodeDescription>> {
+    match state.inner.mixnode.clone().get_description(mix_id).await {
+        Some(cache_value) => {
+            trace!("Returning cached value for {}", mix_id);
+            Some(Json(cache_value))
+        }
+        None => {
+            trace!("No valid cache value for {}", mix_id);
+            match state.inner.get_mix_node(mix_id).await {
+                Some(bond) => {
+                    match get_mix_node_description(
+                        &bond.mix_node().host,
+                        bond.mix_node().http_api_port,
+                    )
+                    .await
+                    {
+                        Ok(response) => {
+                            // cache the response and return as the HTTP response
+                            state
+                                .inner
+                                .mixnode
+                                .set_description(mix_id, response.clone())
+                                .await;
+                            Some(Json(response))
+                        }
+                        Err(e) => {
+                            error!(
+                                "Unable to get description for {} on {}:{} -> {}",
+                                mix_id,
+                                bond.mix_node().host,
+                                bond.mix_node().http_api_port,
+                                e
+                            );
+                            Option::None
+                        }
+                    }
+                }
+                None => Option::None,
+            }
+        }
+    }
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<mix_id>/stats")]
+pub(crate) async fn get_stats(
+    mix_id: NodeId,
+    state: &State<ExplorerApiStateContext>,
+) -> Option<Json<NodeStats>> {
+    match state.inner.mixnode.get_node_stats(mix_id).await {
+        Some(cache_value) => {
+            trace!("Returning cached value for {}", mix_id);
+            Some(Json(cache_value))
+        }
+        None => {
+            trace!("No valid cache value for {}", mix_id);
+            match state.inner.get_mix_node(mix_id).await {
+                Some(bond) => {
+                    match get_mix_node_stats(&bond.mix_node().host, bond.mix_node().http_api_port)
+                        .await
+                    {
+                        Ok(response) => {
+                            // cache the response and return as the HTTP response
+                            state
+                                .inner
+                                .mixnode
+                                .set_node_stats(mix_id, response.clone())
+                                .await;
+                            Some(Json(response))
+                        }
+                        Err(e) => {
+                            error!(
+                                "Unable to get description for {} on {}:{} -> {}",
+                                mix_id,
+                                bond.mix_node().host,
+                                bond.mix_node().http_api_port,
+                                e
+                            );
+                            Option::None
+                        }
+                    }
+                }
+                None => Option::None,
+            }
+        }
+    }
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/<mix_id>/economic-dynamics-stats")]
+pub(crate) async fn get_economic_dynamics_stats(
+    mix_id: NodeId,
+    state: &State<ExplorerApiStateContext>,
+) -> Option<Json<EconomicDynamicsStats>> {
+    match state.inner.mixnode.get_econ_stats(mix_id).await {
+        Some(cache_value) => {
+            trace!("Returning cached value for {}", mix_id);
+            Some(Json(cache_value))
+        }
+        None => {
+            trace!("No valid cache value for {}", mix_id);
+
+            // get fresh value from the validator API
+            let econ_stats =
+                retrieve_mixnode_econ_stats(&state.inner.validator_client, mix_id).await?;
+
+            // update cache
+            state
+                .inner
+                .mixnode
+                .set_econ_stats(mix_id, econ_stats.clone())
+                .await;
+            Some(Json(econ_stats))
+        }
+    }
 }

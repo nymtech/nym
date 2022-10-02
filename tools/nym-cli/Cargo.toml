@@ -1,0 +1,24 @@
+[package]
+name = "nym-cli"
+version = "1.0.0"
+authors = ["Nym Technologies SA"]
+edition = "2021"
+
+[dependencies]
+base64 = "0.13.0"
+bs58 = "0.4"
+clap = { version = "3.2", features = ["derive"] }
+clap_complete = "3.2"
+clap_complete_fig = "3.2"
+dotenv = "0.15.0"
+log = "0.4"
+pretty_env_logger = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.11", features = [ "net", "rt-multi-thread", "macros", "signal"] }
+bip39 = "1.0.1"
+anyhow = "1"
+
+nym-cli-commands = { path = "../../common/commands" }
+validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
+network-defaults = { path = "../../common/network-defaults" }

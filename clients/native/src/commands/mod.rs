@@ -2,14 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, SocketType};
+use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-
-#[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
-    "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
+use completions::{fig_generate, ArgShell};
 
 pub(crate) mod init;
 pub(crate) mod run;
@@ -69,6 +64,12 @@ pub(crate) enum Commands {
     Run(run::Run),
     /// Try to upgrade the client
     Upgrade(upgrade::Upgrade),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -78,21 +79,19 @@ pub(crate) struct OverrideConfig {
     port: Option<u16>,
     fastmode: bool,
 
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    eth_private_key: Option<String>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    eth_endpoint: Option<String>,
 }
 
 pub(crate) async fn execute(args: &Cli) {
+    let bin_name = "nym-native-client";
+
     match &args.command {
         Commands::Init(m) => init::execute(m).await,
         Commands::Run(m) => run::execute(m).await,
         Commands::Upgrade(m) => upgrade::execute(m),
+        Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut Cli::into_app(), bin_name),
     }
 }
 
@@ -117,29 +116,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_port(port);
     }
 
-    #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-    {
-        config
-            .get_base_mut()
-            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT.to_string());
-        config
-            .get_base_mut()
-            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY.to_string());
-    }
-    #[cfg(any(feature = "eth", feature = "coconut"))]
+    #[cfg(feature = "coconut")]
     {
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)
-        }
-    }
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    {
-        if let Some(eth_endpoint) = args.eth_endpoint {
-            config.get_base_mut().with_eth_endpoint(eth_endpoint);
-        }
-        if let Some(eth_private_key) = args.eth_private_key {
-            config.get_base_mut().with_eth_private_key(eth_private_key);
         }
     }
 

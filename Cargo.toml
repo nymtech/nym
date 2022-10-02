@@ -27,6 +27,7 @@ members = [
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/coconut-interface",
+    "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/contracts-common",
@@ -39,6 +40,7 @@ members = [
     "common/crypto/dkg",
     "common/execute",
     "common/inclusion-probability",
+    "common/ledger",
     "common/mixnode-common",
     "common/network-defaults",
     "common/nonexhaustive-delayqueue",
@@ -61,6 +63,7 @@ members = [
     "common/topology",
     "common/types",
     "common/wasm-utils",
+    "common/completions",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",
@@ -69,6 +72,7 @@ members = [
     "service-providers/network-statistics",
     "validator-api",
     "validator-api/validator-api-requests",
+    "tools/nym-cli",
     "tools/ts-rs-cli"
 ]
 
@@ -83,4 +87,4 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "tokenomics-py", "clients/webassembly", "nym-wallet", "nym-connect"]
+exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect"]

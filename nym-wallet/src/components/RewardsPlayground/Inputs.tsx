@@ -2,18 +2,19 @@ import React from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Grid, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
+import { DefaultInputValues } from 'src/pages/bonding/node-settings/apy-playground';
 import { inputValidationSchema } from './inputsValidationSchema';
-import { useBondingContext } from 'src/context';
 
 export type InputFields = {
   label: string;
-  name: 'profitMargin' | 'uptime' | 'bond' | 'delegations' | 'operatorCost';
+  name: 'profitMargin' | 'uptime' | 'bond' | 'delegations' | 'operatorCost' | 'uptime';
   isPercentage?: boolean;
 }[];
 
-export type calculateArgs = {
+export type CalculateArgs = {
   bond: string;
   delegations: string;
+  uptime: string;
 };
 
 const inputFields: InputFields = [
@@ -24,11 +25,15 @@ const inputFields: InputFields = [
   { label: 'Uptime', name: 'uptime', isPercentage: true },
 ];
 
-export const Inputs = ({ onCalculate }: { onCalculate: (args: calculateArgs) => Promise<void> }) => {
-  const { bondedNode } = useBondingContext();
-
-  const handleCalculate = (args: calculateArgs) => {
-    onCalculate({ bond: args.bond, delegations: args.delegations });
+export const Inputs = ({
+  onCalculate,
+  defaultValues,
+}: {
+  onCalculate: (args: CalculateArgs) => Promise<void>;
+  defaultValues: DefaultInputValues | undefined;
+}) => {
+  const handleCalculate = async (args: CalculateArgs) => {
+    onCalculate({ bond: args.bond, delegations: args.delegations, uptime: args.uptime });
   };
 
   const {
@@ -37,19 +42,13 @@ export const Inputs = ({ onCalculate }: { onCalculate: (args: calculateArgs) => 
     formState: { errors },
   } = useForm({
     resolver: yupResolver(inputValidationSchema),
-    defaultValues: {
-      profitMargin: bondedNode?.profitMargin || '',
-      uptime: 100,
-      bond: bondedNode?.bond.amount || '',
-      delegations: '',
-      operatorCost: '',
-    },
+    defaultValues,
   });
 
   return (
     <Grid container spacing={3}>
       {inputFields.map((field) => (
-        <Grid item xs={12} lg={2}>
+        <Grid item xs={12} lg={2} key={field.name}>
           <TextField
             {...register(field.name)}
             fullWidth

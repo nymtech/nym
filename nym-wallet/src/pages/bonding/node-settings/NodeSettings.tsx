@@ -5,6 +5,7 @@ import { Box, Typography, Stack, IconButton, Divider } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
+import { TestNode } from 'src/pages/bonding/node-settings/test-my-node';
 import { Node as NodeIcon } from 'src/svg-icons/node';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { NymCard } from 'src/components';

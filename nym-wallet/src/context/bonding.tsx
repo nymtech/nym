@@ -157,11 +157,14 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     } = {
       status: 'not_found',
       stakeSaturation: '0',
+      uptime: 0,
     };
 
     try {
       const statusResponse = await getMixnodeStatus(mixId);
+      const uptime = await getMixnodeUptime(mixId);
       additionalDetails.status = statusResponse.status;
+      additionalDetails.uptime = uptime;
     } catch (e) {
       Console.log('getMixnodeStatus fails', e);
     }
@@ -279,6 +282,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             delegators: rewarding_details.unique_delegations,
             proxy: bond_information.proxy,
             operatorRewards,
+            uptime,
             status,
             stakeSaturation,
             operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),

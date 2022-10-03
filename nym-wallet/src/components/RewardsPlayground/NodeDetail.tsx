@@ -7,14 +7,14 @@ export const NodeDetails = ({
   saturation,
   selectionProbability,
 }: {
-  saturation: number;
+  saturation?: string;
   selectionProbability: SelectionChance;
 }) => (
   <Card variant="outlined" sx={{ p: 1 }}>
     <CardContent>
       <Stack direction="row" justifyContent="space-between">
         <Typography fontWeight="medium">Stake saturation</Typography>
-        <Typography>{saturation}%</Typography>
+        <Typography>{saturation || '- '}%</Typography>
       </Stack>
       <Divider sx={{ my: 1 }} />
       <Stack direction="row" justifyContent="space-between">

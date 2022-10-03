@@ -11,6 +11,7 @@ use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use validator_client::models::UptimeResponse;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
 
@@ -340,4 +341,19 @@ pub async fn get_mix_node_description(
         .await?
         .json()
         .await?)
+}
+
+#[tauri::command]
+pub async fn get_mixnode_uptime(
+    mix_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<u8, BackendError> {
+    log::info!(">>> Get mixnode uptime");
+
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let uptime = client.validator_api.get_mixnode_avg_uptime(mix_id).await?;
+
+    log::info!(">>> Uptime response: {}", uptime.avg_uptime);
+    Ok(uptime.avg_uptime)
 }

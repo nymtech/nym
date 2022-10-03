@@ -70,6 +70,23 @@ export const UniversalDataGrid: React.FC<DataGridProps> = ({ rows, columns, load
           width: '100%',
           border: 'none',
         }}
+        sx={{
+          '*::-webkit-scrollbar': {
+            width: 'auto',
+          },
+          '*::-webkit-scrollbar-track': {
+            background: 'rgba(198, 199, 204, 1)',
+            boxShadow: 'auto',
+            borderRadius: 'auto',
+          },
+          '*::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(99,99, 102, 1)',
+            borderRadius: '20px',
+            width: '.4em',
+            border: '3px solid rgba(198, 199, 204, 1)',
+            shadow: 'auto',
+          },
+        }}
       />
     );
   return null;
